@@ -27,11 +27,13 @@ export function Modal({ open, onClose, title, subtitle, footer, children, closeL
             <div
                 role="dialog"
                 aria-modal="true"
-                className={`w-full max-w-[440px] overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)] ${className}`}
+                // Capped to the viewport with only the body scrolling, so a long
+                // form keeps its header and footer actions in reach.
+                className={`flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)] ${className}`}
                 onClick={(e) => e.stopPropagation()}
                 {...props}
             >
-                <div className="flex items-center justify-between border-b border-om-line2 px-[18px] py-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-om-line2 px-[18px] py-4">
                     <div>
                         <div className="text-[15px] font-semibold text-om-ink">{title}</div>
                         {subtitle != null && <div className="mt-[3px] font-mono text-[9.5px] text-om-faint">{subtitle}</div>}
@@ -45,9 +47,9 @@ export function Modal({ open, onClose, title, subtitle, footer, children, closeL
                         ×
                     </button>
                 </div>
-                <div className="px-[18px] py-4">{children}</div>
+                <div className="flex-1 overflow-y-auto px-[18px] py-4">{children}</div>
                 {footer != null && (
-                    <div className="flex justify-end gap-[9px] border-t border-om-line2 bg-om-panel px-[18px] py-[14px]">{footer}</div>
+                    <div className="flex shrink-0 justify-end gap-[9px] border-t border-om-line2 bg-om-panel px-[18px] py-[14px]">{footer}</div>
                 )}
             </div>
         </div>,

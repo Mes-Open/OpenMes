@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button, IconButton, Dropdown, DatePicker, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import usePrompt from '../../../components/usePrompt';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
@@ -40,6 +41,7 @@ const ACTION_STATUS = {
 const ACTION_TYPE_LABELS = { corrective: 'Corrective', preventive: 'Preventive', containment: 'Containment' };
 
 export default function IssuesIndex() {
+    const { prompt, dialog: promptDialog } = usePrompt();
     const {
         issueTypeNames = {},
         lineNames = {},
@@ -60,18 +62,19 @@ export default function IssuesIndex() {
     const [dispositionFor, setDispositionFor] = useState(null); // issue row whose disposition modal is open
 
     const columns = [
-        { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink' },
-        { key: 'type', label: __('Type'), className: 'text-om-muted', render: (r) => issueTypeNames[r.issue_type_id] ?? '—' },
-        { key: 'wo', label: __('Work Order'), className: 'text-om-muted', render: (r) => workOrderNos[r.work_order_id] ?? '—' },
-        { key: 'reporter', label: __('Reported by'), className: 'text-om-muted', render: (r) => reporterNames[r.reported_by_id] ?? '—' },
-        { key: 'reported_at', label: __('Reported'), className: 'text-om-muted', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
+        { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => issueTypeNames[r.issue_type_id] ?? '—', render: (r) => issueTypeNames[r.issue_type_id] ?? '—' },
+        { key: 'wo', label: __('Work Order'), className: 'text-om-muted', value: (r) => workOrderNos[r.work_order_id] ?? '—', render: (r) => workOrderNos[r.work_order_id] ?? '—' },
+        { key: 'reporter', label: __('Reported by'), className: 'text-om-muted', value: (r) => reporterNames[r.reported_by_id] ?? '—', render: (r) => reporterNames[r.reported_by_id] ?? '—' },
+        { key: 'reported_at', filter: 'date', label: __('Reported'), className: 'text-om-muted', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
         {
             key: 'status', label: __('Status'),
+           
             render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{__(r.status)}</span>,
         },
         {
             key: 'disposition', label: __('Disposition'),
-            filter: true,
+           
             allLabel: __('All dispositions'),
             options: Object.keys(DISPOSITION_LABELS).map((value) => ({ value, label: __(DISPOSITION_LABELS[value]) })),
             render: (r) => (
@@ -84,10 +87,10 @@ export default function IssuesIndex() {
 
     const resolveAction = (r) => ({
         label: __('Resolve'),
-        onClick: () => {
-            const notes = prompt(__('Resolution notes:'));
-            if (notes !== null) post(r.id, 'resolve', { resolution_notes: notes });
-        },
+        onClick: () => prompt(
+            { title: __('Resolution notes:'), label: __('Notes'), required: false, confirmLabel: __('Resolve'), multiline: true },
+            (notes) => post(r.id, 'resolve', { resolution_notes: notes }),
+        ),
     });
 
     const actions = (r) => {
@@ -134,6 +137,7 @@ export default function IssuesIndex() {
                     onClose={() => setActionsFor(null)}
                 />
             )}
+            {promptDialog}
         </>
     );
 }
@@ -242,6 +246,7 @@ function DispositionModal({ issue, base, onClose }) {
 // ── Corrective / preventive actions modal ───────────────────────────────────
 
 function ActionsModal({ issue, base, csrf, users, onClose }) {
+    const { prompt, dialog: promptDialog } = usePrompt();
     const [actions, setActions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -289,10 +294,10 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
     };
 
     const start = (a) => run(() => api(`${base}/issues/actions/${a.id}/start`, 'POST'));
-    const complete = (a) => {
-        const notes = prompt(__('Completion notes (optional):')) ?? undefined;
-        run(() => api(`${base}/issues/actions/${a.id}/complete`, 'POST', { notes }));
-    };
+    const complete = (a) => prompt(
+        { title: __('Completion notes (optional):'), label: __('Notes'), required: false, confirmLabel: __('Complete'), multiline: true },
+        (notes) => run(() => api(`${base}/issues/actions/${a.id}/complete`, 'POST', { notes: notes || undefined })),
+    );
     const verify = (a) => run(() => api(`${base}/issues/actions/${a.id}/verify`, 'POST'));
     const remove = (a) => run(() => api(`${base}/issues/actions/${a.id}`, 'DELETE'));
 
@@ -421,6 +426,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
             >
                 {confirmDelete?.title}
             </ConfirmDialog>
+            {promptDialog}
         </>
     );
 }

@@ -7,12 +7,12 @@ export default function ProcessSegmentsIndex() {
     const { workstationTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
         { key: 'segment_type', label: __('Type'), className: 'text-om-muted', render: (r) => r.segment_type },
-        { key: 'wstype', label: __('Workstation Type'), className: 'text-om-muted', render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—' },
+        { key: 'wstype', label: __('Workstation Type'), className: 'text-om-muted', value: (r) => workstationTypeNames[r.workstation_type_id] ?? '—', render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—' },
         { key: 'required_operators', label: __('Operators'), className: 'text-om-muted' },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -21,11 +21,11 @@ export default function ProcessSegmentsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete process segment ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/process-segments/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete process segment ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/process-segments/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -34,6 +34,7 @@ export default function ProcessSegmentsIndex() {
             <Head title={__('Process Segments')} />
             <ResourceTable
                 shape="process_segments"
+                detailHref={(r) => `/admin/process-segments/${r.id}`}
                 title={__('Process Segments')}
                 createHref="/admin/process-segments/create"
                 createLabel={__('+ New Segment')}

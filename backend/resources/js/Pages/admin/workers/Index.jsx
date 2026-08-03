@@ -8,11 +8,11 @@ export default function WorkersIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'email', label: __('Email'), className: 'text-om-muted' },
-        { key: 'crew', label: __('Crew'), className: 'text-om-muted', render: (r) => crewNames[r.crew_id] ?? '—' },
-        { key: 'class', label: __('Class'), className: 'text-om-muted', render: (r) => personnelClassNames[r.personnel_class_id] ?? '—' },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'crew', label: __('Crew'), className: 'text-om-muted', value: (r) => crewNames[r.crew_id] ?? '—', render: (r) => crewNames[r.crew_id] ?? '—' },
+        { key: 'class', label: __('Class'), className: 'text-om-muted', value: (r) => personnelClassNames[r.personnel_class_id] ?? '—', render: (r) => personnelClassNames[r.personnel_class_id] ?? '—' },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -26,11 +26,11 @@ export default function WorkersIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete worker ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/workers/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete worker ":name"?', { name: r.name }),
+                confirmLabel: __('Delete worker'),
             },
+            onClick: () => router.delete(`/admin/workers/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -39,6 +39,7 @@ export default function WorkersIndex() {
             <Head title={__('Workers')} />
             <ResourceTable
                 shape="workers"
+                detailHref={(r) => `/admin/workers/${r.id}`}
                 title={__('Workers')}
                 createHref="/admin/workers/create"
                 createLabel={__('+ New Worker')}

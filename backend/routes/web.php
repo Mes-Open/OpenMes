@@ -414,6 +414,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'destroy'])->name('shifts.destroy');
 
         // Work Orders
+        // Declared before the resource so /work-orders/bulk isn't swallowed by
+        // the {work_order} wildcard.
+        Route::post('/work-orders/bulk', [AdminWorkOrderController::class, 'bulk'])->name('work-orders.bulk');
         Route::resource('work-orders', AdminWorkOrderController::class);
         Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
         Route::post('/work-orders/{workOrder}/accept', [AdminWorkOrderController::class, 'accept'])->name('work-orders.accept');

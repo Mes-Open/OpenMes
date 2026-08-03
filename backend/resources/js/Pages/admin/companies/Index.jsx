@@ -6,10 +6,10 @@ import { __ } from '../../../lib/i18n';
 export default function CompaniesIndex() {
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'type', label: __('Type'), className: 'text-om-muted' },
         { key: 'email', label: __('Email'), className: 'text-om-muted' },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -23,11 +23,11 @@ export default function CompaniesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete company ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/companies/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete company ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/companies/${r.id}`, { preserveScroll: true }),
         },
     ];
 

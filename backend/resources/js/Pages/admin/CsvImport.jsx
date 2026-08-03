@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import useConfirm from '../../components/useConfirm';
 import { __ } from '../../lib/i18n';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -29,6 +30,7 @@ export default function CsvImport() {
     const [importStrategy, setImportStrategy] = useState('update_or_create');
     const [mappingId, setMappingId] = useState('');
     const [targetLineId, setTargetLineId] = useState('');
+    const { confirm, dialog } = useConfirm();
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -321,11 +323,17 @@ export default function CsvImport() {
                                             <form
                                                 method="POST"
                                                 action={`/admin/csv-import/mappings/${m.id}`}
-                                                onSubmit={(e) => !window.confirm(__('Delete mapping profile?')) && e.preventDefault()}
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />
-                                                <button type="submit" className="text-red-400 hover:text-om-blocked p-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        const el = e.currentTarget.closest('form');
+                                                        confirm({ title: __('Delete mapping profile?') }, () => el.submit());
+                                                    }}
+                                                    className="text-red-400 hover:text-om-blocked p-1"
+                                                >
                                                     <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" className="w-4 h-4" />
                                                 </button>
                                             </form>
@@ -379,6 +387,7 @@ export default function CsvImport() {
                 </div>
 
             </div>
+            {dialog}
         </div>
     );
 }

@@ -8,10 +8,10 @@ export default function WageGroupsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'rate', label: __('Base Rate'), render: (r) => `${r.base_hourly_rate ?? '—'} ${r.currency ?? ''}`.trim() },
-        { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'rate', label: __('Base Rate'), value: (r) => Number(r.base_hourly_rate ?? 0), render: (r) => `${r.base_hourly_rate ?? '—'} ${r.currency ?? ''}`.trim() },
+        { key: 'workers', label: __('Workers'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -25,11 +25,11 @@ export default function WageGroupsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete wage group ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/wage-groups/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete wage group ":name"?', { name: r.name }),
+                confirmLabel: __('Delete wage group'),
             },
+            onClick: () => router.delete(`/admin/wage-groups/${r.id}`, { preserveScroll: true }),
         },
     ];
 

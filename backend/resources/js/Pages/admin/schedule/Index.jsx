@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import Tooltip from '../../../components/Tooltip';
 import { formatDate, formatNumber } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
@@ -89,13 +90,15 @@ export default function ScheduleIndex() {
 
                     {/* Filters */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                            onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                            title="Previous week"
-                        >
-                            &larr;
-                        </button>
+                        <Tooltip label="Previous week">
+                            <button
+                                onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
+                                className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
+                                aria-label="Previous week"
+                            >
+                                &larr;
+                            </button>
+                        </Tooltip>
 
                         <input
                             type="week"
@@ -114,13 +117,15 @@ export default function ScheduleIndex() {
                             className="w-full"
                         />
 
-                        <button
-                            onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                            title="Next week"
-                        >
-                            &rarr;
-                        </button>
+                        <Tooltip label="Next week">
+                            <button
+                                onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
+                                className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
+                                aria-label="Next week"
+                            >
+                                &rarr;
+                            </button>
+                        </Tooltip>
 
                         {!isCurrentWeek && (
                             <button

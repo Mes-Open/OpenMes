@@ -6,6 +6,7 @@ import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
+import Tooltip from '../../components/Tooltip';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -254,19 +255,21 @@ function ProcessPhotosSection({ photos = [] }) {
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {photos.map((photo) => (
                         <figure key={photo.id} className="m-0">
-                            <button
-                                type="button"
-                                onClick={() => setLightbox(photo)}
-                                className="block w-full cursor-pointer"
-                                title={photo.caption || ''}
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.caption || 'Work instruction'}
-                                    loading="lazy"
-                                    className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
-                                />
-                            </button>
+                            <Tooltip label={photo.caption || ''}>
+                                <button
+                                    type="button"
+                                    onClick={() => setLightbox(photo)}
+                                    className="block w-full cursor-pointer"
+                                    aria-label={photo.caption || 'Work instruction'}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || 'Work instruction'}
+                                        loading="lazy"
+                                        className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
+                                    />
+                                </button>
+                            </Tooltip>
                             {photo.caption && (
                                 <figcaption className="mt-1 text-xs text-om-muted truncate">
                                     {photo.caption}
@@ -292,14 +295,16 @@ function ProcessPhotosSection({ photos = [] }) {
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
                         )}
                     </figure>
-                    <button
-                        type="button"
-                        onClick={() => setLightbox(null)}
-                        className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
-                        title="Close"
-                    >
-                        ×
-                    </button>
+                    <Tooltip label="Close">
+                        <button
+                            type="button"
+                            onClick={() => setLightbox(null)}
+                            className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
+                            aria-label="Close"
+                        >
+                            ×
+                        </button>
+                    </Tooltip>
                 </div>
             )}
         </div>
@@ -836,19 +841,21 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 {step.step_number}
                             </span>
                             {photo && (
-                                <button
-                                    type="button"
-                                    onClick={() => setPhotoZoom(photo)}
-                                    className="flex-shrink-0 cursor-pointer"
-                                    title={photo.caption || 'Step photo'}
-                                >
-                                    <img
-                                        src={photo.url}
-                                        alt={photo.caption || 'Step photo'}
-                                        loading="lazy"
-                                        className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
-                                    />
-                                </button>
+                                <Tooltip label={photo.caption || 'Step photo'}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPhotoZoom(photo)}
+                                        className="flex-shrink-0 cursor-pointer"
+                                        aria-label={photo.caption || 'Step photo'}
+                                    >
+                                        <img
+                                            src={photo.url}
+                                            alt={photo.caption || 'Step photo'}
+                                            loading="lazy"
+                                            className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
+                                        />
+                                    </button>
+                                </Tooltip>
                             )}
                             <span className="flex-1 text-sm font-medium text-om-ink">
                                 {step.name}
@@ -1283,14 +1290,16 @@ function LotPickModal({ step, materials, onClose }) {
                                                         onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeLine(m.material_id, idx)}
-                                                        className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                        title="Remove lot"
-                                                    >
-                                                        ×
-                                                    </button>
+                                                    <Tooltip label="Remove lot">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeLine(m.material_id, idx)}
+                                                            className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
+                                                            aria-label="Remove lot"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </Tooltip>
                                                 </div>
                                             </div>
                                         );

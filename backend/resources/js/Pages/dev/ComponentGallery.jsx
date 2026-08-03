@@ -284,7 +284,7 @@ function GalleryBody() {
                                 <button type="button" className="cursor-pointer text-[12.5px] text-om-muted" onClick={clear}>Clear</button>
                             </>
                         )}
-                        columnsLabel="Columns ▾"
+                        columnsLabel="Columns"
                         columnsMenuLabel="Toggle columns"
                         emptyLabel="No rows match the filters."
                         rangeLabel={(start, end, total) => (total === 0 ? '0 results' : `${start}–${end} of ${total}`)}

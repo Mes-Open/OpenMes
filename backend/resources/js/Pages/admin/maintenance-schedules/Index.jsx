@@ -7,22 +7,24 @@ export default function MaintenanceSchedulesIndex() {
     const { toolNames = {}, lineNames = {}, workstationNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         {
             key: 'target',
             label: __('Target'),
             className: 'text-om-muted',
+           
+            value: (r) => toolNames[r.tool_id] ?? lineNames[r.line_id] ?? workstationNames[r.workstation_id] ?? '—',
             render: (r) => toolNames[r.tool_id] ?? lineNames[r.line_id] ?? workstationNames[r.workstation_id] ?? '—',
         },
         { key: 'frequency', label: __('Frequency'), className: 'text-om-muted' },
         { key: 'interval_value', label: __('Every'), className: 'text-om-muted' },
         {
-            key: 'next_due_at',
+            key: 'next_due_at', filter: 'date',
             label: __('Next Due'),
             className: 'text-om-muted',
             render: (r) => (r.next_due_at ? r.next_due_at.slice(0, 16).replace('T', ' ') : '—'),
         },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -31,11 +33,11 @@ export default function MaintenanceSchedulesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete maintenance schedule ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/maintenance-schedules/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete maintenance schedule ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/maintenance-schedules/${r.id}`, { preserveScroll: true }),
         },
     ];
 

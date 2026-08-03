@@ -8,10 +8,10 @@ export default function AreasIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'site', label: __('Site'), className: 'text-om-muted', render: (r) => siteNames[r.site_id] ?? '—' },
-        { key: 'lines', label: __('Lines'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'site', label: __('Site'), className: 'text-om-muted', value: (r) => siteNames[r.site_id] ?? '—', render: (r) => siteNames[r.site_id] ?? '—' },
+        { key: 'lines', label: __('Lines'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -25,11 +25,11 @@ export default function AreasIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete area ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/areas/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete area ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/areas/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -38,6 +38,7 @@ export default function AreasIndex() {
             <Head title={__('Areas')} />
             <ResourceTable
                 shape="areas"
+                detailHref={(r) => `/admin/areas/${r.id}`}
                 title={__('Areas')}
                 createHref="/admin/areas/create"
                 createLabel={__('+ New Area')}

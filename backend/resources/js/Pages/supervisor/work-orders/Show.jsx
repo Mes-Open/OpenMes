@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 import { __, formatDate, formatNumber } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
@@ -236,6 +237,7 @@ function OrderMachinesPanel({ machines }) {
 export default function SupervisorWorkOrderShow() {
     const { workOrder } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const post = (verb) => router.post(`/supervisor/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
 
@@ -282,7 +284,7 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                                 <Button
                                     variant="danger"
-                                    onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                    onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
                                 >
                                     Reject
                                 </Button>
@@ -291,7 +293,7 @@ export default function SupervisorWorkOrderShow() {
                         {status === 'ACCEPTED' && (
                             <Button
                                 variant="danger"
-                                onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
                             >
                                 Reject
                             </Button>
@@ -315,7 +317,7 @@ export default function SupervisorWorkOrderShow() {
                         {isTerminal ? (
                             <Button
                                 variant="primary"
-                                onClick={() => { if (confirm('Reopen this work order?')) post('reopen'); }}
+                                onClick={() => confirm({ title: 'Reopen this work order?' }, () => post('reopen'))}
                             >
                                 Reopen
                             </Button>
@@ -328,7 +330,7 @@ export default function SupervisorWorkOrderShow() {
                                     Edit
                                 </Link>
                                 <button
-                                    onClick={() => { if (confirm('Cancel this work order?')) post('cancel'); }}
+                                    onClick={() => confirm({ title: 'Cancel this work order?' }, () => post('cancel'))}
                                     className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"
                                 >
                                     Cancel
@@ -495,6 +497,7 @@ export default function SupervisorWorkOrderShow() {
             {showDoneModal && (
                 <DoneModal workOrder={workOrder} onClose={() => setShowDoneModal(false)} />
             )}
+            {dialog}
         </>
     );
 }

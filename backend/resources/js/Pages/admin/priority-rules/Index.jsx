@@ -60,11 +60,11 @@ export default function PriorityRulesIndex() {
     const { bands = [20, 40, 60, 80] } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'field_source', label: __('Source'), className: 'text-om-muted', render: (r) => sourceLabel(r.field_source) },
-        { key: 'condition', label: __('Condition'), className: 'text-om-muted', render: (r) => conditionSummary(r) },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'field_source', label: __('Source'), className: 'text-om-muted', value: (r) => sourceLabel(r.field_source), render: (r) => sourceLabel(r.field_source) },
+        { key: 'condition', label: __('Condition'), className: 'text-om-muted', value: (r) => conditionSummary(r), render: (r) => conditionSummary(r) },
         { key: 'points', label: __('Points'), align: 'right', className: 'font-mono', render: (r) => (Number(r.points) > 0 ? `+${r.points}` : r.points) },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -76,11 +76,11 @@ export default function PriorityRulesIndex() {
         {
             label: __('Delete'),
             className: 'text-om-blocked hover:underline',
-            onClick: () => {
-                if (confirm(__('Delete priority rule ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/priority-rules/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete priority rule ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/priority-rules/${r.id}`, { preserveScroll: true }),
         },
     ];
 

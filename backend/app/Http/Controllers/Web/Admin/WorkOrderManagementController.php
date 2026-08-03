@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Models\Customer;
@@ -24,7 +25,7 @@ class WorkOrderManagementController extends Controller
      * Work order list. Rows live-sync via the `work_orders_all` shape; line and
      * product-type name maps + batch counts come as props.
      */
-    public function index()
+    public function index(CustomFieldService $customFields)
     {
         $counts = WorkOrder::withCount('batches')
             ->get(['id'])
@@ -32,22 +33,40 @@ class WorkOrderManagementController extends Controller
 
         return Inertia::render('admin/work-orders/Index', [
             'counts' => $counts,
+            // Name maps cover every line/product/customer an existing row might
+            // reference, including deactivated ones — unlike the create-form
+            // options below, which only offer what is still selectable.
             'lineNames' => Line::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
             'customerNames' => Customer::pluck('name', 'id'),
+            // Feeds the list's "New work order" modal, which renders the same form
+            // as the create page.
+            ...$this->createFormOptions($customFields),
         ]);
     }
 
     public function create(CustomFieldService $customFields)
     {
-        return Inertia::render('admin/work-orders/Create', [
+        return Inertia::render('admin/work-orders/Create', $this->createFormOptions($customFields));
+    }
+
+    /**
+     * Everything the work-order create form needs to render its pickers. Shared
+     * by the standalone create page and the list's create modal so the two can't
+     * drift into offering different options.
+     *
+     * @return array<string, mixed>
+     */
+    protected function createFormOptions(CustomFieldService $customFields): array
+    {
+        return [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'bomTemplates' => $this->bomTemplateOptions(),
             'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
-        ]);
+        ];
     }
 
     /**
@@ -294,67 +313,141 @@ class WorkOrderManagementController extends Controller
             ->with('success', "Work order {$no} deleted.");
     }
 
-    public function cancel(WorkOrder $workOrder)
+    /**
+     * The status transitions a user can drive from the list/detail screens.
+     *
+     * `from` is the set of statuses the transition is legal in; anything else is
+     * refused. Bulk and single-order actions both read this table, so the two can
+     * never disagree about what is allowed.
+     *
+     * @return array<string, array{from: list<string>, to: string, verb: string, error: string}>
+     */
+    private static function transitions(): array
     {
-        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()
-                ->with('error', 'Cannot cancel a work order that is already in a terminal state.');
+        $nonTerminal = array_values(array_diff([
+            WorkOrder::STATUS_PENDING,
+            WorkOrder::STATUS_ACCEPTED,
+            WorkOrder::STATUS_IN_PROGRESS,
+            WorkOrder::STATUS_BLOCKED,
+            WorkOrder::STATUS_PAUSED,
+        ], WorkOrder::TERMINAL_STATUSES));
+
+        return [
+            'cancel' => [
+                'from' => $nonTerminal,
+                'to' => WorkOrder::STATUS_CANCELLED,
+                'verb' => 'cancelled',
+                'error' => 'Cannot cancel a work order that is already in a terminal state.',
+            ],
+            'accept' => [
+                'from' => [WorkOrder::STATUS_PENDING],
+                'to' => WorkOrder::STATUS_ACCEPTED,
+                'verb' => 'accepted',
+                'error' => 'Only PENDING work orders can be accepted.',
+            ],
+            'reject' => [
+                'from' => [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED],
+                'to' => WorkOrder::STATUS_REJECTED,
+                'verb' => 'rejected',
+                'error' => 'Only PENDING or ACCEPTED work orders can be rejected.',
+            ],
+            'pause' => [
+                'from' => [WorkOrder::STATUS_IN_PROGRESS],
+                'to' => WorkOrder::STATUS_PAUSED,
+                'verb' => 'paused',
+                'error' => 'Only IN_PROGRESS work orders can be paused.',
+            ],
+            'resume' => [
+                'from' => [WorkOrder::STATUS_PAUSED],
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'resumed',
+                'error' => 'Only PAUSED work orders can be resumed.',
+            ],
+            'reopen' => [
+                'from' => WorkOrder::TERMINAL_STATUSES,
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'reopened',
+                'error' => 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.',
+            ],
+        ];
+    }
+
+    /** Apply one transition to one order, or bounce back with its refusal message. */
+    private function transition(WorkOrder $workOrder, string $action)
+    {
+        $rule = self::transitions()[$action];
+
+        if (! in_array($workOrder->status, $rule['from'], true)) {
+            return redirect()->back()->with('error', $rule['error']);
         }
 
-        $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
+        $workOrder->update(['status' => $rule['to']]);
 
         return redirect()->back()
-            ->with('success', "Work order {$workOrder->order_no} cancelled.");
+            ->with('success', "Work order {$workOrder->order_no} {$rule['verb']}.");
+    }
+
+    /**
+     * Apply one transition to many selected orders (the list's bulk-action bar).
+     *
+     * Orders the transition is illegal for are skipped rather than failing the
+     * whole request — a selection spanning mixed statuses is the normal case, and
+     * the caller is told how many were skipped. The whole batch is one
+     * transaction, so a mid-way failure leaves nothing half-applied.
+     */
+    public function bulk(BulkWorkOrderActionRequest $request)
+    {
+        $action = $request->validated('action');
+        $rule = self::transitions()[$action];
+
+        $orders = WorkOrder::whereIn('id', $request->validated('ids'))->get();
+
+        $eligible = $orders->filter(fn (WorkOrder $w) => in_array($w->status, $rule['from'], true));
+
+        DB::transaction(function () use ($eligible, $rule) {
+            // Updated one by one (not a mass `whereIn(...)->update()`) so model
+            // events still fire — priority re-scoring and the sync broadcast that
+            // pushes each row to the browser both hang off them.
+            $eligible->each(fn (WorkOrder $w) => $w->update(['status' => $rule['to']]));
+        });
+
+        $skipped = $orders->count() - $eligible->count();
+        $message = "{$eligible->count()} work order(s) {$rule['verb']}.";
+
+        return redirect()->back()->with(
+            'success',
+            $skipped > 0 ? "{$message} {$skipped} skipped (not applicable in their current status)." : $message,
+        );
+    }
+
+    public function cancel(WorkOrder $workOrder)
+    {
+        return $this->transition($workOrder, 'cancel');
     }
 
     public function accept(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
+        return $this->transition($workOrder, 'accept');
     }
 
     public function reject(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
-            return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
+        return $this->transition($workOrder, 'reject');
     }
 
     public function pause(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
+        return $this->transition($workOrder, 'pause');
     }
 
     public function resume(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
-            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
+        return $this->transition($workOrder, 'resume');
     }
 
     public function reopen(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
+        return $this->transition($workOrder, 'reopen');
     }
 
     public function complete(Request $request, WorkOrder $workOrder)

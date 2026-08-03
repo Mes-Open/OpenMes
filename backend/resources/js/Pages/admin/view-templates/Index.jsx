@@ -7,9 +7,9 @@ export default function ViewTemplatesIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'description', label: __('Description'), className: 'text-om-muted' },
-        { key: 'lines', label: __('Lines using'), render: (r) => counts[r.id] ?? 0 },
+        { key: 'lines', label: __('Lines using'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
     ];
 
     const actions = (r) => [
@@ -18,7 +18,11 @@ export default function ViewTemplatesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(__('Delete view template ":name"?', { name: r.name }))) router.delete(`/admin/view-templates/${r.id}`, { preserveScroll: true }); },
+            confirm: {
+                title: __('Delete view template ":name"?', { name: r.name }),
+                confirmLabel: __('Delete template'),
+            },
+            onClick: () => router.delete(`/admin/view-templates/${r.id}`, { preserveScroll: true }),
         },
     ];
 

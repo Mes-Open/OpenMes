@@ -13,12 +13,18 @@ export default function MaintenanceEventsIndex() {
     } = usePage().props;
 
     const columns = [
-        { key: 'title', label: __('Title'), className: 'font-medium text-om-ink' },
+        { key: 'title', label: __('Title'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'event_type', label: __('Type'), className: 'text-om-muted' },
         {
             key: 'target',
             label: __('Target'),
             className: 'text-om-muted',
+           
+            value: (r) =>
+                toolNames[r.tool_id] ??
+                lineNames[r.line_id] ??
+                workstationNames[r.workstation_id] ??
+                '—',
             render: (r) =>
                 toolNames[r.tool_id] ??
                 lineNames[r.line_id] ??
@@ -29,10 +35,11 @@ export default function MaintenanceEventsIndex() {
             key: 'assigned',
             label: __('Assigned'),
             className: 'text-om-muted',
+            value: (r) => userNames[r.assigned_to_id] ?? '—',
             render: (r) => userNames[r.assigned_to_id] ?? '—',
         },
         {
-            key: 'scheduled_at',
+            key: 'scheduled_at', filter: 'date',
             label: __('Scheduled'),
             className: 'text-om-muted',
             render: (r) => (r.scheduled_at ? r.scheduled_at.slice(0, 16).replace('T', ' ') : '—'),
@@ -40,6 +47,8 @@ export default function MaintenanceEventsIndex() {
         {
             key: 'status',
             label: __('Status'),
+           
+            value: (r) => r.status,
             render: (r) => (
                 <span
                     className={`text-xs px-2 py-0.5 rounded font-medium ${
@@ -65,11 +74,11 @@ export default function MaintenanceEventsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete maintenance event ":name"?', { name: r.title }))) {
-                    router.delete(`/admin/maintenance-events/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete maintenance event ":name"?', { name: r.title }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/maintenance-events/${r.id}`, { preserveScroll: true }),
         },
     ];
 

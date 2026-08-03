@@ -7,12 +7,13 @@ export default function LotSequencesIndex() {
     const { productTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', value: (r) => productTypeNames[r.product_type_id] ?? __('Global'), render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
         {
             key: 'format',
             label: __('Format'),
             className: 'font-mono text-om-muted',
+            value: (r) => r.pattern || r.prefix,
             render: (r) => r.pattern || r.prefix,
         },
         { key: 'next_number', label: __('Next #'), className: 'text-om-muted' },
@@ -21,6 +22,7 @@ export default function LotSequencesIndex() {
             key: 'reset_period',
             label: __('Reset'),
             className: 'text-om-muted',
+           
             render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
         },
     ];
@@ -31,11 +33,11 @@ export default function LotSequencesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete LOT sequence ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/lot-sequences/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete LOT sequence ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/lot-sequences/${r.id}`, { preserveScroll: true }),
         },
     ];
 

@@ -8,11 +8,11 @@ export default function CrewsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'division', label: __('Division'), className: 'text-om-muted', render: (r) => divisionNames[r.division_id] ?? '—' },
-        { key: 'leader', label: __('Leader'), className: 'text-om-muted', render: (r) => leaderNames[r.leader_id] ?? '—' },
-        { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'division', label: __('Division'), className: 'text-om-muted', value: (r) => divisionNames[r.division_id] ?? '—', render: (r) => divisionNames[r.division_id] ?? '—' },
+        { key: 'leader', label: __('Leader'), className: 'text-om-muted', value: (r) => leaderNames[r.leader_id] ?? '—', render: (r) => leaderNames[r.leader_id] ?? '—' },
+        { key: 'workers', label: __('Workers'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -26,11 +26,11 @@ export default function CrewsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete crew ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/crews/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete crew ":name"?', { name: r.name }),
+                confirmLabel: __('Delete crew'),
             },
+            onClick: () => router.delete(`/admin/crews/${r.id}`, { preserveScroll: true }),
         },
     ];
 

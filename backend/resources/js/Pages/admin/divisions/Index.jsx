@@ -8,10 +8,10 @@ export default function DivisionsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'factory', label: __('Factory'), className: 'text-om-muted', render: (r) => factoryNames[r.factory_id] ?? '—' },
-        { key: 'crews', label: __('Crews'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'factory', label: __('Factory'), className: 'text-om-muted', value: (r) => factoryNames[r.factory_id] ?? '—', render: (r) => factoryNames[r.factory_id] ?? '—' },
+        { key: 'crews', label: __('Crews'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -25,11 +25,11 @@ export default function DivisionsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete division ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/divisions/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete division ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/divisions/${r.id}`, { preserveScroll: true }),
         },
     ];
 

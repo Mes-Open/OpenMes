@@ -1,9 +1,16 @@
 /**
- * Calendar + DatePicker — Geist White system (design ref: OpenMES Components.dc.html §14).
+ * Calendar + DatePicker — Geist White system (design ref: OpenMES Components.dc.html §13).
  * Native twin of index.web.jsx — identical props API. `Calendar` is the inline
  * month grid (Monday-first, leading blanks, weekends faint, today = chip + accent
  * dot, selected = accent fill); `DatePicker` opens it in an RN Modal over the
  * scrim. Values are ISO `YYYY-MM-DD` strings.
+ *
+ * The header's month and year are tappable chips that swap the body for a
+ * 3-column month or year grid, same as the web twin.
+ *
+ * Not ported from web: the `range` (from→to) mode. It exists to drive the
+ * column-filter row of `DataTable`, which is web-only by design — there is no
+ * native data table to filter. Add it here if a mobile screen ever needs one.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -77,6 +84,8 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
     const selected = value || null;
     const initial = parseISO(selected) ?? parseISO(todayISO())!;
     const [view, setView] = useState({ y: initial.y, m: initial.m });
+    /** Which body the header chips have swapped in. */
+    const [mode, setMode] = useState<'days' | 'months' | 'years'>('days');
 
     useEffect(() => {
         const p = parseISO(selected);
@@ -97,17 +106,62 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
             return { y: dt.getFullYear(), m: dt.getMonth() };
         });
 
+    /** Tapping the chip of the view you are in returns to the days grid. */
+    const swap = (next: 'months' | 'years') => setMode((m) => (m === next ? 'days' : next));
+
+    const years = useMemo(() => Array.from({ length: 12 }, (_, i) => view.y - 6 + i), [view.y]);
+
     return (
         <View style={[styles.calendar, style]}>
             <View style={styles.header}>
                 <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => step(-1)} style={styles.navBtn}>
                     <Text style={styles.navGlyph}>‹</Text>
                 </Pressable>
-                <Text style={styles.monthLabel}>{MONTHS[view.m]} {view.y}</Text>
+                <View style={styles.headChips}>
+                    <Pressable accessibilityRole="button" onPress={() => swap('months')} style={styles.headChip}>
+                        <Text style={styles.headChipText}>{MONTHS[view.m]} ▾</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => swap('years')} style={styles.headChip}>
+                        <Text style={[styles.headChipText, styles.headChipMono]}>{view.y} ▾</Text>
+                    </Pressable>
+                </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => step(1)} style={styles.navBtn}>
                     <Text style={styles.navGlyph}>›</Text>
                 </Pressable>
             </View>
+
+            {mode === 'months' && (
+                <View style={styles.pickGrid}>
+                    {MONTHS_SHORT.map((label, i) => (
+                        <Pressable
+                            key={label}
+                            accessibilityRole="button"
+                            onPress={() => { setView((v) => ({ ...v, m: i })); setMode('days'); }}
+                            style={[styles.pickCell, i === view.m && styles.pickCellOn]}
+                        >
+                            <Text style={[styles.pickText, i === view.m && styles.pickTextOn]}>{label}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+
+            {mode === 'years' && (
+                <View style={styles.pickGrid}>
+                    {years.map((y) => (
+                        <Pressable
+                            key={y}
+                            accessibilityRole="button"
+                            onPress={() => { setView((v) => ({ ...v, y })); setMode('days'); }}
+                            style={[styles.pickCell, y === view.y && styles.pickCellOn]}
+                        >
+                            <Text style={[styles.pickText, styles.headChipMono, y === view.y && styles.pickTextOn]}>{y}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+
+            {mode === 'days' && (
+            <>
             <View style={styles.weekRow}>
                 {WEEKDAYS.map((w) => (
                     <View key={w} style={styles.cell}>
@@ -149,6 +203,8 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
                     );
                 })}
             </View>
+            </>
+            )}
             {!hideToday && (
                 <View style={styles.footer}>
                     <Pressable onPress={() => { if (inRange(today, min, max)) onChange?.(today); }}>
@@ -246,10 +302,47 @@ const styles = StyleSheet.create({
         color: colors.muted,
         lineHeight: 16,
     },
-    monthLabel: {
-        fontSize: 14,
+    headChips: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    headChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        backgroundColor: colors.chip,
+    },
+    headChipText: {
+        fontSize: 13,
         fontFamily: fonts.sans.native.semibold,
         color: colors.ink,
+    },
+    headChipMono: {
+        fontFamily: fonts.mono.native.medium,
+        fontSize: 12.5,
+    },
+    // Month / year quick-pick grid: 3 columns of 36px cells.
+    pickGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    pickCell: {
+        width: `${100 / 3}%`,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+    },
+    pickCellOn: {
+        backgroundColor: colors.ink,
+    },
+    pickText: {
+        fontSize: 12,
+        color: colors.ink,
+    },
+    pickTextOn: {
+        color: colors.onInk,
+        fontFamily: fonts.sans.native.semibold,
     },
     weekRow: {
         flexDirection: 'row',

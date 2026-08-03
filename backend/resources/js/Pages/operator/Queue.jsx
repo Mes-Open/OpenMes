@@ -5,6 +5,7 @@ import { Button, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
+import Tooltip from '../../components/Tooltip';
 import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` classes removed.
@@ -938,7 +939,9 @@ export default function Queue() {
                                                     {lineStatuses.length > 0 && (
                                                         <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">
                                                             Board Status
-                                                            <span className="ml-1 text-om-faintest font-normal normal-case tracking-normal text-xs" title="Tap badge to cycle">↻</span>
+                                                            <Tooltip label="Tap badge to cycle">
+                                                                <span className="ml-1 text-om-faintest font-normal normal-case tracking-normal text-xs">↻</span>
+                                                            </Tooltip>
                                                         </th>
                                                     )}
                                                     <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Product</th>

@@ -4,6 +4,7 @@ import { Badge, Button, Dropdown, InlineAlert } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { useMemo } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 // Backend discrepancy severities → InlineAlert severities.
@@ -26,6 +27,7 @@ function Metric({ label, value, sub, accent }) {
 export default function ShiftHandoverIndex() {
     const { lines = [], selectedLineId = null, balance, recent = [] } = usePage().props;
     const form = useForm({ line_id: selectedLineId ?? '', notes: '' });
+    const { confirm, dialog } = useConfirm();
 
     const onLineChange = (value) => {
         router.get('/supervisor/shift-handover', value ? { line_id: value } : {}, {
@@ -36,9 +38,10 @@ export default function ShiftHandoverIndex() {
 
     const submit = (e) => {
         e.preventDefault();
-        if (!confirm(__('Confirm & close shift') + '?')) return;
-        form.transform((data) => ({ ...data, line_id: selectedLineId ?? '' }));
-        form.post('/supervisor/shift-handover', { preserveScroll: true });
+        confirm({ title: __('Confirm & close shift') + '?' }, () => {
+            form.transform((data) => ({ ...data, line_id: selectedLineId ?? '' }));
+            form.post('/supervisor/shift-handover', { preserveScroll: true });
+        });
     };
 
     const shift = balance?.shift;
@@ -100,6 +103,7 @@ export default function ShiftHandoverIndex() {
     ], []);
 
     return (
+        <>
         <div className="max-w-7xl mx-auto">
             <Head title="Shift Handover" />
 
@@ -221,6 +225,8 @@ export default function ShiftHandoverIndex() {
                 </div>
             </div>
         </div>
+        {dialog}
+        </>
     );
 }
 

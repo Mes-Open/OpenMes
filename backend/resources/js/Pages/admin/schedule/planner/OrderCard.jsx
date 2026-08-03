@@ -1,5 +1,6 @@
 // Work-order blocks + small atoms, following the OpenMES Schedule design:
 // status-tinted surface, Geist-Mono order numbers, hover-✕ to unschedule.
+import Tooltip from '../../../../components/Tooltip';
 import { __ } from '../../../../lib/i18n';
 import { TIER_BADGE_STYLES, tierLabel } from '../../customers/fields';
 import { statusOf, statusLabel, priorityMeta, fmtQty, shiftColor, MONO } from './helpers';
@@ -16,8 +17,9 @@ const TIER_DOT = {
 export function TierDot({ wo }) {
     if (!wo.customer_tier) return null;
     return (
-        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${TIER_DOT[wo.customer_tier] ?? ''}`}
-            title={`${wo.customer_name ?? ''}${wo.customer_tier ? ` · ${tierLabel(wo.customer_tier)}` : ''}`} />
+        <Tooltip label={`${wo.customer_name ?? ''}${wo.customer_tier ? ` · ${tierLabel(wo.customer_tier)}` : ''}`}>
+            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${TIER_DOT[wo.customer_tier] ?? ''}`} />
+        </Tooltip>
     );
 }
 
@@ -128,8 +130,10 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
 // order's secondary copy, detaches just that line — see `title`).
 function UnassignX({ onUnassign, wo, title }) {
     return (
-        <span className="om-x" onClick={(e) => { e.stopPropagation(); onUnassign(wo); }}
-            title={title ?? __('Send to backlog')}
-            style={{ position: 'absolute', top: -6, right: -6, width: 15, height: 15, borderRadius: 999, background: 'var(--om-blocked)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', zIndex: 3, cursor: 'pointer' }}>✕</span>
+        <Tooltip label={title ?? __('Send to backlog')}>
+            <span className="om-x" onClick={(e) => { e.stopPropagation(); onUnassign(wo); }}
+                role="button" aria-label={title ?? __('Send to backlog')}
+                style={{ position: 'absolute', top: -6, right: -6, width: 15, height: 15, borderRadius: 999, background: 'var(--om-blocked)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', zIndex: 3, cursor: 'pointer' }}>✕</span>
+        </Tooltip>
     );
 }

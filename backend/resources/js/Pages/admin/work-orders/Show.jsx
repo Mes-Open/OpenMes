@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import useConfirm from '../../../components/useConfirm';
 import { WO_STATUS_STYLES } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
 import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
@@ -157,6 +158,7 @@ function DoneModal({ workOrder, onClose }) {
 export default function AdminWorkOrderShow() {
     const { workOrder, customFields = [] } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const post = (verb) => router.post(`/admin/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
 
@@ -208,7 +210,7 @@ export default function AdminWorkOrderShow() {
                                     Accept
                                 </button>
                                 <button
-                                    onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                    onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
                                     className="px-4 py-2 text-sm font-medium text-om-blocked bg-om-card border border-om-line rounded-md hover:bg-om-bg"
                                 >
                                     Reject
@@ -217,7 +219,7 @@ export default function AdminWorkOrderShow() {
                         )}
                         {status === 'ACCEPTED' && (
                             <button
-                                onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
                                 className="px-4 py-2 text-sm font-medium text-om-blocked bg-om-card border border-om-line rounded-md hover:bg-om-bg"
                             >
                                 Reject
@@ -251,7 +253,7 @@ export default function AdminWorkOrderShow() {
                         {isTerminal ? (
                             <>
                                 <button
-                                    onClick={() => { if (confirm('Reopen this work order?')) post('reopen'); }}
+                                    onClick={() => confirm({ title: 'Reopen this work order?' }, () => post('reopen'))}
                                     className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover"
                                 >
                                     Reopen
@@ -272,7 +274,7 @@ export default function AdminWorkOrderShow() {
                                     Edit
                                 </Link>
                                 <button
-                                    onClick={() => { if (confirm('Cancel this work order?')) post('cancel'); }}
+                                    onClick={() => confirm({ title: 'Cancel this work order?' }, () => post('cancel'))}
                                     className="px-4 py-2 text-sm font-medium text-om-accent bg-om-card border border-om-line rounded-md hover:bg-om-bg"
                                 >
                                     Cancel
@@ -470,6 +472,7 @@ export default function AdminWorkOrderShow() {
             {showDoneModal && (
                 <DoneModal workOrder={workOrder} onClose={() => setShowDoneModal(false)} />
             )}
+            {dialog}
         </>
     );
 }

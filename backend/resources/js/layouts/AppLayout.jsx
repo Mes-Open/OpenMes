@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
+import Tooltip from '../components/Tooltip';
+import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
 
@@ -102,6 +104,8 @@ export default function AppLayout({ children }) {
 
     return (
         <LiveShapesProvider>
+        {/* App-wide toast stack — the replacement for window.alert(). */}
+        <ToastProvider dismissLabel={__('Close')}>
         <div className="flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
@@ -153,6 +157,7 @@ export default function AppLayout({ children }) {
                 </main>
             </div>
         </div>
+        </ToastProvider>
         </LiveShapesProvider>
     );
 }
@@ -320,14 +325,16 @@ function Sidebar({
 
                 {/* Setup wizard (Admin only) — the "?" the demo shows in the header */}
                 {showLabels && isAdmin && (
-                    <Link
-                        href="/onboarding/step/1"
-                        prefetch
-                        title={__('Setup Wizard')}
-                        className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
-                    >
-                        <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
-                    </Link>
+                    <Tooltip label={__('Setup Wizard')} placement="bottom">
+                        <Link
+                            href="/onboarding/step/1"
+                            prefetch
+                            aria-label={__('Setup Wizard')}
+                            className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
+                        >
+                            <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
+                        </Link>
+                    </Tooltip>
                 )}
                 <button
                     onClick={onCloseMobile}
@@ -436,49 +443,55 @@ function Sidebar({
                 <div className="px-2 py-2">
                     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${collapsed && !mobileOpen ? 'justify-center' : ''}`}>
                         {/* Avatar + name link to the user's own profile/settings */}
-                        <Link
-                            href="/settings/profile"
-                            prefetch
-                            title={__('Profile')}
-                            className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
-                                        ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
-                        >
-                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-om-on-ink text-[12px] font-semibold">
-                                {auth?.user?.initial ?? '?'}
-                            </div>
-                            {showLabels && (
-                                <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
-                                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                        <Tooltip label={__('Profile')} placement="right" disabled={showLabels}>
+                            <Link
+                                href="/settings/profile"
+                                prefetch
+                                aria-label={__('Profile')}
+                                className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
+                                            ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-om-on-ink text-[12px] font-semibold">
+                                    {auth?.user?.initial ?? '?'}
                                 </div>
-                            )}
-                        </Link>
+                                {showLabels && (
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
+                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                    </div>
+                                )}
+                            </Link>
+                        </Tooltip>
                         <form action="/logout" method="POST" className="shrink-0">
                             <input type="hidden" name="_token" value={csrfToken} />
-                            <button
-                                type="submit"
-                                title={__('Logout')}
-                                className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
-                            >
-                                <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
-                            </button>
+                            <Tooltip label={__('Logout')}>
+                                <button
+                                    type="submit"
+                                    aria-label={__('Logout')}
+                                    className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
+                                >
+                                    <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
+                                </button>
+                            </Tooltip>
                         </form>
                     </div>
                 </div>
 
                 {/* Collapse toggle (desktop) */}
                 <div className="hidden lg:flex border-t border-om-line px-2 py-2">
-                    <button
-                        onClick={onToggleCollapsed}
-                        className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
-                        title={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
-                    >
-                        <Icon
-                            className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
-                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                        />
-                        {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
-                    </button>
+                    <Tooltip label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')} placement="right">
+                        <button
+                            onClick={onToggleCollapsed}
+                            className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
+                            aria-label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
+                        >
+                            <Icon
+                                className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                            />
+                            {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         </aside>
@@ -505,17 +518,18 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
 
     if (collapsed && !showLabels) {
         return (
-            <div className="relative group px-2 pt-3">
-                <button
-                    onClick={() => {
-                        focusAfterExpand.current = true;
-                        onExpand();
-                    }}
-                    className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
-                >
-                    <Icon d={SEARCH_ICON} className="w-5 h-5" />
-                </button>
-                <Tooltip>{__('Search')}</Tooltip>
+            <div className="px-2 pt-3">
+                <Tooltip label={__('Search')} placement="right">
+                    <button
+                        onClick={() => {
+                            focusAfterExpand.current = true;
+                            onExpand();
+                        }}
+                        className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
+                    >
+                        <Icon d={SEARCH_ICON} className="w-5 h-5" />
+                    </button>
+                </Tooltip>
             </div>
         );
     }
@@ -575,33 +589,34 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
     const activeClass = active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
     return (
-        <div className="relative group px-2">
-            <Link
-                href={link.href}
-                prefetch
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
-                            ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
-            >
-                <span className="relative shrink-0">
-                    <Icon d={ICONS[link.icon]} className="w-5 h-5" />
-                    {alertCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
-                            {alertCount > 9 ? '9+' : alertCount}
-                        </span>
-                    )}
-                </span>
-                {showLabels && (
-                    <span className="flex items-center gap-2">
-                        {__(link.label)}
-                        {link.alert && alertCount > 0 && (
-                            <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
-                                {alertCount}
+        <div className="px-2">
+            <Tooltip label={__(link.label)} placement="right" disabled={showLabels}>
+                <Link
+                    href={link.href}
+                    prefetch
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
+                                ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
+                >
+                    <span className="relative shrink-0">
+                        <Icon d={ICONS[link.icon]} className="w-5 h-5" />
+                        {alertCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
+                                {alertCount > 9 ? '9+' : alertCount}
                             </span>
                         )}
                     </span>
-                )}
-            </Link>
-            {collapsed && !showLabels && <Tooltip>{__(link.label)}</Tooltip>}
+                    {showLabels && (
+                        <span className="flex items-center gap-2">
+                            {__(link.label)}
+                            {link.alert && alertCount > 0 && (
+                                <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
+                                    {alertCount}
+                                </span>
+                            )}
+                        </span>
+                    )}
+                </Link>
+            </Tooltip>
         </div>
     );
 }
@@ -619,20 +634,22 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
 
     // Collapsed sidebar can't show expanded children; clicking a collapsed
     // group expands the sidebar first (parity with Blade expandGroup()).
-    // A group with its own landing page (`href`) also navigates there on click
-    // instead of only expanding — otherwise the header looks unresponsive.
+    // A group with its own landing page (`href`) also navigates there when it is
+    // opened — otherwise the header looks unresponsive. Clicking an already-open
+    // group only collapses it (never re-navigates), so `href` groups stay
+    // collapsible like the rest.
     const toggle = () => {
-        if (group.href) {
-            router.visit(group.href);
-            setOpen(true);
-        } else {
-            setOpen((o) => !o);
+        if (open) {
+            setOpen(false);
+            return;
         }
+        setOpen(true);
+        if (group.href) router.visit(group.href);
     };
 
     return (
         <div className="px-2">
-            <div className="relative group">
+            <Tooltip label={__(group.label)} placement="right" disabled={showLabels}>
                 <button
                     onClick={toggle}
                     className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm transition-colors
@@ -653,8 +670,7 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                         />
                     )}
                 </button>
-                {collapsed && !showLabels && <Tooltip>{__(group.label)}</Tooltip>}
-            </div>
+            </Tooltip>
 
             {open && showLabels && (
                 <div className="mt-0.5 ml-4 space-y-0.5 border-l border-om-line pl-3">
@@ -743,14 +759,6 @@ function ChildLink({ child, path, dot }) {
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
             {__(child.label)}
         </Link>
-    );
-}
-
-function Tooltip({ children }) {
-    return (
-        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-om-ink text-om-on-ink text-xs rounded-om-sm whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] pointer-events-none">
-            {children}
-        </span>
     );
 }
 

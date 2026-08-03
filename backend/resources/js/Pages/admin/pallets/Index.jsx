@@ -84,16 +84,20 @@ export default function PalletsIndex() {
     const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [] } = usePage().props;
 
     const columns = [
-        { key: 'pallet_no', label: 'Pallet number', className: 'font-mono font-medium text-om-ink' },
+        { key: 'pallet_no', label: 'Pallet number', className: 'font-mono font-medium text-om-ink', filter: 'text' },
         {
             key: 'work_order',
             label: 'Work order',
+            value: (r) => workOrderNumbers[r.work_order_id] ?? `#${r.work_order_id}`,
+           
             render: (r) => workOrderNumbers[r.work_order_id] ?? `#${r.work_order_id}`,
         },
         { key: 'qty', label: 'Quantity' },
         {
             key: 'status',
             label: 'Status',
+            value: (r) => statusLabels[r.status] ?? r.status,
+           
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] ?? ''}`}>
                     {statusLabels[r.status] ?? r.status}
@@ -103,7 +107,8 @@ export default function PalletsIndex() {
         {
             key: 'quality_status',
             label: 'Quality',
-            filter: true,
+            value: (r) => r.quality_status ?? 'pending',
+           
             allLabel: __('All quality'),
             options: [
                 { value: 'pending', label: __('Pending') },
@@ -132,11 +137,11 @@ export default function PalletsIndex() {
             label: 'Delete',
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(`Delete pallet "${r.pallet_no}"?`)) {
-                    router.delete(`/admin/pallets/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: `Delete pallet "${r.pallet_no}"?`,
+                confirmLabel: 'Delete',
             },
+            onClick: () => router.delete(`/admin/pallets/${r.id}`, { preserveScroll: true }),
         },
     ];
 

@@ -3,6 +3,7 @@ import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber, formatTime } from '../../../../lib/i18n';
+import useConfirm from '../../../../components/useConfirm';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -162,11 +163,12 @@ function StatCard({ value, label, capitalize }) {
 function TopicCard({ topic, connectionId }) {
     const [editOpen, setEditOpen] = useState(false);
     const [addMappingOpen, setAddMappingOpen] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const handleDeleteTopic = () => {
-        if (confirm('Delete this topic and all its mappings?')) {
+        confirm({ title: 'Delete this topic and all its mappings?' }, () => {
             router.delete(`/admin/connectivity/mqtt/${connectionId}/topics/${topic.id}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
@@ -250,6 +252,7 @@ function TopicCard({ topic, connectionId }) {
                     />
                 )}
             </div>
+            {dialog}
         </div>
     );
 }
@@ -317,14 +320,15 @@ function MappingRow({ mapping, topic, connectionId }) {
     const color = ACTION_COLORS[mapping.action_type] ?? 'bg-om-chip text-om-muted';
     const label = ACTION_LABELS[mapping.action_type] ?? mapping.action_type;
     const priority = String(mapping.priority).padStart(3, '0');
+    const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
-        if (confirm('Delete this mapping?')) {
+        confirm({ title: 'Delete this mapping?' }, () => {
             router.delete(
                 `/admin/connectivity/mqtt/${connectionId}/topics/${topic.id}/mappings/${mapping.id}`,
                 { preserveScroll: true },
             );
-        }
+        });
     };
 
     return (
@@ -383,6 +387,7 @@ function MappingRow({ mapping, topic, connectionId }) {
                     </svg>
                 </button>
             </div>
+            {dialog}
         </div>
     );
 }

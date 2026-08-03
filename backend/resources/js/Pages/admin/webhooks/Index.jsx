@@ -5,17 +5,19 @@ import { __ } from '../../../lib/i18n';
 
 export default function WebhooksIndex() {
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'url', label: __('URL'), className: 'font-mono text-[12px] text-om-muted' },
         {
             key: 'events',
             label: __('Events'),
             sortable: false,
+            value: (r) => (Array.isArray(r.events) ? r.events.length : 0),
+           
             render: (r) => (Array.isArray(r.events) ? r.events.length : 0),
         },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
         {
-            key: 'last_triggered_at',
+            key: 'last_triggered_at', filter: 'date',
             label: __('Last triggered'),
             render: (r) => (r.last_triggered_at ? new Date(r.last_triggered_at).toLocaleString() : '—'),
         },
@@ -42,11 +44,11 @@ export default function WebhooksIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete webhook ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/webhooks/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete webhook ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/webhooks/${r.id}`, { preserveScroll: true }),
         },
     ];
 

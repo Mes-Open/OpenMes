@@ -3,6 +3,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 import { formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
@@ -31,6 +33,7 @@ export default function ProductionAnomaliesIndex() {
 
     const [workOrderId, setWorkOrderId] = useState(filters.work_order_id ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const { confirm, dialog } = useConfirm();
 
     function applyFilter(e) {
         e.preventDefault();
@@ -48,9 +51,9 @@ export default function ProductionAnomaliesIndex() {
     }
 
     function handleDelete(id) {
-        if (confirm(__('Delete this anomaly record?'))) {
+        confirm({ title: __('Delete this anomaly record?') }, () => {
             router.delete(`/admin/production-anomalies/${id}`, { preserveScroll: true });
-        }
+        });
     }
 
     const columns = useMemo(() => [
@@ -136,25 +139,29 @@ export default function ProductionAnomaliesIndex() {
                 return (
                     <div className="flex items-center justify-end gap-2">
                         {anomaly.status === 'pending' && (
+                            <Tooltip label={__('Process')}>
+                                <button
+                                    onClick={() => handleProcess(anomaly.id)}
+                                    aria-label={__('Process')}
+                                    className="text-om-running hover:text-om-running p-1"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            </Tooltip>
+                        )}
+                        <Tooltip label={__('Delete')}>
                             <button
-                                onClick={() => handleProcess(anomaly.id)}
-                                title={__('Process')}
-                                className="text-om-running hover:text-om-running p-1"
+                                onClick={() => handleDelete(anomaly.id)}
+                                aria-label={__('Delete')}
+                                className="text-om-blocked hover:text-om-blocked p-1"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                             </button>
-                        )}
-                        <button
-                            onClick={() => handleDelete(anomaly.id)}
-                            title={__('Delete')}
-                            className="text-om-blocked hover:text-om-blocked p-1"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
+                        </Tooltip>
                     </div>
                 );
             },
@@ -245,6 +252,7 @@ export default function ProductionAnomaliesIndex() {
                     )}
                 </div>
             </div>
+            {dialog}
         </>
     );
 }

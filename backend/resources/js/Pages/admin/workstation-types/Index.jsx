@@ -8,9 +8,9 @@ export default function WorkstationTypesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'workstations', label: __('Workstations'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'workstations', label: __('Workstations'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -24,11 +24,11 @@ export default function WorkstationTypesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete workstation type ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/workstation-types/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete workstation type ":name"?', { name: r.name }),
+                confirmLabel: __('Delete workstation type'),
             },
+            onClick: () => router.delete(`/admin/workstation-types/${r.id}`, { preserveScroll: true }),
         },
     ];
 

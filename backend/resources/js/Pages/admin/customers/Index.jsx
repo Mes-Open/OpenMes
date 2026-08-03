@@ -8,21 +8,23 @@ export default function CustomersIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', render: (r) => r.code ?? '—' },
         {
             key: 'tier', label: __('Tier'),
+            value: (r) => r.tier,
+           
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${TIER_BADGE_STYLES[r.tier] ?? 'bg-om-chip text-om-muted'}`}>
                     {tierLabel(r.tier)}
                 </span>
             ),
         },
-        { key: 'payment_score', label: __('Payment'), align: 'right', className: 'text-om-muted', render: (r) => r.payment_score ?? 0 },
-        { key: 'total_orders', label: __('Orders'), align: 'right', className: 'text-om-muted', render: (r) => r.total_orders ?? 0 },
-        { key: 'total_revenue', label: __('Revenue'), align: 'right', className: 'text-om-muted', render: (r) => Number(r.total_revenue ?? 0).toFixed(2) },
-        { key: 'work_orders', label: __('Work orders'), align: 'right', render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'payment_score', label: __('Payment'), align: 'right', className: 'text-om-muted', value: (r) => Number(r.payment_score ?? 0), render: (r) => r.payment_score ?? 0 },
+        { key: 'total_orders', label: __('Orders'), align: 'right', className: 'text-om-muted', value: (r) => Number(r.total_orders ?? 0), render: (r) => r.total_orders ?? 0 },
+        { key: 'total_revenue', label: __('Revenue'), align: 'right', className: 'text-om-muted', value: (r) => Number(r.total_revenue ?? 0), render: (r) => Number(r.total_revenue ?? 0).toFixed(2) },
+        { key: 'work_orders', label: __('Work orders'), align: 'right', value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -34,11 +36,11 @@ export default function CustomersIndex() {
         {
             label: __('Delete'),
             className: 'text-om-blocked hover:underline',
-            onClick: () => {
-                if (confirm(__('Delete customer ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/customers/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete customer ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/customers/${r.id}`, { preserveScroll: true }),
         },
     ];
 

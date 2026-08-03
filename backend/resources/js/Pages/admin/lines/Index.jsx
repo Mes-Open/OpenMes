@@ -8,12 +8,12 @@ export default function LinesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'area', label: __('Area'), className: 'text-om-muted', render: (r) => areaNames[r.area_id] ?? '—' },
-        { key: 'ws', label: __('Stations'), render: (r) => counts[r.id]?.workstations ?? 0 },
-        { key: 'wo', label: __('Work Orders'), render: (r) => counts[r.id]?.work_orders ?? 0 },
-        { key: 'ops', label: __('Operators'), render: (r) => counts[r.id]?.operators ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'area', label: __('Area'), className: 'text-om-muted', value: (r) => areaNames[r.area_id] ?? '—', render: (r) => areaNames[r.area_id] ?? '—' },
+        { key: 'ws', label: __('Stations'), value: (r) => counts[r.id]?.workstations ?? 0, render: (r) => counts[r.id]?.workstations ?? 0 },
+        { key: 'wo', label: __('Work Orders'), value: (r) => counts[r.id]?.work_orders ?? 0, render: (r) => counts[r.id]?.work_orders ?? 0 },
+        { key: 'ops', label: __('Operators'), value: (r) => counts[r.id]?.operators ?? 0, render: (r) => counts[r.id]?.operators ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -28,7 +28,11 @@ export default function LinesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(__('Delete line ":name"? (only if it has no work orders)', { name: r.name }))) router.delete(`/admin/lines/${r.id}`, { preserveScroll: true }); },
+            confirm: {
+                title: __('Delete line ":name"? (only if it has no work orders)', { name: r.name }),
+                confirmLabel: __('Delete'),
+            },
+            onClick: () => router.delete(`/admin/lines/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -37,6 +41,7 @@ export default function LinesIndex() {
             <Head title={__('Production Lines')} />
             <ResourceTable
                 shape="lines_all"
+                detailHref={(r) => `/admin/lines/${r.id}`}
                 title={__('Production Lines')}
                 createHref="/admin/lines/create"
                 createLabel={__('+ New Line')}

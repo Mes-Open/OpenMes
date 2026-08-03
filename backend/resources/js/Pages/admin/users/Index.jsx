@@ -7,12 +7,14 @@ export default function UsersIndex() {
     const { userRoles = {}, workstationNames = {}, currentUserId } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'username', label: __('Username'), className: 'font-mono text-om-muted' },
         { key: 'email', label: __('Email'), className: 'text-om-muted' },
         {
             key: 'account_type',
             label: __('Type'),
+            value: (r) => (r.account_type === 'workstation' ? __('Workstation') : __('User')),
+           
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${r.account_type === 'workstation' ? 'bg-om-chip text-om-ink' : 'bg-om-chip text-om-accent'}`}>
                     {r.account_type === 'workstation' ? __('Workstation') : __('User')}
@@ -23,11 +25,15 @@ export default function UsersIndex() {
             key: 'role',
             label: __('Role / Station'),
             className: 'text-om-muted',
+            value: (r) => r.account_type === 'workstation'
+                ? (workstationNames[r.workstation_id] ?? '—')
+                : (userRoles[r.id] ?? '—'),
+           
             render: (r) => r.account_type === 'workstation'
                 ? (workstationNames[r.workstation_id] ?? '—')
                 : (userRoles[r.id] ?? '—'),
         },
-        { key: 'last_login_at', label: __('Last Login'), className: 'text-om-muted', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
+        { key: 'last_login_at', filter: 'date', label: __('Last Login'), className: 'text-om-muted', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
     ];
 
     const actions = (r) => {
@@ -37,11 +43,11 @@ export default function UsersIndex() {
                 label: __('Delete'),
                 icon: 'delete',
                 variant: 'danger',
-                onClick: () => {
-                    if (confirm(__('Delete account ":name"?', { name: r.name }))) {
-                        router.delete(`/admin/users/${r.id}`, { preserveScroll: true });
-                    }
+                confirm: {
+                    title: __('Delete account ":name"?', { name: r.name }),
+                    confirmLabel: __('Delete account'),
                 },
+                onClick: () => router.delete(`/admin/users/${r.id}`, { preserveScroll: true }),
             });
         }
         return acts;

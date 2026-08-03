@@ -8,11 +8,11 @@ export default function CostSourcesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'unit_cost', label: __('Unit Cost'), render: (r) => `${r.unit_cost ?? '—'} ${r.currency ?? ''}`.trim() },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'unit_cost', label: __('Unit Cost'), value: (r) => Number(r.unit_cost ?? 0), render: (r) => `${r.unit_cost ?? '—'} ${r.currency ?? ''}`.trim() },
         { key: 'unit', label: __('Unit'), className: 'text-om-muted' },
-        { key: 'used', label: __('Used'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'used', label: __('Used'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -26,11 +26,11 @@ export default function CostSourcesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete cost source ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/cost-sources/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete cost source ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/cost-sources/${r.id}`, { preserveScroll: true }),
         },
     ];
 

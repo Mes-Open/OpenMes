@@ -16,11 +16,11 @@ export default function PersonnelClassesIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'skills', label: __('Req. Skills'), render: (r) => asArray(r.required_skill_ids).length },
-        { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'skills', label: __('Req. Skills'), value: (r) => asArray(r.required_skill_ids).length, render: (r) => asArray(r.required_skill_ids).length },
+        { key: 'workers', label: __('Workers'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -29,11 +29,11 @@ export default function PersonnelClassesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete personnel class ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/personnel-classes/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete personnel class ":name"?', { name: r.name }),
+                confirmLabel: __('Delete personnel class'),
             },
+            onClick: () => router.delete(`/admin/personnel-classes/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -42,6 +42,7 @@ export default function PersonnelClassesIndex() {
             <Head title={__('Personnel Classes')} />
             <ResourceTable
                 shape="personnel_classes"
+                detailHref={(r) => `/admin/personnel-classes/${r.id}`}
                 title={__('Personnel Classes')}
                 createHref="/admin/personnel-classes/create"
                 createLabel={__('+ New Class')}

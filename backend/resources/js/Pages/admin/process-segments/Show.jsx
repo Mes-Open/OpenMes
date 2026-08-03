@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 
 const TYPE_COLORS = {
     production:  'bg-om-chip text-om-accent',
@@ -15,13 +16,15 @@ const TYPE_COLORS = {
 
 export default function ProcessSegmentShow() {
     const { segment, usingSteps = [], requiredSkills = [] } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const typeColor = TYPE_COLORS[segment.segment_type] ?? 'bg-om-chip text-om-muted';
     const usageCount = usingSteps.length;
 
     const handleDelete = () => {
-        if (!confirm('Delete this process segment?')) return;
-        router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
+        confirm({ title: 'Delete this process segment?' }, () => {
+            router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
+        });
     };
 
     const usageColumns = useMemo(() => [
@@ -237,6 +240,7 @@ export default function ProcessSegmentShow() {
                     </div>
                 </div>
             </div>
+            {dialog}
         </>
     );
 }

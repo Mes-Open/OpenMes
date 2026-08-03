@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, IconButton, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import Tooltip from '../../../components/Tooltip';
 import { __ } from '../../../lib/i18n';
 
 export default function ProcessTemplatesIndex() {
@@ -111,56 +112,58 @@ export default function ProcessTemplatesIndex() {
                                             {__('View Steps')}
                                         </Button>
 
-                                        <IconButton
-                                            onClick={() =>
-                                                router.visit(
-                                                    `/admin/product-types/${productType.id}/process-templates/${template.id}/edit`,
-                                                )
-                                            }
-                                            title={__('Edit')}
-                                            aria-label={__('Edit')}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </IconButton>
-
-                                        <IconButton
-                                            onClick={() => handleToggleActive(template)}
-                                            title={template.is_active ? __('Deactivate') : __('Activate')}
-                                            aria-label={template.is_active ? __('Deactivate') : __('Activate')}
-                                        >
-                                            {template.is_active ? (
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                                </svg>
-                                            ) : (
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            )}
-                                        </IconButton>
-
-                                        {template.steps_count === 0 ? (
+                                        <Tooltip label={__('Edit')}>
                                             <IconButton
-                                                variant="danger"
-                                                onClick={() => setToDelete(template)}
-                                                title={__('Delete')}
-                                                aria-label={__('Delete')}
+                                                onClick={() =>
+                                                    router.visit(
+                                                        `/admin/product-types/${productType.id}/process-templates/${template.id}/edit`,
+                                                    )
+                                                }
+                                                aria-label={__('Edit')}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                             </IconButton>
-                                        ) : (
-                                            <span
-                                                className="inline-flex size-[38px] items-center justify-center text-om-faintest"
-                                                title={__('Cannot delete - has steps')}
+                                        </Tooltip>
+
+                                        <Tooltip label={template.is_active ? __('Deactivate') : __('Activate')}>
+                                            <IconButton
+                                                onClick={() => handleToggleActive(template)}
+                                                aria-label={template.is_active ? __('Deactivate') : __('Activate')}
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
-                                            </span>
+                                                {template.is_active ? (
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+
+                                        {template.steps_count === 0 ? (
+                                            <Tooltip label={__('Delete')}>
+                                                <IconButton
+                                                    variant="danger"
+                                                    onClick={() => setToDelete(template)}
+                                                    aria-label={__('Delete')}
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip label={__('Cannot delete - has steps')}>
+                                                <span className="inline-flex size-[38px] items-center justify-center text-om-faintest">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                    </svg>
+                                                </span>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 </div>

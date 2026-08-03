@@ -7,12 +7,12 @@ export default function LabelTemplatesIndex() {
     const { typeLabels = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'type', label: __('Type'), className: 'text-om-muted', render: (r) => typeLabels[r.type] ?? r.type },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => typeLabels[r.type] ?? r.type, render: (r) => typeLabels[r.type] ?? r.type },
         { key: 'size', label: __('Size'), className: 'text-om-muted' },
         { key: 'barcode_format', label: __('Barcode'), className: 'font-mono text-om-muted' },
         { key: 'is_default', label: __('Default'), render: (r) => (r.is_default ? '★' : '') },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -22,7 +22,8 @@ export default function LabelTemplatesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(__('Delete label template ":name"?', { name: r.name }))) router.delete(`/packaging/label-templates/${r.id}`, { preserveScroll: true }); },
+            confirm: { title: __('Delete label template ":name"?', { name: r.name }), confirmLabel: __('Delete') },
+            onClick: () => router.delete(`/packaging/label-templates/${r.id}`, { preserveScroll: true }),
         },
     ];
 
