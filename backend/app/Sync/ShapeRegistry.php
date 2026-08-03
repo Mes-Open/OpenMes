@@ -215,7 +215,7 @@ class ShapeRegistry
         ],
         'material_lots' => [
             'table' => 'material_lots',
-            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'issue_id', 'hold_reason', 'held_at', 'held_by_id', 'released_at', 'released_by_id', 'created_at', 'updated_at'],
+            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'issue_id', 'warehouse_id', 'hold_reason', 'held_at', 'held_by_id', 'released_at', 'released_by_id', 'created_at', 'updated_at'],
         ],
         'view_templates' => [
             'table' => 'view_templates',
@@ -249,6 +249,23 @@ class ShapeRegistry
         'webhook_deliveries' => [
             'table' => 'webhook_deliveries',
             'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
+        ],
+        // Warehousing (#212).
+        'warehouses' => [
+            'table' => 'warehouses',
+            'columns' => ['id', 'code', 'name', 'description', 'kind', 'erp_code', 'is_default', 'is_active', 'created_at', 'updated_at'],
+        ],
+        // Per-warehouse balances. Ids are resolved to codes client-side from the
+        // lookup maps the controller passes as props.
+        'warehouse_stocks' => [
+            'table' => 'warehouse_stocks',
+            'columns' => ['id', 'warehouse_id', 'material_id', 'product_type_id', 'material_lot_id', 'quantity', 'unit_of_measure', 'erp_synced_at', 'created_at', 'updated_at'],
+        ],
+        // Document headers only — lines are loaded by the detail page, which needs
+        // them joined to material / product names anyway.
+        'stock_documents' => [
+            'table' => 'stock_documents',
+            'columns' => ['id', 'document_no', 'type', 'status', 'warehouse_id', 'work_order_id', 'notes', 'erp_reference', 'erp_synced_at', 'posted_at', 'created_at', 'updated_at'],
         ],
     ];
 

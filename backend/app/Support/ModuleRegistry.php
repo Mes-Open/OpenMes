@@ -83,6 +83,10 @@ class ModuleRegistry
             'label' => 'ERP integration',
             'description' => 'REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.',
         ],
+        'warehouse' => [
+            'label' => 'Warehouses',
+            'description' => 'Warehouses, per-warehouse stock balances and the documents production generates — material releases and finished-product receipts.',
+        ],
     ];
 
     /**

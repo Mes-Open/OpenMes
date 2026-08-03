@@ -27,8 +27,9 @@ class StockMovementService
         ?string $sourceType = null,
         ?int $sourceId = null,
         ?string $reason = null,
+        ?int $warehouseId = null,
     ): StockMovement {
-        return DB::transaction(function () use ($material, $movementType, $signedQuantity, $user, $sourceType, $sourceId, $reason) {
+        return DB::transaction(function () use ($material, $movementType, $signedQuantity, $user, $sourceType, $sourceId, $reason, $warehouseId) {
             // Lock + re-read so the balance_after we record is the real
             // post-mutation value, even under concurrency.
             $locked = Material::where('id', $material->id)->lockForUpdate()->first();
@@ -44,6 +45,9 @@ class StockMovementService
 
             return StockMovement::create([
                 'material_id' => $locked->id,
+                // Warehouse attribution (#212); null for callers that do not
+                // work per warehouse (allocation, shop-floor consumption).
+                'warehouse_id' => $warehouseId,
                 'movement_type' => $movementType,
                 'quantity' => $signedQuantity,
                 'balance_after' => $locked->stock_quantity,

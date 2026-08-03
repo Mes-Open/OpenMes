@@ -39,8 +39,15 @@ class StockMovement extends Model
     // Milestone backflush booked when a pallet is created.
     public const SOURCE_PALLET = 'pallet';
 
+    // Posted warehouse document (#212) — source_id is the stock_documents row.
+    public const SOURCE_STOCK_DOCUMENT = 'stock_document';
+
+    // Balance re-derived from an ERP stock snapshot (#212).
+    public const SOURCE_ERP_SYNC = 'erp_sync';
+
     protected $fillable = [
         'material_id',
+        'warehouse_id',
         'movement_type',
         'quantity',
         'balance_after',
@@ -69,6 +76,12 @@ class StockMovement extends Model
     public function performedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'performed_by');
+    }
+
+    /** Warehouse the movement happened in — null for movements booked before #212. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function scopeForMaterial($query, int $materialId)

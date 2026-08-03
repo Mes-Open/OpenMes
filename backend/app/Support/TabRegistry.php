@@ -48,6 +48,10 @@ class TabRegistry
         'product_engineering' => ['label' => 'Product engineering', 'prefixes' => [
             '/admin/process-segments', '/admin/product-revisions',
         ]],
+        // Warehousing (#212) — render under the Production nav group.
+        'warehouse' => ['label' => 'Warehouses', 'prefixes' => [
+            '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
+        ]],
         // Customer/supplier companies (render under the Production nav group).
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
         // Issues + quality reason codes (render under the Production nav group).

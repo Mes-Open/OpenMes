@@ -79,6 +79,12 @@ class CollectionBroadcaster
             'maintenance_events' => [Models\MaintenanceEvent::class, null],
             'maintenance_schedules' => [Models\MaintenanceSchedule::class, null],
             'custom_field_definitions' => [Models\CustomFieldDefinition::class, null],
+
+            // Warehousing (#212). Balances change on every posted document and
+            // ERP sync, so the stock overview must see them live.
+            'warehouses' => [Models\Warehouse::class, null],
+            'warehouse_stocks' => [Models\WarehouseStock::class, null],
+            'stock_documents' => [Models\StockDocument::class, null],
         ];
     }
 
