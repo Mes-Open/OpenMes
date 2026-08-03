@@ -5065,5 +5065,13 @@
     "All Warehouses": "All Warehouses",
     "Warehouse": "Warehouse",
     "Document No.": "Document No.",
-    "Document Lines": "Document Lines"
+    "Document Lines": "Document Lines",
+    "ERP": "ERP",
+    "Row could not be processed": "Row could not be processed",
+    "Could not read the stock balance to update. Try again.": "Could not read the stock balance to update. Try again.",
+    "This document moves materials, not products.": "This document moves materials, not products.",
+    "This document moves products, not materials.": "This document moves products, not materials.",
+    "A product line cannot carry a material lot.": "A product line cannot carry a material lot.",
+    "That lot belongs to a different material.": "That lot belongs to a different material.",
+    "Lot ':lot' already belongs to material ':code'": "Lot ':lot' already belongs to material ':code'"
 }

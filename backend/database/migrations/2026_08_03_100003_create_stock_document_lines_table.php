@@ -39,6 +39,9 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreignId('deleted_by_id')->nullable()->constrained('users')->nullOnDelete();
 
+            // Every read of a document loads its lines by parent id; Postgres
+            // does not index a foreign key on its own.
+            $table->index(['stock_document_id']);
             $table->index(['material_id']);
             $table->index(['product_type_id']);
         });

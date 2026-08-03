@@ -80,9 +80,17 @@ class MaterialLotImportService
                 return $this->error('status', __('Unknown lot status :status', ['status' => $status]));
             }
 
-            $existing = MaterialLot::where('material_id', $material->id)
-                ->where('lot_number', $lotNumber)
-                ->first();
+            $existing = MaterialLot::where('lot_number', $lotNumber)->first();
+
+            // material_lots is unique on (lot_number, tenant), so the same number
+            // cannot be reused across materials. Say that plainly rather than
+            // letting the insert fail with a database constraint message.
+            if ($existing && $existing->material_id !== $material->id) {
+                return $this->error('lot_number', __("Lot ':lot' already belongs to material ':code'", [
+                    'lot' => $lotNumber,
+                    'code' => $existing->material?->code ?? (string) $existing->material_id,
+                ]));
+            }
 
             if ($existing && $strategy === 'skip_existing') {
                 return $this->skipped();
@@ -110,28 +118,35 @@ class MaterialLotImportService
                 $touched[$warehouse->id.':'.$material->id] = [$warehouse->id, $material->id];
             }
 
+            // The lot row and its warehouse balance are one fact — writing them in
+            // separate statements is how the balance drift this class exists to
+            // prevent would creep back in.
             if ($existing) {
-                // Never shrink quantity_received below what is available — the ERP
-                // may only report the free remainder of a larger receipt.
-                $attributes['quantity_received'] = max((float) $existing->quantity_received, $quantity);
-                $existing->update($attributes);
-                $this->syncLotBalance($existing, $warehouse, $quantity);
+                DB::transaction(function () use ($existing, $attributes, $quantity, $warehouse) {
+                    // Never shrink quantity_received below what is available — the ERP
+                    // may only report the free remainder of a larger receipt.
+                    $attributes['quantity_received'] = max((float) $existing->quantity_received, $quantity);
+                    $existing->update($attributes);
+                    $this->syncLotBalance($existing, $warehouse, $quantity);
+                });
 
                 return $this->updated();
             }
 
-            $lot = MaterialLot::create([
-                'lot_number' => $lotNumber,
-                'material_id' => $material->id,
-                'quantity_received' => (float) ($row['quantity_received'] ?? $quantity),
-                'received_at' => $row['received_at'] ?? now(),
-                // An ERP-reported free quantity is stock the ERP already cleared
-                // for use, so it lands released rather than awaiting inspection.
-                'status' => $status ?? MaterialLot::STATUS_RELEASED,
-                ...$attributes,
-            ]);
+            DB::transaction(function () use ($row, $material, $lotNumber, $status, $attributes, $quantity, $warehouse) {
+                $lot = MaterialLot::create([
+                    'lot_number' => $lotNumber,
+                    'material_id' => $material->id,
+                    'quantity_received' => (float) ($row['quantity_received'] ?? $quantity),
+                    'received_at' => $row['received_at'] ?? now(),
+                    // An ERP-reported free quantity is stock the ERP already cleared
+                    // for use, so it lands released rather than awaiting inspection.
+                    'status' => $status ?? MaterialLot::STATUS_RELEASED,
+                    ...$attributes,
+                ]);
 
-            $this->syncLotBalance($lot, $warehouse, $quantity);
+                $this->syncLotBalance($lot, $warehouse, $quantity);
+            });
 
             return $this->created();
         });
@@ -170,18 +185,32 @@ class MaterialLotImportService
      * Re-derive each touched material's warehouse total from its lot rows, so the
      * bulk row keeps meaning "everything of this material in this warehouse".
      *
+     * One grouped SUM for the whole batch instead of a query and a transaction per
+     * pair: a 5000-row lot sync can touch hundreds of pairs, and paying a round
+     * trip plus a transaction for each is what turns an import into a timeout.
+     *
      * @param  array<string, array{0: int, 1: int}>  $pairs
      */
     private function reconcileWarehouseTotals(array $pairs): void
     {
-        foreach ($pairs as [$warehouseId, $materialId]) {
-            DB::transaction(function () use ($warehouseId, $materialId) {
-                $total = (float) WarehouseStock::query()
-                    ->where('warehouse_id', $warehouseId)
-                    ->where('material_id', $materialId)
-                    ->whereNotNull('material_lot_id')
-                    ->sum('quantity');
+        if ($pairs === []) {
+            return;
+        }
 
+        $warehouseIds = array_unique(array_map(fn (array $pair) => $pair[0], $pairs));
+        $materialIds = array_unique(array_map(fn (array $pair) => $pair[1], $pairs));
+
+        $totals = WarehouseStock::query()
+            ->selectRaw('warehouse_id, material_id, sum(quantity) as total')
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->whereIn('material_id', $materialIds)
+            ->whereNotNull('material_lot_id')
+            ->groupBy('warehouse_id', 'material_id')
+            ->get()
+            ->keyBy(fn ($row) => $row->warehouse_id.':'.$row->material_id);
+
+        DB::transaction(function () use ($pairs, $totals) {
+            foreach ($pairs as $key => [$warehouseId, $materialId]) {
                 WarehouseStock::updateOrCreate(
                     [
                         'warehouse_id' => $warehouseId,
@@ -189,10 +218,13 @@ class MaterialLotImportService
                         'material_lot_id' => null,
                         'product_type_id' => null,
                     ],
-                    ['quantity' => round($total, 3), 'erp_synced_at' => now()],
+                    [
+                        'quantity' => round((float) ($totals[$key]->total ?? 0), 3),
+                        'erp_synced_at' => now(),
+                    ],
                 );
-            });
-        }
+            }
+        });
     }
 
     private function resolveWarehouse(string $code): ?Warehouse

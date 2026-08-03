@@ -37,6 +37,35 @@ class WarehouseStock extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(fn (self $stock) => $stock->assertItem());
+    }
+
+    /**
+     * A balance row must name exactly one item — a material or a product type —
+     * and a lot only qualifies a material.
+     *
+     * The partial unique indexes keep one row per slot but cannot express "one of
+     * these two columns", so the invariant is enforced here: a row with both (or
+     * neither) set would be counted by one view and missed by another, and a lot
+     * without its material has nothing to belong to.
+     */
+    public function assertItem(): void
+    {
+        if (($this->material_id === null) === ($this->product_type_id === null)) {
+            throw new \InvalidArgumentException(
+                'A warehouse stock row must reference exactly one of material_id or product_type_id.'
+            );
+        }
+
+        if ($this->material_lot_id !== null && $this->material_id === null) {
+            throw new \InvalidArgumentException(
+                'A warehouse stock row with a material lot must also reference its material.'
+            );
+        }
+    }
+
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);

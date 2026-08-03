@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web\Admin;
 
 use App\Models\Material;
+use App\Models\MaterialLot;
 use App\Models\ProductType;
 use App\Models\StockDocument;
 use App\Models\User;
@@ -186,5 +187,61 @@ class StockDocumentControllerTest extends TestCase
         $this->actingAs($operator)
             ->get(route('admin.stock-documents.index'))
             ->assertForbidden();
+    }
+
+    public function test_a_line_cannot_carry_a_lot_from_another_material(): void
+    {
+        Warehouse::factory()->rawMaterial()->create();
+        $material = Material::factory()->create();
+        $foreignLot = MaterialLot::factory()->create(['material_id' => Material::factory()]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.stock-documents.store'), [
+                'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+                'lines' => [[
+                    'material_id' => $material->id,
+                    'material_lot_id' => $foreignLot->id,
+                    'quantity' => 5,
+                ]],
+            ])
+            ->assertSessionHasErrors('lines.0.material_lot_id');
+
+        $this->assertSame(0, StockDocument::count());
+    }
+
+    public function test_a_line_cannot_name_both_a_material_and_a_product(): void
+    {
+        Warehouse::factory()->rawMaterial()->create();
+        $material = Material::factory()->create();
+        $product = ProductType::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.stock-documents.store'), [
+                'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+                'lines' => [[
+                    'material_id' => $material->id,
+                    'product_type_id' => $product->id,
+                    'quantity' => 5,
+                ]],
+            ])
+            ->assertSessionHasErrors('lines.0.product_type_id');
+    }
+
+    public function test_a_product_line_cannot_carry_a_material_lot(): void
+    {
+        Warehouse::factory()->finishedGoods()->create();
+        $product = ProductType::factory()->create();
+        $lot = MaterialLot::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.stock-documents.store'), [
+                'type' => StockDocument::TYPE_PRODUCT_RECEIPT,
+                'lines' => [[
+                    'product_type_id' => $product->id,
+                    'material_lot_id' => $lot->id,
+                    'quantity' => 5,
+                ]],
+            ])
+            ->assertSessionHasErrors('lines.0.material_lot_id');
     }
 }

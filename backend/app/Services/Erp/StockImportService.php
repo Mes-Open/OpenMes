@@ -109,22 +109,22 @@ class StockImportService
 
     /**
      * Overwrite one balance. Returns whether the row already existed, so the
-     * report can tell a first sync from a refresh.
+     * report can tell a first sync from a refresh — read off the write itself
+     * rather than costing an extra SELECT per row.
      *
      * @param  array<string, int|null>  $keys
      */
     private function writeBalance(int $warehouseId, array $keys, float $quantity, ?string $unit): bool
     {
-        $keys = ['warehouse_id' => $warehouseId, ...$keys];
+        $stock = WarehouseStock::updateOrCreate(
+            ['warehouse_id' => $warehouseId, ...$keys],
+            [
+                'quantity' => $quantity,
+                'unit_of_measure' => $unit,
+                'erp_synced_at' => now(),
+            ],
+        );
 
-        $existing = WarehouseStock::where($keys)->first();
-
-        WarehouseStock::updateOrCreate($keys, [
-            'quantity' => $quantity,
-            'unit_of_measure' => $unit,
-            'erp_synced_at' => now(),
-        ]);
-
-        return $existing !== null;
+        return ! $stock->wasRecentlyCreated;
     }
 }

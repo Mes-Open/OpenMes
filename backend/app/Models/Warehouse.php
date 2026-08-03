@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A stock location (#212): materials are issued out of one and finished product
@@ -56,6 +57,12 @@ class Warehouse extends Model
         ];
     }
 
+    /**
+     * No softDeleteCascades(): the children a warehouse cascades to in the DB are
+     * balance rows, which are not soft-deletable (derived data), and deletion is
+     * refused outright while the warehouse still holds stock or carries documents
+     * (WarehouseController::destroy) — so there is nothing to cascade.
+     */
     public function stocks(): HasMany
     {
         return $this->hasMany(WarehouseStock::class);
@@ -119,15 +126,23 @@ class Warehouse extends Model
             ->first();
     }
 
-    /** Marking one warehouse default clears the flag on its peers of that kind. */
+    /**
+     * Marking one warehouse default clears the flag on its peers of that kind.
+     *
+     * One transaction: a partial unique index allows only one default per kind, so
+     * a failure between the two statements would otherwise leave the kind with no
+     * default at all (or block the second write outright).
+     */
     public function makeDefault(): void
     {
-        static::query()
-            ->where('kind', $this->kind)
-            ->whereKeyNot($this->getKey())
-            ->where('is_default', true)
-            ->update(['is_default' => false]);
+        DB::transaction(function (): void {
+            static::query()
+                ->where('kind', $this->kind)
+                ->whereKeyNot($this->getKey())
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
 
-        $this->update(['is_default' => true]);
+            $this->update(['is_default' => true]);
+        });
     }
 }

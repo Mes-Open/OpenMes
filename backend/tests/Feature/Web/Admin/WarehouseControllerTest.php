@@ -182,4 +182,30 @@ class WarehouseControllerTest extends TestCase
             ->get(route('admin.warehouse-stock.index'))
             ->assertOk();
     }
+
+    public function test_another_tenants_code_does_not_block_this_tenant(): void
+    {
+        // The DB index is per tenant, so validation must be too — otherwise a code
+        // another tenant happens to use is unusable here.
+        $otherTenant = \App\Models\Tenant::create(['name' => 'Other tenant']);
+        Warehouse::withoutGlobalScopes()->create([
+            'code' => 'RAW-1',
+            'name' => "Other tenant's store",
+            'kind' => Warehouse::KIND_RAW_MATERIAL,
+            'tenant_id' => $otherTenant->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.warehouses.store'), [
+                'code' => 'RAW-1',
+                'name' => 'Our store',
+                'kind' => Warehouse::KIND_RAW_MATERIAL,
+            ])
+            ->assertSessionHasNoErrors();
+
+        // Both rows coexist — one per tenant, exactly what the partial unique
+        // index on (code, COALESCE(tenant_id, 0)) allows.
+        $this->assertDatabaseHas('warehouses', ['code' => 'RAW-1', 'tenant_id' => $this->admin->tenant_id]);
+        $this->assertDatabaseHas('warehouses', ['code' => 'RAW-1', 'tenant_id' => $otherTenant->id]);
+    }
 }

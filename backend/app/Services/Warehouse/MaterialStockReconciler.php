@@ -28,7 +28,10 @@ class MaterialStockReconciler
     public function reconcile(int $materialId): void
     {
         DB::transaction(function () use ($materialId) {
-            $material = Material::find($materialId);
+            // Locked before the sum is taken: two concurrent syncs would otherwise
+            // compute their delta from the same stale stock_quantity and apply both,
+            // leaving the global figure adrift from the warehouse totals.
+            $material = Material::where('id', $materialId)->lockForUpdate()->first();
 
             if (! $material) {
                 return;

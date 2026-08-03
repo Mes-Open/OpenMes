@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1\Erp;
 use App\Enums\ApiScope;
 use App\Models\ApiKey;
 use App\Models\Material;
+use App\Models\MaterialLot;
 use App\Models\ProductType;
 use App\Models\StockDocument;
 use App\Models\StockMovement;
@@ -74,7 +75,9 @@ class ErpStockSyncTest extends TestCase
     public function test_stock_import_is_idempotent(): void
     {
         Warehouse::factory()->rawMaterial()->create(['code' => 'RAW-1']);
-        $material = Material::factory()->create(['code' => 'FLOUR-01']);
+        // Explicit starting stock: the assertion below is about the import's
+        // arithmetic, not about whatever default the factory happens to carry.
+        $material = Material::factory()->create(['code' => 'FLOUR-01', 'stock_quantity' => 0]);
         $key = $this->keyWith([ApiScope::StockWrite]);
 
         $payload = [
@@ -259,5 +262,64 @@ class ErpStockSyncTest extends TestCase
         $this->withHeader('X-Api-Key', $otherKey)
             ->postJson("/api/v1/erp/stock-documents/{$document->id}/ack")
             ->assertStatus(404);
+    }
+
+    public function test_stock_import_validates_its_payload(): void
+    {
+        $key = $this->keyWith([ApiScope::StockWrite]);
+
+        $this->withHeader('X-Api-Key', $key)
+            ->postJson('/api/v1/erp/stock/import', [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('balances');
+
+        $this->withHeader('X-Api-Key', $key)
+            ->postJson('/api/v1/erp/stock/import', ['balances' => 'not-an-array'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('balances');
+
+        $this->withHeader('X-Api-Key', $key)
+            ->postJson('/api/v1/erp/stock/import', [
+                'balances' => [['material_code' => 'FLOUR-01', 'quantity' => 'plenty']],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('balances.0.quantity');
+    }
+
+    public function test_stock_document_export_falls_back_to_the_default_page_size(): void
+    {
+        Warehouse::factory()->rawMaterial()->create();
+
+        // `?limit=` arrives as an empty string; (int) '' is 0, and a zero page size
+        // would make cursorPaginate throw.
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::StockRead]))
+            ->getJson('/api/v1/erp/stock-documents?limit=')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 100);
+    }
+
+    public function test_an_import_row_that_blows_up_does_not_leak_internals(): void
+    {
+        Warehouse::factory()->rawMaterial()->create(['code' => 'RAW-1']);
+
+        // A lot number already used by another material trips the unique index on
+        // (lot_number, tenant); the caller must get a plain message, never SQL.
+        $other = Material::factory()->create(['code' => 'OTHER-01']);
+        MaterialLot::factory()->create(['material_id' => $other->id, 'lot_number' => 'L-1']);
+        Material::factory()->create(['code' => 'FLOUR-01']);
+
+        $response = $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::MasterDataWrite]))
+            ->postJson('/api/v1/erp/material-lots/import', [
+                'warehouse_code' => 'RAW-1',
+                'lots' => [['material_code' => 'FLOUR-01', 'lot_number' => 'L-1', 'quantity_available' => 5]],
+            ]);
+
+        $response->assertStatus(207);
+
+        $message = $response->json('data.errors.0.message');
+        $this->assertStringNotContainsStringIgnoringCase('select', $message);
+        $this->assertStringNotContainsStringIgnoringCase('insert', $message);
+        $this->assertStringNotContainsStringIgnoringCase('material_lots', $message);
+        $this->assertStringContainsString('OTHER-01', $message);
     }
 }

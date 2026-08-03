@@ -21,8 +21,10 @@ class WarehouseStockController extends Controller
     {
         return Inertia::render('admin/warehouse-stock/Index', [
             'warehouses' => Warehouse::orderBy('code')->get(['id', 'code', 'name', 'kind']),
-            'materials' => Material::orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
-            'productTypes' => ProductType::orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
+            // Only items that carry a balance somewhere — the overview never renders
+            // the rest, and a full material catalogue is a large prop for nothing.
+            'materials' => Material::whereHas('warehouseStocks')->orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
+            'productTypes' => ProductType::whereHas('warehouseStocks')->orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
             // Only lots that actually carry a balance somewhere — the full lot
             // table can be large and the overview never shows the rest.
             'lots' => MaterialLot::whereHas('warehouseStocks')->get(['id', 'lot_number'])->keyBy('id')->map->lot_number,

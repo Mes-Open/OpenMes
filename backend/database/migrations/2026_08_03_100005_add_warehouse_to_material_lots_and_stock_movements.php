@@ -19,21 +19,27 @@ return new class extends Migration
         Schema::table('material_lots', function (Blueprint $table) {
             $table->foreignId('warehouse_id')->nullable()->after('source_id')
                 ->constrained()->nullOnDelete();
+            // Both tables are queried per warehouse (stock overview, ledger
+            // reconciliation) and Postgres does not index a FK by itself.
+            $table->index(['warehouse_id']);
         });
 
         Schema::table('stock_movements', function (Blueprint $table) {
             $table->foreignId('warehouse_id')->nullable()->after('material_id')
                 ->constrained()->nullOnDelete();
+            $table->index(['warehouse_id']);
         });
     }
 
     public function down(): void
     {
         Schema::table('material_lots', function (Blueprint $table) {
+            $table->dropIndex(['warehouse_id']);
             $table->dropConstrainedForeignId('warehouse_id');
         });
 
         Schema::table('stock_movements', function (Blueprint $table) {
+            $table->dropIndex(['warehouse_id']);
             $table->dropConstrainedForeignId('warehouse_id');
         });
     }

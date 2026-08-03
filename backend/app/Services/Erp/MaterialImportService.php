@@ -105,11 +105,14 @@ class MaterialImportService
         });
     }
 
-    /** Resolve a material type by code, creating it if the ERP knows a group OpenMES does not. */
+    /**
+     * Resolve a material type by code, creating it if the ERP knows a group OpenMES
+     * does not. firstOrCreate keeps the lookup and the insert in one statement —
+     * a separate check then create lets two concurrent imports of the same new
+     * code both miss and both insert.
+     */
     private function resolveTypeId(string $code): int
     {
-        $type = MaterialType::where('code', $code)->first();
-
-        return $type?->id ?? MaterialType::create(['code' => $code, 'name' => $code])->id;
+        return MaterialType::firstOrCreate(['code' => $code], ['name' => $code])->id;
     }
 }

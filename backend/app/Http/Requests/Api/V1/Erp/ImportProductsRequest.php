@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Api\V1\Erp;
 
+use App\Http\Requests\Api\V1\Erp\Concerns\SharesMasterDataRules;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Validates an ERP product master-data payload (#212).
@@ -12,10 +12,15 @@ use Illuminate\Validation\Rule;
  * ProductImportService (category filter) and reported per row, so a filtered-out
  * item is a "skipped" row, not a 422.
  *
+ * The envelope and the fields it shares with the material import live in
+ * SharesMasterDataRules.
+ *
  * Authorization is handled upstream by the auth.apikey + scope middleware.
  */
 class ImportProductsRequest extends FormRequest
 {
+    use SharesMasterDataRules;
+
     /** Upper bound per request, paired with the erp-import rate limit. */
     public const MAX_ROWS = 2000;
 
@@ -27,32 +32,9 @@ class ImportProductsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'strategy' => ['nullable', Rule::in(['update_or_create', 'skip_existing', 'error_on_duplicate'])],
-            // Import only these ERP classifications (Pantheon acClassif); omit to accept all.
-            'only_categories' => ['nullable', 'array', 'max:100'],
-            'only_categories.*' => ['string', 'max:100'],
-            'external_system' => ['nullable', 'string', 'max:50'],
-
+            ...$this->envelopeRules(),
             'products' => ['required', 'array', 'min:1', 'max:'.self::MAX_ROWS],
-            'products.*.code' => ['required', 'string', 'max:50'],
-            'products.*.name' => ['nullable', 'string', 'max:255'],
-            'products.*.description' => ['nullable', 'string', 'max:2000'],
-            'products.*.category' => ['nullable', 'string', 'max:100'],
-            'products.*.unit_of_measure' => ['nullable', 'string', 'max:20'],
-            'products.*.external_code' => ['nullable', 'string', 'max:100'],
-            'products.*.external_system' => ['nullable', 'string', 'max:50'],
-            'products.*.is_active' => ['nullable', 'boolean'],
+            ...$this->commonRowRules('products.*'),
         ];
-    }
-
-    public function strategy(): string
-    {
-        return $this->input('strategy', 'update_or_create');
-    }
-
-    /** @return list<string> */
-    public function onlyCategories(): array
-    {
-        return array_values(array_filter((array) $this->input('only_categories', [])));
     }
 }

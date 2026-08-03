@@ -82,7 +82,11 @@ class StockDocumentExportController extends Controller
 
         $service->acknowledge($document, $request->input('erp_reference'));
 
-        return response()->json(['data' => $this->present($document->fresh(['warehouse', 'workOrder', 'lines']))]);
+        // present() reads each line's material / product / lot, so load them here
+        // rather than paying a query per line.
+        return response()->json(['data' => $this->present($document->fresh([
+            'warehouse', 'workOrder', 'lines.material', 'lines.productType', 'lines.materialLot',
+        ]))]);
     }
 
     private function present(StockDocument $doc): array

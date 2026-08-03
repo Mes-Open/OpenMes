@@ -344,4 +344,96 @@ class StockDocumentServiceTest extends TestCase
 
         $this->assertDatabaseHas('stock_document_lines', ['id' => $lineId, 'deleted_at' => null]);
     }
+
+    public function test_a_lot_belonging_to_another_material_is_left_alone(): void
+    {
+        $warehouse = $this->rawWarehouse();
+        $material = Material::factory()->create(['stock_quantity' => 100]);
+        $otherMaterial = Material::factory()->create();
+        $foreignLot = MaterialLot::factory()->create([
+            'material_id' => $otherMaterial->id,
+            'quantity_available' => 500,
+            'status' => MaterialLot::STATUS_RELEASED,
+        ]);
+
+        // The form request rejects this pairing; a payload assembled elsewhere must
+        // not be able to draw down an unrelated lot either.
+        $document = $this->service->createDraft([
+            'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+            'warehouse_id' => $warehouse->id,
+            'lines' => [[
+                'material_id' => $material->id,
+                'material_lot_id' => $foreignLot->id,
+                'quantity' => 40,
+            ]],
+        ]);
+
+        $this->service->post($document);
+
+        $this->assertEquals(500, (float) $foreignLot->fresh()->quantity_available);
+        // The material's own stock still moved — only the foreign lot was spared.
+        $this->assertEquals(60, (float) $material->fresh()->stock_quantity);
+    }
+
+    public function test_document_numbers_survive_a_collision(): void
+    {
+        $warehouse = $this->rawWarehouse();
+        $material = Material::factory()->create();
+
+        // Squat on the number the next create would generate.
+        $year = now()->year;
+        StockDocument::factory()->create([
+            'document_no' => "MI/{$year}/0001",
+            'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+            'warehouse_id' => $warehouse->id,
+        ]);
+
+        $document = $this->service->createDraft([
+            'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+            'warehouse_id' => $warehouse->id,
+            'lines' => [['material_id' => $material->id, 'quantity' => 1]],
+        ]);
+
+        $this->assertSame("MI/{$year}/0002", $document->document_no);
+    }
+
+    public function test_a_balance_row_must_name_exactly_one_item(): void
+    {
+        $warehouse = $this->rawWarehouse();
+        $material = Material::factory()->create();
+        $product = ProductType::factory()->create();
+
+        // Both set: one view would count it, another would miss it.
+        $this->expectException(\InvalidArgumentException::class);
+
+        WarehouseStock::create([
+            'warehouse_id' => $warehouse->id,
+            'material_id' => $material->id,
+            'product_type_id' => $product->id,
+            'quantity' => 1,
+        ]);
+    }
+
+    public function test_a_balance_row_must_name_at_least_one_item(): void
+    {
+        $warehouse = $this->rawWarehouse();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        WarehouseStock::create(['warehouse_id' => $warehouse->id, 'quantity' => 1]);
+    }
+
+    public function test_a_lot_balance_row_must_carry_its_material(): void
+    {
+        $warehouse = $this->rawWarehouse();
+        $lot = MaterialLot::factory()->create();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        WarehouseStock::create([
+            'warehouse_id' => $warehouse->id,
+            'material_lot_id' => $lot->id,
+            'quantity' => 1,
+        ]);
+    }
 }

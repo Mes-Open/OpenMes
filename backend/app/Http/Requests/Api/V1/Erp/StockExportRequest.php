@@ -33,8 +33,14 @@ class StockExportRequest extends FormRequest
         ];
     }
 
+    /**
+     * `?limit=` (present but empty) must fall back to the default — (int) '' is 0,
+     * and a zero page size is not a page size.
+     */
     public function perPage(): int
     {
-        return (int) $this->input('limit', 100);
+        $limit = (int) $this->input('limit');
+
+        return $limit > 0 ? $limit : 100;
     }
 }

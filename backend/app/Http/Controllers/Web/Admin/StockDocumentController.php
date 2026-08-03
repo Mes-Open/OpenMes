@@ -27,7 +27,11 @@ class StockDocumentController extends Controller
     {
         return Inertia::render('admin/stock-documents/Index', [
             'warehouses' => Warehouse::orderBy('code')->get(['id', 'code', 'name', 'kind']),
-            'workOrders' => WorkOrder::whereIn('id', StockDocument::query()->whereNotNull('work_order_id')->pluck('work_order_id'))
+            // Subquery, not a pluck: the id list never has to travel to PHP and back.
+            'workOrders' => WorkOrder::whereIn(
+                'id',
+                StockDocument::query()->whereNotNull('work_order_id')->select('work_order_id'),
+            )
                 ->get(['id', 'order_no'])
                 ->keyBy('id')
                 ->map

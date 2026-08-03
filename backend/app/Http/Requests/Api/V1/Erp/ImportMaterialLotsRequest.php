@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Erp;
 
+use App\Http\Requests\Api\V1\Erp\Concerns\SharesMasterDataRules;
 use App\Models\MaterialLot;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
  */
 class ImportMaterialLotsRequest extends FormRequest
 {
+    use SharesMasterDataRules;
+
     public const MAX_ROWS = 5000;
 
     public function authorize(): bool
@@ -24,7 +27,7 @@ class ImportMaterialLotsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'strategy' => ['nullable', Rule::in(['update_or_create', 'skip_existing', 'error_on_duplicate'])],
+            'strategy' => ['nullable', Rule::in(self::STRATEGIES)],
             // Applied to rows that name no warehouse of their own.
             'warehouse_code' => ['nullable', 'string', 'max:100'],
 
@@ -42,10 +45,5 @@ class ImportMaterialLotsRequest extends FormRequest
             'lots.*.supplier_lot_no' => ['nullable', 'string', 'max:100'],
             'lots.*.supplier_reference' => ['nullable', 'string', 'max:100'],
         ];
-    }
-
-    public function strategy(): string
-    {
-        return $this->input('strategy', 'update_or_create');
     }
 }

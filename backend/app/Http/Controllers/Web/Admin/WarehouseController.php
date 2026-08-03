@@ -19,7 +19,10 @@ class WarehouseController extends Controller
     public function index()
     {
         return Inertia::render('admin/warehouses/Index', [
+            // Non-zero balances only, so this agrees with the delete guard below
+            // (an emptied slot keeps a zero row and must not read as "holds stock").
             'stockCounts' => WarehouseStock::query()
+                ->where('quantity', '!=', 0)
                 ->selectRaw('warehouse_id, count(*) as total')
                 ->groupBy('warehouse_id')
                 ->pluck('total', 'warehouse_id'),

@@ -45,11 +45,19 @@ trait ReportsImportRows
                     ];
                 }
             } catch (\Throwable $e) {
-                $errors[] = ['row' => $rowNumber, 'field' => null, 'message' => $e->getMessage()];
+                // Never hand the exception text to the caller: a QueryException
+                // carries the SQL, table names and bound values, and an ERP API key
+                // is not a debugging credential. The detail goes to the log.
+                $errors[] = [
+                    'row' => $rowNumber,
+                    'field' => null,
+                    'message' => __('Row could not be processed'),
+                ];
 
                 Log::error('ERP import row failed', [
                     'importer' => static::class,
                     'row' => $rowNumber,
+                    'exception' => $e::class,
                     'error' => $e->getMessage(),
                 ]);
             }

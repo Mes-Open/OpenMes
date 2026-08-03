@@ -5065,5 +5065,13 @@
     "All Warehouses": "Wszystkie magazyny",
     "Warehouse": "Magazyn",
     "Document No.": "Numer dokumentu",
-    "Document Lines": "Pozycje dokumentu"
+    "Document Lines": "Pozycje dokumentu",
+    "ERP": "ERP",
+    "Row could not be processed": "Nie udało się przetworzyć wiersza",
+    "Could not read the stock balance to update. Try again.": "Nie udało się odczytać stanu do aktualizacji. Spróbuj ponownie.",
+    "This document moves materials, not products.": "Ten dokument obraca materiałami, nie wyrobami.",
+    "This document moves products, not materials.": "Ten dokument obraca wyrobami, nie materiałami.",
+    "A product line cannot carry a material lot.": "Pozycja wyrobu nie może mieć partii materiału.",
+    "That lot belongs to a different material.": "Ta partia należy do innego materiału.",
+    "Lot ':lot' already belongs to material ':code'": "Partia ':lot' należy już do materiału ':code'"
 }

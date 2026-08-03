@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\Material\StockMovementService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -31,6 +32,9 @@ use Illuminate\Validation\ValidationException;
  */
 class StockDocumentService
 {
+    /** How many times a generated document number is retried on a collision. */
+    private const NUMBER_ATTEMPTS = 5;
+
     public function __construct(private StockMovementService $stockMovements) {}
 
     /**
@@ -52,24 +56,38 @@ class StockDocumentService
         $type = $attributes['type'];
         $warehouse = $this->resolveWarehouse($attributes['warehouse_id'] ?? null, $type);
 
-        return DB::transaction(function () use ($attributes, $lines, $type, $warehouse, $user) {
-            $document = StockDocument::create([
-                ...$attributes,
-                'warehouse_id' => $warehouse->id,
-                'document_no' => $attributes['document_no'] ?? $this->nextDocumentNumber($type),
-                'status' => StockDocument::STATUS_DRAFT,
-                'created_by_id' => $attributes['created_by_id'] ?? $user?->id,
-            ]);
+        // A generated number can collide with a concurrent create; the partial
+        // unique index catches it and the next attempt reads the new high-water
+        // mark. An explicitly supplied number is the caller's to own, so a clash
+        // there is a real error and is not retried.
+        $attempts = isset($attributes['document_no']) ? 1 : self::NUMBER_ATTEMPTS;
 
-            foreach (array_values($lines) as $index => $line) {
-                $document->lines()->create([
-                    ...$this->normaliseLine($line, $document),
-                    'sort_order' => $line['sort_order'] ?? $index,
-                ]);
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return DB::transaction(function () use ($attributes, $lines, $type, $warehouse, $user) {
+                    $document = StockDocument::create([
+                        ...$attributes,
+                        'warehouse_id' => $warehouse->id,
+                        'document_no' => $attributes['document_no'] ?? $this->nextDocumentNumber($type),
+                        'status' => StockDocument::STATUS_DRAFT,
+                        'created_by_id' => $attributes['created_by_id'] ?? $user?->id,
+                    ]);
+
+                    foreach (array_values($lines) as $index => $line) {
+                        $document->lines()->create([
+                            ...$this->normaliseLine($line, $document),
+                            'sort_order' => $line['sort_order'] ?? $index,
+                        ]);
+                    }
+
+                    return $document->load('lines');
+                });
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= $attempts) {
+                    throw $e;
+                }
             }
-
-            return $document->load('lines');
-        });
+        }
     }
 
     /**
@@ -78,17 +96,29 @@ class StockDocumentService
      */
     public function post(StockDocument $document, ?User $user = null): StockDocument
     {
-        if ($document->isPosted()) {
-            return $document;
-        }
-
-        if (! $document->isDraft()) {
-            throw ValidationException::withMessages([
-                'status' => __('Only a draft document can be posted.'),
-            ]);
-        }
-
         return DB::transaction(function () use ($document, $user) {
+            // Re-read under a row lock and only then judge the status: checking it
+            // outside the transaction lets two concurrent posts both pass the guard
+            // and apply the same lines twice.
+            $locked = StockDocument::where('id', $document->getKey())->lockForUpdate()->first();
+
+            if (! $locked) {
+                throw ValidationException::withMessages([
+                    'status' => __('That item was already removed.'),
+                ]);
+            }
+
+            if ($locked->isPosted()) {
+                return $locked;
+            }
+
+            if (! $locked->isDraft()) {
+                throw ValidationException::withMessages([
+                    'status' => __('Only a draft document can be posted.'),
+                ]);
+            }
+
+            $document = $locked;
             $document->load('lines');
 
             if ($document->lines->isEmpty()) {
@@ -117,11 +147,23 @@ class StockDocumentService
      */
     public function cancel(StockDocument $document, ?User $user = null, ?string $reason = null): StockDocument
     {
-        if ($document->status === StockDocument::STATUS_CANCELLED) {
-            return $document;
-        }
-
         return DB::transaction(function () use ($document, $user, $reason) {
+            // Same reason as post(): the status decides whether stock is reversed,
+            // so it must be read under the lock that guards the reversal.
+            $locked = StockDocument::where('id', $document->getKey())->lockForUpdate()->first();
+
+            if (! $locked) {
+                throw ValidationException::withMessages([
+                    'status' => __('That item was already removed.'),
+                ]);
+            }
+
+            if ($locked->status === StockDocument::STATUS_CANCELLED) {
+                return $locked;
+            }
+
+            $document = $locked;
+
             if ($document->isPosted()) {
                 $document->load('lines');
 
@@ -157,8 +199,9 @@ class StockDocumentService
 
     /**
      * Next free document number for a type: TYPE-PREFIX/YYYY/NNNN, sequential
-     * per year. Collisions under concurrency are prevented by the partial unique
-     * index on (document_no, tenant) — the caller retries in that (rare) case.
+     * per year. Two concurrent creates can compute the same number; the partial
+     * unique index on (document_no, tenant) rejects the loser and createDraft()
+     * retries it (see NUMBER_ATTEMPTS).
      */
     public function nextDocumentNumber(string $type): string
     {
@@ -222,7 +265,7 @@ class StockDocumentService
         );
 
         if ($line->material_lot_id !== null) {
-            $this->adjustLot($line->material_lot_id, $signed);
+            $this->adjustLot($line->material_lot_id, $signed, (int) $line->material_id);
         }
     }
 
@@ -261,10 +304,24 @@ class StockDocumentService
             ->first();
 
         if (! $stock) {
-            $stock = WarehouseStock::create([
-                ...$keys,
-                'quantity' => 0,
-                'unit_of_measure' => $unit,
+            // lockForUpdate() can only lock rows that exist, so two concurrent
+            // posts can both miss and then race to insert. The partial unique
+            // index decides the winner; the loser re-reads the row it lost to
+            // (now committed) instead of failing the whole posting.
+            try {
+                $stock = WarehouseStock::create([
+                    ...$keys,
+                    'quantity' => 0,
+                    'unit_of_measure' => $unit,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                $stock = WarehouseStock::query()->where($keys)->lockForUpdate()->first();
+            }
+        }
+
+        if (! $stock) {
+            throw ValidationException::withMessages([
+                'lines' => __('Could not read the stock balance to update. Try again.'),
             ]);
         }
 
@@ -278,11 +335,14 @@ class StockDocumentService
     }
 
     /** Keep the lot's remaining quantity in step with what was issued/returned. */
-    private function adjustLot(int $lotId, float $signed): void
+    private function adjustLot(int $lotId, float $signed, int $materialId): void
     {
         $lot = MaterialLot::where('id', $lotId)->lockForUpdate()->first();
 
-        if (! $lot) {
+        // A lot belonging to another material is not this line's stock to move —
+        // the form request rejects it, and a payload assembled elsewhere must not
+        // slip past that.
+        if (! $lot || (int) $lot->material_id !== $materialId) {
             return;
         }
 

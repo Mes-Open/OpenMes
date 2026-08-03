@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Web\Admin;
 
+use App\Models\MaterialLot;
 use App\Models\StockDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -35,9 +36,13 @@ class StoreStockDocumentRequest extends FormRequest
     }
 
     /**
-     * A line must name the kind of item its document type moves — a material
-     * release with a product line (or an empty line) would post nothing and look
-     * like a silent success.
+     * Cross-field checks the per-field rules cannot express:
+     *
+     *  - a line must name the kind of item its document type moves (a material
+     *    release with a product line would post nothing and look like a success),
+     *  - and must NOT name the other kind, so a line can't be read two ways,
+     *  - a lot must belong to the line's own material — otherwise a release could
+     *    draw down an unrelated lot's quantity, which no later check would catch.
      */
     public function withValidator(Validator $validator): void
     {
@@ -53,8 +58,15 @@ class StoreStockDocumentRequest extends FormRequest
                 StockDocument::TYPE_MATERIAL_RECEIPT,
             ], true);
 
-            foreach ((array) $this->input('lines', []) as $index => $line) {
+            $lines = (array) $this->input('lines', []);
+
+            // One query for every lot referenced by the payload: lot id => material id.
+            $lotOwners = MaterialLot::whereIn('id', array_filter(array_column($lines, 'material_lot_id')))
+                ->pluck('material_id', 'id');
+
+            foreach ($lines as $index => $line) {
                 $field = $expectsMaterial ? 'material_id' : 'product_type_id';
+                $forbidden = $expectsMaterial ? 'product_type_id' : 'material_id';
 
                 if (empty($line[$field])) {
                     $validator->errors()->add(
@@ -62,6 +74,34 @@ class StoreStockDocumentRequest extends FormRequest
                         $expectsMaterial
                             ? __('Pick a material for this line.')
                             : __('Pick a product for this line.'),
+                    );
+                }
+
+                if (! empty($line[$forbidden])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.{$forbidden}",
+                        $expectsMaterial
+                            ? __('This document moves materials, not products.')
+                            : __('This document moves products, not materials.'),
+                    );
+                }
+
+                $lotId = $line['material_lot_id'] ?? null;
+
+                if (! $expectsMaterial && ! empty($lotId)) {
+                    $validator->errors()->add(
+                        "lines.{$index}.material_lot_id",
+                        __('A product line cannot carry a material lot.'),
+                    );
+
+                    continue;
+                }
+
+                if (! empty($lotId) && isset($lotOwners[$lotId])
+                    && (int) $lotOwners[$lotId] !== (int) ($line['material_id'] ?? 0)) {
+                    $validator->errors()->add(
+                        "lines.{$index}.material_lot_id",
+                        __('That lot belongs to a different material.'),
                     );
                 }
             }
