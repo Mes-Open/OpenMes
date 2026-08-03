@@ -5,6 +5,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Engineering CAD documents** *([#179](https://github.com/Mes-Open/OpenMes/issues/179))* — attach engineering drawings and CAD files to the parts, products and processes they belong to, so the shop floor always works from the right revision.
+  - **Attach where it matters.** Link files to a **material, product type, product revision, subassembly, or process template/step**. Supported formats: native & neutral CAD (**STEP / IGES**), **eDrawings** (`.eprt` / `.easm` / `.edrw`), **PDF** drawings, **images**, and self-contained **interactive-HTML** packages. Every file is stored on private storage with a **SHA-256 checksum**; the 100 MB size cap and the allowed formats are configurable.
+  - **Revisions with real traceability.** Documents move through a **Draft → Released → Obsolete** lifecycle, and a released document is **immutable**. When a work order is created, the documents released at that moment are **frozen onto it** — publishing a newer revision later never rewrites what a past order was built against.
+  - **Inspect interactive 3D/HTML packages safely in the browser.** Interactive packages open in a **sandboxed viewer** served over short-lived **signed URLs**, isolated from the app (its own strict Content-Security-Policy, no cookies, no outbound network). Uploaded archives are validated and extracted with **zip-slip and file-type protection**, and a bad archive is rejected cleanly.
+  - **Right where you already work.** An **Engineering documents** panel on the Material and Product type pages lists every attached file with type and status badges. Authorized users get upload, download and lifecycle controls; everyone else sees a read-only list.
+  - Access is permission-gated (**view** vs **manage engineering documents**), documents are **soft-deletable** with full audit + Trash, and the feature ships with backend and frontend test coverage.
+
 ## [0.19.0] - 2026-08-01
 
 ### Fixed

@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import EngineeringDocuments from '../../../components/EngineeringDocuments';
 import { __ } from '../../../lib/i18n';
 
 const WO_STATUS_LABELS = {
@@ -387,6 +388,8 @@ export default function ProductTypeShow({
                         </div>
                     </div>
                 </div>
+
+                <EngineeringDocuments entityType="product_type" entityId={productType.id} />
             </div>
         </>
     );

@@ -29,6 +29,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Product & Process
             'view products', 'manage products', 'view process templates', 'manage process templates',
 
+            // Engineering documents (#179)
+            'view engineering documents', 'manage engineering documents',
+
             // CSV Import
             'import csv', 'view import history',
 
@@ -103,6 +106,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'start batch step', 'complete batch step',
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
             'view lines', 'view products', 'view process templates',
+            'view engineering documents', 'manage engineering documents',
             'import csv', 'view import history',
             'view users', 'view audit logs', 'view event logs',
             // Gate 2
@@ -125,6 +129,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view work orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues',
+            // Operators must be able to view/download engineering docs at the station.
+            'view engineering documents',
         ]));
     }
 }

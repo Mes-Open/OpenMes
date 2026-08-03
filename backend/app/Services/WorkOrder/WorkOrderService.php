@@ -32,6 +32,11 @@ class WorkOrderService
             // revision is released later or the revision is edited/obsoleted.
             $processSnapshot = $this->attachRevisionSnapshot($processSnapshot, $data['product_revision_id'] ?? null);
 
+            // Freeze the released engineering documents (#179) active for this
+            // product/revision at release time, so a newer document revision
+            // uploaded later never alters this (or any historical) work order.
+            $processSnapshot = $this->attachEngineeringSnapshot($processSnapshot, $data);
+
             // Create work order
             $workOrder = WorkOrder::create([
                 'order_no' => $data['order_no'],
@@ -93,6 +98,67 @@ class WorkOrderService
     }
 
     /**
+     * Freeze the RELEASED engineering documents (#179) active for the order's
+     * product revision and product type at release time. Stored as compact
+     * references (id + revision + checksum + lifecycle) in the immutable process
+     * snapshot, so uploading a newer document revision later never rewrites this
+     * or any historical work order. Returns the snapshot unchanged when nothing
+     * is attached.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function attachEngineeringSnapshot(?array $snapshot, array $data): ?array
+    {
+        $owners = [];
+        if (! empty($data['product_revision_id'])) {
+            $owners[] = ['product_revision', (int) $data['product_revision_id']];
+        }
+        if (! empty($data['product_type_id'])) {
+            $owners[] = ['product_type', (int) $data['product_type_id']];
+        }
+        if (! $owners) {
+            return $snapshot;
+        }
+
+        // Only freeze documents that are RELEASED and in their effectivity window
+        // at snapshot time — a future-dated or expired release is not active yet /
+        // any more and must not be captured onto the order. effective_from/to are
+        // DATE columns, so compare against today's DATE (not the full datetime), or
+        // a document effective "through today" is dropped once the clock passes
+        // midnight.
+        $today = now()->toDateString();
+        $docs = \App\Models\EngineeringDocument::query()
+            ->where('lifecycle_status', \App\Enums\EngineeringDocumentLifecycle::Released)
+            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today))
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $today))
+            ->where(function ($q) use ($owners) {
+                foreach ($owners as [$type, $id]) {
+                    $q->orWhere(fn ($qq) => $qq->where('entity_type', $type)->where('entity_id', $id));
+                }
+            })
+            ->get();
+
+        if ($docs->isEmpty()) {
+            return $snapshot;
+        }
+
+        $snapshot ??= [];
+        $snapshot['engineering_documents'] = $docs->map(fn ($d) => [
+            'document_id' => $d->id,
+            'entity_type' => $d->entity_type,
+            'entity_id' => $d->entity_id,
+            'revision' => $d->revision,
+            'package_type' => $d->package_type->value,
+            'checksum' => $d->checksum,
+            'lifecycle_at_release' => $d->lifecycle_status->value,
+            'released_at' => $d->released_at?->toIso8601String(),
+        ])->values()->all();
+        $snapshot['engineering_snapshotted_at'] = now()->toIso8601String();
+
+        return $snapshot;
+    }
+
+    /**
      * Re-select the BOM(s) backing an existing work order and rebuild its
      * snapshot. An empty selection falls back to the single active template for
      * the product type. Blocked once production has started - the snapshot is
@@ -117,6 +183,19 @@ class WorkOrderService
             }
 
             $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
+
+            // Preserve the immutable frozen blocks verbatim. The revision (#180) and
+            // engineering documents (#179) were snapshotted at work-order creation;
+            // BOM reselection rebuilds only the BOM/structure and must NOT re-query
+            // those from (possibly newer) live records, or the "immutable snapshot"
+            // guarantee would break. Copy them across unchanged.
+            $existing = $workOrder->process_snapshot ?? [];
+            foreach (['revision', 'engineering_documents', 'engineering_snapshotted_at'] as $key) {
+                if (array_key_exists($key, $existing)) {
+                    $snapshot ??= [];
+                    $snapshot[$key] = $existing[$key];
+                }
+            }
 
             $workOrder->update(['process_snapshot' => $snapshot]);
             $this->syncBomSelection($workOrder, $snapshot['bom_template_ids'] ?? []);

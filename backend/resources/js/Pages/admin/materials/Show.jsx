@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import EngineeringDocuments from '../../../components/EngineeringDocuments';
 
 const MOVEMENT_TYPE_COLORS = {
     receipt:    'text-om-running',
@@ -342,6 +343,8 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         />
                     </div>
                 )}
+
+                <EngineeringDocuments entityType="material" entityId={material.id} />
             </div>
         </>
     );
