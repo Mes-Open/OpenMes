@@ -15,6 +15,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - **Right where you already work.** An **Engineering documents** panel on the Material and Product type pages lists every attached file with type and status badges. Authorized users get upload, download and lifecycle controls; everyone else sees a read-only list.
   - Access is permission-gated (**view** vs **manage engineering documents**), documents are **soft-deletable** with full audit + Trash, and the feature ships with backend and frontend test coverage.
 
+### Changed
+- **PostgreSQL 18** *([#96](https://github.com/Mes-Open/OpenMes/issues/96))* — the bundled database image moves from `postgres:17-alpine` to `postgres:18-alpine`. Logical-replication settings (`wal_level=logical`, replication slots/senders) and the app-level immutable audit log are unchanged and verified on 18. **Fresh installs** pick this up automatically. **Existing deployments:** a major PostgreSQL version cannot reuse a 17 data directory in place — dump on 17 and restore into 18 (`pg_dumpall` / `pg_restore`) during a maintenance window before pulling the new image. Minimum supported server stays PostgreSQL 14+.
+
 ## [0.19.0] - 2026-08-01
 
 ### Fixed
