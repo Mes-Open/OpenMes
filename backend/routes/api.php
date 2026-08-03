@@ -19,7 +19,10 @@ use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
+use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
+use App\Http\Controllers\Api\V1\Erp\StockSyncController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
@@ -129,6 +132,29 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
     // OpenMES → ERP: quality / non-conformance export.
     Route::get('/quality/issues', [QualityExportController::class, 'issues'])
         ->middleware(['scope:erp:quality:read', 'throttle:erp-read']);
+
+    // ERP → OpenMES: master data (#212). Products and materials come from one ERP
+    // item table split by classification, lots carry available quantities, and
+    // recipes are per-unit component lists.
+    Route::middleware(['scope:erp:masterdata:write', 'throttle:erp-import'])->group(function () {
+        Route::post('/products/import', [MasterDataImportController::class, 'products']);
+        Route::post('/materials/import', [MasterDataImportController::class, 'materials']);
+        Route::post('/material-lots/import', [MasterDataImportController::class, 'materialLots']);
+        Route::post('/boms/import', [MasterDataImportController::class, 'boms']);
+    });
+
+    // Warehouse balances (#212): ERP snapshot in, OpenMES view out.
+    Route::post('/stock/import', [StockSyncController::class, 'import'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+    Route::get('/stock', [StockSyncController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: warehouse documents to book (material releases, product
+    // receipts), plus the acknowledgement that takes one off the backlog.
+    Route::get('/stock-documents', [StockDocumentExportController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+    Route::post('/stock-documents/{stockDocument}/ack', [StockDocumentExportController::class, 'acknowledge'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
 });
 
 // Protected API routes (require authentication)

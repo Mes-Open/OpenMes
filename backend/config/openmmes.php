@@ -112,4 +112,21 @@ return [
     |
     */
     'demo_mode' => env('DEMO_MODE', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Warehouse
+    |--------------------------------------------------------------------------
+    |
+    | Warehousing (#212). `auto_documents` makes a completed work order generate
+    | the draft warehouse paperwork it implies — a material release for what it
+    | consumed and a product receipt for what it produced. Drafts only: nothing
+    | moves stock until someone (or the ERP) posts them. Generation additionally
+    | requires the `warehouse` module to be enabled and at least one warehouse to
+    | exist, so installs that do not run warehousing are unaffected either way.
+    |
+    */
+    'warehouse' => [
+        'auto_documents' => env('WAREHOUSE_AUTO_DOCUMENTS', true),
+    ],
 ];

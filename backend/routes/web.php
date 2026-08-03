@@ -725,6 +725,20 @@ Route::middleware('auth')->group(function () {
         Route::post('quality-control-triggers/{qualityControlTrigger}/toggle-active', [\App\Http\Controllers\Web\Admin\QualityControlTriggerController::class, 'toggleActive'])->name('quality-control-triggers.toggle-active');
         Route::resource('quality-control-triggers', \App\Http\Controllers\Web\Admin\QualityControlTriggerController::class)->except(['show']);
 
+        // ── Warehousing (#212) ────────────────────────────────────────────────
+        // Warehouses, per-warehouse balances and the stock documents production
+        // generates (material releases, product receipts). Gated by the
+        // `warehouse` module via the tab.access middleware on this group.
+        Route::resource('warehouses', \App\Http\Controllers\Web\Admin\WarehouseController::class)->except(['show']);
+        Route::post('/warehouses/{warehouse}/toggle-active', [\App\Http\Controllers\Web\Admin\WarehouseController::class, 'toggleActive'])->name('warehouses.toggle-active');
+        Route::post('/warehouses/{warehouse}/set-default', [\App\Http\Controllers\Web\Admin\WarehouseController::class, 'setDefault'])->name('warehouses.set-default');
+
+        Route::get('/warehouse-stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouse-stock.index');
+
+        Route::post('/stock-documents/{stockDocument}/post', [\App\Http\Controllers\Web\Admin\StockDocumentController::class, 'post'])->name('stock-documents.post');
+        Route::post('/stock-documents/{stockDocument}/cancel', [\App\Http\Controllers\Web\Admin\StockDocumentController::class, 'cancel'])->name('stock-documents.cancel');
+        Route::resource('stock-documents', \App\Http\Controllers\Web\Admin\StockDocumentController::class)->except(['edit', 'update']);
+
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources
         Route::resource('cost-sources', CostSourceController::class)->except(['show']);

@@ -1,7 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
-import EngineeringDocuments from '../../../components/EngineeringDocuments';
+// Explicit extension: `components/engineeringDocuments.js` (the helper module)
+// differs only in case, so an extensionless import resolves to the wrong file on a
+// case-insensitive filesystem (macOS) and breaks the build.
+import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
 
 const WO_STATUS_LABELS = {

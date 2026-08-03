@@ -79,6 +79,7 @@ export const ADMIN_GROUPS = [
         match: [
             '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
+            '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ],
@@ -90,6 +91,19 @@ export const ADMIN_GROUPS = [
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials' },
+            // Warehousing (#212) — gated by its own module so an install without
+            // warehouses never sees it.
+            {
+                key: 'warehouseGroup',
+                label: 'Warehouses',
+                match: ['/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents'],
+                tab: 'warehouse',
+                children: [
+                    { label: 'All Warehouses', href: '/admin/warehouses', match: ['/admin/warehouses'], tab: 'warehouse' },
+                    { label: 'Stock On Hand', href: '/admin/warehouse-stock', match: ['/admin/warehouse-stock'], tab: 'warehouse' },
+                    { label: 'Stock Documents', href: '/admin/stock-documents', match: ['/admin/stock-documents'], tab: 'warehouse' },
+                ],
+            },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'] },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering' },
             {
