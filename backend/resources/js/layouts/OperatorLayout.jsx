@@ -37,7 +37,7 @@ export default function OperatorLayout({ children }) {
                         </div>
                     )}
 
-                    <OnlineDot label="ONLINE" pulse className="hidden md:inline-flex shrink-0" />
+                    <OnlineDot label={__("ONLINE")} pulse className="hidden md:inline-flex shrink-0" />
 
                     {line && (
                         <nav className="ml-auto flex items-center gap-2">
