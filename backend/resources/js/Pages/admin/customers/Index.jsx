@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { Modal } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { TIER_BADGE_STYLES, tierLabel } from './fields';
+import ResourceForm from '../../../components/ResourceForm';
+import { TIER_BADGE_STYLES, tierLabel, customerFields, CUSTOMER_INITIAL } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomersIndex() {
     const { counts = {} } = usePage().props;
+    const [creating, setCreating] = useState(false);
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -51,12 +55,35 @@ export default function CustomersIndex() {
                 shape="customers"
                 title={__('Customers')}
                 createHref="/admin/customers/create"
+                onCreate={() => setCreating(true)}
                 createLabel={__('+ New Customer')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No customers yet.')}
             />
+
+            <Modal
+                open={creating}
+                onClose={() => setCreating(false)}
+                title={__('New Customer')}
+                closeLabel={__('Close')}
+                className="max-w-[720px]"
+            >
+                {/* The same field config the create page renders, so a field added
+                    to `customerFields()` shows up in both. `stay: 1` makes the
+                    controller answer with back(), keeping this list's filters and
+                    paging while the new row live-syncs in. */}
+                <ResourceForm
+                    action="/admin/customers"
+                    method="post"
+                    fields={customerFields()}
+                    initial={{ ...CUSTOMER_INITIAL, stay: 1 }}
+                    submitLabel={__('Create')}
+                    onCancel={() => setCreating(false)}
+                    onSuccess={() => setCreating(false)}
+                />
+            </Modal>
         </>
     );
 }

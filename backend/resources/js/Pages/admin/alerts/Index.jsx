@@ -5,7 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import { __, timeAgo, formatDate } from '../../../lib/i18n';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -195,13 +195,13 @@ export default function AlertsIndex() {
                                 icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                                 {__('Open Issues')} ({nonBlockingIssues.length})
                             </SectionTitle>
-                            <DataTable
+                            <AppDataTable
+                                filterable={false}
                                 data={nonBlockingIssues}
                                 columns={issueColumns}
                                 searchable
                                 columnToggle
                                 paginated
-                                searchPlaceholder="Search issues..."
                             />
                         </div>
                     )}
@@ -292,7 +292,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
     }, [showStatus, showDue, showBlockedSince]);
 
     return (
-        <DataTable
+        <AppDataTable
             data={rows}
             columns={columns}
             searchable={false}

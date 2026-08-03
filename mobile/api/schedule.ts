@@ -7,6 +7,11 @@
 import type { ApiEnvelope, WorkOrder } from '@/types/api';
 import { api } from './client';
 
+// The planner board's row shapes live with the scheduling maths that consumes
+// them, so the web and mobile planners share one definition.
+export type { PlannerOrder, PlannerPlacement } from '@openmes/ui/planner';
+import type { PlannerOrder, PlannerPlacement } from '@openmes/ui/planner';
+
 /**
  * One coarse extra segment: the same order continuing on another line. Only the
  * primary placement carries the minute plan — segments are day+shift only.
@@ -118,41 +123,6 @@ export interface PlannerShift {
 }
 
 /** An extra segment as the board ships it (always has a server id). */
-export interface PlannerPlacement {
-  id: number;
-  line_id: number;
-  due_date: string;
-  shift_number: number | null;
-  end_date: string | null;
-  end_shift_number: number | null;
-}
-
-export interface PlannerOrder {
-  id: number;
-  order_no: string;
-  customer_name: string | null;
-  customer_tier: string | null;
-  priority_score: number | null;
-  product_name: string | null;
-  line_id: number | null;
-  secondary_line_id: number | null;
-  product_type_id: number | null;
-  status: string;
-  priority: number | null;
-  planned_qty: number | string | null;
-  produced_qty: number | string | null;
-  progress_percent: number;
-  is_overdue: boolean;
-  due_date: string | null;
-  end_date: string | null;
-  placements: PlannerPlacement[];
-  week_number: number | null;
-  month_number: number | null;
-  shift_number: number | null;
-  end_shift_number: number | null;
-  planned_start_at: string | null;
-  planned_end_at: string | null;
-}
 
 export interface PlannerBacklogOrder {
   id: number;

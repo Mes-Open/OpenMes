@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 
 import { colors, fonts, radius } from '../tokens';
+import { Icon } from '../Icon';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -257,10 +258,10 @@ export function DatePicker({
                 style={[styles.trigger, disabled && styles.triggerDisabled]}
             >
                 <Text style={[styles.triggerLabel, !display && styles.triggerPlaceholder]}>{display || placeholder}</Text>
-                <View style={styles.glyph}>
-                    <View style={styles.glyphTickLeft} />
-                    <View style={styles.glyphTickRight} />
-                </View>
+                {/* Colour is pinned, not inherited: the trigger's own label
+                    switches between ink and placeholder, and the glyph stays
+                    quiet either way — same as the web twin. */}
+                <Icon name="calendar" size={16} color={colors.faint} />
             </Pressable>
             <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
                 <Pressable style={styles.scrim} onPress={() => setOpen(false)}>
@@ -469,31 +470,6 @@ const styles = StyleSheet.create({
     },
     triggerPlaceholder: {
         color: colors.faint,
-    },
-    glyph: {
-        width: 15,
-        height: 15,
-        borderRadius: 3,
-        borderWidth: 1.6,
-        borderColor: colors.faint,
-    },
-    glyphTickLeft: {
-        position: 'absolute',
-        top: -3,
-        left: 2,
-        width: 2,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.faint,
-    },
-    glyphTickRight: {
-        position: 'absolute',
-        top: -3,
-        right: 2,
-        width: 2,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.faint,
     },
     scrim: {
         flex: 1,

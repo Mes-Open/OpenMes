@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
 
@@ -319,11 +319,11 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <DataTable
+                <AppDataTable
+                    filterable={false}
                     data={rows}
                     columns={columns}
                     paginated={false}
-                    searchPlaceholder={__('Order no. or LOT')}
                     emptyLabel={__('No orders match the current filters.')}
                     onRowClick={(r) => router.visit(`/admin/reports/${r.id}`)}
                 />

@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import { useMemo, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber, __ } from '../../../lib/i18n';
@@ -36,19 +36,19 @@ export default function OeeIndex() {
         {
             id: 'record_date',
             accessorKey: 'record_date',
-            header: 'Date',
+            header: __('Date'),
             cell: ({ row }) => <span className="font-mono">{row.original.record_date}</span>,
         },
         {
             id: 'line',
             accessorFn: (r) => r.line?.name,
-            header: 'Line',
+            header: __('Line'),
             cell: ({ row }) => <span className="font-medium">{row.original.line?.name}</span>,
         },
         {
             id: 'shift',
             accessorFn: (r) => r.shift?.name ?? __('All'),
-            header: 'Shift',
+            header: __('Shift'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? __('All')}</span>,
         },
         {
@@ -294,10 +294,9 @@ export default function OeeIndex() {
                 {records.length > 0 ? (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
                         <h2 className="text-lg font-bold text-om-ink mb-4">{__('Daily Records')}</h2>
-                        <DataTable
+                        <AppDataTable
                             data={records}
                             columns={recordColumns}
-                            searchPlaceholder="Search records…"
                         />
                     </div>
                 ) : (

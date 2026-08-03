@@ -1,8 +1,9 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
+import { __ } from '../../../lib/i18n';
 
 const TYPE_COLORS = {
     production:  'bg-om-chip text-om-accent',
@@ -201,13 +202,13 @@ export default function ProcessSegmentShow() {
                         <section className="card">
                             <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-1">Usage</h2>
                             <p className="text-xs text-om-muted mb-3">Template steps that reference this segment.</p>
-                            <DataTable
+                            <AppDataTable
                                 data={usingSteps}
                                 columns={usageColumns}
                                 searchable={false}
                                 columnToggle={false}
                                 paginated={false}
-                                emptyLabel="Not used by any process template yet."
+                                emptyLabel={__('Not used by any process template yet.')}
                             />
                         </section>
                     </div>

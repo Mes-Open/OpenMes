@@ -2,7 +2,6 @@
 
 namespace App\Services\Schedule;
 
-use App\Events\Schedule\WorkOrderScheduled;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceSchedule;
@@ -71,11 +70,13 @@ class SchedulePlannerService
 
         $lineId = $params['line_id'] ?? null;
 
-        $linesQuery = Line::where('is_active', true)->orderBy('name');
-        if (! empty($lineId)) {
-            $linesQuery->where('id', $lineId);
-        }
-        $lines = $linesQuery->get();
+        // Every active line, loaded once: the board's line filter is a subset of
+        // it, so filtering in PHP saves a second identical round trip (the
+        // unfiltered board — the default — asked for the same rows twice).
+        $allLines = Line::where('is_active', true)->orderBy('name')->get();
+        $lines = empty($lineId)
+            ? $allLines
+            : $allLines->where('id', (int) $lineId)->values();
         $lineIds = $lines->pluck('id');
 
         // Load the distinct active shifts (e.g. Morning / Afternoon / Night).
@@ -146,8 +147,6 @@ class SchedulePlannerService
         };
 
         $maintenanceEvents = $this->maintenanceEventsInRange($rangeStart, $rangeEnd);
-
-        $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
         // Backlog: unassigned work orders (no line or no due_date/week)
         $backlogOrders = WorkOrder::with(['productType', 'line', 'customer'])
@@ -316,10 +315,6 @@ class SchedulePlannerService
 
         $this->logChange($workOrder, $snapshotBefore);
 
-        // Module hook: the placement changed on the planner (assigned / moved /
-        // unassigned). Carries the fields the edit actually wrote.
-        WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
-
         return [
             'conflict' => false,
             'warnings' => $this->prepareBatchAndWarn($workOrder),
@@ -359,7 +354,6 @@ class SchedulePlannerService
                 'planned_end_at' => $input['planned_end_at'],
             ]);
             $this->logChange($workOrder, $snapshotBefore);
-            WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
 
             return ['conflict' => false];
         }
@@ -374,7 +368,6 @@ class SchedulePlannerService
             ]);
         }
         $this->logChange($workOrder, $snapshotBefore);
-        WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
 
         return ['conflict' => false];
     }
@@ -437,9 +430,6 @@ class SchedulePlannerService
             'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
         ]);
 
-        // Module hook: an undo restores a previous placement — a schedule change too.
-        WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
-
         return true;
     }
 
@@ -458,7 +448,7 @@ class SchedulePlannerService
             'end_shift_number' => $workOrder->end_shift_number,
             'planned_start_at' => $workOrder->planned_start_at?->toIso8601String(),
             'planned_end_at' => $workOrder->planned_end_at?->toIso8601String(),
-            'placements' => $workOrder->extraPlacements()->get()->map(fn ($p) => [
+            'placements' => $workOrder->loadMissing('extraPlacements')->extraPlacements->map(fn ($p) => [
                 'line_id' => $p->line_id,
                 'due_date' => $p->due_date->format('Y-m-d'),
                 'shift_number' => $p->shift_number,
@@ -471,7 +461,7 @@ class SchedulePlannerService
     /** Log the edit when the snapshot actually changed. */
     public function logChange(WorkOrder $workOrder, array $before): void
     {
-        $after = $this->placementSnapshot($workOrder->fresh());
+        $after = $this->placementSnapshot($workOrder->fresh('extraPlacements'));
         if ($before == $after) {
             return;
         }

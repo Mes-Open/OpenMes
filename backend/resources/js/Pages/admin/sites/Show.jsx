@@ -1,7 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import { __ } from '../../../lib/i18n';
 
 const areaColumns = [
     {
@@ -198,13 +199,13 @@ export default function SiteShow() {
                             + Add Area
                         </Link>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={areas}
                         columns={areaColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No areas defined yet."
+                        emptyLabel={__('No areas defined yet.')}
                     />
                 </div>
 
@@ -215,13 +216,13 @@ export default function SiteShow() {
                             Lines under this Site <span className="text-om-muted">({lines.length})</span>
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={lines}
                         columns={lineColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No lines mapped under this site yet."
+                        emptyLabel={__('No lines mapped under this site yet.')}
                     />
                 </div>
             </div>

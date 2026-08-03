@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
@@ -120,10 +120,9 @@ export default function CustomFieldsIndex() {
                     />
                 </div>
 
-                <DataTable
+                <AppDataTable
                     data={rows}
                     columns={columns}
-                    searchPlaceholder={__('Search custom fields…')}
                     emptyLabel={__('No custom fields yet.')}
                 />
             </div>

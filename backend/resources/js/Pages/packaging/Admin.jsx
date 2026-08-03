@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber, __ } from '../../lib/i18n';
 
@@ -172,13 +172,12 @@ export default function Admin() {
                             {__('Work orders to pack')} ({items.length})
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={items}
                         columns={itemColumns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder={__('Search orders…')}
                         emptyLabel={__('No work orders with assigned EAN codes')}
                     />
                 </div>

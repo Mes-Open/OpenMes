@@ -2,6 +2,9 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 
 const GAP = 10;
+const ARROW_SIZE = 9; // side of the rotated square that forms the pointer
+const ARROW_HALF = ARROW_SIZE / 2; // centre it ON the edge so the two shapes merge
+const ARROW_INSET = 12; // keep the pointer clear of the bubble's rounded ends
 const MARGIN = 8; // keep this far from the viewport edges
 
 /**
@@ -32,6 +35,10 @@ export default function Tooltip({
     const timerRef = useRef(null);
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState({ top: 0, left: 0 });
+    // Where the arrow sits along the bubble's facing edge, in px from its
+    // top/left. Tracked separately from `pos` because clamping the bubble into
+    // the viewport moves the bubble but not the thing it points at.
+    const [arrow, setArrow] = useState(0);
     const id = useId();
 
     const active = open && !disabled && !!label;
@@ -91,10 +98,19 @@ export default function Tooltip({
 
             const maxLeft = window.innerWidth - bubble.width - MARGIN;
             const maxTop = window.innerHeight - bubble.height - MARGIN;
-            setPos({
-                top: Math.max(MARGIN, Math.min(top, maxTop)),
-                left: Math.max(MARGIN, Math.min(left, maxLeft)),
-            });
+            const clampedTop = Math.max(MARGIN, Math.min(top, maxTop));
+            const clampedLeft = Math.max(MARGIN, Math.min(left, maxLeft));
+            setPos({ top: clampedTop, left: clampedLeft });
+
+            // Point at the anchor's centre, not the bubble's — they diverge as
+            // soon as the bubble is clamped at a viewport edge. Kept a corner
+            // radius away from the ends so it never pokes out of a rounded edge.
+            const sideways = placement === 'left' || placement === 'right';
+            const along = sideways
+                ? anchor.top + anchor.height / 2 - clampedTop
+                : anchor.left + anchor.width / 2 - clampedLeft;
+            const span = sideways ? bubble.height : bubble.width;
+            setArrow(Math.max(ARROW_INSET, Math.min(along, span - ARROW_INSET)));
         };
 
         place();
@@ -118,6 +134,21 @@ export default function Tooltip({
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [active, hide]);
+
+    // Offsets are half the square so it straddles the edge; the rotation makes
+    // the exposed corner the point.
+    const sideways = placement === 'left' || placement === 'right';
+    const arrowStyle = {
+        width: ARROW_SIZE,
+        height: ARROW_SIZE,
+        // Half the square sits behind the bubble, half pokes out — the exposed
+        // corner is the point. Offsetting by anything other than half leaves a
+        // gap and the pointer reads as a detached diamond.
+        left: placement === 'right' ? -ARROW_HALF : sideways ? undefined : arrow - ARROW_HALF,
+        right: placement === 'left' ? -ARROW_HALF : undefined,
+        top: placement === 'bottom' ? -ARROW_HALF : sideways ? arrow - ARROW_HALF : undefined,
+        bottom: placement === 'top' ? -ARROW_HALF : undefined,
+    };
 
     return (
         <>
@@ -146,6 +177,14 @@ export default function Tooltip({
                                    shadow-[0_18px_44px_-18px_rgba(0,0,0,.45)]"
                     >
                         {label}
+                        {/* A rotated square poking out of the facing edge, so the
+                            bubble reads as belonging to the control it labels
+                            rather than floating next to it. */}
+                        <span
+                            aria-hidden="true"
+                            className="absolute rotate-45 bg-om-ink"
+                            style={arrowStyle}
+                        />
                     </span>,
                     document.body,
                 )}

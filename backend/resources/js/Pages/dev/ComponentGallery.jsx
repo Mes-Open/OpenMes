@@ -29,7 +29,8 @@ import {
     ToastProvider,
     useToast,
 } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../components/AppDataTable';
+import { __ } from '../../lib/i18n';
 
 const SAMPLE_ROWS = [
     { id: 'WO-2026-001', product: 'HEPA-13 Standard', status: 'running', prio: 'H', plan: 250, made: 108 },
@@ -270,13 +271,12 @@ function GalleryBody() {
                 </Section>
 
                 <Section label="12 — Data table">
-                    <DataTable
+                    <AppDataTable
+                        filterable={false}
                         data={SAMPLE_ROWS}
                         columns={TABLE_COLUMNS}
                         fluid={false}
-                        searchPlaceholder="Search all columns"
                         enableSelection
-                        selectionLabel={(n, m) => `${n} of ${m} row(s) selected`}
                         bulkActions={(rows, clear) => (
                             <>
                                 <Button variant="secondary" onClick={() => {}}>Print labels</Button>
@@ -284,9 +284,7 @@ function GalleryBody() {
                                 <button type="button" className="cursor-pointer text-[12.5px] text-om-muted" onClick={clear}>Clear</button>
                             </>
                         )}
-                        columnsLabel="Columns"
-                        columnsMenuLabel="Toggle columns"
-                        emptyLabel="No rows match the filters."
+                        emptyLabel={__('No rows match the filters.')}
                         rangeLabel={(start, end, total) => (total === 0 ? '0 results' : `${start}–${end} of ${total}`)}
                         pageSize={6}
                         bodyMaxHeight={252}

@@ -313,78 +313,12 @@ class WorkOrderManagementController extends Controller
             ->with('success', "Work order {$no} deleted.");
     }
 
-    /**
-     * The status transitions a user can drive from the list/detail screens.
-     *
-     * `from` is the set of statuses the transition is legal in; anything else is
-     * refused. Bulk and single-order actions both read this table, so the two can
-     * never disagree about what is allowed.
-     *
-     * @return array<string, array{from: list<string>, to: string, verb: string, error: string}>
-     */
-    private static function transitions(): array
-    {
-        $nonTerminal = array_values(array_diff([
-            WorkOrder::STATUS_PENDING,
-            WorkOrder::STATUS_ACCEPTED,
-            WorkOrder::STATUS_IN_PROGRESS,
-            WorkOrder::STATUS_BLOCKED,
-            WorkOrder::STATUS_PAUSED,
-        ], WorkOrder::TERMINAL_STATUSES));
-
-        return [
-            'cancel' => [
-                'from' => $nonTerminal,
-                'to' => WorkOrder::STATUS_CANCELLED,
-                'verb' => 'cancelled',
-                'error' => 'Cannot cancel a work order that is already in a terminal state.',
-            ],
-            'accept' => [
-                'from' => [WorkOrder::STATUS_PENDING],
-                'to' => WorkOrder::STATUS_ACCEPTED,
-                'verb' => 'accepted',
-                'error' => 'Only PENDING work orders can be accepted.',
-            ],
-            'reject' => [
-                'from' => [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED],
-                'to' => WorkOrder::STATUS_REJECTED,
-                'verb' => 'rejected',
-                'error' => 'Only PENDING or ACCEPTED work orders can be rejected.',
-            ],
-            'pause' => [
-                'from' => [WorkOrder::STATUS_IN_PROGRESS],
-                'to' => WorkOrder::STATUS_PAUSED,
-                'verb' => 'paused',
-                'error' => 'Only IN_PROGRESS work orders can be paused.',
-            ],
-            'resume' => [
-                'from' => [WorkOrder::STATUS_PAUSED],
-                'to' => WorkOrder::STATUS_IN_PROGRESS,
-                'verb' => 'resumed',
-                'error' => 'Only PAUSED work orders can be resumed.',
-            ],
-            'reopen' => [
-                'from' => WorkOrder::TERMINAL_STATUSES,
-                'to' => WorkOrder::STATUS_IN_PROGRESS,
-                'verb' => 'reopened',
-                'error' => 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.',
-            ],
-        ];
-    }
-
     /** Apply one transition to one order, or bounce back with its refusal message. */
     private function transition(WorkOrder $workOrder, string $action)
     {
-        $rule = self::transitions()[$action];
+        $result = WorkOrderService::applyTransition($workOrder, $action);
 
-        if (! in_array($workOrder->status, $rule['from'], true)) {
-            return redirect()->back()->with('error', $rule['error']);
-        }
-
-        $workOrder->update(['status' => $rule['to']]);
-
-        return redirect()->back()
-            ->with('success', "Work order {$workOrder->order_no} {$rule['verb']}.");
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
     /**
@@ -398,7 +332,7 @@ class WorkOrderManagementController extends Controller
     public function bulk(BulkWorkOrderActionRequest $request)
     {
         $action = $request->validated('action');
-        $rule = self::transitions()[$action];
+        $rule = WorkOrderService::transitions()[$action];
 
         $orders = WorkOrder::whereIn('id', $request->validated('ids'))->get();
 
@@ -412,12 +346,13 @@ class WorkOrderManagementController extends Controller
         });
 
         $skipped = $orders->count() - $eligible->count();
-        $message = "{$eligible->count()} work order(s) {$rule['verb']}.";
+        $message = __($rule['bulk'], ['count' => $eligible->count()]);
 
-        return redirect()->back()->with(
-            'success',
-            $skipped > 0 ? "{$message} {$skipped} skipped (not applicable in their current status)." : $message,
-        );
+        if ($skipped > 0) {
+            $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     public function cancel(WorkOrder $workOrder)

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import { __ } from '../../../lib/i18n';
 
 export default function AreaShow() {
     const { area, customFields = [] } = usePage().props;
@@ -127,13 +128,13 @@ export default function AreaShow() {
                             Lines <span className="text-om-muted">({lines.length})</span>
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={lines}
                         columns={lineColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No lines assigned to this area yet."
+                        emptyLabel={__('No lines assigned to this area yet.')}
                     />
                 </div>
             </div>

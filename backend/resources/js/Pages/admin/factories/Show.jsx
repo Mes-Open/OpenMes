@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 export default function FactoryShow() {
     const { factory } = usePage().props;
@@ -118,13 +119,13 @@ export default function FactoryShow() {
                             Divisions <span className="text-om-muted">({divisions.length})</span>
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={divisions}
                         columns={divisionColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No divisions assigned to this factory yet."
+                        emptyLabel={__('No divisions assigned to this factory yet.')}
                     />
                 </div>
             </div>

@@ -82,7 +82,12 @@ class AdminWorkOrderBulkActionTest extends TestCase
         $this->assertSame(WorkOrder::STATUS_ACCEPTED, $pending->fresh()->status);
         // The terminal one is untouched, and the user is told one was skipped.
         $this->assertSame(WorkOrder::STATUS_DONE, $done->fresh()->status);
-        $this->assertStringContainsString('1 skipped', session('success'));
+        // Asserted through the same key the controller uses, so the test doesn't
+        // depend on the app's configured locale.
+        $this->assertStringContainsString(
+            __(':count skipped (not applicable in their current status).', ['count' => 1]),
+            session('success'),
+        );
     }
 
     public function test_a_selection_with_no_eligible_orders_changes_nothing(): void

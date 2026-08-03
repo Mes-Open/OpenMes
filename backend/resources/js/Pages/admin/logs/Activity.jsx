@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const ACTION_COLORS = {
     created:      'bg-om-running-bg text-om-running',
@@ -422,16 +423,14 @@ export default function Activity() {
                 </div>
 
                 {/* Table */}
-                <DataTable
+                <AppDataTable
+                    filterable={false}
                     data={logItems}
                     columns={columns}
                     searchable
                     columnToggle
                     paginated={false}
-                    searchPlaceholder="Search activity…"
-                    columnsLabel="Columns"
-                    columnsMenuLabel="Toggle columns"
-                    emptyLabel="No activity in this period."
+                    emptyLabel={__('No activity in this period.')}
                 />
 
                 {meta && meta.last_page > 1 && (

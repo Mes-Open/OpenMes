@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (balance/discrepancy data and close-shift post untouched).
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Badge, Button, Dropdown, InlineAlert } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import { useMemo } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
@@ -213,13 +213,12 @@ export default function ShiftHandoverIndex() {
                     <h2 className="text-[14px] font-semibold text-om-ink">{__('Recent handovers')}</h2>
                 </div>
                 <div className="p-4">
-                    <DataTable
+                    <AppDataTable
                         data={recent}
                         columns={recentColumns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder={__('Search handovers…')}
                         emptyLabel={__('No handovers yet')}
                     />
                 </div>

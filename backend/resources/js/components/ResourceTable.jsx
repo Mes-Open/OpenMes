@@ -1,12 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, Fragment, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { StatusPill } from '@openmes/ui';
+import { Button, Icon, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import Tooltip from './Tooltip';
 import useConfirm from './useConfirm';
 import { __ } from '../lib/i18n';
+import { tableLabels, filterLabels, normalizeFilter } from '../lib/tableLabels';
 
 // Shared "now" clock for columns flagged `live: true` (e.g. an elapsed-time
 // column). A single interval per table bumps this context; each live cell is a
@@ -99,7 +100,6 @@ function LiveClockProvider({ active, children }) {
  *                 and a Clear action is always provided. `enableSelection={false}`
  *                 drops the checkbox column for a list where picking rows is
  *                 meaningless.
- *   selectionLabel — (selected, total) => string for the selection counter
  *   fullWidth   — no-op, kept so existing call sites keep working. Lists are
  *                 always full width now (see the render below); a page that
  *                 passes it gets what it asked for either way. A page whose
@@ -113,20 +113,26 @@ function LiveClockProvider({ active, children }) {
  * tooltip; SVG paths are copied verbatim from the legacy Blade tables so the icons
  * match exactly. Pass `icon: 'edit' | 'delete' | 'activate' | 'deactivate'`.
  */
-const ICON_PATH = {
-    edit: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-    delete: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
-    deactivate: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
-    activate: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+/**
+ * Action name → Lucide icon. The names the pages already pass (`icon: 'edit'`)
+ * stay the vocabulary; this maps them onto the shared set so the glyphs come
+ * from one maintained source instead of `d` strings pasted out of the old Blade
+ * tables. Native screens can render the same names through @openmes/ui's Icon.
+ */
+const ACTION_ICON = {
+    edit: 'square-pen',
+    delete: 'trash-2',
+    deactivate: 'ban',
+    activate: 'circle-check',
     // Status-transition verbs. These sit beside their label in the action rail —
     // the icon is recognition, the word is what makes it unambiguous.
-    accept: 'M5 13l4 4L19 7',
-    reject: 'M6 18L18 6M6 6l12 12',
-    pause: 'M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z',
-    resume: 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-    complete: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-    reopen: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
-    cancel: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
+    accept: 'check',
+    reject: 'x',
+    pause: 'circle-pause',
+    resume: 'circle-play',
+    complete: 'circle-check',
+    reopen: 'rotate-ccw',
+    cancel: 'ban',
 };
 const ICON_COLOR = {
     edit: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
@@ -148,17 +154,6 @@ const ACTION_CLASS = {
     warning: `${ACTION_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
 };
 const actionClass = (a) => a.className ?? ACTION_CLASS[a.variant] ?? ACTION_CLASS.secondary;
-
-/**
- * Calendar footer copy — @openmes/ui ships English defaults, the app translates.
- * Built lazily (not at module load) so it reads the locale after it is applied.
- */
-const calendarCopy = () => ({
-    todayLabel: __('Today'),
-    todayWord: __('today'),
-    rangeLabel: __('Date range'),
-    pickEndLabel: __('Pick an end date'),
-});
 
 /** Render one row's action buttons (icon trio + labeled domain actions). */
 /**
@@ -182,24 +177,37 @@ function ActionRail({ slots, row, confirm }) {
                 const tone = RAIL_TONE[a.variant] ?? RAIL_TONE.secondary;
                 const content = (
                     <>
-                        {a.icon && ICON_PATH[a.icon] && (
-                            <svg className="size-[15px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICON_PATH[a.icon]} />
-                            </svg>
+                        {a.icon && ACTION_ICON[a.icon] && (
+                            <Icon name={ACTION_ICON[a.icon]} size={15} className="shrink-0" />
                         )}
                         {a.label && !a.iconOnly && <span className="truncate">{__(a.label)}</span>}
                     </>
                 );
                 const cls = `inline-flex h-[30px] shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-om-sm px-2 text-[12.5px] font-semibold transition-colors ${tone}`;
 
-                return a.href ? (
-                    <Link key={slot.key} href={a.href} className={cls} style={{ width: slot.width }} data-action={a.label} title={__(a.label)}>
+                // Only an icon-only button needs a hover label — one that repeats
+                // text already on the button is noise. `aria-label` names the
+                // control either way; a tooltip is not an accessible name.
+                const iconOnly = !a.label || a.iconOnly;
+                const control = a.href ? (
+                    <Link href={a.href} className={cls} style={{ width: slot.width }} data-action={a.label} aria-label={__(a.label)}>
                         {content}
                     </Link>
                 ) : (
-                    <button key={slot.key} type="button" onClick={onClick} className={cls} style={{ width: slot.width }} data-action={a.label} title={__(a.label)}>
+                    <button type="button" onClick={onClick} className={cls} style={{ width: slot.width }} data-action={a.label} aria-label={__(a.label)}>
                         {content}
                     </button>
+                );
+
+                // The app's own label bubble, placed the way the collapsed sidebar
+                // labels its icons — not the browser's native `title` box, which
+                // ignores the design system and lands wherever the OS puts it.
+                return iconOnly ? (
+                    <Tooltip key={slot.key} label={__(a.label)} placement="left">
+                        {control}
+                    </Tooltip>
+                ) : (
+                    <Fragment key={slot.key}>{control}</Fragment>
                 );
             })}
         </div>
@@ -226,17 +234,18 @@ function RowActions({ actions, row, confirm }) {
                     ? () => confirm(a.confirm, () => a.onClick?.())
                     : a.onClick;
                 // Icon button (Edit / toggle / Delete) — the legacy look.
-                if (a.icon && ICON_PATH[a.icon]) {
+                if (a.icon && ACTION_ICON[a.icon]) {
                     const cls = `p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
-                    const glyph = (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICON_PATH[a.icon]} />
-                        </svg>
-                    );
+                    const glyph = <Icon name={ACTION_ICON[a.icon]} size={20} />;
                     // `aria-label` (not `title`) names the control — the styled
                     // tooltip carries the visible hover label.
+                    //
+                    // Placed to the side, the way the collapsed sidebar labels its
+                    // icons. Above (the default) drops the bubble onto the previous
+                    // row's action buttons in a dense list; the actions column sits
+                    // on the right edge, so `left` is the sidebar's mirror.
                     return (
-                        <Tooltip key={i} label={__(a.label)}>
+                        <Tooltip key={i} label={__(a.label)} placement="left">
                             {a.href ? (
                                 <Link href={a.href} className={cls} aria-label={__(a.label)} data-action={a.label}>
                                     {glyph}
@@ -264,14 +273,22 @@ function RowActions({ actions, row, confirm }) {
     );
 }
 
-/** Selection-bar chips (design §12): chip-filled, blocked-tinted when destructive. */
-const BULK_CHIP_BASE = 'inline-flex h-[30px] cursor-pointer items-center justify-center rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors';
-const BULK_CHIP = {
-    secondary: `${BULK_CHIP_BASE} bg-om-chip text-om-ink hover:bg-om-line2`,
-    danger: `${BULK_CHIP_BASE} bg-om-blocked-bg text-om-blocked hover:bg-[#f8ddd6]`,
-    warning: `${BULK_CHIP_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
-};
+/**
+ * Selection-bar chips (design §12) — the shared Button's own tones at the
+ * selection bar's chip height. `warning` has no Button variant, so it keeps its
+ * class; the other two would otherwise be a second copy of Button's palette.
+ */
+// `!` because Button's own rounded-om-sm would otherwise win on stylesheet
+// order — the selection chips are deliberately tighter than a full button.
+const BULK_CHIP_SIZE = 'h-[30px] rounded-[6px]! px-3 text-[12.5px]!';
+const BULK_CHIP_WARNING = `inline-flex cursor-pointer items-center justify-center font-semibold transition-colors bg-om-downtime-bg text-om-downtime hover:brightness-95 ${BULK_CHIP_SIZE}`;
 
+/**
+ * The "new record" button. Rendered as the shared Button when it opens a modal;
+ * the Inertia <Link> variant can't be a Button (that renders a <button>), so it
+ * borrows the same primary/md classes — kept here rather than duplicated at
+ * every call site.
+ */
 const CREATE_BTN_CLASS =
     'inline-flex cursor-pointer items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover';
 
@@ -302,10 +319,10 @@ export default function ResourceTable({
     pageSize = 50,
     enableSelection,
     bulkActions,
-    selectionLabel = (n, m) => __(':n of :m selected', { n, m }),
     fullWidth = false,
-    /** Height left for rows after the page chrome (title, toolbar, header, pager). */
-    bodyMaxHeight = 'max(240px, calc(100vh - 300px))',
+    /** Rows fill the space left under the table by default — see DataTable's
+     *  `bodyMaxHeight`. Pass a CSS length to cap it at something fixed instead. */
+    bodyMaxHeight = 'fill',
 }) {
     // Every list gets selection checkboxes, whether or not the page defines bulk
     // actions — picking rows is useful on its own (counting a subset, keeping your
@@ -326,11 +343,19 @@ export default function ResourceTable({
 
     // Optional client-side filter (e.g. a dashboard KPI deep-link like
     // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
-    const visibleRows = filterFn ? (rows ?? []).filter(filterFn) : (rows ?? []);
+    // Memoised: a fresh array identity every render would rebuild TanStack's
+    // core row model and drop each row's value caches, making the faceting the
+    // filter row depends on recompute cold.
+    const visibleRows = useMemo(
+        () => (filterFn ? (rows ?? []).filter(filterFn) : (rows ?? [])),
+        [rows, filterFn],
+    );
 
     // Map the declarative column config → TanStack column defs. Column ids stay
     // stable (= c.key) so sort/page/filter state survives live data re-renders.
     const tableColumns = useMemo(() => {
+        // One copy of the filter-cell strings for every column below.
+        const filterCopy = filterLabels();
         // Pick the column that absorbs horizontal slack so short count/status
         // columns don't balloon: prefer the free-text column, else the first
         // left-aligned one. Pages can override per-column with `flex: true`.
@@ -363,16 +388,12 @@ export default function ResourceTable({
                     // from its own data, so a list never has arbitrary gaps in the
                     // filter row. Pin the kind with a string, or opt a column out
                     // with `filter: false` when its cell isn't what the value holds.
-                    filter: c.filter === false ? undefined : c.filter === true || c.filter == null ? 'auto' : c.filter,
+                    ...filterCopy,
+                    filter: normalizeFilter(c.filter),
                     options: c.options,
                     optionLabel: c.optionLabel,
-                    allLabel: c.allLabel ?? __('All'),
-                    filterPlaceholder: c.filterPlaceholder ?? __('Filter…'),
-                    numberFilterPlaceholder: '>10',
-                    numberFilterHint: __('Examples: 12, >10, <=5, 3-8'),
-                    dateFilterPlaceholder: __('Any date'),
-                    clearDateLabel: __('Clear'),
-                    calendarProps: calendarCopy(),
+                    allLabel: c.allLabel ?? filterCopy.allLabel,
+                    filterPlaceholder: c.filterPlaceholder ?? filterCopy.filterPlaceholder,
                     menuLabel: __(c.label),
                 },
             };
@@ -426,9 +447,9 @@ export default function ResourceTable({
                     opens the modal, and the route stays reachable/bookmarkable. */}
                 {(onCreate || createHref) && (
                     onCreate ? (
-                        <button type="button" onClick={onCreate} className={CREATE_BTN_CLASS}>
+                        <Button variant="primary" onClick={onCreate}>
                             {__(createLabel)}
-                        </button>
+                        </Button>
                     ) : (
                         <Link href={createHref} className={CREATE_BTN_CLASS}>
                             {__(createLabel)}
@@ -440,13 +461,8 @@ export default function ResourceTable({
             <DataTable
                 data={visibleRows}
                 columns={tableColumns}
-                searchPlaceholder={__('Search…')}
-                columnsLabel={__('Columns')}
-                columnsMenuLabel={__('Toggle columns')}
+                {...tableLabels()}
                 emptyLabel={__(emptyText)}
-                rangeLabel={(start, end, total) => (total === 0 ? __('0 results') : `${start}–${end} / ${total}`)}
-                filtersLabel={(n) => __('Filters: :n', { n })}
-                clearFiltersLabel={__('Clear filters')}
                 pageSize={pageSize}
                 // Cap the scroll body to what's left of the viewport so the
                 // horizontal scrollbar and the pager stay on screen. Without this a
@@ -462,9 +478,6 @@ export default function ResourceTable({
                 } : undefined}
                 enableSelection={selectable}
                 getRowId={(row) => String(getKey(row))}
-                selectAllLabel={__('Select all rows on this page')}
-                selectRowLabel={__('Select row')}
-                clearSelectionLabel={__('Clear')}
                 // Third arg is the same confirm modal the row actions use, so a
                 // destructive bulk action doesn't have to reach for window.confirm.
                 bulkActions={
@@ -473,9 +486,13 @@ export default function ResourceTable({
                               bulkActionItems
                                   .filter((b) => !b.applies || b.applies(rows))
                                   .map((b) => (
-                                      <button
+                                      <Button
                                           key={b.key}
-                                          type="button"
+                                          variant={b.variant === 'danger' ? 'danger' : 'secondary'}
+                                          size="sm"
+                                          className={
+                                              b.variant === 'warning' ? BULK_CHIP_WARNING : BULK_CHIP_SIZE
+                                          }
                                           onClick={() => {
                                               const run = () => b.onClick(rows, clear);
                                               // Bulk actions hit many records at once, so
@@ -483,17 +500,15 @@ export default function ResourceTable({
                                               const c = typeof b.confirm === 'function' ? b.confirm(rows) : b.confirm;
                                               c ? confirm(c, run) : run();
                                           }}
-                                          className={BULK_CHIP[b.variant] ?? BULK_CHIP.secondary}
                                       >
                                           {__(b.label)}
-                                      </button>
+                                      </Button>
                                   ))
                         : bulkActions
                           ? (rows, clear) => bulkActions(rows, clear, confirm)
                           : undefined
                 }
                 selectedLabel={__('selected')}
-                selectionLabel={selectionLabel}
             />
             {confirmDialog}
         </div>

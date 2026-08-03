@@ -199,42 +199,22 @@ class WorkOrderController extends Controller
 
     public function accept(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
+        return $this->transition($workOrder, 'accept');
     }
 
     public function reject(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
-            return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
+        return $this->transition($workOrder, 'reject');
     }
 
     public function pause(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
+        return $this->transition($workOrder, 'pause');
     }
 
     public function resume(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
-            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
+        return $this->transition($workOrder, 'resume');
     }
 
     public function complete(Request $request, WorkOrder $workOrder)
@@ -258,22 +238,12 @@ class WorkOrderController extends Controller
 
     public function cancel(WorkOrder $workOrder)
     {
-        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Cannot cancel a work order in terminal state.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} cancelled.");
+        return $this->transition($workOrder, 'cancel');
     }
 
     public function reopen(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Only terminal work orders can be reopened.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
+        return $this->transition($workOrder, 'reopen');
     }
 
     public function edit(WorkOrder $workOrder)
@@ -309,5 +279,17 @@ class WorkOrderController extends Controller
 
         return redirect()->route('supervisor.work-orders.show', $workOrder)
             ->with('success', "Work order {$workOrder->order_no} updated.");
+    }
+
+    /**
+     * Apply a status transition through the shared table in WorkOrderService, so
+     * this list and the admin list can't disagree about what a status allows or
+     * word the refusal differently.
+     */
+    private function transition(WorkOrder $workOrder, string $action)
+    {
+        $result = WorkOrderService::applyTransition($workOrder, $action);
+
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 }

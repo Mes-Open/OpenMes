@@ -80,6 +80,24 @@ class WorkOrder extends Model
 
     const COUNTING_SOURCES = [self::COUNTING_OPERATOR, self::COUNTING_MACHINE, self::COUNTING_BOTH];
 
+    /**
+     * The columns that say WHERE and WHEN the order is scheduled. A write that
+     * touches any of them is a schedule change, wherever it came from — the
+     * planner, the admin edit form or an ERP import — which is what
+     * WorkOrderEventObserver watches to fire WorkOrderScheduled, and what
+     * SchedulePlannerService snapshots for the undo log.
+     */
+    const PLACEMENT_FIELDS = [
+        'line_id',
+        'due_date',
+        'week_number',
+        'shift_number',
+        'end_date',
+        'end_shift_number',
+        'planned_start_at',
+        'planned_end_at',
+    ];
+
     /** Statuses that allow operators to work on the order */
     const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS, self::STATUS_BLOCKED];
 

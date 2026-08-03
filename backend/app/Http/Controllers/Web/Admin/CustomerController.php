@@ -38,6 +38,12 @@ class CustomerController extends Controller
 
         Customer::create($validated);
 
+        // The list's New-customer modal posts `stay` so the user keeps their page
+        // — filters, paging and scroll — while the new row live-syncs in.
+        if ($request->boolean('stay')) {
+            return back()->with('success', __('Customer created successfully.'));
+        }
+
         return redirect()->route('admin.customers.index')
             ->with('success', __('Customer created successfully.'));
     }

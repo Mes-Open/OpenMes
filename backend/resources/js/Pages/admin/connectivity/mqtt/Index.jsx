@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../../components/AppDataTable';
 import AppLayout from '../../../../layouts/AppLayout';
 import Tooltip from '../../../../components/Tooltip';
 import useConfirm from '../../../../components/useConfirm';
@@ -180,13 +180,12 @@ export default function MqttIndex() {
                         <p className="text-sm">No MQTT connections defined.</p>
                     </div>
                 ) : (
-                    <DataTable
+                    <AppDataTable
                         data={connections}
                         columns={columns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder="Search connections…"
                     />
                 )}
             </div>

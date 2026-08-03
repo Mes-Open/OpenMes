@@ -4,14 +4,12 @@ import { __ } from './i18n';
  * Translated chrome for `@openmes/ui`'s DataTable.
  *
  * The design-system package deliberately has no i18n of its own — every visible
- * string arrives as a prop. `ResourceTable` has always passed the full set, but
- * pages that render DataTable directly mostly passed none, so they fell back to
- * the package's English defaults (a stray "Search records…" in an otherwise
- * Polish page) and their column filters rendered with untranslated copy.
+ * string arrives as a prop. This module owns that copy once, so `ResourceTable`
+ * and the pages that render DataTable directly can't drift apart.
  *
- * Spread this into any direct DataTable so the two paths can't drift:
- *
- *     <DataTable {...tableLabels()} data={rows} columns={cols} />
+ * Prefer `components/AppDataTable.jsx` over reaching for these directly: it
+ * applies the chrome and the filter defaults in one place, so a new call site
+ * can't forget half of it.
  *
  * Called (not a constant) because the active locale can change at runtime.
  */
@@ -30,38 +28,57 @@ export function tableLabels() {
     };
 }
 
+/** Copy for the date filter's calendar popover. */
+const calendarCopy = () => ({
+    todayLabel: __('Today'),
+    todayWord: __('today'),
+    rangeLabel: __('Date range'),
+    pickEndLabel: __('Pick an end date'),
+});
+
 /**
  * Per-column filter copy — the bits DataTable reads from a column's `meta`.
- * Merge into a column's meta alongside `filter`, or use `withFilters()` below.
+ * Identical for every column, so it's spread in rather than restated.
  */
 export function filterLabels() {
     return {
-        filterPlaceholder: __('Filter…'),
         allLabel: __('All'),
+        filterPlaceholder: __('Filter…'),
         numberFilterPlaceholder: __('>10'),
         numberFilterHint: __('Examples: 12, >10, <=5, 3-8'),
         dateFilterPlaceholder: __('Any date'),
         clearDateLabel: __('Clear'),
+        calendarProps: calendarCopy(),
     };
 }
 
 /**
- * Make every column filterable, matching ResourceTable's convention ("every
- * column is filterable by default, opt out with `filter: false`"). DataTable
- * itself defaults the other way — filters are opt-in per column — which is why
- * directly-rendered tables had no filter row at all.
+ * Normalise a column's `filter` flag to what DataTable's `meta.filter` expects:
+ * omitted/true → 'auto' (pick the control from the column's own data), `false` →
+ * undefined (no control), a string → that kind pinned.
  *
- * Columns already carrying an explicit `meta.filter` are left alone, so a page
- * can still pin a control kind or pass `filter: false` to opt a column out.
+ * Every column is filterable by default so a list never has arbitrary gaps in
+ * its filter row; `false` is for columns whose cell shows something other than
+ * what the value holds.
+ */
+export function normalizeFilter(filter) {
+    if (filter === false) return undefined;
+    if (filter === true || filter == null) return 'auto';
+    return filter;
+}
+
+/**
+ * Make every column filterable, with the shared filter copy merged in.
+ * A column's own `meta` wins, so `filter: false` or a pinned kind still applies.
  */
 export function withFilters(columns) {
     const labels = filterLabels();
-    return columns.map((col) => {
-        const meta = col.meta ?? {};
-        if ('filter' in meta) {
-            // Explicit choice — only fill in copy it didn't specify.
-            return { ...col, meta: { ...labels, ...meta } };
-        }
-        return { ...col, meta: { ...labels, ...meta, filter: 'auto' } };
-    });
+    return columns.map((col) => ({
+        ...col,
+        meta: {
+            ...labels,
+            ...col.meta,
+            filter: normalizeFilter(col.meta?.filter),
+        },
+    }));
 }

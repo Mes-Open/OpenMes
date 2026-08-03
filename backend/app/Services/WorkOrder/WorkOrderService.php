@@ -12,6 +12,113 @@ use Illuminate\Support\Facades\DB;
 class WorkOrderService
 {
     /**
+     * The status transitions a user can drive from the list/detail screens.
+     *
+     * `from` is the set of statuses the transition is legal in; anything else is
+     * refused. Bulk and single-order actions both read this table, so the two can
+     * never disagree about what is allowed.
+     *
+     * @return array<string, array{from: list<string>, to: string, verb: string, error: string, success: string, bulk: string}>
+     */
+    public static function transitions(): array
+    {
+        $nonTerminal = array_values(array_diff([
+            WorkOrder::STATUS_PENDING,
+            WorkOrder::STATUS_ACCEPTED,
+            WorkOrder::STATUS_IN_PROGRESS,
+            WorkOrder::STATUS_BLOCKED,
+            WorkOrder::STATUS_PAUSED,
+        ], WorkOrder::TERMINAL_STATUSES));
+
+        return [
+            'cancel' => [
+                'from' => $nonTerminal,
+                'to' => WorkOrder::STATUS_CANCELLED,
+                'verb' => 'cancelled',
+                'success' => 'Work order :order cancelled.',
+                'bulk' => ':count work order(s) cancelled.',
+                'error' => 'Cannot cancel a work order that is already in a terminal state.',
+            ],
+            'accept' => [
+                'from' => [WorkOrder::STATUS_PENDING],
+                'to' => WorkOrder::STATUS_ACCEPTED,
+                'verb' => 'accepted',
+                'success' => 'Work order :order accepted.',
+                'bulk' => ':count work order(s) accepted.',
+                'error' => 'Only PENDING work orders can be accepted.',
+            ],
+            'reject' => [
+                'from' => [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED],
+                'to' => WorkOrder::STATUS_REJECTED,
+                'verb' => 'rejected',
+                'success' => 'Work order :order rejected.',
+                'bulk' => ':count work order(s) rejected.',
+                'error' => 'Only PENDING or ACCEPTED work orders can be rejected.',
+            ],
+            'pause' => [
+                'from' => [WorkOrder::STATUS_IN_PROGRESS],
+                'to' => WorkOrder::STATUS_PAUSED,
+                'verb' => 'paused',
+                'success' => 'Work order :order paused.',
+                'bulk' => ':count work order(s) paused.',
+                'error' => 'Only IN_PROGRESS work orders can be paused.',
+            ],
+            'resume' => [
+                'from' => [WorkOrder::STATUS_PAUSED],
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'resumed',
+                'success' => 'Work order :order resumed.',
+                'bulk' => ':count work order(s) resumed.',
+                'error' => 'Only PAUSED work orders can be resumed.',
+            ],
+            'reopen' => [
+                'from' => WorkOrder::TERMINAL_STATUSES,
+                'to' => WorkOrder::STATUS_IN_PROGRESS,
+                'verb' => 'reopened',
+                'success' => 'Work order :order reopened.',
+                'bulk' => ':count work order(s) reopened.',
+                'error' => 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.',
+            ],
+        ];
+    }
+
+    /** The rule for one action, or null when the action isn't a known transition. */
+    public static function transition(string $action): ?array
+    {
+        return self::transitions()[$action] ?? null;
+    }
+
+    /** Whether `$action` is legal from this order's current status. */
+    public static function canTransition(WorkOrder $workOrder, string $action): bool
+    {
+        $rule = self::transition($action);
+
+        return $rule !== null && in_array($workOrder->status, $rule['from'], true);
+    }
+
+    /**
+     * Apply a status transition, or refuse it.
+     *
+     * @return array{ok: bool, message: string} `message` is the success line or
+     *                                          the rule's refusal text.
+     */
+    public static function applyTransition(WorkOrder $workOrder, string $action): array
+    {
+        $rule = self::transition($action);
+        if ($rule === null) {
+            return ['ok' => false, 'message' => 'Unknown action.'];
+        }
+
+        if (! self::canTransition($workOrder, $action)) {
+            return ['ok' => false, 'message' => $rule['error']];
+        }
+
+        $workOrder->update(['status' => $rule['to']]);
+
+        return ['ok' => true, 'message' => __($rule['success'], ['order' => $workOrder->order_no])];
+    }
+
+    /**
      * Create a new work order with process snapshot.
      *
      * @throws \Exception

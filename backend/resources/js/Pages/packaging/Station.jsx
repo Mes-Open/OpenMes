@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import { Badge, Button, Dropdown, StatusPill } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { __, formatTime } from '../../lib/i18n';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -613,13 +613,12 @@ export default function Station() {
                         </h2>
                         <Badge variant="neutral">{__(':count items', { count: items.length })}</Badge>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={items}
                         columns={itemColumns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder={__('Search orders…')}
                         emptyLabel={__('No orders with assigned EAN codes')}
                     />
                 </div>
@@ -631,13 +630,12 @@ export default function Station() {
                             {__('Scan history (shift)')}
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={history}
                         columns={historyColumns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder={__('Search scans…')}
                         emptyLabel={__('No scans this shift')}
                     />
                 </div>

@@ -42,7 +42,26 @@
  *   menuLabel: string            — label in the column-visibility menu
  *                                  (falls back to a string `header`, then id)
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+/** Floor for a `bodyMaxHeight="fill"` body — a short viewport still shows rows. */
+const FILL_MIN_HEIGHT = 240;
+/** Breathing room left under the pager so it doesn't sit flush on the edge. */
+const FILL_BOTTOM_GAP = 8;
+
+/**
+ * The scrollable box the table lives in, or null when the page itself scrolls.
+ * `fill` measures against this rather than the viewport: they coincide in the
+ * usual full-page layout, but a table inside a modal, a split pane or anything
+ * with a footer below it would otherwise size itself to the wrong bottom edge.
+ */
+function scrollContainer(el) {
+    for (let p = el?.parentElement; p; p = p.parentElement) {
+        const overflowY = getComputedStyle(p).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll') return p;
+    }
+    return null;
+}
 import {
     flexRender,
     getCoreRowModel,
@@ -57,6 +76,20 @@ import {
 import { Checkbox } from '../Checkbox';
 import { DatePicker } from '../DatePicker';
 import { Dropdown } from '../Dropdown';
+
+/**
+ * The page numbers to draw: first, last, and a window around the current page,
+ * with `null` standing in for an elision. Rendering one button per page turns a
+ * 20 000-row list at 50/page into 400 buttons that wrap over the table.
+ */
+function pageWindow(pageCount, pageIndex, radius = 2) {
+    const wanted = new Set([0, pageCount - 1]);
+    for (let i = pageIndex - radius; i <= pageIndex + radius; i++) {
+        if (i >= 0 && i < pageCount) wanted.add(i);
+    }
+    const pages = [...wanted].sort((a, b) => a - b);
+    return pages.flatMap((p, i) => (i > 0 && p - pages[i - 1] > 1 ? [null, p] : [p]));
+}
 
 /** Above this many distinct values an `'auto'` filter degrades to a text box. */
 const SELECT_FILTER_MAX = 25;
@@ -95,6 +128,31 @@ const isExact = (v) => !!v && typeof v === 'object' && 'eq' in v;
 const isNumeric = (v) => !!v && typeof v === 'object' && 'num' in v;
 /** True for the `{ from, to }` wrapper the date filter uses. */
 const isDateRange = (v) => !!v && typeof v === 'object' && ('from' in v || 'to' in v);
+
+/**
+ * Which control an `'auto'` column's filter becomes, from the column's own values.
+ *
+ * Numbers get a comparison box (">10", "3-8") — a dropdown of every distinct
+ * quantity is useless. A small, closed value set reads better as a picker, and
+ * anything wider (order numbers, names, free text) stays a search box. `values`
+ * is the unsorted distinct set, or null when the caller supplied `options`.
+ */
+function autoFilterKind(meta, values, labelOf) {
+    if (meta.options) return 'select';
+    // A dropdown needs something to enumerate — with no values yet (an entirely
+    // empty column) it would be a dead control, so start as a search box that
+    // works once data arrives.
+    if (!values?.length) return 'text';
+    if (values.every((v) => typeof v === 'number')) return 'number';
+    if (values.every((v) => isoDay(v))) return 'date';
+    if (
+        values.length <= SELECT_FILTER_MAX &&
+        values.every((v) => String(labelOf(v)).length <= SELECT_FILTER_MAX_LEN)
+    ) {
+        return 'select';
+    }
+    return 'text';
+}
 
 /**
  * The ISO day of a cell value, or '' when it holds no date.
@@ -164,7 +222,10 @@ const filterRowFn = (row, id, value) => {
     if (isNumeric(value)) {
         const test = parseNumericFilter(value.num);
         if (!test) return true; // unparsable / half-typed → don't filter
-        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(',', '.'));
+        // A row with no value is not a zero — without this, `<=5` returns every
+        // un-measured row alongside the genuinely small ones.
+        if (raw === null || raw === undefined || raw === '') return false;
+        const n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
         return !Number.isNaN(n) && test(n);
     }
 
@@ -183,6 +244,11 @@ const filterRowFn = (row, id, value) => {
 function ColumnFilter({ col }) {
     const meta = col.columnDef.meta ?? {};
     if (!meta.filter) return null; // e.g. the actions column — nothing to filter on
+    // No accessor means `row.getValue(id)` is always undefined, so any value
+    // typed here would match no row and silently blank the list. Display-only
+    // columns (a Restore button, a rendered badge with no backing field) hit
+    // this now that filters default to on for every column.
+    if (!col.accessorFn) return null;
 
     const raw = col.getFilterValue();
     const value = (isExact(raw) ? raw.eq : isNumeric(raw) ? raw.num : raw) ?? '';
@@ -192,39 +258,19 @@ function ColumnFilter({ col }) {
     // Only ask for them when they'd actually be used: faceting a column with no
     // accessorFn throws inside TanStack, and it's wasted work for a text box.
     // No memo needed — getFacetedUniqueValues is itself memoized by the table.
-    const derived =
+    // The raw distinct values — unsorted and unlabelled. Deciding the control
+    // only needs to *inspect* them; collating them into a labelled, sorted
+    // option list is deferred to the `select` branch below, because a
+    // high-cardinality column (2000 distinct order numbers) would otherwise pay
+    // a full localeCompare sort on every render only to fall through to a text
+    // box. Filters default to 'auto' on every column, so that is the hot path.
+    const values =
         meta.options || !col.accessorFn || (meta.filter !== 'select' && meta.filter !== 'auto')
             ? null
-            : [...col.getFacetedUniqueValues().keys()]
-                  .filter((v) => v !== null && v !== undefined && v !== '')
-                  .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
-                  .map((v) => ({
-                      value: v,
-                      label: meta.optionLabel ? meta.optionLabel(v) : String(v),
-                  }));
+            : [...col.getFacetedUniqueValues().keys()].filter((v) => v !== null && v !== undefined && v !== '');
 
-    // 'auto': numbers get a comparison box (">10", "3-8") — a dropdown of every
-    // distinct quantity is useless. Otherwise a small, closed value set reads
-    // better as a picker, and anything wider (order numbers, names, free text)
-    // stays a search box.
-    const kind =
-        meta.filter === 'auto'
-            ? meta.options
-                ? 'select'
-                : derived && derived.length > 0 && derived.every((o) => typeof o.value === 'number')
-                  ? 'number'
-                  : derived && derived.length > 0 && derived.every((o) => isoDay(o.value))
-                    ? 'date'
-                    : // A dropdown needs something to enumerate — with no values yet
-                      // (an entirely empty column) it would be a dead control, so fall
-                      // through to a search box that starts working once data arrives.
-                      derived &&
-                        derived.length > 0 &&
-                        derived.length <= SELECT_FILTER_MAX &&
-                        derived.every((o) => String(o.label).length <= SELECT_FILTER_MAX_LEN)
-                      ? 'select'
-                      : 'text'
-            : meta.filter;
+    const labelOf = (v) => (meta.optionLabel ? meta.optionLabel(v) : String(v));
+    const kind = meta.filter === 'auto' ? autoFilterKind(meta, values, labelOf) : meta.filter;
 
     if (kind === 'select') {
         // `optionLabel` applies to a bare-value list too — that's the common case
@@ -232,6 +278,11 @@ function ColumnFilter({ col }) {
         // Values are normalised to strings: Dropdown matches its selection with
         // ===, and a derived option list can hold numbers while the stored filter
         // value is a string.
+        // Only now is the collated list worth building — see `values` above.
+        const derived = values
+            ?.slice()
+            .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
+            .map((v) => ({ value: v, label: labelOf(v) }));
         const options = (meta.options ?? derived ?? []).map((opt) => {
             const o =
                 typeof opt === 'object'
@@ -330,7 +381,6 @@ export function DataTable({
     searchPlaceholder = '',
     enableSelection = false,
     bulkActions,
-    selectionLabel,
     /** The word beside the count badge, e.g. "selected". */
     selectedLabel,
     /** Row identity for selection — keep it stable or live updates reshuffle it. */
@@ -347,7 +397,10 @@ export function DataTable({
     rangeLabel = (start, end, total) => (total === 0 ? '0' : `${start}–${end} / ${total}`),
     pageSize = 6,
     /** Caps the scroll body (sticky header). Default: uncapped — the table grows
-     *  with its rows and the page scrolls (pagination keeps the count sane). */
+     *  with its rows and the page scrolls (pagination keeps the count sane).
+     *  Pass `"fill"` to measure the space left below the body and grow into it,
+     *  so the table ends at the bottom of the viewport instead of leaving dead
+     *  space. Any other value is used verbatim as a CSS max-height. */
     bodyMaxHeight,
     onRowClick,
     /** Double-click a row — used for "open this record's detail page". */
@@ -412,7 +465,9 @@ export function DataTable({
     // flushed left, and the table already knows which columns hold numbers — it
     // uses the same faceted values to pick the filter control. An explicit
     // `meta.align` always wins.
-    const alignByColumn = Object.fromEntries(
+    // Memoised: this walks every column's distinct values, so re-running it on
+    // unrelated renders (pagination, selection, a parent re-render) is pure waste.
+    const alignByColumn = useMemo(() => Object.fromEntries(
         visibleCols.map((col) => {
             const explicit = col.columnDef.meta?.align;
             if (explicit) return [col.id, explicit];
@@ -424,7 +479,8 @@ export function DataTable({
             const numeric = values.length > 0 && values.every((v) => typeof v === 'number');
             return [col.id, numeric ? 'center' : 'left'];
         }),
-    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ), [visibleCols, data, state.columnFilters, state.globalFilter]);
     const alignClass = (id) =>
         alignByColumn[id] === 'right' ? 'text-right' : alignByColumn[id] === 'center' ? 'text-center' : 'text-left';
 
@@ -437,21 +493,20 @@ export function DataTable({
 
     const selectedRows = table.getSelectedRowModel().flatRows.map((r) => r.original);
     const selCount = selectedRows.length;
-    const totalRows = table.getPreFilteredRowModel().rows.length;
     const clearSelection = () => table.resetRowSelection();
 
     const hasFilterRow = visibleCols.some((col) => col.columnDef.meta?.filter);
     const activeFilters = state.columnFilters.length;
 
     // Narrowing the list means starting over at page 1 — otherwise the result
-    // set shrinks under a page index that no longer points at anything.
-    const filterKey = JSON.stringify([state.columnFilters, state.globalFilter ?? '']);
-    const firstFilterKey = useRef(filterKey);
+    // set shrinks under a page index that no longer points at anything. The
+    // state slices are immutable, so identity comparison is enough; serialising
+    // them would re-stringify the whole query on every keystroke.
+    const mounted = useRef(false);
     useEffect(() => {
-        if (filterKey === firstFilterKey.current) return; // skip the mount pass
-        firstFilterKey.current = filterKey;
-        table.setPageIndex(0);
-    }, [filterKey, table]);
+        if (mounted.current) table.setPageIndex(0);
+        mounted.current = true;
+    }, [state.columnFilters, state.globalFilter, table]);
 
     // Rows can also vanish underneath us (a delete arrives, someone else filters):
     // clamp rather than stranding the reader on a blank page.
@@ -461,8 +516,74 @@ export function DataTable({
     const pagerBtnCls =
         'flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[6px]';
 
+    // `bodyMaxHeight="fill"`: grow the scroll body into whatever vertical space is
+    // left below it, so the table ends at the bottom of the viewport instead of
+    // stopping short. Measured rather than a `calc(100vh - Xpx)` guess, because
+    // what sits above the body varies per page (subtitle, filter row, toolbar)
+    // and a fixed constant is wrong on most of them.
+    const rootRef = useRef(null);
+    const bodyRef = useRef(null);
+    const [fillHeight, setFillHeight] = useState(null);
+    const autoFill = bodyMaxHeight === 'fill';
+
+    useEffect(() => {
+        if (!autoFill) return undefined;
+        const body = bodyRef.current;
+        const root = rootRef.current;
+        if (!body || !root) return undefined;
+
+        const measure = () => {
+            const bodyRect = body.getBoundingClientRect();
+            // Chrome below the body (pager + gaps). Constant whatever the body's
+            // own height is, so feeding it back in doesn't loop.
+            const below = root.getBoundingClientRect().bottom - bodyRect.bottom;
+            // Stop at the container's CONTENT edge, not its border box: sizing
+            // into its bottom padding pushes the page past its own scroll height
+            // and raises a second scrollbar next to the table's own.
+            const container = scrollContainer(root);
+            let floorY = window.innerHeight;
+            let gap = FILL_BOTTOM_GAP;
+            if (container) {
+                const padBottom = parseFloat(getComputedStyle(container).paddingBottom) || 0;
+                floorY = container.getBoundingClientRect().bottom - padBottom;
+                // That padding already is the breathing room the gap provides.
+                gap = Math.max(0, FILL_BOTTOM_GAP - padBottom);
+            }
+            const available = floorY - bodyRect.top - below - gap;
+            // Not enough room to be worth capping — the table starts at or below
+            // the fold (a report page with charts stacked above it, or a very
+            // short viewport). Capping there would nest a scrollbar inside a
+            // page that has to scroll anyway, so let the table grow instead.
+            setFillHeight(available < FILL_MIN_HEIGHT ? null : Math.round(available));
+        };
+
+        // Both sources fire for the same resize, and the observer watches a box
+        // that `measure` itself resizes — so coalesce into one frame instead of
+        // measuring two or three times per tick. Also keeps the setState out of
+        // the ResizeObserver callback, the usual source of its "loop completed
+        // with undelivered notifications" warning.
+        let frame = null;
+        const schedule = () => {
+            if (frame !== null) return;
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                measure();
+            });
+        };
+
+        measure();
+        window.addEventListener('resize', schedule);
+        const observer = new ResizeObserver(schedule);
+        observer.observe(root);
+        return () => {
+            if (frame !== null) cancelAnimationFrame(frame);
+            window.removeEventListener('resize', schedule);
+            observer.disconnect();
+        };
+    }, [autoFill]);
+
     return (
-        <div className={className} {...props}>
+        <div ref={rootRef} className={className} {...props}>
             {/* toolbar */}
             {(searchable || columnToggle || enableSelection) && (
             <div className="mb-3 flex min-h-[42px] items-center gap-3">
@@ -504,11 +625,16 @@ export function DataTable({
                 {hasFilterRow && activeFilters > 0 && (
                     <div className="flex items-center gap-[7px] font-mono text-[11px] text-om-muted">
                         {filtersLabel && <span>{filtersLabel(activeFilters)}</span>}
+                        {/* Same × glyph the selection bar clears with, so "drop this
+                            state" reads the same wherever it appears in the toolbar. */}
                         <button
                             type="button"
+                            aria-label={clearFiltersLabel}
+                            title={clearFiltersLabel}
                             onClick={() => table.resetColumnFilters()}
-                            className="cursor-pointer text-om-accent"
+                            className="inline-flex cursor-pointer items-center gap-[5px] rounded-[6px] px-[5px] py-[2px] text-om-accent hover:bg-om-chip"
                         >
+                            <span aria-hidden="true" className="text-[14px] leading-none">×</span>
                             {clearFiltersLabel}
                         </button>
                     </div>
@@ -546,14 +672,32 @@ export function DataTable({
 
             {/* table */}
             <div className="overflow-hidden rounded-om border border-om-line">
-                <div className="overflow-auto" style={{ maxHeight: bodyMaxHeight }}>
+                <div
+                    ref={bodyRef}
+                    className="overflow-auto"
+                    style={{ maxHeight: autoFill ? fillHeight ?? undefined : bodyMaxHeight }}
+                >
                     {/* Real <table> — browser auto-layout distributes column widths to
-                        their content and fills the width, no manual sizing/ballooning. */}
-                    <table className="w-full border-collapse text-[13.5px]">
+                        their content and fills the width, no manual sizing/ballooning.
+
+                        Separate borders, not collapsed: `border-collapse: collapse`
+                        paints borders and row backgrounds at the table level, which
+                        forces the whole table onto the main-thread paint path. The
+                        sticky header then lags compositor-driven scrolling and the
+                        rows underneath tear through it. Separate borders let the
+                        header composite on its own. Cells carry the borders, since
+                        the separated model ignores borders set on `tr`. */}
+                    <table className="w-full border-separate border-spacing-0 text-[13.5px]">
+                        {/* The background lives on the `th`s, not the `tr`. Under
+                            `border-collapse: collapse` a sticky thead paints its cells
+                            in the sticky layer while the row background stays behind in
+                            the row group — transparent cells then let the scrolled rows
+                            show through the header. The `tr` colour is kept as the
+                            non-sticky fallback. */}
                         <thead className="sticky top-0 z-[3]">
                             <tr className="bg-om-panel">
                                 {enableSelection && (
-                                    <th className="w-[38px] border-b border-om-line2 px-4 py-[10px] text-left align-middle">
+                                    <th className="w-[38px] border-b border-r border-om-line2 bg-om-panel px-4 py-[10px] text-left align-middle last:border-r-0">
                                         <Check
                                             on={table.getIsAllPageRowsSelected()}
                                             mixed={table.getIsSomePageRowsSelected()}
@@ -586,7 +730,7 @@ export function DataTable({
                                                             : 'descending'
                                                         : undefined
                                                 }
-                                                className={`whitespace-nowrap border-b border-om-line2 px-4 py-[10px] font-mono text-[9px] tracking-[0.1em] uppercase select-none ${
+                                                className={`whitespace-nowrap border-b border-r border-om-line2 last:border-r-0 bg-om-panel px-4 py-[10px] font-mono text-[9px] tracking-[0.1em] uppercase select-none ${
                                                     sorted ? 'text-om-ink' : 'text-om-faint'
                                                 } ${col.getCanSort() ? 'cursor-pointer' : ''} ${
                                                     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
@@ -601,11 +745,11 @@ export function DataTable({
                             </tr>
                             {hasFilterRow && (
                                 <tr className="bg-om-card">
-                                    {enableSelection && <th className="border-b border-om-line2" />}
+                                    {enableSelection && <th className="border-b border-r border-om-line2 bg-om-card last:border-r-0" />}
                                     {visibleCols.map((col) => (
                                         <th
                                             key={col.id}
-                                            className={`border-b border-om-line2 px-4 py-2 align-middle font-normal ${alignClass(col.id)}`}
+                                            className={`border-b border-r border-om-line2 last:border-r-0 bg-om-card px-4 py-2 align-middle font-normal ${alignClass(col.id)}`}
                                         >
                                             <ColumnFilter col={col} />
                                         </th>
@@ -641,7 +785,9 @@ export function DataTable({
                                     // striping at all), hover (chip) is a step past
                                     // both stripes, and selection is a different hue
                                     // entirely rather than another grey.
-                                    className={`border-b border-om-line2 transition-colors duration-100 last:border-0 ${
+                                    // Row separator lives on the cells — `tr` borders
+                                    // are ignored in the separated-borders model.
+                                    className={`[&>td]:border-b [&>td]:border-r [&>td]:border-om-line2 [&>td:last-child]:border-r-0 last:[&>td]:border-b-0 transition-colors duration-100 ${
                                         row.getIsSelected()
                                             ? 'bg-om-selected'
                                             : `${striped && i % 2 === 1 ? 'bg-om-bg' : 'bg-om-card'} hover:bg-om-chip`
@@ -694,7 +840,10 @@ export function DataTable({
                         >
                             ‹
                         </span>
-                        {Array.from({ length: pageCount }, (_, i) => (
+                        {pageWindow(pageCount, pageIndex).map((i, idx) => (
+                            i === null ? (
+                                <span key={`gap-${idx}`} className="px-1 font-mono text-[11px] text-om-faint">…</span>
+                            ) : (
                             <span
                                 key={i}
                                 onClick={() => table.setPageIndex(i)}
@@ -706,6 +855,7 @@ export function DataTable({
                             >
                                 {i + 1}
                             </span>
+                            )
                         ))}
                         <span
                             onClick={() => table.nextPage()}

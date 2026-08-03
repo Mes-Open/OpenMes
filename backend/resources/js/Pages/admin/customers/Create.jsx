@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { customerFields } from './fields';
+import { customerFields, CUSTOMER_INITIAL } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomerCreate() {
@@ -13,7 +13,7 @@ export default function CustomerCreate() {
                 action="/admin/customers"
                 method="post"
                 fields={customerFields()}
-                initial={{ name: '', code: '', tier: 'bronze', payment_score: 0, notes: '', is_active: true }}
+                initial={CUSTOMER_INITIAL}
                 submitLabel={__('Create')}
                 cancelHref="/admin/customers"
             />

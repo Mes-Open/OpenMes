@@ -11,6 +11,7 @@ export * from './Checkbox';
 export * from './ConfirmDialog';
 export * from './DatePicker';
 export * from './Dropdown';
+export * from './Icon';
 export * from './InlineAlert';
 export * from './Modal';
 export * from './OnlineDot';

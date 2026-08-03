@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
@@ -219,13 +219,12 @@ export default function ProductionAnomaliesIndex() {
                 </div>
 
                 <div className="card">
-                    <DataTable
+                    <AppDataTable
                         data={rows}
                         columns={columns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder="Search anomalies…"
                         emptyLabel={__('No anomalies recorded')}
                     />
 

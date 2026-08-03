@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
+import { Icon } from '../Icon';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -288,19 +289,15 @@ export function Calendar({
     );
 }
 
-/** Small calendar glyph built from divs (design §13 trigger). */
+/**
+ * The trigger's calendar glyph (design §13).
+ *
+ * Colour is pinned rather than inherited: the trigger's own text switches
+ * between ink and faint depending on whether a date is set, and the glyph is
+ * meant to stay quiet either way.
+ */
 function CalendarGlyph({ small = false }) {
-    return (
-        <span
-            aria-hidden
-            className={`relative block shrink-0 rounded-[3px] border-om-faint ${
-                small ? 'size-[11px] border-[1.3px]' : 'size-[15px] border-[1.6px]'
-            }`}
-        >
-            <span className="absolute -top-[3px] left-[2px] h-1 w-0.5 rounded-full bg-om-faint" />
-            <span className="absolute -top-[3px] right-[2px] h-1 w-0.5 rounded-full bg-om-faint" />
-        </span>
-    );
+    return <Icon name="calendar" size={small ? 13 : 16} className="shrink-0 text-om-faint" />;
 }
 
 const TRIGGER_SIZE = {

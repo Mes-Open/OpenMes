@@ -121,6 +121,9 @@ class AppServiceProvider extends ServiceProvider
         // save path; BatchCreated is fired via Batch::$dispatchesEvents.
         \App\Models\WorkOrder::observe(\App\Observers\WorkOrderEventObserver::class);
         \App\Models\BatchStep::observe(\App\Observers\BatchStepEventObserver::class);
+        // Extra segments live in their own table, so a segment-only planner edit
+        // changes no work_orders column — watch them for the schedule hook too.
+        \App\Models\WorkOrderPlacement::observe(\App\Observers\WorkOrderPlacementEventObserver::class);
 
         // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
