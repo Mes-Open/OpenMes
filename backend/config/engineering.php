@@ -69,6 +69,12 @@ return [
      | could not act against `/api/*`. `default-src 'none'` blocks external
      | loads/exfiltration; frame-ancestors is appended with the app origin so
      | only the MES app may embed it.
+     |
+     | `sandbox allow-scripts` (no allow-same-origin) forces the package into an
+     | OPAQUE origin at the CSP level too, so it holds even if the response is
+     | opened as a top-level document (a leaked signed URL), not just inside the
+     | sandboxed <iframe>. Scripts still load because the source directives name
+     | the explicit host, which matches regardless of the opaque document origin.
      */
-    'viewer_csp' => "default-src 'none'; script-src {origin}; style-src {origin} 'unsafe-inline'; img-src {origin} data: blob:; font-src {origin} data:; connect-src 'none'; worker-src {origin} blob:; media-src {origin} blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
+    'viewer_csp' => "sandbox allow-scripts; default-src 'none'; script-src {origin}; style-src {origin} 'unsafe-inline'; img-src {origin} data: blob:; font-src {origin} data:; connect-src 'none'; worker-src {origin} blob:; media-src {origin} blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
 ];

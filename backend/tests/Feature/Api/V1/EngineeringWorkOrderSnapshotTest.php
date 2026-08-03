@@ -142,11 +142,19 @@ class EngineeringWorkOrderSnapshotTest extends TestCase
             'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'EXP',
             'effective_to' => now()->subWeek(),
         ]);
+        // Effective THROUGH today — the boundary case: effective_to is a date column,
+        // so a document whose window ends today must stay eligible all day (not be
+        // dropped once the clock passes midnight).
+        EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'TODAY',
+            'effective_from' => now()->subWeek(), 'effective_to' => now(),
+        ]);
 
         $wo = $this->makeWorkOrder();
         $revisions = array_column($wo->process_snapshot['engineering_documents'] ?? [], 'revision');
 
         $this->assertContains('ACT', $revisions);
+        $this->assertContains('TODAY', $revisions);
         $this->assertNotContains('FUT', $revisions);
         $this->assertNotContains('EXP', $revisions);
     }

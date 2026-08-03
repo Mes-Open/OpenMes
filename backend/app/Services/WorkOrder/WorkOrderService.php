@@ -122,12 +122,15 @@ class WorkOrderService
 
         // Only freeze documents that are RELEASED and in their effectivity window
         // at snapshot time — a future-dated or expired release is not active yet /
-        // any more and must not be captured onto the order.
-        $now = now();
+        // any more and must not be captured onto the order. effective_from/to are
+        // DATE columns, so compare against today's DATE (not the full datetime), or
+        // a document effective "through today" is dropped once the clock passes
+        // midnight.
+        $today = now()->toDateString();
         $docs = \App\Models\EngineeringDocument::query()
             ->where('lifecycle_status', \App\Enums\EngineeringDocumentLifecycle::Released)
-            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $now))
-            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $now))
+            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today))
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $today))
             ->where(function ($q) use ($owners) {
                 foreach ($owners as [$type, $id]) {
                     $q->orWhere(fn ($qq) => $qq->where('entity_type', $type)->where('entity_id', $id));

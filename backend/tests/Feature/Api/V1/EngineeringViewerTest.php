@@ -148,7 +148,13 @@ class EngineeringViewerTest extends TestCase
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff');
 
-        $this->assertStringContainsString("default-src 'none'", $res->headers->get('Content-Security-Policy'));
+        $csp = $res->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("default-src 'none'", $csp);
+        // The CSP sandbox forces an opaque origin even on a top-level (non-iframe)
+        // load, without allow-same-origin — so a leaked signed URL can't be turned
+        // into a same-origin, cookie-credentialed page.
+        $this->assertStringContainsString('sandbox allow-scripts', $csp);
+        $this->assertStringNotContainsString('allow-same-origin', $csp);
         $this->assertStringContainsString('MODEL', $res->getContent());
     }
 

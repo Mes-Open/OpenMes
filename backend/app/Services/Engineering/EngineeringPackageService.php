@@ -150,7 +150,9 @@ class EngineeringPackageService
         // entry names) must exist; otherwise fall back to index.html at the root,
         // then to the first HTML document. Never fall back to a non-HTML asset
         // (a .png/.js entry point would serve the wrong thing).
-        $entry = ltrim(str_replace('\\', '/', (string) $declaredEntry), './') ?: 'index.html';
+        // Strip only leading `./` sequences — NOT a `ltrim(..., './')` char set,
+        // which would also eat a leading dot from names like `.config/index.html`.
+        $entry = (string) preg_replace('#^(?:\./)+#', '', str_replace('\\', '/', (string) $declaredEntry)) ?: 'index.html';
         if (! in_array($entry, $names, true)) {
             $html = array_values(array_filter(
                 $names,
