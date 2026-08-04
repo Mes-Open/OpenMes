@@ -24,9 +24,11 @@ class PantheonServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // One settings instance per request/command: it reads (and decrypts) an
-        // integration_configs row, which should not happen per sync class.
-        $this->app->singleton(PantheonSettings::class, fn () => PantheonSettings::load());
+        // Deliberately NOT a singleton. Settings are per tenant: the sync command
+        // walks the tenants that have a Pantheon row and resolves the settings again
+        // inside each tenant's context, so a cached first-tenant instance would make
+        // every later tenant talk to the wrong ERP with the wrong credentials.
+        $this->app->bind(PantheonSettings::class, fn () => PantheonSettings::load());
     }
 
     public function boot(): void

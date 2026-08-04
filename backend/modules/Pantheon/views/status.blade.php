@@ -39,6 +39,10 @@
                 @elseif (! $settings->isConfigured())
                     <span class="bad">{{ __('Not configured') }}</span>
                     <span class="muted">— {{ __('PAWS URL, username and company database are required') }}</span>
+                @elseif ($problem = $settings->transportProblem())
+                    {{-- Refusing to sync over cleartext http:// is deliberate; say why. --}}
+                    <span class="bad">{{ __('Blocked') }}</span>
+                    <span class="muted">— {{ $problem }}</span>
                 @else
                     <span class="ok">{{ __('Active') }}</span>
                 @endif
@@ -77,6 +81,7 @@
             <thead>
                 <tr>
                     <th>{{ __('Sync') }}</th>
+                    <th>{{ __('Tenant') }}</th>
                     <th>{{ __('Started') }}</th>
                     <th>{{ __('Imported') }}</th>
                     <th>{{ __('Updated') }}</th>
@@ -88,6 +93,7 @@
                 @foreach ($runs as $run)
                     <tr>
                         <td><code>{{ $run->sync }}</code></td>
+                        <td class="muted">{{ $run->tenant_id ?? '—' }}</td>
                         <td>{{ $run->started_at }}</td>
                         <td>{{ $run->imported }}</td>
                         <td>{{ $run->updated }}</td>

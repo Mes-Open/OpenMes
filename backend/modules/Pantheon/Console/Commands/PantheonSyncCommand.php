@@ -2,6 +2,8 @@
 
 namespace Modules\Pantheon\Console\Commands;
 
+use App\Models\IntegrationConfig;
+use App\Support\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Modules\Pantheon\Services\PantheonSettings;
@@ -14,13 +16,21 @@ use Modules\Pantheon\Sync\SyncProducts;
  *
  *   php artisan pantheon:sync                     — everything, in dependency order
  *   php artisan pantheon:sync --only=products     — one entity
- *   php artisan pantheon:sync --dry-run           — read Pantheon, write nothing
+ *   php artisan pantheon:sync --tenant=3          — one tenant
+ *
+ * TENANCY. This runs in the console, where there is no authenticated user and no
+ * request to carry a tenant — and TenantScope only filters when it can resolve
+ * one, so every tenant-aware query would otherwise run UNSCOPED. That would let
+ * one customer's warehouse documents be booked into another customer's ERP. The
+ * command therefore drives the loop itself: it reads the Pantheon rows across all
+ * tenants once, then runs each tenant's syncs inside that tenant's TenantContext,
+ * resolving the settings and the client fresh so nothing leaks between them.
  */
 class PantheonSyncCommand extends Command
 {
     protected $signature = 'pantheon:sync
         {--only= : Run a single sync by name (products, stock-documents)}
-        {--dry-run : Read from Pantheon and report, without writing to OpenMES}';
+        {--tenant= : Restrict the run to one tenant id}';
 
     protected $description = 'Synchronise master data, stock and warehouse documents with Datalab Pantheon';
 
@@ -35,20 +45,8 @@ class PantheonSyncCommand extends Command
         'stock-documents' => PushStockDocuments::class,
     ];
 
-    public function handle(PantheonSettings $settings): int
+    public function handle(TenantContext $tenants): int
     {
-        if (! $settings->isActive()) {
-            $this->warn('The Pantheon integration is inactive (Admin → Integrations). Nothing to do.');
-
-            return self::SUCCESS;
-        }
-
-        if (! $settings->isConfigured()) {
-            $this->error('Pantheon is not configured: PAWS URL, username and company database are required.');
-
-            return self::FAILURE;
-        }
-
         $only = $this->option('only');
         $selected = $only ? array_intersect_key(self::SYNCS, [$only => true]) : self::SYNCS;
 
@@ -58,18 +56,86 @@ class PantheonSyncCommand extends Command
             return self::FAILURE;
         }
 
+        // withoutGlobalScopes: this is the one query that must see every tenant,
+        // because it is what tells us which tenants to iterate.
+        $configs = IntegrationConfig::withoutGlobalScopes()
+            ->where('system_type', PantheonSettings::SYSTEM_TYPE)
+            ->when($this->option('tenant'), fn ($q, $id) => $q->where('tenant_id', (int) $id))
+            ->get();
+
+        if ($configs->isEmpty()) {
+            $this->warn('No Pantheon integration is configured (Admin → Integrations). Nothing to do.');
+
+            return self::SUCCESS;
+        }
+
+        $failed = false;
+
+        foreach ($configs as $config) {
+            $failed = $this->runForTenant($tenants, $config->tenant_id, $selected) || $failed;
+        }
+
+        return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Run the selected syncs for one tenant, with that tenant's context set for the
+     * whole run so every core query and every row written is scoped to it.
+     *
+     * @param  array<string, class-string>  $selected
+     * @return bool whether anything failed
+     */
+    private function runForTenant(TenantContext $tenants, ?int $tenantId, array $selected): bool
+    {
+        $label = $tenantId === null ? 'single-tenant install' : "tenant {$tenantId}";
+        $tenants->set($tenantId);
+
+        try {
+            // Resolved inside the context on purpose: PantheonSettings reads the
+            // integration row and is bound non-singleton, so this is THIS tenant's
+            // configuration and credentials.
+            $settings = app(PantheonSettings::class);
+
+            if (! $settings->isActive()) {
+                $this->warn("→ {$label}: integration inactive, skipped");
+
+                return false;
+            }
+
+            if (! $settings->isConfigured()) {
+                $this->error("→ {$label}: not configured (PAWS URL, username and company database are required)");
+
+                return true;
+            }
+
+            if ($problem = $settings->transportProblem()) {
+                // Refusing is the point: continuing would put the Pantheon password
+                // on the wire in cleartext.
+                $this->error("→ {$label}: {$problem}");
+
+                return true;
+            }
+
+            $this->line("→ {$label}");
+
+            return $this->runSyncs($selected, $tenantId);
+        } finally {
+            // Always clear: under Octane the context singleton outlives the command,
+            // and a stale tenant id is exactly how data crosses between customers.
+            $tenants->clear();
+        }
+    }
+
+    /**
+     * @param  array<string, class-string>  $selected
+     * @return bool whether anything failed
+     */
+    private function runSyncs(array $selected, ?int $tenantId): bool
+    {
         $failed = false;
 
         foreach ($selected as $name => $class) {
-            $this->line("→ {$name}");
-
-            if ($this->option('dry-run')) {
-                $this->warn('  dry run — skipped (reading only is not implemented for this sync yet)');
-
-                continue;
-            }
-
-            $runId = $this->startRun($name);
+            $runId = $this->startRun($name, $tenantId);
 
             try {
                 $report = app($class)->run();
@@ -77,18 +143,18 @@ class PantheonSyncCommand extends Command
                 $this->finishRun($runId, $report);
 
                 $this->info(sprintf(
-                    '  imported %d, updated %d, skipped %d, errors %d',
-                    $report['imported'], $report['updated'], $report['skipped'], count($report['errors']),
+                    '   %s: imported %d, updated %d, skipped %d, errors %d',
+                    $name, $report['imported'], $report['updated'], $report['skipped'], count($report['errors']),
                 ));
 
                 // Row errors are the point of a nightly sync report, so print them
                 // rather than leaving them in a log nobody opens.
                 foreach (array_slice($report['errors'], 0, 20) as $error) {
-                    $this->warn('  · '.json_encode($error, JSON_UNESCAPED_UNICODE));
+                    $this->warn('   · '.json_encode($error, JSON_UNESCAPED_UNICODE));
                 }
 
                 if (count($report['errors']) > 20) {
-                    $this->warn('  · … and '.(count($report['errors']) - 20).' more (see the log)');
+                    $this->warn('   · … and '.(count($report['errors']) - 20).' more (see the run history)');
                 }
 
                 $failed = $failed || $report['errors'] !== [];
@@ -96,19 +162,20 @@ class PantheonSyncCommand extends Command
                 // One entity failing should not stop the others: work orders are
                 // still worth importing when the recipe view is unavailable.
                 $this->failRun($runId, $e->getMessage());
-                $this->error('  failed: '.$e->getMessage());
+                $this->error("   {$name} failed: ".$e->getMessage());
                 $failed = true;
             }
         }
 
-        return $failed ? self::FAILURE : self::SUCCESS;
+        return $failed;
     }
 
     /** Insert the run row up front, so a crashed run is visible as unfinished. */
-    private function startRun(string $sync): int
+    private function startRun(string $sync, ?int $tenantId): int
     {
         return (int) DB::table('pantheon_sync_runs')->insertGetId([
             'sync' => $sync,
+            'tenant_id' => $tenantId,
             'started_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),

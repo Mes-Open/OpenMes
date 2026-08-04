@@ -50,6 +50,7 @@ Configuration lives in the core `integration_configs` row with
 ```json
 {
     "base_url": "https://paws.klient.local",
+    "allow_insecure_http": false,
     "username": "openmes",
     "password": "…",
     "company_db": "PANTHEON_DEMO",
@@ -65,6 +66,20 @@ Configuration lives in the core `integration_configs` row with
 }
 ```
 
+**`base_url` must be `https://`.** The username and password travel in the body of
+every `authwithtoken` call — nightly for master data, every ten minutes for the
+document push — so a plain `http://` address puts a Pantheon service account on the
+plant network in cleartext. The connector refuses to run in that case; if the
+customer's on-premise PAWS genuinely has no certificate, set
+`"allow_insecure_http": true` to accept the risk deliberately.
+
+**Multi-tenant installs:** create one `integration_configs` row per tenant. The sync
+command iterates the tenants that have a Pantheon row and runs each one inside its
+own tenant context — the console has no logged-in user, so without that the
+tenant-aware queries would run unscoped and one customer's warehouse documents could
+be booked into another customer's ERP. `pantheon:sync --tenant=<id>` restricts a run
+to one of them.
+
 Discover the customer's own values rather than assuming these:
 
 - **classification codes** — `acClassif` in `tHE_SetItem`,
@@ -76,8 +91,9 @@ Discover the customer's own values rather than assuming these:
 ## Run
 
 ```bash
-php artisan pantheon:sync                      # everything, in dependency order
+php artisan pantheon:sync                      # every tenant, every entity, in order
 php artisan pantheon:sync --only=products      # one entity
+php artisan pantheon:sync --tenant=3           # one tenant
 ```
 
 The scheduler (already running inside the primary container) does master data

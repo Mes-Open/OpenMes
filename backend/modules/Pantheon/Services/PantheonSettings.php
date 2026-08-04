@@ -41,6 +41,38 @@ class PantheonSettings
         return $this->baseUrl() !== '' && $this->username() !== '' && $this->companyDb() !== '';
     }
 
+    /**
+     * Why this configuration must not be used, or null when it is safe.
+     *
+     * The credentials travel in the body of every authwithtoken call — nightly for
+     * master data, every ten minutes for the document push — so a `http://` base
+     * URL hands a Pantheon service account to anyone sniffing the plant VLAN. An
+     * on-premise PAWS without a certificate is a real situation, so it stays
+     * possible, but only when the operator says so explicitly.
+     */
+    public function transportProblem(): ?string
+    {
+        $scheme = parse_url($this->baseUrl(), PHP_URL_SCHEME);
+
+        if ($scheme === 'https' || $this->baseUrl() === '') {
+            return null;
+        }
+
+        if ($scheme !== 'http') {
+            return __('The PAWS address must be an http:// or https:// URL.');
+        }
+
+        return $this->allowsInsecureHttp()
+            ? null
+            : __('The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.');
+    }
+
+    /** Opt-in escape hatch for an on-premise PAWS with no certificate. */
+    public function allowsInsecureHttp(): bool
+    {
+        return (bool) ($this->config['allow_insecure_http'] ?? false);
+    }
+
     public function baseUrl(): string
     {
         return rtrim((string) ($this->config['base_url'] ?? ''), '/');

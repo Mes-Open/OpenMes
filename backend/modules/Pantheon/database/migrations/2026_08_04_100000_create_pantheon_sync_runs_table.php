@@ -21,6 +21,9 @@ return new class extends Migration
         Schema::create('pantheon_sync_runs', function (Blueprint $table) {
             $table->id();
             $table->string('sync', 40);                  // products, stock-documents, …
+            // Which tenant this run belonged to. Nullable: a single-tenant install
+            // has no tenant id, and the command runs once with a null context.
+            $table->foreignId('tenant_id')->nullable()->constrained()->cascadeOnDelete();
             $table->timestamp('started_at');
             $table->timestamp('finished_at')->nullable(); // null = still running or crashed
             $table->unsignedInteger('imported')->default(0);
@@ -32,6 +35,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['sync', 'started_at']);
+            $table->index(['tenant_id']);
         });
     }
 
