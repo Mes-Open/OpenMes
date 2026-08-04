@@ -13,6 +13,25 @@ export const WO_STATUS_STYLES = {
     CANCELLED: 'bg-gray-200 text-gray-500',
 };
 
+/**
+ * Lucide icon per status — the badge's shape cue, so the state reads without
+ * relying on colour alone (and survives a red/green colour-vision deficiency,
+ * where BLOCKED and DONE are otherwise the same grey).
+ *
+ * ACCEPTED and DONE are deliberately different checks: a single check for
+ * "approved to run", a double check for "finished".
+ */
+export const WO_STATUS_ICONS = {
+    PENDING: 'clock',
+    ACCEPTED: 'circle-check',
+    IN_PROGRESS: 'circle-play',
+    PAUSED: 'circle-pause',
+    BLOCKED: 'octagon-alert',
+    DONE: 'check-check',
+    REJECTED: 'circle-x',
+    CANCELLED: 'ban',
+};
+
 /** Localized display label for a work-order status enum value. */
 export function woStatusLabel(status) {
     const labels = {

@@ -34,7 +34,7 @@ export default function SkillsIndex() {
                 shape="skills"
                 title={__('Skills')}
                 createHref="/admin/skills/create"
-                createLabel={__('+ New Skill')}
+                createLabel={__('New Skill')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

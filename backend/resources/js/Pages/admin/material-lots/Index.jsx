@@ -99,7 +99,7 @@ export default function MaterialLotsIndex() {
                 detailHref={(r) => `/admin/material-lots/${r.id}`}
                 title={__('Material Lots')}
                 createHref="/admin/material-lots/create"
-                createLabel={__('+ New Lot')}
+                createLabel={__('New Lot')}
                 columns={columns}
                 orderBy="lot_number"
                 actions={actions}

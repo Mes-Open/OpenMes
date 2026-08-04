@@ -40,7 +40,7 @@ export default function FactoriesIndex() {
                 detailHref={(r) => `/admin/factories/${r.id}`}
                 title={__('Factories')}
                 createHref="/admin/factories/create"
-                createLabel={__('+ New Factory')}
+                createLabel={__('New Factory')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

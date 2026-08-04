@@ -96,7 +96,7 @@ export default function PriorityRulesIndex() {
                 shape="priority_rules"
                 title={__('Scoring rules')}
                 createHref="/admin/priority-rules/create"
-                createLabel={__('+ New Rule')}
+                createLabel={__('New Rule')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}

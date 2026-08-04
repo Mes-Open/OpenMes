@@ -61,7 +61,7 @@ export default function IssueTypesIndex() {
                 shape="issue_types_all"
                 title={__('Issue Types')}
                 createHref="/admin/issue-types/create"
-                createLabel={__('+ New Issue Type')}
+                createLabel={__('New Issue Type')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

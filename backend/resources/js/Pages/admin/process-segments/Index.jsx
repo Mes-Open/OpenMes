@@ -37,7 +37,7 @@ export default function ProcessSegmentsIndex() {
                 detailHref={(r) => `/admin/process-segments/${r.id}`}
                 title={__('Process Segments')}
                 createHref="/admin/process-segments/create"
-                createLabel={__('+ New Segment')}
+                createLabel={__('New Segment')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

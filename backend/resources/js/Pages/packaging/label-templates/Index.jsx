@@ -34,7 +34,7 @@ export default function LabelTemplatesIndex() {
                 shape="label_templates"
                 title={__('Label Templates')}
                 createHref="/packaging/label-templates/create"
-                createLabel={__('+ New Template')}
+                createLabel={__('New Template')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

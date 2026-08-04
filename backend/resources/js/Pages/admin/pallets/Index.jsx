@@ -153,7 +153,7 @@ export default function PalletsIndex() {
                 shape="pallets"
                 title="Pallets"
                 createHref="/admin/pallets/create"
-                createLabel="+ New Pallet"
+                createLabel={__('New Pallet')}
                 columns={columns}
                 orderBy="pallet_no"
                 orderDir="desc"

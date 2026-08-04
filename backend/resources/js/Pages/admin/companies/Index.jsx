@@ -38,7 +38,7 @@ export default function CompaniesIndex() {
                 shape="companies"
                 title={__('Companies')}
                 createHref="/admin/companies/create"
-                createLabel={__('+ New Company')}
+                createLabel={__('New Company')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

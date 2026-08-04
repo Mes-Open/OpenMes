@@ -41,7 +41,7 @@ export default function AreasIndex() {
                 detailHref={(r) => `/admin/areas/${r.id}`}
                 title={__('Areas')}
                 createHref="/admin/areas/create"
-                createLabel={__('+ New Area')}
+                createLabel={__('New Area')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

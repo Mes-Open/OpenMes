@@ -44,7 +44,7 @@ export default function LinesIndex() {
                 detailHref={(r) => `/admin/lines/${r.id}`}
                 title={__('Production Lines')}
                 createHref="/admin/lines/create"
-                createLabel={__('+ New Line')}
+                createLabel={__('New Line')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

@@ -69,7 +69,7 @@ export default function SupervisorWorkOrdersIndex() {
                 detailHref={(r) => `/supervisor/work-orders/${r.id}`}
                 title={__('Work Orders')}
                 createHref="/supervisor/work-orders/create"
-                createLabel="+ New Work Order"
+                createLabel={__('New Work Order')}
                 columns={columns}
                 orderBy="order_no"
                 actions={actions}

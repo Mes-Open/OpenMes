@@ -160,9 +160,15 @@ export default function WorkOrdersIndex() {
                 shape="work_orders_all"
                 detailHref={(r) => `/admin/work-orders/${r.id}`}
                 title={__('Work Orders')}
+                titleIcon="clipboard-list"
+                // Reference implementation for the header breadcrumb trail — the
+                // page title is appended as the current entry, so only ancestors
+                // are listed here. ('Orders' is skipped: the nav group and this
+                // page share a label, which would read "Zlecenia / Zlecenia".)
+                breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard', icon: 'layout-dashboard' }]}
                 createHref="/admin/work-orders/create"
                 onCreate={() => setCreating(true)}
-                createLabel={__('+ New Work Order')}
+                createLabel={__('New Work Order')}
                 columns={columns}
                 orderBy="order_no"
                 actionSlots={actionSlots}

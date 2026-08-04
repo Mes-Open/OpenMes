@@ -88,7 +88,7 @@ export default function ProductRevisionsIndex() {
                 shape="product_revisions"
                 title={__('Product Revisions')}
                 createHref="/admin/product-revisions/create"
-                createLabel={__('+ New Revision')}
+                createLabel={__('New Revision')}
                 columns={columns}
                 orderBy="revision_code"
                 actions={actions}

@@ -6,6 +6,7 @@ export * from './tokens';
 
 export * from './ActionMenu';
 export * from './Badge';
+export * from './Breadcrumbs';
 export * from './Button';
 export * from './Checkbox';
 export * from './ConfirmDialog';

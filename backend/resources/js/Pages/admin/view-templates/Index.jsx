@@ -33,7 +33,7 @@ export default function ViewTemplatesIndex() {
                 shape="view_templates"
                 title={__('View Templates')}
                 createHref="/admin/view-templates/create"
-                createLabel={__('+ New Template')}
+                createLabel={__('New Template')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

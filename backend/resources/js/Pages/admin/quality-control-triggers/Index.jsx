@@ -79,7 +79,7 @@ export default function QualityControlTriggersIndex() {
                 shape="quality_control_triggers"
                 title={__('Quality Control Triggers')}
                 createHref="/admin/quality-control-triggers/create"
-                createLabel={__('+ New Trigger')}
+                createLabel={__('New Trigger')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

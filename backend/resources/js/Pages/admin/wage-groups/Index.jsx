@@ -40,7 +40,7 @@ export default function WageGroupsIndex() {
                 shape="wage_groups"
                 title={__('Wage Groups')}
                 createHref="/admin/wage-groups/create"
-                createLabel={__('+ New Wage Group')}
+                createLabel={__('New Wage Group')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

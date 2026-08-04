@@ -41,7 +41,7 @@ export default function CostSourcesIndex() {
                 shape="cost_sources"
                 title={__('Cost Sources')}
                 createHref="/admin/cost-sources/create"
-                createLabel={__('+ New Cost Source')}
+                createLabel={__('New Cost Source')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

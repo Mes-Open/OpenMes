@@ -48,7 +48,7 @@ export default function LotSequencesIndex() {
                 shape="lot_sequences"
                 title={__('LOT Sequences')}
                 createHref="/admin/lot-sequences/create"
-                createLabel={__('+ New Sequence')}
+                createLabel={__('New Sequence')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

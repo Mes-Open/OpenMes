@@ -1,4 +1,6 @@
-import { WO_STATUSES, WO_STATUS_STYLES, woStatusLabel } from './fields';
+import { Icon } from '@openmes/ui';
+
+import { WO_STATUSES, WO_STATUS_STYLES, WO_STATUS_ICONS, woStatusLabel } from './fields';
 import { __, elapsed, formatDateTime } from '../../../lib/i18n';
 
 /**
@@ -41,7 +43,7 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
         },
         {
             key: 'qty',
-            label: __('Produced / Planned'),
+            label: __('Produced'),
             className: 'text-om-muted',
             value: (r) => Number(r.produced_qty),
             render: (r) => `${Number(r.produced_qty).toFixed(0)} / ${Number(r.planned_qty).toFixed(0)}`,
@@ -55,7 +57,10 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
             optionLabel: woStatusLabel,
             allLabel: __('All statuses'),
             render: (r) => (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
+                <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
+                    {WO_STATUS_ICONS[r.status] && (
+                        <Icon name={WO_STATUS_ICONS[r.status]} size={12} className="shrink-0" />
+                    )}
                     {__(r.status)}
                 </span>
             ),

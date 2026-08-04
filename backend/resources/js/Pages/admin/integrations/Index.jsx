@@ -34,7 +34,7 @@ export default function IntegrationsIndex() {
                 shape="integration_configs"
                 title={__('Integrations')}
                 createHref="/admin/integrations/create"
-                createLabel={__('+ New Integration')}
+                createLabel={__('New Integration')}
                 columns={columns}
                 orderBy="system_name"
                 actions={actions}

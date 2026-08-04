@@ -6,6 +6,7 @@ import Tooltip from '../components/Tooltip';
 import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
+import { Icon as UiIcon } from '@openmes/ui';
 
 // ── Module menu hooks ────────────────────────────────────────────────────────
 // Modules register nav entries server-side via MenuRegistry; HandleInertiaRequests
@@ -68,6 +69,9 @@ function mergeModuleNav(moduleNav) {
  * theming. The theme toggle below stays functional (it still flips the `dark`
  * class + localStorage) but is visually neutral here.
  */
+/** Marks every element a page's heading is portaled into (one per breakpoint). */
+export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
+
 export default function AppLayout({ children }) {
     const page = usePage();
     const { auth, nav, csrf_token, appVersion } = page.props;
@@ -143,15 +147,19 @@ export default function AppLayout({ children }) {
                     >
                         <Icon d="M4 6h16M4 12h16M4 18h16" className="w-6 h-6" />
                     </button>
-                    <span className="flex items-center gap-2.5">
+                    <span className="flex shrink-0 items-center gap-2.5">
                         <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
                     </span>
+                    {/* Below lg the desktop bar is hidden, so the page title lands
+                        here beside the logo instead of falling back into the
+                        content area. */}
+                    <div data-page-title-slot className="flex min-w-0 items-center gap-3" />
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
                 <DesktopClock />
 
-                <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+                <main className="flex-1 overflow-auto">
                     <FlashMessages />
                     {children}
                 </main>
@@ -204,9 +212,13 @@ function DesktopClock() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [locale]);
     return (
-        <div className="hidden lg:flex items-center justify-end px-4 py-1.5 shrink-0">
-            <div className="flex items-center gap-2 text-[13px] text-om-faint">
-                <Icon className="w-4 h-4" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="hidden lg:flex items-center justify-between gap-4 bg-om-card px-4 py-2.5 shrink-0">
+            {/* Page-title slot. Pages portal their heading in here (see
+                ResourceTable) so the title shares this bar with the clock
+                instead of taking a row of its own above the list. */}
+            <div data-page-title-slot className="flex min-w-0 items-center gap-3" />
+            <div className="flex shrink-0 items-center gap-2 text-[13px] text-om-faint">
+                <UiIcon name="clock" size={14} />
                 <span>{t.date}</span>
                 <span className="font-mono text-om-muted">{t.time}</span>
             </div>
@@ -657,7 +669,9 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                                 ${collapsed && !showLabels ? 'justify-center !px-0' : ''}
                                 ${groupActive && showLabels ? 'text-om-ink' : ''}`}
                 >
-                    <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />
+                    {group.lucide
+                        ? <UiIcon name={group.lucide} size={20} className="shrink-0" />
+                        : <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />}
                     {showLabels && (
                         <span className="flex-1 text-left font-mono text-[10px] uppercase tracking-[0.12em]">
                             {__(group.label)}
@@ -730,7 +744,9 @@ function ChildLink({ child, path, dot }) {
                 title={child.title ? __(child.title) : undefined}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] text-om-faintest cursor-not-allowed select-none"
             >
-                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {child.lucide
+                    ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                    : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
                 {child.badge && (
                     <span className="ml-auto font-mono text-[10px] bg-om-chip text-om-faint px-1.5 py-0.5 rounded">
@@ -748,7 +764,9 @@ function ChildLink({ child, path, dot }) {
     if (child.external) {
         return (
             <a href={child.href} className={className}>
-                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {child.lucide
+                    ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                    : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
             </a>
         );
@@ -756,7 +774,9 @@ function ChildLink({ child, path, dot }) {
 
     return (
         <Link href={child.href} prefetch className={className}>
-            <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+            {child.lucide
+                ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
             {__(child.label)}
         </Link>
     );

@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
+import { Icon } from '../Icon';
 
 const TRIGGER_SIZE = {
     md: 'rounded-om-sm px-[13px] py-[10px] gap-[10px]',
@@ -26,7 +27,6 @@ const TRIGGER_LABEL_SIZE = {
     md: 'text-[13.5px]',
     sm: 'truncate font-mono text-[10.5px]',
 };
-const CHEVRON_SIZE = { md: 'size-3', sm: 'size-[9px]' };
 
 export function Dropdown({
     options,
@@ -40,6 +40,8 @@ export function Dropdown({
     size = 'md',
     /** Mono uppercase caption at the top of the menu (design §13 "menu anatomy"). */
     header,
+    /** Optional glyph before the trigger label — e.g. <Icon name="columns-3" />. */
+    leftIcon = null,
     /** Padding/type overrides for the trigger — `className` styles the wrapper. */
     triggerClassName = '',
     className = '',
@@ -152,23 +154,18 @@ export function Dropdown({
                           : 'cursor-pointer border-om-line hover:border-om-faintest hover:bg-om-card'
                 } ${triggerClassName}`}
             >
-                <span className={`${TRIGGER_LABEL_SIZE[size]} ${isPlaceholder ? 'text-om-faint' : 'text-om-ink'}`}>
-                    {triggerLabel}
+                <span className="flex min-w-0 items-center gap-2">
+                    {leftIcon && <span className="shrink-0 text-om-faint">{leftIcon}</span>}
+                    <span className={`truncate ${TRIGGER_LABEL_SIZE[size]} ${isPlaceholder ? 'text-om-faint' : 'text-om-ink'}`}>
+                        {triggerLabel}
+                    </span>
                 </span>
-                <svg
-                    aria-hidden
-                    viewBox="0 0 12 12"
-                    className={`${CHEVRON_SIZE[size]} shrink-0 transition-[transform,color] duration-200 ease-out ${open ? 'rotate-180 text-om-accent' : 'rotate-0 text-om-faint'}`}
-                >
-                    <path
-                        d="M2.5 4.5 6 8l3.5-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-                </svg>
+                <Icon
+                    name={open ? 'chevron-up' : 'chevron-down'}
+                    size={size === 'sm' ? 12 : 14}
+                    stroke={1.6}
+                    className={`shrink-0 transition-colors duration-200 ease-out ${open ? 'text-om-accent' : 'text-om-faint'}`}
+                />
             </button>
             {open && style && createPortal(
                 <div

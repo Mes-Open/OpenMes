@@ -42,7 +42,7 @@ export default function WorkersIndex() {
                 detailHref={(r) => `/admin/workers/${r.id}`}
                 title={__('Workers')}
                 createHref="/admin/workers/create"
-                createLabel={__('+ New Worker')}
+                createLabel={__('New Worker')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

@@ -3,6 +3,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import { useToast } from '@openmes/ui';
 import ResourceTable from '../../../components/ResourceTable';
 import { ABSENCE_TYPE_LABELS, ABSENCE_STATUS_STYLES } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function WorkerAbsencesIndex() {
     const toast = useToast();
@@ -72,7 +73,7 @@ export default function WorkerAbsencesIndex() {
                 shape="worker_absences"
                 title="Worker Absences"
                 createHref="/admin/worker-absences/create"
-                createLabel="+ New Absence"
+                createLabel={__('New Absence')}
                 columns={columns}
                 orderBy="starts_on"
                 actions={actions}

@@ -48,7 +48,7 @@ export default function MaintenanceSchedulesIndex() {
                 shape="maintenance_schedules"
                 title={__('Maintenance Schedules')}
                 createHref="/admin/maintenance-schedules/create"
-                createLabel={__('+ New Schedule')}
+                createLabel={__('New Schedule')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

@@ -42,7 +42,7 @@ export default function SitesIndex() {
                 detailHref={(r) => `/admin/sites/${r.id}`}
                 title={__('Sites')}
                 createHref="/admin/sites/create"
-                createLabel={__('+ New Site')}
+                createLabel={__('New Site')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

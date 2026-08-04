@@ -73,7 +73,7 @@ export default function CrewBreakWindowsIndex() {
                 shape="crew_break_windows"
                 title={__('Crew Break Windows')}
                 createHref="/admin/crew-break-windows/create"
-                createLabel={__('+ New Break Window')}
+                createLabel={__('New Break Window')}
                 columns={columns}
                 orderBy="start_time"
                 actions={actions}

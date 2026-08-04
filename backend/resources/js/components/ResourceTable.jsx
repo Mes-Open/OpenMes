@@ -1,9 +1,10 @@
 import { createContext, Fragment, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { Button, Icon, StatusPill } from '@openmes/ui';
+import { Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
+import PageTitle from './PageTitle';
 import Tooltip from './Tooltip';
 import useConfirm from './useConfirm';
 import { __ } from '../lib/i18n';
@@ -290,7 +291,7 @@ const BULK_CHIP_WARNING = `inline-flex cursor-pointer items-center justify-cente
  * every call site.
  */
 const CREATE_BTN_CLASS =
-    'inline-flex cursor-pointer items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover';
+    'inline-flex cursor-pointer items-center justify-center gap-2 rounded-om-sm bg-om-ink px-4 py-[9px] text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover';
 
 export default function ResourceTable({
     shape,
@@ -313,6 +314,11 @@ export default function ResourceTable({
      *  Rendered as styled chips with the shared confirm modal wired in — preferred
      *  over the raw `bulkActions` render-prop, which leaves confirmation to callers. */
     bulkActionItems,
+    /** Trail above this page, [{ label, href }] — the page title is appended as
+     *  the current entry, so a page only lists its ancestors. */
+    breadcrumbs,
+    /** Lucide icon for this page's own breadcrumb entry. */
+    titleIcon,
     emptyText = 'Nothing here yet.',
     filterFn,
     subtitle,
@@ -430,6 +436,15 @@ export default function ResourceTable({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [columns, actions, actionSlots]);
 
+    // `onCreate` opens the page's own modal; `createHref` navigates to the full
+    // create page. A page may pass both — the button then opens the modal, and the
+    // route stays reachable/bookmarkable.
+    const createControl = (onCreate || createHref)
+        ? (onCreate
+            ? <Button variant="primary" className="py-[9px]!" leftIcon={<Icon name="plus" size={14} />} onClick={onCreate}>{__(createLabel)}</Button>
+            : <Link href={createHref} className={CREATE_BTN_CLASS}><Icon name="plus" size={14} />{__(createLabel)}</Link>)
+        : null;
+
     return (
         <LiveClockProvider active={hasLiveColumn}>
         {/* Full width, unlike the form pages' max-w-7xl: a list with a dozen
@@ -437,26 +452,15 @@ export default function ResourceTable({
             inside a 1280px box on a 1900px screen. */}
         <div className="w-full">
 
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__(title)}</h1>
-                    {subtitle && <div className="mt-1">{subtitle}</div>}
-                </div>
-                {/* `onCreate` opens the page's own modal; `createHref` navigates to
-                    the full create page. A page may pass both — the button then
-                    opens the modal, and the route stays reachable/bookmarkable. */}
-                {(onCreate || createHref) && (
-                    onCreate ? (
-                        <Button variant="primary" onClick={onCreate}>
-                            {__(createLabel)}
-                        </Button>
-                    ) : (
-                        <Link href={createHref} className={CREATE_BTN_CLASS}>
-                            {__(createLabel)}
-                        </Link>
-                    )
-                )}
-            </div>
+            {/* The trail lives in the app header's title slot, sharing that bar
+                with the clock instead of taking a row of its own. Pages that pass
+                no `breadcrumbs` still get their title as the current entry. */}
+            <PageTitle>
+                <Breadcrumbs
+                    linkAs={Link}
+                    items={(breadcrumbs ?? []).map((b) => ({ ...b, label: __(b.label) })).concat({ label: __(title), icon: titleIcon })}
+                />
+            </PageTitle>
 
             <DataTable
                 data={visibleRows}
@@ -469,6 +473,8 @@ export default function ResourceTable({
                 // wide table's only sideways scrollbar sits below the last row, so
                 // you had to scroll to the bottom of the page to move left/right.
                 // It's a max, so short tables are unaffected.
+                toolbarStart={subtitle}
+                toolbarEnd={createControl}
                 bodyMaxHeight={bodyMaxHeight}
                 // Double-click opens the record — the row stays a plain row for
                 // single clicks, so selecting text and ticking checkboxes still work.

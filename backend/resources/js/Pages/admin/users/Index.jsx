@@ -60,7 +60,7 @@ export default function UsersIndex() {
                 shape="users"
                 title={__('Users & Accounts')}
                 createHref="/admin/users/create"
-                createLabel={__('+ New Account')}
+                createLabel={__('New Account')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

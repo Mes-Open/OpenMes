@@ -59,7 +59,7 @@ export default function WebhooksIndex() {
                 shape="webhooks"
                 title={__('Webhooks')}
                 createHref="/admin/webhooks/create"
-                createLabel={__('+ New Webhook')}
+                createLabel={__('New Webhook')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

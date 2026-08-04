@@ -37,7 +37,7 @@ export default function ShiftsIndex() {
                 shape="shifts"
                 title={__('Shifts')}
                 createHref="/admin/shifts/create"
-                createLabel={__('+ New Shift')}
+                createLabel={__('New Shift')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}

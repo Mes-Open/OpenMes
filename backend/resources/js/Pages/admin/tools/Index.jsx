@@ -60,7 +60,7 @@ export default function ToolsIndex() {
                 shape="tools"
                 title={__('Tools')}
                 createHref="/admin/tools/create"
-                createLabel={__('+ New Tool')}
+                createLabel={__('New Tool')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

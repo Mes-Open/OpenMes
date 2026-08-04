@@ -89,7 +89,7 @@ export default function MaintenanceEventsIndex() {
                 shape="maintenance_events"
                 title={__('Maintenance Events')}
                 createHref="/admin/maintenance-events/create"
-                createLabel={__('+ New Event')}
+                createLabel={__('New Event')}
                 columns={columns}
                 orderBy="scheduled_at"
                 orderDir="desc"

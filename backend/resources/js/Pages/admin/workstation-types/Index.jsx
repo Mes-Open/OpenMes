@@ -39,7 +39,7 @@ export default function WorkstationTypesIndex() {
                 shape="workstation_types"
                 title={__('Workstation Types')}
                 createHref="/admin/workstation-types/create"
-                createLabel={__('+ New Type')}
+                createLabel={__('New Type')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

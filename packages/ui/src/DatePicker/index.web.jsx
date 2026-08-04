@@ -153,7 +153,7 @@ export function Calendar({
     return (
         <div className={`w-[280px] ${className}`}>
             <div className="mb-[14px] flex items-center justify-between">
-                <button type="button" aria-label="Previous month" onClick={() => step(-1)} className={navBtn}>‹</button>
+                <button type="button" aria-label="Previous month" onClick={() => step(-1)} className={navBtn}><Icon name="chevron-left" size={16} /></button>
                 <span className="flex gap-1">
                     <button
                         type="button"
@@ -161,7 +161,7 @@ export function Calendar({
                         aria-expanded={mode === 'months'}
                         className={`${headChip} text-[13px]`}
                     >
-                        {MONTHS[view.m]} ▾
+                        {MONTHS[view.m]} <Icon name="chevron-down" size={12} className="inline-block align-middle" />
                     </button>
                     <button
                         type="button"
@@ -169,10 +169,10 @@ export function Calendar({
                         aria-expanded={mode === 'years'}
                         className={`${headChip} font-mono text-[12.5px]`}
                     >
-                        {view.y} ▾
+                        {view.y} <Icon name="chevron-down" size={12} className="inline-block align-middle" />
                     </button>
                 </span>
-                <button type="button" aria-label="Next month" onClick={() => step(1)} className={navBtn}>›</button>
+                <button type="button" aria-label="Next month" onClick={() => step(1)} className={navBtn}><Icon name="chevron-right" size={16} /></button>
             </div>
 
             {mode === 'months' && (

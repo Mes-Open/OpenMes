@@ -56,7 +56,7 @@ export default function CustomersIndex() {
                 title={__('Customers')}
                 createHref="/admin/customers/create"
                 onCreate={() => setCreating(true)}
-                createLabel={__('+ New Customer')}
+                createLabel={__('New Customer')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

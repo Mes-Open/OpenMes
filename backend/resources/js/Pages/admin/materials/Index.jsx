@@ -45,7 +45,7 @@ export default function MaterialsIndex() {
                 detailHref={(r) => `/admin/materials/${r.id}`}
                 title={__('Materials')}
                 createHref="/admin/materials/create"
-                createLabel={__('+ New Material')}
+                createLabel={__('New Material')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

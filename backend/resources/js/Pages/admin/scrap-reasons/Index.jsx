@@ -40,7 +40,7 @@ export default function ScrapReasonsIndex() {
                 shape="scrap_reasons"
                 title={__('Scrap Reasons')}
                 createHref="/admin/scrap-reasons/create"
-                createLabel={__('+ New Reason')}
+                createLabel={__('New Reason')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}

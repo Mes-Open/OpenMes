@@ -9,7 +9,7 @@
  * native twin — web only.
  *
  * All user-facing strings arrive via props / column meta; only structural
- * glyphs (‹ › ▾ ✓ ↑ ↓ –) are baked in.
+ * glyphs (✓ –) are baked in; arrows and chevrons come from the shared Icon.
  *
  * Selection is keyed by `getRowId` — pass it for any live-synced list, or a
  * checked box follows the row index rather than the row.
@@ -74,6 +74,7 @@ import {
 } from '@tanstack/react-table';
 
 import { Checkbox } from '../Checkbox';
+import { Icon } from '../Icon';
 import { DatePicker } from '../DatePicker';
 import { Dropdown } from '../Dropdown';
 
@@ -408,6 +409,10 @@ export function DataTable({
     /** Toolbar/footer feature toggles — turn chrome off for plain styled tables. */
     searchable = true,
     columnToggle = true,
+    /** Nodes placed at the start / end of the toolbar row — e.g. a filter summary
+     *  on the left, a "new record" button on the right. */
+    toolbarStart = null,
+    toolbarEnd = null,
     paginated = true,
     /** Fit columns to the container (default). `false` = fixed-width, resizable (§12 demo). */
     fluid = true,
@@ -585,11 +590,14 @@ export function DataTable({
     return (
         <div ref={rootRef} className={className} {...props}>
             {/* toolbar */}
-            {(searchable || columnToggle || enableSelection) && (
-            <div className="mb-3 flex min-h-[42px] items-center gap-3">
+            {/* Boxed like the table below it, so the controls read as one bar
+                rather than floating on the page background. */}
+            {(searchable || columnToggle || enableSelection || toolbarStart || toolbarEnd) && (
+            <div className="flex items-center gap-3 border border-b-0 border-om-line bg-om-card px-3 py-1.5">
+                {toolbarStart}
                 {searchable && (
                 <div className="flex max-w-[300px] flex-1 items-center gap-[9px] rounded-om-sm border border-om-line bg-om-bg px-3 py-2">
-                    <span className="size-[13px] shrink-0 rounded-full border-2 border-om-faint" />
+                    <Icon name="search" size={14} className="shrink-0 text-om-faint" />
                     <input
                         value={state.globalFilter ?? ''}
                         onChange={(e) => table.setGlobalFilter(e.target.value)}
@@ -603,7 +611,8 @@ export function DataTable({
                     multiple
                     header={columnsMenuLabel}
                     label={columnsLabel}
-                    triggerClassName="py-2 font-semibold"
+                    leftIcon={<Icon name="columns-3" size={14} />}
+                    triggerClassName="py-2! font-semibold"
                     options={hideableColumns.map((col) => ({
                         value: col.id,
                         label:
@@ -667,11 +676,14 @@ export function DataTable({
                         )}
                     </div>
                 )}
+                {/* Right-aligned tail: the first `ml-auto` absorbs the free space,
+                    so the selection pill and this slot sit together on the right. */}
+                {toolbarEnd && <div className="ml-auto flex shrink-0 items-center gap-2">{toolbarEnd}</div>}
             </div>
             )}
 
             {/* table */}
-            <div className="overflow-hidden rounded-om border border-om-line">
+            <div className="overflow-hidden border border-om-line">
                 <div
                     ref={bodyRef}
                     className="overflow-auto"
@@ -697,7 +709,7 @@ export function DataTable({
                         <thead className="sticky top-0 z-[3]">
                             <tr className="bg-om-panel">
                                 {enableSelection && (
-                                    <th className="w-[38px] border-b border-r border-om-line2 bg-om-panel px-4 py-[10px] text-left align-middle last:border-r-0">
+                                    <th className="w-[38px] border-b border-r border-om-line2 bg-om-bg px-4 py-[10px] text-left align-middle last:border-r-0">
                                         <Check
                                             on={table.getIsAllPageRowsSelected()}
                                             mixed={table.getIsSomePageRowsSelected()}
@@ -730,14 +742,23 @@ export function DataTable({
                                                             : 'descending'
                                                         : undefined
                                                 }
-                                                className={`whitespace-nowrap border-b border-r border-om-line2 last:border-r-0 bg-om-panel px-4 py-[10px] font-mono text-[9px] tracking-[0.1em] uppercase select-none ${
-                                                    sorted ? 'text-om-ink' : 'text-om-faint'
+                                                className={`whitespace-nowrap border-b border-r border-om-line2 last:border-r-0 bg-om-bg px-4 py-[10px] font-mono text-[11px] font-bold tracking-[0.08em] uppercase select-none ${
+                                                    sorted ? 'text-om-ink' : 'text-om-muted'
                                                 } ${col.getCanSort() ? 'cursor-pointer' : ''} ${
                                                     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
                                                 }`}
                                             >
                                                 {flexRender(col.columnDef.header, header.getContext())}
-                                                {sorted && ` ${sorted === 'asc' ? '↑' : '↓'}${orderBadge}`}
+                                                {sorted && (
+                                                    <>
+                                                        <Icon
+                                                            name={sorted === 'asc' ? 'chevron-up' : 'chevron-down'}
+                                                            size={12}
+                                                            className="ml-1 inline-block shrink-0 align-middle"
+                                                        />
+                                                        {orderBadge}
+                                                    </>
+                                                )}
                                             </th>
                                         );
                                     }),
@@ -838,7 +859,7 @@ export function DataTable({
                                 table.getCanPreviousPage() ? 'text-om-muted' : 'text-om-faintest'
                             }`}
                         >
-                            ‹
+                            <Icon name="chevron-left" size={14} />
                         </span>
                         {pageWindow(pageCount, pageIndex).map((i, idx) => (
                             i === null ? (
@@ -863,7 +884,7 @@ export function DataTable({
                                 table.getCanNextPage() ? 'text-om-muted' : 'text-om-faintest'
                             }`}
                         >
-                            ›
+                            <Icon name="chevron-right" size={14} />
                         </span>
                     </div>
                 </div>

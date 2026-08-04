@@ -40,7 +40,7 @@ export default function DivisionsIndex() {
                 shape="divisions"
                 title={__('Divisions')}
                 createHref="/admin/divisions/create"
-                createLabel={__('+ New Division')}
+                createLabel={__('New Division')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

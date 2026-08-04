@@ -41,7 +41,7 @@ export default function CrewsIndex() {
                 shape="crews"
                 title={__('Crews')}
                 createHref="/admin/crews/create"
-                createLabel={__('+ New Crew')}
+                createLabel={__('New Crew')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

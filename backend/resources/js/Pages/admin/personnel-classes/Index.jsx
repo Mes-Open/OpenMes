@@ -45,7 +45,7 @@ export default function PersonnelClassesIndex() {
                 detailHref={(r) => `/admin/personnel-classes/${r.id}`}
                 title={__('Personnel Classes')}
                 createHref="/admin/personnel-classes/create"
-                createLabel={__('+ New Class')}
+                createLabel={__('New Class')}
                 columns={columns}
                 orderBy="code"
                 actions={actions}

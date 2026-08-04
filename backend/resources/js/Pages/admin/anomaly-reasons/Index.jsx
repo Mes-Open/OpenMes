@@ -40,7 +40,7 @@ export default function AnomalyReasonsIndex() {
                 shape="anomaly_reasons"
                 title={__('Anomaly Reasons')}
                 createHref="/admin/anomaly-reasons/create"
-                createLabel={__('+ New Reason')}
+                createLabel={__('New Reason')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

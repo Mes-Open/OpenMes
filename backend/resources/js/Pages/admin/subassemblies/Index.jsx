@@ -39,7 +39,7 @@ export default function SubassembliesIndex() {
                 shape="subassemblies"
                 title={__('Subassemblies')}
                 createHref="/admin/subassemblies/create"
-                createLabel={__('+ New Subassembly')}
+                createLabel={__('New Subassembly')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
