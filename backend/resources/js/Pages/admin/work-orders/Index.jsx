@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Modal } from '@openmes/ui';
+import { Modal, StatusBadge } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import usePrompt from '../../../components/usePrompt';
 import WorkOrderForm from './WorkOrderForm';
-import { WO_STATUS_STYLES } from './fields';
+import { woStatusBadge } from './fields';
 import { woColumns } from './columns';
 import { __ } from '../../../lib/i18n';
 
@@ -36,9 +36,7 @@ export default function WorkOrdersIndex() {
     const subtitle = filterFn ? (
         <div className="flex items-center gap-2 text-sm">
             {statusFilter && (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[statusFilter] ?? 'bg-om-chip text-om-muted'}`}>
-                    {statusFilter}
-                </span>
+                <StatusBadge size="sm" {...woStatusBadge(statusFilter)} />
             )}
             {lineFilter && (
                 <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-muted">

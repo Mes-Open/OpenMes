@@ -46,6 +46,13 @@ const LIGHT = {
     doneBg: '#ECEBE7',
     accepted: '#3E73C4',
     acceptedBg: '#E7EFFA',
+    // Purple. Already in app.css for the schedule board; mirrored here so the
+    // native twins can reach it too.
+    maint: '#7A5FB0',
+    maintBg: '#F0EBF8',
+    // Deeper red than `blocked`: rejected is a decision, blocked is an obstacle.
+    rejected: '#A32D2D',
+    rejectedBg: '#FCEBEB',
 
     // Overlay scrim
     scrim: 'rgba(10, 9, 8, 0.4)',
@@ -87,6 +94,10 @@ const DARK: typeof LIGHT = {
     doneBg: '#242220',
     accepted: '#5E92E0',
     acceptedBg: 'rgba(94, 146, 224, 0.16)',
+    maint: '#A98EE0',
+    maintBg: 'rgba(169, 142, 224, 0.15)',
+    rejected: '#E0665E',
+    rejectedBg: 'rgba(224, 102, 94, 0.16)',
 
     scrim: 'rgba(0, 0, 0, 0.6)',
     focusRing: 'rgba(242, 99, 47, 0.18)',

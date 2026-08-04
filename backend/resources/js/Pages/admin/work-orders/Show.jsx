@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { StatusBadge } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import useConfirm from '../../../components/useConfirm';
-import { WO_STATUS_STYLES } from './fields';
+import { woStatusBadge } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
 import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
@@ -190,9 +191,7 @@ export default function AdminWorkOrderShow() {
                     <div>
                         <div className="flex items-center gap-3 flex-wrap">
                             <h1 className="text-3xl font-bold text-om-ink font-mono">{workOrder.order_no}</h1>
-                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${WO_STATUS_STYLES[status] ?? 'bg-om-chip text-om-muted'}`}>
-                                {status}
-                            </span>
+                            <StatusBadge {...woStatusBadge(status)} />
                         </div>
                         <p className="text-om-muted mt-1">
                             Created {timeAgo(workOrder.created_at)}

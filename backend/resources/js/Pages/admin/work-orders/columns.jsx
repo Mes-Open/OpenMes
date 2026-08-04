@@ -1,6 +1,6 @@
-import { Icon, SegmentedProgress } from '@openmes/ui';
+import { SegmentedProgress, StatusBadge } from '@openmes/ui';
 
-import { WO_STATUSES, WO_STATUS_STYLES, WO_STATUS_ICONS, woStatusLabel } from './fields';
+import { WO_STATUSES, woStatusBadge, woStatusLabel } from './fields';
 import { __, elapsed, formatDateTime } from '../../../lib/i18n';
 
 /**
@@ -53,13 +53,13 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
                 const produced = Number(r.produced_qty);
                 const planned = Number(r.planned_qty);
                 return (
-                    <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
-                        <span className="tabular-nums">{produced.toFixed(0)} / {planned.toFixed(0)}</span>
+                    <span className="inline-flex flex-col items-center gap-1 whitespace-nowrap">
                         <SegmentedProgress
                             value={produced}
                             max={planned}
                             label={__('Produced')}
                         />
+                        <span className="tabular-nums">{produced.toFixed(0)} / {planned.toFixed(0)}</span>
                     </span>
                 );
             },
@@ -72,14 +72,7 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
             options: WO_STATUSES,
             optionLabel: woStatusLabel,
             allLabel: __('All statuses'),
-            render: (r) => (
-                <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
-                    {WO_STATUS_ICONS[r.status] && (
-                        <Icon name={WO_STATUS_ICONS[r.status]} size={12} className="shrink-0" />
-                    )}
-                    {__(r.status)}
-                </span>
-            ),
+            render: (r) => <StatusBadge {...woStatusBadge(r.status)} />,
         },
         { key: 'priority', label: __('Prio'), className: 'text-om-muted' },
         ...(withScore
