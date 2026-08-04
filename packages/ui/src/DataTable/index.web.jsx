@@ -41,6 +41,12 @@
  *                                  range picker and its calendar
  *   menuLabel: string            — label in the column-visibility menu
  *                                  (falls back to a string `header`, then id)
+ *   hidden: true                 — starts hidden; the reader turns it on from the
+ *                                  column menu. Read once, on mount, so toggling
+ *                                  it survives every later re-render.
+ *   summary: 'sum' | 'avg' | fn  — puts an aggregate for this column in a footer
+ *                                  row. `fn(rows)` receives the matching rows and
+ *                                  returns whatever the cell should show.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -122,6 +128,39 @@ function Check({ on, mixed = false, onToggle, label }) {
 // table's auto-layout absorbs.
 const FILTER_FIELD_CLS =
     'w-full min-w-[84px] rounded-[6px] border border-om-line bg-om-bg text-[13px] text-om-ink outline-none';
+
+/**
+ * Summary cells carry the same vertical rule as the body, so a total sits in a
+ * visible column rather than floating in a band under one — with a dozen columns
+ * on screen, an unruled number is ambiguous about what it counts. Kept to one
+ * line and tighter padding than a data row: it is a caption on the table, not
+ * another row of it.
+ */
+const SUMMARY_CELL =
+    'border-t border-om-line border-r border-om-line2 last:border-r-0 bg-om-panel px-4 py-[5px] ' +
+    'text-[12px] leading-[18px] font-semibold whitespace-nowrap text-om-muted tabular-nums';
+
+/**
+ * The value a summary cell shows.
+ *
+ * Aggregates run over the *filtered* rows, not the page: a total that changed
+ * every time you paged would be describing the page, and the page is an artefact
+ * of the pager. Filtering is a question the reader asked — "these 12 orders" —
+ * and the footer answers it for the whole answer set.
+ */
+function summaryValue(kind, rows, columnId) {
+    if (typeof kind === 'function') return kind(rows);
+
+    const numbers = rows
+        .map((r) => Number(r.getValue(columnId)))
+        .filter((n) => Number.isFinite(n));
+
+    if (numbers.length === 0) return null;
+
+    const sum = numbers.reduce((a, b) => a + b, 0);
+    if (kind === 'avg') return Math.round((sum / numbers.length) * 100) / 100;
+    return sum;
+}
 
 /** True for the `{ eq }` wrapper ColumnFilter uses to request an exact match. */
 const isExact = (v) => !!v && typeof v === 'object' && 'eq' in v;
@@ -438,10 +477,22 @@ export function DataTable({
         [columns],
     );
 
+    // Columns marked `meta.hidden` start off. Lazy state, not a memo: this is an
+    // *initial* value, and recomputing it when `columns` changes identity (which
+    // it does on every parent render) would fight the reader's own toggling.
+    const [initialColumnVisibility] = useState(() =>
+        Object.fromEntries(
+            columns.filter((c) => c.meta?.hidden).map((c) => [c.id ?? c.accessorKey, false]),
+        ),
+    );
+
     const table = useReactTable({
         data,
         columns: cols,
-        initialState: { pagination: { pageIndex: 0, pageSize: effectivePageSize } },
+        initialState: {
+            pagination: { pageIndex: 0, pageSize: effectivePageSize },
+            columnVisibility: initialColumnVisibility,
+        },
         enableRowSelection: !!enableSelection,
         enableMultiSort: true,
         sortDescFirst: false, // toggle cycle: asc → desc → off
@@ -501,6 +552,7 @@ export function DataTable({
     const clearSelection = () => table.resetRowSelection();
 
     const hasFilterRow = visibleCols.some((col) => col.columnDef.meta?.filter);
+    const hasSummary = visibleCols.some((col) => col.columnDef.meta?.summary);
     const activeFilters = state.columnFilters.length;
 
     // Narrowing the list means starting over at page 1 — otherwise the result
@@ -849,6 +901,33 @@ export function DataTable({
                                 </tr>
                             )}
                         </tbody>
+                        {/* Summary row. Sticky to the bottom of the scroll body for
+                            the same reason the header sticks to the top: a total you
+                            have to scroll to find is a total you won't read. */}
+                        {hasSummary && total > 0 && (
+                            <tfoot className="sticky bottom-0 z-[3]">
+                                <tr className="bg-om-panel">
+                                    {enableSelection && (
+                                        <td className={SUMMARY_CELL} />
+                                    )}
+                                    {visibleCols.map((col) => {
+                                        const kind = col.columnDef.meta?.summary;
+                                        const value = kind
+                                            ? summaryValue(kind, table.getFilteredRowModel().rows, col.id)
+                                            : null;
+
+                                        return (
+                                            <td
+                                                key={col.id}
+                                                className={`${SUMMARY_CELL} ${alignClass(col.id)}`}
+                                            >
+                                                {value ?? ''}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            </tfoot>
+                        )}
                     </table>
                 </div>
                 {/* footer / pagination */}

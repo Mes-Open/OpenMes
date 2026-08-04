@@ -14,6 +14,18 @@ import { colors, fonts } from '../tokens';
 
 export type StatusTone = 'neutral' | 'info' | 'active' | 'warn' | 'danger' | 'success' | 'critical' | 'ghost';
 
+/**
+ * The web twin draws the soft chip's edge with `border-current/30`; React Native
+ * has no color-mix, so the same 30% blend is computed here from the tone's hex.
+ * Falls through unchanged for a non-hex token (the dark palette's rgba tints).
+ */
+function edge(color: string, alpha = 0.3) {
+    const hex = /^#([0-9a-f]{6})$/i.exec(color);
+    if (!hex) return color;
+    const n = parseInt(hex[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 /** Tone → token pair. Mirrors the web twin's TONES table. */
 const TONES: Record<StatusTone, { fg: string; bg: string; outlined?: boolean }> = {
     neutral: { fg: colors.pending, bg: colors.pendingBg },
@@ -68,7 +80,11 @@ export function StatusBadge({
                     paddingHorizontal: s.padH,
                     gap: s.gap,
                     backgroundColor: solid ? t.fg : t.bg,
-                    borderColor: t.outlined ? colors.faintest : 'transparent',
+                    borderColor: t.outlined
+                        ? colors.faintest
+                        : solid
+                          ? 'transparent'
+                          : edge(t.fg),
                 },
                 style,
             ]}

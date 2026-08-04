@@ -23,14 +23,22 @@ import { Icon } from '../Icon';
  * a quality task all have "the blocked one"); which token each resolves to is
  * an implementation detail kept in this one table.
  */
+/**
+ * The soft chips carry `border-current/30`: a hairline mixed from the chip's own
+ * text colour, so every tone gets its edge for free and it holds up in dark mode
+ * where a fixed border colour would not. A tinted fill alone reads as a smudge
+ * against the row — the edge is what makes it a chip.
+ */
+const SOFT_EDGE = 'border border-current/30';
+
 const TONES = {
-    neutral: { soft: 'bg-om-pending-bg text-om-pending', solid: 'bg-om-pending text-white', dot: 'bg-om-pending' },
-    info: { soft: 'bg-om-accepted-bg text-om-accepted', solid: 'bg-om-accepted text-white', dot: 'bg-om-accepted' },
-    active: { soft: 'bg-om-maint-bg text-om-maint', solid: 'bg-om-maint text-white', dot: 'bg-om-maint' },
-    warn: { soft: 'bg-om-downtime-bg text-om-downtime', solid: 'bg-om-downtime text-white', dot: 'bg-om-downtime' },
-    danger: { soft: 'bg-om-blocked-bg text-om-blocked', solid: 'bg-om-blocked text-white', dot: 'bg-om-blocked' },
-    success: { soft: 'bg-om-running-bg text-om-running', solid: 'bg-om-running text-white', dot: 'bg-om-running' },
-    critical: { soft: 'bg-om-rejected-bg text-om-rejected', solid: 'bg-om-rejected text-white', dot: 'bg-om-rejected' },
+    neutral: { soft: `bg-om-pending-bg text-om-pending ${SOFT_EDGE}`, solid: 'bg-om-pending text-white border border-transparent', dot: 'bg-om-pending' },
+    info: { soft: `bg-om-accepted-bg text-om-accepted ${SOFT_EDGE}`, solid: 'bg-om-accepted text-white border border-transparent', dot: 'bg-om-accepted' },
+    active: { soft: `bg-om-maint-bg text-om-maint ${SOFT_EDGE}`, solid: 'bg-om-maint text-white border border-transparent', dot: 'bg-om-maint' },
+    warn: { soft: `bg-om-downtime-bg text-om-downtime ${SOFT_EDGE}`, solid: 'bg-om-downtime text-white border border-transparent', dot: 'bg-om-downtime' },
+    danger: { soft: `bg-om-blocked-bg text-om-blocked ${SOFT_EDGE}`, solid: 'bg-om-blocked text-white border border-transparent', dot: 'bg-om-blocked' },
+    success: { soft: `bg-om-running-bg text-om-running ${SOFT_EDGE}`, solid: 'bg-om-running text-white border border-transparent', dot: 'bg-om-running' },
+    critical: { soft: `bg-om-rejected-bg text-om-rejected ${SOFT_EDGE}`, solid: 'bg-om-rejected text-white border border-transparent', dot: 'bg-om-rejected' },
     ghost: {
         soft: 'border border-om-faintest text-om-faint',
         solid: 'border border-om-faintest text-om-faint',

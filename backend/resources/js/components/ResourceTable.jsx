@@ -401,6 +401,11 @@ export default function ResourceTable({
                     allLabel: c.allLabel ?? filterCopy.allLabel,
                     filterPlaceholder: c.filterPlaceholder ?? filterCopy.filterPlaceholder,
                     menuLabel: __(c.label),
+                    // Off by default, still in the Columns menu — for fields worth
+                    // having but not worth the width on every screen.
+                    hidden: c.hidden,
+                    // 'sum' | 'avg' | fn(rows) — aggregate shown in the footer row.
+                    summary: c.summary,
                 },
             };
 

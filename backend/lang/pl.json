@@ -5202,5 +5202,11 @@
     "New Revision": "Nowa rewizja",
     "New Segment": "Nowy segment",
     "New Event": "Nowe zdarzenie",
-    "New Absence": "Nowa nieobecność"
+    "New Absence": "Nowa nieobecność",
+    "Planned Start": "Planowany start",
+    "Planned End": "Planowany koniec",
+    "End Shift": "Zmiana końcowa",
+    "Line Status": "Status linii",
+    "Process Snapshot": "Migawka procesu",
+    "Counted": "Rozliczone"
 }

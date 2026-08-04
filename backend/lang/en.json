@@ -5202,5 +5202,11 @@
     "New Revision": "New Revision",
     "New Segment": "New Segment",
     "New Event": "New Event",
-    "New Absence": "New Absence"
+    "New Absence": "New Absence",
+    "Planned Start": "Planned Start",
+    "Planned End": "Planned End",
+    "End Shift": "End Shift",
+    "Line Status": "Line Status",
+    "Process Snapshot": "Process Snapshot",
+    "Counted": "Counted"
 }
