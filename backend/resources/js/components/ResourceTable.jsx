@@ -121,6 +121,7 @@ function LiveClockProvider({ active, children }) {
  * tables. Native screens can render the same names through @openmes/ui's Icon.
  */
 const ACTION_ICON = {
+    open: 'eye',
     edit: 'square-pen',
     delete: 'trash-2',
     deactivate: 'ban',
@@ -180,11 +181,15 @@ function ActionRail({ slots, row, confirm }) {
                 if (!a) return <span key={slot.key} className="shrink-0" style={{ width: slot.width }} />;
 
                 if (a.menu) {
-                    const items = a.menu.filter(Boolean).map((item) =>
-                        item.confirm
-                            ? { ...item, onSelect: () => confirm(item.confirm, () => item.onSelect?.()) }
-                            : item,
-                    );
+                    const items = a.menu.filter(Boolean).map((item) => {
+                        // Pages name actions ('edit', 'accept'); ACTION_ICON turns
+                        // that into a glyph, exactly as it does for the rail, so a
+                        // verb looks the same wherever it is shown.
+                        const withIcon = item.icon ? { ...item, icon: ACTION_ICON[item.icon] ?? item.icon } : item;
+                        return withIcon.confirm
+                            ? { ...withIcon, onSelect: () => confirm(withIcon.confirm, () => withIcon.onSelect?.()) }
+                            : withIcon;
+                    });
                     if (items.length === 0) {
                         return <span key={slot.key} className="shrink-0" style={{ width: slot.width }} />;
                     }

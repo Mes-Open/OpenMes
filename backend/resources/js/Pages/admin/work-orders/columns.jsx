@@ -89,6 +89,10 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
                 className: 'text-om-muted font-mono',
                 value: (r) => Number(r.priority_score ?? 0),
                 render: (r) => r.priority_score ?? 0,
+                // Off by default: the score is 0 on every row until an admin
+                // configures priority rules, and a column of zeros earns none of
+                // the width it takes. Still one click away in the Columns menu.
+                hidden: true,
             }]
             : []),
         {

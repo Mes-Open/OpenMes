@@ -139,7 +139,8 @@ export default function WorkOrdersIndex() {
             { key: 'cancel', label: __('Cancel'), from: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED'] },
         ]
             .filter((v) => v.from.includes(r.status) && v.label !== primary)
-            .map((v) => ({ key: v.key, label: v.label, onSelect: v.run ?? (() => post(r.id, v.key)) }));
+            // The verb key doubles as the icon name — same glyph as the rail.
+            .map((v) => ({ key: v.key, label: v.label, icon: v.key, onSelect: v.run ?? (() => post(r.id, v.key)) }));
     };
 
     // Two slots: the row's next step, then everything else behind a menu.
@@ -173,13 +174,14 @@ export default function WorkOrdersIndex() {
                 menu: [
                     // `href`, not a router call: these are navigations, and a
                     // planner triaging a shift middle-clicks them into tabs.
-                    { key: 'open', label: __('Open'), href: `/admin/work-orders/${r.id}` },
-                    { key: 'edit', label: __('Edit'), href: `/admin/work-orders/${r.id}/edit` },
+                    { key: 'open', label: __('Open'), icon: 'open', href: `/admin/work-orders/${r.id}` },
+                    { key: 'edit', label: __('Edit'), icon: 'edit', href: `/admin/work-orders/${r.id}/edit` },
                     ...secondaryVerbs(r),
                     { key: 'sep', divider: true },
                     {
                         key: 'delete',
                         label: __('Delete'),
+                        icon: 'delete',
                         destructive: true,
                         confirm: {
                             title: __('Delete work order :order?', { order: r.order_no }),

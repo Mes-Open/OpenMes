@@ -5,7 +5,8 @@
  * 13px ink radius-8 rows with chip hover, destructive items in blocked,
  * hairline dividers via `{ divider: true }`. An item carrying `href` renders as
  * a link (through `linkAs`, default `a`) rather than a button, so navigating
- * items keep new-tab/copy-address. Closes on outside click/Escape.
+ * items keep new-tab/copy-address; `icon` puts a Lucide glyph before the label.
+ * Closes on outside click/Escape.
  * API is identical to the native twin (index.native.tsx).
  *
  * The card is portaled and positioned against the trigger, like Dropdown and
@@ -15,6 +16,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { Icon } from '../Icon';
 import { useAnchoredPopover } from '../lib/anchorPopover.web';
 
 /** Card width — declared so the popover clamps correctly on its first pass. */
@@ -82,8 +84,9 @@ export function ActionMenu({ trigger, items, linkAs: LinkAs = 'a', className = '
                                     href={item.href}
                                     role="menuitem"
                                     onClick={() => setOpen(false)}
-                                    className={`block w-full cursor-pointer rounded-om-sm px-[11px] py-[9px] text-left text-[13px] no-underline ${itemColor(item)}`}
+                                    className={`flex w-full cursor-pointer items-center gap-[9px] rounded-om-sm px-[11px] py-[9px] text-left text-[13px] no-underline ${itemColor(item)}`}
                                 >
+                                    {item.icon && <Icon name={item.icon} size={14} className="shrink-0" />}
                                     {item.label}
                                 </LinkAs>
                             ) : (
@@ -93,8 +96,9 @@ export function ActionMenu({ trigger, items, linkAs: LinkAs = 'a', className = '
                                     role="menuitem"
                                     disabled={item.disabled}
                                     onClick={() => select(item)}
-                                    className={`block w-full cursor-pointer rounded-om-sm px-[11px] py-[9px] text-left text-[13px] ${itemColor(item)}`}
+                                    className={`flex w-full cursor-pointer items-center gap-[9px] rounded-om-sm px-[11px] py-[9px] text-left text-[13px] ${itemColor(item)}`}
                                 >
+                                    {item.icon && <Icon name={item.icon} size={14} className="shrink-0" />}
                                     {item.label}
                                 </button>
                             )
