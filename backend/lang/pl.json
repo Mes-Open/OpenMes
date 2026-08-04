@@ -5207,6 +5207,7 @@
     "Planned End": "Planowany koniec",
     "End Shift": "Zmiana końcowa",
     "Line Status": "Status linii",
-    "Process Snapshot": "Migawka procesu",
-    "Counted": "Rozliczone"
+    "Counted": "Rozliczone",
+    "More actions": "Więcej akcji",
+    ":count rows": ":count wierszy"
 }

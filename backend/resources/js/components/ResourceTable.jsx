@@ -1,7 +1,7 @@
 import { createContext, Fragment, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
+import { ActionMenu, Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import PageTitle from './PageTitle';
@@ -166,6 +166,11 @@ const actionClass = (a) => a.className ?? ACTION_CLASS[a.variant] ?? ACTION_CLAS
  * Each slot is `{ key, width, resolve(row) => action | null }`; `resolve`
  * returning null leaves the slot blank. Actions carry `icon` + `label` — the
  * icon for recognition, the word so verbs like Accept/Reject stay unambiguous.
+ *
+ * A slot may instead resolve to `{ menu: [items] }`, which renders the overflow
+ * menu — the home for everything that isn't the row's one obvious next step.
+ * Items follow ActionMenu's shape (`divider`, `destructive`, `onSelect`), plus
+ * an optional `confirm` this rail wires to the confirmation dialog.
  */
 function ActionRail({ slots, row, confirm }) {
     return (
@@ -173,6 +178,40 @@ function ActionRail({ slots, row, confirm }) {
             {slots.map((slot) => {
                 const a = slot.resolve(row);
                 if (!a) return <span key={slot.key} className="shrink-0" style={{ width: slot.width }} />;
+
+                if (a.menu) {
+                    const items = a.menu.filter(Boolean).map((item) =>
+                        item.confirm
+                            ? { ...item, onSelect: () => confirm(item.confirm, () => item.onSelect?.()) }
+                            : item,
+                    );
+                    if (items.length === 0) {
+                        return <span key={slot.key} className="shrink-0" style={{ width: slot.width }} />;
+                    }
+
+                    return (
+                        <ActionMenu
+                            key={slot.key}
+                            items={items}
+                            linkAs={Link}
+                            trigger={
+                                // A real <button>, not a role="button" span: it is what
+                                // gives the menu Enter/Space (every non-primary row
+                                // action now lives behind it), and what DataTable's
+                                // double-click guard looks for before treating a click
+                                // as "open this row".
+                                <button
+                                    type="button"
+                                    aria-label={__(a.label ?? 'More')}
+                                    className="inline-flex h-[30px] cursor-pointer items-center justify-center rounded-om-sm px-2 text-om-muted transition-colors hover:bg-om-chip hover:text-om-ink"
+                                    style={{ width: slot.width }}
+                                >
+                                    <Icon name="ellipsis" size={16} className="shrink-0" />
+                                </button>
+                            }
+                        />
+                    );
+                }
 
                 const onClick = a.confirm ? () => confirm(a.confirm, () => a.onClick?.()) : a.onClick;
                 const tone = RAIL_TONE[a.variant] ?? RAIL_TONE.secondary;
@@ -329,6 +368,9 @@ export default function ResourceTable({
     /** Rows fill the space left under the table by default — see DataTable's
      *  `bodyMaxHeight`. Pass a CSS length to cap it at something fixed instead. */
     bodyMaxHeight = 'fill',
+    /** Swap the pager for rows that keep coming as you scroll (design reference:
+     *  the work-order list). The summary row then ends the table. */
+    infinite = false,
 }) {
     // Every list gets selection checkboxes, whether or not the page defines bulk
     // actions — picking rows is useful on its own (counting a subset, keeping your
@@ -481,6 +523,8 @@ export default function ResourceTable({
                 toolbarStart={subtitle}
                 toolbarEnd={createControl}
                 bodyMaxHeight={bodyMaxHeight}
+                infinite={infinite}
+                totalLabel={(n) => __(':count rows', { count: n })}
                 // Double-click opens the record — the row stays a plain row for
                 // single clicks, so selecting text and ticking checkboxes still work.
                 onRowDoubleClick={detailHref ? (row) => {

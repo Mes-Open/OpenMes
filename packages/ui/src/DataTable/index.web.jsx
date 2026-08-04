@@ -453,6 +453,17 @@ export function DataTable({
     toolbarStart = null,
     toolbarEnd = null,
     paginated = true,
+    /**
+     * Replace the pager with rows that keep coming as you scroll. Rows are
+     * already all in the browser (a synced collection), so this is a rendering
+     * window, not a fetch: it starts at `pageSize` and grows by `pageSize` each
+     * time the end of the list comes into view. The summary footer becomes the
+     * table's bottom edge, which is the point — a pager bar under a totals row
+     * is two competing footers.
+     */
+    infinite = false,
+    /** Renders the matching-row count in the summary row when there is no pager. */
+    totalLabel = (n) => String(n),
     /** Fit columns to the container (default). `false` = fixed-width, resizable (§12 demo). */
     fluid = true,
     /** Alternating row tint, so the eye tracks a row across a wide table. */
@@ -460,8 +471,12 @@ export function DataTable({
     className = '',
     ...props
 }) {
-    // When pagination is off, show every row on a single page.
-    const effectivePageSize = paginated ? pageSize : Number.MAX_SAFE_INTEGER;
+    // Infinite mode reuses the pagination machinery with a single, growing page:
+    // TanStack already slices the sorted+filtered model, so "show 50 more" is a
+    // bigger page rather than a second row model to keep in sync. The window IS
+    // `pagination.pageSize` — mirroring it in local state would render the table
+    // once for the mirror and again for the effect that pushed it in.
+    const effectivePageSize = paginated || infinite ? pageSize : Number.MAX_SAFE_INTEGER;
 
 
     // Filter semantics follow the control the filter row actually rendered, which
@@ -553,6 +568,15 @@ export function DataTable({
 
     const hasFilterRow = visibleCols.some((col) => col.columnDef.meta?.filter);
     const hasSummary = visibleCols.some((col) => col.columnDef.meta?.summary);
+    // Only when the pager is gone — otherwise the count is already in the footer.
+    const countColumnId = infinite
+        ? visibleCols.find((col) => !col.columnDef.meta?.summary)?.id
+        : undefined;
+    // The footer is also the only place an infinite table can report how many
+    // rows matched, so it outlives both "no column declared a summary" and "the
+    // filter matched nothing" — otherwise an empty grid can't be told apart from
+    // one still loading.
+    const showSummaryRow = infinite ? total >= 0 : hasSummary && total > 0;
     const activeFilters = state.columnFilters.length;
 
     // Narrowing the list means starting over at page 1 — otherwise the result
@@ -570,6 +594,13 @@ export function DataTable({
     useEffect(() => {
         if (pageIndex > 0 && pageIndex >= pageCount) table.setPageIndex(pageCount - 1);
     }, [pageIndex, pageCount, table]);
+
+    // A narrowed list starts from the top again — carrying a window of 300 rows
+    // into a filter that matches 12 would render the whole thing and quietly
+    // undo the point of scrolling in the first place.
+    useEffect(() => {
+        if (infinite) table.setPageSize(pageSize);
+    }, [infinite, pageSize, state.columnFilters, state.globalFilter, table]);
     const pagerBtnCls =
         'flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[6px]';
 
@@ -582,6 +613,38 @@ export function DataTable({
     const bodyRef = useRef(null);
     const [fillHeight, setFillHeight] = useState(null);
     const autoFill = bodyMaxHeight === 'fill';
+
+    // Grow the window when the end of the rendered rows scrolls into view. An
+    // observer rather than a scroll handler: it costs nothing per frame, and its
+    // `root` handles both layouts — the capped body scrolls in `fill` mode, the
+    // page scrolls otherwise, and passing the right one is the only difference.
+    const sentinelRef = useRef(null);
+    const windowSize = state.pagination.pageSize;
+    const hasMore = infinite && windowSize < total;
+
+    useEffect(() => {
+        if (!hasMore) return undefined;
+        const node = sentinelRef.current;
+        if (!node) return undefined;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) table.setPageSize((n) => n + pageSize);
+            },
+            {
+                // Only pass the body as root when it is genuinely capped. `fill`
+                // gives up below FILL_MIN_HEIGHT and leaves the body uncapped —
+                // an unclipped root means the sentinel intersects on sight, and
+                // the window would grow to the whole collection in one burst.
+                root: autoFill && fillHeight != null ? bodyRef.current : null,
+                // Start the next slice slightly before the reader reaches the end,
+                // so the rows are there by the time they look.
+                rootMargin: '240px',
+            },
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [hasMore, pageSize, autoFill, fillHeight, windowSize, table]);
 
     useEffect(() => {
         if (!autoFill) return undefined;
@@ -767,11 +830,21 @@ export function DataTable({
                             <tr className="bg-om-panel">
                                 {enableSelection && (
                                     <th className="w-[38px] border-b border-r border-om-line2 bg-om-bg px-4 py-[10px] text-left align-middle last:border-r-0">
+                                        {/* Page-scoped in a paged table, filter-scoped in an
+                                            infinite one. Infinite scrolling has no page for the
+                                            reader to see — the footer says "300 rows" and there
+                                            is no pager disclosing a boundary — so a box that
+                                            quietly meant "the 50 loaded so far" would hand a
+                                            bulk action a silent subset. */}
                                         <Check
-                                            on={table.getIsAllPageRowsSelected()}
-                                            mixed={table.getIsSomePageRowsSelected()}
+                                            on={infinite ? table.getIsAllRowsSelected() : table.getIsAllPageRowsSelected()}
+                                            mixed={infinite ? table.getIsSomeRowsSelected() : table.getIsSomePageRowsSelected()}
                                             label={selectAllLabel}
-                                            onToggle={() => table.toggleAllPageRowsSelected()}
+                                            onToggle={() =>
+                                                infinite
+                                                    ? table.toggleAllRowsSelected()
+                                                    : table.toggleAllPageRowsSelected()
+                                            }
                                         />
                                     </th>
                                 )}
@@ -900,11 +973,19 @@ export function DataTable({
                                     </td>
                                 </tr>
                             )}
+                            {hasMore && (
+                                <tr ref={sentinelRef} aria-hidden="true">
+                                    <td
+                                        colSpan={visibleCols.length + (enableSelection ? 1 : 0)}
+                                        className="h-px p-0"
+                                    />
+                                </tr>
+                            )}
                         </tbody>
                         {/* Summary row. Sticky to the bottom of the scroll body for
                             the same reason the header sticks to the top: a total you
                             have to scroll to find is a total you won't read. */}
-                        {hasSummary && total > 0 && (
+                        {showSummaryRow && (
                             <tfoot className="sticky bottom-0 z-[3]">
                                 <tr className="bg-om-panel">
                                     {enableSelection && (
@@ -914,7 +995,12 @@ export function DataTable({
                                         const kind = col.columnDef.meta?.summary;
                                         const value = kind
                                             ? summaryValue(kind, table.getFilteredRowModel().rows, col.id)
-                                            : null;
+                                            : // Without a pager there is nowhere else left showing how
+                                              // many rows matched, so the count takes the first summary
+                                              // cell that has no total of its own.
+                                              col.id === countColumnId
+                                              ? totalLabel(total)
+                                              : null;
 
                                         return (
                                             <td
@@ -930,8 +1016,10 @@ export function DataTable({
                         )}
                     </table>
                 </div>
-                {/* footer / pagination */}
-                {paginated && (
+                {/* footer / pagination — infinite scrolling has no pages to step
+                    through, and a pager bar under a totals row is two footers
+                    arguing about which one ends the table. */}
+                {paginated && !infinite && (
                 <div className="flex items-center justify-between gap-3 bg-om-panel px-4 py-[11px]">
                     <span className="font-mono text-[10.5px] text-om-faint">
                         {rangeLabel(rangeStart, rangeEnd, total)}

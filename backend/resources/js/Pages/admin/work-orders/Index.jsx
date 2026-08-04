@@ -96,59 +96,99 @@ export default function WorkOrdersIndex() {
     // adds the column's control to the filter row (options derived from the rows).
     const columns = woColumns({ lineNames, productTypeNames, counts, customerNames, withScore: true });
 
-    // Fixed action rail: the same five slots on every row, in the same order, so
-    // they line up down the column whatever each order's status allows. A slot the
-    // row can't use stays blank instead of letting the others slide left.
+    // Asking for a produced quantity is what separates Complete from the other
+    // verbs: it can't be applied blind, so it never joins the bulk bar.
+    const promptComplete = (r) => prompt(
+        {
+            title: __('Complete'),
+            label: __('Produced quantity'),
+            defaultValue: r.planned_qty,
+            type: 'number',
+            min: 0,
+            confirmLabel: __('Complete'),
+        },
+        (qty) => post(r.id, 'complete', { produced_qty: qty }),
+    );
+
+    /**
+     * The one action a row is actually waiting for, by status. A column that
+     * offers every operation makes the reader work out which one applies; a
+     * column that offers the next step reads as a queue of things to do.
+     * ACCEPTED and BLOCKED have no entry on purpose — an accepted order is
+     * started on the shop floor, not from this list, and nothing here unblocks.
+     */
+    const PRIMARY = {
+        PENDING: (r) => ({ label: __('Accept'), icon: 'accept', onClick: () => post(r.id, 'accept') }),
+        IN_PROGRESS: (r) => ({ label: __('Complete'), icon: 'complete', onClick: () => promptComplete(r) }),
+        PAUSED: (r) => ({ label: __('Resume'), icon: 'resume', onClick: () => post(r.id, 'resume') }),
+        DONE: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
+        REJECTED: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
+        CANCELLED: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
+    };
+
+    /** Every verb this row could take, minus the one already on the button. */
+    const secondaryVerbs = (r) => {
+        const primary = PRIMARY[r.status]?.(r)?.label;
+        return [
+            { key: 'accept', label: __('Accept'), from: ['PENDING'] },
+            { key: 'reject', label: __('Reject'), from: ['PENDING', 'ACCEPTED'] },
+            { key: 'complete', label: __('Complete'), from: ['IN_PROGRESS'], run: () => promptComplete(r) },
+            { key: 'pause', label: __('Pause'), from: ['IN_PROGRESS'] },
+            { key: 'resume', label: __('Resume'), from: ['PAUSED'] },
+            { key: 'reopen', label: __('Reopen'), from: TERMINAL },
+            { key: 'cancel', label: __('Cancel'), from: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED'] },
+        ]
+            .filter((v) => v.from.includes(r.status) && v.label !== primary)
+            .map((v) => ({ key: v.key, label: v.label, onSelect: v.run ?? (() => post(r.id, v.key)) }));
+    };
+
+    // Two slots: the row's next step, then everything else behind a menu.
     //
-    // Slots 2 and 3 hold the status transitions — at most two apply at once
-    // (Accept+Reject, or Pause+Complete), so two slots cover every status.
-    // With the status verbs in the selection bar, the row keeps only what the bar
-    // can't do: Edit, and Complete — which needs a produced quantity per order, so
-    // it can't sensibly be applied to a multi-row selection. Fixed-width slots, so
-    // the column still lines up when Complete doesn't apply.
+    // What this replaces was three controls in two visual languages — two
+    // icon-only buttons that only named themselves on hover, either side of a
+    // black-filled Complete. The black read as "most important thing on screen"
+    // on every in-progress row, competing with the page's own New Work Order
+    // button, and hover labels say nothing at all on a shop-floor tablet.
+    //
+    // Delete moves into the menu behind a divider: it sat one misclick from Edit
+    // with no label, and the extra click costs a deliberate user nothing.
     const actionSlots = [
         {
-            key: 'edit',
-            width: 34,
-            resolve: (r) => ({ label: __('Edit'), icon: 'edit', iconOnly: true, variant: 'ghost', href: `/admin/work-orders/${r.id}/edit` }),
+            key: 'primary',
+            // Sized for the longest verb in any catalog — Polish "Otwórz ponownie"
+            // is nearly twice the English "Reopen", and a slot cut to fit English
+            // truncates the word that matters in the language it ships in.
+            width: 150,
+            resolve: (r) => {
+                const a = PRIMARY[r.status]?.(r);
+                return a ? { ...a, variant: 'secondary' } : null;
+            },
         },
         {
-            key: 'complete',
-            width: 116,
-            resolve: (r) =>
-                r.status !== 'IN_PROGRESS'
-                    ? null
-                    : {
-                          label: __('Complete'),
-                          icon: 'complete',
-                          variant: 'primary',
-                          onClick: () => prompt(
-                              {
-                                  title: __('Complete'),
-                                  label: __('Produced quantity'),
-                                  defaultValue: r.planned_qty,
-                                  type: 'number',
-                                  min: 0,
-                                  confirmLabel: __('Complete'),
-                              },
-                              (qty) => post(r.id, 'complete', { produced_qty: qty }),
-                          ),
-                      },
-        },
-        {
-            key: 'delete',
+            key: 'more',
             width: 34,
+            label: __('More actions'),
             resolve: (r) => ({
-                label: __('Delete'),
-                icon: 'delete',
-                iconOnly: true,
-                variant: 'ghost-danger',
-                confirm: {
-                    title: __('Delete work order :order?', { order: r.order_no }),
-                    body: __('Only allowed if it has no batches. Logged output stays in reports.'),
-                    confirmLabel: __('Delete order'),
-                },
-                onClick: () => router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }),
+                label: __('More actions'),
+                menu: [
+                    // `href`, not a router call: these are navigations, and a
+                    // planner triaging a shift middle-clicks them into tabs.
+                    { key: 'open', label: __('Open'), href: `/admin/work-orders/${r.id}` },
+                    { key: 'edit', label: __('Edit'), href: `/admin/work-orders/${r.id}/edit` },
+                    ...secondaryVerbs(r),
+                    { key: 'sep', divider: true },
+                    {
+                        key: 'delete',
+                        label: __('Delete'),
+                        destructive: true,
+                        confirm: {
+                            title: __('Delete work order :order?', { order: r.order_no }),
+                            body: __('Only allowed if it has no batches. Logged output stays in reports.'),
+                            confirmLabel: __('Delete order'),
+                        },
+                        onSelect: () => router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }),
+                    },
+                ],
             }),
         },
     ];
@@ -158,6 +198,7 @@ export default function WorkOrdersIndex() {
             <Head title={__('Work Orders')} />
             <ResourceTable
                 shape="work_orders_all"
+                infinite
                 detailHref={(r) => `/admin/work-orders/${r.id}`}
                 title={__('Work Orders')}
                 titleIcon="clipboard-list"
@@ -192,9 +233,9 @@ export default function WorkOrdersIndex() {
                     `stay` makes the controller send us back to this list instead of
                     redirecting, keeping filters and paging intact. */}
                 {/* `keepMounted` holds the form's state, which is the point when
-                    you close by accident — but the order you just created must
-                    not linger in the next one. Bumping the key remounts the form,
-                    and only on success. */}
+                    you close by accident. Bumping the key remounts the form for the
+                    two cases that are not accidents — a finished create, and an
+                    explicit Cancel — so neither lingers into the next one. */}
                 <WorkOrderForm
                     key={formKey}
                     lines={lines}
@@ -204,7 +245,13 @@ export default function WorkOrdersIndex() {
                     productRevisions={productRevisions}
                     customFields={customFields}
                     stay
-                    onCancel={() => setCreating(false)}
+                    // Cancel means "throw this away", so it resets like a success
+                    // does. `keepMounted` is there for the accidental dismissal —
+                    // a stray click on the scrim — not for a deliberate one.
+                    onCancel={() => {
+                        setCreating(false);
+                        setFormKey((k) => k + 1);
+                    }}
                     onSuccess={() => {
                         setCreating(false);
                         setFormKey((k) => k + 1);

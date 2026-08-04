@@ -78,9 +78,9 @@ export default function CustomersIndex() {
                     controller answer with back(), keeping this list's filters and
                     paging while the new row live-syncs in. */}
                 {/* `keepMounted` holds the form's state, which is the point when
-                    you close by accident — but a created customer must not linger
-                    in the next one. Bumping the key remounts the form, and only
-                    on success. */}
+                    you close by accident. Bumping the key remounts the form for the
+                    two cases that are not accidents — a finished create, and an
+                    explicit Cancel — so neither lingers into the next one. */}
                 <ResourceForm
                     key={formKey}
                     action="/admin/customers"
@@ -88,7 +88,12 @@ export default function CustomersIndex() {
                     fields={customerFields()}
                     initial={{ ...CUSTOMER_INITIAL, stay: 1 }}
                     submitLabel={__('Create')}
-                    onCancel={() => setCreating(false)}
+                    // Cancel is a deliberate discard; only the scrim click is the
+                    // accident `keepMounted` exists for.
+                    onCancel={() => {
+                        setCreating(false);
+                        setFormKey((k) => k + 1);
+                    }}
                     onSuccess={() => {
                         setCreating(false);
                         setFormKey((k) => k + 1);

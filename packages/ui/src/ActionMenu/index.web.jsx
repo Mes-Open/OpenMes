@@ -3,19 +3,34 @@
  *
  * Trigger node + 184px menu card (radius 12, menu shadow, 6px padding); items
  * 13px ink radius-8 rows with chip hover, destructive items in blocked,
- * hairline dividers via `{ divider: true }`. Closes on outside click/Escape.
+ * hairline dividers via `{ divider: true }`. An item carrying `href` renders as
+ * a link (through `linkAs`, default `a`) rather than a button, so navigating
+ * items keep new-tab/copy-address. Closes on outside click/Escape.
  * API is identical to the native twin (index.native.tsx).
+ *
+ * The card is portaled and positioned against the trigger, like Dropdown and
+ * DatePicker: a menu opened from a row inside a scrolling table would otherwise
+ * be clipped by the scroll container, which is exactly where row menus live.
  */
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
-export function ActionMenu({ trigger, items, className = '', ...props }) {
+import { useAnchoredPopover } from '../lib/anchorPopover.web';
+
+/** Card width — declared so the popover clamps correctly on its first pass. */
+const MENU_WIDTH = 184;
+
+export function ActionMenu({ trigger, items, linkAs: LinkAs = 'a', className = '', ...props }) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
+    const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 220, estWidth: MENU_WIDTH });
 
     useEffect(() => {
         if (!open) return;
         const onDown = (e) => {
-            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+            // The card is portaled — it is NOT inside rootRef's subtree.
+            if (rootRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return;
+            setOpen(false);
         };
         const onKey = (e) => {
             if (e.key === 'Escape') setOpen(false);
@@ -26,7 +41,7 @@ export function ActionMenu({ trigger, items, className = '', ...props }) {
             document.removeEventListener('mousedown', onDown);
             document.removeEventListener('keydown', onKey);
         };
-    }, [open]);
+    }, [open, popRef]);
 
     const select = (item) => {
         setOpen(false);
@@ -42,31 +57,51 @@ export function ActionMenu({ trigger, items, className = '', ...props }) {
 
     return (
         <div ref={rootRef} className={`relative inline-block ${className}`} {...props}>
-            <span aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            <span ref={anchorRef} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
                 {trigger}
             </span>
-            {open && (
+            {open && style && createPortal(
                 <div
+                    ref={popRef}
                     role="menu"
-                    className="absolute left-0 top-full z-50 mt-[6px] w-[184px] rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
+                    style={style}
+                    className="w-[184px] rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
                 >
                     {items.map((item, i) =>
                         item.divider ? (
                             <div key={item.key ?? `divider-${i}`} aria-hidden className="my-[5px] h-px bg-om-line2" />
                         ) : (
-                            <button
-                                key={item.key ?? `item-${i}`}
-                                type="button"
-                                role="menuitem"
-                                disabled={item.disabled}
-                                onClick={() => select(item)}
-                                className={`block w-full cursor-pointer rounded-om-sm px-[11px] py-[9px] text-left text-[13px] ${itemColor(item)}`}
-                            >
-                                {item.label}
-                            </button>
+                            // An item that navigates renders as a real link, so it
+                            // keeps what a link is for: middle-click, ⌘-click, "open
+                            // in new tab", "copy address", the URL in the status bar.
+                            // `linkAs` keeps the design system router-agnostic — the
+                            // app hands it Inertia's Link.
+                            item.href && !item.disabled ? (
+                                <LinkAs
+                                    key={item.key ?? `item-${i}`}
+                                    href={item.href}
+                                    role="menuitem"
+                                    onClick={() => setOpen(false)}
+                                    className={`block w-full cursor-pointer rounded-om-sm px-[11px] py-[9px] text-left text-[13px] no-underline ${itemColor(item)}`}
+                                >
+                                    {item.label}
+                                </LinkAs>
+                            ) : (
+                                <button
+                                    key={item.key ?? `item-${i}`}
+                                    type="button"
+                                    role="menuitem"
+                                    disabled={item.disabled}
+                                    onClick={() => select(item)}
+                                    className={`block w-full cursor-pointer rounded-om-sm px-[11px] py-[9px] text-left text-[13px] ${itemColor(item)}`}
+                                >
+                                    {item.label}
+                                </button>
+                            )
                         ),
                     )}
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );

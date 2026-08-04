@@ -5207,6 +5207,7 @@
     "Planned End": "Planned End",
     "End Shift": "End Shift",
     "Line Status": "Line Status",
-    "Process Snapshot": "Process Snapshot",
-    "Counted": "Counted"
+    "Counted": "Counted",
+    "More actions": "More actions",
+    ":count rows": ":count rows"
 }

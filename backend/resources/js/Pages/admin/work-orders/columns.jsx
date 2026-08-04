@@ -137,10 +137,16 @@ const dateCell = (v) => (v ? formatDateTime(v) : '—');
 const dayCell = (v) => (v ? String(v).slice(0, 10) : '—');
 
 /**
- * JSON columns (custom fields, the frozen routing, the legacy extras bag) hold
- * an object, not a value — a cell can only say how much is in there. The count
- * is the useful part at a glance; the raw JSON goes in the title so hovering
- * answers "which ones?" without a detour to the detail page.
+ * A JSON column holds an object, not a value — a cell can only say how much is
+ * in there. The count is the useful part at a glance; the raw JSON goes in the
+ * title so hovering answers "which ones?" without a detour to the detail page.
+ *
+ * Only `custom_fields` uses this. The order's frozen routing and its legacy
+ * extras bag are deliberately NOT synced: both are blobs (the routing averages
+ * ~2KB) that every subscriber would carry on every delta, and `work_orders_all`
+ * also feeds the alerts list, the supervisor list and the planner — three pages
+ * that would pay for a hidden column showing a key count. They are on the
+ * order's detail page, fetched for one record, which is where a routing belongs.
  */
 function jsonCell(v) {
     if (v === null || v === undefined) return '—';
@@ -190,6 +196,4 @@ const OPTIONAL_COLUMNS = [
         optionLabel: yesNo,
     },
     { key: 'custom_fields', label: __('Custom fields'), hidden: true, filter: false, className: 'text-om-muted tabular-nums', render: (r) => jsonCell(r.custom_fields) },
-    { key: 'process_snapshot', label: __('Process Snapshot'), hidden: true, filter: false, className: 'text-om-muted tabular-nums', render: (r) => jsonCell(r.process_snapshot) },
-    { key: 'extra_data', label: __('Extra Data'), hidden: true, filter: false, className: 'text-om-muted tabular-nums', render: (r) => jsonCell(r.extra_data) },
 ];
