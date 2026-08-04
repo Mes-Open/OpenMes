@@ -1,0 +1,12 @@
+{
+    "name": "Pantheon",
+    "display_name": "Datalab Pantheon connector",
+    "version": "0.1.0",
+    "description": "Reads master data, lots, recipes, work orders and stock out of Datalab Pantheon over the PAWS REST API and feeds them into OpenMES through the canonical ERP contract; pushes posted warehouse documents back as Pantheon Move documents. All Pantheon-specific knowledge (view names, acClassif codes, document types, column mapping) lives here — core stays ERP-agnostic.",
+    "author": "OpenMES Team",
+    "provider": "Modules\\Pantheon\\Providers\\PantheonServiceProvider",
+    "hooks": [
+        "Menu\\addItem"
+    ],
+    "requires": []
+}
