@@ -41,6 +41,11 @@ This guide covers installation, configuration, and administration of OpenMES.
 
 ## Installation
 
+> Deploying OpenMES in a plant for the first time? This chapter covers the software.
+> The [Implementation Runbook](implementation-runbook.md) covers the whole procedure
+> around it — infrastructure, configuration order, master data, pilot, go-live and
+> handover.
+
 ### Prerequisites
 
 - Docker 20.10+ and Docker Compose
@@ -249,6 +254,10 @@ Controls whether work orders must specify a week or month number:
 Warehousing is an optional module — enable **Warehouses** under
 **Settings → System → Modules** (see [Modules](#modules)). With it off, the pages
 below are hidden and nothing in this section applies.
+
+> Rolling this out on an existing production install? Follow the
+> [Warehouses & ERP Sync rollout runbook](warehouse-erp-rollout.md) — it covers the
+> deployment order, loading opening stock, the acceptance test and the rollback path.
 
 ### Setting Up Warehouses
 
