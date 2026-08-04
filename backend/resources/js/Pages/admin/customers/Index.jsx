@@ -10,6 +10,7 @@ import { __ } from '../../../lib/i18n';
 export default function CustomersIndex() {
     const { counts = {} } = usePage().props;
     const [creating, setCreating] = useState(false);
+    const [formKey, setFormKey] = useState(0);
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -69,19 +70,29 @@ export default function CustomersIndex() {
                 title={__('New Customer')}
                 closeLabel={__('Close')}
                 className="max-w-[720px]"
+                // A misclick on the scrim shouldn't cost a half-filled customer.
+                keepMounted
             >
                 {/* The same field config the create page renders, so a field added
                     to `customerFields()` shows up in both. `stay: 1` makes the
                     controller answer with back(), keeping this list's filters and
                     paging while the new row live-syncs in. */}
+                {/* `keepMounted` holds the form's state, which is the point when
+                    you close by accident — but a created customer must not linger
+                    in the next one. Bumping the key remounts the form, and only
+                    on success. */}
                 <ResourceForm
+                    key={formKey}
                     action="/admin/customers"
                     method="post"
                     fields={customerFields()}
                     initial={{ ...CUSTOMER_INITIAL, stay: 1 }}
                     submitLabel={__('Create')}
                     onCancel={() => setCreating(false)}
-                    onSuccess={() => setCreating(false)}
+                    onSuccess={() => {
+                        setCreating(false);
+                        setFormKey((k) => k + 1);
+                    }}
                 />
             </Modal>
         </>

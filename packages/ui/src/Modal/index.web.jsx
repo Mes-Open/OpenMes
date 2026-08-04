@@ -7,10 +7,37 @@
  * actions, top hairline, panel bg) over the scrim token.
  * API is identical to the native twin (index.native.tsx).
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
-export function Modal({ open, onClose, title, subtitle, footer, children, closeLabel, className = '', ...props }) {
+import { Icon } from '../Icon';
+
+export function Modal({
+    open,
+    onClose,
+    title,
+    subtitle,
+    footer,
+    children,
+    closeLabel,
+    /**
+     * Keep the children mounted (hidden) after the first open, so a half-filled
+     * form survives a stray click on the scrim.
+     *
+     * Off by default, and deliberately so: a modal opened per row (`open={holdFor
+     * != null}`) reuses one instance for every record, and retained state there
+     * would carry one row's typed values onto the next. Only turn it on where the
+     * modal always edits the same thing — a "new X" form.
+     */
+    keepMounted = false,
+    className = '',
+    ...props
+}) {
+    // Nothing is mounted until the first open, so `keepMounted` costs nothing on
+    // pages where the modal is never used.
+    const opened = useRef(false);
+    if (open) opened.current = true;
+
     useEffect(() => {
         if (!open) return;
         const onKey = (e) => {
@@ -20,10 +47,15 @@ export function Modal({ open, onClose, title, subtitle, footer, children, closeL
         return () => document.removeEventListener('keydown', onKey);
     }, [open, onClose]);
 
-    if (!open) return null;
+    if (!open && !(keepMounted && opened.current)) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,9,8,0.4)] p-6" onClick={onClose}>
+        // `hidden` (not unmount) while retained: display:none also drops the
+        // subtree from the tab order and the accessibility tree.
+        <div
+            className={`fixed inset-0 z-50 items-center justify-center bg-[rgba(10,9,8,0.4)] p-6 ${open ? 'flex' : 'hidden'}`}
+            onClick={onClose}
+        >
             <div
                 role="dialog"
                 aria-modal="true"
@@ -42,9 +74,9 @@ export function Modal({ open, onClose, title, subtitle, footer, children, closeL
                         type="button"
                         aria-label={closeLabel}
                         onClick={onClose}
-                        className="cursor-pointer text-[18px] leading-none text-om-faint hover:text-om-muted"
+                        className="flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-om-blocked hover:bg-om-blocked-bg"
                     >
-                        ×
+                        <Icon name="x" size={16} />
                     </button>
                 </div>
                 <div className="flex-1 overflow-y-auto px-[18px] py-4">{children}</div>

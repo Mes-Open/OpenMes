@@ -1,4 +1,4 @@
-import { Icon } from '@openmes/ui';
+import { Icon, SegmentedProgress } from '@openmes/ui';
 
 import { WO_STATUSES, WO_STATUS_STYLES, WO_STATUS_ICONS, woStatusLabel } from './fields';
 import { __, elapsed, formatDateTime } from '../../../lib/i18n';
@@ -46,7 +46,23 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
             label: __('Produced'),
             className: 'text-om-muted',
             value: (r) => Number(r.produced_qty),
-            render: (r) => `${Number(r.produced_qty).toFixed(0)} / ${Number(r.planned_qty).toFixed(0)}`,
+            // Produced-against-planned is the one column that is a ratio, so it
+            // carries the meter. The count stays: the bar shows eight steps, and
+            // "0 / 186" is a different thing to know than "not started".
+            render: (r) => {
+                const produced = Number(r.produced_qty);
+                const planned = Number(r.planned_qty);
+                return (
+                    <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
+                        <span className="tabular-nums">{produced.toFixed(0)} / {planned.toFixed(0)}</span>
+                        <SegmentedProgress
+                            value={produced}
+                            max={planned}
+                            label={__('Produced')}
+                        />
+                    </span>
+                );
+            },
             sortable: true,
         },
         {

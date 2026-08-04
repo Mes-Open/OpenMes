@@ -304,7 +304,11 @@ const TRIGGER_SIZE = {
     md: 'rounded-om-sm px-[13px] py-[10px] gap-[10px]',
     sm: 'rounded-[6px] px-2 py-[5px] gap-[6px]',
 };
-const TRIGGER_TEXT_SIZE = { md: 'text-[13px]', sm: 'truncate text-[10.5px]' };
+// Dates stay mono at md so digits line up in forms; the filter row's sm trigger
+// matches the select triggers beside it instead — same size and weight, and
+// "any date" reads as the current (unfiltered) choice rather than an empty
+// field, so it keeps ink at full weight where a form placeholder would go faint.
+const TRIGGER_TEXT_SIZE = { md: 'font-mono text-[13px]', sm: 'truncate text-[13px] font-semibold' };
 
 export function DatePicker({
     value,
@@ -374,7 +378,7 @@ export function DatePicker({
                           : 'cursor-pointer border-om-line hover:border-om-faintest hover:bg-om-card'
                 }`}
             >
-                <span className={`font-mono ${TRIGGER_TEXT_SIZE[size]} ${display ? 'text-om-ink' : 'text-om-faint'}`}>
+                <span className={`${TRIGGER_TEXT_SIZE[size]} ${display || size === 'sm' ? 'text-om-ink' : 'text-om-faint'}`}>
                     {display || placeholder}
                 </span>
                 <CalendarGlyph small={size === 'sm'} />

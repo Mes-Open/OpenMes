@@ -25,7 +25,7 @@ const TRIGGER_SIZE = {
 };
 const TRIGGER_LABEL_SIZE = {
     md: 'text-[13.5px]',
-    sm: 'truncate font-mono text-[10.5px]',
+    sm: 'truncate text-[13px] font-semibold',
 };
 
 export function Dropdown({

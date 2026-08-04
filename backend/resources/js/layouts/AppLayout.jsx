@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
+import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 import Tooltip from '../components/Tooltip';
 import { ToastProvider } from '@openmes/ui';
@@ -145,7 +145,7 @@ export default function AppLayout({ children }) {
                         onClick={() => setMobileOpen(true)}
                         className="p-2 rounded-om-sm text-om-muted hover:bg-om-chip hover:text-om-ink"
                     >
-                        <Icon d="M4 6h16M4 12h16M4 18h16" className="w-6 h-6" />
+                        <UiIcon name="menu" size={24} />
                     </button>
                     <span className="flex shrink-0 items-center gap-2.5">
                         <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
@@ -344,7 +344,7 @@ function Sidebar({
                             aria-label={__('Setup Wizard')}
                             className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
                         >
-                            <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
+                            <UiIcon name="circle-help" size={20} />
                         </Link>
                     </Tooltip>
                 )}
@@ -352,7 +352,7 @@ function Sidebar({
                     onClick={onCloseMobile}
                     className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0`}
                 >
-                    <Icon d="M6 18L18 6M6 6l12 12" className="w-5 h-5" />
+                    <UiIcon name="x" size={20} />
                 </button>
             </div>
 
@@ -425,12 +425,7 @@ function Sidebar({
                                     text-om-muted hover:bg-om-chip hover:text-om-ink transition-colors
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
-                        <Icon
-                            className="w-5 h-5 shrink-0"
-                            d={dark
-                                ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z'
-                                : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'}
-                        />
+                        <UiIcon name={dark ? 'sun' : 'moon'} size={20} className="shrink-0" />
                         {showLabels && <span>{dark ? __('Light Mode') : __('Dark Mode')}</span>}
                     </button>
                 </div>
@@ -446,7 +441,7 @@ function Sidebar({
                                         : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
-                        <Icon d={ICONS.settings} className="w-5 h-5 shrink-0" />
+                        <UiIcon name="settings" size={20} className="shrink-0" />
                         {showLabels && <span>{__('Settings')}</span>}
                     </Link>
                 </div>
@@ -482,7 +477,7 @@ function Sidebar({
                                     aria-label={__('Logout')}
                                     className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
                                 >
-                                    <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
+                                    <UiIcon name="log-out" size={16} />
                                 </button>
                             </Tooltip>
                         </form>
@@ -497,10 +492,7 @@ function Sidebar({
                             className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
                             aria-label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
                         >
-                            <Icon
-                                className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
-                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                            />
+                            <UiIcon name={collapsed ? 'chevrons-right' : 'chevrons-left'} size={20} />
                             {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
                         </button>
                     </Tooltip>
@@ -539,7 +531,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
                         }}
                         className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
                     >
-                        <Icon d={SEARCH_ICON} className="w-5 h-5" />
+                        <UiIcon name="search" size={20} />
                     </button>
                 </Tooltip>
             </div>
@@ -549,9 +541,10 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
     return (
         <div className="px-2 pt-3 pb-2">
             <div className="relative">
-                <Icon
-                    d={SEARCH_ICON}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-om-faint pointer-events-none"
+                <UiIcon
+                    name="search"
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-om-faint pointer-events-none"
                 />
                 <input
                     ref={inputRef}
@@ -610,7 +603,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                                 ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
                 >
                     <span className="relative shrink-0">
-                        <Icon d={ICONS[link.icon]} className="w-5 h-5" />
+                        <UiIcon name={link.lucide ?? ICON_LUCIDE[link.icon] ?? "circle"} size={20} />
                         {alertCount > 0 && (
                             <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
                                 {alertCount > 9 ? '9+' : alertCount}
@@ -671,17 +664,14 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                 >
                     {group.lucide
                         ? <UiIcon name={group.lucide} size={20} className="shrink-0" />
-                        : <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />}
+                        : <UiIcon name={ICON_LUCIDE[group.icon] ?? "circle"} size={20} className="shrink-0" />}
                     {showLabels && (
                         <span className="flex-1 text-left font-mono text-[10px] uppercase tracking-[0.12em]">
                             {__(group.label)}
                         </span>
                     )}
                     {showLabels && (
-                        <Icon
-                            d="M19 9l-7 7-7-7"
-                            className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-                        />
+                        <UiIcon name={open ? 'chevron-up' : 'chevron-down'} size={16} className="shrink-0" />
                     )}
                 </button>
             </Tooltip>
@@ -714,12 +704,11 @@ function SubGroup({ group, path, showTab = () => true }) {
                 className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
                             ${active ? 'text-om-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
             >
-                <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />
+                {group.lucide
+                    ? <UiIcon name={group.lucide} size={15} className="shrink-0" />
+                    : <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />}
                 {__(group.label)}
-                <Icon
-                    d="M19 9l-7 7-7-7"
-                    className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-                />
+                <UiIcon name={open ? 'chevron-up' : 'chevron-down'} size={13} className="ml-auto shrink-0" />
             </button>
             {open && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">

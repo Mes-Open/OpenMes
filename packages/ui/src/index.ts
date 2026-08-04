@@ -20,6 +20,7 @@ export * from './ProgressBar';
 export * from './QuantityStepper';
 export * from './RadioGroup';
 export * from './SegmentedControl';
+export * from './SegmentedProgress';
 export * from './Skeleton';
 export * from './StatusPill';
 export * from './Switch';

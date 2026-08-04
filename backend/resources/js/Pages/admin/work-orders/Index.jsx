@@ -21,6 +21,8 @@ export default function WorkOrdersIndex() {
     // Creating from the list happens in a modal so you keep your filters, page and
     // selection. /admin/work-orders/create still renders the same form standalone.
     const [creating, setCreating] = useState(false);
+    // Bumped after a successful create to remount the form — see the modal below.
+    const [formKey, setFormKey] = useState(0);
     const { prompt, dialog: promptDialog } = usePrompt();
 
     // Honor dashboard KPI deep-links (e.g. ?status=IN_PROGRESS&line_id=3) so a
@@ -184,12 +186,19 @@ export default function WorkOrdersIndex() {
                 title={__('New Work Order')}
                 closeLabel={__('Close')}
                 className="max-w-[720px]"
+                // A misclick on the scrim shouldn't cost a half-filled order.
+                keepMounted
             >
                 {/* THE work-order form — the same component the create page and the
                     planner render, so a field added there appears here too.
                     `stay` makes the controller send us back to this list instead of
                     redirecting, keeping filters and paging intact. */}
+                {/* `keepMounted` holds the form's state, which is the point when
+                    you close by accident — but the order you just created must
+                    not linger in the next one. Bumping the key remounts the form,
+                    and only on success. */}
                 <WorkOrderForm
+                    key={formKey}
                     lines={lines}
                     productTypes={productTypes}
                     customers={customers}
@@ -198,7 +207,10 @@ export default function WorkOrdersIndex() {
                     customFields={customFields}
                     stay
                     onCancel={() => setCreating(false)}
-                    onSuccess={() => setCreating(false)}
+                    onSuccess={() => {
+                        setCreating(false);
+                        setFormKey((k) => k + 1);
+                    }}
                 />
             </Modal>
             {promptDialog}

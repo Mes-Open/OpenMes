@@ -121,7 +121,7 @@ function Check({ on, mixed = false, onToggle, label }) {
 // couple of characters ("Wszystk▾"). It widens the column instead, which the
 // table's auto-layout absorbs.
 const FILTER_FIELD_CLS =
-    'w-full min-w-[84px] rounded-[6px] border border-om-line bg-om-bg font-mono text-[10.5px] text-om-ink outline-none';
+    'w-full min-w-[84px] rounded-[6px] border border-om-line bg-om-bg text-[13px] text-om-ink outline-none';
 
 /** True for the `{ eq }` wrapper ColumnFilter uses to request an exact match. */
 const isExact = (v) => !!v && typeof v === 'object' && 'eq' in v;
@@ -650,9 +650,14 @@ export function DataTable({
                 )}
                 {/* Selection action bar (design §12): panel-filled pill holding an
                     accent count badge, a hairline divider, the bulk chips, and a ×
-                    that clears the selection. */}
+                    that clears the selection.
+                    `self-stretch` (not a fixed height) is deliberate: the pill only
+                    exists while rows are selected, so any height of its own taller
+                    than the toolbar's other controls would push the table down the
+                    moment a row is ticked. Stretching takes the row's height as
+                    given, leaving the layout still. */}
                 {enableSelection && selCount > 0 && (
-                    <div className="ml-auto flex h-[42px] items-center gap-[10px] rounded-om-sm border border-om-line bg-om-panel pr-[6px] pl-3">
+                    <div className="ml-auto flex min-h-[34px] items-center gap-[10px] self-stretch rounded-om-sm border border-om-line bg-om-panel pr-[6px] pl-3">
                         <span className="inline-flex items-center gap-[7px]">
                             <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-om-accent px-[5px] font-mono text-[10px] font-semibold text-white">
                                 {selCount}
