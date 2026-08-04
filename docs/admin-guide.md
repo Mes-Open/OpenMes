@@ -41,6 +41,11 @@ This guide covers installation, configuration, and administration of OpenMES.
 
 ## Installation
 
+> Deploying OpenMES in a plant for the first time? This chapter covers the software.
+> The [Implementation Runbook](implementation-runbook.md) covers the whole procedure
+> around it — infrastructure, configuration order, master data, pilot, go-live and
+> handover.
+
 ### Prerequisites
 
 - Docker 20.10+ and Docker Compose

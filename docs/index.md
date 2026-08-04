@@ -11,6 +11,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 | [Operator Guide](operator-guide.md) | Production operators | How to work with production orders on the shop floor |
 | [Supervisor Guide](supervisor-guide.md) | Supervisors & team leads | Managing lines, monitoring production, handling issues |
 | [Admin Guide](admin-guide.md) | System administrators | Installation, configuration, user management, modules |
+| [Implementation Runbook](implementation-runbook.md) | Integrators & IT leads | End-to-end procedure for deploying OpenMES in a plant: infrastructure, install, master data, pilot, go-live, handover |
 
 ---
 
@@ -51,6 +52,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 ## Quick Navigation
 
 - **New to OpenMES?** → Start with the [Admin Guide](admin-guide.md) to set up the system
+- **Deploying OpenMES in a plant?** → Follow the [Implementation Runbook](implementation-runbook.md)
 - **Onboarding a plant team?** → Use the [Training Program](training-program.md)
 - **Setting up tablets?** → See [PWA Installation](../README.md#-pwa-installation-tablets) in the main README
 - **Building integrations?** → See the [API Documentation](API_DOCUMENTATION.md)
