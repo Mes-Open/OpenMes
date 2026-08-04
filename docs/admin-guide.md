@@ -250,6 +250,10 @@ Warehousing is an optional module — enable **Warehouses** under
 **Settings → System → Modules** (see [Modules](#modules)). With it off, the pages
 below are hidden and nothing in this section applies.
 
+> Rolling this out on an existing production install? Follow the
+> [Warehouses & ERP Sync rollout runbook](warehouse-erp-rollout.md) — it covers the
+> deployment order, loading opening stock, the acceptance test and the rollback path.
+
 ### Setting Up Warehouses
 
 1. Go to **Admin → Production → Warehouses → All Warehouses**
