@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber } from '../../../../lib/i18n';
+import { __ } from '../../../../lib/i18n';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -150,7 +151,7 @@ export default function MqttIndex() {
                     <div>
                         <h1 className="text-2xl font-bold text-om-ink">MQTT Connections</h1>
                         <p className="text-sm text-om-muted mt-1">
-                            Define and manage MQTT broker connections and topic subscriptions.
+                            {__('Define and manage MQTT broker connections and topic subscriptions.')}
                         </p>
                     </div>
                     <a

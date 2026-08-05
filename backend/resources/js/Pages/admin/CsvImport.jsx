@@ -189,7 +189,7 @@ export default function CsvImport() {
                                 <input type="hidden" name="mapping_id" value={mappingId} />
                                 <Dropdown
                                     options={[
-                                        { value: '', label: __('— Map columns manually —') },
+                                        { value: '', label: __('Map columns manually') },
                                         ...savedMappings.map((m) => ({
                                             value: String(m.id),
                                             label: `${m.name}${m.is_default ? ' (default)' : ''}`,
@@ -208,7 +208,7 @@ export default function CsvImport() {
                             <input type="hidden" name="target_line_id" value={targetLineId} />
                             <Dropdown
                                 options={[
-                                    { value: '', label: __('— Use line_code column from file —') },
+                                    { value: '', label: __('Use line_code column from file') },
                                     ...lines.map((line) => ({ value: String(line.id), label: line.name })),
                                 ]}
                                 value={targetLineId == null ? '' : String(targetLineId)}

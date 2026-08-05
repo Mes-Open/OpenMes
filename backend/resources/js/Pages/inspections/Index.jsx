@@ -7,7 +7,7 @@ import AppLayout from '../../layouts/AppLayout';
 import { formatNumber, __ } from '../../lib/i18n';
 
 const DISPOSITION_LABELS = {
-    pending: __('Pending'),
+    pending: 'Pending',
     accept: 'Accept',
     accept_with_deviation: 'Accept with deviation',
     rework: 'Rework',
@@ -184,7 +184,7 @@ export default function InspectionsIndex() {
                         href="/inspections/create"
                         className="inline-flex items-center justify-center gap-2 rounded-om-sm bg-om-accent px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:brightness-95"
                     >
-                        + Start inspection
+                        {__('Start inspection')}
                     </Link>
                 </div>
 
@@ -223,13 +223,13 @@ export default function InspectionsIndex() {
 
                 {/* Disposition filter */}
                 <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Disposition:')}</label>
+                    <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Disposition')}</label>
                     <Dropdown
                         value={selectedDisposition == null ? '' : String(selectedDisposition)}
                         onChange={(v) => router.visit(dispHref(v), { preserveScroll: true })}
                         options={[
                             { value: '', label: __('All') },
-                            ...DISPOSITION_OPTIONS.map((d) => ({ value: String(d), label: DISPOSITION_LABELS[d] ?? d })),
+                            ...DISPOSITION_OPTIONS.map((d) => ({ value: String(d), label: __(DISPOSITION_LABELS[d] ?? d )})),
                         ]}
                         className="w-48"
                     />
@@ -247,7 +247,7 @@ export default function InspectionsIndex() {
                     searchable
                     columnToggle
                     paginated
-                    searchPlaceholder="Search inspections…"
+                    searchPlaceholder={__('Search inspections…')}
                     emptyLabel={__('No inspections in this tab.')}
                 />
             </div>
