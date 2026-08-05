@@ -11,13 +11,14 @@ const STATUS_COLORS = {
     ACCEPTED:    'bg-om-running-bg text-om-running',
     PENDING:     'bg-om-chip text-om-muted',
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    CHANGE_HOLD: 'bg-om-downtime-bg text-om-downtime',
     DONE:        'bg-om-running-bg text-om-running',
     REJECTED:    'bg-om-blocked-bg text-om-blocked',
     CANCELLED:   'bg-om-line2 text-om-muted',
 };
 const STATUS_LABELS = {
     PENDING: 'Pending', ACCEPTED: 'Accepted', IN_PROGRESS: 'In Progress',
-    BLOCKED: 'Blocked', PAUSED: 'Paused', DONE: 'Done',
+    BLOCKED: 'Blocked', PAUSED: 'Paused', CHANGE_HOLD: 'Change hold', DONE: 'Done',
     REJECTED: 'Rejected', CANCELLED: 'Cancelled',
 };
 

@@ -659,6 +659,7 @@ const PILL_STATUS = {
     IN_PROGRESS: 'running',
     BLOCKED: 'blocked',
     PAUSED: 'downtime',
+    CHANGE_HOLD: 'downtime',
     OPEN: 'blocked',
     ACKNOWLEDGED: 'downtime',
     RESOLVED: 'running',

@@ -65,6 +65,14 @@ class WorkOrder extends Model
 
     const STATUS_PAUSED = 'PAUSED';
 
+    /**
+     * Stopped because the product, process or documentation must change before work
+     * can continue (#182). Distinct from PAUSED so the board shows the difference
+     * between "we will be back after the break" and "nobody may build this until a
+     * change is approved" — and so resuming can demand an applied change request.
+     */
+    const STATUS_CHANGE_HOLD = 'CHANGE_HOLD';
+
     const STATUS_DONE = 'DONE';
 
     const STATUS_REJECTED = 'REJECTED';
@@ -86,6 +94,9 @@ class WorkOrder extends Model
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
+    /** Stopped states an order can be resumed from. */
+    const HELD_STATUSES = [self::STATUS_PAUSED, self::STATUS_BLOCKED, self::STATUS_CHANGE_HOLD];
+
     /** All valid work order statuses (used for API filter validation). */
     const STATUSES = [
         self::STATUS_PENDING,
@@ -93,6 +104,7 @@ class WorkOrder extends Model
         self::STATUS_IN_PROGRESS,
         self::STATUS_BLOCKED,
         self::STATUS_PAUSED,
+        self::STATUS_CHANGE_HOLD,
         self::STATUS_DONE,
         self::STATUS_REJECTED,
         self::STATUS_CANCELLED,
@@ -106,6 +118,8 @@ class WorkOrder extends Model
         'product_type_id',
         'product_revision_id',
         'process_snapshot',
+        // Which work_order_snapshots version `process_snapshot` currently holds (#182).
+        'snapshot_version',
         'planned_qty',
         'unit_price',
         'produced_qty',
@@ -140,6 +154,7 @@ class WorkOrder extends Model
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'priority_score' => 'integer',
+            'snapshot_version' => 'integer',
             'customer_totals_counted' => 'boolean',
             'due_date' => 'datetime',
             'end_date' => 'datetime',
@@ -324,6 +339,39 @@ class WorkOrder extends Model
     public function lineStatus(): BelongsTo
     {
         return $this->belongsTo(LineStatus::class);
+    }
+
+    /** Structured production stops (#182), newest first. */
+    public function stops(): HasMany
+    {
+        return $this->hasMany(WorkOrderStop::class)->orderByDesc('stopped_at');
+    }
+
+    /** Controlled change requests raised against this order (#182). */
+    public function changeRequests(): HasMany
+    {
+        return $this->hasMany(WorkOrderChangeRequest::class)->orderByDesc('id');
+    }
+
+    /** Every configuration this order has run under, oldest first (#182). */
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(WorkOrderSnapshot::class)->orderBy('version');
+    }
+
+    /**
+     * The stop currently holding production, if any. At most one is open at a time —
+     * WorkOrderStopService refuses a second.
+     */
+    public function openStop(): ?WorkOrderStop
+    {
+        return $this->stops()->whereNull('resumed_at')->first();
+    }
+
+    /** Held for a configuration change, so resuming needs an applied change request. */
+    public function isOnChangeHold(): bool
+    {
+        return $this->status === self::STATUS_CHANGE_HOLD;
     }
 
     /**

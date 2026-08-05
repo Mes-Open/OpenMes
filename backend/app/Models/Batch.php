@@ -41,6 +41,9 @@ class Batch extends Model
 
     protected $fillable = [
         'work_order_id',
+        // Which work-order configuration version generated this batch (#182), so
+        // production before and after an applied change stays distinguishable.
+        'snapshot_version',
         'batch_number',
         'lot_number',
         'lot_assigned_at',

@@ -49,6 +49,7 @@ use App\Http\Controllers\Web\Admin\WageGroupController;
 use App\Http\Controllers\Web\Admin\WorkerAbsenceController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
 use App\Http\Controllers\Web\Admin\WorkstationTypeController;
@@ -422,6 +423,26 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/resume', [AdminWorkOrderController::class, 'resume'])->name('work-orders.resume');
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
+
+        // Change control (#182) — structured stop, change request and its review.
+        Route::post('/work-orders/{workOrder}/stop', [WorkOrderChangeControlController::class, 'stop'])
+            ->name('work-orders.stop');
+        Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
+            ->name('work-orders.change-requests.store');
+        Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
+            ->name('work-order-change-requests.show');
+        Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])
+            ->name('work-order-change-requests.update');
+        Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeControlController::class, 'submit'])
+            ->name('work-order-change-requests.submit');
+        Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeControlController::class, 'approve'])
+            ->name('work-order-change-requests.approve');
+        Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeControlController::class, 'reject'])
+            ->name('work-order-change-requests.reject');
+        Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeControlController::class, 'cancel'])
+            ->name('work-order-change-requests.cancel');
+        Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeControlController::class, 'apply'])
+            ->name('work-order-change-requests.apply');
 
         // Customers
         Route::resource('customers', CustomerController::class)->except(['show']);

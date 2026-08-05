@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\Customer;
 use App\Models\Line;
 use App\Models\ProcessTemplate;
@@ -12,6 +13,7 @@ use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -153,10 +155,66 @@ class WorkOrderManagementController extends Controller
             'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
         ])->values();
 
+        // Change control (#182): the stop history with durations, and every change
+        // request raised against this order.
+        $stops = $workOrder->stops()->with(['stoppedBy:id,name', 'resumedBy:id,name'])->get()
+            ->map(fn ($stop) => [
+                'id' => $stop->id,
+                'type' => $stop->type->value,
+                'type_label' => $stop->type->label(),
+                'reason' => $stop->reason,
+                'requires_change' => (bool) $stop->requires_change,
+                'produced_qty_at_stop' => $stop->produced_qty_at_stop,
+                'snapshot_version_at_stop' => $stop->snapshot_version_at_stop,
+                'stopped_at' => $stop->stopped_at?->toISOString(),
+                'resumed_at' => $stop->resumed_at?->toISOString(),
+                'resume_notes' => $stop->resume_notes,
+                'duration_minutes' => $stop->durationMinutes(),
+                'is_open' => $stop->isOpen(),
+                'stopped_by' => $stop->stoppedBy?->name,
+                'resumed_by' => $stop->resumedBy?->name,
+            ])->values();
+
+        $changeRequests = $workOrder->changeRequests()->with('requestedBy:id,name')->get()
+            ->map(fn ($cr) => [
+                'id' => $cr->id,
+                'code' => $cr->code,
+                'title' => $cr->title,
+                'status' => $cr->status->value,
+                'status_label' => $cr->status->label(),
+                'effective_from_label' => $cr->effective_from->label(),
+                'resulting_snapshot_version' => $cr->resulting_snapshot_version,
+                'requested_by' => $cr->requestedBy?->name,
+                'created_at' => $cr->created_at?->toISOString(),
+            ])->values();
+
+        $openStop = $workOrder->openStop();
+        // An order held for a change may only resume once one has been applied — the
+        // page needs to know which, so Resume can carry it.
+        $appliedChangeRequest = $workOrder->changeRequests()
+            ->where('status', \App\Enums\ChangeRequestStatus::Applied->value)
+            ->when($openStop, fn ($q) => $q->where('applied_at', '>=', $openStop->stopped_at))
+            ->reorder('applied_at', 'desc')
+            ->first();
+
         return Inertia::render('admin/work-orders/Show', [
+            'stops' => $stops,
+            'changeRequests' => $changeRequests,
+            'changeControl' => [
+                'open_stop_id' => $openStop?->id,
+                'requires_change' => (bool) $openStop?->requires_change || $workOrder->isOnChangeHold(),
+                'applied_change_request_id' => $appliedChangeRequest?->id,
+                'stop_types' => collect(\App\Enums\WorkOrderStopType::cases())
+                    ->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->values(),
+                'effective_points' => collect(\App\Enums\ChangeEffectivePoint::cases())
+                    ->map(fn ($p) => ['value' => $p->value, 'label' => $p->label()])->values(),
+                'can_raise_change' => request()->user()->can('create', \App\Models\WorkOrderChangeRequest::class),
+                ...WorkOrderChangeControlController::formOptions($workOrder),
+            ],
             'workOrder' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
+                'snapshot_version' => $workOrder->snapshot_version,
                 'customer_order_no' => $workOrder->customer_order_no,
                 'customer_name' => $workOrder->customer?->name,
                 'customer_tier' => $workOrder->customer?->tier?->value,
@@ -337,12 +395,20 @@ class WorkOrderManagementController extends Controller
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
     }
 
-    public function resume(WorkOrder $workOrder)
+    /**
+     * Resume production (#182).
+     *
+     * Goes through the stop service so a structured stop is closed with its duration
+     * and the change-hold gate is enforced. An order paused the simple way has no stop
+     * record and resumes exactly as it did before.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
-            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
+        try {
+            $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }

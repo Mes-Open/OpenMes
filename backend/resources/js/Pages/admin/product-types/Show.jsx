@@ -13,6 +13,7 @@ const WO_STATUS_LABELS = {
     IN_PROGRESS: 'In Progress',
     BLOCKED:     'Blocked',
     PAUSED:      'Paused',
+    CHANGE_HOLD: 'Change hold',
     DONE:        'Done',
     REJECTED:    'Rejected',
     CANCELLED:   'Cancelled',
@@ -28,6 +29,7 @@ const WO_STATUS_STYLES = {
     CANCELLED:   'bg-om-line2 text-om-muted',
     ACCEPTED:    'bg-om-chip text-om-accent',
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    CHANGE_HOLD: 'bg-om-downtime-bg text-om-downtime',
 };
 
 const SERIAL_STATUS_STYLES = {

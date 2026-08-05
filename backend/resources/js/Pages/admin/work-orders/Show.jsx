@@ -2,11 +2,39 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import StopProductionModal from './StopProductionModal';
+import ChangeRequestModal from './ChangeRequestModal';
 import { WO_STATUS_STYLES } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
 import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
+
+/**
+ * Statuses that offer a Resume button (#182).
+ *
+ * BLOCKED is deliberately absent even though the backend counts it as held: it is set
+ * and cleared by the issue workflow, so the way out of it is resolving the issue, not
+ * a Resume button that the service would refuse anyway.
+ */
+const HELD = ['PAUSED', 'CHANGE_HOLD'];
+
+const CR_STATUS_STYLES = {
+    DRAFT: 'bg-om-chip text-om-muted',
+    SUBMITTED: 'bg-om-chip text-om-accent',
+    APPROVED: 'bg-om-running-bg text-om-running',
+    APPLIED: 'bg-om-running-bg text-om-running',
+    REJECTED: 'bg-om-blocked-bg text-om-blocked',
+    CANCELLED: 'bg-om-chip text-om-faint',
+};
+
+function fmtDuration(minutes) {
+    if (minutes == null) return '—';
+    if (minutes < 60) return __(':n min', { n: minutes });
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m ? __(':h h :m min', { h, m }) : __(':h h', { h });
+}
 
 const BATCH_STATUS_STYLES = {
     PENDING: 'bg-om-chip text-om-muted',
@@ -155,13 +183,32 @@ function DoneModal({ workOrder, onClose }) {
 }
 
 export default function AdminWorkOrderShow() {
-    const { workOrder, customFields = [] } = usePage().props;
+    const {
+        workOrder, customFields = [],
+        stops = [], changeRequests = [], changeControl = {},
+    } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
+    const [showStopModal, setShowStopModal] = useState(false);
+    const [showChangeModal, setShowChangeModal] = useState(false);
 
     const post = (verb) => router.post(`/admin/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
 
     const status = workOrder.status;
     const isTerminal = TERMINAL.includes(status);
+
+    // An order held for a configuration change may only resume once an approved
+    // change has actually been applied — resume then carries which one.
+    const needsChange = !!changeControl.requires_change;
+    const appliedChangeId = changeControl.applied_change_request_id ?? null;
+    const resumeBlocked = needsChange && !appliedChangeId;
+
+    function resume() {
+        router.post(
+            `/admin/work-orders/${workOrder.id}/resume`,
+            appliedChangeId ? { change_request_id: appliedChangeId } : {},
+            { preserveScroll: true },
+        );
+    }
 
     const pct = workOrder.planned_qty > 0
         ? Math.min((workOrder.produced_qty / workOrder.planned_qty) * 100, 100)
@@ -232,6 +279,13 @@ export default function AdminWorkOrderShow() {
                                     Pause
                                 </button>
                                 <button
+                                    onClick={() => setShowStopModal(true)}
+                                    className="px-4 py-2 text-sm font-medium text-om-downtime bg-om-card border border-om-line rounded-md hover:bg-om-bg"
+                                    title={__('Record why production stopped, and whether a configuration change is needed.')}
+                                >
+                                    {__('Stop production')}
+                                </button>
+                                <button
                                     onClick={() => setShowDoneModal(true)}
                                     className="px-4 py-2 text-sm font-medium text-white bg-om-running rounded-md hover:brightness-95"
                                 >
@@ -239,12 +293,24 @@ export default function AdminWorkOrderShow() {
                                 </button>
                             </>
                         )}
-                        {status === 'PAUSED' && (
+                        {HELD.includes(status) && !isTerminal && (
                             <button
-                                onClick={() => post('resume')}
-                                className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover"
+                                onClick={resume}
+                                disabled={resumeBlocked}
+                                title={resumeBlocked
+                                    ? __('An approved change request must be applied before this order can resume.')
+                                    : undefined}
+                                className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Resume
+                            </button>
+                        )}
+                        {!isTerminal && changeControl.can_raise_change && (
+                            <button
+                                onClick={() => setShowChangeModal(true)}
+                                className="px-4 py-2 text-sm font-medium text-om-accent bg-om-card border border-om-line rounded-md hover:bg-om-bg"
+                            >
+                                {__('Request change')}
                             </button>
                         )}
 
@@ -288,6 +354,19 @@ export default function AdminWorkOrderShow() {
                         </Link>
                     </div>
                 </div>
+
+                {/* Change hold banner (#182) — the order is stopped and waiting on a
+                    change, which is the one thing a supervisor must not miss. */}
+                {status === 'CHANGE_HOLD' && (
+                    <div className="mb-6 rounded-om-sm border border-om-line2 bg-om-downtime-bg p-4">
+                        <p className="font-semibold text-om-downtime">{__('On change hold')}</p>
+                        <p className="text-sm text-om-downtime mt-1">
+                            {resumeBlocked
+                                ? __('Production cannot resume until an approved change request has been applied.')
+                                : __('A change has been applied. Production can be resumed.')}
+                        </p>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main */}
@@ -390,6 +469,100 @@ export default function AdminWorkOrderShow() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Change requests (#182) */}
+                        {changeRequests.length > 0 && (
+                            <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
+                                <h2 className="text-lg font-bold text-om-ink mb-4">
+                                    {__('Change requests')}{' '}
+                                    <span className="text-sm font-normal text-om-faint">({changeRequests.length})</span>
+                                </h2>
+                                <div className="space-y-2">
+                                    {changeRequests.map((cr) => (
+                                        <Link
+                                            key={cr.id}
+                                            href={`/admin/work-order-change-requests/${cr.id}`}
+                                            className="block p-3 rounded-om-sm bg-om-panel hover:ring-1 hover:ring-om-accent transition"
+                                        >
+                                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-mono text-sm text-om-muted">{cr.code}</span>
+                                                    <span className="font-medium text-om-ink">{cr.title}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {cr.resulting_snapshot_version && (
+                                                        <span className="text-xs text-om-faint">
+                                                            {__('version :v', { v: cr.resulting_snapshot_version })}
+                                                        </span>
+                                                    )}
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${CR_STATUS_STYLES[cr.status] ?? 'bg-om-chip text-om-muted'}`}>
+                                                        {cr.status_label}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-om-faint mt-1">
+                                                {cr.effective_from_label}
+                                                {cr.requested_by ? ` · ${cr.requested_by}` : ''}
+                                            </p>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Stop history (#182) */}
+                        {stops.length > 0 && (
+                            <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
+                                <h2 className="text-lg font-bold text-om-ink mb-4">
+                                    {__('Production stops')}{' '}
+                                    <span className="text-sm font-normal text-om-faint">({stops.length})</span>
+                                </h2>
+                                <div className="space-y-2">
+                                    {stops.map((stop) => (
+                                        <div
+                                            key={stop.id}
+                                            className={`p-3 rounded-om-sm ${stop.is_open ? 'bg-om-downtime-bg' : 'bg-om-panel'}`}
+                                        >
+                                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-om-ink">{stop.type_label}</span>
+                                                    {stop.requires_change && (
+                                                        <span className="px-1.5 py-0.5 rounded text-xs bg-om-chip text-om-accent">
+                                                            {__('change required')}
+                                                        </span>
+                                                    )}
+                                                    {stop.is_open && (
+                                                        <span className="px-1.5 py-0.5 rounded text-xs bg-om-downtime-bg text-om-downtime font-medium">
+                                                            {__('open')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-sm font-medium text-om-muted">
+                                                    {fmtDuration(stop.duration_minutes)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-om-muted mt-1">{stop.reason}</p>
+                                            <p className="text-xs text-om-faint mt-1">
+                                                {fmtDate(stop.stopped_at)}
+                                                {stop.stopped_by ? ` · ${stop.stopped_by}` : ''}
+                                                {' · '}
+                                                {__('produced :qty at stop', { qty: fmtQty(stop.produced_qty_at_stop) })}
+                                                {stop.snapshot_version_at_stop
+                                                    ? ` · ${__('version :v', { v: stop.snapshot_version_at_stop })}`
+                                                    : ''}
+                                            </p>
+                                            {stop.resumed_at && (
+                                                <p className="text-xs text-om-faint mt-0.5">
+                                                    {__('Resumed')} {fmtDate(stop.resumed_at)}
+                                                    {stop.resumed_by ? ` · ${stop.resumed_by}` : ''}
+                                                    {stop.resume_notes ? ` — ${stop.resume_notes}` : ''}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Sidebar */}
@@ -422,6 +595,11 @@ export default function AdminWorkOrderShow() {
                                 <div className="flex justify-between">
                                     <span className="text-om-muted">{__('Batches:')}</span>
                                     <span className="font-medium">{workOrder.batches.length}</span>
+                                </div>
+                                {/* Which configuration the order is running (#182). */}
+                                <div className="flex justify-between">
+                                    <span className="text-om-muted">{__('Configuration:')}</span>
+                                    <span className="font-medium">v{workOrder.snapshot_version ?? 1}</span>
                                 </div>
                             </div>
                         </div>
@@ -469,6 +647,20 @@ export default function AdminWorkOrderShow() {
 
             {showDoneModal && (
                 <DoneModal workOrder={workOrder} onClose={() => setShowDoneModal(false)} />
+            )}
+            {showStopModal && (
+                <StopProductionModal
+                    workOrder={workOrder}
+                    options={changeControl}
+                    onClose={() => setShowStopModal(false)}
+                />
+            )}
+            {showChangeModal && (
+                <ChangeRequestModal
+                    workOrder={workOrder}
+                    options={changeControl}
+                    onClose={() => setShowChangeModal(false)}
+                />
             )}
         </>
     );
