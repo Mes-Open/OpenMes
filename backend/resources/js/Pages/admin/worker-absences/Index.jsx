@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { ABSENCE_TYPE_LABELS, ABSENCE_STATUS_STYLES } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function WorkerAbsencesIndex() {
     const { workerNames = {} } = usePage().props;
@@ -58,16 +59,16 @@ export default function WorkerAbsencesIndex() {
 
     return (
         <>
-            <Head title="Worker Absences" />
+            <Head title={__('Worker Absences')} />
             <ResourceTable
                 shape="worker_absences"
-                title="Worker Absences"
+                title={__('Worker Absences')}
                 createHref="/admin/worker-absences/create"
-                createLabel="+ New Absence"
+                createLabel={__('+ New Absence')}
                 columns={columns}
                 orderBy="starts_on"
                 actions={actions}
-                emptyText="No absences recorded yet."
+                emptyText={__('No absences recorded yet.')}
             />
         </>
     );

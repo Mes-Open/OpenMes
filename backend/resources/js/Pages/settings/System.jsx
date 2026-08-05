@@ -8,6 +8,7 @@ import { __ } from '../../lib/i18n';
 // Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
 const CURRENCIES = [
     ['PLN', 'Polish Złoty'],
+    ['RMB', 'Chinese Yuan'],
     ['EUR', 'Euro'],
     ['USD', 'US Dollar'],
     ['GBP', 'British Pound'],

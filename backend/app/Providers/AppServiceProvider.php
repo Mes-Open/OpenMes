@@ -226,6 +226,7 @@ class AppServiceProvider extends ServiceProvider
     {
         return [
             'en' => 'English',
+            'cn' => '中文',
             'pl' => 'Polski',
             'tr' => 'Türkçe',
             'de' => 'Deutsch',
