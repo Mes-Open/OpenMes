@@ -67,9 +67,34 @@ class PushStockDocuments extends Sync
 
             try {
                 $acKey = $this->paws->insertMove($this->buildMove($document, $docType));
-                $this->paws->changeDocumentStatus($acKey, (string) ($this->settings->documentType('posted_status') ?? 'P'));
+
+                // Acknowledge IMMEDIATELY. The acKey is proof the movement exists in
+                // Pantheon, so from here on the document must never be inserted
+                // again — and anything that fails after this point (a status change,
+                // a dropped connection) would otherwise leave it unacknowledged and
+                // book the same movement twice on the next run.
                 $this->documents->acknowledge($document, $acKey);
                 $report['imported']++;
+
+                // Separate, recoverable step: the document is booked either way, it
+                // just may sit in the wrong status until someone posts it.
+                try {
+                    $this->paws->changeDocumentStatus(
+                        $acKey,
+                        (string) ($this->settings->documentType('posted_status') ?? 'P'),
+                    );
+                } catch (\Throwable $e) {
+                    $report['errors'][] = [
+                        'document' => $document->document_no,
+                        'message' => "Booked in Pantheon as {$acKey}, but its status could not be changed: ".$e->getMessage(),
+                    ];
+
+                    Log::warning('Pantheon: document booked but status change failed', [
+                        'document_no' => $document->document_no,
+                        'ac_key' => $acKey,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             } catch (\Throwable $e) {
                 // One document failing must not stop the batch: the rest are
                 // independent movements, and the backlog retries this one.
@@ -92,6 +117,8 @@ class PushStockDocuments extends Sync
      * Build the PAWS Move payload for one of our documents.
      *
      * @return array<string, mixed>
+     *
+     * @throws \RuntimeException when a line carries no item Pantheon could identify
      */
     private function buildMove(StockDocument $document, string $docType): array
     {
@@ -106,12 +133,26 @@ class PushStockDocuments extends Sync
             'warehouse' => $this->settings->warehouseCode($warehouse)
                 ?? $document->warehouse?->erp_code
                 ?? $warehouse,
-            'items' => $document->lines->map(fn ($line) => [
-                'ident' => $line->material?->code ?? $line->productType?->code,
-                'quantity' => (float) $line->quantity,
-                'unit' => $line->unit_of_measure,
-                'serialNo' => $line->effectiveLotNumber(),
-            ])->values()->all(),
+            'items' => $document->lines->map(function ($line) use ($document) {
+                $ident = $line->material?->code ?? $line->productType?->code;
+
+                // A line whose material or product was hard-deleted has nothing
+                // Pantheon can book against. Sending a null ident would either be
+                // rejected wholesale or, worse, booked as an empty line — so refuse
+                // the document and report it instead.
+                if ($ident === null || $ident === '') {
+                    throw new \RuntimeException(
+                        "Line #{$line->id} of {$document->document_no} has no material or product code to send."
+                    );
+                }
+
+                return [
+                    'ident' => $ident,
+                    'quantity' => (float) $line->quantity,
+                    'unit' => $line->unit_of_measure,
+                    'serialNo' => $line->effectiveLotNumber(),
+                ];
+            })->values()->all(),
         ];
     }
 

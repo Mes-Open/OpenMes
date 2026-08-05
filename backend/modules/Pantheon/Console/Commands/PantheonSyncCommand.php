@@ -3,6 +3,7 @@
 namespace Modules\Pantheon\Console\Commands;
 
 use App\Models\IntegrationConfig;
+use App\Scopes\TenantScope;
 use App\Support\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -56,9 +57,10 @@ class PantheonSyncCommand extends Command
             return self::FAILURE;
         }
 
-        // withoutGlobalScopes: this is the one query that must see every tenant,
-        // because it is what tells us which tenants to iterate.
-        $configs = IntegrationConfig::withoutGlobalScopes()
+        // Only the tenant scope is dropped — this is the one query that must see
+        // every tenant, because it is what tells us which tenants to iterate. The
+        // soft-delete scope stays: a deleted integration row must not drive a sync.
+        $configs = IntegrationConfig::withoutGlobalScope(TenantScope::class)
             ->where('system_type', PantheonSettings::SYSTEM_TYPE)
             ->when($this->option('tenant'), fn ($q, $id) => $q->where('tenant_id', (int) $id))
             ->get();

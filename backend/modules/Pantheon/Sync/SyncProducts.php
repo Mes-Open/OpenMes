@@ -41,23 +41,11 @@ class SyncProducts extends Sync
     {
         $classifications = $this->settings->productClassifications();
 
-        // Filter in Pantheon when we can — reading the whole item table to throw
-        // most of it away is the difference between seconds and minutes. One
-        // request per classification, because PAWS conditions are equality-based.
-        $rows = [];
-
-        if ($classifications === []) {
-            $rows = iterator_to_array($this->paws->select(self::TABLE, $this->fields()), false);
-        } else {
-            foreach ($classifications as $classification) {
-                foreach ($this->paws->select(self::TABLE, $this->fields(), ['acClassif' => $classification]) as $row) {
-                    $rows[] = $row;
-                }
-            }
-        }
-
         return $this->importInBatches(
-            $rows,
+            // Stays lazy end to end: the client yields page by page and
+            // importInBatches consumes in chunks, so the whole item table — which
+            // can be tens of thousands of rows — is never held in memory at once.
+            $this->readItems($classifications),
             fn (array $batch) => $this->importer->import(
                 rows: $batch,
                 strategy: 'update_or_create',
@@ -67,6 +55,27 @@ class SyncProducts extends Sync
                 system: 'pantheon',
             ),
         );
+    }
+
+    /**
+     * Stream the item rows, filtered in Pantheon where possible — reading the whole
+     * table to throw most of it away is the difference between seconds and minutes.
+     * One request per classification, because PAWS conditions are equality-based.
+     *
+     * @param  list<string>  $classifications
+     * @return \Generator<int, array<string, mixed>>
+     */
+    private function readItems(array $classifications): \Generator
+    {
+        if ($classifications === []) {
+            yield from $this->paws->select(self::TABLE, $this->fields());
+
+            return;
+        }
+
+        foreach ($classifications as $classification) {
+            yield from $this->paws->select(self::TABLE, $this->fields(), ['acClassif' => $classification]);
+        }
     }
 
     /**
@@ -96,8 +105,34 @@ class SyncProducts extends Sync
             'unit_of_measure' => trim((string) ($row['acUM'] ?? '')) ?: null,
             'external_code' => trim((string) ($row['acIdent'] ?? '')),
             'external_system' => 'pantheon',
-            // anActive is Pantheon's own active flag; absent means "leave alone".
-            ...array_key_exists('anActive', $row) ? ['is_active' => (bool) $row['anActive']] : [],
+            // anActive is Pantheon's own active flag. Only recognised values decide
+            // it — a plain (bool) cast made 'F', 'N' and even 'false' come out
+            // ACTIVE, quietly resurrecting items the customer had retired. An
+            // unrecognised value leaves the OpenMES flag untouched.
+            ...$this->activeFlag($row),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{is_active?: bool}
+     */
+    private function activeFlag(array $row): array
+    {
+        if (! array_key_exists('anActive', $row)) {
+            return [];
+        }
+
+        $value = $row['anActive'];
+
+        if (is_bool($value)) {
+            return ['is_active' => $value];
+        }
+
+        return match (strtoupper(trim((string) $value))) {
+            '1', 'T', 'TRUE', 'Y', 'YES' => ['is_active' => true],
+            '0', 'F', 'FALSE', 'N', 'NO' => ['is_active' => false],
+            default => [],
+        };
     }
 }

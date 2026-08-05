@@ -117,6 +117,22 @@ the last twenty runs, their counts and their row errors.
 - Column mapping in each `map()` follows the customer's spec from discussion #212
   and must be confirmed against their data.
 
+## Why this lives in `backend/modules/`
+
+CLAUDE.md says modules under `modules/` are deprecated — that refers to the **root**
+`modules/` tree, which the root `.gitignore` describes as *"Packaging was promoted to
+core; remaining modules ship via private repos"*.
+
+The live plugin system is **`backend/modules/`**: `ModuleManager` scans
+`base_path('modules')`, `/admin/modules` installs and enables from there, and its
+bundled examples (`ExampleHooks`, `ExampleShowcase`, `OrderPinger`) are tracked in this
+repo and whitelisted in `backend/.gitignore`. `ExampleShowcase` shipped in v0.19.0 as
+the reference module to copy.
+
+A per-ERP connector is what that system exists for. Putting it in core would move
+Pantheon's view names, classification codes and document types into a contract that is
+deliberately ERP-agnostic, and every install without Pantheon would carry them.
+
 ## Boundary
 
 This module **reads and writes Pantheon**. It does not own warehousing, stock

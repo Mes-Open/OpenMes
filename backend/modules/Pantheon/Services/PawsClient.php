@@ -26,6 +26,13 @@ use RuntimeException;
  */
 class PawsClient
 {
+    /**
+     * Hard ceiling on pages per read. A PAWS build that ignores start/length would
+     * return a full page forever, and a nightly sync that never ends is worse than
+     * one that stops with a message.
+     */
+    private const MAX_PAGES = 10_000;
+
     private ?string $token = null;
 
     public function __construct(private PantheonSettings $settings) {}
@@ -44,8 +51,16 @@ class PawsClient
     {
         $start = 0;
         $length = $this->settings->pageSize();
+        $page = 0;
+        $previousFingerprint = null;
 
         do {
+            if (++$page > self::MAX_PAGES) {
+                throw new RuntimeException(
+                    'PAWS returned more than '.self::MAX_PAGES." pages for {$table}; aborting to avoid an endless read."
+                );
+            }
+
             $payload = [
                 'masterTable' => ['tableName' => $table],
                 'start' => $start,
@@ -67,6 +82,18 @@ class PawsClient
 
             $rows = $this->post('/api/DBObjects/selecttables', $payload);
             $rows = $this->rows($rows);
+
+            // Identical consecutive pages mean the offset is being ignored; stop
+            // rather than yielding the same rows until the end of time.
+            $fingerprint = md5(json_encode($rows));
+
+            if ($rows !== [] && $fingerprint === $previousFingerprint) {
+                throw new RuntimeException(
+                    "PAWS returned the same page twice for {$table}; it appears to ignore paging."
+                );
+            }
+
+            $previousFingerprint = $fingerprint;
 
             foreach ($rows as $row) {
                 yield $row;

@@ -52,7 +52,9 @@ class PantheonSettings
      */
     public function transportProblem(): ?string
     {
-        $scheme = parse_url($this->baseUrl(), PHP_URL_SCHEME);
+        // Lower-cased: parse_url returns the scheme as written, so `HTTPS://…`
+        // would match neither branch and a perfectly secure URL would be refused.
+        $scheme = strtolower((string) parse_url($this->baseUrl(), PHP_URL_SCHEME));
 
         if ($scheme === 'https' || $this->baseUrl() === '') {
             return null;

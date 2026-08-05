@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Http;
 use Modules\Pantheon\Providers\PantheonServiceProvider;
 use Modules\Pantheon\Services\PantheonSettings;
 use Modules\Pantheon\Sync\PushStockDocuments;
+use Modules\Pantheon\Sync\SyncProducts;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -55,8 +57,8 @@ class PantheonConnectorTest extends TestCase
 
     public function test_pushing_documents_only_touches_the_active_tenants_documents(): void
     {
-        $ours = Tenant::create(['name' => 'Our customer'])->id;
-        $theirs = Tenant::create(['name' => 'Another customer'])->id;
+        $ours = Tenant::factory()->create()->id;
+        $theirs = Tenant::factory()->create()->id;
 
         $ourDocument = $this->postedDocumentFor($ours, 'MI/2026/0001');
         $theirDocument = $this->postedDocumentFor($theirs, 'MI/2026/0002');
@@ -85,8 +87,8 @@ class PantheonConnectorTest extends TestCase
         // Documents the connector must never mix. Guards the assumption the fix
         // rests on: TenantScope does not filter when no tenant can be resolved, so
         // the command — not the scope — is responsible for the boundary.
-        $a = Tenant::create(['name' => 'A'])->id;
-        $b = Tenant::create(['name' => 'B'])->id;
+        $a = Tenant::factory()->create()->id;
+        $b = Tenant::factory()->create()->id;
         $this->postedDocumentFor($a, 'MI/2026/0003');
         $this->postedDocumentFor($b, 'MI/2026/0004');
 
@@ -99,17 +101,13 @@ class PantheonConnectorTest extends TestCase
 
     public function test_settings_are_resolved_per_tenant_not_cached_process_wide(): void
     {
-        $a = Tenant::create(['name' => 'A'])->id;
-        $b = Tenant::create(['name' => 'B'])->id;
+        $a = Tenant::factory()->create()->id;
+        $b = Tenant::factory()->create()->id;
 
-        foreach ([[$a, 'https://paws-a.local', 'DB_A'], [$b, 'https://paws-b.local', 'DB_B']] as [$tenant, $url, $db]) {
-            IntegrationConfig::create([
-                'system_type' => PantheonSettings::SYSTEM_TYPE,
-                'system_name' => 'Datalab Pantheon',
-                'api_config' => ['base_url' => $url, 'username' => 'openmes', 'password' => 'secret', 'company_db' => $db],
-                'is_active' => true,
-                'tenant_id' => $tenant,
-            ]);
+        foreach ([[$a, 'DB_A'], [$b, 'DB_B']] as [$tenant, $db]) {
+            IntegrationConfig::factory()
+                ->pantheon(['company_db' => $db])
+                ->create(['tenant_id' => $tenant]);
         }
 
         app(TenantContext::class)->set($a);
@@ -180,20 +178,120 @@ class PantheonConnectorTest extends TestCase
     /** @return array{imported: int, updated: int, skipped: int, errors: array<int, mixed>} */
     private function pushFor(int $tenantId): array
     {
-        IntegrationConfig::create([
-            'system_type' => PantheonSettings::SYSTEM_TYPE,
-            'system_name' => 'Datalab Pantheon',
-            'api_config' => [
-                'base_url' => 'https://paws.plant.local',
-                'username' => 'openmes',
-                'password' => 'secret',
-                'company_db' => 'DEMO',
-                'document_types' => ['material_issue' => 'RW', 'product_receipt' => 'PW', 'posted_status' => 'P'],
-            ],
-            'is_active' => true,
-            'tenant_id' => $tenantId,
-        ]);
+        IntegrationConfig::factory()
+            ->pantheon(['document_types' => ['material_issue' => 'RW', 'product_receipt' => 'PW', 'posted_status' => 'P']])
+            ->create(['tenant_id' => $tenantId]);
 
         return app(PushStockDocuments::class)->run();
+    }
+
+    // ── PR #230 review fixes ────────────────────────────────────────────────
+
+    public function test_a_soft_deleted_integration_row_does_not_drive_a_sync(): void
+    {
+        $tenant = Tenant::factory()->create()->id;
+        IntegrationConfig::factory()->pantheon()->create(['tenant_id' => $tenant])->delete();
+
+        // Only the tenant scope may be dropped when the command looks for work; a
+        // deleted integration must stay invisible.
+        $this->assertSame(
+            0,
+            IntegrationConfig::withoutGlobalScope(\App\Scopes\TenantScope::class)
+                ->where('system_type', PantheonSettings::SYSTEM_TYPE)
+                ->count(),
+        );
+    }
+
+    public function test_an_uppercase_https_scheme_is_accepted(): void
+    {
+        // parse_url returns the scheme as written, so a lower-cased comparison is
+        // what keeps HTTPS:// from being refused as insecure.
+        $settings = $this->settings([
+            'base_url' => 'HTTPS://paws.plant.local',
+            'username' => 'openmes',
+            'password' => 'secret',
+            'company_db' => 'DEMO',
+        ]);
+
+        $this->assertNull($settings->transportProblem());
+    }
+
+    public function test_a_document_is_acknowledged_even_if_the_status_change_fails(): void
+    {
+        $tenant = Tenant::factory()->create()->id;
+        $document = $this->postedDocumentFor($tenant, 'MI/2026/0010');
+
+        Http::fake([
+            '*/api/Users/authwithtoken' => Http::response(['token' => 'test-token']),
+            '*/api/Move/insert' => Http::response(['acKey' => 'RW-9']),
+            // Booked, but the status call breaks — the movement still exists in
+            // Pantheon, so it must never be inserted a second time.
+            '*/api/Move/changedocstatus/*' => Http::response(['error' => 'boom'], 500),
+        ]);
+
+        app(TenantContext::class)->set($tenant);
+        $report = $this->pushFor($tenant);
+
+        $this->assertSame('RW-9', $document->fresh()->erp_reference);
+        $this->assertNotNull($document->fresh()->erp_synced_at, 'must not be re-booked on the next run');
+        $this->assertSame(1, $report['imported']);
+        // The failure is still reported, so nobody assumes the status was set.
+        $this->assertStringContainsString('status could not be changed', $report['errors'][0]['message']);
+    }
+
+    public function test_a_line_without_an_item_code_fails_its_document_instead_of_sending_null(): void
+    {
+        $tenant = Tenant::factory()->create()->id;
+        app(TenantContext::class)->set($tenant);
+
+        $warehouse = Warehouse::factory()->rawMaterial()->create();
+        $document = StockDocument::factory()->posted()->create([
+            'document_no' => 'MI/2026/0011',
+            'warehouse_id' => $warehouse->id,
+        ]);
+        // A line whose item is gone: nothing Pantheon could book against.
+        $document->lines()->create(['quantity' => 5, 'unit_of_measure' => 'kg']);
+
+        Http::fake([
+            '*/api/Users/authwithtoken' => Http::response(['token' => 'test-token']),
+            '*/api/Move/insert' => Http::response(['acKey' => 'RW-SHOULD-NOT-HAPPEN']),
+        ]);
+
+        $report = $this->pushFor($tenant);
+
+        $this->assertSame(0, $report['imported']);
+        $this->assertNull($document->fresh()->erp_synced_at);
+        $this->assertStringContainsString('no material or product code', $report['errors'][0]['message']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/api/Move/insert'));
+    }
+
+    #[DataProvider('pantheonActiveFlags')]
+    public function test_the_pantheon_active_flag_is_read_by_value_not_by_truthiness(mixed $value, ?bool $expected): void
+    {
+        $mapped = (new \ReflectionClass(SyncProducts::class))
+            ->newInstanceWithoutConstructor();
+
+        $method = new \ReflectionMethod(SyncProducts::class, 'activeFlag');
+        $result = $method->invoke($mapped, ['anActive' => $value]);
+
+        // A plain (bool) cast made 'F' and 'N' active, silently resurrecting items
+        // the customer had retired; an unknown value must leave the flag alone.
+        $expected === null
+            ? $this->assertSame([], $result)
+            : $this->assertSame(['is_active' => $expected], $result);
+    }
+
+    public static function pantheonActiveFlags(): array
+    {
+        return [
+            'numeric true' => [1, true],
+            'numeric false' => [0, false],
+            'T' => ['T', true],
+            'F' => ['F', false],
+            'N' => ['N', false],
+            'false as text' => ['false', false],
+            'real bool' => [true, true],
+            'unknown value leaves it alone' => ['maybe', null],
+        ];
     }
 }
