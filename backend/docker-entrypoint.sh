@@ -63,6 +63,7 @@ if [ "$IS_PRIMARY" = "1" ]; then
     php artisan db:seed --class=RolesAndPermissionsSeeder --force
     php artisan db:seed --class=IssueTypesSeeder --force
     php artisan db:seed --class=LineStatusSeeder --force
+    php artisan db:seed --class=MaterialTypesSeeder --force
 
     # Reset the Spatie permission cache so the freshly-seeded roles/permissions
     # are authoritative. Without this an upgrade can keep serving a stale cached
