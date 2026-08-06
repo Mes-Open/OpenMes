@@ -5,7 +5,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { lineFields } from './fields';
 
 export default function LineCreate() {
-    const { areas = [] } = usePage().props;
+    const { areas = [], warehouses = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__("New Production Line")} />
@@ -13,8 +13,8 @@ export default function LineCreate() {
             <ResourceForm
                 action="/admin/lines"
                 method="post"
-                fields={lineFields(areas)}
-                initial={{ code: '', name: '', area_id: '', description: '', is_active: true }}
+                fields={lineFields(areas, warehouses)}
+                initial={{ code: '', name: '', area_id: '', warehouse_id: '', description: '', is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/lines"
             />

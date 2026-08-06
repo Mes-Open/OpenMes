@@ -5073,5 +5073,8 @@
     "This document moves products, not materials.": "Ten dokument obraca wyrobami, nie materiałami.",
     "A product line cannot carry a material lot.": "Pozycja wyrobu nie może mieć partii materiału.",
     "That lot belongs to a different material.": "Ta partia należy do innego materiału.",
-    "Lot ':lot' already belongs to material ':code'": "Partia ':lot' należy już do materiału ':code'"
+    "Lot ':lot' already belongs to material ':code'": "Partia ':lot' należy już do materiału ':code'",
+    "Stock location": "Lokalizacja magazynowa",
+    "Consumption booked on this line is deducted from this location.": "Zużycie zarejestrowane na tej linii jest odejmowane z tej lokalizacji.",
+    "Location :warehouse does not hold enough :material to consume :needed (:available available).": "Lokalizacja :warehouse nie ma wystarczającej ilości :material, aby zużyć :needed (dostępne: :available)."
 }

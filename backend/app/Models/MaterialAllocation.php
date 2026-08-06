@@ -25,10 +25,14 @@ class MaterialAllocation extends Model
         'batch_step_id',
         'material_id',
         'work_order_id',
+        // The location this allocation is consumed from, frozen on first deduction.
+        'consumption_warehouse_id',
         'allocated_qty',
         'expected_qty',
         'returned_qty',
         'consumed_qty',
+        // How much of it has already been taken off that location's balance.
+        'location_deducted_qty',
         'adjustment_qty',
         'scrap_qty',
         'status',
@@ -47,6 +51,7 @@ class MaterialAllocation extends Model
             'expected_qty' => 'decimal:4',
             'returned_qty' => 'decimal:4',
             'consumed_qty' => 'decimal:4',
+            'location_deducted_qty' => 'decimal:4',
             'adjustment_qty' => 'decimal:4',
             'scrap_qty' => 'decimal:4',
             'allocated_at' => 'datetime',
@@ -82,6 +87,12 @@ class MaterialAllocation extends Model
     public function allocatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'allocated_by');
+    }
+
+    /** The location this allocation's consumption is booked against. */
+    public function consumptionWarehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'consumption_warehouse_id');
     }
 
     public function lotPicks(): \Illuminate\Database\Eloquent\Relations\HasMany

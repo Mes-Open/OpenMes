@@ -5073,5 +5073,8 @@
     "This document moves products, not materials.": "This document moves products, not materials.",
     "A product line cannot carry a material lot.": "A product line cannot carry a material lot.",
     "That lot belongs to a different material.": "That lot belongs to a different material.",
-    "Lot ':lot' already belongs to material ':code'": "Lot ':lot' already belongs to material ':code'"
+    "Lot ':lot' already belongs to material ':code'": "Lot ':lot' already belongs to material ':code'",
+    "Stock location": "Stock location",
+    "Consumption booked on this line is deducted from this location.": "Consumption booked on this line is deducted from this location.",
+    "Location :warehouse does not hold enough :material to consume :needed (:available available).": "Location :warehouse does not hold enough :material to consume :needed (:available available)."
 }

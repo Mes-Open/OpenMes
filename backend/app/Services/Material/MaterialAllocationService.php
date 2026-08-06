@@ -18,6 +18,7 @@ class MaterialAllocationService
     public function __construct(
         protected StockMovementService $stockMovements,
         protected LotPickingService $lotPicking,
+        protected ConsumptionLocationService $consumptionLocation,
     ) {}
 
     /**
@@ -254,6 +255,12 @@ class MaterialAllocationService
                     );
                 }
 
+                // Finalise the location balance against the quantity that actually
+                // stands. Deducts only the part not already booked by the operator's
+                // own entries, so a batch whose consumption was recorded step by step
+                // is not deducted twice.
+                $this->consumptionLocation->deduct($allocation, $actualConsumed);
+
                 $allocation->update([
                     'status' => MaterialAllocation::STATUS_CONSUMED,
                     'consumed_qty' => $actualConsumed,
@@ -288,6 +295,11 @@ class MaterialAllocationService
                     $this->releaseReservation($allocation->material, (float) $allocation->allocated_qty);
                 }
 
+                // Give back anything already taken off the location: a cancelled batch
+                // consumed nothing, so a location that was debited by an operator's
+                // entry must be made whole again.
+                $this->consumptionLocation->reverse($allocation);
+
                 // Lot tracking: return picked qty back to each lot.
                 $this->lotPicking->returnPicksForAllocation($allocation);
 
@@ -316,15 +328,22 @@ class MaterialAllocationService
             throw new \InvalidArgumentException('Consumed and scrap quantities must be non-negative.');
         }
 
-        $allocation->update([
-            'consumed_qty' => $actualConsumed,
-            'scrap_qty' => $scrap,
-            // Snapshot the price so historical cost reports stay stable.
-            'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
-            'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
-        ]);
+        return DB::transaction(function () use ($allocation, $actualConsumed, $scrap) {
+            $allocation->update([
+                'consumed_qty' => $actualConsumed,
+                'scrap_qty' => $scrap,
+                // Snapshot the price so historical cost reports stay stable.
+                'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
+                'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
+            ]);
 
-        return $allocation->fresh();
+            // Take it off the location it came from. Same transaction as the quantity
+            // itself, so a refused deduction (location short, plant blocks negatives)
+            // leaves no consumed_qty claiming material that never moved.
+            $this->consumptionLocation->deduct($allocation->fresh(), $actualConsumed);
+
+            return $allocation->fresh();
+        });
     }
 
     /**

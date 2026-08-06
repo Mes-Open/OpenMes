@@ -39,8 +39,24 @@ class LineManagementController extends Controller
     {
         return Inertia::render('admin/lines/Create', [
             'areas' => $this->areaOptions(),
+            'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
+    }
+
+    /**
+     * Raw-material locations a line can consume from. Only those, because a line
+     * draws components, never finished goods.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function warehouseOptions(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Warehouse::forMaterials()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name'])
+            ->map(fn ($w) => ['id' => $w->id, 'name' => "{$w->name} ({$w->code})"]);
     }
 
     /** Areas as {id, name (with site)} options for the line form. */
@@ -61,6 +77,8 @@ class LineManagementController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'area_id' => 'nullable|exists:areas,id',
+            // The stock location this line's consumption comes off.
+            'warehouse_id' => 'nullable|exists:warehouses,id',
             'is_active' => 'boolean',
         ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
@@ -156,8 +174,9 @@ class LineManagementController extends Controller
     public function edit(Line $line)
     {
         return Inertia::render('admin/lines/Edit', [
-            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'is_active', 'custom_fields'),
+            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'warehouse_id', 'is_active', 'custom_fields'),
             'areas' => $this->areaOptions(),
+            'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
     }
@@ -173,6 +192,8 @@ class LineManagementController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'area_id' => 'nullable|exists:areas,id',
+            // The stock location this line's consumption comes off.
+            'warehouse_id' => 'nullable|exists:warehouses,id',
             'is_active' => 'boolean',
         ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
