@@ -298,9 +298,9 @@ export default function AuditLogs() {
                     searchable
                     columnToggle
                     paginated={false}
-                    searchPlaceholder="Search audit logs…"
-                    columnsLabel="Columns"
-                    columnsMenuLabel="Toggle columns"
+                    searchPlaceholder={__('Search audit logs…')}
+                    columnsLabel={__('Columns')}
+                    columnsMenuLabel={__('Toggle columns')}
                     emptyLabel={__('No audit logs found')}
                 />
 
