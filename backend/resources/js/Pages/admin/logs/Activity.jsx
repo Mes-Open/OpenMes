@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const ACTION_COLORS = {
     created:      'bg-om-running-bg text-om-running',
@@ -322,9 +323,9 @@ export default function Activity() {
             <Head title="Activity Logs" />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">Activity Logs</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Activity Logs')} </h1>
                     <p className="text-om-muted mt-1">
-                        What users did across the system — entity changes, navigation, auth events.
+                        {__('What users did across the system — entity changes, navigation, auth events.')}
                     </p>
                 </div>
 
@@ -332,7 +333,7 @@ export default function Activity() {
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">From</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('From')}</label>
                             <DatePicker
                                 value={form.from || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
@@ -340,7 +341,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">To</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('To')}</label>
                             <DatePicker
                                 value={form.to || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
@@ -348,7 +349,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">User</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('User')}</label>
                             <Dropdown
                                 value={form.user_id == null ? '' : String(form.user_id)}
                                 onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
@@ -360,7 +361,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Source</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('Source')}</label>
                             <Dropdown
                                 value={form.source == null ? '' : String(form.source)}
                                 onChange={(v) => setForm((f) => ({ ...f, source: v }))}
@@ -373,7 +374,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Entity</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('Entity')}Entity</label>
                             <Dropdown
                                 value={form.entity_type == null ? '' : String(form.entity_type)}
                                 onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
@@ -385,7 +386,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Action</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">{__('Action')}</label>
                             <Dropdown
                                 value={form.action == null ? '' : String(form.action)}
                                 onChange={(v) => setForm((f) => ({ ...f, action: v }))}
@@ -403,20 +404,20 @@ export default function Activity() {
                             onClick={() => apply()}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                         >
-                            Apply
+                            {__('Apply')}
                         </button>
                         <button
                             type="button"
                             onClick={clear}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Clear
+                             {__('Clear')}
                         </button>
                         <a
                             href={exportUrl()}
                             className="sm:ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Export CSV
+                             {__('Export CSV')}
                         </a>
                     </div>
                 </div>
@@ -428,10 +429,10 @@ export default function Activity() {
                     searchable
                     columnToggle
                     paginated={false}
-                    searchPlaceholder="Search activity…"
-                    columnsLabel="Columns"
-                    columnsMenuLabel="Toggle columns"
-                    emptyLabel="No activity in this period."
+                    searchPlaceholder={__('Search activity…')}
+                    columnsLabel={__('Columns')}
+                    columnsMenuLabel={__('Toggle columns')}
+                    emptyLabel={__('No activity in this period.')}
                 />
 
                 {meta && meta.last_page > 1 && (

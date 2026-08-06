@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const LEVEL_BADGE = {
     debug:     'bg-om-chip text-om-muted',
@@ -113,7 +114,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
             <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Date</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">{__('Date')}</label>
                         {availableDates && availableDates.length > 0 ? (
                             <Dropdown
                                 value={form.date == null ? '' : String(form.date)}
@@ -130,7 +131,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         )}
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Level</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">{__('Level')}</label>
                         <Dropdown
                             value={form.level == null ? '' : String(form.level)}
                             onChange={(v) => setForm((f) => ({ ...f, level: v }))}
@@ -145,12 +146,12 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         />
                     </div>
                     <div className="sm:col-span-2">
-                        <label className="block text-xs font-medium text-om-muted mb-1">Search</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">{__('Search')}</label>
                         <input
                             type="text"
                             value={form.search}
                             onChange={(e) => setForm((f) => ({ ...f, search: e.target.value }))}
-                            placeholder="Search message or stack trace…"
+                            placeholder={__('Search message or stack trace…')}
                             className="form-input w-full"
                             onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
                         />
@@ -162,14 +163,14 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         onClick={applyFilters}
                         className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                     >
-                        Apply
+                        {__('Apply')}
                     </button>
                     <button
                         type="button"
                         onClick={clearFilters}
                         className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                     >
-                        Clear
+                        {__('Clear')}
                     </button>
                 </div>
             </div>
@@ -338,10 +339,10 @@ function FailedJobsTab({ entries, missing }) {
                 data={logItems}
                 columns={columns}
                 paginated={false}
-                searchPlaceholder="Search failed jobs…"
-                columnsLabel="Columns"
-                columnsMenuLabel="Toggle columns"
-                emptyLabel="No failed jobs."
+                searchPlaceholder={__('Search failed jobs…')}
+                columnsLabel={__('Columns')}
+                columnsMenuLabel={__('Toggle columns')}
+                emptyLabel={__('No failed jobs.')}
             />
             {meta && meta.last_page > 1 && (
                 <div className="mt-3">
@@ -477,10 +478,10 @@ function DeploymentsTab({ entries, missing }) {
                 data={logItems}
                 columns={columns}
                 paginated={false}
-                searchPlaceholder="Search deployments…"
-                columnsLabel="Columns"
-                columnsMenuLabel="Toggle columns"
-                emptyLabel="No deployments recorded."
+                searchPlaceholder={__('Search deployments…')}
+                columnsLabel={__('Columns')}
+                columnsMenuLabel={__('Toggle columns')}
+                emptyLabel={__('No deployments recorded.')}
             />
             {meta && meta.last_page > 1 && (
                 <div className="mt-3">
@@ -533,9 +534,9 @@ export default function System() {
             <Head title="System Logs" />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">System Logs</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('System Logs')}</h1>
                     <p className="text-om-muted mt-1">
-                        Application errors, failed jobs, and deployment events — for diagnostics.
+                        {__('Application errors, failed jobs, and deployment events — for diagnostics.')}
                     </p>
                 </div>
 
@@ -552,7 +553,7 @@ export default function System() {
                                     : 'border-transparent text-om-muted hover:text-om-ink'
                             }`}
                         >
-                            {label}
+                            {__('label')}
                         </button>
                     ))}
                 </div>

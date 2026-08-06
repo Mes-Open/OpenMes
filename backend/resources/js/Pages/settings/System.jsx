@@ -861,6 +861,7 @@ export default function System() {
                                 name="settings_file"
                                 accept=".json,.txt"
                                 required
+                                // placeholder={__('No file choosen')}
                                 className="text-[13px] text-om-muted file:mr-3 file:py-2 file:px-4 file:rounded-om-sm file:border-0 file:text-[13px] file:font-semibold file:bg-om-chip file:text-om-ink hover:file:bg-om-line2 file:transition-colors file:cursor-pointer"
                             />
                             <Button type="submit" variant="primary" className="inline-flex items-center gap-2">
@@ -896,6 +897,7 @@ export default function System() {
                                 type="file"
                                 name="backup_file"
                                 accept=".zip"
+                                // placeholder={__('No file choosen')}
                                 className="text-[13px] text-om-muted file:mr-3 file:py-2 file:px-4 file:rounded-om-sm file:border-0 file:text-[13px] file:font-semibold file:bg-om-chip file:text-om-ink hover:file:bg-om-line2 file:transition-colors file:cursor-pointer"
                             />
                             <Button type="submit" variant="primary" disabled={isRestoring}>{__('Restore')}</Button>

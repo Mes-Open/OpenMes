@@ -218,7 +218,7 @@ export default function ProductionAnomaliesIndex() {
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder="Search anomalies…"
+                        searchPlaceholder={__('Search anomalies…')}
                         emptyLabel={__('No anomalies recorded')}
                     />
 

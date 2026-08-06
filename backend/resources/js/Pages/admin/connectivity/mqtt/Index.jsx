@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../../layouts/AppLayout';
-import { formatNumber } from '../../../../lib/i18n';
-import { __ } from '../../../../lib/i18n';
+import { formatNumber, __ } from '../../../../lib/i18n';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -161,7 +160,7 @@ export default function MqttIndex() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        New MQTT Connection
+                        {__('New MQTT Connection')}
                     </a>
                 </div>
 
@@ -170,7 +169,7 @@ export default function MqttIndex() {
                         <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                         </svg>
-                        <p className="text-sm">No MQTT connections defined.</p>
+                        <p className="text-sm">{__('No MQTT connections defined.')}</p>
                     </div>
                 ) : (
                     <DataTable

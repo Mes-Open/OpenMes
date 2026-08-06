@@ -5,6 +5,8 @@
 
 # Docker
 docker-compose.override.yml
+docker-compose.yml.bak
+docker-compose.dev.yml.bak
 
 # Backend (Laravel)
 backend/vendor/

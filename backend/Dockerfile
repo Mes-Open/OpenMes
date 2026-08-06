@@ -52,8 +52,10 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Fetch the RoadRunner binary for Laravel Octane (concurrent app server).
 # Placed in the project root — where Octane's RoadRunner server discovers it.
-RUN ./vendor/bin/rr get-binary --location /var/www/html \
-    && chmod +x /var/www/html/rr
+# RUN ./vendor/bin/rr get-binary --location /var/www/html \
+#     && chmod +x /var/www/html/rr
+COPY --from=ghcr.io/roadrunner-server/roadrunner:latest /usr/bin/rr /usr/local/bin/rr
+RUN chmod +x /usr/local/bin/rr
 
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
