@@ -55,7 +55,8 @@ class SiteControllerTest extends TestCase
             'code' => 'SITE-WAW-01',
             'city' => 'Warsaw',
             'country' => 'PL',
-            'timezone' => 'Europe/Warsaw',
+            // 'timezone'    => 'Europe/Warsaw',
+            'timezone'    => 'Asia/Shanghai',
             'is_active' => '1',
         ]);
 

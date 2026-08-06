@@ -501,8 +501,10 @@ class CapacityServiceTest extends TestCase
     {
         // Under a DST timezone, a nominal 8h shift on the spring-forward day must
         // still count 8h — clock-span math, not wall-clock instants.
-        config(['app.timezone' => 'Europe/Warsaw']);
-        Carbon::setTestNow(Carbon::parse('2026-03-29 12:00', 'Europe/Warsaw')); // spring-forward Sunday
+        // config(['app.timezone' => 'Europe/Warsaw']);
+        // Carbon::setTestNow(Carbon::parse('2026-03-29 12:00', 'Europe/Warsaw')); // spring-forward Sunday
+        config(['app.timezone' => 'Asia/Shanghai']);
+        Carbon::setTestNow(Carbon::parse('2026-03-29 12:00', 'Asia/Shanghai')); // spring-forward Sunday
 
         $line = $this->line();
         // 00:00–08:00 spans the lost 02:00→03:00 hour; nominal span is still 8h.

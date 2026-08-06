@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
-import { __ } from '../lib/i18n';
+import { __, formatDate, formatTime} from '../lib/i18n';
 
 // ── Module menu hooks ────────────────────────────────────────────────────────
 // Modules register nav entries server-side via MenuRegistry; HandleInertiaRequests
@@ -186,10 +186,14 @@ function DesktopClock() {
     const { locale } = usePage().props;
     const fmt = () => {
         const now = new Date();
-        const tz = { timeZone: 'Europe/Warsaw' };
+        // const tz = { timeZone: 'Europe/Warsaw' };
+        const tz = { timeZone: 'Asia/Shanghai' };
         return {
-            date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-            time: now.toLocaleTimeString(locale || 'en', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            // date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+            // date: now.toLocaleDateString('zh-CN', { ...tz, year: 'numeric', month: 'short', day: 'numeric', weekday: 'short'}),
+            // time: now.toLocaleTimeString(locale || 'en', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            date: formatDate(now, {year: 'numeric', month: 'short', day: 'numeric', weekday: 'short'}),
+            time: formatTime(now, {hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         };
     };
     const [t, setT] = useState(fmt);

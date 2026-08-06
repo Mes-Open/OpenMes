@@ -14,15 +14,16 @@ import { colors, fonts } from '@openmes/ui';
 
 function fmt(locale: string) {
   const now = new Date();
-  const tz = { timeZone: 'Europe/Warsaw' } as const;
+  // const tz = { timeZone: 'Europe/Warsaw' } as const;
+  const tz = { timeZone: 'Asia/Shanghai' } as const;
   return {
-    date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+    // date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+    date: now.toLocaleDateString('zh-CN', { ...tz, year: 'numeric', month: 'short', day: 'numeric', weekday: 'short'}),
     time: now.toLocaleTimeString(locale || 'en', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   };
 }
 
-export function TopClock() {
-  const { i18n } = useTranslation();
+export function TopClock() { 
   const [t, setT] = useState(() => fmt(i18n.language));
   useEffect(() => {
     const id = setInterval(() => setT(fmt(i18n.language)), 1000);

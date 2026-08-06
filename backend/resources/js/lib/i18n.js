@@ -45,6 +45,7 @@ export function setTimezone(tz) {
 // 24h) to match this app's European convention. Unmapped codes fall through to
 // the code itself, so adding a locale to config/app.php just works.
 const BCP47 = {
+    cn: 'zh-CN',
     en: 'en-GB',
     pl: 'pl-PL',
     tr: 'tr-TR',

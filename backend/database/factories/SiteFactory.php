@@ -18,7 +18,8 @@ class SiteFactory extends Factory
             'address'     => $this->faker->streetAddress(),
             'city'        => $this->faker->city(),
             'country'     => strtoupper($this->faker->countryCode()),
-            'timezone'    => 'Europe/Warsaw',
+            // 'timezone'    => 'Europe/Warsaw',
+            'timezone'    => 'Asia/Shanghai',
             'is_active'   => true,
         ];
     }

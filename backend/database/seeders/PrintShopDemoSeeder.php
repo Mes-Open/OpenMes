@@ -721,7 +721,8 @@ class PrintShopDemoSeeder extends Seeder
                 'address' => 'ul. Drukarska 15',
                 'city' => 'Warsaw',
                 'country' => 'PL',
-                'timezone' => 'Europe/Warsaw',
+                // 'timezone' => 'Europe/Warsaw',
+                'timezone' => 'Asia/Shanghai',
                 'is_active' => true,
             ]
         );
