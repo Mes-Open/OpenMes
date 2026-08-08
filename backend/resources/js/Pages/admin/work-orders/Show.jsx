@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { StatusBadge } from '@openmes/ui';
+import { Breadcrumbs, StatusBadge, Stepper } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import PageTitle from '../../../components/PageTitle';
 import useConfirm from '../../../components/useConfirm';
 import { woStatusBadge } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
@@ -10,15 +11,18 @@ import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
+/** Routing-step status → the stepper's vocabulary. */
+const STEP_STATUS = {
+    DONE: 'done',
+    IN_PROGRESS: 'active',
+    READY: 'active',
+    BLOCKED: 'blocked',
+};
+
 const BATCH_STATUS_STYLES = {
     PENDING: 'bg-om-chip text-om-muted',
     IN_PROGRESS: 'bg-om-chip text-om-accent',
     DONE: 'bg-om-running-bg text-om-running',
-};
-
-const STEP_STATUS_STYLES = {
-    DONE: 'bg-om-running-bg text-om-running',
-    IN_PROGRESS: 'bg-om-chip text-om-accent',
 };
 
 const ISSUE_STATUS_STYLES = {
@@ -29,6 +33,32 @@ const ISSUE_STATUS_STYLES = {
 
 function fmtQty(n) {
     return formatNumber(Number(n ?? 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** A routing step as the Stepper wants it. */
+function stepToRung(step) {
+    const estimated = step.estimated_duration_minutes ?? null;
+    const actual = step.duration_minutes ?? null;
+    const overTime = estimated != null && actual != null && actual > estimated;
+
+    return {
+        key: step.id,
+        title: step.name,
+        label: step.step_number,
+        // The status the flat list used to print on the right; as the second
+        // line it sits with the step it describes.
+        description: __(step.status),
+        status: STEP_STATUS[step.status] ?? 'pending',
+        // The timing sits on the right, where a column of durations can be
+        // compared down the list instead of wrapping under each name.
+        meta: actual != null ? (
+            <span className={`font-medium ${overTime ? 'text-om-blocked' : 'text-om-running'}`}>
+                {actual}min{estimated ? ` / est. ${estimated}min` : ''}
+            </span>
+        ) : estimated != null ? (
+            <span className="text-om-faint">est. {estimated}min</span>
+        ) : null,
+    };
 }
 
 function fmtDate(d) {
@@ -69,29 +99,12 @@ function BatchRow({ batch }) {
                 </div>
             </div>
 
+            {/* A routing is a sequence, and the flat list drew it as six unrelated
+                rows. The stepper's connector says which steps are behind you at a
+                glance — the thing you actually want from a batch you check on. */}
             {open && (
-                <div className="mt-3 space-y-1">
-                    {(batch.steps ?? []).map((step) => {
-                        const stepStyle = STEP_STATUS_STYLES[step.status] ?? 'bg-om-chip text-om-muted';
-                        const estimated = step.estimated_duration_minutes ?? null;
-                        const overTime = estimated && step.duration_minutes != null && step.duration_minutes > estimated;
-                        return (
-                            <div key={step.id} className="flex items-center gap-3 py-1 px-2 rounded text-sm">
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${stepStyle}`}>
-                                    {step.step_number}
-                                </span>
-                                <span className="flex-1 text-om-muted">{step.name}</span>
-                                <span className="text-xs text-om-faint">{step.status.replace('_', ' ')}</span>
-                                {step.duration_minutes != null ? (
-                                    <span className={`text-xs font-medium ${overTime ? 'text-om-blocked' : 'text-om-running'}`}>
-                                        {step.duration_minutes}min{estimated ? ` / est. ${estimated}min` : ''}
-                                    </span>
-                                ) : estimated ? (
-                                    <span className="text-xs text-om-faint">est. {estimated}min</span>
-                                ) : null}
-                            </div>
-                        );
-                    })}
+                <div className="mt-3 pl-1">
+                    <Stepper size="sm" steps={(batch.steps ?? []).map((step) => stepToRung(step))} />
                     {batch.started_at && (
                         <p className="text-xs text-om-faint pt-1">
                             Started: {fmtDate(batch.started_at)}
@@ -176,14 +189,21 @@ export default function AdminWorkOrderShow() {
         <>
             <Head title={__('Work Order :no', { no: workOrder.order_no })} />
 
-            {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-4">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
-                <span>/</span>
-                <Link href="/admin/work-orders" className="hover:text-om-ink">{__('Work Orders')}</Link>
-                <span>/</span>
-                <span className="text-om-muted font-medium">#{workOrder.order_no}</span>
-            </nav>
+            {/* The trail belongs in the app header's title slot, beside the clock —
+                same as every list page. Rendered inline it was a second row of
+                navigation under a bar that was already showing none. Items match
+                the work-order list's, so the shared ancestors look identical
+                whichever page you arrived from. */}
+            <PageTitle>
+                <Breadcrumbs
+                    linkAs={Link}
+                    items={[
+                        { label: __('Dashboard'), href: '/admin/dashboard', icon: 'layout-dashboard' },
+                        { label: __('Work Orders'), href: '/admin/work-orders', icon: 'clipboard-list' },
+                        { label: `#${workOrder.order_no}` },
+                    ]}
+                />
+            </PageTitle>
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}

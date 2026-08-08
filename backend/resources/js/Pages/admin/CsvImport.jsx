@@ -4,6 +4,7 @@ import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
 import { __ } from '../../lib/i18n';
+import PageTrail from '../../components/PageTrail';
 
 function Icon({ d, className = 'w-5 h-5' }) {
     return (
@@ -55,11 +56,7 @@ export default function CsvImport() {
             <Head title={__('CSV Import')} />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
-                <span>/</span>
-                <span className="text-om-ink font-medium">{__('CSV Import')}</span>
-            </nav>
+            <PageTrail />
 
             <div className="flex justify-between items-center mb-6">
                 <div>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { PAGE_TITLE_SLOT } from '../layouts/AppLayout';
+import { PAGE_TITLE_SLOT, PageTitleContext } from '../layouts/AppLayout';
 
 /**
  * Renders a page's heading into the app header's title slot, so it shares that
@@ -21,16 +21,26 @@ import { PAGE_TITLE_SLOT } from '../layouts/AppLayout';
  */
 export default function PageTitle({ children }) {
     const [slots, setSlots] = useState(null);
+    const { register } = useContext(PageTitleContext);
 
     useEffect(() => {
         setSlots([...document.querySelectorAll(PAGE_TITLE_SLOT)]);
     }, []);
 
-    const heading = (
-        <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
-            {children}
-        </h1>
-    );
+    // Tells the layout to stand down its nav-derived trail: this page has said
+    // what it is, and it knows things the menu doesn't (which record you opened).
+    useEffect(() => register(), [register]);
+
+    // A string is a title and gets a heading; an element (a breadcrumb trail)
+    // goes in as-is. Wrapping the latter would put a <nav> inside an <h1>, which
+    // is invalid — a heading takes phrasing content, not flow content.
+    const heading = typeof children === 'string'
+        ? (
+            <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
+                {children}
+            </h1>
+        )
+        : children;
 
     // Not looked up yet — render nothing rather than flashing the fallback into
     // the content area and then moving it.

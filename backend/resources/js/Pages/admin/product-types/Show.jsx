@@ -3,6 +3,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import EngineeringDocuments from '../../../components/EngineeringDocuments';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const WO_STATUS_LABELS = {
     PENDING:     'Pending',
@@ -65,13 +66,7 @@ export default function ProductTypeShow({
             <Head title={__("Product Type Details")} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">{__("Dashboard")}</Link>
-                <span>/</span>
-                <Link href="/admin/product-types" className="hover:underline">{__("Product Types")}</Link>
-                <span>/</span>
-                <span className="text-om-ink">{productType.name}</span>
-            </nav>
+            <PageTrail append={[{ label: productType.name }]} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}

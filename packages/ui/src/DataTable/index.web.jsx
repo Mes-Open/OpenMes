@@ -708,7 +708,7 @@ export function DataTable({
             {/* Boxed like the table below it, so the controls read as one bar
                 rather than floating on the page background. */}
             {(searchable || columnToggle || enableSelection || toolbarStart || toolbarEnd) && (
-            <div className="flex items-center gap-3 border border-b-0 border-om-line bg-om-card px-3 py-1.5">
+            <div className="flex items-center gap-3 bg-om-card px-3 py-1.5">
                 {toolbarStart}
                 {searchable && (
                 <div className="flex max-w-[300px] flex-1 items-center gap-[9px] rounded-om-sm border border-om-line bg-om-bg px-3 py-2">

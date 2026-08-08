@@ -5,6 +5,7 @@ import { ActionMenu, Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import PageTitle from './PageTitle';
+import { dedupeTrail, PageTitleContext } from '../layouts/AppLayout';
 import Tooltip from './Tooltip';
 import useConfirm from './useConfirm';
 import { __ } from '../lib/i18n';
@@ -383,6 +384,16 @@ export default function ResourceTable({
     const selectable = enableSelection ?? true;
     // One dialog for the whole table, shared by every row's actions.
     const { confirm, dialog: confirmDialog } = useConfirm();
+
+    // Ancestors come from the nav unless the page names its own: the menu already
+    // knows where this list lives, and a hand-written trail is one more thing to
+    // keep in step when an entry moves. The nav's own leaf is dropped — this list
+    // IS that entry, and `title` is what the page calls it.
+    const { navTrail = [] } = useContext(PageTitleContext);
+    const ancestors = breadcrumbs
+        ? breadcrumbs.map((b) => ({ ...b, label: __(b.label) }))
+        : navTrail.slice(0, -1);
+    const trailItems = dedupeTrail(ancestors.concat({ label: __(title), icon: titleIcon }));
     const collection = useMemo(() => realtimeCollection(shape, getKey), [shape]);
 
     const { data: rows } = useLiveQuery((q) =>
@@ -508,10 +519,7 @@ export default function ResourceTable({
                 with the clock instead of taking a row of its own. Pages that pass
                 no `breadcrumbs` still get their title as the current entry. */}
             <PageTitle>
-                <Breadcrumbs
-                    linkAs={Link}
-                    items={(breadcrumbs ?? []).map((b) => ({ ...b, label: __(b.label) })).concat({ label: __(title), icon: titleIcon })}
-                />
+                <Breadcrumbs linkAs={Link} items={trailItems} />
             </PageTitle>
 
             <DataTable

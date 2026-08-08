@@ -4,6 +4,7 @@ import { StatusPill } from '@openmes/ui';
 import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber, __ } from '../../lib/i18n';
+import PageTrail from '../../components/PageTrail';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-om-running' : pct >= 50 ? 'bg-om-downtime' : 'bg-om-accent';
@@ -108,11 +109,7 @@ export default function Admin() {
             <Head title={__('Packaging — Overview')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
-                <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
-                    <span className="mx-1">/</span>
-                    <span className="text-om-ink">{__('Packaging')}</span>
-                </nav>
+                <PageTrail />
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">

@@ -65,6 +65,7 @@ export default function SupervisorWorkOrdersIndex() {
         <>
             <Head title={__('Work Orders')} />
             <ResourceTable
+                breadcrumbs={[{ label: 'Supervisor', href: '/supervisor/dashboard', icon: 'layout-dashboard' }]}
                 shape="work_orders_all"
                 detailHref={(r) => `/supervisor/work-orders/${r.id}`}
                 title={__('Work Orders')}

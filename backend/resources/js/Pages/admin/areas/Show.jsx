@@ -4,6 +4,7 @@ import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 export default function AreaShow() {
     const { area, customFields = [] } = usePage().props;
@@ -61,19 +62,7 @@ export default function AreaShow() {
             <Head title={area.name} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
-                <nav className="flex flex-wrap gap-1 items-center text-sm text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-accent">Dashboard</Link>
-                    <span>/</span>
-                    <Link href="/admin/sites" className="hover:text-om-accent">Sites</Link>
-                    {site && (
-                        <>
-                            <span>/</span>
-                            <Link href={`/admin/sites/${site.id}`} className="hover:text-om-accent">{site.name}</Link>
-                        </>
-                    )}
-                    <span>/</span>
-                    <span className="text-om-muted">{area.name}</span>
-                </nav>
+                <PageTrail append={[...(site ? [{ label: site.name, href: `/admin/sites/${site.id}` }] : []), { label: area.name }]} />
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">

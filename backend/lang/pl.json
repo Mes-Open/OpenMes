@@ -5209,5 +5209,8 @@
     "Line Status": "Status linii",
     "Counted": "Rozliczone",
     "More actions": "Więcej akcji",
-    ":count rows": ":count wierszy"
+    ":count rows": ":count wierszy",
+    "Worker Absences": "Nieobecności pracowników",
+    "READY": "GOTOWE",
+    "SKIPPED": "POMINIĘTE"
 }

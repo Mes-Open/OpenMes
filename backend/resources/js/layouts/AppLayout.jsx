@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
@@ -6,7 +6,7 @@ import Tooltip from '../components/Tooltip';
 import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
-import { Icon as UiIcon } from '@openmes/ui';
+import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 
 // ── Module menu hooks ────────────────────────────────────────────────────────
 // Modules register nav entries server-side via MenuRegistry; HandleInertiaRequests
@@ -21,6 +21,99 @@ const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
 // would fetch JSON for a non-Inertia route and fail.
 function moduleItemToChild(item) {
     return { label: item.label, href: item.url, match: [item.url], external: true };
+}
+
+/**
+ * How many `PageTitle`s are currently mounted. The header shows a trail derived
+ * from the nav only when a page hasn't supplied one of its own — a count rather
+ * than a boolean because React mounts and unmounts components in either order
+ * during a page transition, and two mounts followed by one unmount must not read
+ * as "nothing here".
+ */
+export const PageTitleContext = createContext({ register: () => () => {} });
+
+function usePageTitlePresence(navTrail) {
+    const [count, setCount] = useState(0);
+    const register = useMemo(
+        () => () => {
+            setCount((n) => n + 1);
+            return () => setCount((n) => n - 1);
+        },
+        [],
+    );
+    // `navTrail` rides along so a page that renders its own title can still
+    // inherit the ancestors the nav already knows, instead of restating them.
+    const value = useMemo(() => ({ register, navTrail }), [register, navTrail]);
+    return [count > 0, value];
+}
+
+/**
+ * The breadcrumb trail for a path, read off the sidebar nav: the group(s) the
+ * page sits under, then the page itself.
+ *
+ * Deriving it beats asking ~180 pages to each declare their own — the nav
+ * already knows where every route lives, so a page can never disagree with the
+ * menu that got you there, and moving an entry in the nav moves its breadcrumb
+ * with it. A page that wants something the nav can't know (a record's number)
+ * still renders `PageTitle` and wins.
+ */
+/**
+ * Drops a crumb that repeats the one before it. The nav legitimately nests a
+ * landing page inside a group of the same name ("Production Lines" the section,
+ * "Production Lines" the list), which is fine in a menu and reads as a stutter
+ * in a trail.
+ */
+export function dedupeTrail(items) {
+    return items.filter((item, i) => i === 0 || item.label !== items[i - 1].label);
+}
+
+function navTrailFor(path, groups, links = ADMIN_LINKS) {
+    let best = null;
+
+    const consider = (node, chain) => {
+        const matches = node.match ?? (node.href ? [node.href] : []);
+        // Score on the prefixes that actually matched, not the longest in the
+        // array: a group lists every child's path, so scoring the whole array let
+        // "Work Orders" (which also owns /admin/work-orders) outrank the CSV
+        // import child it matched through.
+        const hit = matches.filter((m) => isActive(path, [m], node.exact));
+        if (hit.length === 0) return;
+        // Longest matching prefix wins, so /admin/schedule/capacity resolves to
+        // the child rather than stopping at the group that also matches.
+        const score = Math.max(...hit.map((m) => m.length));
+        // Groups repeat their children's paths in `match` (that is how a group
+        // highlights while you are inside it), so equal scores are common — the
+        // deeper chain is the more specific answer.
+        const better = !best || score > best.score
+            || (score === best.score && chain.length > best.chain.length);
+        if (better) best = { score, chain };
+    };
+
+    const SETTINGS = { label: 'Settings', href: '/settings', match: ['/settings'], lucide: 'settings' };
+    [...links, SETTINGS].forEach((link) => consider(link, [link]));
+
+    const walk = (nodes, chain) => {
+        (nodes ?? []).forEach((node) => {
+            consider(node, [...chain, node]);
+            if (node.children) walk(node.children, [...chain, node]);
+        });
+    };
+    walk(groups, []);
+
+    if (!best) return [];
+
+    const items = best.chain.map((node) => ({
+        label: __(node.label),
+        href: node.href,
+        icon: node.lucide ?? ICON_LUCIDE[node.icon],
+    }));
+
+    // Every trail starts at the dashboard, matching the list pages' own.
+    const root = links.find((l) => l.href === '/admin/dashboard');
+    if (root && items[0]?.href !== root.href) {
+        items.unshift({ label: __(root.label), href: root.href, icon: root.lucide ?? ICON_LUCIDE[root.icon] });
+    }
+    return dedupeTrail(items);
 }
 
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
@@ -82,6 +175,12 @@ export default function AppLayout({ children }) {
     const [collapsed, setCollapsed] = useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sb') === '1',
     );
+    // Module groups matter here too: a module's page should sit under the group
+    // the module registered, not fall off the trail entirely.
+    const navGroups = useMemo(() => mergeModuleNav(page.props.moduleNav), [page.props.moduleNav]);
+    const navTrail = useMemo(() => navTrailFor(path, navGroups), [path, navGroups]);
+    const [hasPageTitle, pageTitleCtx] = usePageTitlePresence(navTrail);
+
     const [mobileOpen, setMobileOpen] = useState(false);
     const [dark, setDark] = useState(
         () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
@@ -108,6 +207,7 @@ export default function AppLayout({ children }) {
 
     return (
         <LiveShapesProvider>
+        <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
         <ToastProvider dismissLabel={__('Close')}>
         <div className="flex h-screen overflow-hidden bg-om-bg">
@@ -153,11 +253,18 @@ export default function AppLayout({ children }) {
                     {/* Below lg the desktop bar is hidden, so the page title lands
                         here beside the logo instead of falling back into the
                         content area. */}
-                    <div data-page-title-slot className="flex min-w-0 items-center gap-3" />
+                    <div data-page-title-slot className="flex min-w-0 items-center gap-3">
+                        <NavTrail items={navTrail} show={!hasPageTitle} />
+                    </div>
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
-                <DesktopClock />
+                <DesktopClock
+                    collapsed={collapsed}
+                    onToggleCollapsed={toggleCollapsed}
+                    navTrail={navTrail}
+                    showNavTrail={!hasPageTitle}
+                />
 
                 <main className="flex-1 overflow-auto">
                     <FlashMessages />
@@ -166,6 +273,7 @@ export default function AppLayout({ children }) {
             </div>
         </div>
         </ToastProvider>
+        </PageTitleContext.Provider>
         </LiveShapesProvider>
     );
 }
@@ -195,7 +303,12 @@ function FlashMessages() {
  * so its per-second tick only re-renders this component, not the whole layout.
  * Formatted in the active locale; timezone pinned to Europe/Warsaw like the original.
  */
-function DesktopClock() {
+function NavTrail({ items, show }) {
+    if (!show || items.length === 0) return null;
+    return <Breadcrumbs linkAs={Link} items={items} />;
+}
+
+function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrail = false }) {
     const { locale } = usePage().props;
     const fmt = () => {
         const now = new Date();
@@ -212,11 +325,30 @@ function DesktopClock() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [locale]);
     return (
-        <div className="hidden lg:flex items-center justify-between gap-4 bg-om-card px-4 py-2.5 shrink-0">
+        // `h-11` and the hairline both match the sidebar's logo header, so the two
+        // bars read as one band across the top with one rule under it, instead of
+        // a step where they meet and a border that stops halfway.
+        <div className="hidden lg:flex h-11 items-center justify-between gap-3 border-b border-om-line bg-om-card px-4 shrink-0">
+            {/* Sidebar toggle. It lives here rather than at the foot of the rail
+                because that is where the thing it controls begins — and the rail's
+                own footer is the one part of it that scrolls out of reach. */}
+            <Tooltip label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')} placement="bottom">
+                <button
+                    type="button"
+                    onClick={onToggleCollapsed}
+                    aria-label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
+                    aria-expanded={!collapsed}
+                    className="-ml-1 flex shrink-0 cursor-pointer items-center justify-center rounded-om-sm p-1.5 text-om-faint transition-colors hover:bg-om-chip hover:text-om-ink"
+                >
+                    <UiIcon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={18} />
+                </button>
+            </Tooltip>
             {/* Page-title slot. Pages portal their heading in here (see
                 ResourceTable) so the title shares this bar with the clock
                 instead of taking a row of its own above the list. */}
-            <div data-page-title-slot className="flex min-w-0 items-center gap-3" />
+            <div data-page-title-slot className="flex min-w-0 flex-1 items-center gap-3">
+                <NavTrail items={navTrail} show={showNavTrail} />
+            </div>
             <div className="flex shrink-0 items-center gap-2 text-[13px] text-om-faint">
                 <UiIcon name="clock" size={14} />
                 <span>{t.date}</span>
@@ -317,7 +449,7 @@ function Sidebar({
                         transition-[width,transform] duration-300 ease-in-out ${translate} ${widthClass}`}
         >
             {/* Logo / header — split orange/black brand mark + lowercase wordmark */}
-            <div className="flex items-center h-16 px-3 shrink-0 border-b border-om-line">
+            <div className="flex items-center h-11 px-3 shrink-0 border-b border-om-line">
                 <Link href="/admin/dashboard" className="flex items-center gap-2 min-w-0 overflow-hidden">
                     {showLabels ? (
                         <>
@@ -329,9 +461,14 @@ function Sidebar({
                             )}
                         </>
                     ) : (
-                        <span className="block size-9 shrink-0 overflow-hidden">
-                            <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 max-w-none" />
-                        </span>
+                        // Collapsed: the square brand mark, not the wordmark cropped
+                        // to a square. The full logo is a wide lockup, so clipping it
+                        // to 36px showed the gear and half a letter.
+                        <img
+                            src="/logo_open_mes_mark.png"
+                            alt="OpenMES"
+                            className="size-9 shrink-0 object-contain"
+                        />
                     )}
                 </Link>
 
@@ -448,7 +585,18 @@ function Sidebar({
 
                 {/* User + logout */}
                 <div className="px-2 py-2">
-                    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${collapsed && !mobileOpen ? 'justify-center' : ''}`}>
+                    {/* Side by side when there is a name to sit beside; stacked when
+                        collapsed, because the rail is 64px wide and an avatar next
+                        to a logout button needs more than twice that — they ended up
+                        on top of each other. Stacked, each gets its own row like
+                        every other control in the collapsed rail. */}
+                    <div
+                        className={
+                            collapsed && !mobileOpen
+                                ? 'flex flex-col items-center gap-1 py-2'
+                                : 'flex items-center gap-3 px-3 py-2 rounded-lg'
+                        }
+                    >
                         {/* Avatar + name link to the user's own profile/settings */}
                         <Tooltip label={__('Profile')} placement="right" disabled={showLabels}>
                             <Link
@@ -484,19 +632,6 @@ function Sidebar({
                     </div>
                 </div>
 
-                {/* Collapse toggle (desktop) */}
-                <div className="hidden lg:flex border-t border-om-line px-2 py-2">
-                    <Tooltip label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')} placement="right">
-                        <button
-                            onClick={onToggleCollapsed}
-                            className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
-                            aria-label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
-                        >
-                            <UiIcon name={collapsed ? 'chevrons-right' : 'chevrons-left'} size={20} />
-                            {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
-                        </button>
-                    </Tooltip>
-                </div>
             </div>
         </aside>
     );

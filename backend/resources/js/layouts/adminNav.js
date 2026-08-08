@@ -114,7 +114,7 @@ export const ADMIN_GROUPS = [
             // Fine-grained feature toggles: each renders under this (core) Production
             // group but is gated by its own module so it can be switched off alone.
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials', '/admin/materials-import'], tab: 'materials', lucide: 'boxes' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },

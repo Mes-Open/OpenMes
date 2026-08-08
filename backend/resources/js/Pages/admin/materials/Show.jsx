@@ -4,6 +4,7 @@ import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import EngineeringDocuments from '../../../components/EngineeringDocuments';
+import PageTrail from '../../../components/PageTrail';
 
 const MOVEMENT_TYPE_COLORS = {
     receipt:    'text-om-running',
@@ -196,13 +197,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
             <Head title={`Material — ${material.name}`} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
-                <span>/</span>
-                <Link href="/admin/materials" className="hover:underline">Materials</Link>
-                <span>/</span>
-                <span className="text-om-ink">{material.name}</span>
-            </nav>
+            <PageTrail append={[{ label: material.name }]} />
 
             <div className="max-w-5xl mx-auto">
                 {/* Header */}

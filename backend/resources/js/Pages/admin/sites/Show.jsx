@@ -3,6 +3,7 @@ import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const areaColumns = [
     {
@@ -109,13 +110,7 @@ export default function SiteShow() {
             <Head title={site.name} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
-                <nav className="flex flex-wrap gap-1 items-center text-sm text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-accent">Dashboard</Link>
-                    <span>/</span>
-                    <Link href="/admin/sites" className="hover:text-om-accent">Sites</Link>
-                    <span>/</span>
-                    <span className="text-om-muted">{site.name}</span>
-                </nav>
+                <PageTrail append={[{ label: site.name }]} />
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
