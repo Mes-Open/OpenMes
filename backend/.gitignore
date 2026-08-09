@@ -30,4 +30,5 @@ Thumbs.db
 !/modules/ExampleHooks
 !/modules/ExampleShowcase
 !/modules/OrderPinger
+!/modules/Pantheon
 backend/test-results/
