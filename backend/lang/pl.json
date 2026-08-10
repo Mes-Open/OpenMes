@@ -5161,5 +5161,8 @@
     "Work Order :no": "Zlecenie :no",
     "change required": "wymagana zmiana",
     "produced :qty at stop": "wyprodukowano :qty w chwili postoju",
-    "version :v": "wersja :v"
+    "version :v": "wersja :v",
+    "The PAWS address must be an http:// or https:// URL.": "Adres PAWS musi być adresem http:// albo https://.",
+    "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.": "Adres PAWS używa zwykłego http://, co wysłałoby hasło do Pantheona bez szyfrowania. Użyj https:// albo ustaw allow_insecure_http, świadomie przyjmując to ryzyko.",
+    "Tenant": "Najemca"
 }
