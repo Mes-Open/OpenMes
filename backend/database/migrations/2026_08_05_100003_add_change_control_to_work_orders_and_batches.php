@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -26,14 +25,16 @@ return new class extends Migration
         });
 
         Schema::table('batches', function (Blueprint $table) {
-            $table->unsignedInteger('snapshot_version')->nullable()->after('work_order_id')
+            // Defaulted rather than nullable: an insert path that does not set the
+            // attribute must still produce a traceable version, and NULL would mean
+            // "unknown configuration" for a batch that definitely ran under one.
+            $table->unsignedInteger('snapshot_version')->default(1)->after('work_order_id')
                 ->comment('Work-order configuration version this batch was generated from (#182)');
         });
 
         // Existing rows predate change control: they ran under the one and only
-        // configuration their order has, which is version 1 by definition.
-        DB::table('work_orders')->update(['snapshot_version' => 1]);
-        DB::table('batches')->update(['snapshot_version' => 1]);
+        // configuration their order has, which is version 1 by definition. Both
+        // columns are added NOT NULL DEFAULT 1, so the backfill is implicit.
     }
 
     public function down(): void

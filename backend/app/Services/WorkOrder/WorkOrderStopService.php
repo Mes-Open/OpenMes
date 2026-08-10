@@ -190,7 +190,12 @@ class WorkOrderStopService
         $id = $data['change_request_id'] ?? null;
 
         if ($id === null) {
-            return null;
+            // No id given: find the applied change that resolves this stop ourselves,
+            // so a plain "resume" from a list screen works the same as the one from
+            // the review page, which does carry the id. The guard is unaffected — if
+            // no change has been applied since the stop, this is still null and the
+            // caller is still refused.
+            return $this->appliedChangeResolving($workOrder, $stop);
         }
 
         $changeRequest = WorkOrderChangeRequest::where('work_order_id', $workOrder->id)
@@ -215,6 +220,20 @@ class WorkOrderStopService
     }
 
     /**
+     * The applied change request that unblocks this stop: the most recent one applied
+     * at or after the stop began. Null when nothing has been applied since, which is
+     * exactly the case the change-hold guard must refuse.
+     */
+    protected function appliedChangeResolving(WorkOrder $workOrder, ?WorkOrderStop $stop): ?WorkOrderChangeRequest
+    {
+        return WorkOrderChangeRequest::where('work_order_id', $workOrder->id)
+            ->where('status', ChangeRequestStatus::Applied->value)
+            ->when($stop !== null, fn ($q) => $q->where('applied_at', '>=', $stop->stopped_at))
+            ->orderByDesc('applied_at')
+            ->first();
+    }
+
+    /**
      * Open a downtime record alongside the stop when the caller supplied a reason.
      *
      * A stop and a downtime answer different questions (why production stopped versus
@@ -228,8 +247,18 @@ class WorkOrderStopService
     {
         $reasonId = $data['downtime_reason_id'] ?? null;
 
-        if ($reasonId === null || $workOrder->line_id === null) {
+        if ($reasonId === null) {
             return null;
+        }
+
+        // A downtime is booked against a line, and line_id is nullable on a work
+        // order. Refuse rather than saving the stop and silently dropping the
+        // downtime the caller asked for — the gap would only surface much later,
+        // in downtime reporting.
+        if ($workOrder->line_id === null) {
+            throw new \DomainException(
+                'This work order has no production line, so a downtime record cannot be opened for it.'
+            );
         }
 
         return ProductionDowntime::create([

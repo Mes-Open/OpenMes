@@ -9,6 +9,7 @@ use App\Http\Requests\WorkOrder\StopWorkOrderRequest;
 use App\Http\Requests\WorkOrder\StoreChangeRequestRequest;
 use App\Http\Requests\WorkOrder\UpdateChangeRequestRequest;
 use App\Models\DowntimeReason;
+use App\Models\Line;
 use App\Models\ProcessTemplate;
 use App\Models\ProductRevision;
 use App\Models\WorkOrder;
@@ -69,7 +70,12 @@ class WorkOrderChangeControlController extends Controller
         $this->authorize('view', $changeRequest);
 
         $changeRequest->load([
-            'workOrder:id,order_no,status,planned_qty,produced_qty,snapshot_version',
+            // Loaded whole rather than column-selected: the live impact analysis reads
+            // product_type_id, product_revision_id, process_snapshot and extra_data as
+            // well, and a select list that misses one of them makes the analysis
+            // compute against null instead of failing loudly. The response below only
+            // exposes the handful of fields the page needs.
+            'workOrder',
             'requestedBy:id,name', 'approvedBy:id,name', 'rejectedBy:id,name', 'appliedBy:id,name',
             'stop:id,type,reason,stopped_at,requires_change',
             'resultingSnapshot:id,change_request_id,version,effective_from,effective_from_qty',
@@ -106,11 +112,12 @@ class WorkOrderChangeControlController extends Controller
                 'rejected_at' => $changeRequest->rejected_at?->toISOString(),
                 'applied_at' => $changeRequest->applied_at?->toISOString(),
                 // Recomputed live: the stored impact is frozen as the approver saw it,
-                // but a reviewer opening the page now needs the current picture.
-                'live_impact' => $this->changeRequests->analyzeImpact(
-                    $changeRequest->workOrder,
-                    $changeRequest->proposedChanges(),
-                ),
+                // but a reviewer opening the page now needs the current picture. Null
+                // when the order behind the request has been deleted — the page still
+                // has to render the request's own history.
+                'live_impact' => $changeRequest->workOrder === null
+                    ? null
+                    : $this->changeRequests->impactFor($changeRequest),
                 'diff' => $changeRequest->diff(),
             ],
             'can' => [
@@ -193,12 +200,29 @@ class WorkOrderChangeControlController extends Controller
     {
         return [
             'downtimeReasons' => DowntimeReason::orderBy('name')->get(['id', 'name']),
+            // A change request may propose a different line, so the review and the
+            // request form both need the list to offer.
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productRevisions' => ProductRevision::where('product_type_id', $workOrder->product_type_id)
                 ->orderBy('revision_code')
                 ->get(['id', 'revision_code', 'lifecycle_status']),
             'bomTemplates' => ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
                 ->orderBy('name')
                 ->get(['id', 'name', 'version']),
+            // What each proposable field is set to right now, so the form can seed a
+            // field the moment it is ticked. A ticked field left at its current value
+            // is still a deliberate proposal, and has to submit as one.
+            'current' => [
+                'product_revision_id' => $workOrder->product_revision_id,
+                'planned_qty' => $workOrder->planned_qty,
+                'line_id' => $workOrder->line_id,
+                'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
+                'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                'description' => $workOrder->description,
+                // No column of its own — notes live in extra_data, the same place
+                // ChangeRequestService writes them back to.
+                'production_notes' => $workOrder->extra_data['production_notes'] ?? null,
+            ],
         ];
     }
 

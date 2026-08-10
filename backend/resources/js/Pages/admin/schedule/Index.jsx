@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { formatDate, formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     BLOCKED:     'bg-om-blocked-bg text-om-blocked',
@@ -236,7 +236,7 @@ function OrderTable({ orders }) {
             header: 'Status',
             cell: ({ row }) => (
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[row.original.status] ?? 'bg-om-chip text-om-muted'}`}>
-                    {STATUS_LABELS[row.original.status] ?? row.original.status}
+                    {__(STATUS_LABELS[row.original.status] ?? row.original.status)}
                 </span>
             ),
         },

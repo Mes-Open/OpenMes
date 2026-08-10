@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatDate, formatNumber, __ } from '../../../lib/i18n';
+import { formatDateTime, formatNumber, __ } from '../../../lib/i18n';
 
 /**
  * Review screen for a production-change request (#182).
@@ -38,7 +38,9 @@ function num(n) {
 function stamp(iso) {
     if (!iso) return null;
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : formatDate(d, {
+    // formatDateTime, not formatDate: the latter goes through toLocaleDateString,
+    // which ignores hour/minute and would render an audit stamp as a bare date.
+    return Number.isNaN(d.getTime()) ? iso : formatDateTime(d, {
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
 }

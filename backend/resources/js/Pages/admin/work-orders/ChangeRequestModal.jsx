@@ -13,11 +13,25 @@ import { __ } from '../../../lib/i18n';
 const FIELDS = [
     { key: 'product_revision_id', label: () => __('Product revision'), type: 'revision' },
     { key: 'planned_qty', label: () => __('Planned quantity'), type: 'number' },
+    { key: 'line_id', label: () => __('Production line'), type: 'line' },
     { key: 'bom_template_ids', label: () => __('BOM selection'), type: 'boms' },
     { key: 'due_date', label: () => __('Due date'), type: 'date' },
     { key: 'description', label: () => __('Description'), type: 'text' },
     { key: 'production_notes', label: () => __('Production notes'), type: 'text' },
 ];
+
+/**
+ * The order's current value for a field, used to seed the input when the field is
+ * ticked. Without this, ticking a field and leaving its value alone would propose
+ * nothing at all and the form would stay unsubmittable.
+ */
+function currentValue(current, key) {
+    const v = current?.[key];
+
+    if (key === 'bom_template_ids') return Array.isArray(v) ? [...v] : [];
+
+    return v ?? '';
+}
 
 export default function ChangeRequestModal({ workOrder, options, onClose }) {
     const [enabled, setEnabled] = useState({});
@@ -31,15 +45,21 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
     });
 
     function toggle(key) {
-        setEnabled((prev) => {
-            const next = { ...prev, [key]: !prev[key] };
-            if (!next[key]) {
-                const proposed = { ...form.data.proposed };
-                delete proposed[key];
-                form.setData('proposed', proposed);
-            }
-            return next;
-        });
+        const on = !enabled[key];
+        const proposed = { ...form.data.proposed };
+
+        if (on) {
+            // Seed with the order's current value, so a ticked-but-untouched field is
+            // still a proposal rather than a no-op.
+            proposed[key] = currentValue(options.current, key);
+        } else {
+            delete proposed[key];
+        }
+
+        // Kept out of the setEnabled updater: a state updater must stay pure, and
+        // React may run it more than once.
+        setEnabled({ ...enabled, [key]: on });
+        form.setData('proposed', proposed);
     }
 
     function setProposed(key, value) {
@@ -65,6 +85,17 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
                         <option key={r.id} value={r.id}>
                             {r.revision_code}{r.lifecycle_status ? ` · ${r.lifecycle_status}` : ''}
                         </option>
+                    ))}
+                </select>
+            );
+        }
+
+        if (field.type === 'line') {
+            return (
+                <select value={value} onChange={(e) => setProposed(field.key, e.target.value)} className={cls}>
+                    <option value="">{__('None')}</option>
+                    {(options.lines ?? []).map((l) => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
                     ))}
                 </select>
             );

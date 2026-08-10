@@ -150,9 +150,15 @@ class WorkOrderChangeRequestController extends Controller
     {
         $this->authorize('view', $changeRequest);
 
-        return response()->json([
-            'data' => $this->changeRequests->analyzeImpact($changeRequest->workOrder, $changeRequest->proposedChanges()),
-        ]);
+        try {
+            $impact = $this->changeRequests->impactFor($changeRequest);
+        } catch (\DomainException $e) {
+            // The order was soft-deleted after the request was raised: a domain rule,
+            // not a server error.
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $impact]);
     }
 
     /**

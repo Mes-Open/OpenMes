@@ -462,6 +462,16 @@ class WorkOrderService
     public function rebuildProcessSnapshot(?int $productTypeId, array $templateIds, ?int $revisionId): ?array
     {
         $snapshot = $this->buildProcessSnapshot($productTypeId, $templateIds);
+
+        // No applicable BOM means there is no process structure to move onto. Report
+        // that as null so the caller keeps the current configuration: attaching the
+        // revision block to an empty snapshot would return a non-null configuration
+        // with no `steps`, and regenerating pending batches from it would delete
+        // their steps and rebuild nothing.
+        if ($snapshot === null) {
+            return null;
+        }
+
         $snapshot = $this->attachRevisionSnapshot($snapshot, $revisionId);
 
         return $this->attachEngineeringSnapshot($snapshot, [

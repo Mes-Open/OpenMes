@@ -277,7 +277,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
                 header: __('Status'),
                 cell: ({ row }) => {
                     const wo = row.original;
-                    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>;
+                    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{__(WO_STATUS_LABELS[wo.status] ?? wo.status)}</span>;
                 },
             });
         }

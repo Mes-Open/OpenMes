@@ -218,6 +218,20 @@ class ChangeRequestService
         $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
 
         return DB::transaction(function () use ($changeRequest, $user, $data) {
+            // Re-read the request under a row lock and check the transition again. The
+            // assertion above is outside the transaction, so two concurrent applies on
+            // the same APPROVED request would both pass it; the work-order lock below
+            // only serializes them, it does not stop the second one from appending a
+            // second snapshot version and regenerating the same steps again.
+            $locked = WorkOrderChangeRequest::whereKey($changeRequest->getKey())->lockForUpdate()->first();
+
+            if ($locked === null) {
+                throw new \DomainException('The change request no longer exists.');
+            }
+
+            $changeRequest->setRawAttributes($locked->getAttributes(), true);
+            $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
+
             $workOrder = WorkOrder::whereKey($changeRequest->work_order_id)->lockForUpdate()->first();
 
             // Null when the order was deleted while the request sat in review. Refuse
@@ -287,6 +301,23 @@ class ChangeRequestService
 
             return $changeRequest->fresh();
         });
+    }
+
+    /**
+     * The live impact of a request as it stands, refusing as a domain rule when the
+     * order behind it has been deleted — so the callers turn it into a 422 rather
+     * than handing a null to analyzeImpact() as a TypeError.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws \DomainException
+     */
+    public function impactFor(WorkOrderChangeRequest $changeRequest): array
+    {
+        return $this->analyzeImpact(
+            $this->workOrderOf($changeRequest),
+            $changeRequest->proposedChanges(),
+        );
     }
 
     /**

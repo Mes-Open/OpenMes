@@ -255,7 +255,7 @@ export default function ProductTypeShow({
                                                     </p>
                                                 </div>
                                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-ink'}`}>
-                                                    {WO_STATUS_LABELS[wo.status] ?? wo.status}
+                                                    {__(WO_STATUS_LABELS[wo.status] ?? wo.status)}
                                                 </span>
                                             </div>
                                         </div>

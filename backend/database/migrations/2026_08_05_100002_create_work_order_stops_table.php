@@ -60,7 +60,8 @@ return new class extends Migration
             $table->unsignedInteger('duration_minutes')->nullable();
 
             // The change request that unblocked this stop, when one was required.
-            $table->foreignId('applied_change_request_id')->nullable();
+            $table->foreignId('applied_change_request_id')->nullable()
+                ->constrained('work_order_change_requests')->nullOnDelete();
             // Status the order returned to on resume, for the history line.
             $table->string('resulting_status', 20)->nullable();
 

@@ -159,6 +159,56 @@ class WorkOrderStopApiTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['batch_id']);
     }
 
+    public function test_stop_rejects_an_issue_from_another_work_order(): void
+    {
+        $foreignIssue = \App\Models\Issue::factory()->create([
+            'work_order_id' => WorkOrder::factory()->create()->id,
+        ]);
+
+        $this->asSupervisor()->postJson("/api/v1/work-orders/{$this->workOrder->id}/stop", [
+            'type' => 'QUALITY_HOLD',
+            'reason' => 'Wrong issue.',
+            'issue_id' => $foreignIssue->id,
+        ])->assertStatus(422)->assertJsonValidationErrors(['issue_id']);
+    }
+
+    public function test_stop_opens_a_linked_downtime_record(): void
+    {
+        $reason = \App\Models\DowntimeReason::factory()->create();
+
+        $this->asSupervisor()->postJson("/api/v1/work-orders/{$this->workOrder->id}/stop", [
+            'type' => 'MACHINE_FAILURE',
+            'reason' => 'Spindle failed.',
+            'downtime_reason_id' => $reason->id,
+        ])->assertStatus(201);
+
+        $stop = WorkOrderStop::where('work_order_id', $this->workOrder->id)->firstOrFail();
+
+        $this->assertNotNull($stop->production_downtime_id);
+        $this->assertDatabaseHas('production_downtimes', [
+            'id' => $stop->production_downtime_id,
+            'line_id' => $this->workOrder->line_id,
+            'downtime_reason_id' => $reason->id,
+        ]);
+    }
+
+    public function test_a_requested_downtime_is_refused_rather_than_dropped_when_the_order_has_no_line(): void
+    {
+        // A downtime is booked against a line. Rather than saving the stop and
+        // silently losing the downtime, the whole request is refused.
+        $this->workOrder->update(['line_id' => null]);
+        $reason = \App\Models\DowntimeReason::factory()->create();
+
+        $this->asSupervisor()->postJson("/api/v1/work-orders/{$this->workOrder->id}/stop", [
+            'type' => 'MACHINE_FAILURE',
+            'reason' => 'Spindle failed.',
+            'downtime_reason_id' => $reason->id,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('work_order_stops', 0);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->workOrder->fresh()->status);
+    }
+
     public function test_guest_cannot_stop_a_work_order(): void
     {
         $this->postJson("/api/v1/work-orders/{$this->workOrder->id}/stop", [

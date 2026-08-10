@@ -30,7 +30,15 @@ class StopWorkOrderRequest extends FormRequest
                     ->where(fn ($q) => $q->where('work_order_id', $this->route('workOrder')?->id))
                     ->whereNull('deleted_at'),
             ],
-            'issue_id' => ['nullable', 'integer', Rule::exists('issues', 'id')->whereNull('deleted_at')],
+            // Scoped to the routed order for the same reason as batch_id: an unscoped
+            // exists() would let a caller link this stop to an issue raised on another
+            // work order, and so on another tenant.
+            'issue_id' => [
+                'nullable', 'integer',
+                Rule::exists('issues', 'id')
+                    ->where(fn ($q) => $q->where('work_order_id', $this->route('workOrder')?->id))
+                    ->whereNull('deleted_at'),
+            ],
             // Supplying a downtime reason also opens a linked downtime record; leaving
             // it out records the stop only.
             'downtime_reason_id' => ['nullable', 'integer', Rule::exists('downtime_reasons', 'id')],
@@ -45,6 +53,7 @@ class StopWorkOrderRequest extends FormRequest
             'type.in' => 'The selected stop type is not supported.',
             'reason.required' => 'A reason for stopping production is required.',
             'batch_id.exists' => 'The selected batch does not belong to this work order.',
+            'issue_id.exists' => 'The selected issue does not belong to this work order.',
         ];
     }
 }

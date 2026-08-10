@@ -206,6 +206,66 @@ class WorkOrderChangeRequestApiTest extends TestCase
         $this->assertEquals(150.0, (float) $this->workOrder->fresh()->planned_qty);
     }
 
+    public function test_resume_finds_the_applied_change_itself_when_none_is_named(): void
+    {
+        // The review page posts the change request id, but the work-order lists post
+        // an empty body. Both must release an order whose change has been applied.
+        $this->stopForChange();
+        $cr = $this->createRequest();
+
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/submit");
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/approve");
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/apply")
+            ->assertStatus(200);
+
+        $this->asSupervisor()->postJson("/api/v1/work-orders/{$this->workOrder->id}/resume")
+            ->assertStatus(200);
+
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->workOrder->fresh()->status);
+        $this->assertDatabaseHas('work_order_stops', [
+            'work_order_id' => $this->workOrder->id,
+            'applied_change_request_id' => $cr->id,
+        ]);
+    }
+
+    public function test_an_applied_change_cannot_be_applied_a_second_time(): void
+    {
+        $this->stopForChange();
+        $cr = $this->createRequest();
+
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/submit");
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/approve");
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/apply")
+            ->assertStatus(200);
+
+        // A second apply must not append another snapshot version or regenerate
+        // steps again.
+        $this->asSupervisor()->postJson("/api/v1/work-order-change-requests/{$cr->id}/apply")
+            ->assertStatus(422);
+
+        $this->assertSame(2, $this->workOrder->fresh()->snapshot_version);
+        $this->assertSame(2, \App\Models\WorkOrderSnapshot::where('work_order_id', $this->workOrder->id)->count());
+    }
+
+    public function test_impact_does_not_blow_up_when_the_work_order_is_gone(): void
+    {
+        $cr = $this->createRequest();
+        $this->workOrder->delete();
+
+        // The policy refuses first, because viewing a change request requires being
+        // able to view the order behind it. What matters here is that a deleted order
+        // is answered, not turned into a 500.
+        $this->asSupervisor()->getJson("/api/v1/work-order-change-requests/{$cr->id}/impact")
+            ->assertStatus(403);
+
+        // Behind the policy, the analysis itself refuses as a domain rule rather than
+        // handing a null to analyzeImpact() as a TypeError.
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('The work order this change belongs to no longer exists.');
+
+        app(\App\Services\WorkOrder\ChangeRequestService::class)->impactFor($cr->fresh());
+    }
+
     public function test_a_draft_cannot_be_approved_without_review(): void
     {
         $cr = $this->createRequest();
