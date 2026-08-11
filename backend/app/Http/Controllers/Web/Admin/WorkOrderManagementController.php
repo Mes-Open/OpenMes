@@ -3,15 +3,23 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ReclassifyClassRequest;
+use App\Http\Requests\Api\V1\RecordConsumptionRequest;
+use App\Http\Requests\Api\V1\ReturnAllocationRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\Customer;
 use App\Models\Line;
+use App\Models\Material;
+use App\Models\MaterialAllocation;
+use App\Models\MaterialLot;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
+use App\Services\Material\MaterialAllocationService;
+use App\Services\Material\MaterialReclassificationService;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
@@ -155,6 +163,27 @@ class WorkOrderManagementController extends Controller
             'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
         ])->values();
 
+        // Materials reconciliation (#99): the allocations pulled for this order, so
+        // the page can offer record-consumption / return / reclassify per material.
+        $workOrder->load(['allocations.material', 'allocations.lotPicks.lot']);
+        $allocations = $workOrder->allocations->map(fn ($a) => [
+            'id' => $a->id,
+            'material_id' => $a->material_id,
+            'material_code' => $a->material?->code,
+            'material_name' => $a->material?->name,
+            'unit_of_measure' => $a->material?->unit_of_measure,
+            'status' => $a->status,
+            'allocated_qty' => (float) $a->allocated_qty,
+            'consumed_qty' => (float) $a->consumed_qty,
+            'scrap_qty' => (float) $a->scrap_qty,
+            'returned_qty' => (float) $a->returned_qty,
+            'lots' => $a->lotPicks->map(fn ($p) => [
+                'lot_id' => $p->material_lot_id,
+                'lot_number' => $p->lot?->lot_number,
+                'picked_qty' => (float) $p->picked_qty,
+            ])->values(),
+        ])->values();
+
         // Change control (#182): the stop history with durations, and every change
         // request raised against this order.
         $stops = $workOrder->stops()->with(['stoppedBy:id,name', 'resumedBy:id,name'])->get()
@@ -187,6 +216,8 @@ class WorkOrderManagementController extends Controller
                 'requested_by' => $cr->requestedBy?->name,
                 'created_at' => $cr->created_at?->toISOString(),
             ])->values();
+
+        $canReclassify = (bool) request()->user()?->hasAnyRole(['Supervisor', 'Admin']);
 
         $openStop = $workOrder->openStop();
         // An order held for a change may only resume once one has been applied — the
@@ -235,9 +266,84 @@ class WorkOrderManagementController extends Controller
                 'product_type_name' => $workOrder->productType?->name,
                 'batches' => $batches,
                 'issues' => $issues,
+                'allocations' => $allocations,
             ],
+            'canReclassify' => $canReclassify,
+            'materials' => $canReclassify
+                ? Material::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name'])
+                : [],
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
+    }
+
+    /**
+     * Materials reconciliation (#99): declare actual consumption, return unused
+     * material to stock, and reclassify a quantity to another class. Each
+     * allocation must belong to this work order.
+     */
+    public function recordConsumption(RecordConsumptionRequest $request, WorkOrder $workOrder, MaterialAllocation $allocation, MaterialAllocationService $allocations)
+    {
+        $this->assertAllocationBelongs($workOrder, $allocation);
+
+        try {
+            $allocations->recordConsumption(
+                $allocation,
+                (float) $request->validated('consumed_qty'),
+                (float) ($request->validated('scrap_qty') ?? 0),
+                $request->validated('notes'),
+            );
+
+            return back()->with('success', __('Consumption recorded'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function returnAllocation(ReturnAllocationRequest $request, WorkOrder $workOrder, MaterialAllocation $allocation, MaterialAllocationService $allocations)
+    {
+        $this->assertAllocationBelongs($workOrder, $allocation);
+
+        try {
+            $allocations->returnQuantity(
+                $allocation,
+                (float) $request->validated('qty'),
+                $request->user(),
+                $request->validated('reason'),
+            );
+
+            return back()->with('success', __('Material returned to stock'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function reclassify(ReclassifyClassRequest $request, WorkOrder $workOrder, MaterialReclassificationService $reclassifications)
+    {
+        try {
+            $source = Material::findOrFail($request->validated('source_material_id'));
+            $target = Material::findOrFail($request->validated('target_material_id'));
+            $lot = $request->validated('source_lot_id') ? MaterialLot::findOrFail($request->validated('source_lot_id')) : null;
+
+            $reclassifications->reclassifyClass(
+                $source,
+                $target,
+                (float) $request->validated('qty'),
+                $request->user(),
+                $lot,
+                $request->validated('reason'),
+            );
+
+            return back()->with('success', __('Material reclassified'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    private function assertAllocationBelongs(WorkOrder $workOrder, MaterialAllocation $allocation): void
+    {
+        if ($allocation->batch?->work_order_id !== $workOrder->id) {
+            abort(404);
+        }
     }
 
     public function edit(WorkOrder $workOrder, CustomFieldService $customFields)

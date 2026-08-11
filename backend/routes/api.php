@@ -703,6 +703,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::middleware('role:Supervisor|Admin')
         ->post('/batch-steps/{batchStep}/assign', [\App\Http\Controllers\Api\V1\BatchStepController::class, 'assign']);
 
+    // Material reconciliation (#99): declare partial consumption and return unused
+    // material to stock against a work-order allocation (production users).
+    Route::post('/material-allocations/{allocation}/consume', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'consume']);
+    Route::post('/material-allocations/{allocation}/return', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'return']);
+    // Reclassification (#99): regrade between material classes / change a lot status.
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        Route::post('/material-reclassifications/class', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'class']);
+        Route::post('/material-lots/{materialLot}/reclassify-status', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'status']);
+    });
+
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);
     Route::post('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'store']);

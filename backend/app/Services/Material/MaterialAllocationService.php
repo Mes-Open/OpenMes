@@ -382,6 +382,70 @@ class MaterialAllocationService
         });
     }
 
+    /**
+     * Return a leftover quantity from an in-flight allocation to stock (#99) —
+     * e.g. the operator over-issued and hands the surplus back before the batch
+     * completes. Books TYPE_RETURN, releases the reservation and restores the
+     * picked lots for the returned quantity.
+     *
+     * Crucially it DECREMENTS allocated_qty by the returned amount so the
+     * completion reconciler (consumeForBatch: leftover = allocated − consumed −
+     * scrap) never returns the same quantity a second time.
+     *
+     * @throws \DomainException|\InvalidArgumentException
+     */
+    public function returnQuantity(
+        MaterialAllocation $allocation,
+        float $qty,
+        User $user,
+        ?string $reason = null,
+    ): MaterialAllocation {
+        if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
+            throw new \DomainException('Can only return material from an `allocated` allocation.');
+        }
+        if ($qty <= 0) {
+            throw new \InvalidArgumentException('Return quantity must be positive.');
+        }
+
+        $returnable = (float) $allocation->allocated_qty
+            - (float) $allocation->consumed_qty
+            - (float) $allocation->scrap_qty;
+        if ($qty > $returnable + 1e-9) {
+            throw new \InvalidArgumentException('Return quantity exceeds the unconsumed allocated quantity.');
+        }
+
+        return DB::transaction(function () use ($allocation, $qty, $user, $reason) {
+            $material = $allocation->material;
+
+            if (! $material) {
+                throw new \DomainException('Allocation has no associated material.');
+            }
+
+            $this->stockMovements->record(
+                $material,
+                StockMovement::TYPE_RETURN,
+                $qty,
+                user: $user,
+                sourceType: StockMovement::SOURCE_BATCH,
+                sourceId: $allocation->batch_id,
+                reason: $reason ?? 'Batch #'.$allocation->batch_id.' — unused material returned to stock',
+            );
+
+            $this->releaseReservation($material, $qty);
+
+            // Lot tracking: hand the returned quantity back to the picked lots.
+            $this->lotPicking->returnPartialForAllocation($allocation, $qty);
+
+            $allocation->update([
+                // Shrink the allocation so consumeForBatch's leftover calc excludes what we just returned.
+                'allocated_qty' => (float) $allocation->allocated_qty - $qty,
+                'returned_qty' => (float) $allocation->returned_qty + $qty,
+            ]);
+
+            return $allocation->fresh();
+        });
+    }
+
     // ── internals ─────────────────────────────────────────────────────────────
 
     /**
