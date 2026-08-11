@@ -6,6 +6,9 @@ import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
+import EngineeringViewerModal from '../../components/EngineeringViewerModal';
+import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
+import { apiGet } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -1661,11 +1664,88 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 }
 
 // ---------------------------------------------------------------------------
+// Engineering documents frozen onto this order (#179) — read-only for operators:
+// download the native file, or open an interactive package in the sandboxed viewer.
+// ---------------------------------------------------------------------------
+
+function EngineeringDocsSection({ docs = [], onView }) {
+    const [open, setOpen] = useState(true);
+    if (!docs || docs.length === 0) return null;
+
+    const BASE = '/api/v1/engineering-documents';
+
+    return (
+        <div className={cardCls}>
+            <button
+                type="button"
+                className="flex justify-between items-center w-full text-left cursor-pointer"
+                onClick={() => setOpen((v) => !v)}
+            >
+                <h2 className={sectionLabelCls}>{__('Engineering documents')}</h2>
+                <div className="flex items-center gap-2">
+                    <Badge variant="neutral">{docs.length}</Badge>
+                    <ChevronIcon open={open} />
+                </div>
+            </button>
+
+            {open && (
+                <ul className="mt-4 divide-y divide-om-line">
+                    {docs.map((doc) => {
+                        const pkg = packageMeta(doc.package_type);
+                        return (
+                            <li key={doc.document_id} className="flex items-center justify-between gap-3 py-2">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium text-om-ink break-all">
+                                        {doc.original_filename ?? __('Document')}
+                                    </div>
+                                    <div className="text-xs text-om-muted">
+                                        {__(pkg.label)} · {__('Rev')} {doc.revision || '—'}
+                                        {doc.file_size ? ` · ${formatBytes(doc.file_size)}` : ''}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {isInteractive(doc.package_type) && doc.entry_point && (
+                                        <button type="button" className="btn btn-sm" onClick={() => onView(doc)}>
+                                            {__('View')}
+                                        </button>
+                                    )}
+                                    <a
+                                        className="btn btn-sm"
+                                        href={`${BASE}/${doc.document_id}/download`}
+                                        target={pkg.inline ? '_blank' : undefined}
+                                        rel="noopener noreferrer"
+                                    >
+                                        {__('Download')}
+                                    </a>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, engineeringDocuments = [] } = usePage().props;
+
+    const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
+
+    async function openEngViewer(doc) {
+        try {
+            const res = await apiGet(`/api/v1/engineering-documents/${doc.document_id}/viewer-url`);
+            if (!res.ok) return;
+            const json = await res.json();
+            if (json.data?.url) setEngViewer({ url: json.data.url, title: doc.original_filename });
+        } catch {
+            // silent — the Download link remains available as a fallback
+        }
+    }
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1795,6 +1875,9 @@ export default function WorkOrderDetail() {
 
                         {/* Process reference photos (work instructions) */}
                         <ProcessPhotosSection photos={processPhotos} />
+
+                        {/* Engineering documents frozen onto this order (#179) */}
+                        <EngineeringDocsSection docs={engineeringDocuments} onView={openEngViewer} />
 
                         {/* Batches */}
                         <div className={cardCls}>
@@ -2003,6 +2086,8 @@ export default function WorkOrderDetail() {
                     onClose={() => setReportScrapOpen(false)}
                 />
             )}
+
+            <EngineeringViewerModal viewer={engViewer} onClose={() => setEngViewer(null)} />
         </>
     );
 }

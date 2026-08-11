@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Dropdown, Checkbox, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+// Explicit extension: the helper module `engineeringDocuments.js` differs only in
+// case and would resolve wrong on case-insensitive filesystems.
+import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
 
 /* ------------------------------------------------------------------ */
@@ -545,6 +548,24 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     );
 }
 
+/**
+ * Per-step engineering-documents panel (#179), mounted lazily behind a toggle:
+ * a template can have many steps, and the panel self-fetches on mount, so we
+ * avoid firing one request per step on page load.
+ */
+function StepEngineeringDocuments({ stepId }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="mt-3">
+            <button type="button" onClick={() => setOpen((o) => ! o)} className="text-sm text-om-accent">
+                {open ? __('Hide engineering documents') : __('Engineering documents')}
+            </button>
+            {open && <EngineeringDocuments entityType="template_step" entityId={stepId} />}
+        </div>
+    );
+}
+
 function StepCard({
     step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
     productType, processTemplate, processSegments, workstations,
@@ -689,6 +710,8 @@ function StepCard({
                             <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
 
                             <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+
+                            <StepEngineeringDocuments stepId={step.id} />
                         </div>
                     </div>
                 </div>
@@ -936,6 +959,9 @@ export default function ProcessTemplatesShow() {
 
                 {/* Reference photos (work instructions) */}
                 <PhotosSection productType={productType} processTemplate={processTemplate} />
+
+                {/* Engineering documents (#179) for the process template as a whole */}
+                <EngineeringDocuments entityType="process_template" entityId={processTemplate.id} />
 
                 {/* Drag-sort save status toast */}
                 {saveStatus && (

@@ -428,7 +428,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
         // Product revisions (#180) — versioned released configuration per product type.
-        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class);
         Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
         Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
 
@@ -650,7 +650,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
 
         // Subassemblies
-        Route::resource('subassemblies', SubassemblyController::class)->except(['show']);
+        Route::resource('subassemblies', SubassemblyController::class);
         Route::post('/subassemblies/{subassembly}/toggle-active', [SubassemblyController::class, 'toggleActive'])->name('subassemblies.toggle-active');
 
         // ── Gate 3: Basics / Dictionaries ────────────────────────────────────
