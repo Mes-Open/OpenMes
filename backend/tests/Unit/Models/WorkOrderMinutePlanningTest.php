@@ -18,7 +18,7 @@ class WorkOrderMinutePlanningTest extends TestCase
     {
         $unplanned = new WorkOrder([
             'planned_start_at' => null,
-            'planned_end_at'   => null,
+            'planned_end_at' => null,
         ]);
         $this->assertFalse($unplanned->hasMinutePlanning());
 
@@ -37,15 +37,41 @@ class WorkOrderMinutePlanningTest extends TestCase
     {
         $wo = new WorkOrder([
             'planned_start_at' => Carbon::parse('2026-05-22 08:00'),
-            'planned_end_at'   => Carbon::parse('2026-05-22 10:30'),
+            'planned_end_at' => Carbon::parse('2026-05-22 10:30'),
         ]);
 
         $this->assertTrue($wo->hasMinutePlanning());
     }
 
+    public function test_estimated_standard_production_minutes_sums_setup_plus_run_times_qty(): void
+    {
+        $wo = new WorkOrder([
+            'planned_qty' => 10,
+            'process_snapshot' => [
+                'steps' => [
+                    ['setup_time_minutes' => 15, 'run_time_per_unit_minutes' => 2],   // 15 + 2*10 = 35
+                    ['setup_time_minutes' => 5, 'run_time_per_unit_minutes' => null], //  5 + 0    =  5
+                    ['estimated_duration_minutes' => 99],                             // no standard → skipped
+                ],
+            ],
+        ]);
+
+        $this->assertSame(40, $wo->estimatedStandardProductionMinutes());
+    }
+
+    public function test_estimated_standard_production_minutes_null_without_standard_times(): void
+    {
+        $wo = new WorkOrder([
+            'planned_qty' => 10,
+            'process_snapshot' => ['steps' => [['estimated_duration_minutes' => 30]]],
+        ]);
+
+        $this->assertNull($wo->estimatedStandardProductionMinutes());
+    }
+
     public function test_planned_duration_minutes_returns_null_when_not_planned(): void
     {
-        $wo = new WorkOrder();
+        $wo = new WorkOrder;
 
         $this->assertNull($wo->plannedDurationMinutes());
     }
@@ -63,7 +89,7 @@ class WorkOrderMinutePlanningTest extends TestCase
     {
         $wo = new WorkOrder([
             'planned_start_at' => Carbon::parse('2026-05-22 08:00'),
-            'planned_end_at'   => Carbon::parse('2026-05-22 10:30'),
+            'planned_end_at' => Carbon::parse('2026-05-22 10:30'),
         ]);
 
         $this->assertSame(150, $wo->plannedDurationMinutes());
@@ -73,7 +99,7 @@ class WorkOrderMinutePlanningTest extends TestCase
     {
         $wo = new WorkOrder([
             'planned_start_at' => Carbon::parse('2026-05-22 22:00'),
-            'planned_end_at'   => Carbon::parse('2026-05-23 06:00'),
+            'planned_end_at' => Carbon::parse('2026-05-23 06:00'),
         ]);
 
         $this->assertSame(8 * 60, $wo->plannedDurationMinutes());

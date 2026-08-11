@@ -74,6 +74,10 @@ class SnapshotServiceTest extends TestCase
         $this->assertArrayHasKey('estimated_duration_minutes', $step);
         $this->assertArrayHasKey('required_operators', $step);
         $this->assertArrayHasKey('workstation_id', $step);
+        // ISA-95 additions (#52).
+        $this->assertArrayHasKey('workstation_type_id', $step);
+        $this->assertArrayHasKey('setup_time_minutes', $step);
+        $this->assertArrayHasKey('run_time_per_unit_minutes', $step);
     }
 
     public function test_snapshot_step_carries_required_operators(): void

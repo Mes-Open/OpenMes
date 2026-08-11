@@ -171,6 +171,7 @@ class WorkOrderManagementController extends Controller
                 'extra_data' => $workOrder->extra_data,
                 'custom_fields' => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
+                'estimated_standard_production_minutes' => $workOrder->estimatedStandardProductionMinutes(),
                 'created_at' => $workOrder->created_at->toISOString(),
                 'line_name' => $workOrder->line?->name,
                 'product_type_name' => $workOrder->productType?->name,

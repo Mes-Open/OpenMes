@@ -5085,5 +5085,21 @@
     "Subassembly": "Subassembly",
     "Hide engineering documents": "Hide engineering documents",
     "Rev": "Rev",
-    "Document": "Document"
+    "Document": "Document",
+    "Workstation type (ISA-95)": "Workstation type (ISA-95)",
+    "— Any / none —": "— Any / none —",
+    "Required Equipment Class; a specific machine is assigned at dispatch.": "Required Equipment Class; a specific machine is assigned at dispatch.",
+    "Setup time (minutes)": "Setup time (minutes)",
+    "fixed, per run": "fixed, per run",
+    "Run time per unit (minutes)": "Run time per unit (minutes)",
+    "× quantity": "× quantity",
+    "Confirm actual times": "Confirm actual times",
+    "Actual elapsed (minutes)": "Actual elapsed (minutes)",
+    "Actual setup (minutes)": "Actual setup (minutes)",
+    "Actual run (minutes)": "Actual run (minutes)",
+    "Setup + run cannot exceed the elapsed time.": "Setup + run cannot exceed the elapsed time.",
+    "Assign workstation": "Assign workstation",
+    "required type": "required type",
+    "No active workstation of the required type is available.": "No active workstation of the required type is available.",
+    "The workstation could not be assigned.": "The workstation could not be assigned."
 }

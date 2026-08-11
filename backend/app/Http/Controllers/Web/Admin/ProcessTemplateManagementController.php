@@ -109,7 +109,10 @@ class ProcessTemplateManagementController extends Controller
                     'instruction' => $s->instruction,
                     'requires_confirmation' => (bool) $s->requires_confirmation,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes,
+                    'setup_time_minutes' => $s->setup_time_minutes,
+                    'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
                     'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
                     'process_segment_id' => $s->process_segment_id,
                     'is_optional' => (bool) $s->is_optional,
                     'variant_group' => $s->variant_group,
@@ -156,6 +159,8 @@ class ProcessTemplateManagementController extends Controller
                 'name' => $w->name,
                 'line_name' => $w->line?->name,
             ]),
+            // ISA-95 Equipment Classes (#52) for the step's workstation-type picker.
+            'workstationTypes' => \App\Models\WorkstationType::orderBy('name')->get(['id', 'name']),
             'processSegments' => $processSegments->map(fn ($s) => [
                 'id' => $s->id,
                 'code' => $s->code,

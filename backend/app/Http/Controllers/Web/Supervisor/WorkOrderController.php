@@ -93,7 +93,9 @@ class WorkOrderController extends Controller
                     'name' => $s->name,
                     'status' => $s->status,
                     'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
                     'duration_minutes' => $s->duration_minutes,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes,
                 ])->values(),
             ];
         })->values();
@@ -125,6 +127,11 @@ class WorkOrderController extends Controller
                 'issues' => $issues,
                 'machines' => $this->machinesForWorkOrder($workOrder),
             ],
+            // Pool dispatch (#52): active workstations (with their type) for the
+            // per-step "assign workstation" picker, filtered client-side by type.
+            'workstations' => \App\Models\Workstation::where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'workstation_type_id']),
+            'workstationTypeNames' => \App\Models\WorkstationType::pluck('name', 'id'),
         ]);
     }
 

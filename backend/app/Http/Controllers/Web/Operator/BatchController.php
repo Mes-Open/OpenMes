@@ -124,8 +124,16 @@ class BatchController extends Controller
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
+        // Operator-confirmed actual times (ISA-95 L3, #52) — from the completion
+        // modal shown only for steps with standard times configured.
+        $validated = $request->validate([
+            'actual_elapsed_minutes' => 'nullable|integer|min:0',
+            'actual_setup_minutes' => 'nullable|integer|min:0',
+            'actual_run_minutes' => 'nullable|integer|min:0',
+        ]);
+
         try {
-            $this->batchService->completeStep($batchStep, $request->user());
+            $this->batchService->completeStep($batchStep, $request->user(), $validated);
 
             return back()->with('success', 'Step completed.');
         } catch (\Exception $e) {

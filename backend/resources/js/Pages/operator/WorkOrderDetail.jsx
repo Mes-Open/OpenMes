@@ -738,6 +738,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
+    const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
 
     if (!steps || steps.length === 0) return null;
 
@@ -900,7 +901,13 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 <Button
                                     variant="primary"
                                     disabled={isInflight || isDocBlocked || needsConfirm}
-                                    onClick={() => handleStepAction(step, 'complete')}
+                                    onClick={() => (
+                                        // Opt-in: only steps with ISA-95 standard times (#52) prompt for
+                                        // operator-confirmed actuals; the rest complete directly as before.
+                                        step.setup_time_minutes != null || step.run_time_per_unit_minutes != null
+                                            ? setCompleteModal({ step })
+                                            : handleStepAction(step, 'complete')
+                                    )}
                                     title={
                                         isDocBlocked
                                             ? __('Validate the mandatory document(s) before completing this step.')
@@ -978,7 +985,76 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     onClose={() => setPickModal(null)}
                 />
             )}
+
+            {completeModal && (
+                <ConfirmTimesModal
+                    step={completeModal.step}
+                    onClose={() => setCompleteModal(null)}
+                />
+            )}
         </div>
+    );
+}
+
+/**
+ * Confirm-actual-times modal (#52), shown at step completion only for steps with
+ * ISA-95 standard times configured. Prefills elapsed from started_at→now and the
+ * setup/run split from the plan; the operator can correct them. Setup + run must
+ * fit within elapsed. Posts to the same complete route with the actual times.
+ */
+function ConfirmTimesModal({ step, onClose }) {
+    const startedAt = step.started_at ? new Date(step.started_at).getTime() : null;
+    const initialElapsed = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 60000)) : 0;
+    const initialSetup = step.setup_time_minutes != null ? Number(step.setup_time_minutes) : 0;
+
+    const [elapsed, setElapsed] = useState(String(initialElapsed));
+    const [setup, setSetup] = useState(step.setup_time_minutes != null ? String(initialSetup) : '');
+    const [run, setRun] = useState(String(Math.max(0, initialElapsed - initialSetup)));
+    const [saving, setSaving] = useState(false);
+
+    const elapsedNum = Number(elapsed) || 0;
+    const overflow = (Number(setup) || 0) + (Number(run) || 0) > elapsedNum;
+    const invalid = elapsed === '' || overflow;
+
+    const submit = () => {
+        if (invalid) return;
+        setSaving(true);
+        router.post(`/operator/batch-step/${step.id}/complete`, {
+            actual_elapsed_minutes: elapsedNum,
+            actual_setup_minutes: setup === '' ? null : (Number(setup) || 0),
+            actual_run_minutes: run === '' ? null : (Number(run) || 0),
+        }, { preserveScroll: true, onFinish: () => { setSaving(false); onClose(); } });
+    };
+
+    const inputCls = 'w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-[15px]';
+    const labelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1';
+
+    return (
+        <ModalShell title={__('Confirm actual times')} subtitle={step.name} onClose={onClose}>
+            <div className="px-[18px] py-4 space-y-3">
+                <div>
+                    <label className={labelCls}>{__('Actual elapsed (minutes)')}</label>
+                    <input type="number" min="0" value={elapsed} onChange={(e) => setElapsed(e.target.value)} className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className={labelCls}>{__('Actual setup (minutes)')}</label>
+                        <input type="number" min="0" value={setup} onChange={(e) => setSetup(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>{__('Actual run (minutes)')}</label>
+                        <input type="number" min="0" value={run} onChange={(e) => setRun(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                </div>
+                {overflow && <p className="text-om-blocked text-xs">{__('Setup + run cannot exceed the elapsed time.')}</p>}
+            </div>
+            <div className={modalFooterCls}>
+                <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                <Button variant="primary" disabled={invalid || saving} onClick={submit}>
+                    {saving ? '…' : __('Complete step')}
+                </Button>
+            </div>
+        </ModalShell>
     );
 }
 

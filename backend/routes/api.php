@@ -679,6 +679,9 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
     Route::middleware('role:Supervisor|Admin')
         ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
+    // Pool dispatch (#52): supervisor assigns a specific workstation to a pending step.
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/assign', [\App\Http\Controllers\Api\V1\BatchStepController::class, 'assign']);
 
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);

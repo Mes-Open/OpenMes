@@ -211,6 +211,31 @@ class WorkOrder extends Model
     }
 
     /**
+     * ISA-95 L4 standard production time (#52): from the frozen snapshot's standard
+     * times, Σ(setup + run_per_unit × planned_qty) across steps. This is the
+     * planning/costing target that flows down from the ERP BOM, distinct from the
+     * total estimate above. Null when no step carries standard times.
+     */
+    public function estimatedStandardProductionMinutes(): ?int
+    {
+        $qty = (float) ($this->planned_qty ?? 0);
+        $total = 0.0;
+        $hasStandard = false;
+
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $setup = $step['setup_time_minutes'] ?? null;
+            $run = $step['run_time_per_unit_minutes'] ?? null;
+            if ($setup === null && $run === null) {
+                continue;
+            }
+            $hasStandard = true;
+            $total += (float) ($setup ?? 0) + (float) ($run ?? 0) * $qty;
+        }
+
+        return $hasStandard ? (int) round($total) : null;
+    }
+
+    /**
      * The engineering documents (#179) frozen onto this order at release, as
      * immutable snapshot references. Backfills the display fields
      * (original_filename/entry_point/file_size) for orders snapshotted before

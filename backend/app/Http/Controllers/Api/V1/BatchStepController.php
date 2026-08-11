@@ -49,6 +49,10 @@ class BatchStepController extends Controller
 
         $validated = $request->validate([
             'produced_qty' => 'nullable|numeric|min:0',
+            // ISA-95 L3 operator-confirmed actual times (#52).
+            'actual_elapsed_minutes' => 'nullable|integer|min:0',
+            'actual_setup_minutes' => 'nullable|integer|min:0',
+            'actual_run_minutes' => 'nullable|integer|min:0',
         ]);
 
         try {
@@ -68,6 +72,31 @@ class BatchStepController extends Controller
                 'errors' => [
                     'step' => [$e->getMessage()],
                 ],
+            ], 422);
+        }
+    }
+
+    /**
+     * Pool dispatch (#52): a supervisor assigns a specific workstation to a pending
+     * step that carries only an Equipment Class. Route-gated to Supervisor|Admin.
+     */
+    public function assign(Request $request, BatchStep $batchStep): JsonResponse
+    {
+        $validated = $request->validate([
+            'workstation_id' => 'required|integer|exists:workstations,id',
+        ]);
+
+        try {
+            $step = $this->batchService->assignWorkstation($batchStep, (int) $validated['workstation_id'], $request->user());
+
+            return response()->json([
+                'message' => 'Workstation assigned successfully',
+                'data' => $step->load(['workstation', 'workstationType', 'assignedBy']),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['step' => [$e->getMessage()]],
             ], 422);
         }
     }
