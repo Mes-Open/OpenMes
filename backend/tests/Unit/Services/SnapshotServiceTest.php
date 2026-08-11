@@ -80,6 +80,37 @@ class SnapshotServiceTest extends TestCase
         $this->assertArrayHasKey('run_time_per_unit_minutes', $step);
     }
 
+    public function test_snapshot_step_carries_isa95_standard_times(): void
+    {
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        $template->steps()->first()->update([
+            'setup_time_minutes' => 15,
+            'run_time_per_unit_minutes' => 2.5,
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(15, (int) $step['setup_time_minutes']);
+        $this->assertEquals(2.5, (float) $step['run_time_per_unit_minutes']);
+    }
+
+    public function test_snapshot_workstation_type_falls_back_to_process_segment(): void
+    {
+        $type = \App\Models\WorkstationType::factory()->create();
+        $segment = \App\Models\ProcessSegment::factory()->create(['workstation_type_id' => $type->id]);
+
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        // Own workstation_type_id stays null so the segment value must flow through.
+        $template->steps()->first()->update([
+            'workstation_type_id' => null,
+            'process_segment_id' => $segment->id,
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame($type->id, $step['workstation_type_id']);
+    }
+
     public function test_snapshot_step_carries_required_operators(): void
     {
         $template = ProcessTemplate::factory()->withSteps(1)->create();

@@ -218,11 +218,22 @@ class WorkOrder extends Model
      */
     public function estimatedStandardProductionMinutes(): ?int
     {
+        $steps = $this->process_snapshot['steps'] ?? [];
         $qty = (float) ($this->planned_qty ?? 0);
         $total = 0.0;
         $hasStandard = false;
 
-        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+        // Mirror batch materialization: within a variant group only the selected
+        // path runs (default flag, else the lowest step_number), so the standard
+        // must not sum skipped siblings — that would inflate the costing target.
+        $chosen = $this->selectedVariantSteps($steps);
+
+        foreach ($steps as $step) {
+            $group = $step['variant_group'] ?? null;
+            if ($group !== null && isset($chosen[$group]) && ($step['step_number'] ?? null) !== $chosen[$group]) {
+                continue;
+            }
+
             $setup = $step['setup_time_minutes'] ?? null;
             $run = $step['run_time_per_unit_minutes'] ?? null;
             if ($setup === null && $run === null) {
@@ -233,6 +244,37 @@ class WorkOrder extends Model
         }
 
         return $hasStandard ? (int) round($total) : null;
+    }
+
+    /**
+     * The pre-selected step_number per variant group: the one flagged default,
+     * else the lowest step_number in the group. Mirrors
+     * WorkOrderService::createBatchStepsFromSnapshot so estimates match execution.
+     *
+     * @param  array<int, array<string, mixed>>  $steps
+     * @return array<string, int>
+     */
+    private function selectedVariantSteps(array $steps): array
+    {
+        $chosen = [];
+        $explicit = [];
+        foreach ($steps as $s) {
+            $group = $s['variant_group'] ?? null;
+            if ($group === null) {
+                continue;
+            }
+            $num = $s['step_number'];
+            if (! empty($s['is_default_variant'])) {
+                if (empty($explicit[$group])) {
+                    $chosen[$group] = $num;
+                    $explicit[$group] = true;
+                }
+            } elseif (empty($explicit[$group])) {
+                $chosen[$group] = isset($chosen[$group]) ? min($chosen[$group], $num) : $num;
+            }
+        }
+
+        return $chosen;
     }
 
     /**

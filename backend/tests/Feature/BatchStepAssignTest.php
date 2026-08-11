@@ -65,6 +65,16 @@ class BatchStepAssignTest extends TestCase
         ]);
     }
 
+    public function test_guest_cannot_assign(): void
+    {
+        $step = $this->makeStep($this->typeA->id);
+
+        $this->postJson("/api/v1/batch-steps/{$step->id}/assign", ['workstation_id' => $this->stationA->id])
+            ->assertUnauthorized();
+
+        $this->assertNull($step->fresh()->workstation_id);
+    }
+
     public function test_operator_cannot_assign(): void
     {
         $step = $this->makeStep($this->typeA->id);
@@ -72,6 +82,57 @@ class BatchStepAssignTest extends TestCase
         $this->actingAs($this->user('Operator'))
             ->postJson("/api/v1/batch-steps/{$step->id}/assign", ['workstation_id' => $this->stationA->id])
             ->assertForbidden();
+    }
+
+    public function test_missing_workstation_id_is_rejected(): void
+    {
+        $step = $this->makeStep($this->typeA->id);
+
+        $this->actingAs($this->user('Supervisor'))
+            ->postJson("/api/v1/batch-steps/{$step->id}/assign", [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('workstation_id');
+    }
+
+    public function test_admin_assigns_a_matching_type_workstation(): void
+    {
+        $step = $this->makeStep($this->typeA->id);
+        $admin = $this->user('Admin');
+
+        $this->actingAs($admin)
+            ->postJson("/api/v1/batch-steps/{$step->id}/assign", ['workstation_id' => $this->stationA->id])
+            ->assertOk();
+
+        $step->refresh();
+        $this->assertSame($this->stationA->id, $step->workstation_id);
+        $this->assertSame($admin->id, $step->assigned_by_id);
+    }
+
+    public function test_a_ready_step_can_be_assigned(): void
+    {
+        $step = $this->makeStep($this->typeA->id, BatchStep::STATUS_READY);
+
+        $this->actingAs($this->user('Supervisor'))
+            ->postJson("/api/v1/batch-steps/{$step->id}/assign", ['workstation_id' => $this->stationA->id])
+            ->assertOk();
+
+        $this->assertSame($this->stationA->id, $step->fresh()->workstation_id);
+    }
+
+    public function test_inactive_workstation_is_rejected(): void
+    {
+        $step = $this->makeStep($this->typeA->id);
+        $inactive = Workstation::factory()->create([
+            'line_id' => $this->line->id,
+            'workstation_type_id' => $this->typeA->id,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->user('Supervisor'))
+            ->postJson("/api/v1/batch-steps/{$step->id}/assign", ['workstation_id' => $inactive->id])
+            ->assertStatus(422);
+
+        $this->assertNull($step->fresh()->workstation_id);
     }
 
     public function test_supervisor_assigns_a_matching_type_workstation(): void

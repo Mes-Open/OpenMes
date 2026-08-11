@@ -160,7 +160,7 @@ class ProcessTemplateManagementController extends Controller
                 'line_name' => $w->line?->name,
             ]),
             // ISA-95 Equipment Classes (#52) for the step's workstation-type picker.
-            'workstationTypes' => \App\Models\WorkstationType::orderBy('name')->get(['id', 'name']),
+            'workstationTypes' => \App\Models\WorkstationType::query()->active()->orderBy('name')->get(['id', 'name']),
             'processSegments' => $processSegments->map(fn ($s) => [
                 'id' => $s->id,
                 'code' => $s->code,

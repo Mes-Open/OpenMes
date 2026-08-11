@@ -190,6 +190,20 @@ class BatchServiceTest extends TestCase
         ]);
     }
 
+    public function test_complete_step_rejects_time_split_without_elapsed(): void
+    {
+        $step = $this->batch->steps()->orderBy('step_number')->first();
+        $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'started_at' => now()->subMinutes(10)]);
+
+        $this->expectException(\Exception::class);
+        // Setup/run supplied with no elapsed total → cannot be verified, rejected.
+        $this->service->completeStep($step, $this->user, [
+            'actual_elapsed_minutes' => null,
+            'actual_setup_minutes' => 5,
+            'actual_run_minutes' => null,
+        ]);
+    }
+
     public function test_complete_pending_step_throws(): void
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();

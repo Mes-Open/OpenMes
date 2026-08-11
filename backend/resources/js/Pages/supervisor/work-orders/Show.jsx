@@ -131,7 +131,10 @@ function BatchRow({ batch, processSnapshot, workstationTypeNames = {}, onAssign 
                                 {['PENDING', 'READY'].includes(step.status) && step.workstation_type_id && !step.workstation_id && (
                                     <button
                                         type="button"
-                                        onClick={() => onAssign?.(step)}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onAssign?.(step);
+                                        }}
                                         className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-accent hover:underline flex-shrink-0"
                                         title={workstationTypeNames[step.workstation_type_id] ?? ''}
                                     >

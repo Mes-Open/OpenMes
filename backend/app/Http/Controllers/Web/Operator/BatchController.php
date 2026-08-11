@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\CompleteBatchStepRequest;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
@@ -118,7 +119,7 @@ class BatchController extends Controller
     /**
      * Complete a batch step.
      */
-    public function completeStep(Request $request, BatchStep $batchStep)
+    public function completeStep(CompleteBatchStepRequest $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
@@ -126,14 +127,8 @@ class BatchController extends Controller
 
         // Operator-confirmed actual times (ISA-95 L3, #52) — from the completion
         // modal shown only for steps with standard times configured.
-        $validated = $request->validate([
-            'actual_elapsed_minutes' => 'nullable|integer|min:0',
-            'actual_setup_minutes' => 'nullable|integer|min:0',
-            'actual_run_minutes' => 'nullable|integer|min:0',
-        ]);
-
         try {
-            $this->batchService->completeStep($batchStep, $request->user(), $validated);
+            $this->batchService->completeStep($batchStep, $request->user(), $request->validated());
 
             return back()->with('success', 'Step completed.');
         } catch (\Exception $e) {

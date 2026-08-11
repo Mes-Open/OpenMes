@@ -1012,18 +1012,30 @@ function ConfirmTimesModal({ step, onClose }) {
     const [run, setRun] = useState(String(Math.max(0, initialElapsed - initialSetup)));
     const [saving, setSaving] = useState(false);
 
-    const elapsedNum = Number(elapsed) || 0;
+    // Backend rules are integer|min:0; mirror them so bad values never submit
+    // (the number inputs' min= does not block this custom-button submission).
+    const isNonNegInt = (v) => /^\d+$/.test(String(v).trim());
+    const elapsedValid = isNonNegInt(elapsed);
+    const setupValid = setup === '' || isNonNegInt(setup);
+    const runValid = run === '' || isNonNegInt(run);
+    const elapsedNum = elapsedValid ? Number(elapsed) : 0;
     const overflow = (Number(setup) || 0) + (Number(run) || 0) > elapsedNum;
-    const invalid = elapsed === '' || overflow;
+    const invalid = ! elapsedValid || ! setupValid || ! runValid || overflow;
 
     const submit = () => {
         if (invalid) return;
         setSaving(true);
         router.post(`/operator/batch-step/${step.id}/complete`, {
             actual_elapsed_minutes: elapsedNum,
-            actual_setup_minutes: setup === '' ? null : (Number(setup) || 0),
-            actual_run_minutes: run === '' ? null : (Number(run) || 0),
-        }, { preserveScroll: true, onFinish: () => { setSaving(false); onClose(); } });
+            actual_setup_minutes: setup === '' ? null : Number(setup),
+            actual_run_minutes: run === '' ? null : Number(run),
+        }, {
+            preserveScroll: true,
+            // Close only on success; keep the modal open (with values intact) so a
+            // 422 or completion error stays visible instead of being dismissed.
+            onSuccess: () => onClose(),
+            onFinish: () => setSaving(false),
+        });
     };
 
     const inputCls = 'w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-[15px]';

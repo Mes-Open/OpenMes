@@ -59,6 +59,46 @@ class WorkOrderMinutePlanningTest extends TestCase
         $this->assertSame(40, $wo->estimatedStandardProductionMinutes());
     }
 
+    public function test_estimated_standard_production_minutes_excludes_unselected_variants(): void
+    {
+        $wo = new WorkOrder([
+            'planned_qty' => 10,
+            'process_snapshot' => [
+                'steps' => [
+                    // Variant group "finish": step 2 is the marked default → selected.
+                    ['step_number' => 1, 'variant_group' => 'finish', 'is_default_variant' => false,
+                        'setup_time_minutes' => 10, 'run_time_per_unit_minutes' => 2],  // skipped
+                    ['step_number' => 2, 'variant_group' => 'finish', 'is_default_variant' => true,
+                        'setup_time_minutes' => 20, 'run_time_per_unit_minutes' => 3],  // 20 + 3*10 = 50
+                    // Non-variant step always counts.
+                    ['step_number' => 3, 'variant_group' => null,
+                        'setup_time_minutes' => 5, 'run_time_per_unit_minutes' => 1],   //  5 + 1*10 = 15
+                ],
+            ],
+        ]);
+
+        // Only the selected default variant (50) + the plain step (15) = 65.
+        $this->assertSame(65, $wo->estimatedStandardProductionMinutes());
+    }
+
+    public function test_estimated_standard_production_minutes_variant_defaults_to_lowest_step_number(): void
+    {
+        $wo = new WorkOrder([
+            'planned_qty' => 10,
+            'process_snapshot' => [
+                'steps' => [
+                    // No default flagged → lowest step_number (1) in the group is selected.
+                    ['step_number' => 1, 'variant_group' => 'finish', 'is_default_variant' => false,
+                        'setup_time_minutes' => 10, 'run_time_per_unit_minutes' => 2],  // 10 + 2*10 = 30
+                    ['step_number' => 2, 'variant_group' => 'finish', 'is_default_variant' => false,
+                        'setup_time_minutes' => 20, 'run_time_per_unit_minutes' => 3],  // skipped
+                ],
+            ],
+        ]);
+
+        $this->assertSame(30, $wo->estimatedStandardProductionMinutes());
+    }
+
     public function test_estimated_standard_production_minutes_null_without_standard_times(): void
     {
         $wo = new WorkOrder([
