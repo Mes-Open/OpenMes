@@ -46,6 +46,28 @@ class ProductRevisionTest extends TestCase
         $this->actingAs($operator)->get(route('admin.product-revisions.index'))->assertForbidden();
     }
 
+    public function test_admin_can_view_the_show_page_hosting_the_engineering_panel(): void
+    {
+        $revision = ProductRevision::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.product-revisions.show', $revision))
+            ->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('admin/product-revisions/Show')
+                ->where('productRevision.id', $revision->id)
+                ->where('productRevision.revision_code', $revision->revision_code));
+    }
+
+    public function test_operator_cannot_view_the_show_page(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $revision = ProductRevision::factory()->create();
+
+        $this->actingAs($operator)->get(route('admin.product-revisions.show', $revision))->assertForbidden();
+    }
+
     // ── CRUD + validation ──────────────────────────────────────────
 
     public function test_admin_can_create_a_draft_revision(): void

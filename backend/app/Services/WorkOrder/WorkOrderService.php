@@ -147,6 +147,11 @@ class WorkOrderService
             'document_id' => $d->id,
             'entity_type' => $d->entity_type,
             'entity_id' => $d->entity_id,
+            // Frozen display fields so the operator view is self-sufficient (no
+            // live lookup needed) and shows exactly what was released.
+            'original_filename' => $d->original_filename,
+            'entry_point' => $d->entry_point,
+            'file_size' => $d->file_size,
             'revision' => $d->revision,
             'package_type' => $d->package_type->value,
             'checksum' => $d->checksum,
@@ -604,6 +609,13 @@ class WorkOrderService
                 'instruction' => $stepData['instruction'] ?? null,
                 'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
+                // ISA-95 (#52): carry the required Equipment Class + planning times
+                // down from the snapshot so pool dispatch and the actual-vs-standard
+                // comparison have their reference data on the batch step.
+                'workstation_type_id' => $stepData['workstation_type_id'] ?? null,
+                'estimated_duration_minutes' => $stepData['estimated_duration_minutes'] ?? null,
+                'setup_time_minutes' => $stepData['setup_time_minutes'] ?? null,
+                'run_time_per_unit_minutes' => $stepData['run_time_per_unit_minutes'] ?? null,
                 'status' => $status,
                 'is_optional' => $stepData['is_optional'] ?? false,
                 'variant_group' => $group,

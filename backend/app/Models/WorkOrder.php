@@ -226,6 +226,107 @@ class WorkOrder extends Model
     }
 
     /**
+     * ISA-95 L4 standard production time (#52): from the frozen snapshot's standard
+     * times, Σ(setup + run_per_unit × planned_qty) across steps. This is the
+     * planning/costing target that flows down from the ERP BOM, distinct from the
+     * total estimate above. Null when no step carries standard times.
+     */
+    public function estimatedStandardProductionMinutes(): ?int
+    {
+        $steps = $this->process_snapshot['steps'] ?? [];
+        $qty = (float) ($this->planned_qty ?? 0);
+        $total = 0.0;
+        $hasStandard = false;
+
+        // Mirror batch materialization: within a variant group only the selected
+        // path runs (default flag, else the lowest step_number), so the standard
+        // must not sum skipped siblings — that would inflate the costing target.
+        $chosen = $this->selectedVariantSteps($steps);
+
+        foreach ($steps as $step) {
+            $group = $step['variant_group'] ?? null;
+            if ($group !== null && isset($chosen[$group]) && ($step['step_number'] ?? null) !== $chosen[$group]) {
+                continue;
+            }
+
+            $setup = $step['setup_time_minutes'] ?? null;
+            $run = $step['run_time_per_unit_minutes'] ?? null;
+            if ($setup === null && $run === null) {
+                continue;
+            }
+            $hasStandard = true;
+            $total += (float) ($setup ?? 0) + (float) ($run ?? 0) * $qty;
+        }
+
+        return $hasStandard ? (int) round($total) : null;
+    }
+
+    /**
+     * The pre-selected step_number per variant group: the one flagged default,
+     * else the lowest step_number in the group. Mirrors
+     * WorkOrderService::createBatchStepsFromSnapshot so estimates match execution.
+     *
+     * @param  array<int, array<string, mixed>>  $steps
+     * @return array<string, int>
+     */
+    private function selectedVariantSteps(array $steps): array
+    {
+        $chosen = [];
+        $explicit = [];
+        foreach ($steps as $s) {
+            $group = $s['variant_group'] ?? null;
+            if ($group === null) {
+                continue;
+            }
+            $num = $s['step_number'];
+            if (! empty($s['is_default_variant'])) {
+                if (empty($explicit[$group])) {
+                    $chosen[$group] = $num;
+                    $explicit[$group] = true;
+                }
+            } elseif (empty($explicit[$group])) {
+                $chosen[$group] = isset($chosen[$group]) ? min($chosen[$group], $num) : $num;
+            }
+        }
+
+        return $chosen;
+    }
+
+    /**
+     * The engineering documents (#179) frozen onto this order at release, as
+     * immutable snapshot references. Backfills the display fields
+     * (original_filename/entry_point/file_size) for orders snapshotted before
+     * those were frozen, by joining the live document by id (withTrashed).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function frozenEngineeringDocuments(): array
+    {
+        $refs = $this->process_snapshot['engineering_documents'] ?? [];
+
+        $missing = collect($refs)
+            ->reject(fn ($r) => array_key_exists('original_filename', $r))
+            ->pluck('document_id')
+            ->filter()
+            ->all();
+
+        if ($missing) {
+            $live = EngineeringDocument::withTrashed()->findMany($missing)->keyBy('id');
+            $refs = array_map(function (array $r) use ($live) {
+                if (! array_key_exists('original_filename', $r) && ($d = $live->get($r['document_id'] ?? null))) {
+                    $r['original_filename'] = $d->original_filename;
+                    $r['entry_point'] = $d->entry_point;
+                    $r['file_size'] = $d->file_size;
+                }
+
+                return $r;
+            }, $refs);
+        }
+
+        return array_values($refs);
+    }
+
+    /**
      * Labor multiplier turning this order's machine-hours into person-hours for
      * the schedule-capacity crew axis: the duration-weighted average operators
      * across its process-snapshot steps — i.e. Σ(step minutes × operators) ÷

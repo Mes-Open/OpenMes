@@ -50,6 +50,9 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
+        // ISA-95 L4 standard production target (#52), computed from the snapshot.
+        $workOrder->setAttribute('estimated_standard_production_minutes', $workOrder->estimatedStandardProductionMinutes());
+
         return response()->json([
             'data' => $workOrder,
         ]);

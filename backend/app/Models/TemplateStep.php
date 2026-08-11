@@ -26,6 +26,9 @@ class TemplateStep extends Model
         'min_duration_minutes',
         'requires_confirmation',
         'workstation_id',
+        'workstation_type_id',
+        'setup_time_minutes',
+        'run_time_per_unit_minutes',
         'is_optional',
         'variant_group',
         'is_default_variant',
@@ -36,6 +39,8 @@ class TemplateStep extends Model
         return [
             'step_number' => 'integer',
             'estimated_duration_minutes' => 'integer',
+            'setup_time_minutes' => 'integer',
+            'run_time_per_unit_minutes' => 'decimal:2',
             'required_operators' => 'integer',
             'min_duration_minutes' => 'integer',
             'requires_confirmation' => 'boolean',
@@ -66,6 +71,15 @@ class TemplateStep extends Model
     public function processSegment(): BelongsTo
     {
         return $this->belongsTo(ProcessSegment::class);
+    }
+
+    /**
+     * ISA-95 Equipment Class required for this step (#52). A specific machine is
+     * assigned to the batch step at dispatch; null means any workstation.
+     */
+    public function workstationType(): BelongsTo
+    {
+        return $this->belongsTo(WorkstationType::class);
     }
 
     /**
@@ -127,5 +141,14 @@ class TemplateStep extends Model
         return ($this->required_operators ?: null)
             ?? $this->processSegment?->required_operators
             ?? 1;
+    }
+
+    /**
+     * Resolve the effective ISA-95 Equipment Class — the step's own value wins;
+     * otherwise fall back to the linked Process Segment's workstation type (#52).
+     */
+    public function effectiveWorkstationType(): ?int
+    {
+        return $this->workstation_type_id ?? $this->processSegment?->workstation_type_id;
     }
 }

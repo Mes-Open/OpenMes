@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Dropdown, Checkbox, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+// Explicit extension: the helper module `engineeringDocuments.js` differs only in
+// case and would resolve wrong on case-insensitive filesystems.
+import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
 
 /* ------------------------------------------------------------------ */
@@ -70,17 +73,70 @@ function OptionalVariantFields({ data, setData, errors }) {
     );
 }
 
+/**
+ * ISA-95 step fields (#52): the required Equipment Class (workstation type) and
+ * the Level-4 standard times (setup + run-per-unit) that flow down from an ERP
+ * BOM. Shared by the add- and edit-step forms.
+ */
+function Isa95StepFields({ data, setData, workstationTypes = [] }) {
+    return (
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
+            <div>
+                <label className="form-label">{__('Workstation type (ISA-95)')}</label>
+                <Dropdown
+                    value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
+                    onChange={(v) => setData('workstation_type_id', v)}
+                    options={[
+                        { value: '', label: __('— Any / none —') },
+                        ...workstationTypes.map((t) => ({ value: String(t.id), label: t.name })),
+                    ]}
+                    className="w-full"
+                />
+                <p className="text-xs text-om-muted mt-1">
+                    {__('Required Equipment Class; a specific machine is assigned at dispatch.')}
+                </p>
+            </div>
+            <div>
+                <label className="form-label">{__('Setup time (minutes)')}</label>
+                <input
+                    type="number"
+                    min="0"
+                    value={data.setup_time_minutes}
+                    onChange={(e) => setData('setup_time_minutes', e.target.value)}
+                    className="form-input w-full"
+                    placeholder={__('fixed, per run')}
+                />
+            </div>
+            <div>
+                <label className="form-label">{__('Run time per unit (minutes)')}</label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={data.run_time_per_unit_minutes}
+                    onChange={(e) => setData('run_time_per_unit_minutes', e.target.value)}
+                    className="form-input w-full"
+                    placeholder={__('× quantity')}
+                />
+            </div>
+        </div>
+    );
+}
+
 /* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
-function AddStepForm({ productType, processTemplate, processSegments, workstations, onCancel }) {
+function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
     const form = useForm({
         name: '',
         instruction: '',
         requires_confirmation: false,
         estimated_duration_minutes: '',
+        setup_time_minutes: '',
+        run_time_per_unit_minutes: '',
         required_operators: '',
         workstation_id: '',
+        workstation_type_id: '',
         process_segment_id: '',
         is_optional: false,
         variant_group: '',
@@ -205,6 +261,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                         <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                     </div>
 
+                    <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -224,14 +281,17 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 /* ------------------------------------------------------------------ */
 /* Inline step-edit form                                                 */
 /* ------------------------------------------------------------------ */
-function EditStepForm({ step, productType, processTemplate, processSegments, workstations, onCancel }) {
+function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
         requires_confirmation: !!step.requires_confirmation,
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
+        setup_time_minutes: step.setup_time_minutes != null ? String(step.setup_time_minutes) : '',
+        run_time_per_unit_minutes: step.run_time_per_unit_minutes != null ? String(step.run_time_per_unit_minutes) : '',
         required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
+        workstation_type_id: step.workstation_type_id != null ? String(step.workstation_type_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
         variant_group: step.variant_group ?? '',
@@ -334,6 +394,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                     <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                 </div>
 
+                <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
@@ -545,9 +606,27 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     );
 }
 
+/**
+ * Per-step engineering-documents panel (#179), mounted lazily behind a toggle:
+ * a template can have many steps, and the panel self-fetches on mount, so we
+ * avoid firing one request per step on page load.
+ */
+function StepEngineeringDocuments({ stepId }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="mt-3">
+            <button type="button" onClick={() => setOpen((o) => ! o)} className="text-sm text-om-accent">
+                {open ? __('Hide engineering documents') : __('Engineering documents')}
+            </button>
+            {open && <EngineeringDocuments entityType="template_step" entityId={stepId} />}
+        </div>
+    );
+}
+
 function StepCard({
     step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
-    productType, processTemplate, processSegments, workstations,
+    productType, processTemplate, processSegments, workstations, workstationTypes = [],
     onMoveUp, onMoveDown, onDelete,
     dragHandleProps,
 }) {
@@ -689,6 +768,8 @@ function StepCard({
                             <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
 
                             <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+
+                            <StepEngineeringDocuments stepId={step.id} />
                         </div>
                     </div>
                 </div>
@@ -699,6 +780,7 @@ function StepCard({
                     processTemplate={processTemplate}
                     processSegments={processSegments}
                     workstations={workstations}
+                    workstationTypes={workstationTypes}
                     onCancel={onEditCancel}
                 />
             )}
@@ -710,7 +792,7 @@ function StepCard({
 /* Main page component                                                   */
 /* ------------------------------------------------------------------ */
 export default function ProcessTemplatesShow() {
-    const { productType, processTemplate, workstations = [], processSegments = [] } = usePage().props;
+    const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
     const allPhotos = processTemplate.photos ?? [];
@@ -880,6 +962,7 @@ export default function ProcessTemplatesShow() {
                         processTemplate={processTemplate}
                         processSegments={processSegments}
                         workstations={workstations}
+                        workstationTypes={workstationTypes}
                         onCancel={() => setShowAddForm(false)}
                     />
                 )}
@@ -907,6 +990,7 @@ export default function ProcessTemplatesShow() {
                                     processTemplate={processTemplate}
                                     processSegments={processSegments}
                                     workstations={workstations}
+                                    workstationTypes={workstationTypes}
                                     onMoveUp={handleMoveUp}
                                     onMoveDown={handleMoveDown}
                                     onDelete={handleDelete}
@@ -936,6 +1020,9 @@ export default function ProcessTemplatesShow() {
 
                 {/* Reference photos (work instructions) */}
                 <PhotosSection productType={productType} processTemplate={processTemplate} />
+
+                {/* Engineering documents (#179) for the process template as a whole */}
+                <EngineeringDocuments entityType="process_template" entityId={processTemplate.id} />
 
                 {/* Drag-sort save status toast */}
                 {saveStatus && (

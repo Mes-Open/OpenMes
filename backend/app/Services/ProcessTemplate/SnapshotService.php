@@ -34,8 +34,11 @@ class SnapshotService
                     'instruction' => $step->instruction,
                     'requires_confirmation' => (bool) $step->requires_confirmation,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
+                    'setup_time_minutes' => $step->setup_time_minutes,
+                    'run_time_per_unit_minutes' => $step->run_time_per_unit_minutes,
                     'required_operators' => $step->effectiveRequiredOperators(),
                     'workstation_id' => $step->workstation_id,
+                    'workstation_type_id' => $step->effectiveWorkstationType(),
                 ];
             })->toArray(),
             'bom' => $template->bomItems->map(function ($item) {
