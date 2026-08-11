@@ -62,6 +62,38 @@ class EngineeringWorkOrderSnapshotTest extends TestCase
         $this->assertSame('B', $snap[0]['revision']);
         $this->assertSame($doc->checksum, $snap[0]['checksum']);
         $this->assertSame('released', $snap[0]['lifecycle_at_release']);
+        // Display fields are frozen too, so the operator view needs no live lookup.
+        $this->assertSame($doc->original_filename, $snap[0]['original_filename']);
+        $this->assertArrayHasKey('entry_point', $snap[0]);
+        $this->assertSame($doc->file_size, $snap[0]['file_size']);
+    }
+
+    public function test_for_work_order_endpoint_backfills_a_legacy_snapshot_without_display_fields(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $doc = EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'B',
+        ]);
+        $wo = $this->makeWorkOrder();
+
+        // Simulate an order snapshotted before the display fields were frozen:
+        // strip them, keeping only the legacy reference shape.
+        $legacy = $wo->process_snapshot;
+        $legacy['engineering_documents'] = [[
+            'document_id' => $doc->id, 'entity_type' => 'product_revision',
+            'entity_id' => $this->revision->id, 'revision' => 'B',
+            'package_type' => $doc->package_type->value, 'checksum' => $doc->checksum,
+            'lifecycle_at_release' => 'released', 'released_at' => null,
+        ]];
+        $wo->update(['process_snapshot' => $legacy]);
+
+        $this->actingAs($admin)
+            ->getJson("/api/v1/work-orders/{$wo->id}/engineering-documents")
+            ->assertOk()
+            ->assertJsonPath('data.0.document_id', $doc->id)
+            ->assertJsonPath('data.0.original_filename', $doc->original_filename);
     }
 
     public function test_draft_documents_are_not_snapshotted(): void

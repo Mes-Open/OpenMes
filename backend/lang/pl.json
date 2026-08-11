@@ -5076,5 +5076,14 @@
     "Lot ':lot' already belongs to material ':code'": "Partia ':lot' należy już do materiału ':code'",
     "The PAWS address must be an http:// or https:// URL.": "Adres PAWS musi być adresem http:// albo https://.",
     "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.": "Adres PAWS używa zwykłego http://, co wysłałoby hasło do Pantheona bez szyfrowania. Użyj https:// albo ustaw allow_insecure_http, świadomie przyjmując to ryzyko.",
-    "Tenant": "Najemca"
+    "Tenant": "Najemca",
+    "Process template": "Szablon procesu",
+    "Effective from": "Obowiązuje od",
+    "Effective to": "Obowiązuje do",
+    "External reference": "Odnośnik zewnętrzny",
+    "A complete assembly keeps its engineering documents here, on its product type or product revision.": "Kompletny wyrób trzyma dokumenty inżynieryjne tutaj — na swoim typie produktu lub rewizji produktu.",
+    "Subassembly": "Podzespół",
+    "Hide engineering documents": "Ukryj dokumenty inżynieryjne",
+    "Rev": "Rew.",
+    "Document": "Dokument"
 }

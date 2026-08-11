@@ -211,6 +211,40 @@ class WorkOrder extends Model
     }
 
     /**
+     * The engineering documents (#179) frozen onto this order at release, as
+     * immutable snapshot references. Backfills the display fields
+     * (original_filename/entry_point/file_size) for orders snapshotted before
+     * those were frozen, by joining the live document by id (withTrashed).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function frozenEngineeringDocuments(): array
+    {
+        $refs = $this->process_snapshot['engineering_documents'] ?? [];
+
+        $missing = collect($refs)
+            ->reject(fn ($r) => array_key_exists('original_filename', $r))
+            ->pluck('document_id')
+            ->filter()
+            ->all();
+
+        if ($missing) {
+            $live = EngineeringDocument::withTrashed()->findMany($missing)->keyBy('id');
+            $refs = array_map(function (array $r) use ($live) {
+                if (! array_key_exists('original_filename', $r) && ($d = $live->get($r['document_id'] ?? null))) {
+                    $r['original_filename'] = $d->original_filename;
+                    $r['entry_point'] = $d->entry_point;
+                    $r['file_size'] = $d->file_size;
+                }
+
+                return $r;
+            }, $refs);
+        }
+
+        return array_values($refs);
+    }
+
+    /**
      * Labor multiplier turning this order's machine-hours into person-hours for
      * the schedule-capacity crew axis: the duration-weighted average operators
      * across its process-snapshot steps — i.e. Σ(step minutes × operators) ÷

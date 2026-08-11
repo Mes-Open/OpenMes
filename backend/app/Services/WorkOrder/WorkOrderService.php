@@ -147,6 +147,11 @@ class WorkOrderService
             'document_id' => $d->id,
             'entity_type' => $d->entity_type,
             'entity_id' => $d->entity_id,
+            // Frozen display fields so the operator view is self-sufficient (no
+            // live lookup needed) and shows exactly what was released.
+            'original_filename' => $d->original_filename,
+            'entry_point' => $d->entry_point,
+            'file_size' => $d->file_size,
             'revision' => $d->revision,
             'package_type' => $d->package_type->value,
             'checksum' => $d->checksum,
