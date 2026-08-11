@@ -30,6 +30,30 @@ class ProductRevisionController extends Controller
         ]);
     }
 
+    /**
+     * Detail page — primarily a host for the engineering-documents panel (#179),
+     * so CAD files can be attached to a specific product revision.
+     */
+    public function show(ProductRevision $productRevision)
+    {
+        $productRevision->load(['productType:id,code,name', 'processTemplate:id,name,version']);
+
+        return Inertia::render('admin/product-revisions/Show', [
+            'productRevision' => [
+                'id' => $productRevision->id,
+                'revision_code' => $productRevision->revision_code,
+                'description' => $productRevision->description,
+                'lifecycle_status' => $productRevision->lifecycle_status,
+                'external_ref' => $productRevision->external_ref,
+                'effective_from' => $productRevision->effective_from,
+                'effective_to' => $productRevision->effective_to,
+                'released_at' => $productRevision->released_at,
+                'product_type' => $productRevision->productType?->only('id', 'code', 'name'),
+                'process_template' => $productRevision->processTemplate?->only('id', 'name', 'version'),
+            ],
+        ]);
+    }
+
     public function create()
     {
         return Inertia::render('admin/product-revisions/Create', $this->formOptions());

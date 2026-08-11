@@ -20,7 +20,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * needs `view engineering documents`; uploading and lifecycle changes need
  * `manage engineering documents`. Files are streamed from the private disk with
  * X-Content-Type-Options: nosniff; only PDF/image are inline, everything else is
- * a forced download. The sandboxed interactive-HTML viewer is a later phase.
+ * a forced download. Interactive-HTML packages are viewed through the sandboxed,
+ * signed `engineering.viewer` route (see `viewerUrl()`).
  */
 class EngineeringDocumentController extends Controller
 {
@@ -71,17 +72,15 @@ class EngineeringDocumentController extends Controller
 
     /**
      * The engineering documents frozen onto a work order at release (#179 Phase 2).
-     * Returns the immutable snapshot references (id + revision + checksum + lifecycle)
-     * — not the live documents — so a newer upload never changes what a released
-     * order shows.
+     * Returns the immutable snapshot references (id + filename + revision + checksum
+     * + lifecycle) — not the live documents — so a newer upload never changes what a
+     * released order shows.
      */
     public function forWorkOrder(Request $request, \App\Models\WorkOrder $workOrder): JsonResponse
     {
         $this->authorizeView($request);
 
-        return response()->json([
-            'data' => $workOrder->process_snapshot['engineering_documents'] ?? [],
-        ]);
+        return response()->json(['data' => $workOrder->frozenEngineeringDocuments()]);
     }
 
     public function download(Request $request, EngineeringDocument $engineeringDocument): StreamedResponse

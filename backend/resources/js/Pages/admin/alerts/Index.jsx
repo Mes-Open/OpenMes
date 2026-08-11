@@ -18,12 +18,13 @@ const TERMINAL_STATUSES = ['DONE', 'REJECTED', 'CANCELLED'];
 const WO_STATUS_STYLES = {
     PENDING: 'bg-om-chip text-om-muted', ACCEPTED: 'bg-om-chip text-om-accent',
     IN_PROGRESS: 'bg-om-downtime-bg text-om-downtime', BLOCKED: 'bg-om-blocked-bg text-om-blocked',
-    PAUSED: 'bg-om-downtime-bg text-orange-700', DONE: 'bg-om-running-bg text-om-running',
+    PAUSED: 'bg-om-downtime-bg text-orange-700', CHANGE_HOLD: 'bg-om-downtime-bg text-orange-700',
+    DONE: 'bg-om-running-bg text-om-running',
     REJECTED: 'bg-om-blocked-bg text-om-blocked', CANCELLED: 'bg-om-line2 text-om-muted',
 };
 const WO_STATUS_LABELS = {
     PENDING: 'Pending', ACCEPTED: 'Accepted', IN_PROGRESS: 'In Progress', BLOCKED: 'Blocked',
-    PAUSED: 'Paused', DONE: 'Done', REJECTED: 'Rejected', CANCELLED: 'Cancelled',
+    PAUSED: 'Paused', CHANGE_HOLD: 'Change hold', DONE: 'Done', REJECTED: 'Rejected', CANCELLED: 'Cancelled',
 };
 
 export default function AlertsIndex() {
@@ -276,7 +277,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
                 header: __('Status'),
                 cell: ({ row }) => {
                     const wo = row.original;
-                    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>;
+                    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{__(WO_STATUS_LABELS[wo.status] ?? wo.status)}</span>;
                 },
             });
         }

@@ -157,6 +157,53 @@ class BatchServiceTest extends TestCase
         $this->assertLessThanOrEqual(31, $fresh->duration_minutes);
     }
 
+    public function test_complete_step_stores_operator_confirmed_actual_times(): void
+    {
+        $step = $this->batch->steps()->orderBy('step_number')->first();
+        $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'started_at' => now()->subMinutes(30)]);
+
+        $this->service->completeStep($step, $this->user, [
+            'actual_elapsed_minutes' => 42,
+            'actual_setup_minutes' => 8,
+            'actual_run_minutes' => 30,
+        ]);
+
+        $fresh = $step->fresh();
+        // The system wall-clock (recorded) value is still captured, separately.
+        $this->assertGreaterThanOrEqual(29, $fresh->duration_minutes);
+        // The operator-confirmed actuals are stored as-is.
+        $this->assertSame(42, $fresh->actual_elapsed_minutes);
+        $this->assertSame(8, $fresh->actual_setup_minutes);
+        $this->assertSame(30, $fresh->actual_run_minutes);
+    }
+
+    public function test_complete_step_rejects_setup_plus_run_exceeding_elapsed(): void
+    {
+        $step = $this->batch->steps()->orderBy('step_number')->first();
+        $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'started_at' => now()->subMinutes(10)]);
+
+        $this->expectException(\Exception::class);
+        $this->service->completeStep($step, $this->user, [
+            'actual_elapsed_minutes' => 20,
+            'actual_setup_minutes' => 15,
+            'actual_run_minutes' => 10, // 25 > 20
+        ]);
+    }
+
+    public function test_complete_step_rejects_time_split_without_elapsed(): void
+    {
+        $step = $this->batch->steps()->orderBy('step_number')->first();
+        $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'started_at' => now()->subMinutes(10)]);
+
+        $this->expectException(\Exception::class);
+        // Setup/run supplied with no elapsed total → cannot be verified, rejected.
+        $this->service->completeStep($step, $this->user, [
+            'actual_elapsed_minutes' => null,
+            'actual_setup_minutes' => 5,
+            'actual_run_minutes' => null,
+        ]);
+    }
+
     public function test_complete_pending_step_throws(): void
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\BatchStep;
 use App\Models\Customer;
 use App\Models\Line;
@@ -12,6 +13,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkstationState;
 use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -93,7 +95,9 @@ class WorkOrderController extends Controller
                     'name' => $s->name,
                     'status' => $s->status,
                     'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
                     'duration_minutes' => $s->duration_minutes,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes,
                 ])->values(),
             ];
         })->values();
@@ -125,6 +129,11 @@ class WorkOrderController extends Controller
                 'issues' => $issues,
                 'machines' => $this->machinesForWorkOrder($workOrder),
             ],
+            // Pool dispatch (#52): active workstations (with their type) for the
+            // per-step "assign workstation" picker, filtered client-side by type.
+            'workstations' => \App\Models\Workstation::where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'workstation_type_id']),
+            'workstationTypeNames' => \App\Models\WorkstationType::pluck('name', 'id'),
         ]);
     }
 
@@ -227,12 +236,21 @@ class WorkOrderController extends Controller
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
     }
 
-    public function resume(WorkOrder $workOrder)
+    /**
+     * Resume production (#182).
+     *
+     * Goes through the stop service like every other resume path. Flipping the status
+     * here directly would leave an open production stop open forever — blocking the
+     * next stop and inflating downtime — and would let an order held for a
+     * configuration change restart on the old configuration.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
-            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
+        try {
+            $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
