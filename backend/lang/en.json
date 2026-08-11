@@ -5074,7 +5074,5 @@
     "A product line cannot carry a material lot.": "A product line cannot carry a material lot.",
     "That lot belongs to a different material.": "That lot belongs to a different material.",
     "Lot ':lot' already belongs to material ':code'": "Lot ':lot' already belongs to material ':code'",
-    "The PAWS address must be an http:// or https:// URL.": "The PAWS address must be an http:// or https:// URL.",
-    "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.": "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.",
     "Tenant": "Tenant"
 }

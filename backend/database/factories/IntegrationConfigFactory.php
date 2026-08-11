@@ -20,25 +20,4 @@ class IntegrationConfigFactory extends Factory
             'is_active' => true,
         ];
     }
-
-    /**
-     * A configured Datalab Pantheon connection. HTTPS by default — the connector
-     * refuses plain http:// unless the config opts in.
-     *
-     * @param  array<string, mixed>  $config
-     */
-    public function pantheon(array $config = []): static
-    {
-        return $this->state([
-            'system_type' => 'pantheon',
-            'system_name' => 'Datalab Pantheon',
-            'api_config' => [
-                'base_url' => 'https://paws.plant.local',
-                'username' => 'openmes',
-                'password' => 'secret',
-                'company_db' => 'DEMO',
-                ...$config,
-            ],
-        ]);
-    }
 }
