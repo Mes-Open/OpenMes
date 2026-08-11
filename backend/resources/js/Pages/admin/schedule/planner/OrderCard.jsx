@@ -1,6 +1,7 @@
 // Work-order blocks + small atoms, following the OpenMES Schedule design:
 // status-tinted surface, Geist-Mono order numbers, hover-✕ to unschedule.
 import Tooltip from '../../../../components/Tooltip';
+import DueCountdown from '../../../../components/DueCountdown';
 import { __ } from '../../../../lib/i18n';
 import { TIER_BADGE_STYLES, tierLabel } from '../../customers/fields';
 import { statusOf, statusLabel, priorityMeta, fmtQty, shiftColor, MONO } from './helpers';
@@ -90,6 +91,16 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
                 <div className="flex items-center gap-2" style={{ fontFamily: MONO, fontSize: 9.5, color: 'var(--om-faint)' }}>
                     <span>{fmtQty(wo.planned_qty)} {__('pcs')}</span><span>·</span>
                     <span style={{ color: pm.color }}>{__(pm.label)}</span>
+                    {/* How long is left is the reason an order gets pulled out of
+                        the backlog next, so the card says it rather than leaving
+                        the planner to open each one. The red ring already marks
+                        an overdue card; this is what says by how much. */}
+                    {wo.due_date && (
+                        <>
+                            <span>·</span>
+                            <DueCountdown due={wo.due_date} />
+                        </>
+                    )}
                 </div>
             </div>
         );

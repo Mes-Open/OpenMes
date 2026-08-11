@@ -119,6 +119,42 @@ class WorkOrderService
     }
 
     /**
+     * Apply one transition to many selected orders (a list's bulk-action bar).
+     *
+     * Orders the transition is illegal for are skipped rather than failing the
+     * whole request — a selection spanning mixed statuses is the normal case, and
+     * the caller is told how many were skipped. The whole batch is one
+     * transaction, so a mid-way failure leaves nothing half-applied.
+     *
+     * @param  list<int>  $ids
+     * @return string the message to flash back
+     */
+    public static function applyBulkTransition(array $ids, string $action): string
+    {
+        $rule = self::transitions()[$action];
+
+        $orders = WorkOrder::whereIn('id', $ids)->get();
+
+        $eligible = $orders->filter(fn (WorkOrder $w) => in_array($w->status, $rule['from'], true));
+
+        DB::transaction(function () use ($eligible, $rule) {
+            // Updated one by one (not a mass `whereIn(...)->update()`) so model
+            // events still fire — priority re-scoring and the sync broadcast that
+            // pushes each row to the browser both hang off them.
+            $eligible->each(fn (WorkOrder $w) => $w->update(['status' => $rule['to']]));
+        });
+
+        $skipped = $orders->count() - $eligible->count();
+        $message = __($rule['bulk'], ['count' => $eligible->count()]);
+
+        if ($skipped > 0) {
+            $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
+        }
+
+        return $message;
+    }
+
+    /**
      * Create a new work order with process snapshot.
      *
      * @throws \Exception

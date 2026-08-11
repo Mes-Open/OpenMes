@@ -4,6 +4,7 @@ import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import Tooltip from '../../../components/Tooltip';
+import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
@@ -212,15 +213,22 @@ function OrderTable({ orders }) {
             id: 'due',
             accessorFn: (wo) => wo.due_date,
             header: 'Due',
+            // The date says when, the countdown under it says how far away —
+            // and carries the urgency in its colour, so the ⚠ that used to mark
+            // an overdue row is now a figure telling you how late it actually is.
             cell: ({ row }) => {
                 const wo = row.original;
-                const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
-                return wo.due_date ? (
-                    <span className={isOverdue ? 'text-om-blocked font-semibold text-sm' : 'text-om-muted text-sm'}>
-                        {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
-                        {isOverdue && ' ⚠'}
+                if (!wo.due_date) return <span className="text-om-faint text-sm">—</span>;
+                return (
+                    <span className="inline-flex flex-col leading-tight text-sm text-om-muted">
+                        <span>{formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}</span>
+                        <DueCountdown
+                            due={wo.due_date}
+                            settled={SETTLED_STATUSES.includes(wo.status)}
+                            className="text-[11px]"
+                        />
                     </span>
-                ) : <span className="text-om-faint text-sm">—</span>;
+                );
             },
         },
         {

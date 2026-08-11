@@ -6,6 +6,7 @@ import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import { __, timeAgo, formatDate } from '../../../lib/i18n';
 import AppDataTable from '../../../components/AppDataTable';
+import DueCountdown from '../../../components/DueCountdown';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -266,7 +267,10 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
                 id: 'overdue',
                 accessorFn: (wo) => wo.due_date ?? '',
                 header: __('Overdue'),
-                cell: ({ row }) => <span className="text-sm text-om-blocked font-semibold">{timeAgo(row.original.due_date)}</span>,
+                // "2 days ago" is how you describe an event; a deadline wants the
+                // size of the overrun, in the same units every other due date on
+                // the site is measured in.
+                cell: ({ row }) => <DueCountdown due={row.original.due_date} className="text-sm font-semibold" />,
             });
         }
         if (showStatus) {

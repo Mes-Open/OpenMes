@@ -4,13 +4,13 @@ import ResourceForm from '../../../components/ResourceForm';
 import { customerFields } from './fields';
 import { __ } from '../../../lib/i18n';
 
-export default function CustomerEdit({ customer }) {
+export default function CustomerEdit({ customer, basePath }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('Edit Customer')} />
             <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Customer')}</h1>
             <ResourceForm
-                action={`/admin/customers/${customer.id}`}
+                action={`${basePath}/${customer.id}`}
                 method="put"
                 fields={customerFields()}
                 initial={{
@@ -22,7 +22,7 @@ export default function CustomerEdit({ customer }) {
                     is_active: !!customer.is_active,
                 }}
                 submitLabel={__('Save Changes')}
-                cancelHref="/admin/customers"
+                cancelHref={basePath}
             />
         </div>
     );

@@ -9,8 +9,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Per the role docs, Supervisors may create and manage work orders. This covers
- * the native /supervisor create path + the orders tab grant.
+ * Per the role docs, Supervisors may create and manage work orders — from their
+ * own section. The admin tree is not theirs: see RoleSectionSeparationTest.
  */
 class SupervisorWorkOrderCreateTest extends TestCase
 {
@@ -25,12 +25,14 @@ class SupervisorWorkOrderCreateTest extends TestCase
         return $user;
     }
 
-    public function test_supervisor_role_grants_the_orders_tab(): void
+    public function test_supervisor_may_manage_orders_without_any_admin_tab(): void
     {
         $supervisor = $this->supervisor();
 
-        $this->assertTrue($supervisor->can('tab:orders'));
+        // The capability is the permission; reaching /admin is a separate
+        // question the role no longer answers yes to.
         $this->assertTrue($supervisor->can('create work orders'));
+        $this->assertFalse($supervisor->can('tab:orders'));
     }
 
     public function test_supervisor_can_open_the_create_form(): void
@@ -64,11 +66,13 @@ class SupervisorWorkOrderCreateTest extends TestCase
             ->assertSessionHasErrors(['order_no', 'planned_qty']);
     }
 
-    public function test_supervisor_can_access_the_admin_orders_pages_via_tab(): void
+    public function test_supervisor_is_refused_the_admin_orders_pages(): void
     {
+        // Orders live at /supervisor/work-orders for this role; the admin copy
+        // is gated by tab:orders, which a supervisor is no longer granted.
         $this->actingAs($this->supervisor())
             ->get('/admin/work-orders/create')
-            ->assertOk();
+            ->assertForbidden();
     }
 
     public function test_guest_cannot_create_work_orders(): void

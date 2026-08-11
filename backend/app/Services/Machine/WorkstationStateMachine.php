@@ -7,6 +7,7 @@ use App\Models\DowntimeReason;
 use App\Models\ProductionDowntime;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
+use App\Support\ShiftWindow;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -97,10 +98,18 @@ class WorkstationStateMachine
 
         $reason = $this->autoReasonFor($state);
 
+        // An unplanned stop the machine reported is a fact without an
+        // explanation: the AUTO-* reason keeps OEE arithmetic honest, but the
+        // row is flagged so the shift monitor asks a human what happened.
+        // Planned states (cleaning, maintenance) are self-explanatory.
+        $unplanned = in_array($state, WorkstationState::LOSS_STATES, true);
+
         ProductionDowntime::create([
             'line_id' => $workstation->line_id,
             'workstation_id' => $workstation->id,
             'downtime_reason_id' => $reason->id,
+            'needs_reason' => $unplanned,
+            'shift_id' => $this->currentShiftId($workstation, $at),
             'started_at' => $at,
             'notes' => __('Auto-recorded from machine state :state', ['state' => $state]),
         ]);
@@ -119,6 +128,15 @@ class WorkstationStateMachine
                 'duration_minutes' => (int) ceil($open->started_at->diffInSeconds($at) / 60),
             ]);
         }
+    }
+
+    /**
+     * The shift this stop falls in, so OEE and the shift monitor can scope it.
+     * Null when the line runs no configured shift at that moment.
+     */
+    private function currentShiftId(Workstation $workstation, Carbon $at): ?int
+    {
+        return ShiftWindow::at($workstation->line_id, $at)?->shift?->id;
     }
 
     /**

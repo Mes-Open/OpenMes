@@ -44,7 +44,7 @@ class TabAccessTest extends TestCase
 
     public function test_supervisor_without_grant_is_forbidden(): void
     {
-        // Supervisor holds tab:orders by default, but not other tabs.
+        // Supervisor is granted no tabs by default — /admin is the admin's.
         $this->actingAs($this->supervisor)->get('/admin/sites')->assertForbidden();
         $this->actingAs($this->supervisor)->get('/admin/users')->assertForbidden();
     }
@@ -58,7 +58,14 @@ class TabAccessTest extends TestCase
         $this->assertSame('orders', TabRegistry::tabForPath('/admin/customers'));
         $this->assertSame('orders', TabRegistry::tabForPath('/admin/priority-rules'));
 
-        // Supervisor holds tab:orders by default → both are now reachable (was 403).
+        // Both sit behind that one tab: refused without it, reachable with it.
+        // (Supervisors are not granted it — they have /supervisor/customers and
+        // /supervisor/priority-rules instead.)
+        $this->actingAs($this->supervisor)->get('/admin/customers')->assertForbidden();
+
+        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
         $this->actingAs($this->supervisor)->get('/admin/customers')->assertOk();
         $this->actingAs($this->supervisor)->get('/admin/priority-rules')->assertOk();
     }

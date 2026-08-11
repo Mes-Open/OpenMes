@@ -54,6 +54,13 @@ const LIGHT = {
     rejected: '#A32D2D',
     rejectedBg: '#FCEBEB',
 
+    // Timeline colours (shift monitor): the empty gutter a state bar sits in,
+    // a stop whose cause is known (deeper than `blocked`, which means the stop
+    // is still waiting on one), and planned time that is not a loss.
+    track: '#EFEDE8',
+    deep: '#A8301F',
+    planned: '#DCDAD3',
+
     // Overlay scrim
     scrim: 'rgba(10, 9, 8, 0.4)',
 
@@ -98,6 +105,9 @@ const DARK: typeof LIGHT = {
     maintBg: 'rgba(169, 142, 224, 0.15)',
     rejected: '#E0665E',
     rejectedBg: 'rgba(224, 102, 94, 0.16)',
+    track: '#0A0908',
+    deep: '#7E2118',
+    planned: '#3A3833',
 
     scrim: 'rgba(0, 0, 0, 0.6)',
     focusRing: 'rgba(242, 99, 47, 0.18)',

@@ -5,6 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import PageTitle from '../../../components/PageTitle';
 import useConfirm from '../../../components/useConfirm';
+import DueCountdown from '../../../components/DueCountdown';
 import { woStatusBadge } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
 import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
@@ -368,6 +369,11 @@ export default function AdminWorkOrderShow() {
                                         <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
+                                        <DueCountdown
+                                            due={workOrder.due_date}
+                                            settled={TERMINAL.includes(status)}
+                                            className="text-[11px]"
+                                        />
                                     </div>
                                 )}
                                 {workOrder.description && (

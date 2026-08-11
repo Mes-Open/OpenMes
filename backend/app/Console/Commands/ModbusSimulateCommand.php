@@ -10,22 +10,39 @@ use Illuminate\Console\Command;
  *
  * Register map (holding & input registers share the same backing store):
  *   0 → state        (1=RUNNING, 2=IDLE, 3=FAULT)
- *   1 → good counter (increments each second while RUNNING)
+ *   1 → good counter (cumulative, wraps at 16 bits like a real PLC)
  *   2 → reject counter
  *   3 → temperature  (telemetry, °C ×10)
  *
- * The machine cycles RUNNING → IDLE → RUNNING → FAULT … on a timer.
+ * The machine walks a scripted timeline: running at rate, running *below* rate,
+ * idle, and faulted. The reduced-rate phase matters — the shift monitor derives
+ * "speed loss" by comparing the counter feed against the station's nameplate
+ * rate, so a simulator that only ever runs flat-out or stops can never exercise
+ * that half of the screen.
  *
- *   php artisan modbus:simulate --port=5020
+ *   php artisan modbus:simulate --port=5020 --rate=1200 --seed=2
  */
 class ModbusSimulateCommand extends Command
 {
-    protected $signature = 'modbus:simulate {--port=5020} {--host=0.0.0.0}';
+    protected $signature = 'modbus:simulate
+                            {--port=5020}
+                            {--host=0.0.0.0}
+                            {--rate=1200 : good parts per hour while running at nameplate}
+                            {--seed= : decorrelates replicas so stations do not move in lockstep}';
 
     protected $description = 'Run a simulated Modbus TCP machine (for testing the poller)';
 
     /** @var array<int,int> holding/input registers */
     private array $reg = [0 => 1, 1 => 0, 2 => 0, 3 => 220];
+
+    /**
+     * Parts produced so far, kept as a float because a realistic rate is a
+     * fraction of a part per tick — 1200/hour is one part every three seconds,
+     * and truncating each tick would silently produce nothing at all.
+     */
+    private float $produced = 0.0;
+
+    private float $rejected = 0.0;
 
     public function handle(): int
     {
@@ -41,11 +58,25 @@ class ModbusSimulateCommand extends Command
         stream_set_blocking($server, false);
         $this->info("Modbus simulator listening on {$host}:{$port} (Ctrl+C to stop)");
 
+        $ratePerHour = max(1, (int) $this->option('rate'));
+        if ($this->option('seed') !== null) {
+            mt_srand((int) $this->option('seed'));
+        }
+
         $clients = [];
         $lastTick = microtime(true);
-        // Scripted state timeline (state, seconds)
-        $script = [[1, 15], [2, 5], [1, 20], [3, 8], [1, 15], [2, 4]];
-        $phase = 0;
+        // Scripted timeline: [state, seconds, share of nameplate rate].
+        // State 1 twice over at different shares is deliberate — a machine that
+        // is on but underperforming is the case the monitor calls speed loss.
+        $script = [
+            [1, 240, 1.0],   // running at rate
+            [1, 90, 0.6],    // running slow
+            [2, 60, 0.0],    // idle
+            [1, 300, 1.0],   // running at rate
+            [3, 120, 0.0],   // fault
+            [1, 180, 0.95],  // running, near rate
+        ];
+        $phase = (int) ($this->option('seed') ?? 0) % count($script);
         $phaseElapsed = 0.0;
 
         while (true) {
@@ -85,21 +116,30 @@ class ModbusSimulateCommand extends Command
             if ($dt >= 1.0) {
                 $lastTick = $now;
                 $phaseElapsed += $dt;
-                [$state, $duration] = $script[$phase];
+                [$state, $duration, $share] = $script[$phase];
                 $this->reg[0] = $state;
-                if ($state === 1) {            // RUNNING
-                    $this->reg[1] += 2;        // good parts
-                    if (random_int(1, 10) === 1) {
-                        $this->reg[2] += 1;    // occasional reject
-                    }
-                    $this->reg[3] = 220 + random_int(-5, 15);
+
+                if ($state === 1) {
+                    // Jitter so consecutive minutes are not identical; the
+                    // monitor buckets per minute and a flat feed looks synthetic.
+                    $effective = $share * (mt_rand(92, 108) / 100);
+                    $this->produced += $ratePerHour / 3600 * $dt * $effective;
+                    $this->rejected += $ratePerHour / 3600 * $dt * $effective * 0.02;
+
+                    $this->reg[1] = ((int) $this->produced) & 0xFFFF;
+                    $this->reg[2] = ((int) $this->rejected) & 0xFFFF;
+                    $this->reg[3] = 220 + mt_rand(-5, 15);
                 }
+
                 if ($phaseElapsed >= $duration) {
                     $phaseElapsed = 0;
                     $phase = ($phase + 1) % count($script);
                 }
                 $label = [1 => 'RUNNING', 2 => 'IDLE', 3 => 'FAULT'][$this->reg[0]];
-                $this->line(sprintf('[sim] state=%s good=%d reject=%d temp=%.1f', $label, $this->reg[1], $this->reg[2], $this->reg[3] / 10));
+                $this->line(sprintf(
+                    '[sim] state=%-7s share=%3d%% good=%d reject=%d temp=%.1f',
+                    $label, (int) ($share * 100), $this->reg[1], $this->reg[2], $this->reg[3] / 10,
+                ));
             }
         }
 

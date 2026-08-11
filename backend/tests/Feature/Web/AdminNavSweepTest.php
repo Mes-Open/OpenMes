@@ -78,21 +78,10 @@ class AdminNavSweepTest extends TestCase
         $supervisor = User::factory()->create();
         $supervisor->assignRole('Supervisor');
 
-        // Supervisor holds only tab:orders by default → orders is reachable,
-        // every other tab is forbidden.
-        foreach (self::PAGES as $tab => $pages) {
-            if ($tab === 'orders') {
-                $this->actingAs($supervisor)->get($pages[0])->assertOk();
-
-                continue;
-            }
-            if ($tab === 'dashboard') {
-                // The dashboard is the admin home: a user who can open another
-                // tab is redirected there, not hard-403'd (TabAccessMiddleware).
-                $this->actingAs($supervisor)->get($pages[0])->assertRedirect();
-
-                continue;
-            }
+        // A supervisor is granted no tabs: their section is /supervisor, and
+        // /admin is the admin's. So every admin page is refused, the dashboard
+        // included — there is no other tab to be redirected to.
+        foreach (self::PAGES as $pages) {
             $this->actingAs($supervisor)->get($pages[0])->assertForbidden();
         }
 

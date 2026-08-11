@@ -4,6 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, StatusPill, Stepper } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
+import DueCountdown from '../../../components/DueCountdown';
 import { __, formatDate, formatNumber, timeAgo } from '../../../lib/i18n';
 import PageTrail from '../../../components/PageTrail';
 
@@ -396,6 +397,11 @@ export default function SupervisorWorkOrderShow() {
                                         <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
+                                        <DueCountdown
+                                            due={workOrder.due_date}
+                                            settled={TERMINAL.includes(status)}
+                                            className="text-[11px]"
+                                        />
                                     </div>
                                 )}
                                 {workOrder.description && (

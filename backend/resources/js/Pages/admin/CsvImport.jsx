@@ -23,6 +23,7 @@ export default function CsvImport() {
         productionPeriod = 'none',
         import_result: importResult = null,
         csrf_token: csrfToken,
+        basePath,
     } = usePage().props;
 
     const [dragging, setDragging] = useState(false);
@@ -111,7 +112,7 @@ export default function CsvImport() {
                     <h2 className="text-xl font-bold text-om-ink mb-4">{__('Upload File')}</h2>
                     <form
                         method="POST"
-                        action="/admin/csv-import/upload"
+                        action={`${basePath}/upload`}
                         encType="multipart/form-data"
                     >
                         <input type="hidden" name="_token" value={csrfToken} />
@@ -319,7 +320,7 @@ export default function CsvImport() {
                                         {!m.is_default && (
                                             <form
                                                 method="POST"
-                                                action={`/admin/csv-import/mappings/${m.id}`}
+                                                action={`${basePath}/mappings/${m.id}`}
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />

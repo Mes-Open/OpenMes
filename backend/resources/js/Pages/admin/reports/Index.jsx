@@ -31,7 +31,7 @@ function fmtDuration(min) {
 }
 
 export default function ReportsIndex() {
-    const { orders, summary = {}, filters = {}, lines = [], productTypes = [], statusOptions = [], presets = [] } =
+    const { orders, summary = {}, filters = {}, lines = [], productTypes = [], statusOptions = [], presets = [], basePath } =
         usePage().props;
 
     const [form, setForm] = useState({
@@ -49,7 +49,7 @@ export default function ReportsIndex() {
         Object.keys(params).forEach((k) => {
             if (params[k] === '' || params[k] == null) delete params[k];
         });
-        router.get('/admin/reports', params, { preserveState: false, preserveScroll: true });
+        router.get(basePath, params, { preserveState: false, preserveScroll: true });
     };
 
     const setPreset = (preset) => {
@@ -57,7 +57,7 @@ export default function ReportsIndex() {
         apply({ preset });
     };
 
-    const clear = () => router.get('/admin/reports', {}, { preserveState: false });
+    const clear = () => router.get(basePath, {}, { preserveState: false });
 
     const exportUrl = () => {
         const p = new URLSearchParams();
@@ -65,7 +65,7 @@ export default function ReportsIndex() {
             if (v) p.set(k, v);
         });
         const qs = p.toString();
-        return `/admin/reports/export${qs ? '?' + qs : ''}`;
+        return `${basePath}/export${qs ? '?' + qs : ''}`;
     };
 
     const goPage = (page) => apply({ page });
@@ -84,7 +84,7 @@ export default function ReportsIndex() {
                     const r = row.original;
                     return (
                         <span className="font-medium text-om-accent">
-                            <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
+                            <Link href={`${basePath}/${r.id}`} onClick={(e) => e.stopPropagation()}>
                                 {r.order_no}
                             </Link>
                         </span>
@@ -325,7 +325,7 @@ export default function ReportsIndex() {
                     columns={columns}
                     paginated={false}
                     emptyLabel={__('No orders match the current filters.')}
-                    onRowClick={(r) => router.visit(`/admin/reports/${r.id}`)}
+                    onRowClick={(r) => router.visit(`${basePath}/${r.id}`)}
                 />
 
                 {/* Pagination */}

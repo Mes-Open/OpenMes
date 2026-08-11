@@ -56,6 +56,10 @@ class AppServiceProvider extends ServiceProvider
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 
+        // Reverb push for the live shift monitor: machine state, counters and
+        // stops nudge their workstation's channel so the page re-fetches.
+        \App\Sync\ShiftMonitorBroadcaster::boot();
+
         // unique:/exists: validation ignores soft-deleted rows on tables in
         // SoftDeleteRegistry (one hook instead of per-rule whereNull clauses).
         $this->app['validator']->setPresenceVerifier(

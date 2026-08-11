@@ -8,7 +8,7 @@ import { TIER_BADGE_STYLES, tierLabel, customerFields, CUSTOMER_INITIAL } from '
 import { __ } from '../../../lib/i18n';
 
 export default function CustomersIndex() {
-    const { counts = {} } = usePage().props;
+    const { counts = {}, basePath } = usePage().props;
     const [creating, setCreating] = useState(false);
     const [formKey, setFormKey] = useState(0);
 
@@ -33,10 +33,10 @@ export default function CustomersIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), href: `/admin/customers/${r.id}/edit` },
+        { label: __('Edit'), href: `${basePath}/${r.id}/edit` },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
-            onClick: () => router.post(`/admin/customers/${r.id}/toggle-active`, {}, { preserveScroll: true }),
+            onClick: () => router.post(`${basePath}/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: __('Delete'),
@@ -45,7 +45,7 @@ export default function CustomersIndex() {
                 title: __('Delete customer ":name"?', { name: r.name }),
                 confirmLabel: __('Delete'),
             },
-            onClick: () => router.delete(`/admin/customers/${r.id}`, { preserveScroll: true }),
+            onClick: () => router.delete(`${basePath}/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -55,7 +55,7 @@ export default function CustomersIndex() {
             <ResourceTable
                 shape="customers"
                 title={__('Customers')}
-                createHref="/admin/customers/create"
+                createHref={`${basePath}/create`}
                 onCreate={() => setCreating(true)}
                 createLabel={__('New Customer')}
                 columns={columns}
@@ -83,7 +83,7 @@ export default function CustomersIndex() {
                     explicit Cancel — so neither lingers into the next one. */}
                 <ResourceForm
                     key={formKey}
-                    action="/admin/customers"
+                    action={basePath}
                     method="post"
                     fields={customerFields()}
                     initial={{ ...CUSTOMER_INITIAL, stay: 1 }}

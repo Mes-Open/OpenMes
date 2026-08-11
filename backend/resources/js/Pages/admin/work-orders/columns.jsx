@@ -1,5 +1,6 @@
 import { SegmentedProgress, StatusBadge } from '@openmes/ui';
 
+import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
 import { WO_STATUSES, woStatusBadge, woStatusLabel } from './fields';
 import { __, elapsed, formatDateTime } from '../../../lib/i18n';
 
@@ -100,7 +101,24 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
             label: __('Due'),
             className: 'text-om-muted',
             filter: 'date',
-            render: (r) => (r.due_date ? r.due_date.slice(0, 10) : '—'),
+            // The date alone answers "when", which is only half of what a
+            // deadline is for — the reader still has to work out how far away it
+            // is, on every row, to find the ones that need attention today. The
+            // countdown under it does that arithmetic, and carries the urgency in
+            // its colour: red once the deadline has passed, amber inside the last
+            // day, muted while there is still time.
+            live: true,
+            render: (r, now) => (r.due_date ? (
+                <span className="inline-flex flex-col leading-tight">
+                    <span>{r.due_date.slice(0, 10)}</span>
+                    <DueCountdown
+                        due={r.due_date}
+                        now={now}
+                        settled={SETTLED_STATUSES.includes(r.status)}
+                        className="text-[11px]"
+                    />
+                </span>
+            ) : '—'),
         },
         {
             key: 'created_at',

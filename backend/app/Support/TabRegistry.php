@@ -71,6 +71,10 @@ class TabRegistry
             '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
         ]],
+        // Its own tab rather than a corner of Maintenance: the shift monitor is
+        // the screen a supervisor lives on, and they have no reason to reach the
+        // rest of that area.
+        'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview']],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
@@ -98,10 +102,15 @@ class TabRegistry
             return [];
         }
 
+        // The enabled set is read once, not once per tab: ModuleRegistry::enabled()
+        // hits system_settings on every call and this runs over ~20 keys.
+        $optional = ModuleRegistry::optionalKeys();
+        $enabled = ModuleRegistry::enabled();
+
         return array_values(array_filter(
             self::keys(),
             fn (string $key) => $user->can(self::permission($key))
-                && ModuleRegistry::isTabEnabled($key),
+                && (! in_array($key, $optional, true) || in_array($key, $enabled, true)),
         ));
     }
 

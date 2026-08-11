@@ -8,6 +8,7 @@ use App\Models\ProductionDowntime;
 use App\Models\Shift;
 use App\Models\User;
 use App\Services\Quality\QualityTriggerService;
+use App\Support\ShiftWindow;
 use Carbon\Carbon;
 
 class DowntimeService
@@ -65,16 +66,13 @@ class DowntimeService
      */
     public function getLossMinutes(int $lineId, Carbon $date, ?int $shiftId = null): int
     {
-        $query = ProductionDowntime::where('line_id', $lineId)
-            ->whereDate('started_at', $date)
-            ->whereHas('reason', fn ($q) => $q->whereIn('kind', DowntimeKind::lossKinds()))
-            ->whereNotNull('duration_minutes');
-
-        if ($shiftId) {
-            $query->where('shift_id', $shiftId);
-        }
-
-        return (int) $query->sum('duration_minutes');
+        return (int) $this->scopeToShift(
+            ProductionDowntime::where('line_id', $lineId)
+                ->whereHas('reason', fn ($q) => $q->whereIn('kind', DowntimeKind::lossKinds()))
+                ->whereNotNull('duration_minutes'),
+            $date,
+            $shiftId,
+        )->sum('duration_minutes');
     }
 
     /**
@@ -82,16 +80,38 @@ class DowntimeService
      */
     public function getPlannedMinutes(int $lineId, Carbon $date, ?int $shiftId = null): int
     {
-        $query = ProductionDowntime::where('line_id', $lineId)
-            ->whereDate('started_at', $date)
-            ->whereHas('reason', fn ($q) => $q->where('kind', DowntimeKind::Planned->value))
-            ->whereNotNull('duration_minutes');
+        return (int) $this->scopeToShift(
+            ProductionDowntime::where('line_id', $lineId)
+                ->whereHas('reason', fn ($q) => $q->where('kind', DowntimeKind::Planned->value))
+                ->whereNotNull('duration_minutes'),
+            $date,
+            $shiftId,
+        )->sum('duration_minutes');
+    }
 
-        if ($shiftId) {
-            $query->where('shift_id', $shiftId);
+    /**
+     * Narrow a downtime query to one shift occurrence, or to a calendar day when
+     * no shift is given.
+     *
+     * A night shift is two dates. Filtering it by `whereDate('started_at')` puts
+     * the hours after midnight on the following day's record — so a fault at
+     * 01:30 would be charged to the next occurrence of the same shift, and the
+     * night it actually happened would read clean. Scoping to the occurrence's
+     * real start and end keeps every stop with the shift that was running.
+     */
+    private function scopeToShift($query, Carbon $date, ?int $shiftId)
+    {
+        $shift = $shiftId ? Shift::find($shiftId) : null;
+
+        if (! $shift) {
+            return $query->whereDate('started_at', $date);
         }
 
-        return (int) $query->sum('duration_minutes');
+        $window = ShiftWindow::startingOn($shift, $date);
+
+        return $query->where('shift_id', $shift->id)
+            ->where('started_at', '>=', $window->start)
+            ->where('started_at', '<', $window->end);
     }
 
     /**
@@ -125,14 +145,17 @@ class DowntimeService
             ->toArray();
     }
 
+    /**
+     * The shift this line is running right now.
+     *
+     * Was a `start_time <= now AND end_time >= now` query, which can never match
+     * an overnight shift (22:00 is not <= 01:30), ignored `days_of_week`, and
+     * ignored plant-wide shifts. Every stop reported during a night therefore
+     * carried no shift at all — and since the per-shift queries filter on
+     * `shift_id`, those stops fell out of OEE entirely.
+     */
     private function findCurrentShiftId(Line $line): ?int
     {
-        $now = now()->format('H:i:s');
-
-        return Shift::where('line_id', $line->id)
-            ->where('is_active', true)
-            ->where('start_time', '<=', $now)
-            ->where('end_time', '>=', $now)
-            ->value('id');
+        return ShiftWindow::at($line->id, now())?->shift?->id;
     }
 }

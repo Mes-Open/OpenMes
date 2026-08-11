@@ -55,6 +55,7 @@ export default function CsvImportMapping() {
         prevMapping = null,
         mappingError = null,
         csrf_token: csrfToken,
+        basePath,
     } = usePage().props;
 
     const initialPrev = prevMapping ?? existingMapping?.mapping_config?.column_mappings ?? null;
@@ -135,7 +136,7 @@ export default function CsvImportMapping() {
                         Strategy: <span className="font-medium">{importStrategy.replace(/_/g, ' ')}</span>
                     </p>
                 </div>
-                <Link href="/admin/csv-import" className="btn-touch btn-secondary text-sm">
+                <Link href={basePath} className="btn-touch btn-secondary text-sm">
                     &larr; {__('Back')}
                 </Link>
             </div>
@@ -150,7 +151,7 @@ export default function CsvImportMapping() {
 
             <form
                 method="POST"
-                action="/admin/csv-import/process"
+                action={`${basePath}/process`}
                 ref={formRef}
                 onSubmit={handleSubmit}
             >

@@ -150,6 +150,54 @@ export function elapsed(from, now = Date.now()) {
     return `${Math.floor(day / 365)}y`;
 }
 
+/**
+ * Time left until a deadline, as the two units that matter at that distance:
+ * days + hours while it is more than a day out, hours + minutes once it is
+ * inside the last day — which is what a deadline falling today looks like.
+ * Unit suffixes follow `elapsed`'s language-neutral style; only "overdue" is
+ * translated.
+ *
+ * A deadline stored at exactly midnight is a *date*, not an instant — the form
+ * that sets it only offers a day — so it falls due at the END of that day.
+ * Counting to 00:00 instead would report an order due today as already late,
+ * every time. A value that carries a real time of day is used as it stands.
+ *
+ * Day-only deadlines are read in the same frame the cell above them prints
+ * (the timestamp's own date part), so the countdown and the date can't disagree
+ * about which day is meant.
+ *
+ * `now` is injectable for a live tick and for deterministic tests.
+ *
+ * @returns {{label: string, overdue: boolean, soon: boolean}|null} null when
+ *          there is no deadline or the value can't be read.
+ */
+export function countdown(due, now = Date.now()) {
+    if (!due) return null;
+
+    const iso = due instanceof Date ? due.toISOString() : String(due);
+    const dayOnly = iso.length <= 10 || iso.slice(11, 16) === '00:00';
+    const at = dayOnly
+        ? new Date(`${iso.slice(0, 10)}T23:59:59.999Z`)
+        : new Date(due);
+    if (Number.isNaN(at.getTime())) return null;
+
+    const ms = at.getTime() - now;
+    const overdue = ms < 0;
+
+    const min = Math.floor(Math.abs(ms) / 60_000);
+    const days = Math.floor(min / 1440);
+    const hours = Math.floor((min % 1440) / 60);
+    const mins = min % 60;
+
+    // The smaller unit is dropped when it is zero rather than printed as "0h":
+    // "3d" says the same thing as "3d 0h" in less space.
+    const label = days > 0
+        ? (hours > 0 ? `${days}d ${hours}h` : `${days}d`)
+        : (hours > 0 ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`) : `${mins}m`);
+
+    return { label, overdue, soon: !overdue && days === 0 };
+}
+
 function capitalize(s) {
     s = String(s);
     return s.charAt(0).toUpperCase() + s.slice(1);

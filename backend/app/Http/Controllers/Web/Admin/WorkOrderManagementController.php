@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Models\Customer;
 use App\Models\Line;
-use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
@@ -19,6 +19,8 @@ use Inertia\Inertia;
 
 class WorkOrderManagementController extends Controller
 {
+    use BuildsWorkOrderFormOptions;
+
     public function __construct(protected WorkOrderService $workOrderService) {}
 
     /**
@@ -48,67 +50,6 @@ class WorkOrderManagementController extends Controller
     public function create(CustomFieldService $customFields)
     {
         return Inertia::render('admin/work-orders/Create', $this->createFormOptions($customFields));
-    }
-
-    /**
-     * Everything the work-order create form needs to render its pickers. Shared
-     * by the standalone create page and the list's create modal so the two can't
-     * drift into offering different options.
-     *
-     * @return array<string, mixed>
-     */
-    protected function createFormOptions(CustomFieldService $customFields): array
-    {
-        return [
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'bomTemplates' => $this->bomTemplateOptions(),
-            'productRevisions' => $this->productRevisionOptions(),
-            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
-            'customFields' => $customFields->clientConfig('work_order'),
-        ];
-    }
-
-    /**
-     * Selectable BOMs (process templates) for the work-order forms - every
-     * template a user could pick as a variant/alternative bill of materials,
-     * newest version first. The forms scope the picker to the order's product
-     * type client-side (each option carries its product_type_id).
-     *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    protected function bomTemplateOptions()
-    {
-        return ProcessTemplate::orderBy('product_type_id')
-            ->orderByDesc('version')
-            ->get(['id', 'name', 'version', 'is_active', 'product_type_id'])
-            ->map(fn ($t) => [
-                'id' => $t->id,
-                'name' => $t->name,
-                'version' => $t->version,
-                'is_active' => (bool) $t->is_active,
-                'product_type_id' => $t->product_type_id,
-            ]);
-    }
-
-    /**
-     * Released product revisions (#180) selectable on the work-order forms. Each
-     * option carries its product_type_id so the form can scope it to the order's
-     * product type.
-     *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    protected function productRevisionOptions()
-    {
-        return \App\Models\ProductRevision::selectable()
-            ->orderBy('product_type_id')
-            ->orderBy('revision_code')
-            ->get(['id', 'revision_code', 'product_type_id'])
-            ->map(fn ($r) => [
-                'id' => $r->id,
-                'revision_code' => $r->revision_code,
-                'product_type_id' => $r->product_type_id,
-            ]);
     }
 
     public function store(StoreWorkOrderRequest $request, CustomFieldService $cf)
@@ -323,34 +264,15 @@ class WorkOrderManagementController extends Controller
 
     /**
      * Apply one transition to many selected orders (the list's bulk-action bar).
-     *
-     * Orders the transition is illegal for are skipped rather than failing the
-     * whole request — a selection spanning mixed statuses is the normal case, and
-     * the caller is told how many were skipped. The whole batch is one
-     * transaction, so a mid-way failure leaves nothing half-applied.
+     * The skip-the-ineligible rules live in the service, shared with the
+     * supervisor list so the two can't drift.
      */
     public function bulk(BulkWorkOrderActionRequest $request)
     {
-        $action = $request->validated('action');
-        $rule = WorkOrderService::transitions()[$action];
-
-        $orders = WorkOrder::whereIn('id', $request->validated('ids'))->get();
-
-        $eligible = $orders->filter(fn (WorkOrder $w) => in_array($w->status, $rule['from'], true));
-
-        DB::transaction(function () use ($eligible, $rule) {
-            // Updated one by one (not a mass `whereIn(...)->update()`) so model
-            // events still fire — priority re-scoring and the sync broadcast that
-            // pushes each row to the browser both hang off them.
-            $eligible->each(fn (WorkOrder $w) => $w->update(['status' => $rule['to']]));
-        });
-
-        $skipped = $orders->count() - $eligible->count();
-        $message = __($rule['bulk'], ['count' => $eligible->count()]);
-
-        if ($skipped > 0) {
-            $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
-        }
+        $message = WorkOrderService::applyBulkTransition(
+            $request->validated('ids'),
+            $request->validated('action'),
+        );
 
         return redirect()->back()->with('success', $message);
     }

@@ -6,6 +6,7 @@ import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import Tooltip from '../../components/Tooltip';
+import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
@@ -39,8 +40,18 @@ function getCellValue(wo, col) {
     // field
     if (col.key === 'due_date') {
         if (!wo.due_date) return '—';
-        const d = new Date(wo.due_date);
-        return formatDate(d, { day: '2-digit', month: 'short' });
+        // The date alone leaves the operator counting days off a calendar to see
+        // which order is the urgent one; the countdown under it says so directly.
+        return (
+            <span className="inline-flex flex-col leading-tight">
+                <span>{formatDate(new Date(wo.due_date), { day: '2-digit', month: 'short' })}</span>
+                <DueCountdown
+                    due={wo.due_date}
+                    settled={SETTLED_STATUSES.includes(wo.status)}
+                    className="text-[11px]"
+                />
+            </span>
+        );
     }
     if (col.key === 'week_number') {
         return wo.week_number ? weekLabel(wo.week_number) : '—';
@@ -378,7 +389,10 @@ function InfoModal({ info, onClose }) {
                         </div>
                     </div>
                     <InfoRow label={__("Priority")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
-                    <InfoRow label={__("Due Date")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
+                    <InfoRow label={__("Due Date")}>
+                        <span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span>
+                        {info.dueRaw && <DueCountdown due={info.dueRaw} settled={info.settled} className="ml-2 font-mono text-[12px]" />}
+                    </InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
                             <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
@@ -753,6 +767,10 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                     remaining: fmt(remaining),
                                     priority: wo.priority ?? '-',
                                     dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
+                                    // Raw value too, so the details modal can put
+                                    // the countdown beside the date it prints.
+                                    dueRaw: wo.due_date ?? null,
+                                    settled: SETTLED_STATUSES.includes(wo.status),
                                     description: wo.description ?? '-',
                                 })
                             }

@@ -56,6 +56,12 @@
     --color-om-maint-bg: var(--om-maint-bg);
     --color-om-rejected: var(--om-rejected);
     --color-om-rejected-bg: var(--om-rejected-bg);
+    /* Timeline colours (shift monitor): the empty gutter a state bar sits in,
+       a classified stop (deeper than --om-blocked, which means "needs a
+       cause"), and planned/scheduled time that is not a loss. */
+    --color-om-track: var(--om-track);
+    --color-om-deep: var(--om-deep);
+    --color-om-planned: var(--om-planned);
 
     --radius-om: 12px;
     --radius-om-sm: 8px;
@@ -82,6 +88,20 @@
         }
         50% {
             opacity: 0.3;
+        }
+    }
+
+    /* Swelling "?" badge on a stop nobody has given a cause yet (shift monitor).
+       Scale rather than opacity: it has to read as demanding an answer, and it
+       sits on a bar small enough that fading would lose it. */
+    --animate-om-blink: om-blink 1.4s infinite;
+    @keyframes om-blink {
+        0%,
+        100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.16);
         }
     }
 }
@@ -125,6 +145,9 @@
        one is an obstacle, and the two sit next to each other in status lists. */
     --om-rejected: #a32d2d;
     --om-rejected-bg: #fcebeb;
+    --om-track: #efede8;
+    --om-deep: #a8301f;
+    --om-planned: #dcdad3;
 }
 
 /* Dark token values (design ref: OpenMES Components.dc.html — themes.dark). */
@@ -162,6 +185,9 @@ html.dark {
     --om-maint-bg: rgba(169, 142, 224, 0.15);
     --om-rejected: #e0665e;
     --om-rejected-bg: rgba(224, 102, 94, 0.16);
+    --om-track: #0a0908;
+    --om-deep: #7e2118;
+    --om-planned: #3a3833;
 }
 
 /* Custom styles for touch-optimized UI */

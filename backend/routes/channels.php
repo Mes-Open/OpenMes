@@ -30,3 +30,20 @@ Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant,
     // screens move onto Reverb.
     return $user->hasAnyRole(['Admin', 'Supervisor']);
 });
+
+/**
+ * Live shift monitor — one private channel per workstation, carrying the nudge
+ * that its shift changed (ShiftMonitorChanged).
+ *
+ * Same audience as the screen itself: the monitor is reachable by Admin and
+ * Supervisor, so subscribing to a station's channel must be too. The nudge
+ * carries no production data, but the snapshot it prompts does, and that fetch
+ * is authorized separately by the route.
+ */
+Broadcast::channel('shift-monitor.{workstation}', function ($user, string $workstation) {
+    if (! $user || ! ctype_digit($workstation)) {
+        return false;
+    }
+
+    return $user->hasAnyRole(['Admin', 'Supervisor']);
+});

@@ -20,7 +20,7 @@ class BulkWorkOrderActionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // route is already behind the admin role middleware
+        return true; // both routes using this are behind Admin/Supervisor role middleware
     }
 
     public function rules(): array

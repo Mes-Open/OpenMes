@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import DueCountdown from '../../../components/DueCountdown';
 import { __ } from '../../../lib/i18n';
 
 export default function MaintenanceSchedulesIndex() {
@@ -22,7 +23,16 @@ export default function MaintenanceSchedulesIndex() {
             key: 'next_due_at', filter: 'date',
             label: __('Next Due'),
             className: 'text-om-muted',
-            render: (r) => (r.next_due_at ? r.next_due_at.slice(0, 16).replace('T', ' ') : '—'),
+            // How soon the next service falls due is the whole point of this
+            // column — the timestamp alone makes you work it out per row.
+            // An inactive schedule is muted: it isn't going to fire.
+            live: true,
+            render: (r, now) => (r.next_due_at ? (
+                <span className="inline-flex flex-col leading-tight">
+                    <span>{r.next_due_at.slice(0, 16).replace('T', ' ')}</span>
+                    <DueCountdown due={r.next_due_at} now={now} settled={!r.is_active} className="text-[11px]" />
+                </span>
+            ) : '—'),
         },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

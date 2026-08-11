@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\ProductType;
@@ -21,6 +22,8 @@ use Inertia\Inertia;
  */
 class ReportController extends Controller
 {
+    use ServesBothSections;
+
     /** Date-range presets applied to completed_at. */
     private const PRESETS = ['today', 'yesterday', 'last7', 'last30', 'this_month', 'last_month', 'custom', 'all'];
 
@@ -43,6 +46,7 @@ class ReportController extends Controller
             ->through(fn (WorkOrder $wo) => $this->listRow($wo));
 
         return Inertia::render('admin/reports/Index', [
+            'basePath' => $this->basePath('/reports'),
             'orders' => $orders,
             'summary' => $this->summary($filters),
             'filters' => $filters,
@@ -75,6 +79,7 @@ class ReportController extends Controller
         ]);
 
         return Inertia::render('admin/reports/Show', [
+            'basePath' => $this->basePath('/reports'),
             'workOrder' => $this->detail($workOrder),
         ]);
     }

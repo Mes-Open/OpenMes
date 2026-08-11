@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\PriorityBandsRequest;
 use App\Http\Requests\Web\Admin\PriorityRuleRequest;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class PriorityRuleController extends Controller
 {
+    use ServesBothSections;
+
     /**
      * Priority Settings page: the rules table live-syncs via the `priority_rules`
      * shape; the score→priority band thresholds come as a prop.
@@ -19,13 +22,16 @@ class PriorityRuleController extends Controller
     public function index()
     {
         return Inertia::render('admin/priority-rules/Index', [
+            'basePath' => $this->basePath('/priority-rules'),
             'bands' => PriorityBandRegistry::bands(),
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('admin/priority-rules/Create');
+        return Inertia::render('admin/priority-rules/Create', [
+            'basePath' => $this->basePath('/priority-rules'),
+        ]);
     }
 
     public function store(PriorityRuleRequest $request)
@@ -34,13 +40,14 @@ class PriorityRuleController extends Controller
         PriorityRule::create($data);
         $this->recalculate();
 
-        return redirect()->route('admin.priority-rules.index')
+        return redirect()->to($this->sectionRoute('priority-rules.index'))
             ->with('success', __('Priority rule created successfully.'));
     }
 
     public function edit(PriorityRule $priorityRule)
     {
         return Inertia::render('admin/priority-rules/Edit', [
+            'basePath' => $this->basePath('/priority-rules'),
             'priorityRule' => $priorityRule->only(
                 'id', 'name', 'field_source', 'condition_type',
                 'condition_value', 'condition_value_max', 'points', 'is_active', 'sort_order'
@@ -53,7 +60,7 @@ class PriorityRuleController extends Controller
         $priorityRule->update($this->normalize($request));
         $this->recalculate();
 
-        return redirect()->route('admin.priority-rules.index')
+        return redirect()->to($this->sectionRoute('priority-rules.index'))
             ->with('success', __('Priority rule updated successfully.'));
     }
 
@@ -62,7 +69,7 @@ class PriorityRuleController extends Controller
         $priorityRule->delete();
         $this->recalculate();
 
-        return redirect()->route('admin.priority-rules.index')
+        return redirect()->to($this->sectionRoute('priority-rules.index'))
             ->with('success', __('Priority rule deleted successfully.'));
     }
 
@@ -73,7 +80,7 @@ class PriorityRuleController extends Controller
 
         $status = $priorityRule->is_active ? __('activated') : __('deactivated');
 
-        return redirect()->route('admin.priority-rules.index')
+        return redirect()->to($this->sectionRoute('priority-rules.index'))
             ->with('success', __('Priority rule :status successfully.', ['status' => $status]));
     }
 
@@ -83,7 +90,7 @@ class PriorityRuleController extends Controller
         PriorityBandRegistry::save($request->validated()['bands']);
         $this->recalculate();
 
-        return redirect()->route('admin.priority-rules.index')
+        return redirect()->to($this->sectionRoute('priority-rules.index'))
             ->with('success', __('Priority bands updated successfully.'));
     }
 

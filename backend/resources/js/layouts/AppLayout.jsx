@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
+import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 import Tooltip from '../components/Tooltip';
 import { ToastProvider } from '@openmes/ui';
@@ -67,7 +68,7 @@ export function dedupeTrail(items) {
     return items.filter((item, i) => i === 0 || item.label !== items[i - 1].label);
 }
 
-function navTrailFor(path, groups, links = ADMIN_LINKS) {
+function navTrailFor(path, groups, links) {
     let best = null;
 
     const consider = (node, chain) => {
@@ -108,12 +109,43 @@ function navTrailFor(path, groups, links = ADMIN_LINKS) {
         icon: node.lucide ?? ICON_LUCIDE[node.icon],
     }));
 
-    // Every trail starts at the dashboard, matching the list pages' own.
-    const root = links.find((l) => l.href === '/admin/dashboard');
+    // Every trail starts at the section's dashboard, matching the list pages' own.
+    const root = navRoot(links);
     if (root && items[0]?.href !== root.href) {
         items.unshift({ label: __(root.label), href: root.href, icon: root.lucide ?? ICON_LUCIDE[root.icon] });
     }
     return dedupeTrail(items);
+}
+
+/**
+ * Drop entries whose optional feature module this install has switched off, and
+ * any group left empty by that.
+ *
+ * The admin tree gets this for free — its entries carry tab keys, and
+ * TabRegistry already consults ModuleRegistry. The supervisor tree is gated by
+ * role instead, so it states the module on the entry and is filtered here,
+ * matching the `module:` middleware on the routes themselves.
+ */
+function withEnabledModules(nodes, enabledModules) {
+    if (! Array.isArray(enabledModules)) {
+        return nodes;
+    }
+
+    return nodes
+        .filter((node) => ! node.module || enabledModules.includes(node.module))
+        .map((node) => (node.children
+            ? { ...node, children: withEnabledModules(node.children, enabledModules) }
+            : node))
+        .filter((node) => ! node.children || node.children.length > 0);
+}
+
+/**
+ * A nav tree's home: /admin/dashboard for an admin, /supervisor/dashboard for a
+ * supervisor. Derived rather than declared, so a third section can't set one and
+ * forget the other.
+ */
+function navRoot(links) {
+    return links.find((link) => link.href?.endsWith('/dashboard'));
 }
 
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
@@ -165,6 +197,47 @@ function mergeModuleNav(moduleNav) {
 /** Marks every element a page's heading is portaled into (one per breakpoint). */
 export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
 
+/**
+ * The menu a user gets. Admins and supervisors have separate route trees, so
+ * they get separate menus — pointing a supervisor at `/admin` would only send
+ * them somewhere the middleware refuses.
+ *
+ * Admin wins when a user holds both roles: it is the larger tree, and it is the
+ * one the per-tab access matrix governs. Module hooks register against the admin
+ * groups, so they merge only there.
+ */
+function useNavTree() {
+    const page = usePage();
+    const isAdmin = page.props.auth?.user?.roles?.includes('Admin');
+    const isSupervisor = page.props.auth?.user?.roles?.includes('Supervisor');
+    const moduleNav = page.props.moduleNav;
+    // Which admin tabs this user may open (#144) — role grants and enabled
+    // modules, resolved server-side.
+    const allowedTabs = page.props.auth?.user?.accessibleTabs;
+    // Optional feature modules this install has switched on.
+    const enabledModules = page.props.enabledModules;
+
+    return useMemo(() => {
+        if (! isAdmin && isSupervisor) {
+            return {
+                links: withEnabledModules(SUPERVISOR_LINKS, enabledModules),
+                groups: withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
+                // The supervisor tree carries no tab keys: its gate is the route
+                // group's role middleware, not the admin access matrix. Filtering
+                // it through that matrix would hide every entry, since a
+                // supervisor holds no tab:* grants.
+                showTab: () => true,
+            };
+        }
+
+        return {
+            links: ADMIN_LINKS,
+            groups: mergeModuleNav(moduleNav),
+            showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
+        };
+    }, [isAdmin, isSupervisor, moduleNav, allowedTabs, enabledModules]);
+}
+
 export default function AppLayout({ children }) {
     const page = usePage();
     const { auth, nav, csrf_token, appVersion } = page.props;
@@ -177,8 +250,11 @@ export default function AppLayout({ children }) {
     );
     // Module groups matter here too: a module's page should sit under the group
     // the module registered, not fall off the trail entirely.
-    const navGroups = useMemo(() => mergeModuleNav(page.props.moduleNav), [page.props.moduleNav]);
-    const navTrail = useMemo(() => navTrailFor(path, navGroups), [path, navGroups]);
+    const { links: navLinks, groups: navGroups } = useNavTree();
+    const navTrail = useMemo(
+        () => navTrailFor(path, navGroups, navLinks),
+        [path, navGroups, navLinks],
+    );
     const [hasPageTitle, pageTitleCtx] = usePageTitlePresence(navTrail);
 
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -376,8 +452,8 @@ function groupVisible(group, showTab) {
     return anyChild(group.children);
 }
 
-function flattenNavItems(showTab = () => true, groups = ADMIN_GROUPS) {
-    const items = ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => ({
+function flattenNavItems(showTab, groups, links) {
+    const items = links.filter((link) => showTab(link.key)).map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
@@ -405,22 +481,16 @@ function Sidebar({
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
-    // Show a tab only when the backend lists it as accessible — this hides tabs
-    // the role can't reach AND feature modules switched off for this install
-    // (#144). Falls back to "show all" if the prop is ever missing.
-    const allowedTabs = auth?.user?.accessibleTabs;
-    const showTab = (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key);
-
-    // Merge module-registered menu hooks (MenuRegistry → moduleNav prop) into the
-    // static admin nav, so enabled modules can add dropdowns / items like before.
-    const moduleNav = usePage().props.moduleNav;
-    const navGroups = useMemo(() => mergeModuleNav(moduleNav), [moduleNav]);
+    // Which entries this user may see. The admin tree hides tabs the role can't
+    // reach and modules switched off for this install (#144); the supervisor
+    // tree is gated by its routes, so everything in it shows.
+    const { links: navLinks, groups: navGroups, showTab } = useNavTree();
 
     // Menu search: a non-empty query swaps the nav tree for a flat result list.
     // Matches both the English label and its translation so users can search
     // in the active locale.
     const [query, setQuery] = useState('');
-    const searchItems = useMemo(() => flattenNavItems(showTab, navGroups), [allowedTabs, navGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+    const searchItems = useMemo(() => flattenNavItems(showTab, navGroups, navLinks), [showTab, navGroups, navLinks]);
     const q = query.trim().toLowerCase();
     const results = q
         ? searchItems.filter((item) =>
@@ -450,7 +520,7 @@ function Sidebar({
         >
             {/* Logo / header — split orange/black brand mark + lowercase wordmark */}
             <div className="flex items-center h-11 px-3 shrink-0 border-b border-om-line">
-                <Link href="/admin/dashboard" className="flex items-center gap-2 min-w-0 overflow-hidden">
+                <Link href={navRoot(navLinks)?.href} className="flex items-center gap-2 min-w-0 overflow-hidden">
                     {showLabels ? (
                         <>
                             <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 w-auto shrink-0" />
@@ -522,7 +592,7 @@ function Sidebar({
                     )
                 ) : (
                     <>
-                        {ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => (
+                        {navLinks.filter((link) => showTab(link.key)).map((link) => (
                             <NavLink
                                 key={link.href}
                                 link={link}

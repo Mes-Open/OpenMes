@@ -101,8 +101,11 @@ class RolesAndPermissionsSeeder extends Seeder
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
-            // Orders admin tab — per the role docs, supervisors create & manage orders.
-            'tab:orders',
+            // No tab:* grants: `tab:` gates the /admin tree, and supervisors have
+            // their own routes under /supervisor (gated by role) for everything
+            // they need — orders, customers, priority rules, CSV import, the
+            // shift monitor. An admin can still grant a tab through
+            // Settings → Access if a particular plant wants it.
             'start batch step', 'complete batch step',
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
             'view lines', 'view products', 'view process templates',

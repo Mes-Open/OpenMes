@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Web\Supervisor;
 
+use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Models\BatchStep;
 use App\Models\Customer;
@@ -17,20 +19,33 @@ use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
+    use BuildsWorkOrderFormOptions;
+
     private const ACTIVE_MACHINE_STEP_STATUSES = [
         BatchStep::STATUS_READY,
         BatchStep::STATUS_IN_PROGRESS,
     ];
 
-    public function index(Request $request)
+    public function index(Request $request, CustomFieldService $customFields)
     {
         $counts = WorkOrder::withCount('batches')->get(['id'])
             ->mapWithKeys(fn ($w) => [$w->id => $w->batches_count]);
 
         return Inertia::render('supervisor/work-orders/Index', [
             'counts' => $counts,
+            // Name maps cover every line/product/customer an existing row might
+            // reference, including deactivated ones — unlike the create-form
+            // options below, which only offer what is still selectable.
             'lineNames' => Line::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
+            'customerNames' => Customer::pluck('name', 'id'),
+            // Deleting is admin-only in the shipped role set, so the list's
+            // Delete item is gated on the ability rather than on the section —
+            // a supervisor granted `delete work orders` gets it here too.
+            'can' => ['delete' => (bool) $request->user()?->can('delete work orders')],
+            // Feeds the list's "New work order" modal, which renders the same form
+            // as the create page.
+            ...$this->createFormOptions($customFields),
         ]);
     }
 
@@ -42,12 +57,7 @@ class WorkOrderController extends Controller
     {
         $this->authorize('create', WorkOrder::class);
 
-        return Inertia::render('supervisor/work-orders/Create', [
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
-            'customFields' => $customFields->clientConfig('work_order'),
-        ]);
+        return Inertia::render('supervisor/work-orders/Create', $this->createFormOptions($customFields));
     }
 
     public function store(StoreWorkOrderRequest $request, WorkOrderService $workOrderService, CustomFieldService $cf)
@@ -68,6 +78,12 @@ class WorkOrderController extends Controller
 
             return back()->withInput()
                 ->with('error', __('Failed to create work order. Please check your input and try again.'));
+        }
+
+        // The list's New-order modal posts `stay` so the user keeps their page
+        // (the new order lands there via the live-synced rows).
+        if ($request->boolean('stay')) {
+            return back()->with('success', "Work order {$workOrder->order_no} created.");
         }
 
         return redirect()->route('supervisor.work-orders.index')
@@ -279,6 +295,42 @@ class WorkOrderController extends Controller
 
         return redirect()->route('supervisor.work-orders.show', $workOrder)
             ->with('success', "Work order {$workOrder->order_no} updated.");
+    }
+
+    /**
+     * Delete an order that never produced anything. Gated on the `delete work
+     * orders` ability (WorkOrderPolicy), which the shipped Supervisor role does
+     * not hold — the list only offers this when the current user actually has it.
+     */
+    public function destroy(WorkOrder $workOrder)
+    {
+        $this->authorize('delete', $workOrder);
+
+        if ($workOrder->batches()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete a work order that has batches. Cancel it instead.');
+        }
+
+        $no = $workOrder->order_no;
+        $workOrder->delete();
+
+        return redirect()->route('supervisor.work-orders.index')
+            ->with('success', "Work order {$no} deleted.");
+    }
+
+    /**
+     * Apply one transition to many selected orders (the list's bulk-action bar).
+     * Same service call the admin list makes, so a mixed selection is skipped and
+     * counted identically in both sections.
+     */
+    public function bulk(BulkWorkOrderActionRequest $request)
+    {
+        $message = WorkOrderService::applyBulkTransition(
+            $request->validated('ids'),
+            $request->validated('action'),
+        );
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

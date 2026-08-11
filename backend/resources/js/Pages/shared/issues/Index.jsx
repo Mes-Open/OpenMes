@@ -4,6 +4,7 @@ import { Button, IconButton, Dropdown, DatePicker, TextField, StatusPill, Modal,
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import usePrompt from '../../../components/usePrompt';
+import DueCountdown from '../../../components/DueCountdown';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
@@ -39,6 +40,10 @@ const ACTION_STATUS = {
     verified: { tone: 'done', label: __('Verified') },
 };
 const ACTION_TYPE_LABELS = { corrective: 'Corrective', preventive: 'Preventive', containment: 'Containment' };
+// An action past 'in_progress' has settled: its deadline is a fact about the
+// past, so the countdown stops shouting about it. Mirrors the server's
+// IssueAction::OPEN_STATUSES, which is what drives the `is_overdue` flag.
+const SETTLED_ACTION_STATUSES = ['done', 'verified'];
 
 export default function IssuesIndex() {
     const { prompt, dialog: promptDialog } = usePrompt();
@@ -350,8 +355,18 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
                                             {a.title}
                                             {a.assigned_to && <span className="ml-2 text-[11.5px] text-om-faint">→ {a.assigned_to}</span>}
                                             {a.due_date && (
-                                                <span className={`ml-2 text-[11.5px] ${a.is_overdue ? 'font-semibold text-om-blocked' : 'text-om-faint'}`}>
-                                                    {__('due')} {a.due_date}{a.is_overdue ? ` · ${__('Overdue')}` : ''}
+                                                <span className="ml-2 text-[11.5px] text-om-faint">
+                                                    {__('due')} {a.due_date}
+                                                    {' · '}
+                                                    {/* Was a flat "Overdue" word, which said an action
+                                                        was late but never by how much — the thing that
+                                                        decides which one to pick up first. A done or
+                                                        cancelled action keeps its date, muted. */}
+                                                    <DueCountdown
+                                                        due={a.due_date}
+                                                        settled={SETTLED_ACTION_STATUSES.includes(a.status)}
+                                                        className="font-semibold"
+                                                    />
                                                 </span>
                                             )}
                                         </span>

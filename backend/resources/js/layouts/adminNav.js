@@ -60,6 +60,24 @@ export const ADMIN_LINKS = [
     { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
     { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
     { key: 'schedule', label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
+    // The admin's own mount of the shift monitor. Supervisors reach the same
+    // screen at /supervisor/shift-monitor (supervisorNav.js) — each section
+    // links its own URL, so what gates an entry's visibility (here, the
+    // shift_monitor tab) also gates where it leads.
+    {
+        key: 'shift_monitor',
+        label: 'Line Overview',
+        href: '/admin/shift-overview',
+        lucide: 'layout-list',
+        match: ['/admin/shift-overview'],
+    },
+    {
+        key: 'shift_monitor',
+        label: 'Shift Monitor',
+        href: '/admin/shift-monitor',
+        lucide: 'activity',
+        match: ['/admin/shift-monitor'],
+    },
     // Hidden for now — re-enable to restore the Employees tab in the sidebar.
     // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', lucide: 'users', match: ['/admin/schedule/employees'] },
 ];
