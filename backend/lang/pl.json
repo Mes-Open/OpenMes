@@ -5085,5 +5085,21 @@
     "Subassembly": "Podzespół",
     "Hide engineering documents": "Ukryj dokumenty inżynieryjne",
     "Rev": "Rew.",
-    "Document": "Dokument"
+    "Document": "Dokument",
+    "Workstation type (ISA-95)": "Typ stanowiska (ISA-95)",
+    "— Any / none —": "— Dowolne / brak —",
+    "Required Equipment Class; a specific machine is assigned at dispatch.": "Wymagana klasa urządzeń; konkretną maszynę przypisuje się przy dyspozycji.",
+    "Setup time (minutes)": "Czas przezbrojenia (minuty)",
+    "fixed, per run": "stały, na uruchomienie",
+    "Run time per unit (minutes)": "Czas jednostkowy (minuty/szt.)",
+    "× quantity": "× ilość",
+    "Confirm actual times": "Potwierdź rzeczywiste czasy",
+    "Actual elapsed (minutes)": "Rzeczywisty czas (minuty)",
+    "Actual setup (minutes)": "Rzeczywiste przezbrojenie (minuty)",
+    "Actual run (minutes)": "Rzeczywisty czas pracy (minuty)",
+    "Setup + run cannot exceed the elapsed time.": "Przezbrojenie + praca nie mogą przekroczyć całkowitego czasu.",
+    "Assign workstation": "Przypisz stanowisko",
+    "required type": "wymagany typ",
+    "No active workstation of the required type is available.": "Brak dostępnego aktywnego stanowiska wymaganego typu.",
+    "The workstation could not be assigned.": "Nie udało się przypisać stanowiska."
 }

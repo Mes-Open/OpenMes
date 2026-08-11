@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\AssignBatchStepWorkstationRequest;
+use App\Http\Requests\Api\V1\CompleteBatchStepRequest;
 use App\Models\BatchStep;
 use App\Services\IssueService;
 use App\Services\WorkOrder\BatchService;
@@ -43,19 +45,13 @@ class BatchStepController extends Controller
     /**
      * Complete a batch step.
      */
-    public function complete(Request $request, BatchStep $batchStep): JsonResponse
+    public function complete(CompleteBatchStepRequest $request, BatchStep $batchStep): JsonResponse
     {
-        $this->authorize('view', $batchStep->batch->workOrder);
-
-        $validated = $request->validate([
-            'produced_qty' => 'nullable|numeric|min:0',
-        ]);
-
         try {
             $step = $this->batchService->completeStep(
                 $batchStep,
                 $request->user(),
-                $validated
+                $request->validated()
             );
 
             return response()->json([
@@ -68,6 +64,27 @@ class BatchStepController extends Controller
                 'errors' => [
                     'step' => [$e->getMessage()],
                 ],
+            ], 422);
+        }
+    }
+
+    /**
+     * Pool dispatch (#52): a supervisor assigns a specific workstation to a pending
+     * step that carries only an Equipment Class. Route-gated to Supervisor|Admin.
+     */
+    public function assign(AssignBatchStepWorkstationRequest $request, BatchStep $batchStep): JsonResponse
+    {
+        try {
+            $step = $this->batchService->assignWorkstation($batchStep, (int) $request->validated('workstation_id'), $request->user());
+
+            return response()->json([
+                'message' => 'Workstation assigned successfully',
+                'data' => $step->load(['workstation', 'workstationType', 'assignedBy']),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['step' => [$e->getMessage()]],
             ], 422);
         }
     }

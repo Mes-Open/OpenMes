@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
 {
@@ -16,9 +16,6 @@ class WorkOrderController extends Controller
 
     /**
      * Get list of work orders (filtered by user's assigned lines).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -38,9 +35,6 @@ class WorkOrderController extends Controller
 
     /**
      * Get a specific work order.
-     *
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function show(WorkOrder $workOrder): JsonResponse
     {
@@ -54,6 +48,9 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
+        // ISA-95 L4 standard production target (#52), computed from the snapshot.
+        $workOrder->setAttribute('estimated_standard_production_minutes', $workOrder->estimatedStandardProductionMinutes());
+
         return response()->json([
             'data' => $workOrder,
         ]);
@@ -61,9 +58,6 @@ class WorkOrderController extends Controller
 
     /**
      * Create a new work order.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -91,10 +85,6 @@ class WorkOrderController extends Controller
 
     /**
      * Update a work order.
-     *
-     * @param Request $request
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function update(Request $request, WorkOrder $workOrder): JsonResponse
     {
@@ -118,9 +108,6 @@ class WorkOrderController extends Controller
 
     /**
      * Delete a work order.
-     *
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function destroy(WorkOrder $workOrder): JsonResponse
     {
@@ -164,6 +151,7 @@ class WorkOrderController extends Controller
             ], 422);
         }
         $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
+
         return response()->json([
             'message' => 'Work order cancelled',
             'data' => $workOrder->fresh(['line', 'productType']),
@@ -200,7 +188,7 @@ class WorkOrderController extends Controller
     {
         $this->authorize('update', $workOrder);
 
-        if (!in_array($workOrder->status, $allowedFrom, true)) {
+        if (! in_array($workOrder->status, $allowedFrom, true)) {
             return response()->json(['message' => $errorMessage], 422);
         }
 

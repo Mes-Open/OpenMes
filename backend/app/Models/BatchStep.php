@@ -34,6 +34,10 @@ class BatchStep extends Model
         'instruction',
         'requires_confirmation',
         'workstation_id',
+        'workstation_type_id',
+        'estimated_duration_minutes',
+        'setup_time_minutes',
+        'run_time_per_unit_minutes',
         'status',
         'is_optional',
         'variant_group',
@@ -45,18 +49,30 @@ class BatchStep extends Model
         'started_by_id',
         'completed_by_id',
         'duration_minutes',
+        'actual_elapsed_minutes',
+        'actual_setup_minutes',
+        'actual_run_minutes',
+        'assigned_by_id',
+        'assigned_at',
     ];
 
     protected function casts(): array
     {
         return [
             'step_number' => 'integer',
+            'estimated_duration_minutes' => 'integer',
+            'setup_time_minutes' => 'integer',
+            'run_time_per_unit_minutes' => 'decimal:2',
             'is_optional' => 'boolean',
             'requires_confirmation' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'confirmed_at' => 'datetime',
+            'assigned_at' => 'datetime',
             'duration_minutes' => 'integer',
+            'actual_elapsed_minutes' => 'integer',
+            'actual_setup_minutes' => 'integer',
+            'actual_run_minutes' => 'integer',
         ];
     }
 
@@ -74,6 +90,21 @@ class BatchStep extends Model
     public function workstation(): BelongsTo
     {
         return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * ISA-95 Equipment Class required for this step (#52), carried from the
+     * snapshot — shown when no specific workstation is assigned yet.
+     */
+    public function workstationType(): BelongsTo
+    {
+        return $this->belongsTo(WorkstationType::class);
+    }
+
+    /** The supervisor who assigned the specific workstation (pool dispatch, #52). */
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by_id');
     }
 
     /**
