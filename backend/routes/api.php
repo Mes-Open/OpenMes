@@ -68,7 +68,9 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WageGroupController;
 use App\Http\Controllers\Api\V1\WorkerAbsenceController;
 use App\Http\Controllers\Api\V1\WorkerController;
+use App\Http\Controllers\Api\V1\WorkOrderChangeRequestController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
+use App\Http\Controllers\Api\V1\WorkOrderStopController;
 use App\Http\Controllers\Api\V1\WorkstationController;
 use App\Http\Controllers\Api\V1\WorkstationTypeController;
 use Illuminate\Support\Facades\Route;
@@ -656,6 +658,24 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/work-orders/{workOrder}/resume', [WorkOrderController::class, 'resume']);
     Route::post('/work-orders/{workOrder}/reopen', [WorkOrderController::class, 'reopen']);
     Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete']);
+
+    // Change control (#182): a structured production stop, the change request that
+    // comes out of it, and the review workflow that must complete before the order
+    // can run on a new configuration. Resume stays on the transition route above.
+    Route::get('/work-orders/{workOrder}/stops', [WorkOrderStopController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/stop', [WorkOrderStopController::class, 'store']);
+
+    Route::get('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'store']);
+
+    Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'show']);
+    Route::get('/work-order-change-requests/{changeRequest}/impact', [WorkOrderChangeRequestController::class, 'impact']);
+    Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'update']);
+    Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeRequestController::class, 'submit']);
+    Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeRequestController::class, 'approve']);
+    Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeRequestController::class, 'reject']);
+    Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeRequestController::class, 'cancel']);
+    Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeRequestController::class, 'apply']);
 
     // Batches (nested under work orders)
     Route::get('/work-orders/{workOrder}/batches', [BatchController::class, 'index']);

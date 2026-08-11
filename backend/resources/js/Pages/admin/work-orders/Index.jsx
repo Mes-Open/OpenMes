@@ -75,7 +75,7 @@ export default function WorkOrdersIndex() {
                     if (qty) post(r.id, 'complete', { produced_qty: qty });
                 },
             });
-        } else if (s === 'PAUSED') {
+        } else if (s === 'PAUSED' || s === 'CHANGE_HOLD') {
             a.push({ label: __('Resume'), onClick: () => post(r.id, 'resume') });
         }
 

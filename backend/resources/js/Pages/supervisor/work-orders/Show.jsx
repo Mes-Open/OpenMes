@@ -14,6 +14,7 @@ const WO_PILL_STATUS = {
     ACCEPTED: 'pending',
     IN_PROGRESS: 'running',
     PAUSED: 'downtime',
+    CHANGE_HOLD: 'downtime',
     BLOCKED: 'blocked',
     DONE: 'done',
     REJECTED: 'blocked',
@@ -321,7 +322,9 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                             </>
                         )}
-                        {status === 'PAUSED' && (
+                        {/* CHANGE_HOLD resumes here too; the backend refuses it until an
+                            approved change has been applied and answers with the reason (#182). */}
+                        {['PAUSED', 'CHANGE_HOLD'].includes(status) && (
                             <Button variant="primary" onClick={() => post('resume')}>
                                 Resume
                             </Button>

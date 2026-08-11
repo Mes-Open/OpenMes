@@ -49,7 +49,7 @@ export default function SupervisorWorkOrdersIndex() {
                     if (qty) post(r.id, 'complete', { produced_qty: qty });
                 },
             });
-        } else if (s === 'PAUSED') {
+        } else if (s === 'PAUSED' || s === 'CHANGE_HOLD') {
             a.push({ label: 'Resume', onClick: () => post(r.id, 'resume') });
         }
 

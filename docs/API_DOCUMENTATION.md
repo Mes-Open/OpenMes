@@ -15,6 +15,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Authentication API](#authentication-api)
   - [Lines](#lines)
   - [Work Orders](#work-orders)
+  - [Production Stops and Change Control](#production-stops-and-change-control)
   - [Batches](#batches)
   - [Batch Steps](#batch-steps)
   - [Issues](#issues)
@@ -321,6 +322,156 @@ Authorization: Bearer <token>
 ```
 
 Only deletable when status is `pending` or `rejected`. Returns `204 No Content`.
+
+---
+
+### Production Stops and Change Control
+
+Stopping a running order, changing what it builds under review, and resuming on the
+new configuration ([#182](https://github.com/Mes-Open/OpenMes/issues/182)). Nothing
+here rewrites execution data: completed batch steps, recorded consumption, quality
+results and produced quantities are never modified by a change.
+
+#### Stop Production
+
+```http
+POST /api/v1/work-orders/{id}/stop
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "type": "ENGINEERING_CHANGE",
+    "reason": "Hole diameter must be changed before continuing production",
+    "batch_id": 18,
+    "requires_change": true,
+    "downtime_reason_id": 4
+}
+```
+
+`type` is one of `OPERATIONAL`, `MATERIAL_SHORTAGE`, `MACHINE_FAILURE`,
+`QUALITY_HOLD`, `ENGINEERING_CHANGE`, `OTHER`. Required: `type`, `reason`.
+
+The stop records who stopped production and when, and photographs the state at that
+moment (produced quantity, batches, in-progress steps, allocated/consumed material,
+active configuration version). `requires_change: true` sets the order to
+`CHANGE_HOLD` — resume is then refused until an approved change request has been
+applied; otherwise the order goes to `PAUSED`. Supplying `downtime_reason_id` also
+opens a linked `production_downtimes` record, closed automatically on resume.
+
+Only an `IN_PROGRESS` order can be stopped, and only one stop may be open at a time
+(`422` otherwise). Response: `201 Created`.
+
+#### List Stops
+
+```http
+GET /api/v1/work-orders/{id}/stops
+Authorization: Bearer <token>
+```
+
+Newest first. Each row carries `duration_minutes` once resumed, and
+`duration_minutes_current` as a running total while the stop is still open.
+
+#### Resume Production
+
+```http
+POST /api/v1/work-orders/{id}/resume
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "change_request_id": 52,
+    "notes": "Production resumed using product revision C"
+}
+```
+
+Both fields are optional — an order paused the simple way resumes on an empty body.
+An order on `CHANGE_HOLD` must quote a change request that has been **applied**
+(not merely approved), or the call answers `422`. Resuming closes the open stop,
+stamps its duration and returns the order to `IN_PROGRESS`.
+
+#### Create Change Request
+
+```http
+POST /api/v1/work-orders/{id}/change-requests
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "title": "Move remaining production to revision C",
+    "reason": "Customer approved ECO-118",
+    "proposed": {
+        "product_revision_id": 42,
+        "planned_qty": 150,
+        "bom_template_ids": [7, 9]
+    },
+    "effective_from": "NEXT_BATCH",
+    "produced_disposition": "Units 1-35 ship as revision B",
+    "material_disposition": "Return unused revision-B brackets to stock"
+}
+```
+
+`proposed` accepts only these fields: `product_revision_id`, `planned_qty`,
+`line_id`, `bom_template_ids`, `due_date`, `description`, `production_notes`.
+Anything else is rejected. `effective_from` is `NEXT_BATCH` (default),
+`REMAINING_QUANTITY` or `IMMEDIATE`.
+
+The response carries the generated code (`CR/2026/0001`) and the **impact analysis**:
+produced vs. remaining quantity, batch and step counts, allocated/consumed material,
+the revision change, the engineering documents being replaced, and warnings where the
+proposal conflicts with completed work.
+
+#### Read and Edit
+
+```http
+GET   /api/v1/work-orders/{id}/change-requests
+GET   /api/v1/work-order-change-requests/{id}
+GET   /api/v1/work-order-change-requests/{id}/impact
+PATCH /api/v1/work-order-change-requests/{id}
+```
+
+`GET .../{id}` includes a field-by-field `diff`. `GET .../impact` recomputes the
+analysis live for a review screen (the stored `impact` is frozen as the approver saw
+it). `PATCH` works on drafts only.
+
+#### Review Workflow
+
+```http
+POST /api/v1/work-order-change-requests/{id}/submit
+POST /api/v1/work-order-change-requests/{id}/approve
+POST /api/v1/work-order-change-requests/{id}/reject     { "reason": "..." }
+POST /api/v1/work-order-change-requests/{id}/cancel
+POST /api/v1/work-order-change-requests/{id}/apply
+```
+
+Status flow: `DRAFT → SUBMITTED → APPROVED → APPLIED`, with `REJECTED` and
+`CANCELLED` as alternative endings. Any other transition answers `422`. Rejection
+requires a reason. `approve`, `reject` and `apply` require the
+`approve work order changes` permission (Admin and Supervisor by default); raising
+and editing a request needs only `edit work orders`.
+
+#### Apply a Change
+
+```http
+POST /api/v1/work-order-change-requests/{id}/apply
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "effective_from": "REMAINING_QUANTITY",
+    "implementation_notes": "Applied during the night shift"
+}
+```
+
+Applying is only allowed on an **approved** request against a **stopped** order. It
+captures the before-state, rebuilds the configuration and appends it as the next
+`work_order_snapshots` version — earlier versions stay readable exactly as the shop
+floor received them, and new batches are stamped with the version they were generated
+from. The remaining material requirements are recalculated onto the record; existing
+allocations and consumption are untouched.
+
+Refused with `422` when the planned quantity would fall below what was already
+produced, or when `IMMEDIATE` is requested after any step has been started or
+completed (use `NEXT_BATCH` or `REMAINING_QUANTITY`).
 
 ---
 

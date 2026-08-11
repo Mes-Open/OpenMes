@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -164,11 +166,28 @@ class WorkOrderController extends Controller
             'Only IN_PROGRESS work orders can be paused.');
     }
 
-    public function resume(WorkOrder $workOrder): JsonResponse
+    /**
+     * Resume production (#182).
+     *
+     * Delegates to the stop service so a structured stop is closed, its duration
+     * recorded and the change-hold gate enforced. An order paused the simple way has
+     * no stop record and resumes on an empty body exactly as before.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops): JsonResponse
     {
-        return $this->transition($workOrder, WorkOrder::STATUS_IN_PROGRESS,
-            [WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_BLOCKED],
-            'Only PAUSED or BLOCKED work orders can be resumed.');
+        $this->authorize('update', $workOrder);
+
+        try {
+            $stop = $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Work order status set to '.WorkOrder::STATUS_IN_PROGRESS,
+            'data' => $workOrder->fresh(['line', 'productType']),
+            'stop' => $stop,
+        ]);
     }
 
     public function reopen(WorkOrder $workOrder): JsonResponse

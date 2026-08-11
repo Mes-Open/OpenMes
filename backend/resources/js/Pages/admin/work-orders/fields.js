@@ -1,12 +1,15 @@
 import { __ } from '../../../lib/i18n';
 
-export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
+export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'CHANGE_HOLD', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
 
 export const WO_STATUS_STYLES = {
     PENDING: 'bg-yellow-100 text-yellow-800',
     ACCEPTED: 'bg-blue-100 text-blue-800',
     IN_PROGRESS: 'bg-emerald-100 text-emerald-800',
     PAUSED: 'bg-gray-200 text-gray-700',
+    // Amber, not grey: a change hold blocks production until a change is approved,
+    // which is nearer to BLOCKED than to a coffee break (#182).
+    CHANGE_HOLD: 'bg-amber-100 text-amber-800',
     BLOCKED: 'bg-red-100 text-red-800',
     DONE: 'bg-green-100 text-green-800',
     REJECTED: 'bg-red-100 text-red-800',
@@ -20,6 +23,7 @@ export function woStatusLabel(status) {
         ACCEPTED: __('Accepted'),
         IN_PROGRESS: __('In Progress'),
         PAUSED: __('Paused'),
+        CHANGE_HOLD: __('Change hold'),
         BLOCKED: __('Blocked'),
         DONE: __('Done'),
         REJECTED: __('Rejected'),

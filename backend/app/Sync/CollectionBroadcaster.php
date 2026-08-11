@@ -80,6 +80,11 @@ class CollectionBroadcaster
             'maintenance_schedules' => [Models\MaintenanceSchedule::class, null],
             'custom_field_definitions' => [Models\CustomFieldDefinition::class, null],
 
+            // Change control (#182). A stop and its change request are what the
+            // shop floor is waiting on, so both must reach open clients live.
+            'work_order_stops' => [Models\WorkOrderStop::class, null],
+            'work_order_change_requests' => [Models\WorkOrderChangeRequest::class, null],
+
             // Warehousing (#212). Balances change on every posted document and
             // ERP sync, so the stock overview must see them live.
             'warehouses' => [Models\Warehouse::class, null],
