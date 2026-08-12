@@ -182,10 +182,250 @@ function DoneModal({ workOrder, onClose }) {
     );
 }
 
+const ALLOC_STATUS_STYLES = {
+    allocated: 'bg-om-chip text-om-accent',
+    consumed: 'bg-om-running-bg text-om-running',
+    returned: 'bg-om-chip text-om-faint',
+};
+
+// Materials reconciliation panel (#99): per-allocation record-consumption, return
+// leftover and reclassify actions against the work order's pulled materials.
+function MaterialsReconciliation({ workOrder, allocations, canReclassify, materials }) {
+    const [modal, setModal] = useState(null); // { kind: 'consume'|'return'|'reclassify', alloc }
+
+    return (
+        <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
+            <h2 className="text-lg font-bold text-om-ink mb-1">
+                {__('Materials reconciliation')}{' '}
+                <span className="text-sm font-normal text-om-faint">({allocations.length})</span>
+            </h2>
+            <p className="text-xs text-om-muted mb-4">
+                {__('Record what was actually consumed, return leftovers to stock, or reclassify material.')}
+            </p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-left text-om-muted border-b border-om-line2">
+                            <th className="py-2 pr-3 font-medium">{__('Material')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Allocated')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Consumed')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Returned')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Scrap')}</th>
+                            <th className="py-2 px-3 font-medium">{__('Status')}</th>
+                            <th className="py-2 pl-3 font-medium text-right">{__('Actions')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {allocations.map((a) => {
+                            const open = a.status === 'allocated';
+                            return (
+                                <tr key={a.id} className="border-b border-om-line2 last:border-0">
+                                    <td className="py-2 pr-3">
+                                        <span className="font-medium text-om-ink">{a.material_code}</span>
+                                        <span className="text-om-faint"> · {a.material_name}</span>
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.allocated_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.consumed_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.returned_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.scrap_qty)}</td>
+                                    <td className="py-2 px-3">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${ALLOC_STATUS_STYLES[a.status] ?? 'bg-om-chip text-om-muted'}`}>
+                                            {__(a.status)}
+                                        </span>
+                                    </td>
+                                    <td className="py-2 pl-3 text-right whitespace-nowrap">
+                                        {open && (
+                                            <>
+                                                <button type="button" onClick={() => setModal({ kind: 'consume', alloc: a })}
+                                                    className="text-xs text-om-accent hover:underline">{__('Consume')}</button>
+                                                <span className="text-om-faint mx-1.5">·</span>
+                                                <button type="button" onClick={() => setModal({ kind: 'return', alloc: a })}
+                                                    className="text-xs text-om-accent hover:underline">{__('Return')}</button>
+                                                {canReclassify && (
+                                                    <>
+                                                        <span className="text-om-faint mx-1.5">·</span>
+                                                        <button type="button" onClick={() => setModal({ kind: 'reclassify', alloc: a })}
+                                                            className="text-xs text-om-accent hover:underline">{__('Reclassify')}</button>
+                                                    </>
+                                                )}
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {modal?.kind === 'consume' && (
+                <ConsumeModal workOrder={workOrder} alloc={modal.alloc} onClose={() => setModal(null)} />
+            )}
+            {modal?.kind === 'return' && (
+                <ReturnModal workOrder={workOrder} alloc={modal.alloc} onClose={() => setModal(null)} />
+            )}
+            {modal?.kind === 'reclassify' && (
+                <ReclassifyModal workOrder={workOrder} alloc={modal.alloc} materials={materials} onClose={() => setModal(null)} />
+            )}
+        </div>
+    );
+}
+
+function ModalFrame({ title, children }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-om-card rounded-om-sm shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-lg font-bold text-om-ink mb-4">{title}</h3>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+const fieldCls = 'w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent';
+const labelCls = 'block text-sm font-medium text-om-muted mb-1';
+
+function ModalActions({ onClose, submitLabel, disabled }) {
+    return (
+        <div className="flex justify-end gap-2 mt-4">
+            <button type="button" onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-om-muted bg-om-card border border-om-line rounded-md hover:bg-om-bg">
+                {__('Cancel')}
+            </button>
+            <button type="submit" disabled={disabled}
+                className="px-4 py-2 text-sm font-medium text-white bg-om-accent border border-transparent rounded-md hover:brightness-95 disabled:opacity-50">
+                {submitLabel}
+            </button>
+        </div>
+    );
+}
+
+function ConsumeModal({ workOrder, alloc, onClose }) {
+    const [consumed, setConsumed] = useState(String(alloc.consumed_qty || ''));
+    const [scrap, setScrap] = useState(String(alloc.scrap_qty || ''));
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/consume`,
+            { consumed_qty: consumed, scrap_qty: scrap || 0 },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    return (
+        <ModalFrame title={__('Record consumption')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('Allocated: :qty', { qty: fmtQty(alloc.allocated_qty) })} {alloc.unit_of_measure}
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Consumed quantity')}</label>
+                    <input type="number" step="0.0001" min="0" value={consumed}
+                        onChange={(e) => setConsumed(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Scrap quantity')}</label>
+                    <input type="number" step="0.0001" min="0" value={scrap}
+                        onChange={(e) => setScrap(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Save')} disabled={processing} />
+            </form>
+        </ModalFrame>
+    );
+}
+
+function ReturnModal({ workOrder, alloc, onClose }) {
+    const returnable = Math.max(0, alloc.allocated_qty - alloc.consumed_qty - alloc.scrap_qty);
+    const [qty, setQty] = useState('');
+    const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/return`,
+            { qty, reason },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    return (
+        <ModalFrame title={__('Return to stock')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('Returnable: :qty', { qty: fmtQty(returnable) })} {alloc.unit_of_measure}
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Quantity to return')}</label>
+                    <input type="number" step="0.0001" min="0.0001" max={returnable} value={qty}
+                        onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Reason')}</label>
+                    <input type="text" maxLength={255} value={reason}
+                        onChange={(e) => setReason(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Return to stock')} disabled={processing} />
+            </form>
+        </ModalFrame>
+    );
+}
+
+function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
+    const [target, setTarget] = useState('');
+    const [qty, setQty] = useState('');
+    const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/reclassify`,
+            { source_material_id: alloc.material_id, target_material_id: target, qty, reason },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    const targets = materials.filter((m) => m.id !== alloc.material_id);
+
+    return (
+        <ModalFrame title={__('Reclassify material')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('From')} <strong className="text-om-ink">{alloc.material_code}</strong>
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Target class (material)')}</label>
+                    <select value={target} onChange={(e) => setTarget(e.target.value)} className={fieldCls} required>
+                        <option value="">{__('Select a material')}</option>
+                        {targets.map((m) => (
+                            <option key={m.id} value={m.id}>{m.code} · {m.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Quantity')}</label>
+                    <input type="number" step="0.0001" min="0.0001" value={qty}
+                        onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Reason')}</label>
+                    <input type="text" maxLength={255} value={reason}
+                        onChange={(e) => setReason(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Reclassify')} disabled={!target || processing} />
+            </form>
+        </ModalFrame>
+    );
+}
+
 export default function AdminWorkOrderShow() {
     const {
         workOrder, customFields = [],
         stops = [], changeRequests = [], changeControl = {},
+        canReclassify = false, materials = [],
     } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
     const [showStopModal, setShowStopModal] = useState(false);
@@ -469,6 +709,16 @@ export default function AdminWorkOrderShow() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Materials reconciliation (#99) */}
+                        {workOrder.allocations && workOrder.allocations.length > 0 && (
+                            <MaterialsReconciliation
+                                workOrder={workOrder}
+                                allocations={workOrder.allocations}
+                                canReclassify={canReclassify}
+                                materials={materials}
+                            />
+                        )}
 
                         {/* Change requests (#182) */}
                         {changeRequests.length > 0 && (

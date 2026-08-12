@@ -26,6 +26,10 @@ class StockMovement extends Model
 
     public const TYPE_TRANSFER = 'transfer';
 
+    // Regrade of material between classes — paired legs on source (−) and target (+),
+    // both correlated by SOURCE_RECLASSIFICATION + the material_reclassifications id (#99).
+    public const TYPE_RECLASSIFY = 'reclassify';
+
     public const SOURCE_BATCH = 'batch';
 
     public const SOURCE_BATCH_STEP = 'batch_step';
@@ -44,6 +48,9 @@ class StockMovement extends Model
 
     // Balance re-derived from an ERP stock snapshot (#212).
     public const SOURCE_ERP_SYNC = 'erp_sync';
+
+    // Material reclassification (#99) — source_id is the material_reclassifications row.
+    public const SOURCE_RECLASSIFICATION = 'reclassification';
 
     protected $fillable = [
         'material_id',

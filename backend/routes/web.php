@@ -424,6 +424,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
 
+        // Materials reconciliation (#99) — declare consumption, return leftovers,
+        // reclassify a quantity to another class. All three move stock, so all three
+        // are gated to Supervisor|Admin (the operator path is the API endpoints).
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/consume', [AdminWorkOrderController::class, 'recordConsumption'])->name('work-orders.allocations.consume');
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/return', [AdminWorkOrderController::class, 'returnAllocation'])->name('work-orders.allocations.return');
+            Route::post('/work-orders/{workOrder}/reclassify', [AdminWorkOrderController::class, 'reclassify'])->name('work-orders.reclassify');
+        });
+
         // Change control (#182) — structured stop, change request and its review.
         Route::post('/work-orders/{workOrder}/stop', [WorkOrderChangeControlController::class, 'stop'])
             ->name('work-orders.stop');

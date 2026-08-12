@@ -483,6 +483,12 @@ class WorkOrder extends Model
         return $this->hasMany(Batch::class)->orderBy('batch_number');
     }
 
+    /** Material allocations pulled for this work order (#99 reconciliation). */
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(MaterialAllocation::class);
+    }
+
     /** Pallets packed for this work order. */
     public function pallets(): HasMany
     {
