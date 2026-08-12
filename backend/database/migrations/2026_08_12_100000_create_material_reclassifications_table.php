@@ -23,7 +23,8 @@ return new class extends Migration
             // 'class' = quantity moved between materials; 'status' = lot status change.
             $table->string('type', 20);
 
-            $table->foreignId('source_material_id')->constrained('materials')->cascadeOnDelete();
+            // Preserve the audit row if the source material is ever hard-deleted.
+            $table->foreignId('source_material_id')->constrained('materials')->restrictOnDelete();
             $table->foreignId('target_material_id')->nullable()->constrained('materials')->nullOnDelete();
             $table->foreignId('source_lot_id')->nullable()->constrained('material_lots')->nullOnDelete();
 

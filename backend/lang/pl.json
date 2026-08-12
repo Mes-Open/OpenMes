@@ -5209,5 +5209,6 @@
     "consumed": "zużyty",
     "returned": "zwrócony",
     "Material returned to stock": "Materiał zwrócony do magazynu",
-    "Material reclassified": "Materiał przeklasyfikowany"
+    "Material reclassified": "Materiał przeklasyfikowany",
+    "Work order :code created.": "Zlecenie :code utworzone."
 }

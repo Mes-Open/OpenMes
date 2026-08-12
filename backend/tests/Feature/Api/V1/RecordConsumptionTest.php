@@ -84,13 +84,23 @@ class RecordConsumptionTest extends TestCase
         $this->assertEqualsWithDelta(440.0, (float) $this->material->fresh()->stock_quantity, 0.0001);
     }
 
-    public function test_zero_consumption_falls_back_to_planned_at_completion(): void
+    public function test_recorded_zero_consumption_returns_the_full_allocation(): void
     {
+        // Explicitly recording zero usage must mean "nothing consumed" — the whole
+        // allocation returns to stock — NOT the unrecorded fallback (consume all).
         $this->withHeader('Authorization', 'Bearer '.$this->token($this->admin()))
             ->postJson("/api/v1/material-allocations/{$this->allocation->id}/consume", ['consumed_qty' => 0])
             ->assertOk();
 
-        // consumed_qty 0 → consumeForBatch treats it as fully planned (no leftover returned).
+        $this->assertTrue((bool) $this->allocation->fresh()->consumption_recorded);
+
+        app(MaterialAllocationService::class)->consumeForBatch($this->batch);
+        $this->assertEqualsWithDelta(500.0, (float) $this->material->fresh()->stock_quantity, 0.0001);
+    }
+
+    public function test_unrecorded_consumption_falls_back_to_planned_at_completion(): void
+    {
+        // No declaration at all → consumeForBatch assumes the planned qty was used.
         app(MaterialAllocationService::class)->consumeForBatch($this->batch);
         $this->assertEqualsWithDelta(400.0, (float) $this->material->fresh()->stock_quantity, 0.0001);
     }
@@ -116,5 +126,15 @@ class RecordConsumptionTest extends TestCase
     {
         $this->postJson("/api/v1/material-allocations/{$this->allocation->id}/consume", ['consumed_qty' => 10])
             ->assertUnauthorized();
+    }
+
+    public function test_operator_outside_the_line_cannot_record_consumption(): void
+    {
+        // An operator not assigned to this order's line fails the WorkOrder view policy.
+        $operator = tap(User::factory()->create(), fn ($u) => $u->assignRole('Operator'));
+
+        $this->withHeader('Authorization', 'Bearer '.$this->token($operator))
+            ->postJson("/api/v1/material-allocations/{$this->allocation->id}/consume", ['consumed_qty' => 10])
+            ->assertForbidden();
     }
 }

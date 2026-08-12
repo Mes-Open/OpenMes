@@ -142,4 +142,13 @@ class ReturnAllocationTest extends TestCase
         $this->postJson("/api/v1/material-allocations/{$this->allocation->id}/return", ['qty' => 10])
             ->assertUnauthorized();
     }
+
+    public function test_operator_outside_the_line_cannot_return(): void
+    {
+        $operator = tap(User::factory()->create(), fn ($u) => $u->assignRole('Operator'));
+
+        $this->withHeader('Authorization', 'Bearer '.$operator->createToken('t')->plainTextToken)
+            ->postJson("/api/v1/material-allocations/{$this->allocation->id}/return", ['qty' => 10])
+            ->assertForbidden();
+    }
 }

@@ -112,6 +112,37 @@ class WorkOrderMaterialReconciliationTest extends TestCase
             ->assertRedirect('/login');
     }
 
+    public function test_operator_cannot_reconcile(): void
+    {
+        $operator = tap(User::factory()->create(), fn ($u) => $u->assignRole('Operator'));
+
+        $this->actingAs($operator)
+            ->post($this->base()."/allocations/{$this->allocation->id}/return", ['qty' => 25])
+            ->assertForbidden();
+    }
+
+    public function test_reclassify_rejects_identical_source_and_target(): void
+    {
+        $this->actingAs($this->admin())
+            ->post($this->base().'/reclassify', [
+                'source_material_id' => $this->material->id,
+                'target_material_id' => $this->material->id,
+                'qty' => 5,
+            ])
+            ->assertSessionHasErrors('target_material_id');
+    }
+
+    public function test_return_above_the_returnable_quantity_flashes_an_error(): void
+    {
+        $this->actingAs($this->admin())
+            ->post($this->base()."/allocations/{$this->allocation->id}/return", ['qty' => 5000])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        // Stock untouched: 500 less the 100 allocated.
+        $this->assertEqualsWithDelta(400.0, (float) $this->material->fresh()->stock_quantity, 0.0001);
+    }
+
     public function test_allocation_from_another_work_order_is_404(): void
     {
         $otherWo = WorkOrder::factory()->create(['process_snapshot' => ['bom' => []]]);

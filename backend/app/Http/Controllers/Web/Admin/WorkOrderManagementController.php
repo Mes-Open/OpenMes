@@ -321,6 +321,13 @@ class WorkOrderManagementController extends Controller
     {
         try {
             $source = Material::findOrFail($request->validated('source_material_id'));
+
+            // The panel always reclassifies one of this order's pulled materials —
+            // enforce that so the nested route is a real scope, not decoration.
+            if (! $workOrder->allocations()->where('material_id', $source->id)->exists()) {
+                abort(404);
+            }
+
             $target = Material::findOrFail($request->validated('target_material_id'));
             $lot = $request->validated('source_lot_id') ? MaterialLot::findOrFail($request->validated('source_lot_id')) : null;
 

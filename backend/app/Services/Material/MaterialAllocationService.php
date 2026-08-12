@@ -223,8 +223,10 @@ class MaterialAllocationService
                 // flip to CONSUMED), so this never double-writes.
                 $this->writeGenealogy($allocation);
 
-                // Default: operator did not record per-step consumption → assume planned.
-                $actualConsumed = (float) $allocation->consumed_qty > 0
+                // Use the operator-declared quantity when consumption was recorded —
+                // including an explicit zero (nothing used, return everything). Only
+                // fall back to the planned quantity when nothing was ever declared.
+                $actualConsumed = $allocation->consumption_recorded
                     ? (float) $allocation->consumed_qty
                     : (float) $allocation->allocated_qty;
 
@@ -318,6 +320,7 @@ class MaterialAllocationService
 
         $allocation->update([
             'consumed_qty' => $actualConsumed,
+            'consumption_recorded' => true,
             'scrap_qty' => $scrap,
             // Snapshot the price so historical cost reports stay stable.
             'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
@@ -400,21 +403,26 @@ class MaterialAllocationService
         User $user,
         ?string $reason = null,
     ): MaterialAllocation {
-        if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
-            throw new \DomainException('Can only return material from an `allocated` allocation.');
-        }
         if ($qty <= 0) {
             throw new \InvalidArgumentException('Return quantity must be positive.');
         }
 
-        $returnable = (float) $allocation->allocated_qty
-            - (float) $allocation->consumed_qty
-            - (float) $allocation->scrap_qty;
-        if ($qty > $returnable + 1e-9) {
-            throw new \InvalidArgumentException('Return quantity exceeds the unconsumed allocated quantity.');
-        }
-
         return DB::transaction(function () use ($allocation, $qty, $user, $reason) {
+            // Lock and re-read inside the transaction so two concurrent returns can't
+            // both validate the same returnable quantity and over-return.
+            $allocation = MaterialAllocation::query()->lockForUpdate()->findOrFail($allocation->getKey());
+
+            if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
+                throw new \DomainException('Can only return material from an `allocated` allocation.');
+            }
+
+            $returnable = (float) $allocation->allocated_qty
+                - (float) $allocation->consumed_qty
+                - (float) $allocation->scrap_qty;
+            if ($qty > $returnable + 1e-9) {
+                throw new \InvalidArgumentException('Return quantity exceeds the unconsumed allocated quantity.');
+            }
+
             $material = $allocation->material;
 
             if (! $material) {

@@ -303,12 +303,15 @@ function ModalActions({ onClose, submitLabel, disabled }) {
 function ConsumeModal({ workOrder, alloc, onClose }) {
     const [consumed, setConsumed] = useState(String(alloc.consumed_qty || ''));
     const [scrap, setScrap] = useState(String(alloc.scrap_qty || ''));
+    const [processing, setProcessing] = useState(false);
 
     function submit(e) {
         e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
         router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/consume`,
             { consumed_qty: consumed, scrap_qty: scrap || 0 },
-            { preserveScroll: true, onSuccess: onClose });
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
     }
 
     return (
@@ -327,7 +330,7 @@ function ConsumeModal({ workOrder, alloc, onClose }) {
                     <input type="number" step="0.0001" min="0" value={scrap}
                         onChange={(e) => setScrap(e.target.value)} className={fieldCls} />
                 </div>
-                <ModalActions onClose={onClose} submitLabel={__('Save')} />
+                <ModalActions onClose={onClose} submitLabel={__('Save')} disabled={processing} />
             </form>
         </ModalFrame>
     );
@@ -337,12 +340,15 @@ function ReturnModal({ workOrder, alloc, onClose }) {
     const returnable = Math.max(0, alloc.allocated_qty - alloc.consumed_qty - alloc.scrap_qty);
     const [qty, setQty] = useState('');
     const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
 
     function submit(e) {
         e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
         router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/return`,
             { qty, reason },
-            { preserveScroll: true, onSuccess: onClose });
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
     }
 
     return (
@@ -361,7 +367,7 @@ function ReturnModal({ workOrder, alloc, onClose }) {
                     <input type="text" maxLength={255} value={reason}
                         onChange={(e) => setReason(e.target.value)} className={fieldCls} />
                 </div>
-                <ModalActions onClose={onClose} submitLabel={__('Return to stock')} />
+                <ModalActions onClose={onClose} submitLabel={__('Return to stock')} disabled={processing} />
             </form>
         </ModalFrame>
     );
@@ -371,12 +377,15 @@ function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
     const [target, setTarget] = useState('');
     const [qty, setQty] = useState('');
     const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
 
     function submit(e) {
         e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
         router.post(`/admin/work-orders/${workOrder.id}/reclassify`,
             { source_material_id: alloc.material_id, target_material_id: target, qty, reason },
-            { preserveScroll: true, onSuccess: onClose });
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
     }
 
     const targets = materials.filter((m) => m.id !== alloc.material_id);
@@ -406,7 +415,7 @@ function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
                     <input type="text" maxLength={255} value={reason}
                         onChange={(e) => setReason(e.target.value)} className={fieldCls} />
                 </div>
-                <ModalActions onClose={onClose} submitLabel={__('Reclassify')} disabled={!target} />
+                <ModalActions onClose={onClose} submitLabel={__('Reclassify')} disabled={!target || processing} />
             </form>
         </ModalFrame>
     );

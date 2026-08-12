@@ -113,9 +113,12 @@ class MaterialReclassificationService
             throw new \InvalidArgumentException("Unsupported target status: {$toStatus}.");
         }
 
-        $fromStatus = $lot->status;
+        return DB::transaction(function () use ($lot, $toStatus, $by, $reason) {
+            // Lock and re-read so two concurrent rejects can't both scrap the same
+            // available quantity and double-decrement stock.
+            $lot = MaterialLot::query()->lockForUpdate()->findOrFail($lot->getKey());
+            $fromStatus = $lot->status;
 
-        return DB::transaction(function () use ($lot, $toStatus, $by, $reason, $fromStatus) {
             // Create the audit row first so the reject scrap movement can point at it.
             $record = MaterialReclassification::create([
                 'type' => MaterialReclassification::TYPE_STATUS,

@@ -15,7 +15,9 @@ class ReturnAllocationRequest extends FormRequest
     {
         $allocation = $this->route('allocation');
 
+        // A soft-deleted batch hides the relationship, so guard it before deref.
         return $allocation instanceof MaterialAllocation
+            && $allocation->batch?->workOrder !== null
             && (bool) $this->user()?->can('view', $allocation->batch->workOrder);
     }
 
