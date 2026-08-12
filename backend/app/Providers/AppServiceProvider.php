@@ -53,6 +53,13 @@ class AppServiceProvider extends ServiceProvider
             ]);
         }
 
+        // Plant timezone chosen in the installer. Applied here rather than left to
+        // APP_TIMEZONE because docker-compose sets that variable on every service,
+        // and a real environment variable overrides the .env file — so on a Docker
+        // install the env route cannot be changed without editing compose files.
+        // Absent setting = keep whatever APP_TIMEZONE resolved to.
+        \App\Support\TimezoneRegistry::apply();
+
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 

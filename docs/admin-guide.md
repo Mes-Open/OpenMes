@@ -66,11 +66,18 @@ docker-compose up -d
 ```
 
 The web installer will guide you through three steps:
-1. **Basic Configuration** — site name, URL
+1. **Basic Configuration** — site name, URL and the **plant timezone**
 2. **Database Configuration** — PostgreSQL connection details
 3. **Admin Account** — your admin username, email, and password
 
 After completing the wizard, the system is ready.
+
+> **Plant timezone.** Pick the timezone of the *plant*, not of the server: every
+> timestamp, report boundary and shift edge is expressed in it, so a mismatch makes
+> a day's report cover different hours than the shift that was worked. The wizard
+> stores it in the database, and that value takes precedence over `APP_TIMEZONE` —
+> on Docker the environment variable comes from `docker-compose.yml` and cannot be
+> changed from inside the application.
 
 ### Production Deployment
 
