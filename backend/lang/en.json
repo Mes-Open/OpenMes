@@ -5162,8 +5162,6 @@
     "change required": "change required",
     "produced :qty at stop": "produced :qty at stop",
     "version :v": "version :v",
-    "The PAWS address must be an http:// or https:// URL.": "The PAWS address must be an http:// or https:// URL.",
-    "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.": "The PAWS address uses plain http://, which would send the Pantheon password unencrypted. Use https://, or set allow_insecure_http to accept the risk.",
     "Tenant": "Tenant",
     "Process template": "Process template",
     "Effective from": "Effective from",
