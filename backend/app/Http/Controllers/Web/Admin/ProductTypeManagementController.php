@@ -55,6 +55,15 @@ class ProductTypeManagementController extends Controller
      */
     public function store(StoreProductTypeRequest $request, CustomFieldService $cf, ImageSanitizer $sanitizer)
     {
+        // Store the photo before the insert: nothing about it depends on the
+        // row, so a file we can't accept fails the form instead of leaving a
+        // product type behind with an error pinned to it.
+        try {
+            $image = $this->storeImage($request->file('image'), $sanitizer);
+        } catch (InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['image' => $e->getMessage()]);
+        }
+
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -64,18 +73,7 @@ class ProductTypeManagementController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'product_type') ?: null;
         }
 
-        $productType = ProductType::create($validated);
-
-        if ($file = $request->file('image')) {
-            try {
-                $this->storeImage($productType, $file, $sanitizer);
-            } catch (InvalidArgumentException $e) {
-                // The row is already committed; surface the image problem on
-                // the edit form rather than losing the product type.
-                return redirect()->route('admin.product-types.edit', $productType)
-                    ->withErrors(['image' => $e->getMessage()]);
-            }
-        }
+        ProductType::make($validated)->forceFill($image)->save();
 
         return redirect()->route('admin.product-types.index')
             ->with('success', 'Product type created successfully.');
@@ -232,6 +230,16 @@ class ProductTypeManagementController extends Controller
         CustomFieldService $cf,
         ImageSanitizer $sanitizer,
     ) {
+        // A new upload always wins over the remove flag.
+        try {
+            $image = $this->storeImage($request->file('image'), $sanitizer);
+        } catch (InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['image' => $e->getMessage()]);
+        }
+        if (! $image && $request->boolean('remove_image')) {
+            $image = ['image_path' => null, 'image_mime' => null];
+        }
+
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -241,18 +249,15 @@ class ProductTypeManagementController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'product_type', $productType->custom_fields) ?: null;
         }
 
-        // A new upload always wins over the remove flag.
-        if ($file = $request->file('image')) {
-            try {
-                $this->storeImage($productType, $file, $sanitizer);
-            } catch (InvalidArgumentException $e) {
-                return back()->withErrors(['image' => $e->getMessage()]);
-            }
-        } elseif ($request->boolean('remove_image')) {
-            $this->deleteImage($productType);
-        }
+        $replaced = $image ? $productType->image_path : null;
 
-        $productType->update($validated);
+        // One write, so subscribers see one CollectionChanged carrying the
+        // whole edit rather than a half-applied row followed by the rest.
+        $productType->fill($validated)->forceFill($image)->save();
+
+        if ($replaced) {
+            Storage::delete($replaced);
+        }
 
         return redirect()->route('admin.product-types.index')
             ->with('success', 'Product type updated successfully.');
@@ -277,39 +282,28 @@ class ProductTypeManagementController extends Controller
 
     /**
      * Re-encode the upload (destroying anything smuggled inside it) and store
-     * it under a random server-generated name, replacing any previous photo.
+     * it under a random server-generated name, returning the columns that
+     * point at it — the caller folds them into its own write.
+     *
+     * @return array{image_path?: string, image_mime?: string} empty when nothing was uploaded
      *
      * @throws InvalidArgumentException when the file is not a clean raster image
      */
-    private function storeImage(ProductType $productType, UploadedFile $file, ImageSanitizer $sanitizer): void
+    private function storeImage(?UploadedFile $file, ImageSanitizer $sanitizer): array
     {
+        if (! $file) {
+            return [];
+        }
+
         $clean = $sanitizer->sanitize($file->getRealPath());
 
-        $old = $productType->image_path;
-
-        // Never the client filename, never a client-supplied extension.
-        $path = 'product-type-images/'.$productType->id.'/'.Str::random(40).'.'.$clean['extension'];
+        // Never the client filename, never a client-supplied extension. The
+        // random name is unique on its own, so the path needs no row id and
+        // can therefore be written before the row exists.
+        $path = 'product-type-images/'.Str::random(40).'.'.$clean['extension'];
         Storage::put($path, $clean['bytes']);
 
-        $productType->forceFill([
-            'image_path' => $path,
-            'image_mime' => $clean['mime'],
-        ])->save();
-
-        if ($old && $old !== $path) {
-            Storage::delete($old);
-        }
-    }
-
-    /** Drop the photo (row + file). No-op when there isn't one. */
-    private function deleteImage(ProductType $productType): void
-    {
-        if (! $productType->image_path) {
-            return;
-        }
-
-        Storage::delete($productType->image_path);
-        $productType->forceFill(['image_path' => null, 'image_mime' => null])->save();
+        return ['image_path' => $path, 'image_mime' => $clean['mime']];
     }
 
     /**

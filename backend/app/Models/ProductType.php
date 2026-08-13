@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class ProductType extends Model
 {
@@ -35,6 +36,17 @@ class ProductType extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Only drop the photo on a permanent delete — a soft delete is
+        // reversible, and a restore from Trash should come back whole.
+        static::forceDeleted(function (self $productType) {
+            if ($productType->image_path) {
+                Storage::delete($productType->image_path);
+            }
+        });
     }
 
     /**
@@ -92,9 +104,10 @@ class ProductType extends Model
      * Authenticated stream URL for the product photo, or null when there is
      * none. The stored file is never web-reachable directly.
      *
-     * `updated_at` is used as a cache buster so replacing the photo (the path
-     * changes, but browsers may hold the old response for a private hour)
-     * shows up immediately.
+     * The URL is `/{id}/image` whatever the photo is, so it carries the head
+     * of the file's random name as a cache buster: a replacement busts the
+     * browser's private hour-long copy, while renaming the product — or any
+     * other edit to the row — leaves the cached image alone.
      */
     public function imageUrl(): ?string
     {
@@ -102,6 +115,7 @@ class ProductType extends Model
             return null;
         }
 
-        return route('admin.product-types.image', $this).'?v='.$this->updated_at?->timestamp;
+        return route('admin.product-types.image', $this)
+            .'?v='.substr(pathinfo($this->image_path, PATHINFO_FILENAME), 0, 8);
     }
 }

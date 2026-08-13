@@ -121,7 +121,7 @@ export default function ShiftOverviewIndex() {
             <PageTitle>{__('Line overview')}</PageTitle>
 
             <div className="flex h-full min-h-0 flex-col">
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-om-line bg-om-card">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-om-line2 bg-om-card">
                     <header className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-om-line2 px-5 py-3">
                         <div className="flex flex-wrap gap-1 rounded-om-sm border border-om-line2 bg-om-bg p-1">
                             {lines.map((line) => (

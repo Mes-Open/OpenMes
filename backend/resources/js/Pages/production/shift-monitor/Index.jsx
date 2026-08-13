@@ -289,7 +289,7 @@ export default function ShiftMonitorIndex() {
                 content: everything above the timeline keeps its natural height
                 and the hour rows absorb the rest. Nothing scrolls. */}
             <div className="flex h-full min-h-0 flex-col">
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border border-om-line bg-om-card">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border border-om-line2 bg-om-card">
                 <TopStrip
                     snapshot={snapshot}
                     metric={metric}

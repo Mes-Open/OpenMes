@@ -52,8 +52,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 /** Floor for a `bodyMaxHeight="fill"` body — a short viewport still shows rows. */
 const FILL_MIN_HEIGHT = 240;
-/** Breathing room left under the pager so it doesn't sit flush on the edge. */
-const FILL_BOTTOM_GAP = 8;
+/**
+ * Room left under a filled table, on top of whatever padding the scroll
+ * container already has.
+ *
+ * Zero: the table's own border is the edge, and a few pixels of background
+ * below it read as the table having stopped short of the bottom rather than as
+ * deliberate spacing. Pages that want breathing room give their container
+ * bottom padding, which is measured and honoured either way.
+ */
+const FILL_BOTTOM_GAP = 0;
 
 /**
  * The scrollable box the table lives in, or null when the page itself scrolls.
@@ -669,12 +677,24 @@ export function DataTable({
                 // That padding already is the breathing room the gap provides.
                 gap = Math.max(0, FILL_BOTTOM_GAP - padBottom);
             }
-            const available = floorY - bodyRect.top - below - gap;
+            // A wide table scrolls sideways inside this body, and that scrollbar
+            // is drawn *inside* the height being set here — so a body sized to
+            // the exact space left over ends up 15px past the container's floor
+            // and raises a second, vertical scrollbar on the page. Its presence
+            // depends on the body's width, which this measurement doesn't change,
+            // so reading it here can't feed back into itself.
+            const scrollbarH = body.offsetHeight - body.clientHeight;
+            const available = floorY - bodyRect.top - below - gap - scrollbarH;
             // Not enough room to be worth capping — the table starts at or below
             // the fold (a report page with charts stacked above it, or a very
             // short viewport). Capping there would nest a scrollbar inside a
             // page that has to scroll anyway, so let the table grow instead.
-            setFillHeight(available < FILL_MIN_HEIGHT ? null : Math.round(available));
+            //
+            // Floor, not round: every offset here is fractional (a fr-sized grid
+            // column, a scaled root font), and rounding *up* by half a pixel is
+            // enough overflow to raise a scrollbar on a container that was meant
+            // to fit exactly. Losing a sub-pixel of table costs nothing.
+            setFillHeight(available < FILL_MIN_HEIGHT ? null : Math.floor(available));
         };
 
         // Both sources fire for the same resize, and the observer watches a box

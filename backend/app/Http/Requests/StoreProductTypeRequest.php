@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests;
 
-use App\Services\CustomFieldService;
+use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\File;
 
 class StoreProductTypeRequest extends FormRequest
 {
+    use MergesCustomFieldRules;
+
     /** Max upload size for the product photo, in KB. */
     public const MAX_IMAGE_KB = 5 * 1024; // 5 MB
 
@@ -31,11 +33,11 @@ class StoreProductTypeRequest extends FormRequest
                 'nullable',
                 File::types(['jpg', 'jpeg', 'png', 'webp'])->max(self::MAX_IMAGE_KB),
             ],
-        ], app(CustomFieldService::class)->rules('product_type'));
+        ], $this->customFieldRules());
     }
 
-    public function attributes(): array
+    protected function customFieldEntityType(): string
     {
-        return app(CustomFieldService::class)->attributeNames('product_type');
+        return 'product_type';
     }
 }

@@ -3,7 +3,9 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
 import LiveAlertCount from '../components/LiveAlertCount';
+import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
+import HoverPanel from '../components/HoverPanel';
 import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
@@ -798,9 +800,20 @@ function SearchResultLink({ item, path, onNavigate }) {
 function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
     const activeClass = active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
+
+    // The alerts entry answers its own badge on hover: a count tells you
+    // something is wrong but not what, and the list is already in the browser
+    // (LatestAlerts reads the same shared collections the badge counts). It
+    // replaces the label tooltip rather than joining it — two things opening off
+    // one hover fight each other, and the panel names itself.
+    const Wrapper = link.alert && alertCount > 0 ? HoverPanel : Tooltip;
+    const wrapperProps = link.alert && alertCount > 0
+        ? { panel: <LatestAlerts /> }
+        : { label: __(link.label), disabled: showLabels };
+
     return (
         <div className="px-2">
-            <Tooltip label={__(link.label)} placement="right" disabled={showLabels}>
+            <Wrapper placement="right" {...wrapperProps}>
                 <Link
                     href={link.href}
                     prefetch
@@ -826,7 +839,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                         </span>
                     )}
                 </Link>
-            </Tooltip>
+            </Wrapper>
         </div>
     );
 }

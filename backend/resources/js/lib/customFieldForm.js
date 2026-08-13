@@ -1,6 +1,8 @@
 /**
  * Helpers for wiring custom fields into any Inertia useForm()-based form
- * (ResourceForm and bespoke forms alike).
+ * (ResourceForm and bespoke forms alike), plus `submitForm` — the app's shared
+ * submit, which every one of those forms goes through whether it has custom
+ * fields or not.
  *
  * Custom-field state on the form's data:
  *   custom_fields           — { key: scalarValue }
@@ -34,8 +36,12 @@ export function customFieldProps(form, definitions) {
 }
 
 /**
- * Submit a useForm() instance, spoofing the method over POST when a custom-field
- * file is staged (FormData can't be sent via PUT/PATCH).
+ * Submit a useForm() instance, spoofing the method over POST when the request
+ * has to go out as multipart (FormData can't be sent via PUT/PATCH).
+ *
+ * That's the case for a staged custom-field file or a plain top-level File
+ * value (ResourceForm's `image` field type). Files nested anywhere else are
+ * not detected — put them at the top level or under `custom_field_files`.
  */
 export function submitForm(form, method, action, options = {}) {
     const staged = form.data.custom_field_files ?? {};

@@ -68,6 +68,18 @@ class ProductTypeImageTest extends TestCase
         ], $overrides);
     }
 
+    /** A full edit submission, as the form sends it. */
+    private function edit(ProductType $productType, array $overrides = [], ?User $as = null)
+    {
+        return $this->actingAs($as ?? $this->admin)
+            ->put("/admin/product-types/{$productType->id}", $this->payload($overrides));
+    }
+
+    private function productType(): ProductType
+    {
+        return ProductType::factory()->create(['code' => 'WIDGET-A']);
+    }
+
     // ── Happy path ───────────────────────────────────────────────────────
 
     public function test_admin_can_create_a_product_type_with_an_image(): void
@@ -100,11 +112,10 @@ class ProductTypeImageTest extends TestCase
 
     public function test_admin_can_add_an_image_when_editing(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->productType();
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'image' => UploadedFile::fake()->image('widget.png', 400, 400),
-        ]))->assertRedirect('/admin/product-types');
+        $this->edit($productType, ['image' => UploadedFile::fake()->image('widget.png', 400, 400)])
+            ->assertRedirect('/admin/product-types');
 
         $productType->refresh();
         $this->assertNotNull($productType->image_path);
@@ -114,16 +125,12 @@ class ProductTypeImageTest extends TestCase
 
     public function test_uploading_a_new_image_replaces_and_deletes_the_old_file(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->productType();
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'image' => UploadedFile::fake()->image('first.jpg', 300, 300),
-        ]));
+        $this->edit($productType, ['image' => UploadedFile::fake()->image('first.jpg', 300, 300)]);
         $first = $productType->refresh()->image_path;
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'image' => UploadedFile::fake()->image('second.png', 300, 300),
-        ]));
+        $this->edit($productType, ['image' => UploadedFile::fake()->image('second.png', 300, 300)]);
         $second = $productType->refresh()->image_path;
 
         $this->assertNotSame($first, $second);
@@ -134,16 +141,10 @@ class ProductTypeImageTest extends TestCase
 
     public function test_remove_image_clears_the_photo_and_deletes_the_file(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->withImage($this->productType());
+        $path = $productType->image_path;
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'image' => UploadedFile::fake()->image('widget.jpg', 300, 300),
-        ]));
-        $path = $productType->refresh()->image_path;
-
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'remove_image' => true,
-        ]))->assertRedirect('/admin/product-types');
+        $this->edit($productType, ['remove_image' => true])->assertRedirect('/admin/product-types');
 
         $productType->refresh();
         $this->assertNull($productType->image_path);
@@ -153,16 +154,10 @@ class ProductTypeImageTest extends TestCase
 
     public function test_editing_without_touching_the_image_keeps_it(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->withImage($this->productType());
+        $path = $productType->image_path;
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'image' => UploadedFile::fake()->image('widget.jpg', 300, 300),
-        ]));
-        $path = $productType->refresh()->image_path;
-
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
-            'name' => 'Renamed Widget',
-        ]))->assertRedirect('/admin/product-types');
+        $this->edit($productType, ['name' => 'Renamed Widget'])->assertRedirect('/admin/product-types');
 
         $productType->refresh();
         $this->assertSame('Renamed Widget', $productType->name);
@@ -172,16 +167,28 @@ class ProductTypeImageTest extends TestCase
 
     public function test_a_new_upload_wins_over_the_remove_flag(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->withImage($this->productType());
 
-        $this->actingAs($this->admin)->put("/admin/product-types/{$productType->id}", $this->payload([
+        $this->edit($productType, [
             'image' => UploadedFile::fake()->image('replacement.jpg', 300, 300),
             'remove_image' => true,
-        ]))->assertRedirect('/admin/product-types');
+        ])->assertRedirect('/admin/product-types');
 
         $productType->refresh();
         $this->assertNotNull($productType->image_path);
         Storage::assertExists($productType->image_path);
+    }
+
+    public function test_a_soft_deleted_product_type_keeps_its_image_but_a_purge_drops_the_file(): void
+    {
+        $productType = $this->withImage($this->productType());
+        $path = $productType->image_path;
+
+        $productType->delete();
+        Storage::assertExists($path); // restorable from Trash — file must survive
+
+        $productType->forceDelete();
+        Storage::assertMissing($path);
     }
 
     // ── Validation ───────────────────────────────────────────────────────
@@ -219,7 +226,7 @@ class ProductTypeImageTest extends TestCase
 
     public function test_admin_can_stream_the_image(): void
     {
-        $productType = $this->withImage(ProductType::factory()->create(['code' => 'WIDGET-A']));
+        $productType = $this->withImage($this->productType());
 
         $this->actingAs($this->admin)
             ->get("/admin/product-types/{$productType->id}/image")
@@ -230,7 +237,7 @@ class ProductTypeImageTest extends TestCase
 
     public function test_streaming_a_product_type_without_an_image_is_404(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->productType();
 
         $this->actingAs($this->admin)
             ->get("/admin/product-types/{$productType->id}/image")
@@ -239,14 +246,14 @@ class ProductTypeImageTest extends TestCase
 
     public function test_guests_cannot_stream_the_image(): void
     {
-        $productType = $this->withImage(ProductType::factory()->create(['code' => 'WIDGET-A']));
+        $productType = $this->withImage($this->productType());
 
         $this->get("/admin/product-types/{$productType->id}/image")->assertRedirect('/login');
     }
 
     public function test_non_admins_cannot_stream_the_image(): void
     {
-        $productType = $this->withImage(ProductType::factory()->create(['code' => 'WIDGET-A']));
+        $productType = $this->withImage($this->productType());
 
         $this->actingAs($this->operator)
             ->get("/admin/product-types/{$productType->id}/image")
@@ -255,12 +262,9 @@ class ProductTypeImageTest extends TestCase
 
     public function test_non_admins_cannot_upload_an_image(): void
     {
-        $productType = ProductType::factory()->create(['code' => 'WIDGET-A']);
+        $productType = $this->productType();
 
-        $this->actingAs($this->operator)
-            ->put("/admin/product-types/{$productType->id}", $this->payload([
-                'image' => UploadedFile::fake()->image('widget.jpg', 300, 300),
-            ]))
+        $this->edit($productType, ['image' => UploadedFile::fake()->image('widget.jpg', 300, 300)], $this->operator)
             ->assertForbidden();
 
         $this->assertNull($productType->refresh()->image_path);
@@ -270,7 +274,7 @@ class ProductTypeImageTest extends TestCase
 
     public function test_the_edit_and_show_pages_expose_the_image_url(): void
     {
-        $productType = $this->withImage(ProductType::factory()->create(['code' => 'WIDGET-A']));
+        $productType = $this->withImage($this->productType());
 
         $this->actingAs($this->admin)
             ->get("/admin/product-types/{$productType->id}/edit")

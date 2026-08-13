@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { SegmentedProgress, StatusBadge } from '@openmes/ui';
 
 import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
@@ -15,10 +16,27 @@ import { __, elapsed, formatDateTime } from '../../../lib/i18n';
  * @param lineNames/productTypeNames/counts  id → label lookups from the page props
  * @param customerNames  pass to include the Customer column, omit to drop it
  * @param withScore      include the computed priority score column
+ * @param detailHref     row → detail URL; makes the order number a link
  */
-export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, customerNames = null, withScore = false } = {}) {
+export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, customerNames = null, withScore = false, detailHref = null } = {}) {
     return [
-        { key: 'order_no', label: __('Order'), className: 'font-mono font-medium text-om-ink', filter: 'text' },
+        {
+            key: 'order_no',
+            label: __('Order'),
+            className: 'font-mono font-medium text-om-ink',
+            filter: 'text',
+            // The order number is the row's identity, so it's what a reader aims
+            // at to open the order. Double-clicking the row still works and the
+            // ⋯ menu still lists Open — but neither is discoverable, and the
+            // number looked like a link's twin without being one.
+            render: detailHref
+                ? (r) => (
+                    <Link href={detailHref(r)} className="hover:text-om-accent hover:underline">
+                        {r.order_no}
+                    </Link>
+                )
+                : undefined,
+        },
         ...(customerNames
             ? [{
                 key: 'customer',

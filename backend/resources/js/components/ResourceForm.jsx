@@ -258,12 +258,13 @@ function ImageField({ field, value, error, setData, data }) {
     const existingUrl = data?.[`${name}_url`] ?? null;
     const removeKey = `remove_${name}`;
     const removed = !!data?.[removeKey];
+    const staged = value instanceof File;
 
     // Local preview of the staged file; revoked on change/unmount so the blob
     // doesn't leak for the lifetime of the page.
     const [preview, setPreview] = useState(null);
     useEffect(() => {
-        if (!(value instanceof File)) {
+        if (!staged) {
             setPreview(null);
             return;
         }
@@ -273,11 +274,6 @@ function ImageField({ field, value, error, setData, data }) {
     }, [value]);
 
     const shown = preview ?? (removed ? null : existingUrl);
-
-    const pick = (file) => {
-        setData(name, file);
-        if (file) setData(removeKey, false);
-    };
 
     return (
         <div>
@@ -303,13 +299,13 @@ function ImageField({ field, value, error, setData, data }) {
                         type="file"
                         name={name}
                         accept={accept}
-                        onChange={(e) => pick(e.target.files?.[0] ?? null)}
+                        onChange={(e) => setData(name, e.target.files?.[0] ?? null)}
                         className="block w-full text-[13px] text-om-muted file:mr-3 file:rounded-om-sm file:border-0 file:bg-om-chip file:px-3 file:py-1.5 file:text-[13px] file:font-semibold file:text-om-ink hover:file:bg-om-line2"
                     />
-                    {value instanceof File && (
+                    {staged && (
                         <p className="mt-1 text-[12px] text-om-muted truncate">{__('Selected')}: {value.name}</p>
                     )}
-                    {existingUrl && !(value instanceof File) && (
+                    {existingUrl && !staged && (
                         <button
                             type="button"
                             onClick={() => setData(removeKey, !removed)}
@@ -318,7 +314,7 @@ function ImageField({ field, value, error, setData, data }) {
                             {removed ? __('Keep image') : __('Remove image')}
                         </button>
                     )}
-                    {removed && !(value instanceof File) && (
+                    {removed && !staged && (
                         <p className="mt-1 text-[11.5px] text-om-muted">{__('Will be removed on save.')}</p>
                     )}
                 </div>

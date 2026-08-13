@@ -30,13 +30,23 @@ export default function WorkOrdersIndex() {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const statusFilter = params.get('status');
     const lineFilter = params.get('line_id');
-    const filterFn = (statusFilter || lineFilter)
-        ? (r) => (!statusFilter || r.status === statusFilter) && (!lineFilter || String(r.line_id) === String(lineFilter))
+    // `?overdue=1` is the alerts page's "open in work orders" link: the same
+    // definition of overdue it lists — a past due date on an order still live.
+    const overdueFilter = params.get('overdue');
+    const today = new Date().toISOString().slice(0, 10);
+    const isOverdue = (r) => r.due_date && String(r.due_date).slice(0, 10) < today && !TERMINAL.includes(r.status);
+    const filterFn = (statusFilter || lineFilter || overdueFilter)
+        ? (r) => (!statusFilter || r.status === statusFilter)
+            && (!lineFilter || String(r.line_id) === String(lineFilter))
+            && (!overdueFilter || isOverdue(r))
         : undefined;
     const subtitle = filterFn ? (
         <div className="flex items-center gap-2 text-sm">
             {statusFilter && (
                 <StatusBadge size="sm" {...woStatusBadge(statusFilter)} />
+            )}
+            {overdueFilter && (
+                <StatusBadge size="sm" tone="danger" icon="clock" label={__('Overdue')} />
             )}
             {lineFilter && (
                 <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-muted">
@@ -94,7 +104,10 @@ export default function WorkOrdersIndex() {
 
     // `value` feeds search/sort/filter for the lookup-rendered columns; `filter`
     // adds the column's control to the filter row (options derived from the rows).
-    const columns = woColumns({ lineNames, productTypeNames, counts, customerNames, withScore: true });
+    const columns = woColumns({
+        lineNames, productTypeNames, counts, customerNames, withScore: true,
+        detailHref: (r) => `/admin/work-orders/${r.id}`,
+    });
 
     // Asking for a produced quantity is what separates Complete from the other
     // verbs: it can't be applied blind, so it never joins the bulk bar.

@@ -21,6 +21,13 @@ class WorkOrderManagementController extends Controller
 {
     use BuildsWorkOrderFormOptions;
 
+    /**
+     * Entries in the detail page's activity panel. A finished order has one per
+     * step per batch, which is a scroll, not a summary — the panel answers "what
+     * happened lately", and the batch list below it holds the rest.
+     */
+    private const ACTIVITY_LIMIT = 8;
+
     public function __construct(protected WorkOrderService $workOrderService) {}
 
     /**
@@ -82,7 +89,7 @@ class WorkOrderManagementController extends Controller
 
     public function show(WorkOrder $workOrder, CustomFieldService $customFields)
     {
-        $workOrder->load(['customer', 'line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
+        $workOrder->load(['customer', 'line', 'productType', 'batches.steps.completedBy', 'issues.issueType', 'issues.reportedBy']);
 
         $batches = $workOrder->batches->map(function ($batch) {
             return [
@@ -101,6 +108,8 @@ class WorkOrderManagementController extends Controller
                     'status' => $s->status,
                     'duration_minutes' => $s->duration_minutes,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes ?? null,
+                    'started_at' => $s->started_at?->toISOString(),
+                    'completed_at' => $s->completed_at?->toISOString(),
                 ])->values(),
             ];
         })->values();
@@ -111,6 +120,8 @@ class WorkOrderManagementController extends Controller
             'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
             'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
+            'reported_at' => $i->reported_at?->toISOString(),
+            'reported_by' => $i->reportedBy?->name,
         ])->values();
 
         return Inertia::render('admin/work-orders/Show', [
@@ -132,13 +143,108 @@ class WorkOrderManagementController extends Controller
                 'custom_fields' => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
                 'created_at' => $workOrder->created_at->toISOString(),
+                'completed_at' => $workOrder->completed_at?->toISOString(),
                 'line_name' => $workOrder->line?->name,
                 'product_type_name' => $workOrder->productType?->name,
                 'batches' => $batches,
                 'issues' => $issues,
+                'activity' => $this->activityFeed($workOrder),
             ],
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
+    }
+
+    /**
+     * What has actually happened to this order, newest first.
+     *
+     * Assembled from the timestamps the records already carry rather than from
+     * an event log: there is no audit trail on work orders, and inventing one
+     * for a sidebar panel would mean writing a row on every transition. Every
+     * entry here is a fact some column states — nothing is inferred, so an entry
+     * is missing rather than approximate when a timestamp was never recorded.
+     *
+     * @return array<int, array{title: string, meta: ?string, at: string, tone: string}>
+     */
+    private function activityFeed(WorkOrder $workOrder): array
+    {
+        $events = [];
+
+        $events[] = [
+            'title' => __('Order created'),
+            'meta' => implode(' · ', array_filter([
+                $workOrder->productType?->name,
+                __(':count pcs', ['count' => (float) $workOrder->planned_qty]),
+                $workOrder->line?->name,
+            ])),
+            'at' => $workOrder->created_at->toISOString(),
+            'tone' => 'muted',
+        ];
+
+        foreach ($workOrder->batches as $batch) {
+            if ($batch->started_at) {
+                $events[] = [
+                    'title' => __('Batch #:number started', ['number' => $batch->batch_number]),
+                    'meta' => __(':count pcs', ['count' => (float) $batch->target_qty]),
+                    'at' => $batch->started_at->toISOString(),
+                    'tone' => 'accent',
+                ];
+            }
+
+            foreach ($batch->steps as $step) {
+                if (! $step->completed_at) {
+                    continue;
+                }
+
+                $events[] = [
+                    'title' => __(':step completed', ['step' => $step->name]),
+                    'meta' => implode(' · ', array_filter([
+                        __('Batch #:number', ['number' => $batch->batch_number]),
+                        __('step :n/:total', ['n' => $step->step_number, 'total' => $batch->steps->count()]),
+                        $step->completedBy?->name,
+                    ])),
+                    'at' => $step->completed_at->toISOString(),
+                    'tone' => 'running',
+                ];
+            }
+
+            if ($batch->completed_at) {
+                $events[] = [
+                    'title' => __('Batch #:number completed', ['number' => $batch->batch_number]),
+                    'meta' => __(':count pcs', ['count' => (float) $batch->produced_qty]),
+                    'at' => $batch->completed_at->toISOString(),
+                    'tone' => 'running',
+                ];
+            }
+        }
+
+        foreach ($workOrder->issues as $issue) {
+            if (! $issue->reported_at) {
+                continue;
+            }
+
+            $events[] = [
+                'title' => __('Issue reported: :title', ['title' => $issue->title]),
+                'meta' => implode(' · ', array_filter([$issue->issueType?->name, $issue->reportedBy?->name])),
+                'at' => $issue->reported_at->toISOString(),
+                'tone' => 'blocked',
+            ];
+        }
+
+        if ($workOrder->completed_at) {
+            $events[] = [
+                'title' => __('Order completed'),
+                'meta' => __(':produced / :planned pcs', [
+                    'produced' => (float) $workOrder->produced_qty,
+                    'planned' => (float) $workOrder->planned_qty,
+                ]),
+                'at' => $workOrder->completed_at->toISOString(),
+                'tone' => 'running',
+            ];
+        }
+
+        usort($events, fn ($a, $b) => strcmp($b['at'], $a['at']));
+
+        return array_slice($events, 0, self::ACTIVITY_LIMIT);
     }
 
     public function edit(WorkOrder $workOrder, CustomFieldService $customFields)

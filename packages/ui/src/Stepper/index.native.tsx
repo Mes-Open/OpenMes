@@ -1,9 +1,11 @@
 /**
  * Stepper — native twin of index.web.jsx, identical props API.
  *
- * Same reading: a read-only run of steps, with the connector above a step
- * coloured by the step before it (the line is progress between two points, and
- * it has only been travelled once the earlier one is done).
+ * Same reading: a run of steps, with the connector above a step coloured by the
+ * step before it (the line is progress between two points, and it has only been
+ * travelled once the earlier one is done). The indicator keeps the step number
+ * in every state — see the web twin for why — and `action` carries whatever the
+ * step can be acted on with.
  */
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -14,16 +16,16 @@ import { colors, fonts } from '../tokens';
 export type StepStatus = 'done' | 'active' | 'pending' | 'blocked';
 
 /** Filled discs, as on web: a ring of hairline circles reads as bullets. */
-const TONE: Record<StepStatus, { bg: string; fg: string; line: string; title: string }> = {
-    done: { bg: colors.running, fg: '#FFFFFF', line: colors.running, title: colors.ink },
-    active: { bg: colors.accent, fg: '#FFFFFF', line: colors.line2, title: colors.ink },
-    pending: { bg: colors.chip, fg: colors.faint, line: colors.line2, title: colors.muted },
-    blocked: { bg: colors.blocked, fg: '#FFFFFF', line: colors.line2, title: colors.ink },
+const TONE: Record<StepStatus, { bg: string; fg: string; line: string; title: string; caption: string }> = {
+    done: { bg: colors.running, fg: '#FFFFFF', line: colors.running, title: colors.ink, caption: colors.faint },
+    active: { bg: colors.accent, fg: '#FFFFFF', line: colors.line2, title: colors.ink, caption: colors.accent },
+    pending: { bg: colors.chip, fg: colors.faint, line: colors.line2, title: colors.muted, caption: colors.muted },
+    blocked: { bg: colors.blocked, fg: '#FFFFFF', line: colors.line2, title: colors.ink, caption: colors.blocked },
 };
 
 const SIZES = {
-    sm: { dot: 24, gap: 20, text: 12.5, desc: 11.5, icon: 13, line: 2 },
-    md: { dot: 28, gap: 24, text: 13.5, desc: 12, icon: 15, line: 2 },
+    sm: { dot: 24, gap: 20, text: 12.5, desc: 9.5, icon: 13, line: 2 },
+    md: { dot: 28, gap: 24, text: 13.5, desc: 10, icon: 15, line: 2 },
 } as const;
 
 export interface StepperStep {
@@ -31,11 +33,14 @@ export interface StepperStep {
     title: string;
     description?: string;
     status?: StepStatus;
-    /** Lucide name shown instead of a tick on a done step. */
+    /** Lucide name shown in the indicator instead of the step number. */
     icon?: string;
     /** Replaces the ordinal inside the indicator. */
     label?: string;
+    /** A fact about the step, e.g. its duration. */
     meta?: React.ReactNode;
+    /** Something you can do to the step, e.g. a Start button. */
+    action?: React.ReactNode;
 }
 
 export interface StepperProps {
@@ -69,8 +74,8 @@ export function Stepper({ steps = [], size = 'md', style }: StepperProps) {
                                 { width: s.dot, height: s.dot, borderRadius: s.dot / 2, backgroundColor: tone.bg },
                             ]}
                         >
-                            {step.status === 'done' ? (
-                                <Icon name={step.icon ?? 'check'} size={s.icon} color={tone.fg} />
+                            {step.icon ? (
+                                <Icon name={step.icon} size={s.icon} color={tone.fg} />
                             ) : (
                                 <Text style={[styles.ordinal, { color: tone.fg }]}>{step.label ?? i + 1}</Text>
                             )}
@@ -80,12 +85,13 @@ export function Stepper({ steps = [], size = 'md', style }: StepperProps) {
                                 {step.title}
                             </Text>
                             {step.description != null && (
-                                <Text numberOfLines={1} style={[styles.desc, { fontSize: s.desc }]}>
+                                <Text numberOfLines={1} style={[styles.desc, { fontSize: s.desc, color: tone.caption }]}>
                                     {step.description}
                                 </Text>
                             )}
                         </View>
                         {step.meta}
+                        {step.action}
                     </View>
                 );
             })}
@@ -121,8 +127,8 @@ const styles = StyleSheet.create({
         fontFamily: fonts.sans.native.semibold,
     },
     desc: {
-        color: colors.faint,
-        fontFamily: fonts.sans.native.regular,
+        letterSpacing: 0.6,
+        fontFamily: fonts.mono.native.regular,
     },
 });
 

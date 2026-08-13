@@ -64,7 +64,10 @@ export default function SupervisorWorkOrdersIndex() {
         onClick: (rows, clear) => bulk(v.key, rows, clear),
     }));
 
-    const columns = woColumns({ lineNames, productTypeNames, counts, customerNames, withScore: true });
+    const columns = woColumns({
+        lineNames, productTypeNames, counts, customerNames, withScore: true,
+        detailHref: (r) => `/supervisor/work-orders/${r.id}`,
+    });
 
     // Asking for a produced quantity is what separates Complete from the other
     // verbs: it can't be applied blind, so it never joins the bulk bar.
