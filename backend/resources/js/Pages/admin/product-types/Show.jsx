@@ -79,6 +79,13 @@ export default function ProductTypeShow({
                     </Link>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
+                            {productType.image_url && (
+                                <img
+                                    src={productType.image_url}
+                                    alt={productType.name}
+                                    className="h-14 w-14 rounded-om-sm border border-om-line object-cover bg-om-bg"
+                                />
+                            )}
                             <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
                             {productType.is_active ? (
                                 <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__("Active")}</span>

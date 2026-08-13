@@ -24,6 +24,7 @@ class ProductTypesShape extends Shape
             'name',
             'description',
             'unit_of_measure',
+            'image_path', // presence only — the file is served via admin.product-types.image
             'is_active',
             'custom_fields',
             'created_at',

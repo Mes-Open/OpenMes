@@ -374,6 +374,8 @@ Route::middleware('auth')->group(function () {
         // optional `quality` module ("Issues & reasons").
         Route::middleware('module:quality')->group(function () {
             Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+            // Bulk acknowledge / resolve — the alerts page acts on a whole list.
+            Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
             Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
             Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
             Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
@@ -514,6 +516,8 @@ Route::middleware('auth')->group(function () {
 
         // Issues Management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        // Bulk acknowledge / resolve — the alerts page acts on a whole list.
+        Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
@@ -573,6 +577,10 @@ Route::middleware('auth')->group(function () {
         // Product Types Management
         Route::resource('product-types', \App\Http\Controllers\Web\Admin\ProductTypeManagementController::class);
         Route::post('/product-types/{product_type}/toggle-active', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'toggleActive'])->name('product-types.toggle-active');
+
+        // Product photo — streamed from the private disk to authenticated
+        // admins; the file is NEVER publicly reachable.
+        Route::get('/product-types/{product_type}/image', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'image'])->name('product-types.image');
 
         // Process Templates Management (nested under product types)
         Route::prefix('product-types/{product_type}/process-templates')->name('product-types.process-templates.')->group(function () {

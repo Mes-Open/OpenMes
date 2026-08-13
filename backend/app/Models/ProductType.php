@@ -16,6 +16,11 @@ class ProductType extends Model
     use HasCustomFields, HasFactory, HasTenant;
     use SoftDeletesWithAudit;
 
+    /**
+     * `image_path` / `image_mime` are deliberately NOT fillable — they are
+     * written only by the controller after ImageSanitizer has re-encoded the
+     * upload, never from request input.
+     */
     protected $fillable = [
         'code',
         'name',
@@ -81,5 +86,22 @@ class ProductType extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Authenticated stream URL for the product photo, or null when there is
+     * none. The stored file is never web-reachable directly.
+     *
+     * `updated_at` is used as a cache buster so replacing the photo (the path
+     * changes, but browsers may hold the old response for a private hour)
+     * shows up immediately.
+     */
+    public function imageUrl(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        return route('admin.product-types.image', $this).'?v='.$this->updated_at?->timestamp;
     }
 }

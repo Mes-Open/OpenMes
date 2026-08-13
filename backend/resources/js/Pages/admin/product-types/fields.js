@@ -27,6 +27,12 @@ export const PRODUCT_TYPE_FIELDS = [
         help: __('How this product is counted or measured'),
     },
     {
+        name: 'image',
+        label: __('Product Image'),
+        type: 'image',
+        help: __('Optional. JPEG, PNG or WebP, up to 5 MB.'),
+    },
+    {
         name: 'is_active',
         label: __('Active (ready for production)'),
         type: 'checkbox',

@@ -39,7 +39,10 @@ export function customFieldProps(form, definitions) {
  */
 export function submitForm(form, method, action, options = {}) {
     const staged = form.data.custom_field_files ?? {};
-    const hasFiles = Object.values(staged).some((f) => f instanceof File);
+    // Staged custom-field files, plus any plain top-level File field (e.g. the
+    // product photo) — both force the request to multipart.
+    const hasFiles = Object.values(staged).some((f) => f instanceof File)
+        || Object.values(form.data).some((v) => v instanceof File);
     if (hasFiles && method.toLowerCase() !== 'post') {
         form.transform((d) => ({ ...d, _method: method }));
         form.post(action, options);

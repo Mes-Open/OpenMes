@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import CustomFields from './CustomFields';
@@ -17,9 +17,12 @@ import { __ } from '../lib/i18n';
  *   action      — endpoint URL
  *   method      — 'post' (create) | 'put' (edit)
  *   fields      — [{ name, label, type?, required?, placeholder?, help?, options? }]
- *                 type: 'text' (default) | 'textarea' | 'number' | 'checkbox' | 'select'
+ *                 type: 'text' (default) | 'textarea' | 'number' | 'checkbox' | 'select' | 'image'
  *                 help: gray hint text rendered under the field
  *                 options (select): [{ value, label }]
+ *                 image: binds three keys — `<name>` (the staged File),
+ *                        `<name>_url` (existing image, display only) and
+ *                        `remove_<name>` (clear it without replacing)
  *   initial     — initial form values keyed by field name
  *   submitLabel — button text
  *   cancelHref  — cancel link
@@ -185,6 +188,10 @@ function Field({ field, value, error, setData, data }) {
         return <CheckboxGroupField field={field} value={value} error={error} setData={setData} data={data} />;
     }
 
+    if (type === 'image') {
+        return <ImageField field={field} value={value} error={error} setData={setData} data={data} />;
+    }
+
     return (
         <div>
             <label className={LABEL_CLASS}>
@@ -233,6 +240,89 @@ function Field({ field, value, error, setData, data }) {
                     className={INPUT_CLASS}
                 />
             )}
+
+            {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
+            {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
+        </div>
+    );
+}
+
+/**
+ * Optional single image: a staged File on `<name>`, the already-stored image on
+ * `<name>_url` (read-only, rendered as a preview) and a `remove_<name>` flag to
+ * clear it without uploading a replacement. Picking a new file supersedes the
+ * removal, which is also how the server resolves the two.
+ */
+function ImageField({ field, value, error, setData, data }) {
+    const { name, label, required, help, accept = 'image/jpeg,image/png,image/webp' } = field;
+    const existingUrl = data?.[`${name}_url`] ?? null;
+    const removeKey = `remove_${name}`;
+    const removed = !!data?.[removeKey];
+
+    // Local preview of the staged file; revoked on change/unmount so the blob
+    // doesn't leak for the lifetime of the page.
+    const [preview, setPreview] = useState(null);
+    useEffect(() => {
+        if (!(value instanceof File)) {
+            setPreview(null);
+            return;
+        }
+        const url = URL.createObjectURL(value);
+        setPreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [value]);
+
+    const shown = preview ?? (removed ? null : existingUrl);
+
+    const pick = (file) => {
+        setData(name, file);
+        if (file) setData(removeKey, false);
+    };
+
+    return (
+        <div>
+            <label className={LABEL_CLASS}>
+                {__(label)} {required && <span className="text-om-accent">*</span>}
+            </label>
+
+            <div className="flex items-start gap-3">
+                {shown ? (
+                    <img
+                        src={shown}
+                        alt={__(label)}
+                        className="h-24 w-24 rounded-om-sm border border-om-line object-cover bg-om-bg"
+                    />
+                ) : (
+                    <div className="h-24 w-24 rounded-om-sm border border-dashed border-om-line bg-om-bg flex items-center justify-center text-[10px] font-mono uppercase tracking-[0.08em] text-om-faint">
+                        {__('No image')}
+                    </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                    <input
+                        type="file"
+                        name={name}
+                        accept={accept}
+                        onChange={(e) => pick(e.target.files?.[0] ?? null)}
+                        className="block w-full text-[13px] text-om-muted file:mr-3 file:rounded-om-sm file:border-0 file:bg-om-chip file:px-3 file:py-1.5 file:text-[13px] file:font-semibold file:text-om-ink hover:file:bg-om-line2"
+                    />
+                    {value instanceof File && (
+                        <p className="mt-1 text-[12px] text-om-muted truncate">{__('Selected')}: {value.name}</p>
+                    )}
+                    {existingUrl && !(value instanceof File) && (
+                        <button
+                            type="button"
+                            onClick={() => setData(removeKey, !removed)}
+                            className="mt-1 text-[11.5px] text-om-blocked hover:underline"
+                        >
+                            {removed ? __('Keep image') : __('Remove image')}
+                        </button>
+                    )}
+                    {removed && !(value instanceof File) && (
+                        <p className="mt-1 text-[11.5px] text-om-muted">{__('Will be removed on save.')}</p>
+                    )}
+                </div>
+            </div>
 
             {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
             {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
