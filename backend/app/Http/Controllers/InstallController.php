@@ -154,22 +154,24 @@ class InstallController extends Controller
             return redirect('/');
         }
 
-        return view('install.environment');
+        return view('install.environment', [
+            'timezones' => \App\Support\TimezoneRegistry::grouped(),
+            // Preselect whatever the app already resolves to, so a deployment that
+            // set APP_TIMEZONE in compose sees its own value rather than UTC.
+            'currentTimezone' => \App\Support\TimezoneRegistry::current(),
+        ]);
     }
 
     /**
      * Step 0: Create .env file and generate APP_KEY
      */
-    public function setupEnvironment(Request $request)
+    public function setupEnvironment(\App\Http\Requests\Install\SetupEnvironmentRequest $request)
     {
         if ($this->isInstalled()) {
             return redirect('/');
         }
 
-        $validated = $request->validate([
-            'app_name' => 'required|string|max:255',
-            'app_url' => 'required|url',
-        ]);
+        $validated = $request->validated();
 
         $envPath = base_path('.env');
         if (! file_exists($envPath)) {
@@ -181,7 +183,17 @@ class InstallController extends Controller
             'APP_URL' => $validated['app_url'],
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
+            // Written for bare-metal installs and as documentation of the choice.
+            // On Docker it is inert — compose sets APP_TIMEZONE in the container
+            // environment and a real env var wins over .env — which is why the
+            // authoritative copy goes into system_settings once the database
+            // exists (see setupDatabase below).
+            'APP_TIMEZONE' => $validated['app_timezone'],
         ]);
+
+        // The database does not exist yet at this step, so the choice rides the
+        // session until migrations have run.
+        session(['install_timezone' => $validated['app_timezone']]);
 
         Artisan::call('key:generate', ['--force' => true]);
         Artisan::call('config:clear');
@@ -324,6 +336,18 @@ class InstallController extends Controller
 
         Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
         Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+
+        // The plant timezone picked in step 1, now that there is a table to put it
+        // in. This is the copy the application actually reads — on Docker the
+        // .env value written earlier is overridden by compose.
+        if ($timezone = session('install_timezone')) {
+            try {
+                \App\Support\TimezoneRegistry::save($timezone);
+            } catch (\InvalidArgumentException) {
+                // Validated in step 1; a bad value here would mean a tampered
+                // session, and the env fallback is a working default either way.
+            }
+        }
 
         session([
             'install_step_1_completed' => true,
