@@ -47,7 +47,7 @@ export default function ProductRevisionsIndex() {
     ];
 
     const actions = (r) => {
-        const items = [];
+        const items = [{ label: __('View'), href: `/admin/product-revisions/${r.id}` }];
         if (r.lifecycle_status === 'draft') {
             items.push({ label: __('Edit'), href: `/admin/product-revisions/${r.id}/edit` });
             items.push({

@@ -219,6 +219,52 @@ class LotPickingService
         });
     }
 
+    /**
+     * Return only part of an allocation's picked quantity to its lots (#99) —
+     * used when the operator hands back surplus mid-batch. Walks the picks
+     * newest-first (LIFO), restoring each lot's available quantity and reopening
+     * a depleted lot, then shrinks or removes the pick row so
+     * Σ picked_qty stays equal to the (now reduced) allocated_qty.
+     */
+    public function returnPartialForAllocation(MaterialAllocation $allocation, float $qty): void
+    {
+        if ($qty <= 0 || ! $this->isLotTrackingEnabled()) {
+            return;
+        }
+
+        DB::transaction(function () use ($allocation, $qty) {
+            $picks = $allocation->lotPicks()->with('lot')->lockForUpdate()->get()->reverse();
+            $remaining = $qty;
+
+            foreach ($picks as $pick) {
+                if ($remaining <= self::EPSILON) {
+                    break;
+                }
+                $take = min($remaining, (float) $pick->picked_qty);
+                if ($take <= 0) {
+                    continue;
+                }
+
+                if ($pick->lot) {
+                    $pick->lot->increment('quantity_available', $take);
+                    if ($pick->lot->status === MaterialLot::STATUS_CONSUMED && (float) $pick->lot->fresh()->quantity_available > 0) {
+                        $pick->lot->update(['status' => MaterialLot::STATUS_RELEASED]);
+                    }
+                    \App\Sync\CollectionBroadcaster::flush($pick->lot); // increment bypasses model events
+                }
+
+                $newPicked = (float) $pick->picked_qty - $take;
+                if ($newPicked <= self::EPSILON) {
+                    $pick->delete();
+                } else {
+                    $pick->update(['picked_qty' => $newPicked]);
+                }
+
+                $remaining -= $take;
+            }
+        });
+    }
+
     public function isLotTrackingEnabled(): bool
     {
         try {

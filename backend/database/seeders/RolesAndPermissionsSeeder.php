@@ -16,6 +16,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $permissions = [
             // Work Orders
             'view work orders', 'create work orders', 'edit work orders', 'delete work orders',
+            // Change control (#182) — kept separate from 'edit work orders' so a plant
+            // can let a planner raise a change while only a reviewer approves it.
+            'approve work order changes',
 
             // Batch & Steps
             'start batch step', 'complete batch step', 'skip batch step',
@@ -101,6 +104,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
+            // Supervisors are the reviewers on the shop floor: they approve and apply
+            // production changes (#182).
+            'approve work order changes',
             // No tab:* grants: `tab:` gates the /admin tree, and supervisors have
             // their own routes under /supervisor (gated by role) for everything
             // they need — orders, customers, priority rules, CSV import, the

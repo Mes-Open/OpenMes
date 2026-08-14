@@ -290,6 +290,11 @@ class WorkOrderService
             'document_id' => $d->id,
             'entity_type' => $d->entity_type,
             'entity_id' => $d->entity_id,
+            // Frozen display fields so the operator view is self-sufficient (no
+            // live lookup needed) and shows exactly what was released.
+            'original_filename' => $d->original_filename,
+            'entry_point' => $d->entry_point,
+            'file_size' => $d->file_size,
             'revision' => $d->revision,
             'package_type' => $d->package_type->value,
             'checksum' => $d->checksum,
@@ -554,7 +559,7 @@ class WorkOrderService
      *
      * @param  array<int, int|string>  $templateIds
      */
-    protected function syncBomSelection(WorkOrder $workOrder, array $templateIds): void
+    public function syncBomSelection(WorkOrder $workOrder, array $templateIds): void
     {
         $payload = [];
         foreach ($this->normalizeIds($templateIds) as $i => $id) {
@@ -587,6 +592,52 @@ class WorkOrderService
         }
 
         return $out;
+    }
+
+    /**
+     * Rebuild a work order's frozen configuration for an approved change (#182).
+     *
+     * Unlike {@see updateBomSelection()}, this DOES re-resolve the revision block
+     * (#180) and the released engineering documents (#179) from live records — that
+     * is the point of an engineering change: the order is deliberately moving onto a
+     * different revision and its current documents. The previous configuration is not
+     * lost, because the caller writes this as a NEW snapshot version and the old one
+     * stays readable as its own row.
+     *
+     * @param  array<int, int|string>  $templateIds
+     * @return array<string, mixed>|null Null when the product type has no applicable BOM.
+     */
+    public function rebuildProcessSnapshot(?int $productTypeId, array $templateIds, ?int $revisionId): ?array
+    {
+        $snapshot = $this->buildProcessSnapshot($productTypeId, $templateIds);
+
+        // No applicable BOM means there is no process structure to move onto. Report
+        // that as null so the caller keeps the current configuration: attaching the
+        // revision block to an empty snapshot would return a non-null configuration
+        // with no `steps`, and regenerating pending batches from it would delete
+        // their steps and rebuild nothing.
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $snapshot = $this->attachRevisionSnapshot($snapshot, $revisionId);
+
+        return $this->attachEngineeringSnapshot($snapshot, [
+            'product_revision_id' => $revisionId,
+            'product_type_id' => $productTypeId,
+        ]);
+    }
+
+    /**
+     * Generate a batch's steps from a process snapshot. Public so the change-control
+     * workflow can re-generate the steps of a batch that has not started yet (#182);
+     * batches with executed steps are never regenerated.
+     *
+     * @param  array<string, mixed>  $processSnapshot
+     */
+    public function regenerateBatchSteps(Batch $batch, array $processSnapshot): void
+    {
+        $this->createBatchStepsFromSnapshot($batch, $processSnapshot);
     }
 
     /**
@@ -637,6 +688,10 @@ class WorkOrderService
             // Create batch
             $batch = Batch::create([
                 'work_order_id' => $workOrder->id,
+                // Stamp the configuration version this batch is generated from (#182),
+                // so production before and after an applied change stays attributable
+                // to the configuration it was actually built under.
+                'snapshot_version' => $workOrder->snapshot_version ?? 1,
                 'batch_number' => $batchNumber,
                 'target_qty' => $targetQty,
                 'produced_qty' => 0,
@@ -697,6 +752,13 @@ class WorkOrderService
                 'instruction' => $stepData['instruction'] ?? null,
                 'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
+                // ISA-95 (#52): carry the required Equipment Class + planning times
+                // down from the snapshot so pool dispatch and the actual-vs-standard
+                // comparison have their reference data on the batch step.
+                'workstation_type_id' => $stepData['workstation_type_id'] ?? null,
+                'estimated_duration_minutes' => $stepData['estimated_duration_minutes'] ?? null,
+                'setup_time_minutes' => $stepData['setup_time_minutes'] ?? null,
+                'run_time_per_unit_minutes' => $stepData['run_time_per_unit_minutes'] ?? null,
                 'status' => $status,
                 'is_optional' => $stepData['is_optional'] ?? false,
                 'variant_group' => $group,

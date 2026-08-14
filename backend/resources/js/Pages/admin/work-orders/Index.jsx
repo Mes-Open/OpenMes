@@ -134,6 +134,7 @@ export default function WorkOrdersIndex() {
         PENDING: (r) => ({ label: __('Accept'), icon: 'accept', onClick: () => post(r.id, 'accept') }),
         IN_PROGRESS: (r) => ({ label: __('Complete'), icon: 'complete', onClick: () => promptComplete(r) }),
         PAUSED: (r) => ({ label: __('Resume'), icon: 'resume', onClick: () => post(r.id, 'resume') }),
+        CHANGE_HOLD: (r) => ({ label: __('Resume'), icon: 'resume', onClick: () => post(r.id, 'resume') }),
         DONE: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
         REJECTED: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
         CANCELLED: (r) => ({ label: __('Reopen'), icon: 'reopen', onClick: () => post(r.id, 'reopen') }),
@@ -147,9 +148,9 @@ export default function WorkOrdersIndex() {
             { key: 'reject', label: __('Reject'), from: ['PENDING', 'ACCEPTED'] },
             { key: 'complete', label: __('Complete'), from: ['IN_PROGRESS'], run: () => promptComplete(r) },
             { key: 'pause', label: __('Pause'), from: ['IN_PROGRESS'] },
-            { key: 'resume', label: __('Resume'), from: ['PAUSED'] },
+            { key: 'resume', label: __('Resume'), from: ['PAUSED', 'CHANGE_HOLD'] },
             { key: 'reopen', label: __('Reopen'), from: TERMINAL },
-            { key: 'cancel', label: __('Cancel'), from: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED'] },
+            { key: 'cancel', label: __('Cancel'), from: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'CHANGE_HOLD', 'BLOCKED'] },
         ]
             .filter((v) => v.from.includes(r.status) && v.label !== primary)
             // The verb key doubles as the icon name — same glyph as the rail.

@@ -48,6 +48,7 @@ class MaterialLot extends Model
         'lot_number',
         'material_id',
         'source_id',
+        'warehouse_id',
         'quantity_received',
         'quantity_available',
         'unit_of_measure',
@@ -100,6 +101,18 @@ class MaterialLot extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(MaterialSource::class);
+    }
+
+    /** Warehouse the lot physically sits in (#212); null when not tracked per warehouse. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    /** Per-warehouse balances broken down for this lot (#212). */
+    public function warehouseStocks(): HasMany
+    {
+        return $this->hasMany(WarehouseStock::class);
     }
 
     public function inspection(): BelongsTo

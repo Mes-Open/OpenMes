@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { OnlineDot } from '@openmes/ui';
 import Tooltip from '../components/Tooltip';
+import { __ } from '../lib/i18n';
 
 /**
  * Full-screen tablet chrome for operator screens — the React port of the
@@ -37,21 +38,21 @@ export default function OperatorLayout({ children }) {
                         </div>
                     )}
 
-                    <OnlineDot label="ONLINE" pulse className="hidden md:inline-flex shrink-0" />
+                    <OnlineDot label={__("ONLINE")} pulse className="hidden md:inline-flex shrink-0" />
 
                     {line && (
                         <nav className="ml-auto flex items-center gap-2">
                             <TopLink href="/operator/queue" active={isActive('/operator/queue') || isActive('/operator/work-order')}>
-                                Queue
+                                {__('Queue')}
                             </TopLink>
                             <TopLink href="/operator/workstation" active={isActive('/operator/workstation')}>
-                                Workstation
+                                {__('Workstation')}
                             </TopLink>
                             <Link
                                 href="/operator/select-line"
                                 className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
                             >
-                                Switch Line
+                                {__('Switch Line')}
                             </Link>
                         </nav>
                     )}

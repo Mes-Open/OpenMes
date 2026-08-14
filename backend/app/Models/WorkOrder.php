@@ -65,6 +65,14 @@ class WorkOrder extends Model
 
     const STATUS_PAUSED = 'PAUSED';
 
+    /**
+     * Stopped because the product, process or documentation must change before work
+     * can continue (#182). Distinct from PAUSED so the board shows the difference
+     * between "we will be back after the break" and "nobody may build this until a
+     * change is approved" — and so resuming can demand an applied change request.
+     */
+    const STATUS_CHANGE_HOLD = 'CHANGE_HOLD';
+
     const STATUS_DONE = 'DONE';
 
     const STATUS_REJECTED = 'REJECTED';
@@ -104,6 +112,9 @@ class WorkOrder extends Model
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
+    /** Stopped states an order can be resumed from. */
+    const HELD_STATUSES = [self::STATUS_PAUSED, self::STATUS_BLOCKED, self::STATUS_CHANGE_HOLD];
+
     /** All valid work order statuses (used for API filter validation). */
     const STATUSES = [
         self::STATUS_PENDING,
@@ -111,6 +122,7 @@ class WorkOrder extends Model
         self::STATUS_IN_PROGRESS,
         self::STATUS_BLOCKED,
         self::STATUS_PAUSED,
+        self::STATUS_CHANGE_HOLD,
         self::STATUS_DONE,
         self::STATUS_REJECTED,
         self::STATUS_CANCELLED,
@@ -124,6 +136,8 @@ class WorkOrder extends Model
         'product_type_id',
         'product_revision_id',
         'process_snapshot',
+        // Which work_order_snapshots version `process_snapshot` currently holds (#182).
+        'snapshot_version',
         'planned_qty',
         'unit_price',
         'produced_qty',
@@ -158,6 +172,7 @@ class WorkOrder extends Model
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'priority_score' => 'integer',
+            'snapshot_version' => 'integer',
             'customer_totals_counted' => 'boolean',
             'due_date' => 'datetime',
             'end_date' => 'datetime',
@@ -226,6 +241,107 @@ class WorkOrder extends Model
         }
 
         return $sum > 0 ? $sum : null;
+    }
+
+    /**
+     * ISA-95 L4 standard production time (#52): from the frozen snapshot's standard
+     * times, Σ(setup + run_per_unit × planned_qty) across steps. This is the
+     * planning/costing target that flows down from the ERP BOM, distinct from the
+     * total estimate above. Null when no step carries standard times.
+     */
+    public function estimatedStandardProductionMinutes(): ?int
+    {
+        $steps = $this->process_snapshot['steps'] ?? [];
+        $qty = (float) ($this->planned_qty ?? 0);
+        $total = 0.0;
+        $hasStandard = false;
+
+        // Mirror batch materialization: within a variant group only the selected
+        // path runs (default flag, else the lowest step_number), so the standard
+        // must not sum skipped siblings — that would inflate the costing target.
+        $chosen = $this->selectedVariantSteps($steps);
+
+        foreach ($steps as $step) {
+            $group = $step['variant_group'] ?? null;
+            if ($group !== null && isset($chosen[$group]) && ($step['step_number'] ?? null) !== $chosen[$group]) {
+                continue;
+            }
+
+            $setup = $step['setup_time_minutes'] ?? null;
+            $run = $step['run_time_per_unit_minutes'] ?? null;
+            if ($setup === null && $run === null) {
+                continue;
+            }
+            $hasStandard = true;
+            $total += (float) ($setup ?? 0) + (float) ($run ?? 0) * $qty;
+        }
+
+        return $hasStandard ? (int) round($total) : null;
+    }
+
+    /**
+     * The pre-selected step_number per variant group: the one flagged default,
+     * else the lowest step_number in the group. Mirrors
+     * WorkOrderService::createBatchStepsFromSnapshot so estimates match execution.
+     *
+     * @param  array<int, array<string, mixed>>  $steps
+     * @return array<string, int>
+     */
+    private function selectedVariantSteps(array $steps): array
+    {
+        $chosen = [];
+        $explicit = [];
+        foreach ($steps as $s) {
+            $group = $s['variant_group'] ?? null;
+            if ($group === null) {
+                continue;
+            }
+            $num = $s['step_number'];
+            if (! empty($s['is_default_variant'])) {
+                if (empty($explicit[$group])) {
+                    $chosen[$group] = $num;
+                    $explicit[$group] = true;
+                }
+            } elseif (empty($explicit[$group])) {
+                $chosen[$group] = isset($chosen[$group]) ? min($chosen[$group], $num) : $num;
+            }
+        }
+
+        return $chosen;
+    }
+
+    /**
+     * The engineering documents (#179) frozen onto this order at release, as
+     * immutable snapshot references. Backfills the display fields
+     * (original_filename/entry_point/file_size) for orders snapshotted before
+     * those were frozen, by joining the live document by id (withTrashed).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function frozenEngineeringDocuments(): array
+    {
+        $refs = $this->process_snapshot['engineering_documents'] ?? [];
+
+        $missing = collect($refs)
+            ->reject(fn ($r) => array_key_exists('original_filename', $r))
+            ->pluck('document_id')
+            ->filter()
+            ->all();
+
+        if ($missing) {
+            $live = EngineeringDocument::withTrashed()->findMany($missing)->keyBy('id');
+            $refs = array_map(function (array $r) use ($live) {
+                if (! array_key_exists('original_filename', $r) && ($d = $live->get($r['document_id'] ?? null))) {
+                    $r['original_filename'] = $d->original_filename;
+                    $r['entry_point'] = $d->entry_point;
+                    $r['file_size'] = $d->file_size;
+                }
+
+                return $r;
+            }, $refs);
+        }
+
+        return array_values($refs);
     }
 
     /**
@@ -344,12 +460,51 @@ class WorkOrder extends Model
         return $this->belongsTo(LineStatus::class);
     }
 
+    /** Structured production stops (#182), newest first. */
+    public function stops(): HasMany
+    {
+        return $this->hasMany(WorkOrderStop::class)->orderByDesc('stopped_at');
+    }
+
+    /** Controlled change requests raised against this order (#182). */
+    public function changeRequests(): HasMany
+    {
+        return $this->hasMany(WorkOrderChangeRequest::class)->orderByDesc('id');
+    }
+
+    /** Every configuration this order has run under, oldest first (#182). */
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(WorkOrderSnapshot::class)->orderBy('version');
+    }
+
+    /**
+     * The stop currently holding production, if any. At most one is open at a time —
+     * WorkOrderStopService refuses a second.
+     */
+    public function openStop(): ?WorkOrderStop
+    {
+        return $this->stops()->whereNull('resumed_at')->first();
+    }
+
+    /** Held for a configuration change, so resuming needs an applied change request. */
+    public function isOnChangeHold(): bool
+    {
+        return $this->status === self::STATUS_CHANGE_HOLD;
+    }
+
     /**
      * Get the batches for this work order.
      */
     public function batches(): HasMany
     {
         return $this->hasMany(Batch::class)->orderBy('batch_number');
+    }
+
+    /** Material allocations pulled for this work order (#99 reconciliation). */
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(MaterialAllocation::class);
     }
 
     /** Pallets packed for this work order. */

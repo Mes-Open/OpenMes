@@ -4,15 +4,25 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ReclassifyClassRequest;
+use App\Http\Requests\Api\V1\RecordConsumptionRequest;
+use App\Http\Requests\Api\V1\ReturnAllocationRequest;
 use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\Customer;
 use App\Models\Line;
+use App\Models\Material;
+use App\Models\MaterialAllocation;
+use App\Models\MaterialLot;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
+use App\Services\Material\MaterialAllocationService;
+use App\Services\Material\MaterialReclassificationService;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -84,7 +94,7 @@ class WorkOrderManagementController extends Controller
         }
 
         return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$workOrder->order_no} created.");
+            ->with('success', __('Work order :code created.', ['code' => $workOrder->order_no]));
     }
 
     public function show(WorkOrder $workOrder, CustomFieldService $customFields)
@@ -124,10 +134,89 @@ class WorkOrderManagementController extends Controller
             'reported_by' => $i->reportedBy?->name,
         ])->values();
 
+        // Materials reconciliation (#99): the allocations pulled for this order, so
+        // the page can offer record-consumption / return / reclassify per material.
+        $workOrder->load(['allocations.material', 'allocations.lotPicks.lot']);
+        $allocations = $workOrder->allocations->map(fn ($a) => [
+            'id' => $a->id,
+            'material_id' => $a->material_id,
+            'material_code' => $a->material?->code,
+            'material_name' => $a->material?->name,
+            'unit_of_measure' => $a->material?->unit_of_measure,
+            'status' => $a->status,
+            'allocated_qty' => (float) $a->allocated_qty,
+            'consumed_qty' => (float) $a->consumed_qty,
+            'scrap_qty' => (float) $a->scrap_qty,
+            'returned_qty' => (float) $a->returned_qty,
+            'lots' => $a->lotPicks->map(fn ($p) => [
+                'lot_id' => $p->material_lot_id,
+                'lot_number' => $p->lot?->lot_number,
+                'picked_qty' => (float) $p->picked_qty,
+            ])->values(),
+        ])->values();
+
+        // Change control (#182): the stop history with durations, and every change
+        // request raised against this order.
+        $stops = $workOrder->stops()->with(['stoppedBy:id,name', 'resumedBy:id,name'])->get()
+            ->map(fn ($stop) => [
+                'id' => $stop->id,
+                'type' => $stop->type->value,
+                'type_label' => $stop->type->label(),
+                'reason' => $stop->reason,
+                'requires_change' => (bool) $stop->requires_change,
+                'produced_qty_at_stop' => $stop->produced_qty_at_stop,
+                'snapshot_version_at_stop' => $stop->snapshot_version_at_stop,
+                'stopped_at' => $stop->stopped_at?->toISOString(),
+                'resumed_at' => $stop->resumed_at?->toISOString(),
+                'resume_notes' => $stop->resume_notes,
+                'duration_minutes' => $stop->durationMinutes(),
+                'is_open' => $stop->isOpen(),
+                'stopped_by' => $stop->stoppedBy?->name,
+                'resumed_by' => $stop->resumedBy?->name,
+            ])->values();
+
+        $changeRequests = $workOrder->changeRequests()->with('requestedBy:id,name')->get()
+            ->map(fn ($cr) => [
+                'id' => $cr->id,
+                'code' => $cr->code,
+                'title' => $cr->title,
+                'status' => $cr->status->value,
+                'status_label' => $cr->status->label(),
+                'effective_from_label' => $cr->effective_from->label(),
+                'resulting_snapshot_version' => $cr->resulting_snapshot_version,
+                'requested_by' => $cr->requestedBy?->name,
+                'created_at' => $cr->created_at?->toISOString(),
+            ])->values();
+
+        $canReclassify = (bool) request()->user()?->hasAnyRole(['Supervisor', 'Admin']);
+
+        $openStop = $workOrder->openStop();
+        // An order held for a change may only resume once one has been applied — the
+        // page needs to know which, so Resume can carry it.
+        $appliedChangeRequest = $workOrder->changeRequests()
+            ->where('status', \App\Enums\ChangeRequestStatus::Applied->value)
+            ->when($openStop, fn ($q) => $q->where('applied_at', '>=', $openStop->stopped_at))
+            ->reorder('applied_at', 'desc')
+            ->first();
+
         return Inertia::render('admin/work-orders/Show', [
+            'stops' => $stops,
+            'changeRequests' => $changeRequests,
+            'changeControl' => [
+                'open_stop_id' => $openStop?->id,
+                'requires_change' => (bool) $openStop?->requires_change || $workOrder->isOnChangeHold(),
+                'applied_change_request_id' => $appliedChangeRequest?->id,
+                'stop_types' => collect(\App\Enums\WorkOrderStopType::cases())
+                    ->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->values(),
+                'effective_points' => collect(\App\Enums\ChangeEffectivePoint::cases())
+                    ->map(fn ($p) => ['value' => $p->value, 'label' => $p->label()])->values(),
+                'can_raise_change' => request()->user()->can('create', \App\Models\WorkOrderChangeRequest::class),
+                ...WorkOrderChangeControlController::formOptions($workOrder),
+            ],
             'workOrder' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
+                'snapshot_version' => $workOrder->snapshot_version,
                 'customer_order_no' => $workOrder->customer_order_no,
                 'customer_name' => $workOrder->customer?->name,
                 'customer_tier' => $workOrder->customer?->tier?->value,
@@ -142,6 +231,7 @@ class WorkOrderManagementController extends Controller
                 'extra_data' => $workOrder->extra_data,
                 'custom_fields' => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
+                'estimated_standard_production_minutes' => $workOrder->estimatedStandardProductionMinutes(),
                 'created_at' => $workOrder->created_at->toISOString(),
                 'completed_at' => $workOrder->completed_at?->toISOString(),
                 'line_name' => $workOrder->line?->name,
@@ -149,7 +239,12 @@ class WorkOrderManagementController extends Controller
                 'batches' => $batches,
                 'issues' => $issues,
                 'activity' => $this->activityFeed($workOrder),
+                'allocations' => $allocations,
             ],
+            'canReclassify' => $canReclassify,
+            'materials' => $canReclassify
+                ? Material::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name'])
+                : [],
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
@@ -245,6 +340,83 @@ class WorkOrderManagementController extends Controller
         usort($events, fn ($a, $b) => strcmp($b['at'], $a['at']));
 
         return array_slice($events, 0, self::ACTIVITY_LIMIT);
+    }
+
+    /**
+     * Materials reconciliation (#99): declare actual consumption, return unused
+     * material to stock, and reclassify a quantity to another class. Each
+     * allocation must belong to this work order.
+     */
+    public function recordConsumption(RecordConsumptionRequest $request, WorkOrder $workOrder, MaterialAllocation $allocation, MaterialAllocationService $allocations)
+    {
+        $this->assertAllocationBelongs($workOrder, $allocation);
+
+        try {
+            $allocations->recordConsumption(
+                $allocation,
+                (float) $request->validated('consumed_qty'),
+                (float) ($request->validated('scrap_qty') ?? 0),
+                $request->validated('notes'),
+            );
+
+            return back()->with('success', __('Consumption recorded'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function returnAllocation(ReturnAllocationRequest $request, WorkOrder $workOrder, MaterialAllocation $allocation, MaterialAllocationService $allocations)
+    {
+        $this->assertAllocationBelongs($workOrder, $allocation);
+
+        try {
+            $allocations->returnQuantity(
+                $allocation,
+                (float) $request->validated('qty'),
+                $request->user(),
+                $request->validated('reason'),
+            );
+
+            return back()->with('success', __('Material returned to stock'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function reclassify(ReclassifyClassRequest $request, WorkOrder $workOrder, MaterialReclassificationService $reclassifications)
+    {
+        try {
+            $source = Material::findOrFail($request->validated('source_material_id'));
+
+            // The panel always reclassifies one of this order's pulled materials —
+            // enforce that so the nested route is a real scope, not decoration.
+            if (! $workOrder->allocations()->where('material_id', $source->id)->exists()) {
+                abort(404);
+            }
+
+            $target = Material::findOrFail($request->validated('target_material_id'));
+            $lot = $request->validated('source_lot_id') ? MaterialLot::findOrFail($request->validated('source_lot_id')) : null;
+
+            $reclassifications->reclassifyClass(
+                $source,
+                $target,
+                (float) $request->validated('qty'),
+                $request->user(),
+                $lot,
+                $request->validated('reason'),
+            );
+
+            return back()->with('success', __('Material reclassified'));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    private function assertAllocationBelongs(WorkOrder $workOrder, MaterialAllocation $allocation): void
+    {
+        if ($allocation->batch?->work_order_id !== $workOrder->id) {
+            abort(404);
+        }
     }
 
     public function edit(WorkOrder $workOrder, CustomFieldService $customFields)
@@ -403,9 +575,22 @@ class WorkOrderManagementController extends Controller
         return $this->transition($workOrder, 'pause');
     }
 
-    public function resume(WorkOrder $workOrder)
+    /**
+     * Resume production (#182).
+     *
+     * Goes through the stop service so a structured stop is closed with its duration
+     * and the change-hold gate is enforced. An order paused the simple way has no stop
+     * record and resumes exactly as it did before.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops)
     {
-        return $this->transition($workOrder, 'resume');
+        try {
+            $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
 
     public function reopen(WorkOrder $workOrder)

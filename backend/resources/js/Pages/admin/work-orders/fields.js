@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
+export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'CHANGE_HOLD', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
 
 /**
  * Tone + Lucide icon per work-order status, feeding `<StatusBadge>`.
@@ -28,6 +28,9 @@ export const WO_STATUS_META = {
     ACCEPTED: { tone: 'info', icon: 'thumbs-up' },
     IN_PROGRESS: { tone: 'active', icon: 'play' },
     PAUSED: { tone: 'warn', icon: 'pause' },
+    // Amber, not grey: a change hold blocks production until a change is approved,
+    // which is nearer to BLOCKED than to a coffee break (#182).
+    CHANGE_HOLD: { tone: 'warn', icon: 'lock' },
     BLOCKED: { tone: 'danger', icon: 'triangle-alert' },
     DONE: { tone: 'success', icon: 'circle-check' },
     REJECTED: { tone: 'critical', icon: 'x' },
@@ -47,6 +50,7 @@ export function woStatusLabel(status) {
         ACCEPTED: __('Accepted'),
         IN_PROGRESS: __('In Progress'),
         PAUSED: __('Paused'),
+        CHANGE_HOLD: __('Change hold'),
         BLOCKED: __('Blocked'),
         DONE: __('Done'),
         REJECTED: __('Rejected'),

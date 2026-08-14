@@ -7,6 +7,9 @@ import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import Tooltip from '../../components/Tooltip';
+import EngineeringViewerModal from '../../components/EngineeringViewerModal';
+import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
+import { apiGet } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -740,6 +743,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
+    const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
 
     if (!steps || steps.length === 0) return null;
 
@@ -904,7 +908,13 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 <Button
                                     variant="primary"
                                     disabled={isInflight || isDocBlocked || needsConfirm}
-                                    onClick={() => handleStepAction(step, 'complete')}
+                                    onClick={() => (
+                                        // Opt-in: only steps with ISA-95 standard times (#52) prompt for
+                                        // operator-confirmed actuals; the rest complete directly as before.
+                                        step.setup_time_minutes != null || step.run_time_per_unit_minutes != null
+                                            ? setCompleteModal({ step })
+                                            : handleStepAction(step, 'complete')
+                                    )}
                                     title={
                                         isDocBlocked
                                             ? __('Validate the mandatory document(s) before completing this step.')
@@ -982,7 +992,88 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     onClose={() => setPickModal(null)}
                 />
             )}
+
+            {completeModal && (
+                <ConfirmTimesModal
+                    step={completeModal.step}
+                    onClose={() => setCompleteModal(null)}
+                />
+            )}
         </div>
+    );
+}
+
+/**
+ * Confirm-actual-times modal (#52), shown at step completion only for steps with
+ * ISA-95 standard times configured. Prefills elapsed from started_at→now and the
+ * setup/run split from the plan; the operator can correct them. Setup + run must
+ * fit within elapsed. Posts to the same complete route with the actual times.
+ */
+function ConfirmTimesModal({ step, onClose }) {
+    const startedAt = step.started_at ? new Date(step.started_at).getTime() : null;
+    const initialElapsed = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 60000)) : 0;
+    const initialSetup = step.setup_time_minutes != null ? Number(step.setup_time_minutes) : 0;
+
+    const [elapsed, setElapsed] = useState(String(initialElapsed));
+    const [setup, setSetup] = useState(step.setup_time_minutes != null ? String(initialSetup) : '');
+    const [run, setRun] = useState(String(Math.max(0, initialElapsed - initialSetup)));
+    const [saving, setSaving] = useState(false);
+
+    // Backend rules are integer|min:0; mirror them so bad values never submit
+    // (the number inputs' min= does not block this custom-button submission).
+    const isNonNegInt = (v) => /^\d+$/.test(String(v).trim());
+    const elapsedValid = isNonNegInt(elapsed);
+    const setupValid = setup === '' || isNonNegInt(setup);
+    const runValid = run === '' || isNonNegInt(run);
+    const elapsedNum = elapsedValid ? Number(elapsed) : 0;
+    const overflow = (Number(setup) || 0) + (Number(run) || 0) > elapsedNum;
+    const invalid = ! elapsedValid || ! setupValid || ! runValid || overflow;
+
+    const submit = () => {
+        if (invalid) return;
+        setSaving(true);
+        router.post(`/operator/batch-step/${step.id}/complete`, {
+            actual_elapsed_minutes: elapsedNum,
+            actual_setup_minutes: setup === '' ? null : Number(setup),
+            actual_run_minutes: run === '' ? null : Number(run),
+        }, {
+            preserveScroll: true,
+            // Close only on success; keep the modal open (with values intact) so a
+            // 422 or completion error stays visible instead of being dismissed.
+            onSuccess: () => onClose(),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    const inputCls = 'w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-[15px]';
+    const labelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1';
+
+    return (
+        <ModalShell title={__('Confirm actual times')} subtitle={step.name} onClose={onClose}>
+            <div className="px-[18px] py-4 space-y-3">
+                <div>
+                    <label className={labelCls}>{__('Actual elapsed (minutes)')}</label>
+                    <input type="number" min="0" value={elapsed} onChange={(e) => setElapsed(e.target.value)} className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className={labelCls}>{__('Actual setup (minutes)')}</label>
+                        <input type="number" min="0" value={setup} onChange={(e) => setSetup(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>{__('Actual run (minutes)')}</label>
+                        <input type="number" min="0" value={run} onChange={(e) => setRun(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                </div>
+                {overflow && <p className="text-om-blocked text-xs">{__('Setup + run cannot exceed the elapsed time.')}</p>}
+            </div>
+            <div className={modalFooterCls}>
+                <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                <Button variant="primary" disabled={invalid || saving} onClick={submit}>
+                    {saving ? '…' : __('Complete step')}
+                </Button>
+            </div>
+        </ModalShell>
     );
 }
 
@@ -1670,11 +1761,88 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 }
 
 // ---------------------------------------------------------------------------
+// Engineering documents frozen onto this order (#179) — read-only for operators:
+// download the native file, or open an interactive package in the sandboxed viewer.
+// ---------------------------------------------------------------------------
+
+function EngineeringDocsSection({ docs = [], onView }) {
+    const [open, setOpen] = useState(true);
+    if (!docs || docs.length === 0) return null;
+
+    const BASE = '/api/v1/engineering-documents';
+
+    return (
+        <div className={cardCls}>
+            <button
+                type="button"
+                className="flex justify-between items-center w-full text-left cursor-pointer"
+                onClick={() => setOpen((v) => !v)}
+            >
+                <h2 className={sectionLabelCls}>{__('Engineering documents')}</h2>
+                <div className="flex items-center gap-2">
+                    <Badge variant="neutral">{docs.length}</Badge>
+                    <ChevronIcon open={open} />
+                </div>
+            </button>
+
+            {open && (
+                <ul className="mt-4 divide-y divide-om-line">
+                    {docs.map((doc) => {
+                        const pkg = packageMeta(doc.package_type);
+                        return (
+                            <li key={doc.document_id} className="flex items-center justify-between gap-3 py-2">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium text-om-ink break-all">
+                                        {doc.original_filename ?? __('Document')}
+                                    </div>
+                                    <div className="text-xs text-om-muted">
+                                        {__(pkg.label)} · {__('Rev')} {doc.revision || '—'}
+                                        {doc.file_size ? ` · ${formatBytes(doc.file_size)}` : ''}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {isInteractive(doc.package_type) && doc.entry_point && (
+                                        <button type="button" className="btn btn-sm" onClick={() => onView(doc)}>
+                                            {__('View')}
+                                        </button>
+                                    )}
+                                    <a
+                                        className="btn btn-sm"
+                                        href={`${BASE}/${doc.document_id}/download`}
+                                        target={pkg.inline ? '_blank' : undefined}
+                                        rel="noopener noreferrer"
+                                    >
+                                        {__('Download')}
+                                    </a>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, engineeringDocuments = [] } = usePage().props;
+
+    const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
+
+    async function openEngViewer(doc) {
+        try {
+            const res = await apiGet(`/api/v1/engineering-documents/${doc.document_id}/viewer-url`);
+            if (!res.ok) return;
+            const json = await res.json();
+            if (json.data?.url) setEngViewer({ url: json.data.url, title: doc.original_filename });
+        } catch {
+            // silent — the Download link remains available as a fallback
+        }
+    }
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1804,6 +1972,9 @@ export default function WorkOrderDetail() {
 
                         {/* Process reference photos (work instructions) */}
                         <ProcessPhotosSection photos={processPhotos} />
+
+                        {/* Engineering documents frozen onto this order (#179) */}
+                        <EngineeringDocsSection docs={engineeringDocuments} onView={openEngViewer} />
 
                         {/* Batches */}
                         <div className={cardCls}>
@@ -2012,6 +2183,8 @@ export default function WorkOrderDetail() {
                     onClose={() => setReportScrapOpen(false)}
                 />
             )}
+
+            <EngineeringViewerModal viewer={engViewer} onClose={() => setEngViewer(null)} />
         </>
     );
 }

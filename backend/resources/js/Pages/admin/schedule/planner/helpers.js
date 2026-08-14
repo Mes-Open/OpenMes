@@ -40,6 +40,8 @@ export const STATUS = {
     IN_PROGRESS: { label: 'Running',     solid: 'var(--om-running)',  soft: 'var(--om-running-bg)' },
     BLOCKED:     { label: 'Blocked',     solid: 'var(--om-blocked)',  soft: 'var(--om-blocked-bg)' },
     PAUSED:      { label: 'Paused',      solid: 'var(--om-downtime)', soft: 'var(--om-downtime-bg)' },
+    // Held for a configuration change (#182) — nearer to blocked than to a break.
+    CHANGE_HOLD: { label: 'Change hold', solid: 'var(--om-downtime)', soft: 'var(--om-downtime-bg)' },
     DONE:        { label: 'Done',        solid: 'var(--om-done)',     soft: 'var(--om-done-bg)' },
 };
 export function statusOf(s) { return STATUS[s] || STATUS.PENDING; }

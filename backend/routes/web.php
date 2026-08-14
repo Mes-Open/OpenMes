@@ -49,6 +49,7 @@ use App\Http\Controllers\Web\Admin\WageGroupController;
 use App\Http\Controllers\Web\Admin\WorkerAbsenceController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
 use App\Http\Controllers\Web\Admin\WorkstationTypeController;
@@ -496,12 +497,41 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
 
+        // Materials reconciliation (#99) — declare consumption, return leftovers,
+        // reclassify a quantity to another class. All three move stock, so all three
+        // are gated to Supervisor|Admin (the operator path is the API endpoints).
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/consume', [AdminWorkOrderController::class, 'recordConsumption'])->name('work-orders.allocations.consume');
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/return', [AdminWorkOrderController::class, 'returnAllocation'])->name('work-orders.allocations.return');
+            Route::post('/work-orders/{workOrder}/reclassify', [AdminWorkOrderController::class, 'reclassify'])->name('work-orders.reclassify');
+        });
+
+        // Change control (#182) — structured stop, change request and its review.
+        Route::post('/work-orders/{workOrder}/stop', [WorkOrderChangeControlController::class, 'stop'])
+            ->name('work-orders.stop');
+        Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
+            ->name('work-orders.change-requests.store');
+        Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
+            ->name('work-order-change-requests.show');
+        Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])
+            ->name('work-order-change-requests.update');
+        Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeControlController::class, 'submit'])
+            ->name('work-order-change-requests.submit');
+        Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeControlController::class, 'approve'])
+            ->name('work-order-change-requests.approve');
+        Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeControlController::class, 'reject'])
+            ->name('work-order-change-requests.reject');
+        Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeControlController::class, 'cancel'])
+            ->name('work-order-change-requests.cancel');
+        Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeControlController::class, 'apply'])
+            ->name('work-order-change-requests.apply');
+
         // Customers
         Route::resource('customers', CustomerController::class)->except(['show']);
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
         // Product revisions (#180) — versioned released configuration per product type.
-        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class);
         Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
         Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
 
@@ -729,7 +759,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
 
         // Subassemblies
-        Route::resource('subassemblies', SubassemblyController::class)->except(['show']);
+        Route::resource('subassemblies', SubassemblyController::class);
         Route::post('/subassemblies/{subassembly}/toggle-active', [SubassemblyController::class, 'toggleActive'])->name('subassemblies.toggle-active');
 
         // ── Gate 3: Basics / Dictionaries ────────────────────────────────────
@@ -803,6 +833,20 @@ Route::middleware('auth')->group(function () {
         // Quality-control triggers (#105) — admin CRUD.
         Route::post('quality-control-triggers/{qualityControlTrigger}/toggle-active', [\App\Http\Controllers\Web\Admin\QualityControlTriggerController::class, 'toggleActive'])->name('quality-control-triggers.toggle-active');
         Route::resource('quality-control-triggers', \App\Http\Controllers\Web\Admin\QualityControlTriggerController::class)->except(['show']);
+
+        // ── Warehousing (#212) ────────────────────────────────────────────────
+        // Warehouses, per-warehouse balances and the stock documents production
+        // generates (material releases, product receipts). Gated by the
+        // `warehouse` module via the tab.access middleware on this group.
+        Route::resource('warehouses', \App\Http\Controllers\Web\Admin\WarehouseController::class)->except(['show']);
+        Route::post('/warehouses/{warehouse}/toggle-active', [\App\Http\Controllers\Web\Admin\WarehouseController::class, 'toggleActive'])->name('warehouses.toggle-active');
+        Route::post('/warehouses/{warehouse}/set-default', [\App\Http\Controllers\Web\Admin\WarehouseController::class, 'setDefault'])->name('warehouses.set-default');
+
+        Route::get('/warehouse-stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouse-stock.index');
+
+        Route::post('/stock-documents/{stockDocument}/post', [\App\Http\Controllers\Web\Admin\StockDocumentController::class, 'post'])->name('stock-documents.post');
+        Route::post('/stock-documents/{stockDocument}/cancel', [\App\Http\Controllers\Web\Admin\StockDocumentController::class, 'cancel'])->name('stock-documents.cancel');
+        Route::resource('stock-documents', \App\Http\Controllers\Web\Admin\StockDocumentController::class)->except(['edit', 'update']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources

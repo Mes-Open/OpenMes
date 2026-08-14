@@ -105,7 +105,7 @@ export default function ShiftHandoverIndex() {
     return (
         <>
         <div className="max-w-7xl mx-auto">
-            <Head title="Shift Handover" />
+            <Head title={__('Shift Handover')} />
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">

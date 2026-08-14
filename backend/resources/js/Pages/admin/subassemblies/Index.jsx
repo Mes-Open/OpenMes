@@ -14,6 +14,7 @@ export default function SubassembliesIndex() {
     ];
 
     const actions = (r) => [
+        { label: __('View'), href: `/admin/subassemblies/${r.id}` },
         { label: __('Edit'), icon: 'edit', href: `/admin/subassemblies/${r.id}/edit` },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),

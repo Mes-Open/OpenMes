@@ -19,8 +19,11 @@ use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
+use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
+use App\Http\Controllers\Api\V1\Erp\StockSyncController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
@@ -65,7 +68,9 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WageGroupController;
 use App\Http\Controllers\Api\V1\WorkerAbsenceController;
 use App\Http\Controllers\Api\V1\WorkerController;
+use App\Http\Controllers\Api\V1\WorkOrderChangeRequestController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
+use App\Http\Controllers\Api\V1\WorkOrderStopController;
 use App\Http\Controllers\Api\V1\WorkstationController;
 use App\Http\Controllers\Api\V1\WorkstationTypeController;
 use Illuminate\Support\Facades\Route;
@@ -129,6 +134,29 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
     // OpenMES → ERP: quality / non-conformance export.
     Route::get('/quality/issues', [QualityExportController::class, 'issues'])
         ->middleware(['scope:erp:quality:read', 'throttle:erp-read']);
+
+    // ERP → OpenMES: master data (#212). Products and materials come from one ERP
+    // item table split by classification, lots carry available quantities, and
+    // recipes are per-unit component lists.
+    Route::middleware(['scope:erp:masterdata:write', 'throttle:erp-import'])->group(function () {
+        Route::post('/products/import', [MasterDataImportController::class, 'products']);
+        Route::post('/materials/import', [MasterDataImportController::class, 'materials']);
+        Route::post('/material-lots/import', [MasterDataImportController::class, 'materialLots']);
+        Route::post('/boms/import', [MasterDataImportController::class, 'boms']);
+    });
+
+    // Warehouse balances (#212): ERP snapshot in, OpenMES view out.
+    Route::post('/stock/import', [StockSyncController::class, 'import'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+    Route::get('/stock', [StockSyncController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: warehouse documents to book (material releases, product
+    // receipts), plus the acknowledgement that takes one off the backlog.
+    Route::get('/stock-documents', [StockDocumentExportController::class, 'index'])
+        ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
+    Route::post('/stock-documents/{stockDocument}/ack', [StockDocumentExportController::class, 'acknowledge'])
+        ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
 });
 
 // Protected API routes (require authentication)
@@ -639,6 +667,24 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/work-orders/{workOrder}/reopen', [WorkOrderController::class, 'reopen']);
     Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete']);
 
+    // Change control (#182): a structured production stop, the change request that
+    // comes out of it, and the review workflow that must complete before the order
+    // can run on a new configuration. Resume stays on the transition route above.
+    Route::get('/work-orders/{workOrder}/stops', [WorkOrderStopController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/stop', [WorkOrderStopController::class, 'store']);
+
+    Route::get('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'store']);
+
+    Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'show']);
+    Route::get('/work-order-change-requests/{changeRequest}/impact', [WorkOrderChangeRequestController::class, 'impact']);
+    Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'update']);
+    Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeRequestController::class, 'submit']);
+    Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeRequestController::class, 'approve']);
+    Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeRequestController::class, 'reject']);
+    Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeRequestController::class, 'cancel']);
+    Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeRequestController::class, 'apply']);
+
     // Batches (nested under work orders)
     Route::get('/work-orders/{workOrder}/batches', [BatchController::class, 'index']);
     Route::post('/work-orders/{workOrder}/batches', [BatchController::class, 'store']);
@@ -661,6 +707,19 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
     Route::middleware('role:Supervisor|Admin')
         ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
+    // Pool dispatch (#52): supervisor assigns a specific workstation to a pending step.
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/assign', [\App\Http\Controllers\Api\V1\BatchStepController::class, 'assign']);
+
+    // Material reconciliation (#99): declare partial consumption and return unused
+    // material to stock against a work-order allocation (production users).
+    Route::post('/material-allocations/{allocation}/consume', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'consume']);
+    Route::post('/material-allocations/{allocation}/return', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'return']);
+    // Reclassification (#99): regrade between material classes / change a lot status.
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        Route::post('/material-reclassifications/class', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'class']);
+        Route::post('/material-lots/{materialLot}/reclassify-status', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'status']);
+    });
 
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);

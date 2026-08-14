@@ -23,6 +23,10 @@ class ProductTypesShape extends Shape
             'code',
             'name',
             'description',
+            // ERP classification + source identity (#212).
+            'category',
+            'external_code',
+            'external_system',
             'unit_of_measure',
             'is_active',
             'custom_fields',

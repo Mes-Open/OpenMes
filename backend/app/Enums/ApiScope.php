@@ -15,12 +15,24 @@ enum ApiScope: string
     case ProductionRead = 'erp:production:read';
     case QualityRead = 'erp:quality:read';
 
+    /** Products, materials, material lots and recipes (#212). */
+    case MasterDataWrite = 'erp:masterdata:write';
+
+    /** Warehouse balances and the stock-document export backlog (#212). */
+    case StockRead = 'erp:stock:read';
+
+    /** Warehouse balance sync and acknowledging exported stock documents (#212). */
+    case StockWrite = 'erp:stock:write';
+
     public function label(): string
     {
         return match ($this) {
             self::OrdersImport => __('Import work orders'),
             self::ProductionRead => __('Read production completions'),
             self::QualityRead => __('Read quality & issue reports'),
+            self::MasterDataWrite => __('Import products, materials, lots & recipes'),
+            self::StockRead => __('Read warehouse stock & documents'),
+            self::StockWrite => __('Sync warehouse stock & acknowledge documents'),
         };
     }
 

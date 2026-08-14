@@ -8,6 +8,8 @@ import PageTitle from '../../../components/PageTitle';
 import useConfirm from '../../../components/useConfirm';
 import usePrompt from '../../../components/usePrompt';
 import DueCountdown from '../../../components/DueCountdown';
+import StopProductionModal from './StopProductionModal';
+import ChangeRequestModal from './ChangeRequestModal';
 import { apiCall } from '../../../lib/http';
 import { woStatusBadge } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
@@ -23,6 +25,32 @@ import { formatDate, formatNumber, timeAgo, elapsed, __ } from '../../../lib/i18
  * and do nothing about it without walking to the station.
  */
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
+
+/**
+ * Statuses that offer a Resume button (#182).
+ *
+ * BLOCKED is deliberately absent even though the backend counts it as held: it is set
+ * and cleared by the issue workflow, so the way out of it is resolving the issue, not
+ * a Resume button that the service would refuse anyway.
+ */
+const HELD = ['PAUSED', 'CHANGE_HOLD'];
+
+const CR_STATUS_STYLES = {
+    DRAFT: 'bg-om-chip text-om-muted',
+    SUBMITTED: 'bg-om-chip text-om-accent',
+    APPROVED: 'bg-om-running-bg text-om-running',
+    APPLIED: 'bg-om-running-bg text-om-running',
+    REJECTED: 'bg-om-blocked-bg text-om-blocked',
+    CANCELLED: 'bg-om-chip text-om-faint',
+};
+
+function fmtDuration(minutes) {
+    if (minutes == null) return '—';
+    if (minutes < 60) return __(':n min', { n: minutes });
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m ? __(':h h :m min', { h, m }) : __(':h h', { h });
+}
 
 /** Routing-step status → the stepper's vocabulary. */
 const STEP_STATUS = {
@@ -60,15 +88,29 @@ function fmtDate(d) {
 }
 
 export default function AdminWorkOrderShow() {
-    const { workOrder, customFields = [] } = usePage().props;
+    const {
+        workOrder, customFields = [],
+        // Change control (#182) and materials reconciliation (#99).
+        stops = [], changeRequests = [], changeControl = {},
+        canReclassify = false, materials = [], allocations = [],
+    } = usePage().props;
     const { confirm, dialog } = useConfirm();
     const { prompt, dialog: promptDialog } = usePrompt();
+    const [showStopModal, setShowStopModal] = useState(false);
+    const [showChangeModal, setShowChangeModal] = useState(false);
 
     const post = (verb, data = {}) =>
         router.post(`/admin/work-orders/${workOrder.id}/${verb}`, data, { preserveScroll: true });
 
     const status = workOrder.status;
     const isTerminal = TERMINAL.includes(status);
+
+    // An order held for a configuration change may only resume once an approved
+    // change has actually been applied — resume then carries which one (#182).
+    const needsChange = !!changeControl.requires_change;
+    const appliedChangeId = changeControl.applied_change_request_id ?? null;
+    const resumeBlocked = needsChange && !appliedChangeId;
+    const resume = () => post('resume', appliedChangeId ? { change_request_id: appliedChangeId } : {});
     const planned = Number(workOrder.planned_qty ?? 0);
     const produced = Number(workOrder.produced_qty ?? 0);
     const pct = planned > 0 ? Math.min((produced / planned) * 100, 100) : 0;
@@ -115,7 +157,25 @@ export default function AdminWorkOrderShow() {
                     post={post}
                     confirm={confirm}
                     promptComplete={promptComplete}
+                    changeControl={changeControl}
+                    resume={resume}
+                    resumeBlocked={resumeBlocked}
+                    onStopProduction={() => setShowStopModal(true)}
+                    onRequestChange={() => setShowChangeModal(true)}
                 />
+
+                {/* Change hold (#182) — the order is stopped and waiting on a
+                    change, which is the one thing a supervisor must not miss. */}
+                {status === 'CHANGE_HOLD' && (
+                    <div className="mb-5 rounded-om-sm border border-om-line2 bg-om-downtime-bg p-4">
+                        <p className="font-semibold text-om-downtime">{__('On change hold')}</p>
+                        <p className="mt-1 text-[13px] text-om-downtime">
+                            {resumeBlocked
+                                ? __('Production cannot resume until an approved change request has been applied.')
+                                : __('A change has been applied. Production can be resumed.')}
+                        </p>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1.55fr_1fr]">
                     {/* LEFT — what the order is, and what its batches are doing. */}
@@ -123,6 +183,14 @@ export default function AdminWorkOrderShow() {
                         <Details workOrder={workOrder} isDuePast={isDuePast} isTerminal={isTerminal} />
                         <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields ?? {}} />
                         <Batches workOrder={workOrder} />
+                        <MaterialsReconciliation
+                            workOrder={workOrder}
+                            allocations={allocations}
+                            canReclassify={canReclassify}
+                            materials={materials}
+                        />
+                        <ChangeRequests items={changeRequests} />
+                        <StopHistory stops={stops} />
                     </div>
 
                     {/* RIGHT — what it adds up to. */}
@@ -133,6 +201,21 @@ export default function AdminWorkOrderShow() {
                     </div>
                 </div>
             </div>
+
+            {showStopModal && (
+                <StopProductionModal
+                    workOrder={workOrder}
+                    options={changeControl}
+                    onClose={() => setShowStopModal(false)}
+                />
+            )}
+            {showChangeModal && (
+                <ChangeRequestModal
+                    workOrder={workOrder}
+                    options={changeControl}
+                    onClose={() => setShowChangeModal(false)}
+                />
+            )}
 
             {dialog}
             {promptDialog}
@@ -149,7 +232,10 @@ AdminWorkOrderShow.layout = (page) => <AppLayout>{page}</AppLayout>;
  * explain it doesn't apply is a button in the way. The one the order is waiting
  * for is the filled one; everything else is an outline.
  */
-function Header({ workOrder, status, isTerminal, isDuePast, post, confirm, promptComplete }) {
+function Header({
+    workOrder, status, isTerminal, isDuePast, post, confirm, promptComplete,
+    changeControl = {}, resume, resumeBlocked, onStopProduction, onRequestChange,
+}) {
     return (
         <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="min-w-0">
@@ -219,12 +305,37 @@ function Header({ workOrder, status, isTerminal, isDuePast, post, confirm, promp
                 {status === 'IN_PROGRESS' && (
                     <>
                         <Button variant="secondary" onClick={() => post('pause')}>{__('Pause')}</Button>
+                        {/* Pause is the informal stop; this one records why, and
+                            whether a configuration change is needed (#182). */}
+                        <Button
+                            variant="secondary"
+                            onClick={onStopProduction}
+                            title={__('Record why production stopped, and whether a configuration change is needed.')}
+                        >
+                            {__('Stop production')}
+                        </Button>
                         {/* `Complete`, not `Done`: the verb, not the state the
                             status badge already shows. */}
                         <Button variant="primary" onClick={promptComplete}>{__('Complete')}</Button>
                     </>
                 )}
-                {status === 'PAUSED' && <Button variant="primary" onClick={() => post('resume')}>{__('Resume')}</Button>}
+                {!isTerminal && changeControl.can_raise_change && (
+                    <Button variant="ghost" onClick={onRequestChange}>{__('Request change')}</Button>
+                )}
+                {/* HELD, not just PAUSED: a change hold resumes through the same
+                    button, but only once an approved change has been applied. */}
+                {HELD.includes(status) && !isTerminal && (
+                    <Button
+                        variant="primary"
+                        onClick={resume}
+                        disabled={resumeBlocked}
+                        title={resumeBlocked
+                            ? __('An approved change request must be applied before this order can resume.')
+                            : undefined}
+                    >
+                        {__('Resume')}
+                    </Button>
+                )}
                 {isTerminal && (
                     <Button variant="primary" onClick={() => confirm({ title: __('Reopen this work order?') }, () => post('reopen'))}>
                         {__('Reopen')}
@@ -490,7 +601,9 @@ function Progress({ workOrder, pct }) {
             <dl className="flex flex-col">
                 <Row label={__('Planned')} value={fmtQty(workOrder.planned_qty)} />
                 <Row label={__('Produced')} value={fmtQty(workOrder.produced_qty)} />
-                <Row label={__('Batches')} value={(workOrder.batches ?? []).length} last />
+                <Row label={__('Batches')} value={(workOrder.batches ?? []).length} />
+                {/* Which frozen configuration the floor is building against (#182). */}
+                <Row label={__('Configuration version')} value={`v${workOrder.snapshot_version ?? 1}`} last />
             </dl>
         </Card>
     );
@@ -502,6 +615,109 @@ function Row({ label, value, last = false }) {
             <dt className="text-[13px] text-om-muted">{label}</dt>
             <dd className="font-mono text-[13px] font-medium text-om-ink">{value}</dd>
         </div>
+    );
+}
+
+/**
+ * Change requests raised against this order (#182), newest panel in the left
+ * column. Each row links to the request itself — the impact analysis and the
+ * approve/apply actions live there, not here.
+ */
+function ChangeRequests({ items = [] }) {
+    if (items.length === 0) return null;
+
+    return (
+        <Card title={`${__('Change requests')} (${items.length})`}>
+            <ul className="flex flex-col gap-2">
+                {items.map((cr) => (
+                    <li key={cr.id}>
+                        <Link
+                            href={`/admin/work-order-change-requests/${cr.id}`}
+                            className="block rounded-om-sm bg-om-panel p-2.5 transition-colors hover:brightness-[0.98]"
+                        >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="font-mono text-[12px] text-om-muted">{cr.code}</span>
+                                    <span className="truncate text-[12.5px] font-medium text-om-ink">{cr.title}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {cr.resulting_snapshot_version && (
+                                        <span className="text-[11.5px] text-om-faint">
+                                            {__('version :v', { v: cr.resulting_snapshot_version })}
+                                        </span>
+                                    )}
+                                    <span className={`rounded px-2 py-0.5 text-[11.5px] font-medium ${CR_STATUS_STYLES[cr.status] ?? 'bg-om-chip text-om-muted'}`}>
+                                        {cr.status_label}
+                                    </span>
+                                </div>
+                            </div>
+                            <p className="mt-1 text-[12px] text-om-faint">
+                                {cr.effective_from_label}
+                                {cr.requested_by ? ` · ${cr.requested_by}` : ''}
+                            </p>
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+}
+
+/**
+ * Recorded production stops (#182) — a stop is a record with a reason and a
+ * duration, not just a status flip, so the order carries its own history of
+ * why it wasn't running. An open stop keeps the downtime background.
+ */
+function StopHistory({ stops = [] }) {
+    if (stops.length === 0) return null;
+
+    return (
+        <Card title={`${__('Production stops')} (${stops.length})`}>
+            <ul className="flex flex-col gap-2">
+                {stops.map((stop) => (
+                    <li
+                        key={stop.id}
+                        className={`rounded-om-sm p-2.5 ${stop.is_open ? 'bg-om-downtime-bg' : 'bg-om-panel'}`}
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12.5px] font-medium text-om-ink">{stop.type_label}</span>
+                                {stop.requires_change && (
+                                    <span className="rounded bg-om-chip px-1.5 py-0.5 text-[11.5px] text-om-accent">
+                                        {__('change required')}
+                                    </span>
+                                )}
+                                {stop.is_open && (
+                                    <span className="rounded bg-om-downtime-bg px-1.5 py-0.5 text-[11.5px] font-medium text-om-downtime">
+                                        {__('open')}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="font-mono text-[12.5px] font-medium text-om-muted">
+                                {fmtDuration(stop.duration_minutes)}
+                            </span>
+                        </div>
+                        <p className="mt-1 text-[12.5px] text-om-muted">{stop.reason}</p>
+                        <p className="mt-1 text-[12px] text-om-faint">
+                            {fmtDate(stop.stopped_at)}
+                            {stop.stopped_by ? ` · ${stop.stopped_by}` : ''}
+                            {' · '}
+                            {__('produced :qty at stop', { qty: fmtQty(stop.produced_qty_at_stop) })}
+                            {stop.snapshot_version_at_stop
+                                ? ` · ${__('version :v', { v: stop.snapshot_version_at_stop })}`
+                                : ''}
+                        </p>
+                        {stop.resumed_at && (
+                            <p className="mt-0.5 text-[12px] text-om-faint">
+                                {__('Resumed')} {fmtDate(stop.resumed_at)}
+                                {stop.resumed_by ? ` · ${stop.resumed_by}` : ''}
+                                {stop.resume_notes ? ` — ${stop.resume_notes}` : ''}
+                            </p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </Card>
     );
 }
 
@@ -581,5 +797,244 @@ function Activity({ entries }) {
                 ))}
             </ul>
         </Card>
+    );
+}
+
+const ALLOC_STATUS_STYLES = {
+    allocated: 'bg-om-chip text-om-accent',
+    consumed: 'bg-om-running-bg text-om-running',
+    returned: 'bg-om-chip text-om-faint',
+};
+
+// Materials reconciliation panel (#99): per-allocation record-consumption, return
+// leftover and reclassify actions against the work order's pulled materials.
+function MaterialsReconciliation({ workOrder, allocations, canReclassify, materials }) {
+    const [modal, setModal] = useState(null); // { kind: 'consume'|'return'|'reclassify', alloc }
+
+    return (
+        <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
+            <h2 className="text-lg font-bold text-om-ink mb-1">
+                {__('Materials reconciliation')}{' '}
+                <span className="text-sm font-normal text-om-faint">({allocations.length})</span>
+            </h2>
+            <p className="text-xs text-om-muted mb-4">
+                {__('Record what was actually consumed, return leftovers to stock, or reclassify material.')}
+            </p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-left text-om-muted border-b border-om-line2">
+                            <th className="py-2 pr-3 font-medium">{__('Material')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Allocated')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Consumed')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Returned')}</th>
+                            <th className="py-2 px-3 font-medium text-right">{__('Scrap')}</th>
+                            <th className="py-2 px-3 font-medium">{__('Status')}</th>
+                            <th className="py-2 pl-3 font-medium text-right">{__('Actions')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {allocations.map((a) => {
+                            const open = a.status === 'allocated';
+                            return (
+                                <tr key={a.id} className="border-b border-om-line2 last:border-0">
+                                    <td className="py-2 pr-3">
+                                        <span className="font-medium text-om-ink">{a.material_code}</span>
+                                        <span className="text-om-faint"> · {a.material_name}</span>
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.allocated_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.consumed_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.returned_qty)}</td>
+                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.scrap_qty)}</td>
+                                    <td className="py-2 px-3">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${ALLOC_STATUS_STYLES[a.status] ?? 'bg-om-chip text-om-muted'}`}>
+                                            {__(a.status)}
+                                        </span>
+                                    </td>
+                                    <td className="py-2 pl-3 text-right whitespace-nowrap">
+                                        {open && (
+                                            <>
+                                                <button type="button" onClick={() => setModal({ kind: 'consume', alloc: a })}
+                                                    className="text-xs text-om-accent hover:underline">{__('Consume')}</button>
+                                                <span className="text-om-faint mx-1.5">·</span>
+                                                <button type="button" onClick={() => setModal({ kind: 'return', alloc: a })}
+                                                    className="text-xs text-om-accent hover:underline">{__('Return')}</button>
+                                                {canReclassify && (
+                                                    <>
+                                                        <span className="text-om-faint mx-1.5">·</span>
+                                                        <button type="button" onClick={() => setModal({ kind: 'reclassify', alloc: a })}
+                                                            className="text-xs text-om-accent hover:underline">{__('Reclassify')}</button>
+                                                    </>
+                                                )}
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {modal?.kind === 'consume' && (
+                <ConsumeModal workOrder={workOrder} alloc={modal.alloc} onClose={() => setModal(null)} />
+            )}
+            {modal?.kind === 'return' && (
+                <ReturnModal workOrder={workOrder} alloc={modal.alloc} onClose={() => setModal(null)} />
+            )}
+            {modal?.kind === 'reclassify' && (
+                <ReclassifyModal workOrder={workOrder} alloc={modal.alloc} materials={materials} onClose={() => setModal(null)} />
+            )}
+        </div>
+    );
+}
+
+function ModalFrame({ title, children }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-om-card rounded-om-sm shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-lg font-bold text-om-ink mb-4">{title}</h3>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+const fieldCls = 'w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent';
+const labelCls = 'block text-sm font-medium text-om-muted mb-1';
+
+function ModalActions({ onClose, submitLabel, disabled }) {
+    return (
+        <div className="flex justify-end gap-2 mt-4">
+            <button type="button" onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-om-muted bg-om-card border border-om-line rounded-md hover:bg-om-bg">
+                {__('Cancel')}
+            </button>
+            <button type="submit" disabled={disabled}
+                className="px-4 py-2 text-sm font-medium text-white bg-om-accent border border-transparent rounded-md hover:brightness-95 disabled:opacity-50">
+                {submitLabel}
+            </button>
+        </div>
+    );
+}
+
+function ConsumeModal({ workOrder, alloc, onClose }) {
+    const [consumed, setConsumed] = useState(String(alloc.consumed_qty || ''));
+    const [scrap, setScrap] = useState(String(alloc.scrap_qty || ''));
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/consume`,
+            { consumed_qty: consumed, scrap_qty: scrap || 0 },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    return (
+        <ModalFrame title={__('Record consumption')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('Allocated: :qty', { qty: fmtQty(alloc.allocated_qty) })} {alloc.unit_of_measure}
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Consumed quantity')}</label>
+                    <input type="number" step="0.0001" min="0" value={consumed}
+                        onChange={(e) => setConsumed(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Scrap quantity')}</label>
+                    <input type="number" step="0.0001" min="0" value={scrap}
+                        onChange={(e) => setScrap(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Save')} disabled={processing} />
+            </form>
+        </ModalFrame>
+    );
+}
+
+function ReturnModal({ workOrder, alloc, onClose }) {
+    const returnable = Math.max(0, alloc.allocated_qty - alloc.consumed_qty - alloc.scrap_qty);
+    const [qty, setQty] = useState('');
+    const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/allocations/${alloc.id}/return`,
+            { qty, reason },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    return (
+        <ModalFrame title={__('Return to stock')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('Returnable: :qty', { qty: fmtQty(returnable) })} {alloc.unit_of_measure}
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Quantity to return')}</label>
+                    <input type="number" step="0.0001" min="0.0001" max={returnable} value={qty}
+                        onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Reason')}</label>
+                    <input type="text" maxLength={255} value={reason}
+                        onChange={(e) => setReason(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Return to stock')} disabled={processing} />
+            </form>
+        </ModalFrame>
+    );
+}
+
+function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
+    const [target, setTarget] = useState('');
+    const [qty, setQty] = useState('');
+    const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    function submit(e) {
+        e.preventDefault();
+        if (processing) return;
+        setProcessing(true);
+        router.post(`/admin/work-orders/${workOrder.id}/reclassify`,
+            { source_material_id: alloc.material_id, target_material_id: target, qty, reason },
+            { preserveScroll: true, onSuccess: onClose, onFinish: () => setProcessing(false) });
+    }
+
+    const targets = materials.filter((m) => m.id !== alloc.material_id);
+
+    return (
+        <ModalFrame title={__('Reclassify material')}>
+            <form onSubmit={submit}>
+                <p className="text-xs text-om-muted mb-3">
+                    {__('From')} <strong className="text-om-ink">{alloc.material_code}</strong>
+                </p>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Target class (material)')}</label>
+                    <select value={target} onChange={(e) => setTarget(e.target.value)} className={fieldCls} required>
+                        <option value="">{__('Select a material')}</option>
+                        {targets.map((m) => (
+                            <option key={m.id} value={m.id}>{m.code} · {m.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="mb-3">
+                    <label className={labelCls}>{__('Quantity')}</label>
+                    <input type="number" step="0.0001" min="0.0001" value={qty}
+                        onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
+                </div>
+                <div className="mb-1">
+                    <label className={labelCls}>{__('Reason')}</label>
+                    <input type="text" maxLength={255} value={reason}
+                        onChange={(e) => setReason(e.target.value)} className={fieldCls} />
+                </div>
+                <ModalActions onClose={onClose} submitLabel={__('Reclassify')} disabled={!target || processing} />
+            </form>
+        </ModalFrame>
     );
 }

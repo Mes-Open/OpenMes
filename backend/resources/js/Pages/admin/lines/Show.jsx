@@ -13,6 +13,7 @@ const WORK_ORDER_STATUS_LABELS = {
     IN_PROGRESS: 'In Progress',
     BLOCKED: 'Blocked',
     PAUSED: 'Paused',
+    CHANGE_HOLD: 'Change hold',
     DONE: 'Done',
     REJECTED: 'Rejected',
     CANCELLED: 'Cancelled',

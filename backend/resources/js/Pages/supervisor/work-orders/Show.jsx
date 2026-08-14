@@ -5,6 +5,7 @@ import { Button, StatusPill, Stepper } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
 import DueCountdown from '../../../components/DueCountdown';
+import { apiCall } from '../../../lib/http';
 import { __, formatDate, formatNumber, timeAgo } from '../../../lib/i18n';
 import PageTrail from '../../../components/PageTrail';
 
@@ -16,6 +17,7 @@ const WO_PILL_STATUS = {
     ACCEPTED: 'pending',
     IN_PROGRESS: 'running',
     PAUSED: 'downtime',
+    CHANGE_HOLD: 'downtime',
     BLOCKED: 'blocked',
     DONE: 'done',
     REJECTED: 'blocked',
@@ -78,7 +80,7 @@ function fmtDateTime(d) {
 
 
 
-function BatchRow({ batch, processSnapshot }) {
+function BatchRow({ batch, processSnapshot, workstationTypeNames = {}, onAssign }) {
     const [open, setOpen] = useState(batch.is_first ?? false);
 
     // Build step-number → estimated_duration_minutes map from process_snapshot
@@ -139,6 +141,19 @@ function BatchRow({ batch, processSnapshot }) {
                                 ) : estimated != null ? (
                                     <span className="font-mono text-om-faint">est. {estimated}min</span>
                                 ) : null,
+                                action: ['PENDING', 'READY'].includes(step.status) && step.workstation_type_id && !step.workstation_id ? (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onAssign?.(step);
+                                        }}
+                                        className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-accent hover:underline flex-shrink-0"
+                                        title={workstationTypeNames[step.workstation_type_id] ?? ''}
+                                    >
+                                        {__('Assign')}
+                                    </button>
+                                ) : null,
                             };
                         })}
                     />
@@ -168,7 +183,7 @@ function DoneModal({ workOrder, onClose }) {
             <div className="bg-om-card border border-om-line rounded-om shadow-xl p-6 w-full max-w-md mx-4">
                 <h3 className="text-[16px] font-semibold text-om-ink mb-4">{__('Complete Work Order')}</h3>
                 <p className="text-sm text-om-muted mb-4">
-                    Enter the produced quantity for <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
+                    {__('Enter the produced quantity for')} <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
@@ -246,7 +261,8 @@ function OrderMachinesPanel({ machines }) {
 }
 
 export default function SupervisorWorkOrderShow() {
-    const { workOrder } = usePage().props;
+    const { workOrder, workstations = [], workstationTypeNames = {} } = usePage().props;
+    const [assignStep, setAssignStep] = useState(null); // batch step being assigned a workstation (#52)
     const [showDoneModal, setShowDoneModal] = useState(false);
     const { confirm, dialog } = useConfirm();
 
@@ -283,7 +299,7 @@ export default function SupervisorWorkOrderShow() {
                             <StatusPill status={WO_PILL_STATUS[status] ?? 'pending'} label={status} />
                         </div>
                         <p className="text-om-muted mt-1">
-                            Created {timeAgo(workOrder.created_at)}
+                            {__('Created')} {timeAgo(workOrder.created_at)}
                             {workOrder.product_type_name ? ` · ${workOrder.product_type_name}` : ''}
                         </p>
                     </div>
@@ -296,7 +312,7 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                                 <Button
                                     variant="danger"
-                                    onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
+                                    onClick={() => confirm({ title: __('Reject this work order?') }, () => post('reject'))}
                                 >
                                     Reject
                                 </Button>
@@ -305,7 +321,7 @@ export default function SupervisorWorkOrderShow() {
                         {status === 'ACCEPTED' && (
                             <Button
                                 variant="danger"
-                                onClick={() => confirm({ title: 'Reject this work order?' }, () => post('reject'))}
+                                onClick={() => confirm({ title: __('Reject this work order?') }, () => post('reject'))}
                             >
                                 Reject
                             </Button>
@@ -320,7 +336,9 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                             </>
                         )}
-                        {status === 'PAUSED' && (
+                        {/* CHANGE_HOLD resumes here too; the backend refuses it until an
+                            approved change has been applied and answers with the reason (#182). */}
+                        {['PAUSED', 'CHANGE_HOLD'].includes(status) && (
                             <Button variant="primary" onClick={() => post('resume')}>
                                 Resume
                             </Button>
@@ -329,7 +347,7 @@ export default function SupervisorWorkOrderShow() {
                         {isTerminal ? (
                             <Button
                                 variant="primary"
-                                onClick={() => confirm({ title: 'Reopen this work order?' }, () => post('reopen'))}
+                                onClick={() => confirm({ title: __('Reopen this work order?') }, () => post('reopen'))}
                             >
                                 Reopen
                             </Button>
@@ -342,7 +360,7 @@ export default function SupervisorWorkOrderShow() {
                                     Edit
                                 </Link>
                                 <button
-                                    onClick={() => confirm({ title: 'Cancel this work order?' }, () => post('cancel'))}
+                                    onClick={() => confirm({ title: __('Cancel this work order?') }, () => post('cancel'))}
                                     className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"
                                 >
                                     Cancel
@@ -416,7 +434,7 @@ export default function SupervisorWorkOrderShow() {
                         {/* Batches */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
                             <h2 className="text-[14px] font-semibold text-om-ink mb-4">
-                                Batches{' '}
+                                {__('Batches')}{' '}
                                 <span className="font-mono text-[12px] font-normal text-om-faint">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (
@@ -428,6 +446,8 @@ export default function SupervisorWorkOrderShow() {
                                             key={batch.id}
                                             batch={{ ...batch, is_first: i === 0 }}
                                             processSnapshot={workOrder.process_snapshot}
+                                            workstationTypeNames={workstationTypeNames}
+                                            onAssign={setAssignStep}
                                         />
                                     ))}
                                 </div>
@@ -515,7 +535,84 @@ export default function SupervisorWorkOrderShow() {
                 <DoneModal workOrder={workOrder} onClose={() => setShowDoneModal(false)} />
             )}
             {dialog}
+
+            {assignStep && (
+                <AssignWorkstationModal
+                    step={assignStep}
+                    workstations={workstations}
+                    typeNames={workstationTypeNames}
+                    onClose={() => setAssignStep(null)}
+                />
+            )}
         </>
+    );
+}
+
+/**
+ * Pool dispatch (#52): assign a specific workstation to a pending step that
+ * carries only an Equipment Class. Lists active workstations of the required
+ * type; posts the assign endpoint and reloads. Mirrors the DoneModal overlay.
+ */
+function AssignWorkstationModal({ step, workstations, typeNames, onClose }) {
+    const options = (workstations ?? []).filter(
+        (w) => String(w.workstation_type_id) === String(step.workstation_type_id),
+    );
+    const [workstationId, setWorkstationId] = useState(options[0] ? String(options[0].id) : '');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    async function submit() {
+        if (!workstationId) return;
+        setSaving(true);
+        setError(null);
+        try {
+            const res = await apiCall(`/api/v1/batch-steps/${step.id}/assign`, 'POST', {
+                workstation_id: Number(workstationId),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                setError(body.message ?? __('The workstation could not be assigned.'));
+                return;
+            }
+            onClose();
+            router.reload({ only: ['workOrder'] });
+        } catch {
+            setError(__('The workstation could not be assigned.'));
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div className="flex min-h-full items-center justify-center p-4">
+                <div className="relative w-full max-w-md rounded-om border border-om-line bg-om-card p-6" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-[15px] font-semibold text-om-ink mb-1">{__('Assign workstation')}</h3>
+                    <p className="text-xs text-om-muted mb-4">
+                        {step.name} · {typeNames?.[step.workstation_type_id] ?? __('required type')}
+                    </p>
+                    {options.length === 0 ? (
+                        <p className="text-sm text-om-blocked mb-4">{__('No active workstation of the required type is available.')}</p>
+                    ) : (
+                        <select
+                            value={workstationId}
+                            onChange={(e) => setWorkstationId(e.target.value)}
+                            className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-sm mb-4"
+                        >
+                            {options.map((w) => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+                        </select>
+                    )}
+                    {error && <p className="text-om-blocked text-xs mb-3">{error}</p>}
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                        <Button variant="primary" disabled={!workstationId || saving} onClick={submit}>
+                            {saving ? '…' : __('Assign')}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

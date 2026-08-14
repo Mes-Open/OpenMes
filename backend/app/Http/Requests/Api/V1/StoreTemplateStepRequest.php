@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTemplateStepRequest extends FormRequest
 {
@@ -18,8 +19,11 @@ class StoreTemplateStepRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'instruction' => ['nullable', 'string'],
             'estimated_duration_minutes' => ['nullable', 'integer', 'min:0'],
+            'setup_time_minutes' => ['nullable', 'integer', 'min:0'],
+            'run_time_per_unit_minutes' => ['nullable', 'numeric', 'min:0'],
             'required_operators' => ['nullable', 'integer', 'min:1'],
             'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
+            'workstation_type_id' => ['nullable', 'integer', Rule::exists('workstation_types', 'id')->where('is_active', true)->whereNull('deleted_at')],
         ];
     }
 }

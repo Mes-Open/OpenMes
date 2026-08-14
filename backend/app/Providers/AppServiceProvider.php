@@ -112,6 +112,14 @@ class AppServiceProvider extends ServiceProvider
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
 
+        // Warehousing (#212): a concluded work order owes the warehouse a
+        // material release and a product receipt. The listener creates them as
+        // drafts and no-ops when the module is off or no warehouse exists.
+        Event::listen(
+            \App\Events\WorkOrder\WorkOrderCompleted::class,
+            \App\Listeners\GenerateWorkOrderStockDocuments::class,
+        );
+
         // Outgoing webhooks (#20): observe the source models so a status change /
         // creation fans out to subscribed endpoints. The dispatcher is
         // best-effort and never breaks the underlying write.

@@ -26,6 +26,10 @@ class ProductType extends Model
         'code',
         'name',
         'description',
+        // ERP classification + source identity (#212), filled by an ERP import.
+        'category',
+        'external_code',
+        'external_system',
         'unit_of_measure',
         'is_active',
         'tenant_id',
@@ -98,6 +102,12 @@ class ProductType extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** Per-warehouse finished-goods balances for this product (#212). */
+    public function warehouseStocks(): HasMany
+    {
+        return $this->hasMany(WarehouseStock::class);
     }
 
     /**

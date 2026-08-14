@@ -54,11 +54,11 @@ function WoStatusBadge({ status }) {
         CANCELLED:   'blocked',
     };
     const label = {
-        PENDING:     'Pending',
-        IN_PROGRESS: 'In Progress',
-        ON_HOLD:     'On Hold',
-        DONE:        'Done',
-        CANCELLED:   'Cancelled',
+        PENDING:     __('Pending'),
+        IN_PROGRESS: __('In Progress'),
+        ON_HOLD:     __('On Hold'),
+        DONE:        __('Done'),
+        CANCELLED:   __('Cancelled'),
     };
     return <StatusPill status={map[status] ?? 'pending'} label={label[status] ?? status} />;
 }
@@ -122,7 +122,7 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                             {/* Issue type */}
                             <div>
                                 <label className={monoLabelCls}>
-                                    Type <span className="text-om-blocked">*</span>
+                                    {__("Type")} <span className="text-om-blocked">*</span>
                                 </label>
                                 <div className="grid grid-cols-2 gap-2 mb-2">
                                     {issueTypes.map((type) => {
@@ -141,7 +141,7 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                                                 <span className="flex-1 text-sm font-medium text-om-ink leading-tight">
                                                     {type.name}
                                                     {type.is_blocking && (
-                                                        <span className="block font-mono text-[10px] text-om-blocked font-normal">⚠ blocking</span>
+                                                        <span className="block font-mono text-[10px] text-om-blocked font-normal">⚠ {__("blocking")}</span>
                                                     )}
                                                 </span>
                                                 {selected && (
@@ -158,27 +158,27 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                             {/* Title */}
                             <div>
                                 <label className={monoLabelCls}>
-                                    Title <span className="text-om-blocked">*</span>
+                                    {__("Title")} <span className="text-om-blocked">*</span>
                                 </label>
                                 <input type="text" name="title"
                                        value={form.data.title}
                                        onChange={(e) => form.setData('title', e.target.value)}
                                        className={inputCls}
-                                       placeholder="Brief summary…"
+                                       placeholder={__("Brief summary…")}
                                        required maxLength={255} />
                             </div>
 
                             {/* Description */}
                             <div>
                                 <label className={monoLabelCls}>
-                                    Details <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
+                                    {__("Details")} <span className="text-om-faintest normal-case tracking-normal">({__("optional")})</span>
                                 </label>
                                 <textarea name="description"
                                           value={form.data.description}
                                           onChange={(e) => form.setData('description', e.target.value)}
                                           rows={3}
                                           className={`${inputCls} resize-none`}
-                                          placeholder="Additional details, photos description, measurements…"
+                                          placeholder={__("Additional details, photos description, measurements…")}
                                           maxLength={2000} />
                             </div>
                         </div>
@@ -186,7 +186,7 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                         {/* footer — §09 panel */}
                         <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
                             <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
-                                Cancel
+                                {__("Cancel")}
                             </Button>
                             <Button variant="danger" type="submit"
                                     disabled={form.processing || !form.data.issue_type_id || !form.data.title}
@@ -194,7 +194,7 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
                                 </svg>
-                                Submit Report
+                                {__("Submit Report")}
                             </Button>
                         </div>
                     </form>
@@ -256,20 +256,20 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
                     <form onSubmit={submit}>
                         <div className="px-5 py-4">
                             <label className={monoLabelCls}>
-                                Produced quantity <span className="text-om-blocked">*</span>
+                                {__("Produced quantity")} <span className="text-om-blocked">*</span>
                             </label>
                             <input type="number"
                                    value={qty}
                                    onChange={(e) => setQty(e.target.value)}
                                    className="w-full rounded-om-sm border border-om-line bg-om-bg font-mono text-3xl font-medium text-center py-4 text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
                                    placeholder="0" min="0" step="0.01" required autoFocus />
-                            <p className="text-xs text-om-faint mt-1.5">Enter the number of units actually produced.</p>
+                            <p className="text-xs text-om-faint mt-1.5">{__("Enter the number of units actually produced.")}</p>
                         </div>
 
                         {/* footer — §09 panel */}
                         <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
                             <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
-                                Cancel
+                                {__("Cancel")}
                             </Button>
                             <Button variant="accent" type="submit"
                                     disabled={processing || qty === '' || parseFloat(qty) < 0}
@@ -277,7 +277,7 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
                                 </svg>
-                                Mark as Done
+                                {__("Mark as Done")}
                             </Button>
                         </div>
                     </form>
@@ -323,7 +323,7 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                     <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
                         <div>
                             <h3 className="text-[15px] font-semibold text-om-ink">{__("Report Downtime")}</h3>
-                            <p className="mt-[3px] text-sm text-om-muted">Record a production stoppage for this line</p>
+                            <p className="mt-[3px] text-sm text-om-muted">{__("Record a production stoppage for this line")}</p>
                         </div>
                         <button type="button" onClick={onClose}
                                 className="p-2 text-om-faint hover:text-om-ink rounded-om-sm hover:bg-om-chip transition-colors">
@@ -338,13 +338,13 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                             {/* Reason */}
                             <div>
                                 <label className={monoLabelCls}>
-                                    Reason <span className="text-om-blocked">*</span>
+                                    {__("Reason")} <span className="text-om-blocked">*</span>
                                 </label>
                                 <Dropdown
                                     options={downtimeReasons.map((r) => ({ value: String(r.id), label: r.name }))}
                                     value={form.data.reason_id == null ? '' : String(form.data.reason_id)}
                                     onChange={(v) => form.setData('reason_id', v)}
-                                    placeholder="— select reason —"
+                                    placeholder={__("— Select reason —")}
                                     className="w-full"
                                 />
                                 {form.errors.reason_id && (
@@ -355,14 +355,14 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                             {/* Notes */}
                             <div>
                                 <label className={monoLabelCls}>
-                                    Notes <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
+                                    {__("Notes")} <span className="text-om-faintest normal-case tracking-normal">({__("optional")})</span>
                                 </label>
                                 <textarea name="notes"
                                           value={form.data.notes}
                                           onChange={(e) => form.setData('notes', e.target.value)}
                                           rows={3}
                                           className={`${inputCls} resize-none`}
-                                          placeholder="Additional context…"
+                                          placeholder={__("Additional context…")}
                                           maxLength={2000} />
                             </div>
                         </div>
@@ -370,7 +370,7 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                         {/* footer — §09 panel */}
                         <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
                             <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
-                                Cancel
+                                {__("Cancel")}
                             </Button>
                             <Button variant="danger" type="submit"
                                     disabled={form.processing || !form.data.reason_id}
@@ -378,7 +378,7 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                Start Downtime
+                                {__("Start Downtime")}
                             </Button>
                         </div>
                     </form>
@@ -441,7 +441,7 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
             {lineStatuses.length > 0 && (
                 <td className="px-4 py-3 whitespace-nowrap cursor-pointer"
                     onClick={cycleStatus}
-                    title="Tap to cycle status">
+                    title={__("Tap to cycle status")}>
                     <BoardStatusBadge lineStatus={ls} />
                 </td>
             )}
@@ -477,11 +477,11 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
                 <Button variant="danger"
                         onClick={(e) => { e.stopPropagation(); onReport({ woId: wo.id, woNo: wo.order_no }); }}
                         className="gap-1 text-xs"
-                        title="Report issue">
+                        title={__("Report issue")}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
                     </svg>
-                    Report
+                    {__("Report")}
                 </Button>
             </td>
             {/* Detail arrow */}
@@ -535,9 +535,9 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
 
             {lineStatuses.length > 0 && (
                 <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                    <p className={monoLabelCls}>Board Status</p>
+                    <p className={monoLabelCls}>{__("Board Status")}</p>
                     <Dropdown
-                        options={[{ value: '', label: '— none —' }, ...lineStatuses.map((ls) => ({ value: String(ls.id), label: ls.name }))]}
+                        options={[{ value: '', label: __("— none —") }, ...lineStatuses.map((ls) => ({ value: String(ls.id), label: ls.name }))]}
                         value={wo.line_status_id == null ? '' : String(wo.line_status_id)}
                         onChange={handleSelectChange}
                         className="w-full"
@@ -547,11 +547,11 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
 
             <Link href={`/operator/work-order/${wo.id}`} className="block">
                 <div className="mb-3">
-                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Product</p>
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__("Product")}</p>
                     <p className="text-[15px] font-medium text-om-ink">{wo.product_type?.name ?? '—'}</p>
                 </div>
                 <div className="mb-3">
-                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Quantity</p>
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__("Quantity")}</p>
                     <p className="font-mono text-[15px] font-medium text-om-ink">
                         {fmtQty(producedQty, 2)} / {fmtQty(plannedQty, 2)}
                         {plannedQty > 0 && (
@@ -565,30 +565,31 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
                     )}
                 </div>
                 <div className="mb-3">
-                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Batches</p>
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__("Batches")}</p>
                     <p className="font-mono text-[15px] font-medium text-om-ink">{wo.batches ? wo.batches.length : 0}</p>
                 </div>
                 <div className="border-t border-om-line2 pt-3 mt-3 flex justify-between items-center text-sm">
                     <span className="text-om-muted">
-                        Priority: <span className="font-mono font-medium text-om-ink">{wo.priority || '—'}</span>
+                        {__("Priority")}: <span className="font-mono font-medium text-om-ink">{wo.priority || '—'}</span>
                     </span>
                     {wo.due_date && (
                         <span className="text-om-muted">
-                            Due: <span className="font-mono font-medium text-om-ink">{fmtDate(wo.due_date, 'short')}</span>
+                            {__("Due")}: <span className="font-mono font-medium text-om-ink">{fmtDate(wo.due_date, 'short')}</span>
                         </span>
                     )}
                 </div>
                 <div className="mt-4 flex items-center justify-between">
                     <Button variant="danger"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReport({ woId: wo.id, woNo: wo.order_no }); }}
-                            className="gap-1 text-xs">
+                            className="gap-1 text-xs"
+                            title={__("Report issue")}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
                         </svg>
-                        Report
+                        {__("Report")}
                     </Button>
                     <span className="flex items-center gap-1 text-om-accent text-sm font-medium">
-                        View Details
+                        {__("View Details")}
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
                         </svg>
@@ -605,7 +606,7 @@ const completedColumns = [
     {
         id: 'order_no',
         accessorKey: 'order_no',
-        header: 'Order No',
+        header: () => __("Order No"),
         cell: ({ row }) => (
             <span className="font-mono text-[13px] font-semibold text-om-muted whitespace-nowrap">{row.original.order_no}</span>
         ),
@@ -613,7 +614,7 @@ const completedColumns = [
     {
         id: 'product',
         accessorFn: (r) => r.product_type?.name ?? '—',
-        header: 'Product',
+        header: () => __("Product"),
         cell: ({ row }) => (
             <span className="text-[13.5px] text-om-muted">{row.original.product_type?.name ?? '—'}</span>
         ),
@@ -621,7 +622,7 @@ const completedColumns = [
     {
         id: 'produced',
         accessorKey: 'produced_qty',
-        header: 'Produced',
+        header: () => __("Produced"),
         cell: ({ row }) => (
             <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(row.original.produced_qty)}</span>
         ),
@@ -629,7 +630,7 @@ const completedColumns = [
     {
         id: 'completed_at',
         accessorKey: 'completed_at',
-        header: 'Completed at',
+        header: () => __("Completed at"),
         cell: ({ row }) => (
             <span className="font-mono text-[12px] text-om-faint whitespace-nowrap">{fmtDate(row.original.completed_at, 'long')}</span>
         ),
@@ -705,8 +706,8 @@ export default function Queue() {
                                            'text-om-pending bg-om-pending-bg';
 
     const trackingLabel =
-        trackingMode === 'per_operation' ? 'Per Operation' :
-        trackingMode === 'hybrid'        ? 'Hybrid' : 'Cumulative';
+        trackingMode === 'per_operation' ? __("Per Operation") :
+        trackingMode === 'hybrid'        ? __("Hybrid") : __("Cumulative");
 
     return (
         <>
@@ -722,7 +723,7 @@ export default function Queue() {
                     <div>
                         <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-om-ink">{__("Work Order Queue")}</h1>
                         <p className="text-sm text-om-muted mt-2">
-                            Line: {line.name}
+                            {__("Line")}: {line.name}
                             {selectedWorkstation && (
                                 <span className="font-mono text-[12px] text-om-accent font-medium ml-2">/ {selectedWorkstation.name}</span>
                             )}
@@ -732,11 +733,11 @@ export default function Queue() {
                         {/* Mode toggle: Queue / Workstation */}
                         <div className="flex items-center gap-[3px] rounded-om-sm border border-om-line bg-om-bg p-[3px]">
                             <span className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium bg-om-ink text-om-on-ink">
-                                Queue
+                                {__("Queue")}
                             </span>
                             <Link href="/operator/workstation"
                                   className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors">
-                                Workstation
+                                {__("Workstation")}
                             </Link>
                         </div>
 
@@ -749,7 +750,7 @@ export default function Queue() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 6h18M3 14h18M3 18h18"/>
                                 </svg>
-                                Table
+                                {__("Table")}
                             </button>
                             <button type="button" onClick={() => setView('cards')}
                                     className={`flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors cursor-pointer ${
@@ -758,13 +759,13 @@ export default function Queue() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
                                 </svg>
-                                Cards
+                                {__("Cards")}
                             </button>
                         </div>
 
                         <Link href="/operator/select-line"
                               className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink bg-om-card border border-om-line hover:bg-om-chip transition-colors">
-                            Change Line
+                            {__("Change Line")}
                         </Link>
                     </div>
                 </div>
@@ -775,14 +776,14 @@ export default function Queue() {
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-om-blocked animate-om-pulse" />
                             <span className="text-sm font-semibold text-om-blocked truncate">
-                                Downtime in progress &mdash; {activeDowntime.reason.name}
+                                {__("Downtime in progress")} &mdash; {activeDowntime.reason.name}
                             </span>
                             <span className="hidden sm:inline font-mono text-[11px] text-om-blocked/70 whitespace-nowrap">
-                                (since {fmtDate(activeDowntime.started_at, 'long')})
+                                ({__("since")} {fmtDate(activeDowntime.started_at, 'long')})
                             </span>
                         </div>
                         <span className="sm:hidden font-mono text-[11px] text-om-blocked/70">
-                            since {fmtDate(activeDowntime.started_at, 'long')}
+                            {__("since")} {fmtDate(activeDowntime.started_at, 'long')}
                         </span>
                         {activeDowntime.notes && (
                             <span className="text-xs text-om-blocked/80 italic truncate max-w-xs hidden lg:inline">
@@ -795,7 +796,7 @@ export default function Queue() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10h6v4H9z"/>
                             </svg>
-                            Stop Downtime
+                            {__("Stop Downtime")}
                         </Button>
                     </div>
                 ) : downtimeReasons.length > 0 && (
@@ -806,7 +807,7 @@ export default function Queue() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            Report Downtime
+                            {__("Report Downtime")}
                         </button>
                     </div>
                 )}
@@ -814,14 +815,14 @@ export default function Queue() {
                 {/* ── Workstation filter + tracking mode badge ── */}
                 {showWorkstationFilter && (
                     <div className="mb-4 flex flex-wrap items-center gap-3">
-                        <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Workstation filter:</span>
+                        <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__("Workstation filter")}:</span>
 
                         <button type="button"
                                 onClick={() => router.get('/operator/queue', {}, { preserveState: false })}
                                 className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
                                     !selectedWorkstation ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                 }`}>
-                            All
+                            {__("All")}
                         </button>
 
                         {lineWorkstations.map((ws) => {
@@ -856,7 +857,7 @@ export default function Queue() {
                 {showWorkstationQueue && workstationQueue.length > 0 && (
                     <div className="mb-6">
                         <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
-                            Ready at {selectedWorkstation.name}
+                            {__("Ready at :station", { station: selectedWorkstation.name })}
                             <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({workstationQueue.length})</span>
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -883,7 +884,7 @@ export default function Queue() {
                                             <span className="font-mono text-[13px] font-semibold text-om-ink">{wo.order_no}</span>
                                             <StatusPill
                                                 status={currentStep?.status === 'IN_PROGRESS' ? 'running' : 'pending'}
-                                                label={currentStep?.status === 'IN_PROGRESS' ? 'In Progress' : 'Ready'}
+                                                label={currentStep?.status === 'IN_PROGRESS' ? __('In Progress') : __('Ready')}
                                             />
                                         </div>
                                         <div className="text-sm font-medium text-om-ink">
@@ -891,11 +892,11 @@ export default function Queue() {
                                         </div>
                                         {currentStep && (
                                             <div className="mt-2 text-xs text-om-accent font-medium">
-                                                Step {currentStep.step_number}: {currentStep.name}
+                                                {__("Step")} {currentStep.step_number}: {currentStep.name}
                                             </div>
                                         )}
                                         <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-om-faint">
-                                            Qty: {wo.planned_qty} &middot; Batch #{currentBatch?.batch_number}
+                                            {__("Qty")}: {wo.planned_qty} &middot; {__("Batch")} #{currentBatch?.batch_number}
                                         </div>
                                     </Link>
                                 );
@@ -907,7 +908,7 @@ export default function Queue() {
                 {showWorkstationQueue && workstationQueue.length === 0 && (
                     <div className="mb-6 p-6 rounded-om border border-om-line bg-om-card text-center">
                         <p className="text-sm text-om-muted">
-                            No work orders currently waiting at <strong className="text-om-ink">{selectedWorkstation.name}</strong>
+                            {__("No work orders currently waiting at")} <strong className="text-om-ink">{selectedWorkstation.name}</strong>
                         </p>
                     </div>
                 )}
@@ -923,7 +924,7 @@ export default function Queue() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                             <h3 className="mt-2 text-sm font-medium text-om-ink">{__("No active work orders")}</h3>
-                            <p className="mt-1 text-sm text-om-muted">There are no work orders currently in progress on this line.</p>
+                            <p className="mt-1 text-sm text-om-muted">{__("There are no work orders currently in progress on this line.")}</p>
                         </div>
                     ) : (
                         <>
@@ -934,22 +935,22 @@ export default function Queue() {
                                         <table className="min-w-full divide-y divide-om-line2">
                                             <thead className="bg-om-panel">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Order No</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Status</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Order No")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Status")}</th>
                                                     {lineStatuses.length > 0 && (
                                                         <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">
-                                                            Board Status
-                                                            <Tooltip label="Tap badge to cycle">
+                                                            {__("Board Status")}
+                                                            <Tooltip label={__("Tap badge to cycle")}>
                                                                 <span className="ml-1 text-om-faintest font-normal normal-case tracking-normal text-xs">↻</span>
                                                             </Tooltip>
                                                         </th>
                                                     )}
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Product</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Qty (done / planned)</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Batches</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Priority</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Due</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Actions</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Product")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Qty (done / planned)")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Batches")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Priority")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Due")}</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Actions")}</th>
                                                     <th className="px-4 py-3" />
                                                 </tr>
                                             </thead>
@@ -988,13 +989,13 @@ export default function Queue() {
                 {/* ── Recently Completed ── */}
                 <div>
                     <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
-                        Recently Completed
+                        {__("Recently Completed")}
                         <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({completedWorkOrders.length})</span>
                     </h2>
 
                     {completedWorkOrders.length === 0 ? (
                         <div className="bg-om-card border border-om-line rounded-om text-center py-8">
-                            <p className="text-sm text-om-muted">No recently completed work orders</p>
+                            <p className="text-sm text-om-muted">{__("No recently completed work orders")}</p>
                         </div>
                     ) : (
                         <>
@@ -1022,16 +1023,16 @@ export default function Queue() {
                                                 <StatusPill status="done" label={__("Completed")} />
                                             </div>
                                             <div className="mb-3">
-                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Product</p>
+                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__("Product")}</p>
                                                 <p className="text-[15px] font-medium text-om-ink">{wo.product_type?.name ?? '—'}</p>
                                             </div>
                                             <div className="mb-3">
-                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Completed</p>
+                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__("Completed")}</p>
                                                 <p className="font-mono text-[15px] font-medium text-om-ink">{fmtQty(wo.produced_qty, 2)}</p>
                                             </div>
                                             {wo.completed_at && (
                                                 <div className="border-t border-om-line2 pt-3 mt-3 text-sm text-om-muted">
-                                                    Completed: <span className="font-mono text-[12px]">{fmtDate(wo.completed_at, 'long')}</span>
+                                                    {__("Completed")}: <span className="font-mono text-[12px]">{fmtDate(wo.completed_at, 'long')}</span>
                                                 </div>
                                             )}
                                         </Link>

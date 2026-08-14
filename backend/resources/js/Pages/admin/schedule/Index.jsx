@@ -5,7 +5,7 @@ import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import Tooltip from '../../../components/Tooltip';
 import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { formatDate, formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     BLOCKED:     'bg-om-blocked-bg text-om-blocked',
@@ -13,13 +13,14 @@ const STATUS_COLORS = {
     ACCEPTED:    'bg-om-running-bg text-om-running',
     PENDING:     'bg-om-chip text-om-muted',
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    CHANGE_HOLD: 'bg-om-downtime-bg text-om-downtime',
     DONE:        'bg-om-running-bg text-om-running',
     REJECTED:    'bg-om-blocked-bg text-om-blocked',
     CANCELLED:   'bg-om-line2 text-om-muted',
 };
 const STATUS_LABELS = {
     PENDING: 'Pending', ACCEPTED: 'Accepted', IN_PROGRESS: 'In Progress',
-    BLOCKED: 'Blocked', PAUSED: 'Paused', DONE: 'Done',
+    BLOCKED: 'Blocked', PAUSED: 'Paused', CHANGE_HOLD: 'Change hold', DONE: 'Done',
     REJECTED: 'Rejected', CANCELLED: 'Cancelled',
 };
 
@@ -248,7 +249,7 @@ function OrderTable({ orders }) {
             header: 'Status',
             cell: ({ row }) => (
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[row.original.status] ?? 'bg-om-chip text-om-muted'}`}>
-                    {STATUS_LABELS[row.original.status] ?? row.original.status}
+                    {__(STATUS_LABELS[row.original.status] ?? row.original.status)}
                 </span>
             ),
         },

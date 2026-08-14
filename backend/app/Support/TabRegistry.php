@@ -20,7 +20,10 @@ class TabRegistry
         'dashboard' => ['label' => 'Dashboard', 'prefixes' => ['/admin/dashboard']],
         'alerts' => ['label' => 'Alerts', 'prefixes' => ['/admin/alerts']],
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
-        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
+        // work-order-change-requests (#182) is its own prefix: it does not sit under
+        // /admin/work-orders, so without it the change-review page would fall outside
+        // the matrix and silently become Admin-only.
+        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/work-order-change-requests', '/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
@@ -47,6 +50,10 @@ class TabRegistry
         // Product engineering data (render under the Production nav group).
         'product_engineering' => ['label' => 'Product engineering', 'prefixes' => [
             '/admin/process-segments', '/admin/product-revisions',
+        ]],
+        // Warehousing (#212) — render under the Production nav group.
+        'warehouse' => ['label' => 'Warehouses', 'prefixes' => [
+            '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
         ]],
         // Customer/supplier companies (render under the Production nav group).
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],

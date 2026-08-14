@@ -55,8 +55,24 @@ function localeTag() {
     return BCP47[activeLocale] ?? activeLocale;
 }
 
+// Matches a backend timestamp with no zone marker, e.g. "2026-08-03 18:53:16"
+// (also the "T" form, with optional seconds/fraction). Date-only strings are
+// deliberately excluded — the spec already parses those as UTC.
+const NAIVE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/;
+
 function toDate(value) {
-    return value instanceof Date ? value : new Date(value);
+    if (value instanceof Date) return value;
+
+    // Rows that arrive over live sync carry the raw DB timestamp, which has no
+    // zone marker — `new Date()` would read it as browser-local and the format*
+    // helpers would then shift it again into the plant timezone (a viewer in
+    // UTC+2 saw a posted-at two hours early). The backend always stores UTC, so
+    // pin it explicitly.
+    if (typeof value === 'string' && NAIVE_TIMESTAMP.test(value)) {
+        return new Date(`${value.replace(' ', 'T')}Z`);
+    }
+
+    return new Date(value);
 }
 
 /**
