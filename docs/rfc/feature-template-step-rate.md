@@ -28,7 +28,12 @@ Add nullable columns to `template_steps`:
 `TemplateStep` updated ($fillable, $casts) and helper(s) to compute/store normalization when possible.
 
 ### API
-Store/Update TemplateStep requests accept/validate the new fields with cross-field rules and numeric constraints.
+**StoreTemplateStepRequest & UpdateTemplateStepRequest** must declare and validate:
+- `operation_type`: optional, enum validation (batch|continuous)
+- `estimated_rate_value`: optional decimal, but presence-aware (see rules below)
+- `estimated_rate_unit`: optional enum, but presence-aware (see rules below)
+
+Normalized fields (`normalized_rate_per_hour`, `normalized_rate_base_unit`) remain server-computed; do not accept client submissions.
 
 ### UI (backend + mobile)
 Add operation-type selector and rate input (value + unit) on onboarding and admin process-template forms; show normalized rate when available.
@@ -56,16 +61,26 @@ Valid combinations of `operation_type` and `estimated_rate_unit`:
 
 ## Rate Field Constraints
 
+### `estimated_rate_value` & `estimated_rate_unit` (Presence-Aware)
+
+**Both fields are optional, but must follow presence-aware rules:**
+
+1. **Both omitted or null**: Valid (rate not specified)
+2. **One field present (non-null), one missing/null**: Invalid—reject with validation error
+3. **Both present with non-null values (including zero)**: Valid; apply all constraints below
+
+**When both fields are present:**
+
 ### `estimated_rate_value` (decimal(10,4))
-- **Range**: Non-negative (≥ 0)
+- **Range**: Non-negative (≥ 0), including zero (0.0000)
 - **Minimum non-zero**: 0.0001 (scale 4)
 - **Maximum**: 999999.9999
-- **Null handling**: Nullable; when null, normalized fields must also be null
-- **Validation rule**: `required_if:estimated_rate_unit,*|numeric|min:0|max:999999.9999|regex:/^\d+(\.\d{1,4})?$/`
+- **Validation regex**: `/^\d+(\.\d{1,4})?$/` (enforces up to 4 decimal places)
+- **Validation rule**: `numeric|min:0|max:999999.9999|regex:/^\d+(\.\d{1,4})?$/`
 
 ### `estimated_rate_unit` (enum string)
 - **Allowed values**: pcs/min, pcs/hr, units/min, units/hr, batches/hr, kg/hr, litre/hr, litre/min
-- **Validation rule**: `required_if:estimated_rate_value,*|in:pcs/min,pcs/hr,units/min,units/hr,batches/hr,kg/hr,litre/hr,litre/min`
+- **Validation rule**: `in:pcs/min,pcs/hr,units/min,units/hr,batches/hr,kg/hr,litre/hr,litre/min`
 - **Cross-field**: Must comply with operation_type rules (see above)
 
 ### `normalized_rate_per_hour` (decimal(14,6), computed)
@@ -99,9 +114,16 @@ Valid combinations of `operation_type` and `estimated_rate_unit`:
 ### Batch units
 - batches/hr → pcs/hr (only with batch_size context)
   - **Requires**: Product-level metadata (`batch_size`) available
+  - **batch_size type & constraints:**
+    - Type: positive decimal (unsigned)
+    - Precision: 10 digits, scale 4 (e.g., 9999.9999)
+    - Minimum: > 0
+    - Maximum: 9999.9999
+  - **Overflow behavior:** If `estimated_rate_value * batch_size > 999999.999999` (normalized_rate_per_hour max), API rejects the input with validation error before persisting; normalized fields remain null
   - Formula: value * batch_size
   - `normalized_rate_base_unit` = "pcs/hr"
   - **When unavailable**: Both normalized fields remain `null`
+  - **Test coverage:** Add boundary tests for largest valid batch rate (e.g., 99999.9999 batches/hr * 9999.9999 batch_size)
   - Do not attempt without product context
 
 ### Conversions requiring product context
@@ -115,19 +137,27 @@ Add nullable columns with safe defaults; rollback drops the columns. Example: de
 ## Normalization Invariant & Field Invalidation
 
 ### Create / Update Flow
-1. **Input validation**: Validate estimated_rate_value, estimated_rate_unit, and cross-field rules
+1. **Input validation**: Validate estimated_rate_value, estimated_rate_unit, presence-aware rules, cross-field rules
 2. **Normalization**: Compute normalized_rate_per_hour and normalized_rate_base_unit if conversion succeeds
-3. **Persist**: Store all fields (nullable normalized fields if conversion not possible)
+3. **Overflow check**: Reject if normalized result exceeds max decimal(14,6)
+4. **Persist**: Store all fields (nullable normalized fields if conversion not possible)
 
 ### Invalidation Rules
 - **When estimated_rate_value or estimated_rate_unit changes**: Recompute normalized fields
-- **When estimated_rate_value is cleared (set to null)**: Clear both normalized fields
+- **When estimated_rate_value is cleared (set to null)**: Clear both normalized fields; if estimated_rate_unit is not also cleared, reject with validation error (presence-aware)
 - **When conversion context becomes unavailable** (e.g., product batch_size removed): Clear normalized fields and log reason
 - **When operation_type changes**: Revalidate cross-field rules; reject if new type incompatible with current unit
 
 ### API Consistency
 - API responses must never expose stale normalized values
 - Add tests covering: create, update, clear, context-change scenarios
+- **Regression tests for presence-aware validation:**
+  - Both fields omitted → accepted
+  - Both fields null → accepted
+  - estimated_rate_value present, estimated_rate_unit null → rejected
+  - estimated_rate_unit present, estimated_rate_value null → rejected
+  - Both present with zero value → accepted and normalized correctly
+  - Both present with max batch rate → overflow check tested
 
 ## Backward compatibility
 
@@ -143,6 +173,9 @@ No changes to scheduling or business logic in this PR.
   - Assert normalized_rate_per_hour populated correctly for all count/volume/mass units
   - Assert normalized fields null when batch_size unavailable
   - Assert invalid cross-field combinations rejected (e.g., continuous + batches/hr)
+  - Assert presence-aware validation: reject when only one of value/unit is present
+  - Assert batch overflow: reject rate * batch_size > max decimal(14,6)
+  - Assert boundary: largest valid batch rate (99999.9999 * 9999.9999)
   - Assert invalidation: recompute on value/unit change, clear on null, clear on context loss
 - UI smoke: confirm onboarding/admin template forms accept and display the new fields
 - Mobile: confirm types/screens show/edit the fields and respect cross-field validation
@@ -152,12 +185,15 @@ No changes to scheduling or business logic in this PR.
 - [ ] Migration is safe (nullable, decimal precision/scale correct)
 - [ ] Model $fillable / $casts updated correctly with decimal casts
 - [ ] API validation: operation_type, estimated_rate_value, estimated_rate_unit rules implemented
+- [ ] Presence-aware validation: both fields required together or both omitted (reject partial presence)
 - [ ] Cross-field validation: operation_type ↔ estimated_rate_unit combinations enforced
-- [ ] Rate constraints: non-negative, precision/scale, rounding (HALF_UP) enforced
+- [ ] Rate constraints: non-negative (including zero), precision/scale, rounding (HALF_UP) enforced
+- [ ] Batch size constraints documented and enforced (0 < batch_size ≤ 9999.9999)
+- [ ] Overflow handling: API rejects if normalized_rate > 999999.999999
 - [ ] Normalization logic handles same-base conversions and leaves null if context missing
 - [ ] Normalized field invalidation: recompute on input changes, clear on null/context loss
-- [ ] Frontend + mobile show selector + rate input + normalized display + cross-field validation
-- [ ] Factories and tests updated and passing (including invalidation scenarios)
+- [ ] Frontend + mobile show selector + rate input + normalized display + presence-aware validation
+- [ ] Factories and tests updated and passing (including presence-aware and overflow scenarios)
 - [ ] ShapeRegistry/sync includes new fields where required
 - [ ] Translations/docs updated with new labels and constraint docs
 - [ ] CI green
@@ -168,6 +204,7 @@ No changes to scheduling or business logic in this PR.
 2. Should product-level default metadata (batch_size, unit_mass) be added in the same PR to enable cross-type conversions, or left to a follow-up?
 3. Naming: value+unit approach used for flexibility; would reviewers prefer separate per-unit columns (e.g., estimated_pcs_per_min) instead?
 4. Rounding mode: Should HALF_UP be configurable per-deployment, or is it always fixed?
+5. Overflow rejection vs silent clearing: When batch normalization overflows, should we reject the request or silently clear normalized fields?
 
 ## Notes
 
