@@ -407,6 +407,19 @@ class ShiftMonitorTest extends TestCase
 
     public function test_only_admins_and_supervisors_may_subscribe_to_a_station_channel(): void
     {
+        // `NullBroadcaster::auth()` is a no-op, so under the suite's default
+        // (`BROADCAST_CONNECTION=null` in phpunit.xml) /broadcasting/auth answers
+        // 200 to anyone and this test would assert nothing at all — it only ever
+        // passed because the dev container sets BROADCAST_CONNECTION=reverb.
+        //
+        // Channels register on whichever broadcaster is default when
+        // routes/channels.php is loaded at boot, so pinning a real driver is not
+        // enough on its own: the callbacks would still sit on the null instance
+        // and every channel would read as unregistered (403 for everyone,
+        // including the supervisor). Re-register them on the pinned driver.
+        config(['broadcasting.default' => 'reverb']);
+        require base_path('routes/channels.php');
+
         Role::findOrCreate('Operator', 'web');
         $operator = User::factory()->create();
         $operator->assignRole('Operator');
