@@ -26,6 +26,7 @@ const LOCALE_LABELS: Record<AppLocale, string> = {
   pl: 'Polski',
   de: 'Deutsch',
   tr: 'Türkçe',
+  vi: 'Tiếng Việt',
 };
 
 const THEMES: ThemePreference[] = ['system', 'light', 'dark'];
