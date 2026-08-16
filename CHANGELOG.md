@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-16
+
 ### Added
 - **Simulated machines, so the shift monitor can be driven without hardware** *(dev / demo)* — three Modbus TCP machines and their pollers, on an opt-in compose profile:
 
