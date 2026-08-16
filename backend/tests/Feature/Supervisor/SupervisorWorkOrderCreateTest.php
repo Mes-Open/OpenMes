@@ -5,6 +5,7 @@ namespace Tests\Feature\Supervisor;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,14 +26,18 @@ class SupervisorWorkOrderCreateTest extends TestCase
         return $user;
     }
 
-    public function test_supervisor_may_manage_orders_without_any_admin_tab(): void
+    public function test_supervisor_manages_orders_from_their_own_section(): void
     {
         $supervisor = $this->supervisor();
 
-        // The capability is the permission; reaching /admin is a separate
-        // question the role no longer answers yes to.
+        // The capability is the permission; which section it is exercised from
+        // is a separate question. Creating and editing happen under /supervisor.
         $this->assertTrue($supervisor->can('create work orders'));
-        $this->assertFalse($supervisor->can('tab:orders'));
+
+        // `orders` is granted so change control (#182) is reachable on the admin
+        // work-order pages, but nothing else in /admin comes with it.
+        $this->assertTrue($supervisor->can('tab:orders'));
+        $this->assertFalse($supervisor->can('tab:order_data'));
     }
 
     public function test_supervisor_can_open_the_create_form(): void
@@ -66,12 +71,34 @@ class SupervisorWorkOrderCreateTest extends TestCase
             ->assertSessionHasErrors(['order_no', 'planned_qty']);
     }
 
-    public function test_supervisor_is_refused_the_admin_orders_pages(): void
+    public function test_supervisor_cannot_delete_a_work_order_from_the_admin_pages(): void
     {
-        // Orders live at /supervisor/work-orders for this role; the admin copy
-        // is gated by tab:orders, which a supervisor is no longer granted.
+        // Reaching the admin order screens (for change control, #182) must not
+        // hand over a capability the role does not have: Supervisor holds
+        // `edit work orders`, never `delete work orders`. Before the tab was
+        // granted this route was Admin-only and unguarded, so the gate was the
+        // section, not the policy.
+        $order = WorkOrder::factory()->create();
+
         $this->actingAs($this->supervisor())
-            ->get('/admin/work-orders/create')
+            ->delete("/admin/work-orders/{$order->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('work_orders', ['id' => $order->id, 'deleted_at' => null]);
+    }
+
+    public function test_supervisor_is_refused_the_commercial_order_pages(): void
+    {
+        // Day-to-day order work lives at /supervisor/work-orders for this role.
+        // The admin order screens are reachable — that is where a production stop
+        // and its change request are handled (#182) — but the commercial pages
+        // that used to share the tab are on `order_data`, which they don't hold.
+        $this->actingAs($this->supervisor())
+            ->get('/admin/customers')
+            ->assertForbidden();
+
+        $this->actingAs($this->supervisor())
+            ->get('/admin/csv-import')
             ->assertForbidden();
     }
 

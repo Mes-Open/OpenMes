@@ -21,7 +21,8 @@ class AdminNavSweepTest extends TestCase
     /** Every admin-nav leaf page, grouped by the tab it belongs to. */
     private const PAGES = [
         'dashboard' => ['/admin/dashboard'],
-        'orders' => ['/admin/work-orders', '/admin/work-orders/create', '/admin/csv-import'],
+        'orders' => ['/admin/work-orders', '/admin/work-orders/create'],
+        'order_data' => ['/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
         'production' => [
             '/admin/product-types', '/admin/product-types/create', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
@@ -72,16 +73,32 @@ class AdminNavSweepTest extends TestCase
         $this->assertSame([], $failures, "Admin pages not returning 200:\n".implode("\n", $failures));
     }
 
-    public function test_supervisor_is_forbidden_without_tabs_then_allowed_when_granted(): void
+    public function test_supervisor_reaches_only_the_orders_tab_until_more_are_granted(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $supervisor = User::factory()->create();
         $supervisor->assignRole('Supervisor');
 
-        // A supervisor is granted no tabs: their section is /supervisor, and
-        // /admin is the admin's. So every admin page is refused, the dashboard
-        // included — there is no other tab to be redirected to.
-        foreach (self::PAGES as $pages) {
+        // A supervisor's section is /supervisor; the seeder grants exactly one
+        // admin tab, `orders`, because production stops and change requests
+        // (#182) are raised and reviewed on those pages. Every other admin page
+        // is refused, except the dashboard: holding a tab gives them somewhere
+        // to land, so the panel's home redirects there instead of dead-ending.
+        foreach (self::PAGES as $tab => $pages) {
+            if ($tab === 'orders') {
+                $this->actingAs($supervisor)->get($pages[0])->assertOk();
+
+                continue;
+            }
+
+            if ($tab === 'dashboard') {
+                // The admin panel's implicit home redirects rather than 403s for
+                // a user who can open some other tab — a supervisor now can.
+                $this->actingAs($supervisor)->get($pages[0])->assertRedirect('/admin/work-orders');
+
+                continue;
+            }
+
             $this->actingAs($supervisor)->get($pages[0])->assertForbidden();
         }
 

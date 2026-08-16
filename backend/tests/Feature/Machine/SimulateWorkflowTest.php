@@ -269,6 +269,12 @@ class SimulateWorkflowTest extends TestCase
 
     public function test_a_finished_order_is_closed_and_replaced(): void
     {
+        // The replacement order is meant to show a *different* product on the
+        // strip — `nextProductType()` walks the catalogue with
+        // `$products[$seen % $products->count()]`. With the single product type
+        // setUp() creates there is nothing to rotate to, so give it a second one.
+        ProductType::factory()->create();
+
         // Four batches to an order; run each one to target.
         for ($i = 0; $i < 5; $i++) {
             $this->tick();
@@ -280,7 +286,12 @@ class SimulateWorkflowTest extends TestCase
 
         $this->assertGreaterThan(1, $orders->count());
         $this->assertSame(WorkOrder::STATUS_DONE, $orders->first()->status);
-        $this->assertNotSame($orders->first()->product_type_id, $orders->last()->product_type_id ?? null);
+
+        // The changeover is between an order and the one that replaces it.
+        // Comparing first-to-last instead would depend on how many orders the
+        // run happened to produce: `nextProductType()` walks the catalogue
+        // modulo its size, so a third order is back on the first product.
+        $this->assertNotSame($orders[0]->product_type_id, $orders[1]->product_type_id);
     }
 
     public function test_a_quality_check_is_signed_off_on_a_running_batch(): void

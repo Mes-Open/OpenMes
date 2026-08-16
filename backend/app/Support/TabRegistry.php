@@ -20,10 +20,20 @@ class TabRegistry
         'dashboard' => ['label' => 'Dashboard', 'prefixes' => ['/admin/dashboard']],
         'alerts' => ['label' => 'Alerts', 'prefixes' => ['/admin/alerts']],
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
+        // The shop-floor order screens, and only those. Supervisors hold this tab:
+        // production stops and change requests (#182) are raised and reviewed from
+        // the work-order pages, so gating them behind Admin would leave the people
+        // who actually stop a line unable to record why.
+        //
         // work-order-change-requests (#182) is its own prefix: it does not sit under
         // /admin/work-orders, so without it the change-review page would fall outside
         // the matrix and silently become Admin-only.
-        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/work-order-change-requests', '/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
+        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/work-order-change-requests']],
+        // Commercial/config data that renders under the Orders nav group but is
+        // not shop-floor work. Split from `orders` so a supervisor can run change
+        // control without also inheriting the customer list, the priority rules
+        // and the CSV importer.
+        'order_data' => ['label' => 'Customers & order data', 'prefixes' => ['/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',

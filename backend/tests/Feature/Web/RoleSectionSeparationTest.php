@@ -45,10 +45,10 @@ class RoleSectionSeparationTest extends TestCase
 
     private function supervisor(): User
     {
-        // Seeded, not hand-rolled: the behaviour under test is that the *seeder*
-        // no longer grants Supervisor any tab. A role created bare here would
-        // hold no permissions either way, so every "forbidden" assertion below
-        // would pass without proving anything.
+        // Seeded, not hand-rolled: the behaviour under test is which tabs the
+        // *seeder* grants Supervisor — exactly one, `orders`. A role created bare
+        // here would hold no permissions either way, so every "forbidden"
+        // assertion below would pass without proving anything.
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $user = User::factory()->create();
         $user->assignRole('Supervisor');
@@ -56,13 +56,21 @@ class RoleSectionSeparationTest extends TestCase
         return $user;
     }
 
-    public function test_the_seeder_grants_a_supervisor_no_admin_tabs(): void
+    public function test_the_seeder_grants_a_supervisor_only_the_orders_tab(): void
     {
         $tabs = $this->supervisor()->getAllPermissions()
             ->pluck('name')
-            ->filter(fn (string $name) => str_starts_with($name, 'tab:'));
+            ->filter(fn (string $name) => str_starts_with($name, 'tab:'))
+            ->values()
+            ->all();
 
-        $this->assertEmpty($tabs, 'Supervisors work under /supervisor; /admin is the admin\'s.');
+        // One exception to "supervisors work under /supervisor": production stops
+        // and change requests (#182) are raised and reviewed on the /admin
+        // work-order pages, and a supervisor who cannot open those cannot record
+        // why a line stopped. `orders` covers exactly those screens — the
+        // customer list, priority rules and CSV importer moved to `order_data`,
+        // which is asserted forbidden by ADMIN_TWINS below.
+        $this->assertSame(['tab:orders'], $tabs, 'Supervisors get the order screens and nothing else in /admin.');
     }
 
     public function test_a_supervisor_can_reach_every_screen_in_their_own_section(): void
@@ -88,8 +96,10 @@ class RoleSectionSeparationTest extends TestCase
 
         $failures = [];
 
-        // The seeder grants Supervisor no tab:* permissions, so TabAccessMiddleware
-        // refuses each of these. A plant that wants an exception grants the tab.
+        // None of these sit on `orders` — the one tab the seeder grants — so
+        // TabAccessMiddleware refuses each. (Customers and priority rules moved
+        // to `order_data` precisely so the change-control grant does not carry
+        // them.) A plant that wants an exception grants the tab.
         foreach (self::ADMIN_TWINS as $path) {
             $status = $this->actingAs($supervisor)->get($path)->getStatusCode();
             if ($status !== 403) {

@@ -49,21 +49,25 @@ class TabAccessTest extends TestCase
         $this->actingAs($this->supervisor)->get('/admin/users')->assertForbidden();
     }
 
-    public function test_customers_and_priority_rules_are_reachable_with_the_orders_tab(): void
+    public function test_customers_and_priority_rules_are_reachable_with_the_order_data_tab(): void
     {
         // Regression: these sat outside every tab prefix, so tab.access treated
         // them as Admin-only (403) while the sidebar still showed them under the
-        // Orders group to any tab:orders holder — a link that 403s on click. They
-        // now resolve to the Orders tab, matching where the nav puts them.
-        $this->assertSame('orders', TabRegistry::tabForPath('/admin/customers'));
-        $this->assertSame('orders', TabRegistry::tabForPath('/admin/priority-rules'));
+        // Orders group — a link that 403s on click. They now resolve to a tab.
+        //
+        // That tab is `order_data`, not `orders`: supervisors hold `orders` so
+        // they can run change control (#182) from the work-order pages, and the
+        // customer list, the priority rules and the CSV importer are not theirs
+        // to manage. Splitting the two keeps that grant from carrying these along.
+        $this->assertSame('order_data', TabRegistry::tabForPath('/admin/customers'));
+        $this->assertSame('order_data', TabRegistry::tabForPath('/admin/priority-rules'));
+        $this->assertSame('orders', TabRegistry::tabForPath('/admin/work-orders'));
 
-        // Both sit behind that one tab: refused without it, reachable with it.
-        // (Supervisors are not granted it — they have /supervisor/customers and
-        // /supervisor/priority-rules instead.)
+        // Refused with only the seeded supervisor grant (which includes tab:orders),
+        // reachable once the order-data tab is granted too.
         $this->actingAs($this->supervisor)->get('/admin/customers')->assertForbidden();
 
-        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:orders');
+        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:order_data');
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->actingAs($this->supervisor)->get('/admin/customers')->assertOk();

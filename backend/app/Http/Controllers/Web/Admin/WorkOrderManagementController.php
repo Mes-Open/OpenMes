@@ -520,6 +520,13 @@ class WorkOrderManagementController extends Controller
 
     public function destroy(WorkOrder $workOrder)
     {
+        // Not Admin-only any more: supervisors reach these pages for change
+        // control (#182), and they hold `edit work orders` but not `delete work
+        // orders`. The tab gate answers "may you open this section", not "may
+        // you destroy this row" — the supervisor twin has always checked the
+        // policy here, and this one has to as well.
+        $this->authorize('delete', $workOrder);
+
         if ($workOrder->batches()->exists()) {
             return redirect()->back()
                 ->with('error', 'Cannot delete a work order that has batches. Cancel it instead.');

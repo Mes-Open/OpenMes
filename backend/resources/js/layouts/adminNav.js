@@ -110,10 +110,10 @@ export const ADMIN_GROUPS = [
         href: '/admin/work-orders',
         match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
         children: [
-            { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'], lucide: 'list' },
-            { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'], lucide: 'users' },
-            { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'], lucide: 'sliders-horizontal' },
-            { label: 'CSV Import', href: '/admin/csv-import', match: ['/admin/csv-import'], lucide: 'file-up' },
+            { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'], tab: 'orders', lucide: 'list' },
+            { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'], tab: 'order_data', lucide: 'users' },
+            { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'], tab: 'order_data', lucide: 'sliders-horizontal' },
+            { label: 'CSV Import', href: '/admin/csv-import', match: ['/admin/csv-import'], tab: 'order_data', lucide: 'file-up' },
         ],
     },
     {
