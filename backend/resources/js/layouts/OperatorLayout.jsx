@@ -1,5 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { OnlineDot } from '@openmes/ui';
+import Tooltip from '../components/Tooltip';
+import { __ } from '../lib/i18n';
 
 /**
  * Full-screen tablet chrome for operator screens — the React port of the
@@ -36,21 +38,21 @@ export default function OperatorLayout({ children }) {
                         </div>
                     )}
 
-                    <OnlineDot label="ONLINE" pulse className="hidden md:inline-flex shrink-0" />
+                    <OnlineDot label={__("ONLINE")} pulse className="hidden md:inline-flex shrink-0" />
 
                     {line && (
                         <nav className="ml-auto flex items-center gap-2">
                             <TopLink href="/operator/queue" active={isActive('/operator/queue') || isActive('/operator/work-order')}>
-                                Queue
+                                {__('Queue')}
                             </TopLink>
                             <TopLink href="/operator/workstation" active={isActive('/operator/workstation')}>
-                                Workstation
+                                {__('Workstation')}
                             </TopLink>
                             <Link
                                 href="/operator/select-line"
                                 className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
                             >
-                                Switch Line
+                                {__('Switch Line')}
                             </Link>
                         </nav>
                     )}
@@ -64,16 +66,18 @@ export default function OperatorLayout({ children }) {
                         </div>
                         <form action="/logout" method="POST">
                             <input type="hidden" name="_token" value={csrf_token} />
-                            <button
-                                type="submit"
-                                title="Logout"
-                                className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                            </button>
+                            <Tooltip label="Logout">
+                                <button
+                                    type="submit"
+                                    aria-label="Logout"
+                                    className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                </button>
+                            </Tooltip>
                         </form>
                     </div>
                 </div>

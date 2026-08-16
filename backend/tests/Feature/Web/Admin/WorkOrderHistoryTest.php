@@ -29,7 +29,7 @@ class WorkOrderHistoryTest extends TestCase
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
 
-        $this->operator = User::factory()->create(['account_type' => 'operator']);
+        $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
     }
 

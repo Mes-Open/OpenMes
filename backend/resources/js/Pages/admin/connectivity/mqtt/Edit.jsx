@@ -1,14 +1,16 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import MqttConnectionForm from './MqttConnectionForm';
+import useConfirm from '../../../../components/useConfirm';
 
 export default function MqttEdit() {
     const { connection } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
-        if (confirm('Delete this connection and all topics?')) {
+        confirm({ title: 'Delete this connection and all topics?' }, () => {
             router.delete(`/admin/connectivity/mqtt/${connection.id}`);
-        }
+        });
     };
 
     return (
@@ -39,6 +41,7 @@ export default function MqttEdit() {
                     onDelete={handleDelete}
                 />
             </div>
+            {dialog}
         </>
     );
 }

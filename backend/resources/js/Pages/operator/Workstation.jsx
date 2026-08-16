@@ -5,6 +5,8 @@ import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
+import Tooltip from '../../components/Tooltip';
+import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
@@ -38,8 +40,18 @@ function getCellValue(wo, col) {
     // field
     if (col.key === 'due_date') {
         if (!wo.due_date) return '—';
-        const d = new Date(wo.due_date);
-        return formatDate(d, { day: '2-digit', month: 'short' });
+        // The date alone leaves the operator counting days off a calendar to see
+        // which order is the urgent one; the countdown under it says so directly.
+        return (
+            <span className="inline-flex flex-col leading-tight">
+                <span>{formatDate(new Date(wo.due_date), { day: '2-digit', month: 'short' })}</span>
+                <DueCountdown
+                    due={wo.due_date}
+                    settled={SETTLED_STATUSES.includes(wo.status)}
+                    className="text-[11px]"
+                />
+            </span>
+        );
     }
     if (col.key === 'week_number') {
         return wo.week_number ? weekLabel(wo.week_number) : '—';
@@ -112,17 +124,19 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
     if (!visible) return null;
 
     return (
-        <Link
-            href={`/operator/shift-entry/${entry.id}/correct`}
-            className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
-            title="Correct quantity"
-            onClick={(e) => e.stopPropagation()}
-        >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-        </Link>
+        <Tooltip label="Correct quantity">
+            <Link
+                href={`/operator/shift-entry/${entry.id}/correct`}
+                className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
+                aria-label="Correct quantity"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+            </Link>
+        </Tooltip>
     );
 }
 
@@ -240,21 +254,21 @@ function StartModal({ modal, onClose }) {
                 className="relative w-full max-w-sm overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Start Production" subtitle={modal.orderNo} onClose={onClose} />
+                <ModalHeader title={__("Start Production")} subtitle={modal.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4">
                     <p className="text-om-ink mb-2 text-[17px] font-semibold tracking-[-0.01em]">
                         {modal.product}
                     </p>
                     <p className="text-sm text-om-muted mb-1">
-                        Order: <span className="font-mono text-om-ink">{modal.orderNo}</span>
+                        {__("Order No")}: <span className="font-mono text-om-ink">{modal.orderNo}</span>
                     </p>
                     <p className="text-sm text-om-muted">
-                        Planned: <strong className="font-mono text-[15px] text-om-ink">{fmt(modal.qty)}</strong> units
+                        {__("Planned")}: <strong className="font-mono text-[15px] text-om-ink">{fmt(modal.qty)}</strong> {__("units")}
                     </p>
                 </div>
                 <div className={modalFooterCls}>
                     <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                        Cancel
+                        {__("Cancel")}
                     </Button>
                     <Button
                         variant="accent"
@@ -264,7 +278,7 @@ function StartModal({ modal, onClose }) {
                         }}
                         className="flex-1 px-6 py-4 text-[15px] font-semibold"
                     >
-                        Start
+                        {__("Start")}
                     </Button>
                 </div>
             </div>
@@ -328,7 +342,7 @@ function CompleteModal({ modal, onClose }) {
                     </div>
                     <div className={modalFooterCls}>
                         <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                            Cancel
+                            {__("Cancel")}
                         </Button>
                         <Button
                             type="submit"
@@ -336,7 +350,7 @@ function CompleteModal({ modal, onClose }) {
                             disabled={qty === '' || parseInt(qty, 10) < 0}
                             className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
-                            Confirm
+                            {__("Confirm")}
                         </Button>
                     </div>
                 </form>
@@ -354,7 +368,7 @@ function InfoModal({ info, onClose }) {
                 className="relative w-full max-w-md overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Order Details" subtitle={info.orderNo} onClose={onClose} />
+                <ModalHeader title={__("Order Details")} subtitle={info.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4 space-y-3">
                     <InfoRow label={__("Order #")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
                     <InfoRow label={__("Product")}><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
@@ -362,20 +376,23 @@ function InfoModal({ info, onClose }) {
                     <InfoRow label={__("Status")}><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
                     <div className="grid grid-cols-3 gap-3 py-2">
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Planned</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Planned")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{info.planned}</p>
                         </div>
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Produced</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Produced")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-running">{info.produced}</p>
                         </div>
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Remaining</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Remaining")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{info.remaining}</p>
                         </div>
                     </div>
                     <InfoRow label={__("Priority")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
-                    <InfoRow label={__("Due Date")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
+                    <InfoRow label={__("Due Date")}>
+                        <span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span>
+                        {info.dueRaw && <DueCountdown due={info.dueRaw} settled={info.settled} className="ml-2 font-mono text-[12px]" />}
+                    </InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
                             <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
@@ -502,7 +519,7 @@ function ReportModal({ report, issueTypes, onClose }) {
 
                     <div className={modalFooterCls}>
                         <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                            Cancel
+                            {__("Cancel")}
                         </Button>
                         <Button
                             type="submit"
@@ -510,7 +527,7 @@ function ReportModal({ report, issueTypes, onClose }) {
                             disabled={!typeId || !title}
                             className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
-                            Submit Report
+                            {__("Submit Report")}
                         </Button>
                     </div>
                 </form>
@@ -538,29 +555,31 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
     return (
         <div className="relative" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
-                title="Configure columns"
-            >
-                <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            </button>
+            <Tooltip label="Configure columns">
+                <button
+                    type="button"
+                    onClick={() => setOpen((v) => !v)}
+                    className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
+                    aria-label="Configure columns"
+                >
+                    <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </Tooltip>
 
             {open && (
                 <div className="absolute right-0 mt-2 w-64 bg-om-card rounded-om shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] border border-om-line z-50 p-3">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-om-ink">Columns</span>
+                        <span className="text-sm font-semibold text-om-ink">{__("Columns")}</span>
                         <button
                             type="button"
                             onClick={resetColumns}
                             className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-accent hover:underline cursor-pointer"
                         >
-                            Reset
+                            {__("Reset")}
                         </button>
                     </div>
 
@@ -705,51 +724,61 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
                     {!isDone && (
+                        <Tooltip label="Add produced quantity">
+                            <IconButton
+                                variant="primary"
+                                onClick={() =>
+                                    onComplete({
+                                        open: true,
+                                        id: wo.id,
+                                        orderNo: wo.order_no,
+                                        product: wo.product_type?.name ?? wo.order_no,
+                                        planned,
+                                        produced,
+                                    })
+                                }
+                                className="bg-om-accent hover:bg-om-accent hover:brightness-95"
+                                aria-label="Add produced quantity"
+                            >
+                                +
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <Tooltip label="Report problem">
                         <IconButton
-                            variant="primary"
+                            variant="danger"
+                            onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
+                            aria-label="Report problem"
+                        >
+                            !
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip label="Details">
+                        <IconButton
+                            variant="default"
                             onClick={() =>
-                                onComplete({
-                                    open: true,
-                                    id: wo.id,
+                                onInfo({
                                     orderNo: wo.order_no,
-                                    product: wo.product_type?.name ?? wo.order_no,
-                                    planned,
-                                    produced,
+                                    product: wo.product_type?.name ?? '-',
+                                    line: wo.line?.name ?? '-',
+                                    status: statusLabel(wo.status),
+                                    planned: fmt(planned),
+                                    produced: fmt(produced),
+                                    remaining: fmt(remaining),
+                                    priority: wo.priority ?? '-',
+                                    dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
+                                    // Raw value too, so the details modal can put
+                                    // the countdown beside the date it prints.
+                                    dueRaw: wo.due_date ?? null,
+                                    settled: SETTLED_STATUSES.includes(wo.status),
+                                    description: wo.description ?? '-',
                                 })
                             }
-                            className="bg-om-accent hover:bg-om-accent hover:brightness-95"
-                            title="Add produced quantity"
+                            aria-label="Details"
                         >
-                            +
+                            ?
                         </IconButton>
-                    )}
-                    <IconButton
-                        variant="danger"
-                        onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                        title="Report problem"
-                    >
-                        !
-                    </IconButton>
-                    <IconButton
-                        variant="default"
-                        onClick={() =>
-                            onInfo({
-                                orderNo: wo.order_no,
-                                product: wo.product_type?.name ?? '-',
-                                line: wo.line?.name ?? '-',
-                                status: statusLabel(wo.status),
-                                planned: fmt(planned),
-                                produced: fmt(produced),
-                                remaining: fmt(remaining),
-                                priority: wo.priority ?? '-',
-                                dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
-                                description: wo.description ?? '-',
-                            })
-                        }
-                        title="Details"
-                    >
-                        ?
-                    </IconButton>
+                    </Tooltip>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
                         <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
                     )}
@@ -832,10 +861,10 @@ export default function Workstation() {
                                     href="/operator/queue"
                                     className="px-3 py-1.5 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors"
                                 >
-                                    Queue
+                                    {__("Queue")}
                                 </Link>
                                 <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-om-on-ink">
-                                    Workstation
+                                    {__("Workstation")}
                                 </span>
                             </div>
 
@@ -850,7 +879,7 @@ export default function Workstation() {
                                 href="/operator/select-line"
                                 className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
                             >
-                                Change Line
+                                {__("Change Line")}
                             </Link>
                         </div>
                     </div>
@@ -862,7 +891,7 @@ export default function Workstation() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">Select week:</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">{__("Select week:")}</span>
 
                             <a
                                 href={weekUrl('all')}
@@ -872,7 +901,7 @@ export default function Workstation() {
                                         : 'border-transparent text-om-muted hover:bg-om-chip'
                                 }`}
                             >
-                                All weeks
+                                {__("All weeks")}
                             </a>
 
                             {availableWeeks.map((wk) => (
@@ -898,14 +927,14 @@ export default function Workstation() {
                             disabled
                             className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-downtime-bg text-om-downtime opacity-60 cursor-not-allowed"
                         >
-                            Cleaning
+                            {__("Cleaning")}
                         </button>
                         <button
                             type="button"
                             disabled
                             className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-blocked-bg text-om-blocked opacity-60 cursor-not-allowed"
                         >
-                            Failure
+                            {__("Failure")}
                         </button>
                     </div>
 

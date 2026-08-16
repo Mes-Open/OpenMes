@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -99,13 +99,13 @@ export default function ScrapReportsIndex() {
                                     </div>
                                 ))}
                             </div>
-                            <DataTable
+                            <AppDataTable
+                                filterable={false}
                                 data={reasons}
                                 columns={paretoColumns}
                                 searchable
                                 columnToggle
                                 paginated
-                                searchPlaceholder={__('Search reasons…')}
                                 emptyLabel={__('No scrap reported in this period.')}
                             />
                         </>
@@ -115,7 +115,7 @@ export default function ScrapReportsIndex() {
                 {/* Scrap rate per line: simple table */}
                 <Card title={__('Scrap rate per line')}>
                     {ratePerLine.length === 0 ? <Empty>{__('No data.')}</Empty> : (
-                        <DataTable
+                        <AppDataTable
                             data={ratePerLine}
                             columns={rateColumns}
                             searchable={false}

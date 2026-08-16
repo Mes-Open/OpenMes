@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import PageTrail from '../../../components/PageTrail';
 
 const STATUS_COLORS = {
     received:   'bg-om-chip text-om-accent',
@@ -148,13 +149,7 @@ export default function MaterialLotShow({ lot }) {
             <Head title={`Material Lot — ${lot.lot_number}`} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
-                <span>/</span>
-                <Link href="/admin/material-lots" className="hover:underline">Material Lots</Link>
-                <span>/</span>
-                <span className="text-om-ink">{lot.lot_number}</span>
-            </nav>
+            <PageTrail append={[{ label: lot.lot_number }]} />
 
             <div className="max-w-5xl mx-auto">
                 {/* Header */}

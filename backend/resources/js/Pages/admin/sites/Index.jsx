@@ -7,12 +7,12 @@ export default function SitesIndex() {
     const { counts = {}, companyNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'company', label: __('Company'), className: 'text-om-muted', render: (r) => companyNames[r.company_id] ?? '—' },
+        { key: 'company', label: __('Company'), className: 'text-om-muted', value: (r) => companyNames[r.company_id] ?? '—', render: (r) => companyNames[r.company_id] ?? '—' },
         { key: 'city', label: __('City'), className: 'text-om-muted' },
-        { key: 'areas', label: __('Areas'), render: (r) => counts[r.id]?.areas ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'areas', label: __('Areas'), value: (r) => counts[r.id]?.areas ?? 0, render: (r) => counts[r.id]?.areas ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -26,11 +26,11 @@ export default function SitesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete site ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/sites/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete site ":name"?', { name: r.name }),
+                confirmLabel: __('Delete site'),
             },
+            onClick: () => router.delete(`/admin/sites/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -39,9 +39,10 @@ export default function SitesIndex() {
             <Head title={__('Sites')} />
             <ResourceTable
                 shape="sites"
+                detailHref={(r) => `/admin/sites/${r.id}`}
                 title={__('Sites')}
                 createHref="/admin/sites/create"
-                createLabel={__('+ New Site')}
+                createLabel={__('New Site')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

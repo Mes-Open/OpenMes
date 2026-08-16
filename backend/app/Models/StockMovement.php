@@ -26,6 +26,10 @@ class StockMovement extends Model
 
     public const TYPE_TRANSFER = 'transfer';
 
+    // Regrade of material between classes — paired legs on source (−) and target (+),
+    // both correlated by SOURCE_RECLASSIFICATION + the material_reclassifications id (#99).
+    public const TYPE_RECLASSIFY = 'reclassify';
+
     public const SOURCE_BATCH = 'batch';
 
     public const SOURCE_BATCH_STEP = 'batch_step';
@@ -39,8 +43,18 @@ class StockMovement extends Model
     // Milestone backflush booked when a pallet is created.
     public const SOURCE_PALLET = 'pallet';
 
+    // Posted warehouse document (#212) — source_id is the stock_documents row.
+    public const SOURCE_STOCK_DOCUMENT = 'stock_document';
+
+    // Balance re-derived from an ERP stock snapshot (#212).
+    public const SOURCE_ERP_SYNC = 'erp_sync';
+
+    // Material reclassification (#99) — source_id is the material_reclassifications row.
+    public const SOURCE_RECLASSIFICATION = 'reclassification';
+
     protected $fillable = [
         'material_id',
+        'warehouse_id',
         'movement_type',
         'quantity',
         'balance_after',
@@ -69,6 +83,12 @@ class StockMovement extends Model
     public function performedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'performed_by');
+    }
+
+    /** Warehouse the movement happened in — null for movements booked before #212. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function scopeForMaterial($query, int $materialId)

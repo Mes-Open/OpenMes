@@ -55,8 +55,24 @@ function localeTag() {
     return BCP47[activeLocale] ?? activeLocale;
 }
 
+// Matches a backend timestamp with no zone marker, e.g. "2026-08-03 18:53:16"
+// (also the "T" form, with optional seconds/fraction). Date-only strings are
+// deliberately excluded — the spec already parses those as UTC.
+const NAIVE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/;
+
 function toDate(value) {
-    return value instanceof Date ? value : new Date(value);
+    if (value instanceof Date) return value;
+
+    // Rows that arrive over live sync carry the raw DB timestamp, which has no
+    // zone marker — `new Date()` would read it as browser-local and the format*
+    // helpers would then shift it again into the plant timezone (a viewer in
+    // UTC+2 saw a posted-at two hours early). The backend always stores UTC, so
+    // pin it explicitly.
+    if (typeof value === 'string' && NAIVE_TIMESTAMP.test(value)) {
+        return new Date(`${value.replace(' ', 'T')}Z`);
+    }
+
+    return new Date(value);
 }
 
 /**
@@ -148,6 +164,54 @@ export function elapsed(from, now = Date.now()) {
     if (day < 365) return `${day}d`;
 
     return `${Math.floor(day / 365)}y`;
+}
+
+/**
+ * Time left until a deadline, as the two units that matter at that distance:
+ * days + hours while it is more than a day out, hours + minutes once it is
+ * inside the last day — which is what a deadline falling today looks like.
+ * Unit suffixes follow `elapsed`'s language-neutral style; only "overdue" is
+ * translated.
+ *
+ * A deadline stored at exactly midnight is a *date*, not an instant — the form
+ * that sets it only offers a day — so it falls due at the END of that day.
+ * Counting to 00:00 instead would report an order due today as already late,
+ * every time. A value that carries a real time of day is used as it stands.
+ *
+ * Day-only deadlines are read in the same frame the cell above them prints
+ * (the timestamp's own date part), so the countdown and the date can't disagree
+ * about which day is meant.
+ *
+ * `now` is injectable for a live tick and for deterministic tests.
+ *
+ * @returns {{label: string, overdue: boolean, soon: boolean}|null} null when
+ *          there is no deadline or the value can't be read.
+ */
+export function countdown(due, now = Date.now()) {
+    if (!due) return null;
+
+    const iso = due instanceof Date ? due.toISOString() : String(due);
+    const dayOnly = iso.length <= 10 || iso.slice(11, 16) === '00:00';
+    const at = dayOnly
+        ? new Date(`${iso.slice(0, 10)}T23:59:59.999Z`)
+        : new Date(due);
+    if (Number.isNaN(at.getTime())) return null;
+
+    const ms = at.getTime() - now;
+    const overdue = ms < 0;
+
+    const min = Math.floor(Math.abs(ms) / 60_000);
+    const days = Math.floor(min / 1440);
+    const hours = Math.floor((min % 1440) / 60);
+    const mins = min % 60;
+
+    // The smaller unit is dropped when it is zero rather than printed as "0h":
+    // "3d" says the same thing as "3d 0h" in less space.
+    const label = days > 0
+        ? (hours > 0 ? `${days}d ${hours}h` : `${days}d`)
+        : (hours > 0 ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`) : `${mins}m`);
+
+    return { label, overdue, soon: !overdue && days === 0 };
 }
 
 function capitalize(s) {

@@ -3,7 +3,9 @@ import { useMemo } from 'react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import Tooltip from '../../../components/Tooltip';
+import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
+import { formatDate, formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     BLOCKED:     'bg-om-blocked-bg text-om-blocked',
@@ -11,13 +13,14 @@ const STATUS_COLORS = {
     ACCEPTED:    'bg-om-running-bg text-om-running',
     PENDING:     'bg-om-chip text-om-muted',
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    CHANGE_HOLD: 'bg-om-downtime-bg text-om-downtime',
     DONE:        'bg-om-running-bg text-om-running',
     REJECTED:    'bg-om-blocked-bg text-om-blocked',
     CANCELLED:   'bg-om-line2 text-om-muted',
 };
 const STATUS_LABELS = {
     PENDING: 'Pending', ACCEPTED: 'Accepted', IN_PROGRESS: 'In Progress',
-    BLOCKED: 'Blocked', PAUSED: 'Paused', DONE: 'Done',
+    BLOCKED: 'Blocked', PAUSED: 'Paused', CHANGE_HOLD: 'Change hold', DONE: 'Done',
     REJECTED: 'Rejected', CANCELLED: 'Cancelled',
 };
 
@@ -89,13 +92,15 @@ export default function ScheduleIndex() {
 
                     {/* Filters */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                            onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                            title="Previous week"
-                        >
-                            &larr;
-                        </button>
+                        <Tooltip label="Previous week">
+                            <button
+                                onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
+                                className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
+                                aria-label="Previous week"
+                            >
+                                &larr;
+                            </button>
+                        </Tooltip>
 
                         <input
                             type="week"
@@ -114,13 +119,15 @@ export default function ScheduleIndex() {
                             className="w-full"
                         />
 
-                        <button
-                            onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                            title="Next week"
-                        >
-                            &rarr;
-                        </button>
+                        <Tooltip label="Next week">
+                            <button
+                                onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
+                                className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
+                                aria-label="Next week"
+                            >
+                                &rarr;
+                            </button>
+                        </Tooltip>
 
                         {!isCurrentWeek && (
                             <button
@@ -207,15 +214,22 @@ function OrderTable({ orders }) {
             id: 'due',
             accessorFn: (wo) => wo.due_date,
             header: 'Due',
+            // The date says when, the countdown under it says how far away —
+            // and carries the urgency in its colour, so the ⚠ that used to mark
+            // an overdue row is now a figure telling you how late it actually is.
             cell: ({ row }) => {
                 const wo = row.original;
-                const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
-                return wo.due_date ? (
-                    <span className={isOverdue ? 'text-om-blocked font-semibold text-sm' : 'text-om-muted text-sm'}>
-                        {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
-                        {isOverdue && ' ⚠'}
+                if (!wo.due_date) return <span className="text-om-faint text-sm">—</span>;
+                return (
+                    <span className="inline-flex flex-col leading-tight text-sm text-om-muted">
+                        <span>{formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}</span>
+                        <DueCountdown
+                            due={wo.due_date}
+                            settled={SETTLED_STATUSES.includes(wo.status)}
+                            className="text-[11px]"
+                        />
                     </span>
-                ) : <span className="text-om-faint text-sm">—</span>;
+                );
             },
         },
         {
@@ -235,7 +249,7 @@ function OrderTable({ orders }) {
             header: 'Status',
             cell: ({ row }) => (
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[row.original.status] ?? 'bg-om-chip text-om-muted'}`}>
-                    {STATUS_LABELS[row.original.status] ?? row.original.status}
+                    {__(STATUS_LABELS[row.original.status] ?? row.original.status)}
                 </span>
             ),
         },

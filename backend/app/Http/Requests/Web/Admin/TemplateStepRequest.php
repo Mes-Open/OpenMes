@@ -4,6 +4,7 @@ namespace App\Http\Requests\Web\Admin;
 
 use App\Models\TemplateStep;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Shared validation for adding/updating a process-template step. Route
@@ -23,8 +24,11 @@ abstract class TemplateStepRequest extends FormRequest
             'instruction' => 'nullable|string',
             'requires_confirmation' => 'boolean',
             'estimated_duration_minutes' => 'nullable|integer|min:0',
+            'setup_time_minutes' => 'nullable|integer|min:0',
+            'run_time_per_unit_minutes' => 'nullable|numeric|min:0',
             'required_operators' => 'nullable|integer|min:1',
             'workstation_id' => 'nullable|exists:workstations,id',
+            'workstation_type_id' => ['nullable', Rule::exists('workstation_types', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'process_segment_id' => 'nullable|exists:process_segments,id',
             'is_optional' => 'boolean',
             'variant_group' => 'nullable|string|max:50',

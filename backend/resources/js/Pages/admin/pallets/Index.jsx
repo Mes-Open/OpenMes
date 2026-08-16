@@ -84,16 +84,18 @@ export default function PalletsIndex() {
     const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [] } = usePage().props;
 
     const columns = [
-        { key: 'pallet_no', label: __('Pallet number'), className: 'font-mono font-medium text-om-ink' },
+        { key: 'pallet_no', label: __('Pallet number'), className: 'font-mono font-medium text-om-ink', filter: 'text' },
         {
             key: 'work_order',
             label: __('Work order'),
+            value: (r) => workOrderNumbers[r.work_order_id] ?? `#${r.work_order_id}`,
             render: (r) => workOrderNumbers[r.work_order_id] ?? `#${r.work_order_id}`,
         },
         { key: 'qty', label: __('Quantity') },
         {
             key: 'status',
             label: __('Status'),
+            value: (r) => statusLabels[r.status] ?? r.status,
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] ?? ''}`}>
                     {statusLabels[r.status] ?? r.status}
@@ -103,6 +105,7 @@ export default function PalletsIndex() {
         {
             key: 'quality_status',
             label: __('Quality'),
+            value: (r) => r.quality_status ?? 'pending',
             filter: true,
             allLabel: __('All quality'),
             options: [
@@ -132,11 +135,11 @@ export default function PalletsIndex() {
             label: 'Delete',
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(`Delete pallet "${r.pallet_no}"?`)) {
-                    router.delete(`/admin/pallets/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: `Delete pallet "${r.pallet_no}"?`,
+                confirmLabel: 'Delete',
             },
+            onClick: () => router.delete(`/admin/pallets/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -148,7 +151,7 @@ export default function PalletsIndex() {
                 shape="pallets"
                 title="Pallets"
                 createHref="/admin/pallets/create"
-                createLabel="+ New Pallet"
+                createLabel={__('New Pallet')}
                 columns={columns}
                 orderBy="pallet_no"
                 orderDir="desc"

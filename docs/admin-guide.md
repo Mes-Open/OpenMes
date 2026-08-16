@@ -24,6 +24,10 @@ This guide covers installation, configuration, and administration of OpenMES.
   - [Production Period](#production-period)
   - [Overproduction](#overproduction)
   - [Sequential Steps](#sequential-steps)
+- [Warehouses](#warehouses)
+  - [Setting Up Warehouses](#setting-up-warehouses)
+  - [Stock Documents](#stock-documents)
+  - [Syncing Stock With an ERP](#syncing-stock-with-an-erp)
 - [Modules](#modules)
   - [Enabling and Disabling Modules](#enabling-and-disabling-modules)
   - [Installing a Module from ZIP](#installing-a-module-from-zip)
@@ -36,6 +40,11 @@ This guide covers installation, configuration, and administration of OpenMES.
 ---
 
 ## Installation
+
+> Deploying OpenMES in a plant for the first time? This chapter covers the software.
+> The [Implementation Runbook](implementation-runbook.md) covers the whole procedure
+> around it — infrastructure, configuration order, master data, pilot, go-live and
+> handover.
 
 ### Prerequisites
 
@@ -57,11 +66,18 @@ docker-compose up -d
 ```
 
 The web installer will guide you through three steps:
-1. **Basic Configuration** — site name, URL
+1. **Basic Configuration** — site name, URL and the **plant timezone**
 2. **Database Configuration** — PostgreSQL connection details
 3. **Admin Account** — your admin username, email, and password
 
 After completing the wizard, the system is ready.
+
+> **Plant timezone.** Pick the timezone of the *plant*, not of the server: every
+> timestamp, report boundary and shift edge is expressed in it, so a mismatch makes
+> a day's report cover different hours than the shift that was worked. The wizard
+> stores it in the database, and that value takes precedence over `APP_TIMEZONE` —
+> on Docker the environment variable comes from `docker-compose.yml` and cannot be
+> changed from inside the application.
 
 ### Production Deployment
 
@@ -237,6 +253,85 @@ Controls whether work orders must specify a week or month number:
 ### Sequential Steps
 
 `force_sequential_steps`: if enabled, operators must complete steps in defined order. If disabled, steps can be completed in any order.
+
+---
+
+## Warehouses
+
+Warehousing is an optional module — enable **Warehouses** under
+**Settings → System → Modules** (see [Modules](#modules)). With it off, the pages
+below are hidden and nothing in this section applies.
+
+> Rolling this out on an existing production install? Follow the
+> [Warehouses & ERP Sync rollout runbook](warehouse-erp-rollout.md) — it covers the
+> deployment order, loading opening stock, the acceptance test and the rollback path.
+
+### Setting Up Warehouses
+
+1. Go to **Admin → Production → Warehouses → All Warehouses**
+2. Click **+ New Warehouse** and give it a **code**, a **name** and a **kind**:
+   - **Raw materials** — materials are issued out of it
+   - **Finished goods** — product is received into it
+   - **Mixed** — both
+3. Optionally set an **ERP code** — the identifier of the same warehouse in your
+   ERP, so stock syncs and documents can be matched up on both sides
+4. Tick **Default for its kind** on the warehouse that should be used whenever an
+   import or an automatically generated document names no warehouse
+
+Set one default for raw materials and one for finished goods before you rely on
+automatic document generation — without them, nothing is generated.
+
+**Admin → Production → Warehouses → Stock On Hand** shows live balances. A row with
+an empty **Lot** column (shown as *total*) is the item's total in that warehouse;
+rows carrying a lot are its breakdown — don't add the two together.
+
+A warehouse that still holds stock or carries documents cannot be deleted;
+deactivate it instead.
+
+### Stock Documents
+
+**Admin → Production → Warehouses → Stock Documents** lists the warehouse paperwork:
+
+| Type | Meaning |
+|---|---|
+| **Material release** | Raw material leaving a warehouse for production |
+| **Material receipt** | Raw material arriving (ERP receipt, return from the floor) |
+| **Product receipt** | Finished product arriving when an order is concluded |
+| **Product release** | Finished product leaving (shipment, correction) |
+
+Every document is a **draft** until posted, and **posting is what moves stock** — it
+updates the warehouse balance, the material's stock quantity and the stock-movement
+ledger. **Cancelling a posted document reverses all of it**, so a mistake is undone
+without editing balances by hand. A posted document must be cancelled before it can
+be deleted.
+
+**Completing a work order creates its paperwork automatically** (drafts): a material
+release for what it consumed — from the lots the shop floor actually booked, or from
+the order's BOM × produced quantity when it didn't — and a product receipt for what it
+produced. Review and post them from this page. To turn generation off, set
+`WAREHOUSE_AUTO_DOCUMENTS=false` in `.env`.
+
+Create a document by hand with **+ New Document**: pick the type, the warehouse, and
+add one line per item. The item picker follows the type — material documents list
+materials, product documents list products.
+
+### Syncing Stock With an ERP
+
+With both the **Warehouses** and **ERP integration** modules enabled, an ERP can keep
+OpenMES in step over the REST API:
+
+- **push balances** — a quantity snapshot per warehouse and item; the ERP owns the
+  warehouse, so a synced quantity replaces the OpenMES figure and re-running the sync
+  converges instead of drifting
+- **push lots** — lot numbers with their available quantities
+- **pull documents** — the backlog of posted releases and receipts the ERP has not
+  booked yet, then acknowledge each one with the ERP's own document number so it
+  leaves the backlog
+
+Create a key under **Admin → API keys** with the `erp:stock:read` /
+`erp:stock:write` scopes (and `erp:masterdata:write` for products, materials, lots and
+recipes). Endpoints, payloads and scopes:
+[API documentation → ERP Integration API](API_DOCUMENTATION.md#erp-integration-api).
 
 ---
 

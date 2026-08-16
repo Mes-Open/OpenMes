@@ -79,6 +79,33 @@ class CollectionBroadcaster
             'maintenance_events' => [Models\MaintenanceEvent::class, null],
             'maintenance_schedules' => [Models\MaintenanceSchedule::class, null],
             'custom_field_definitions' => [Models\CustomFieldDefinition::class, null],
+            'customers' => [Models\Customer::class, null],
+            'issue_actions' => [Models\IssueAction::class, null],
+            'priority_rules' => [Models\PriorityRule::class, null],
+            'product_revisions' => [Models\ProductRevision::class, null],
+            'quality_control_triggers' => [Models\QualityControlTrigger::class, null],
+            'scrap_reasons' => [Models\ScrapReason::class, null],
+            'webhooks' => [Models\Webhook::class, null],
+            'webhook_deliveries' => [Models\WebhookDelivery::class, null],
+            'workstation_devices' => [Models\WorkstationDevice::class, null],
+            'quality_control_tasks_due' => [
+                Models\QualityControlTask::class,
+                fn ($m) => in_array($m->status, [
+                    Models\QualityControlTask::STATUS_DUE,
+                    Models\QualityControlTask::STATUS_IN_PROGRESS,
+                ], true),
+            ],
+
+            // Change control (#182). A stop and its change request are what the
+            // shop floor is waiting on, so both must reach open clients live.
+            'work_order_stops' => [Models\WorkOrderStop::class, null],
+            'work_order_change_requests' => [Models\WorkOrderChangeRequest::class, null],
+
+            // Warehousing (#212). Balances change on every posted document and
+            // ERP sync, so the stock overview must see them live.
+            'warehouses' => [Models\Warehouse::class, null],
+            'warehouse_stocks' => [Models\WarehouseStock::class, null],
+            'stock_documents' => [Models\StockDocument::class, null],
         ];
     }
 
@@ -103,6 +130,33 @@ class CollectionBroadcaster
         }
     }
 
+    /** Column allowlist per collection, resolved once per request. */
+    private static array $columnCache = [];
+
+    /**
+     * Narrow a row to the columns its collection actually exposes.
+     *
+     * The Shape's column list is an allowlist — "never include password hashes,
+     * tokens, PII" — and it withholds real secrets: a webhook's custom auth
+     * headers, a delivery's request/response bodies. The snapshot endpoint has
+     * always honoured it, but the delta broadcast sent whatever
+     * attributesToArray() returned, so a model attribute outside the list
+     * reached every subscriber anyway. Project here so both paths expose the
+     * same fields, which is what Shape's own docblock promises.
+     */
+    private static function project(string $name, array $row): array
+    {
+        if (! array_key_exists($name, self::$columnCache)) {
+            self::$columnCache[$name] = app(ShapeRegistry::class)->find($name)?->columns();
+        }
+
+        $columns = self::$columnCache[$name];
+
+        // No shape (a collection broadcast but not registered for reading) —
+        // send nothing rather than guess at what is safe to expose.
+        return $columns === null ? [] : array_intersect_key($row, array_flip($columns));
+    }
+
     /**
      * Dispatch a CollectionChanged delta without ever letting a broadcast
      * failure break the originating write. Live sync is best-effort: if the
@@ -112,7 +166,7 @@ class CollectionBroadcaster
     private static function safeBroadcast(string $name, string $op, array $row, $tenant): void
     {
         try {
-            event(new CollectionChanged($name, $op, $row, $tenant));
+            event(new CollectionChanged($name, $op, self::project($name, $row), $tenant));
         } catch (\Throwable $e) {
             report($e);
         }

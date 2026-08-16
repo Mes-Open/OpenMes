@@ -26,7 +26,7 @@ export default function InspectionPlansIndex() {
     const { materialNames = {}, materialTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         {
             key: 'version',
             label: __('Version'),
@@ -37,6 +37,13 @@ export default function InspectionPlansIndex() {
             key: 'scope',
             label: __('Scope'),
             className: 'text-om-muted',
+           
+            value: (r) =>
+                r.material_id
+                    ? `${__('Material')}: ${materialNames[r.material_id] ?? '?'}`
+                    : r.material_type_id
+                    ? `${__('Type')}: ${materialTypeNames[r.material_type_id] ?? '?'}`
+                    : __('Generic'),
             render: (r) =>
                 r.material_id
                     ? `${__('Material')}: ${materialNames[r.material_id] ?? '?'}`
@@ -44,10 +51,12 @@ export default function InspectionPlansIndex() {
                     ? `${__('Type')}: ${materialTypeNames[r.material_type_id] ?? '?'}`
                     : __('Generic'),
         },
-        { key: 'criteria', label: __('Criteria'), render: (r) => asArray(r.criteria).length },
+        { key: 'criteria', label: __('Criteria'), value: (r) => asArray(r.criteria).length, render: (r) => asArray(r.criteria).length },
         {
             key: 'status',
             label: __('Status'),
+           
+            value: (r) => planStatus(r).label,
             render: (r) => {
                 const s = planStatus(r);
                 return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>;
@@ -61,21 +70,21 @@ export default function InspectionPlansIndex() {
             items.push({
                 label: __('Publish'),
                 className: 'btn-touch text-sm bg-om-running-bg text-om-running hover:bg-om-running-bg',
-                onClick: () => {
-                    if (confirm(__('Publish this version? It becomes the live plan used for new inspections.'))) {
-                        router.post(`/admin/inspection-plans/${r.id}/publish`, {}, { preserveScroll: true });
-                    }
+                confirm: {
+                    title: __('Publish this version? It becomes the live plan used for new inspections.'),
+                    confirmLabel: __('Publish'),
                 },
+                onClick: () => router.post(`/admin/inspection-plans/${r.id}/publish`, {}, { preserveScroll: true }),
             });
         }
         items.push({
             label: __('Delete'),
             icon: 'delete',
-            onClick: () => {
-                if (confirm(__('Delete inspection plan ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/inspection-plans/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete inspection plan ":name"?', { name: r.name }),
+                confirmLabel: __('Delete plan'),
             },
+            onClick: () => router.delete(`/admin/inspection-plans/${r.id}`, { preserveScroll: true }),
         });
         return items;
     };

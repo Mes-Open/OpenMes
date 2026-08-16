@@ -1,7 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+// Explicit extension: `components/engineeringDocuments.js` (the helper module)
+// differs only in case, so an extensionless import resolves to the wrong file on a
+// case-insensitive filesystem (macOS) and breaks the build.
+import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const WO_STATUS_LABELS = {
     PENDING:     'Pending',
@@ -9,6 +14,7 @@ const WO_STATUS_LABELS = {
     IN_PROGRESS: 'In Progress',
     BLOCKED:     'Blocked',
     PAUSED:      'Paused',
+    CHANGE_HOLD: 'Change hold',
     DONE:        'Done',
     REJECTED:    'Rejected',
     CANCELLED:   'Cancelled',
@@ -24,6 +30,7 @@ const WO_STATUS_STYLES = {
     CANCELLED:   'bg-om-line2 text-om-muted',
     ACCEPTED:    'bg-om-chip text-om-accent',
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    CHANGE_HOLD: 'bg-om-downtime-bg text-om-downtime',
 };
 
 const SERIAL_STATUS_STYLES = {
@@ -64,13 +71,7 @@ export default function ProductTypeShow({
             <Head title={__("Product Type Details")} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">{__("Dashboard")}</Link>
-                <span>/</span>
-                <Link href="/admin/product-types" className="hover:underline">{__("Product Types")}</Link>
-                <span>/</span>
-                <span className="text-om-ink">{productType.name}</span>
-            </nav>
+            <PageTrail append={[{ label: productType.name }]} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -83,6 +84,13 @@ export default function ProductTypeShow({
                     </Link>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
+                            {productType.image_url && (
+                                <img
+                                    src={productType.image_url}
+                                    alt={productType.name}
+                                    className="h-14 w-14 rounded-om-sm border border-om-line object-cover bg-om-bg"
+                                />
+                            )}
                             <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
                             {productType.is_active ? (
                                 <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__("Active")}</span>
@@ -249,7 +257,7 @@ export default function ProductTypeShow({
                                                     </p>
                                                 </div>
                                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-ink'}`}>
-                                                    {WO_STATUS_LABELS[wo.status] ?? wo.status}
+                                                    {__(WO_STATUS_LABELS[wo.status] ?? wo.status)}
                                                 </span>
                                             </div>
                                         </div>
@@ -387,6 +395,8 @@ export default function ProductTypeShow({
                         </div>
                     </div>
                 </div>
+
+                <EngineeringDocuments entityType="product_type" entityId={productType.id} />
             </div>
         </>
     );

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Web\Supervisor;
 
+use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\BatchStep;
 use App\Models\Customer;
 use App\Models\Line;
@@ -12,25 +15,39 @@ use App\Models\WorkOrder;
 use App\Models\WorkstationState;
 use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
+    use BuildsWorkOrderFormOptions;
+
     private const ACTIVE_MACHINE_STEP_STATUSES = [
         BatchStep::STATUS_READY,
         BatchStep::STATUS_IN_PROGRESS,
     ];
 
-    public function index(Request $request)
+    public function index(Request $request, CustomFieldService $customFields)
     {
         $counts = WorkOrder::withCount('batches')->get(['id'])
             ->mapWithKeys(fn ($w) => [$w->id => $w->batches_count]);
 
         return Inertia::render('supervisor/work-orders/Index', [
             'counts' => $counts,
+            // Name maps cover every line/product/customer an existing row might
+            // reference, including deactivated ones — unlike the create-form
+            // options below, which only offer what is still selectable.
             'lineNames' => Line::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
+            'customerNames' => Customer::pluck('name', 'id'),
+            // Deleting is admin-only in the shipped role set, so the list's
+            // Delete item is gated on the ability rather than on the section —
+            // a supervisor granted `delete work orders` gets it here too.
+            'can' => ['delete' => (bool) $request->user()?->can('delete work orders')],
+            // Feeds the list's "New work order" modal, which renders the same form
+            // as the create page.
+            ...$this->createFormOptions($customFields),
         ]);
     }
 
@@ -42,12 +59,7 @@ class WorkOrderController extends Controller
     {
         $this->authorize('create', WorkOrder::class);
 
-        return Inertia::render('supervisor/work-orders/Create', [
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
-            'customFields' => $customFields->clientConfig('work_order'),
-        ]);
+        return Inertia::render('supervisor/work-orders/Create', $this->createFormOptions($customFields));
     }
 
     public function store(StoreWorkOrderRequest $request, WorkOrderService $workOrderService, CustomFieldService $cf)
@@ -70,8 +82,14 @@ class WorkOrderController extends Controller
                 ->with('error', __('Failed to create work order. Please check your input and try again.'));
         }
 
+        // The list's New-order modal posts `stay` so the user keeps their page
+        // (the new order lands there via the live-synced rows).
+        if ($request->boolean('stay')) {
+            return back()->with('success', "Work order {$workOrder->order_no} created.");
+        }
+
         return redirect()->route('supervisor.work-orders.index')
-            ->with('success', "Work order {$workOrder->order_no} created.");
+            ->with('success', __('Work order :code created.', ['code' => $workOrder->order_no]));
     }
 
     public function show(WorkOrder $workOrder)
@@ -93,7 +111,9 @@ class WorkOrderController extends Controller
                     'name' => $s->name,
                     'status' => $s->status,
                     'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
                     'duration_minutes' => $s->duration_minutes,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes,
                 ])->values(),
             ];
         })->values();
@@ -125,6 +145,11 @@ class WorkOrderController extends Controller
                 'issues' => $issues,
                 'machines' => $this->machinesForWorkOrder($workOrder),
             ],
+            // Pool dispatch (#52): active workstations (with their type) for the
+            // per-step "assign workstation" picker, filtered client-side by type.
+            'workstations' => \App\Models\Workstation::where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'workstation_type_id']),
+            'workstationTypeNames' => \App\Models\WorkstationType::pluck('name', 'id'),
         ]);
     }
 
@@ -199,40 +224,34 @@ class WorkOrderController extends Controller
 
     public function accept(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
+        return $this->transition($workOrder, 'accept');
     }
 
     public function reject(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
-            return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
+        return $this->transition($workOrder, 'reject');
     }
 
     public function pause(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
+        return $this->transition($workOrder, 'pause');
     }
 
-    public function resume(WorkOrder $workOrder)
+    /**
+     * Resume production (#182).
+     *
+     * Goes through the stop service like every other resume path. Flipping the status
+     * here directly would leave an open production stop open forever — blocking the
+     * next stop and inflating downtime — and would let an order held for a
+     * configuration change restart on the old configuration.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
-            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
+        try {
+            $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
@@ -258,22 +277,12 @@ class WorkOrderController extends Controller
 
     public function cancel(WorkOrder $workOrder)
     {
-        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Cannot cancel a work order in terminal state.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} cancelled.");
+        return $this->transition($workOrder, 'cancel');
     }
 
     public function reopen(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Only terminal work orders can be reopened.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
+        return $this->transition($workOrder, 'reopen');
     }
 
     public function edit(WorkOrder $workOrder)
@@ -309,5 +318,53 @@ class WorkOrderController extends Controller
 
         return redirect()->route('supervisor.work-orders.show', $workOrder)
             ->with('success', "Work order {$workOrder->order_no} updated.");
+    }
+
+    /**
+     * Delete an order that never produced anything. Gated on the `delete work
+     * orders` ability (WorkOrderPolicy), which the shipped Supervisor role does
+     * not hold — the list only offers this when the current user actually has it.
+     */
+    public function destroy(WorkOrder $workOrder)
+    {
+        $this->authorize('delete', $workOrder);
+
+        if ($workOrder->batches()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete a work order that has batches. Cancel it instead.');
+        }
+
+        $no = $workOrder->order_no;
+        $workOrder->delete();
+
+        return redirect()->route('supervisor.work-orders.index')
+            ->with('success', "Work order {$no} deleted.");
+    }
+
+    /**
+     * Apply one transition to many selected orders (the list's bulk-action bar).
+     * Same service call the admin list makes, so a mixed selection is skipped and
+     * counted identically in both sections.
+     */
+    public function bulk(BulkWorkOrderActionRequest $request)
+    {
+        $message = WorkOrderService::applyBulkTransition(
+            $request->validated('ids'),
+            $request->validated('action'),
+        );
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Apply a status transition through the shared table in WorkOrderService, so
+     * this list and the admin list can't disagree about what a status allows or
+     * word the refusal differently.
+     */
+    private function transition(WorkOrder $workOrder, string $action)
+    {
+        $result = WorkOrderService::applyTransition($workOrder, $action);
+
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 }

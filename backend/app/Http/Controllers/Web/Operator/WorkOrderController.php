@@ -343,6 +343,11 @@ class WorkOrderController extends Controller
 
         $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'issueCustomFields'));
+        // Engineering documents (#179) frozen onto this order at release — read-only
+        // for operators (download + interactive view), gated by `view engineering
+        // documents` on the client (Operator has it; see the seeder).
+        $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'issueCustomFields', 'engineeringDocuments'));
     }
 }

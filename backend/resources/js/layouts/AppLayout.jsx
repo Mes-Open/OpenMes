@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
+import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
+import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
 import LiveAlertCount from '../components/LiveAlertCount';
+import LatestAlerts from '../components/LatestAlerts';
+import Tooltip from '../components/Tooltip';
+import HoverPanel from '../components/HoverPanel';
+import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
+import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 
 // ── Module menu hooks ────────────────────────────────────────────────────────
 // Modules register nav entries server-side via MenuRegistry; HandleInertiaRequests
@@ -18,6 +24,130 @@ const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
 // would fetch JSON for a non-Inertia route and fail.
 function moduleItemToChild(item) {
     return { label: item.label, href: item.url, match: [item.url], external: true };
+}
+
+/**
+ * How many `PageTitle`s are currently mounted. The header shows a trail derived
+ * from the nav only when a page hasn't supplied one of its own — a count rather
+ * than a boolean because React mounts and unmounts components in either order
+ * during a page transition, and two mounts followed by one unmount must not read
+ * as "nothing here".
+ */
+export const PageTitleContext = createContext({ register: () => () => {} });
+
+function usePageTitlePresence(navTrail) {
+    const [count, setCount] = useState(0);
+    const register = useMemo(
+        () => () => {
+            setCount((n) => n + 1);
+            return () => setCount((n) => n - 1);
+        },
+        [],
+    );
+    // `navTrail` rides along so a page that renders its own title can still
+    // inherit the ancestors the nav already knows, instead of restating them.
+    const value = useMemo(() => ({ register, navTrail }), [register, navTrail]);
+    return [count > 0, value];
+}
+
+/**
+ * The breadcrumb trail for a path, read off the sidebar nav: the group(s) the
+ * page sits under, then the page itself.
+ *
+ * Deriving it beats asking ~180 pages to each declare their own — the nav
+ * already knows where every route lives, so a page can never disagree with the
+ * menu that got you there, and moving an entry in the nav moves its breadcrumb
+ * with it. A page that wants something the nav can't know (a record's number)
+ * still renders `PageTitle` and wins.
+ */
+/**
+ * Drops a crumb that repeats the one before it. The nav legitimately nests a
+ * landing page inside a group of the same name ("Production Lines" the section,
+ * "Production Lines" the list), which is fine in a menu and reads as a stutter
+ * in a trail.
+ */
+export function dedupeTrail(items) {
+    return items.filter((item, i) => i === 0 || item.label !== items[i - 1].label);
+}
+
+function navTrailFor(path, groups, links) {
+    let best = null;
+
+    const consider = (node, chain) => {
+        const matches = node.match ?? (node.href ? [node.href] : []);
+        // Score on the prefixes that actually matched, not the longest in the
+        // array: a group lists every child's path, so scoring the whole array let
+        // "Work Orders" (which also owns /admin/work-orders) outrank the CSV
+        // import child it matched through.
+        const hit = matches.filter((m) => isActive(path, [m], node.exact));
+        if (hit.length === 0) return;
+        // Longest matching prefix wins, so /admin/schedule/capacity resolves to
+        // the child rather than stopping at the group that also matches.
+        const score = Math.max(...hit.map((m) => m.length));
+        // Groups repeat their children's paths in `match` (that is how a group
+        // highlights while you are inside it), so equal scores are common — the
+        // deeper chain is the more specific answer.
+        const better = !best || score > best.score
+            || (score === best.score && chain.length > best.chain.length);
+        if (better) best = { score, chain };
+    };
+
+    const SETTINGS = { label: 'Settings', href: '/settings', match: ['/settings'], lucide: 'settings' };
+    [...links, SETTINGS].forEach((link) => consider(link, [link]));
+
+    const walk = (nodes, chain) => {
+        (nodes ?? []).forEach((node) => {
+            consider(node, [...chain, node]);
+            if (node.children) walk(node.children, [...chain, node]);
+        });
+    };
+    walk(groups, []);
+
+    if (!best) return [];
+
+    const items = best.chain.map((node) => ({
+        label: __(node.label),
+        href: node.href,
+        icon: node.lucide ?? ICON_LUCIDE[node.icon],
+    }));
+
+    // Every trail starts at the section's dashboard, matching the list pages' own.
+    const root = navRoot(links);
+    if (root && items[0]?.href !== root.href) {
+        items.unshift({ label: __(root.label), href: root.href, icon: root.lucide ?? ICON_LUCIDE[root.icon] });
+    }
+    return dedupeTrail(items);
+}
+
+/**
+ * Drop entries whose optional feature module this install has switched off, and
+ * any group left empty by that.
+ *
+ * The admin tree gets this for free — its entries carry tab keys, and
+ * TabRegistry already consults ModuleRegistry. The supervisor tree is gated by
+ * role instead, so it states the module on the entry and is filtered here,
+ * matching the `module:` middleware on the routes themselves.
+ */
+function withEnabledModules(nodes, enabledModules) {
+    if (! Array.isArray(enabledModules)) {
+        return nodes;
+    }
+
+    return nodes
+        .filter((node) => ! node.module || enabledModules.includes(node.module))
+        .map((node) => (node.children
+            ? { ...node, children: withEnabledModules(node.children, enabledModules) }
+            : node))
+        .filter((node) => ! node.children || node.children.length > 0);
+}
+
+/**
+ * A nav tree's home: /admin/dashboard for an admin, /supervisor/dashboard for a
+ * supervisor. Derived rather than declared, so a third section can't set one and
+ * forget the other.
+ */
+function navRoot(links) {
+    return links.find((link) => link.href?.endsWith('/dashboard'));
 }
 
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
@@ -53,7 +183,7 @@ function mergeModuleNav(moduleNav) {
  * This is a PERSISTENT Inertia layout (pages opt in via
  * `Page.layout = (page) => <AppLayout>{page}</AppLayout>`), so it stays mounted
  * across client-side navigations — the sidebar, its collapse/dark-mode state,
- * and the live alert badge's Electric subscription survive page changes.
+ * and the live alert badge's collection subscription survive page changes.
  *
  * Nav uses Inertia <Link> (XHR, swaps only the page component — no full reload).
  * Active state is derived from the REACTIVE `usePage().url` (not
@@ -66,6 +196,50 @@ function mergeModuleNav(moduleNav) {
  * theming. The theme toggle below stays functional (it still flips the `dark`
  * class + localStorage) but is visually neutral here.
  */
+/** Marks every element a page's heading is portaled into (one per breakpoint). */
+export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
+
+/**
+ * The menu a user gets. Admins and supervisors have separate route trees, so
+ * they get separate menus — pointing a supervisor at `/admin` would only send
+ * them somewhere the middleware refuses.
+ *
+ * Admin wins when a user holds both roles: it is the larger tree, and it is the
+ * one the per-tab access matrix governs. Module hooks register against the admin
+ * groups, so they merge only there.
+ */
+function useNavTree() {
+    const page = usePage();
+    const isAdmin = page.props.auth?.user?.roles?.includes('Admin');
+    const isSupervisor = page.props.auth?.user?.roles?.includes('Supervisor');
+    const moduleNav = page.props.moduleNav;
+    // Which admin tabs this user may open (#144) — role grants and enabled
+    // modules, resolved server-side.
+    const allowedTabs = page.props.auth?.user?.accessibleTabs;
+    // Optional feature modules this install has switched on.
+    const enabledModules = page.props.enabledModules;
+
+    return useMemo(() => {
+        if (! isAdmin && isSupervisor) {
+            return {
+                links: withEnabledModules(SUPERVISOR_LINKS, enabledModules),
+                groups: withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
+                // The supervisor tree carries no tab keys: its gate is the route
+                // group's role middleware, not the admin access matrix. Filtering
+                // it through that matrix would hide every entry, since a
+                // supervisor holds no tab:* grants.
+                showTab: () => true,
+            };
+        }
+
+        return {
+            links: ADMIN_LINKS,
+            groups: mergeModuleNav(moduleNav),
+            showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
+        };
+    }, [isAdmin, isSupervisor, moduleNav, allowedTabs, enabledModules]);
+}
+
 export default function AppLayout({ children }) {
     const page = usePage();
     const { auth, nav, csrf_token, appVersion } = page.props;
@@ -76,6 +250,15 @@ export default function AppLayout({ children }) {
     const [collapsed, setCollapsed] = useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sb') === '1',
     );
+    // Module groups matter here too: a module's page should sit under the group
+    // the module registered, not fall off the trail entirely.
+    const { links: navLinks, groups: navGroups } = useNavTree();
+    const navTrail = useMemo(
+        () => navTrailFor(path, navGroups, navLinks),
+        [path, navGroups, navLinks],
+    );
+    const [hasPageTitle, pageTitleCtx] = usePageTitlePresence(navTrail);
+
     const [mobileOpen, setMobileOpen] = useState(false);
     const [dark, setDark] = useState(
         () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
@@ -102,6 +285,9 @@ export default function AppLayout({ children }) {
 
     return (
         <LiveShapesProvider>
+        <PageTitleContext.Provider value={pageTitleCtx}>
+        {/* App-wide toast stack — the replacement for window.alert(). */}
+        <ToastProvider dismissLabel={__('Close')}>
         <div className="flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
@@ -137,22 +323,35 @@ export default function AppLayout({ children }) {
                         onClick={() => setMobileOpen(true)}
                         className="p-2 rounded-om-sm text-om-muted hover:bg-om-chip hover:text-om-ink"
                     >
-                        <Icon d="M4 6h16M4 12h16M4 18h16" className="w-6 h-6" />
+                        <UiIcon name="menu" size={24} />
                     </button>
-                    <span className="flex items-center gap-2.5">
+                    <span className="flex shrink-0 items-center gap-2.5">
                         <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
                     </span>
+                    {/* Below lg the desktop bar is hidden, so the page title lands
+                        here beside the logo instead of falling back into the
+                        content area. */}
+                    <div data-page-title-slot className="flex min-w-0 items-center gap-3">
+                        <NavTrail items={navTrail} show={!hasPageTitle} />
+                    </div>
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
-                <DesktopClock />
+                <DesktopClock
+                    collapsed={collapsed}
+                    onToggleCollapsed={toggleCollapsed}
+                    navTrail={navTrail}
+                    showNavTrail={!hasPageTitle}
+                />
 
-                <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+                <main className="flex-1 overflow-auto">
                     <FlashMessages />
                     {children}
                 </main>
             </div>
         </div>
+        </ToastProvider>
+        </PageTitleContext.Provider>
         </LiveShapesProvider>
     );
 }
@@ -182,7 +381,12 @@ function FlashMessages() {
  * so its per-second tick only re-renders this component, not the whole layout.
  * Formatted in the active locale; timezone pinned to Europe/Warsaw like the original.
  */
-function DesktopClock() {
+function NavTrail({ items, show }) {
+    if (!show || items.length === 0) return null;
+    return <Breadcrumbs linkAs={Link} items={items} />;
+}
+
+function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrail = false }) {
     const { locale } = usePage().props;
     const fmt = () => {
         const now = new Date();
@@ -199,9 +403,32 @@ function DesktopClock() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [locale]);
     return (
-        <div className="hidden lg:flex items-center justify-end px-4 py-1.5 shrink-0">
-            <div className="flex items-center gap-2 text-[13px] text-om-faint">
-                <Icon className="w-4 h-4" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        // `h-11` and the hairline both match the sidebar's logo header, so the two
+        // bars read as one band across the top with one rule under it, instead of
+        // a step where they meet and a border that stops halfway.
+        <div className="hidden lg:flex h-11 items-center justify-between gap-3 border-b border-om-line bg-om-card px-4 shrink-0">
+            {/* Sidebar toggle. It lives here rather than at the foot of the rail
+                because that is where the thing it controls begins — and the rail's
+                own footer is the one part of it that scrolls out of reach. */}
+            <Tooltip label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')} placement="bottom">
+                <button
+                    type="button"
+                    onClick={onToggleCollapsed}
+                    aria-label={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
+                    aria-expanded={!collapsed}
+                    className="-ml-1 flex shrink-0 cursor-pointer items-center justify-center rounded-om-sm p-1.5 text-om-faint transition-colors hover:bg-om-chip hover:text-om-ink"
+                >
+                    <UiIcon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={18} />
+                </button>
+            </Tooltip>
+            {/* Page-title slot. Pages portal their heading in here (see
+                ResourceTable) so the title shares this bar with the clock
+                instead of taking a row of its own above the list. */}
+            <div data-page-title-slot className="flex min-w-0 flex-1 items-center gap-3">
+                <NavTrail items={navTrail} show={showNavTrail} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-[13px] text-om-faint">
+                <UiIcon name="clock" size={14} />
                 <span>{t.date}</span>
                 <span className="font-mono text-om-muted">{t.time}</span>
             </div>
@@ -227,8 +454,8 @@ function groupVisible(group, showTab) {
     return anyChild(group.children);
 }
 
-function flattenNavItems(showTab = () => true, groups = ADMIN_GROUPS) {
-    const items = ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => ({
+function flattenNavItems(showTab, groups, links) {
+    const items = links.filter((link) => showTab(link.key)).map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
@@ -256,22 +483,16 @@ function Sidebar({
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
-    // Show a tab only when the backend lists it as accessible — this hides tabs
-    // the role can't reach AND feature modules switched off for this install
-    // (#144). Falls back to "show all" if the prop is ever missing.
-    const allowedTabs = auth?.user?.accessibleTabs;
-    const showTab = (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key);
-
-    // Merge module-registered menu hooks (MenuRegistry → moduleNav prop) into the
-    // static admin nav, so enabled modules can add dropdowns / items like before.
-    const moduleNav = usePage().props.moduleNav;
-    const navGroups = useMemo(() => mergeModuleNav(moduleNav), [moduleNav]);
+    // Which entries this user may see. The admin tree hides tabs the role can't
+    // reach and modules switched off for this install (#144); the supervisor
+    // tree is gated by its routes, so everything in it shows.
+    const { links: navLinks, groups: navGroups, showTab } = useNavTree();
 
     // Menu search: a non-empty query swaps the nav tree for a flat result list.
     // Matches both the English label and its translation so users can search
     // in the active locale.
     const [query, setQuery] = useState('');
-    const searchItems = useMemo(() => flattenNavItems(showTab, navGroups), [allowedTabs, navGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+    const searchItems = useMemo(() => flattenNavItems(showTab, navGroups, navLinks), [showTab, navGroups, navLinks]);
     const q = query.trim().toLowerCase();
     const results = q
         ? searchItems.filter((item) =>
@@ -300,8 +521,8 @@ function Sidebar({
                         transition-[width,transform] duration-300 ease-in-out ${translate} ${widthClass}`}
         >
             {/* Logo / header — split orange/black brand mark + lowercase wordmark */}
-            <div className="flex items-center h-16 px-3 shrink-0 border-b border-om-line">
-                <Link href="/admin/dashboard" className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <div className="flex items-center h-11 px-3 shrink-0 border-b border-om-line">
+                <Link href={navRoot(navLinks)?.href} className="flex items-center gap-2 min-w-0 overflow-hidden">
                     {showLabels ? (
                         <>
                             <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 w-auto shrink-0" />
@@ -312,28 +533,35 @@ function Sidebar({
                             )}
                         </>
                     ) : (
-                        <span className="block size-9 shrink-0 overflow-hidden">
-                            <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 max-w-none" />
-                        </span>
+                        // Collapsed: the square brand mark, not the wordmark cropped
+                        // to a square. The full logo is a wide lockup, so clipping it
+                        // to 36px showed the gear and half a letter.
+                        <img
+                            src="/logo_open_mes_mark.png"
+                            alt="OpenMES"
+                            className="size-9 shrink-0 object-contain"
+                        />
                     )}
                 </Link>
 
                 {/* Setup wizard (Admin only) — the "?" the demo shows in the header */}
                 {showLabels && isAdmin && (
-                    <Link
-                        href="/onboarding/step/1"
-                        prefetch
-                        title={__('Setup Wizard')}
-                        className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
-                    >
-                        <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
-                    </Link>
+                    <Tooltip label={__('Setup Wizard')} placement="bottom">
+                        <Link
+                            href="/onboarding/step/1"
+                            prefetch
+                            aria-label={__('Setup Wizard')}
+                            className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
+                        >
+                            <UiIcon name="circle-help" size={20} />
+                        </Link>
+                    </Tooltip>
                 )}
                 <button
                     onClick={onCloseMobile}
                     className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0`}
                 >
-                    <Icon d="M6 18L18 6M6 6l12 12" className="w-5 h-5" />
+                    <UiIcon name="x" size={20} />
                 </button>
             </div>
 
@@ -366,7 +594,7 @@ function Sidebar({
                     )
                 ) : (
                     <>
-                        {ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => (
+                        {navLinks.filter((link) => showTab(link.key)).map((link) => (
                             <NavLink
                                 key={link.href}
                                 link={link}
@@ -406,12 +634,7 @@ function Sidebar({
                                     text-om-muted hover:bg-om-chip hover:text-om-ink transition-colors
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
-                        <Icon
-                            className="w-5 h-5 shrink-0"
-                            d={dark
-                                ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z'
-                                : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'}
-                        />
+                        <UiIcon name={dark ? 'sun' : 'moon'} size={20} className="shrink-0" />
                         {showLabels && <span>{dark ? __('Light Mode') : __('Dark Mode')}</span>}
                     </button>
                 </div>
@@ -427,59 +650,60 @@ function Sidebar({
                                         : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
-                        <Icon d={ICONS.settings} className="w-5 h-5 shrink-0" />
+                        <UiIcon name="settings" size={20} className="shrink-0" />
                         {showLabels && <span>{__('Settings')}</span>}
                     </Link>
                 </div>
 
                 {/* User + logout */}
                 <div className="px-2 py-2">
-                    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${collapsed && !mobileOpen ? 'justify-center' : ''}`}>
+                    {/* Side by side when there is a name to sit beside; stacked when
+                        collapsed, because the rail is 64px wide and an avatar next
+                        to a logout button needs more than twice that — they ended up
+                        on top of each other. Stacked, each gets its own row like
+                        every other control in the collapsed rail. */}
+                    <div
+                        className={
+                            collapsed && !mobileOpen
+                                ? 'flex flex-col items-center gap-1 py-2'
+                                : 'flex items-center gap-3 px-3 py-2 rounded-lg'
+                        }
+                    >
                         {/* Avatar + name link to the user's own profile/settings */}
-                        <Link
-                            href="/settings/profile"
-                            prefetch
-                            title={__('Profile')}
-                            className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
-                                        ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
-                        >
-                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-om-on-ink text-[12px] font-semibold">
-                                {auth?.user?.initial ?? '?'}
-                            </div>
-                            {showLabels && (
-                                <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
-                                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                        <Tooltip label={__('Profile')} placement="right" disabled={showLabels}>
+                            <Link
+                                href="/settings/profile"
+                                prefetch
+                                aria-label={__('Profile')}
+                                className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
+                                            ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-om-on-ink text-[12px] font-semibold">
+                                    {auth?.user?.initial ?? '?'}
                                 </div>
-                            )}
-                        </Link>
+                                {showLabels && (
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
+                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                    </div>
+                                )}
+                            </Link>
+                        </Tooltip>
                         <form action="/logout" method="POST" className="shrink-0">
                             <input type="hidden" name="_token" value={csrfToken} />
-                            <button
-                                type="submit"
-                                title={__('Logout')}
-                                className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
-                            >
-                                <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
-                            </button>
+                            <Tooltip label={__('Logout')}>
+                                <button
+                                    type="submit"
+                                    aria-label={__('Logout')}
+                                    className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
+                                >
+                                    <UiIcon name="log-out" size={16} />
+                                </button>
+                            </Tooltip>
                         </form>
                     </div>
                 </div>
 
-                {/* Collapse toggle (desktop) */}
-                <div className="hidden lg:flex border-t border-om-line px-2 py-2">
-                    <button
-                        onClick={onToggleCollapsed}
-                        className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
-                        title={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
-                    >
-                        <Icon
-                            className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
-                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                        />
-                        {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
-                    </button>
-                </div>
             </div>
         </aside>
     );
@@ -505,17 +729,18 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
 
     if (collapsed && !showLabels) {
         return (
-            <div className="relative group px-2 pt-3">
-                <button
-                    onClick={() => {
-                        focusAfterExpand.current = true;
-                        onExpand();
-                    }}
-                    className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
-                >
-                    <Icon d={SEARCH_ICON} className="w-5 h-5" />
-                </button>
-                <Tooltip>{__('Search')}</Tooltip>
+            <div className="px-2 pt-3">
+                <Tooltip label={__('Search')} placement="right">
+                    <button
+                        onClick={() => {
+                            focusAfterExpand.current = true;
+                            onExpand();
+                        }}
+                        className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
+                    >
+                        <UiIcon name="search" size={20} />
+                    </button>
+                </Tooltip>
             </div>
         );
     }
@@ -523,9 +748,10 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
     return (
         <div className="px-2 pt-3 pb-2">
             <div className="relative">
-                <Icon
-                    d={SEARCH_ICON}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-om-faint pointer-events-none"
+                <UiIcon
+                    name="search"
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-om-faint pointer-events-none"
                 />
                 <input
                     ref={inputRef}
@@ -574,34 +800,46 @@ function SearchResultLink({ item, path, onNavigate }) {
 function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
     const activeClass = active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
+
+    // The alerts entry answers its own badge on hover: a count tells you
+    // something is wrong but not what, and the list is already in the browser
+    // (LatestAlerts reads the same shared collections the badge counts). It
+    // replaces the label tooltip rather than joining it — two things opening off
+    // one hover fight each other, and the panel names itself.
+    const Wrapper = link.alert && alertCount > 0 ? HoverPanel : Tooltip;
+    const wrapperProps = link.alert && alertCount > 0
+        ? { panel: <LatestAlerts /> }
+        : { label: __(link.label), disabled: showLabels };
+
     return (
-        <div className="relative group px-2">
-            <Link
-                href={link.href}
-                prefetch
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
-                            ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
-            >
-                <span className="relative shrink-0">
-                    <Icon d={ICONS[link.icon]} className="w-5 h-5" />
-                    {alertCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
-                            {alertCount > 9 ? '9+' : alertCount}
-                        </span>
-                    )}
-                </span>
-                {showLabels && (
-                    <span className="flex items-center gap-2">
-                        {__(link.label)}
-                        {link.alert && alertCount > 0 && (
-                            <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
-                                {alertCount}
+        <div className="px-2">
+            <Wrapper placement="right" {...wrapperProps}>
+                <Link
+                    href={link.href}
+                    prefetch
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
+                                ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
+                >
+                    <span className="relative shrink-0">
+                        <UiIcon name={link.lucide ?? ICON_LUCIDE[link.icon] ?? "circle"} size={20} />
+                        {alertCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
+                                {alertCount > 9 ? '9+' : alertCount}
                             </span>
                         )}
                     </span>
-                )}
-            </Link>
-            {collapsed && !showLabels && <Tooltip>{__(link.label)}</Tooltip>}
+                    {showLabels && (
+                        <span className="flex items-center gap-2">
+                            {__(link.label)}
+                            {link.alert && alertCount > 0 && (
+                                <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
+                                    {alertCount}
+                                </span>
+                            )}
+                        </span>
+                    )}
+                </Link>
+            </Wrapper>
         </div>
     );
 }
@@ -619,20 +857,22 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
 
     // Collapsed sidebar can't show expanded children; clicking a collapsed
     // group expands the sidebar first (parity with Blade expandGroup()).
-    // A group with its own landing page (`href`) also navigates there on click
-    // instead of only expanding — otherwise the header looks unresponsive.
+    // A group with its own landing page (`href`) also navigates there when it is
+    // opened — otherwise the header looks unresponsive. Clicking an already-open
+    // group only collapses it (never re-navigates), so `href` groups stay
+    // collapsible like the rest.
     const toggle = () => {
-        if (group.href) {
-            router.visit(group.href);
-            setOpen(true);
-        } else {
-            setOpen((o) => !o);
+        if (open) {
+            setOpen(false);
+            return;
         }
+        setOpen(true);
+        if (group.href) router.visit(group.href);
     };
 
     return (
         <div className="px-2">
-            <div className="relative group">
+            <Tooltip label={__(group.label)} placement="right" disabled={showLabels}>
                 <button
                     onClick={toggle}
                     className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm transition-colors
@@ -640,21 +880,19 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                                 ${collapsed && !showLabels ? 'justify-center !px-0' : ''}
                                 ${groupActive && showLabels ? 'text-om-ink' : ''}`}
                 >
-                    <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />
+                    {group.lucide
+                        ? <UiIcon name={group.lucide} size={20} className="shrink-0" />
+                        : <UiIcon name={ICON_LUCIDE[group.icon] ?? "circle"} size={20} className="shrink-0" />}
                     {showLabels && (
                         <span className="flex-1 text-left font-mono text-[10px] uppercase tracking-[0.12em]">
                             {__(group.label)}
                         </span>
                     )}
                     {showLabels && (
-                        <Icon
-                            d="M19 9l-7 7-7-7"
-                            className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-                        />
+                        <UiIcon name={open ? 'chevron-up' : 'chevron-down'} size={16} className="shrink-0" />
                     )}
                 </button>
-                {collapsed && !showLabels && <Tooltip>{__(group.label)}</Tooltip>}
-            </div>
+            </Tooltip>
 
             {open && showLabels && (
                 <div className="mt-0.5 ml-4 space-y-0.5 border-l border-om-line pl-3">
@@ -684,12 +922,11 @@ function SubGroup({ group, path, showTab = () => true }) {
                 className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
                             ${active ? 'text-om-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
             >
-                <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />
+                {group.lucide
+                    ? <UiIcon name={group.lucide} size={15} className="shrink-0" />
+                    : <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />}
                 {__(group.label)}
-                <Icon
-                    d="M19 9l-7 7-7-7"
-                    className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-                />
+                <UiIcon name={open ? 'chevron-up' : 'chevron-down'} size={13} className="ml-auto shrink-0" />
             </button>
             {open && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">
@@ -714,7 +951,9 @@ function ChildLink({ child, path, dot }) {
                 title={child.title ? __(child.title) : undefined}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] text-om-faintest cursor-not-allowed select-none"
             >
-                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {child.lucide
+                    ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                    : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
                 {child.badge && (
                     <span className="ml-auto font-mono text-[10px] bg-om-chip text-om-faint px-1.5 py-0.5 rounded">
@@ -732,7 +971,9 @@ function ChildLink({ child, path, dot }) {
     if (child.external) {
         return (
             <a href={child.href} className={className}>
-                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {child.lucide
+                    ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                    : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
             </a>
         );
@@ -740,17 +981,11 @@ function ChildLink({ child, path, dot }) {
 
     return (
         <Link href={child.href} prefetch className={className}>
-            <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+            {child.lucide
+                ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
+                : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
             {__(child.label)}
         </Link>
-    );
-}
-
-function Tooltip({ children }) {
-    return (
-        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-om-ink text-om-on-ink text-xs rounded-om-sm whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] pointer-events-none">
-            {children}
-        </span>
     );
 }
 

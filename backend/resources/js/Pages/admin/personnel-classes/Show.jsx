@@ -2,10 +2,12 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 export default function PersonnelClassShow() {
     const { personnelClass, workers = [], requiredSkills = [] } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const requiredSkillsColumns = useMemo(() => [
         {
@@ -64,8 +66,9 @@ export default function PersonnelClassShow() {
     ], []);
 
     const handleDelete = () => {
-        if (!confirm(__('Delete this personnel class?'))) return;
-        router.delete(`/admin/personnel-classes/${personnelClass.id}`, { preserveScroll: false });
+        confirm({ title: __('Delete this personnel class?') }, () => {
+            router.delete(`/admin/personnel-classes/${personnelClass.id}`, { preserveScroll: false });
+        });
     };
 
     return (
@@ -164,6 +167,7 @@ export default function PersonnelClassShow() {
                     </div>
                 </div>
             </div>
+            {dialog}
         </>
     );
 }

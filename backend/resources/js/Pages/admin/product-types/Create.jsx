@@ -20,7 +20,7 @@ export default function ProductTypeCreate({ customFields = [] }) {
                 method="post"
                 fields={PRODUCT_TYPE_FIELDS}
                 customFields={customFields}
-                initial={{ code: '', name: '', description: '', unit_of_measure: 'pcs', is_active: true, custom_fields: {} }}
+                initial={{ code: '', name: '', description: '', unit_of_measure: 'pcs', image: null, is_active: true, custom_fields: {} }}
                 submitLabel={__("Create")}
                 cancelHref="/admin/product-types"
             />

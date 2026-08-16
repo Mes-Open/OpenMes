@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\OeeRecord;
 use App\Models\ProcessTemplate;
 use App\Models\Shift;
+use App\Support\ShiftWindow;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -160,16 +161,20 @@ class OeeCalculationService
     private function getProductionData(Line $line, Carbon $date, ?Shift $shift): array
     {
         $query = Batch::whereHas('workOrder', fn ($q) => $q->where('line_id', $line->id))
-            ->where('status', Batch::STATUS_DONE)
-            ->whereDate('completed_at', $date);
+            ->where('status', Batch::STATUS_DONE);
 
         if ($shift) {
-            $startTime = $date->copy()->setTimeFromTimeString($shift->start_time);
-            $endTime = $date->copy()->setTimeFromTimeString($shift->end_time);
-            if ($endTime->lte($startTime)) {
-                $endTime->addDay();
-            }
-            $query->whereBetween('completed_at', [$startTime, $endTime]);
+            // The occurrence, not the calendar day. A night shift's whereDate
+            // and its 22:00–06:00 window intersect to two hours, so everything
+            // produced after midnight was dropped — while the downtime side of
+            // the same record now covers the full eight. Half-open at the end so
+            // a batch landing exactly on the boundary belongs to one shift only.
+            $window = ShiftWindow::startingOn($shift, $date);
+
+            $query->where('completed_at', '>=', $window->start)
+                ->where('completed_at', '<', $window->end);
+        } else {
+            $query->whereDate('completed_at', $date);
         }
 
         $totals = $query->select([

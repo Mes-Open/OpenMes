@@ -2,7 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Dropdown, Checkbox, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+// Explicit extension: the helper module `engineeringDocuments.js` differs only in
+// case and would resolve wrong on case-insensitive filesystems.
+import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 
 /* ------------------------------------------------------------------ */
 /* Small SVG helper                                                      */
@@ -70,17 +75,70 @@ function OptionalVariantFields({ data, setData, errors }) {
     );
 }
 
+/**
+ * ISA-95 step fields (#52): the required Equipment Class (workstation type) and
+ * the Level-4 standard times (setup + run-per-unit) that flow down from an ERP
+ * BOM. Shared by the add- and edit-step forms.
+ */
+function Isa95StepFields({ data, setData, workstationTypes = [] }) {
+    return (
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
+            <div>
+                <label className="form-label">{__('Workstation type (ISA-95)')}</label>
+                <Dropdown
+                    value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
+                    onChange={(v) => setData('workstation_type_id', v)}
+                    options={[
+                        { value: '', label: __('— Any / none —') },
+                        ...workstationTypes.map((t) => ({ value: String(t.id), label: t.name })),
+                    ]}
+                    className="w-full"
+                />
+                <p className="text-xs text-om-muted mt-1">
+                    {__('Required Equipment Class; a specific machine is assigned at dispatch.')}
+                </p>
+            </div>
+            <div>
+                <label className="form-label">{__('Setup time (minutes)')}</label>
+                <input
+                    type="number"
+                    min="0"
+                    value={data.setup_time_minutes}
+                    onChange={(e) => setData('setup_time_minutes', e.target.value)}
+                    className="form-input w-full"
+                    placeholder={__('fixed, per run')}
+                />
+            </div>
+            <div>
+                <label className="form-label">{__('Run time per unit (minutes)')}</label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={data.run_time_per_unit_minutes}
+                    onChange={(e) => setData('run_time_per_unit_minutes', e.target.value)}
+                    className="form-input w-full"
+                    placeholder={__('× quantity')}
+                />
+            </div>
+        </div>
+    );
+}
+
 /* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
-function AddStepForm({ productType, processTemplate, processSegments, workstations, onCancel }) {
+function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
     const form = useForm({
         name: '',
         instruction: '',
         requires_confirmation: false,
         estimated_duration_minutes: '',
+        setup_time_minutes: '',
+        run_time_per_unit_minutes: '',
         required_operators: '',
         workstation_id: '',
+        workstation_type_id: '',
         process_segment_id: '',
         is_optional: false,
         variant_group: '',
@@ -205,6 +263,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                         <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                     </div>
 
+                    <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -224,14 +283,17 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 /* ------------------------------------------------------------------ */
 /* Inline step-edit form                                                 */
 /* ------------------------------------------------------------------ */
-function EditStepForm({ step, productType, processTemplate, processSegments, workstations, onCancel }) {
+function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
         requires_confirmation: !!step.requires_confirmation,
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
+        setup_time_minutes: step.setup_time_minutes != null ? String(step.setup_time_minutes) : '',
+        run_time_per_unit_minutes: step.run_time_per_unit_minutes != null ? String(step.run_time_per_unit_minutes) : '',
         required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
+        workstation_type_id: step.workstation_type_id != null ? String(step.workstation_type_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
         variant_group: step.variant_group ?? '',
@@ -334,6 +396,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                     <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                 </div>
 
+                <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
@@ -359,6 +422,7 @@ function StepPhoto({ step, photo, baseUrl }) {
     const form = useForm({ photo: null, template_step_id: step.id });
     const inputRef = useRef(null);
     const [zoom, setZoom] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const pick = () => inputRef.current?.click();
 
@@ -378,22 +442,28 @@ function StepPhoto({ step, photo, baseUrl }) {
     };
 
     const remove = () => {
-        if (confirm(__('Delete this step photo?'))) {
+        confirm({ title: __('Delete this step photo?') }, () => {
             router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
         <div className="mt-3 flex items-center gap-3">
             {photo ? (
                 <>
-                    <button type="button" onClick={() => setZoom(true)} title={photo.caption || photo.original_name}>
-                        <img
-                            src={photo.url}
-                            alt={photo.caption || 'Step photo'}
-                            className="w-20 h-20 object-cover rounded-om-sm border border-om-line2 bg-om-chip"
-                        />
-                    </button>
+                    <Tooltip label={photo.caption || photo.original_name}>
+                        <button
+                            type="button"
+                            onClick={() => setZoom(true)}
+                            aria-label={photo.caption || photo.original_name}
+                        >
+                            <img
+                                src={photo.url}
+                                alt={photo.caption || 'Step photo'}
+                                className="w-20 h-20 object-cover rounded-om-sm border border-om-line2 bg-om-chip"
+                            />
+                        </button>
+                    </Tooltip>
                     <div className="flex flex-col gap-1">
                         <button type="button" onClick={pick} disabled={form.processing} className="text-xs text-om-accent hover:underline text-left">
                             {form.processing ? __('Uploading…') : __('Replace photo')}
@@ -423,6 +493,7 @@ function StepPhoto({ step, photo, baseUrl }) {
                     <img src={photo.url} alt={photo.caption || ''} className="max-w-full max-h-[85vh] rounded-om-sm shadow-2xl" onClick={(e) => e.stopPropagation()} />
                 </div>
             )}
+            {dialog}
         </div>
     );
 }
@@ -545,9 +616,27 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     );
 }
 
+/**
+ * Per-step engineering-documents panel (#179), mounted lazily behind a toggle:
+ * a template can have many steps, and the panel self-fetches on mount, so we
+ * avoid firing one request per step on page load.
+ */
+function StepEngineeringDocuments({ stepId }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="mt-3">
+            <button type="button" onClick={() => setOpen((o) => ! o)} className="text-sm text-om-accent">
+                {open ? __('Hide engineering documents') : __('Engineering documents')}
+            </button>
+            {open && <EngineeringDocuments entityType="template_step" entityId={stepId} />}
+        </div>
+    );
+}
+
 function StepCard({
     step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
-    productType, processTemplate, processSegments, workstations,
+    productType, processTemplate, processSegments, workstations, workstationTypes = [],
     onMoveUp, onMoveDown, onDelete,
     dragHandleProps,
 }) {
@@ -559,19 +648,22 @@ function StepCard({
                 <div className="flex items-start justify-between">
                     <div className="flex gap-4 flex-1">
                         {/* Drag handle */}
-                        <div
-                            className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
-                            title="Drag to reorder"
-                        >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="9" cy="5" r="1.5" />
-                                <circle cx="15" cy="5" r="1.5" />
-                                <circle cx="9" cy="12" r="1.5" />
-                                <circle cx="15" cy="12" r="1.5" />
-                                <circle cx="9" cy="19" r="1.5" />
-                                <circle cx="15" cy="19" r="1.5" />
-                            </svg>
-                        </div>
+                        <Tooltip label="Drag to reorder">
+                            <div
+                                className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
+                                role="img"
+                                aria-label="Drag to reorder"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="9" cy="5" r="1.5" />
+                                    <circle cx="15" cy="5" r="1.5" />
+                                    <circle cx="9" cy="12" r="1.5" />
+                                    <circle cx="15" cy="12" r="1.5" />
+                                    <circle cx="9" cy="19" r="1.5" />
+                                    <circle cx="15" cy="19" r="1.5" />
+                                </svg>
+                            </div>
+                        </Tooltip>
 
                         <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
                             <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
@@ -638,45 +730,53 @@ function StepCard({
 
                                 {/* Actions */}
                                 <div className="flex gap-1 ml-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => onEditStart(step.id)}
-                                        className="text-om-accent hover:text-om-accent p-2"
-                                        title="Edit"
-                                    >
-                                        <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </button>
-
-                                    {!isFirst && (
+                                    <Tooltip label="Edit">
                                         <button
                                             type="button"
-                                            onClick={() => onMoveUp(step)}
-                                            className="text-om-muted hover:text-om-ink p-2"
-                                            title="Move up"
+                                            onClick={() => onEditStart(step.id)}
+                                            className="text-om-accent hover:text-om-accent p-2"
+                                            aria-label="Edit"
                                         >
-                                            <Icon d="M5 15l7-7 7 7" />
+                                            <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </button>
+                                    </Tooltip>
+
+                                    {!isFirst && (
+                                        <Tooltip label="Move up">
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveUp(step)}
+                                                className="text-om-muted hover:text-om-ink p-2"
+                                                aria-label="Move up"
+                                            >
+                                                <Icon d="M5 15l7-7 7 7" />
+                                            </button>
+                                        </Tooltip>
                                     )}
 
                                     {!isLast && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onMoveDown(step)}
-                                            className="text-om-muted hover:text-om-ink p-2"
-                                            title="Move down"
-                                        >
-                                            <Icon d="M19 9l-7 7-7-7" />
-                                        </button>
+                                        <Tooltip label="Move down">
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveDown(step)}
+                                                className="text-om-muted hover:text-om-ink p-2"
+                                                aria-label="Move down"
+                                            >
+                                                <Icon d="M19 9l-7 7-7-7" />
+                                            </button>
+                                        </Tooltip>
                                     )}
 
-                                    <button
-                                        type="button"
-                                        onClick={() => onDelete(step)}
-                                        className="text-om-blocked hover:text-om-blocked p-2"
-                                        title="Delete"
-                                    >
-                                        <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </button>
+                                    <Tooltip label="Delete">
+                                        <button
+                                            type="button"
+                                            onClick={() => onDelete(step)}
+                                            className="text-om-blocked hover:text-om-blocked p-2"
+                                            aria-label="Delete"
+                                        >
+                                            <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
 
@@ -689,6 +789,8 @@ function StepCard({
                             <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
 
                             <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+
+                            <StepEngineeringDocuments stepId={step.id} />
                         </div>
                     </div>
                 </div>
@@ -699,6 +801,7 @@ function StepCard({
                     processTemplate={processTemplate}
                     processSegments={processSegments}
                     workstations={workstations}
+                    workstationTypes={workstationTypes}
                     onCancel={onEditCancel}
                 />
             )}
@@ -710,7 +813,7 @@ function StepCard({
 /* Main page component                                                   */
 /* ------------------------------------------------------------------ */
 export default function ProcessTemplatesShow() {
-    const { productType, processTemplate, workstations = [], processSegments = [] } = usePage().props;
+    const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
     const allPhotos = processTemplate.photos ?? [];
@@ -722,6 +825,7 @@ export default function ProcessTemplatesShow() {
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
+    const { confirm, dialog } = useConfirm();
 
     const handleMoveUp = (step) => {
         router.post(
@@ -740,11 +844,12 @@ export default function ProcessTemplatesShow() {
     };
 
     const handleDelete = (step) => {
-        if (!confirm('Delete this step?')) return;
-        router.delete(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
-            { preserveScroll: true },
-        );
+        confirm({ title: 'Delete this step?' }, () => {
+            router.delete(
+                `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
+                { preserveScroll: true },
+            );
+        });
     };
 
     /* Drag-sort via SortableJS (loaded globally via vendor/sortable.min.js) */
@@ -880,6 +985,7 @@ export default function ProcessTemplatesShow() {
                         processTemplate={processTemplate}
                         processSegments={processSegments}
                         workstations={workstations}
+                        workstationTypes={workstationTypes}
                         onCancel={() => setShowAddForm(false)}
                     />
                 )}
@@ -907,6 +1013,7 @@ export default function ProcessTemplatesShow() {
                                     processTemplate={processTemplate}
                                     processSegments={processSegments}
                                     workstations={workstations}
+                                    workstationTypes={workstationTypes}
                                     onMoveUp={handleMoveUp}
                                     onMoveDown={handleMoveDown}
                                     onDelete={handleDelete}
@@ -937,6 +1044,9 @@ export default function ProcessTemplatesShow() {
                 {/* Reference photos (work instructions) */}
                 <PhotosSection productType={productType} processTemplate={processTemplate} />
 
+                {/* Engineering documents (#179) for the process template as a whole */}
+                <EngineeringDocuments entityType="process_template" entityId={processTemplate.id} />
+
                 {/* Drag-sort save status toast */}
                 {saveStatus && (
                     <div
@@ -954,6 +1064,7 @@ export default function ProcessTemplatesShow() {
                     </div>
                 )}
             </div>
+            {dialog}
         </>
     );
 }
@@ -971,6 +1082,7 @@ function PhotosSection({ productType, processTemplate }) {
     const form = useForm({ photo: null, caption: '' });
     const fileInputRef = useRef(null);
     const [lightbox, setLightbox] = useState(null); // photo object or null
+    const { confirm, dialog } = useConfirm();
 
     const submit = (e) => {
         e.preventDefault();
@@ -986,8 +1098,9 @@ function PhotosSection({ productType, processTemplate }) {
     };
 
     const handleDelete = (photo) => {
-        if (!confirm(__('Delete this photo?'))) return;
-        router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+        confirm({ title: __('Delete this photo?') }, () => {
+            router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+        });
     };
 
     return (
@@ -1037,33 +1150,37 @@ function PhotosSection({ productType, processTemplate }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                     {photos.map((photo) => (
                         <div key={photo.id} className="card p-2 group relative">
-                            <button
-                                type="button"
-                                onClick={() => setLightbox(photo)}
-                                className="block w-full"
-                                title={photo.original_name}
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.caption || photo.original_name}
-                                    loading="lazy"
-                                    className="w-full h-32 object-cover rounded-om-sm bg-om-chip"
-                                />
-                            </button>
+                            <Tooltip label={photo.original_name}>
+                                <button
+                                    type="button"
+                                    onClick={() => setLightbox(photo)}
+                                    className="block w-full"
+                                    aria-label={photo.original_name}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || photo.original_name}
+                                        loading="lazy"
+                                        className="w-full h-32 object-cover rounded-om-sm bg-om-chip"
+                                    />
+                                </button>
+                            </Tooltip>
                             <div className="mt-2 text-xs text-om-muted truncate" title={photo.caption || ''}>
                                 {photo.caption || <span className="text-om-faint">{__("No caption")}</span>}
                             </div>
                             <div className="text-[10px] text-om-faint">
                                 {photo.width}×{photo.height} • {photo.file_size}
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => handleDelete(photo)}
-                                className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                                title={__("Delete photo")}
-                            >
-                                <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
-                            </button>
+                            <Tooltip label={__("Delete photo")}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDelete(photo)}
+                                    className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                    aria-label={__("Delete photo")}
+                                >
+                                    <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
+                                </button>
+                            </Tooltip>
                         </div>
                     ))}
                 </div>
@@ -1092,16 +1209,19 @@ function PhotosSection({ productType, processTemplate }) {
                             )}
                         </figcaption>
                     </figure>
-                    <button
-                        type="button"
-                        onClick={() => setLightbox(null)}
-                        className="absolute top-5 right-5 text-white/80 hover:text-white"
-                        title="Close"
-                    >
-                        <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
-                    </button>
+                    <Tooltip label="Close">
+                        <button
+                            type="button"
+                            onClick={() => setLightbox(null)}
+                            className="absolute top-5 right-5 text-white/80 hover:text-white"
+                            aria-label="Close"
+                        >
+                            <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
+                        </button>
+                    </Tooltip>
                 </div>
             )}
+            {dialog}
         </div>
     );
 }

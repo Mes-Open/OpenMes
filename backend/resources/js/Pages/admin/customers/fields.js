@@ -1,6 +1,19 @@
 import { __ } from '../../../lib/i18n';
 
 // Loyalty tiers — values must match App\Enums\Tier on the backend.
+/**
+ * A blank customer. Shared so the create page and the list's create modal start
+ * from the same defaults — they'd otherwise be two literals to keep in step.
+ */
+export const CUSTOMER_INITIAL = {
+    name: '',
+    code: '',
+    tier: 'bronze',
+    payment_score: 0,
+    notes: '',
+    is_active: true,
+};
+
 export const TIER_VALUES = ['bronze', 'silver', 'gold', 'vip'];
 
 // Tailwind badge classes, mirrored from Tier::badgeColor().

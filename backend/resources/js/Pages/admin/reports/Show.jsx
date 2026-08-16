@@ -20,7 +20,7 @@ function fmtDuration(min) {
 const dt = (v) => (v ? formatDateTime(v) : '—');
 
 export default function ReportShow() {
-    const { workOrder: wo } = usePage().props;
+    const { workOrder: wo, basePath } = usePage().props;
 
     return (
         <>
@@ -28,7 +28,7 @@ export default function ReportShow() {
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header */}
                 <div>
-                    <Link href="/admin/reports" className="text-om-accent hover:text-om-accent text-sm">
+                    <Link href={basePath} className="text-om-accent hover:text-om-accent text-sm">
                         ← {__('Back to History')}
                     </Link>
                     <div className="flex items-center gap-3 mt-2">

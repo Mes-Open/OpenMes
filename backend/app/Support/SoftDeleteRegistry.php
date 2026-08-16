@@ -40,6 +40,7 @@ class SoftDeleteRegistry
         'inspection_plans' => Models\InspectionPlan::class,
         'priority_rules' => Models\PriorityRule::class,
         'product_revisions' => Models\ProductRevision::class,
+        'engineering_documents' => Models\EngineeringDocument::class,
 
         // Structure
         'customers' => Models\Customer::class,
@@ -91,6 +92,12 @@ class SoftDeleteRegistry
         'pallets' => Models\Pallet::class,
         'attachments' => Models\Attachment::class,
 
+        // Warehousing (#212). Balances (warehouse_stocks) are derived data and
+        // deliberately not soft-deletable.
+        'warehouses' => Models\Warehouse::class,
+        'stock_documents' => Models\StockDocument::class,
+        'stock_document_lines' => Models\StockDocumentLine::class,
+
         // Maintenance
         'tools' => Models\Tool::class,
         'maintenance_events' => Models\MaintenanceEvent::class,
@@ -114,7 +121,7 @@ class SoftDeleteRegistry
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */
     private const LABEL_ATTRIBUTES = [
         'name', 'title', 'lot_number', 'order_no', 'pallet_no', 'ean',
-        'serial_no', 'code', 'email', 'topic', 'key',
+        'serial_no', 'code', 'email', 'topic', 'key', 'original_filename',
     ];
 
     /** @return list<string> */

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * WebhookEventRegistry and receives an HMAC-signed POST when they fire.
  *
  * The `secret` is encrypted at rest (cast) and must never be synced to the
- * browser — it is excluded from the Electric shape in ShapeRegistry.
+ * browser — it is excluded from the synced collection in ShapeRegistry.
  */
 class Webhook extends Model
 {

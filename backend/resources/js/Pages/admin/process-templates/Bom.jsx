@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 
 const TYPE_COLORS = {
     raw_material:  'bg-om-downtime-bg text-om-downtime',
@@ -191,6 +192,7 @@ export default function ProcessTemplatesBom() {
 
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
+    const { confirm, dialog } = useConfirm();
 
     const startEdit = (item) => {
         setShowAddForm(false);
@@ -198,11 +200,12 @@ export default function ProcessTemplatesBom() {
     };
 
     const handleRemove = (item) => {
-        if (!confirm(__('Remove this material from BOM?'))) return;
-        router.delete(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom/${item.id}`,
-            { preserveScroll: true },
-        );
+        confirm({ title: __('Remove this material from BOM?') }, () => {
+            router.delete(
+                `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom/${item.id}`,
+                { preserveScroll: true },
+            );
+        });
     };
 
     const columns = useMemo(() => [
@@ -391,6 +394,7 @@ export default function ProcessTemplatesBom() {
                     </div>
                 )}
             </div>
+            {dialog}
         </>
     );
 }

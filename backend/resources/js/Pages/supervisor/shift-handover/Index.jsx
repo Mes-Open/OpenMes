@@ -1,9 +1,10 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (balance/discrepancy data and close-shift post untouched).
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Badge, Button, Dropdown, InlineAlert } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import { useMemo } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 // Backend discrepancy severities → InlineAlert severities.
@@ -26,6 +27,7 @@ function Metric({ label, value, sub, accent }) {
 export default function ShiftHandoverIndex() {
     const { lines = [], selectedLineId = null, balance, recent = [] } = usePage().props;
     const form = useForm({ line_id: selectedLineId ?? '', notes: '' });
+    const { confirm, dialog } = useConfirm();
 
     const onLineChange = (value) => {
         router.get('/supervisor/shift-handover', value ? { line_id: value } : {}, {
@@ -36,9 +38,10 @@ export default function ShiftHandoverIndex() {
 
     const submit = (e) => {
         e.preventDefault();
-        if (!confirm(__('Confirm & close shift') + '?')) return;
-        form.transform((data) => ({ ...data, line_id: selectedLineId ?? '' }));
-        form.post('/supervisor/shift-handover', { preserveScroll: true });
+        confirm({ title: __('Confirm & close shift') + '?' }, () => {
+            form.transform((data) => ({ ...data, line_id: selectedLineId ?? '' }));
+            form.post('/supervisor/shift-handover', { preserveScroll: true });
+        });
     };
 
     const shift = balance?.shift;
@@ -100,8 +103,9 @@ export default function ShiftHandoverIndex() {
     ], []);
 
     return (
+        <>
         <div className="max-w-7xl mx-auto">
-            <Head title="Shift Handover" />
+            <Head title={__('Shift Handover')} />
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -209,18 +213,19 @@ export default function ShiftHandoverIndex() {
                     <h2 className="text-[14px] font-semibold text-om-ink">{__('Recent handovers')}</h2>
                 </div>
                 <div className="p-4">
-                    <DataTable
+                    <AppDataTable
                         data={recent}
                         columns={recentColumns}
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder={__('Search handovers…')}
                         emptyLabel={__('No handovers yet')}
                     />
                 </div>
             </div>
         </div>
+        {dialog}
+        </>
     );
 }
 

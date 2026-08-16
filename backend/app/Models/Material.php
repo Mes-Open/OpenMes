@@ -100,6 +100,12 @@ class Material extends Model
         return $this->hasMany(MaterialLot::class);
     }
 
+    /** Per-warehouse balances for this material (#212). */
+    public function warehouseStocks(): HasMany
+    {
+        return $this->hasMany(WarehouseStock::class);
+    }
+
     protected static function booted(): void
     {
         // The other way to close a BOM loop: point an item at a producing

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkIssueActionRequest;
 use App\Http\Requests\SetDispositionRequest;
 use App\Http\Requests\StoreIssueActionRequest;
 use App\Http\Requests\UpdateIssueActionRequest;
@@ -15,6 +16,7 @@ use App\Models\WorkOrder;
 use App\Services\IssueService;
 use App\Services\Quality\IssueActionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -38,10 +40,7 @@ class IssueManagementController extends Controller
             return redirect()->back()->with('error', __('Issue is not in OPEN status.'));
         }
 
-        $issue->update([
-            'status' => Issue::STATUS_ACKNOWLEDGED,
-            'acknowledged_at' => now(),
-        ]);
+        $this->markAcknowledged($issue);
 
         return redirect()->back()->with('success', __('Issue acknowledged.'));
     }
@@ -56,21 +55,75 @@ class IssueManagementController extends Controller
             return redirect()->back()->with('error', __('Issue is already resolved or closed.'));
         }
 
+        $this->markResolved($issue, $request->input('resolution_notes'));
+
+        return redirect()->back()->with('success', __('Issue resolved.'));
+    }
+
+    /**
+     * Acknowledge or resolve a whole set at once — the alerts page acts on the
+     * list it is showing, and one request per row would be dozens of round trips
+     * and dozens of redirects.
+     */
+    public function bulk(BulkIssueActionRequest $request)
+    {
+        $action = $request->validated('action');
+        $issues = Issue::whereIn('id', $request->validated('ids'))->get();
+
+        // Acknowledging only applies to an issue nobody has looked at yet;
+        // resolving applies to both live statuses. Anything already resolved or
+        // closed is skipped rather than failing the request (see the FormRequest).
+        $from = $action === 'acknowledge'
+            ? [Issue::STATUS_OPEN]
+            : [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED];
+
+        $eligible = $issues->filter(fn (Issue $issue) => in_array($issue->status, $from, true));
+        $notes = $request->validated('resolution_notes');
+
+        DB::transaction(function () use ($eligible, $action, $notes) {
+            // Updated one at a time (not a mass `whereIn(...)->update()`) so model
+            // events still fire — the sync broadcast that pushes each row to the
+            // browser hangs off them.
+            $eligible->each(fn (Issue $issue) => $action === 'acknowledge'
+                ? $this->markAcknowledged($issue)
+                : $this->markResolved($issue, $notes));
+        });
+
+        $message = $action === 'acknowledge'
+            ? __(':count issues acknowledged.', ['count' => $eligible->count()])
+            : __(':count issues resolved.', ['count' => $eligible->count()]);
+
+        $skipped = $issues->count() - $eligible->count();
+        if ($skipped > 0) {
+            $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    private function markAcknowledged(Issue $issue): void
+    {
+        $issue->update([
+            'status' => Issue::STATUS_ACKNOWLEDGED,
+            'acknowledged_at' => now(),
+        ]);
+    }
+
+    private function markResolved(Issue $issue, ?string $notes): void
+    {
         $issue->update([
             'status' => Issue::STATUS_RESOLVED,
             'resolved_at' => now(),
-            'resolution_notes' => $request->input('resolution_notes'),
+            'resolution_notes' => $notes,
         ]);
 
-        // Check if work order was blocked and can now be unblocked
+        // The work order this issue was blocking may now be free to run again.
         $workOrder = $issue->workOrder;
         if ($workOrder && $workOrder->status === WorkOrder::STATUS_BLOCKED) {
             if ($workOrder->openBlockingIssues()->isEmpty()) {
                 $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
             }
         }
-
-        return redirect()->back()->with('success', __('Issue resolved.'));
     }
 
     public function close(Issue $issue)

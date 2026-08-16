@@ -2,6 +2,7 @@
 // following the OpenMES Schedule design. Bars are positioned as a % of the day,
 // drag uses px→minute conversion measured from the track width.
 import { useState, useRef } from 'react';
+import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
 import { TwinChip } from './OrderCard';
 import {
@@ -73,7 +74,11 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
                     <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtMin(cur.start)}–{fmtMin(cur.end)} · {dur}</span>
                 </div>
                 {item.conflict && <span style={{ position: 'absolute', top: 3, right: 9, fontFamily: MONO, fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '1px 4px', zIndex: 4, pointerEvents: 'none' }}>{__('overlap')}</span>}
-                {readOnly && <span title={item.placementKey !== 'primary' ? __('Minute plan is shared — edit it from the primary line') : __('Spans another day — edit it from that day')} style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: 'var(--om-faint)' }}>⤢</span>}
+                {readOnly && (
+                    <Tooltip label={item.placementKey !== 'primary' ? __('Minute plan is shared — edit it from the primary line') : __('Spans another day — edit it from that day')}>
+                        <span style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: 'var(--om-faint)' }}>⤢</span>
+                    </Tooltip>
+                )}
                 {!readOnly && <span onPointerDown={(e) => begin('r', e)} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ width: 2, height: 14, borderRadius: 2, background: s.solid, opacity: 0.5 }} /></span>}
             </div>
         </div>
