@@ -4,6 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db';
 import { Button, ConfirmDialog, IconButton, StatusPill, Switch } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import Tooltip from '../../../components/Tooltip';
 import { __ } from '../../../lib/i18n';
 
 /**
@@ -54,13 +55,15 @@ export default function ProductTypesIndex() {
                         </svg>
                         {__('Import')}
                     </Button>
-                    <a
-                        href="/admin/import-example/product-types"
-                        className="w-6 h-6 rounded-full bg-om-chip text-om-faint flex items-center justify-center font-mono text-[11px] font-bold hover:bg-om-line2 hover:text-om-ink transition-colors"
-                        title={__('Download example CSV file for product types import')}
-                    >
-                        ?
-                    </a>
+                    <Tooltip label={__('Download example CSV file for product types import')}>
+                        <a
+                            href="/admin/import-example/product-types"
+                            className="w-6 h-6 rounded-full bg-om-chip text-om-faint flex items-center justify-center font-mono text-[11px] font-bold hover:bg-om-line2 hover:text-om-ink transition-colors"
+                            aria-label={__('Download example CSV file for product types import')}
+                        >
+                            ?
+                        </a>
+                    </Tooltip>
                     <Button variant="accent" onClick={() => router.visit('/admin/product-types/create')}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -118,46 +121,48 @@ export default function ProductTypesIndex() {
                                     <div className="pt-4 border-t border-om-line">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={!!pt.is_active}
-                                                    onChange={() => toggleActive(pt)}
-                                                    title={pt.is_active ? __('Deactivate') : __('Activate')}
-                                                    aria-label={pt.is_active ? __('Deactivate') : __('Activate')}
-                                                />
+                                                <Tooltip label={pt.is_active ? __('Deactivate') : __('Activate')}>
+                                                    <Switch
+                                                        checked={!!pt.is_active}
+                                                        onChange={() => toggleActive(pt)}
+                                                        aria-label={pt.is_active ? __('Deactivate') : __('Activate')}
+                                                    />
+                                                </Tooltip>
                                                 <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">
                                                     {pt.is_active ? __('Active') : __('Inactive')}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <IconButton
-                                                    onClick={() => router.visit(`/admin/product-types/${pt.id}/edit`)}
-                                                    title={__('Edit')}
-                                                    aria-label={__('Edit')}
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </IconButton>
-                                                {deletable ? (
+                                                <Tooltip label={__('Edit')}>
                                                     <IconButton
-                                                        variant="danger"
-                                                        onClick={() => setToDelete(pt)}
-                                                        title={__('Delete')}
-                                                        aria-label={__('Delete')}
+                                                        onClick={() => router.visit(`/admin/product-types/${pt.id}/edit`)}
+                                                        aria-label={__('Edit')}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
                                                     </IconButton>
+                                                </Tooltip>
+                                                {deletable ? (
+                                                    <Tooltip label={__('Delete')}>
+                                                        <IconButton
+                                                            variant="danger"
+                                                            onClick={() => setToDelete(pt)}
+                                                            aria-label={__('Delete')}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 ) : (
-                                                    <span
-                                                        className="inline-flex size-[38px] items-center justify-center text-om-faintest"
-                                                        title={__('Cannot delete - has templates or work orders')}
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                        </svg>
-                                                    </span>
+                                                    <Tooltip label={__('Cannot delete - has templates or work orders')}>
+                                                        <span className="inline-flex size-[38px] items-center justify-center text-om-faintest">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                            </svg>
+                                                        </span>
+                                                    </Tooltip>
                                                 )}
                                             </div>
                                         </div>

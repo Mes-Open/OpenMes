@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProductTypeRequest;
+use App\Http\Requests\UpdateProductTypeRequest;
 use App\Models\BatchStepLotConsumption;
 use App\Models\ProductType;
 use App\Models\SerialUnit;
 use App\Services\CustomFieldService;
-use Illuminate\Http\Request;
+use App\Services\Media\ImageSanitizer;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use InvalidArgumentException;
 
 class ProductTypeManagementController extends Controller
 {
     /**
      * Display a listing of product types.
      *
-     * The rows themselves live-sync via the `product_types` Electric shape
+     * The rows themselves live-sync via the `product_types` collection
      * (see Pages/admin/product-types/Index.jsx). Only the cross-table counts —
      * which don't map to per-row sync — are passed as a prop, keyed by id.
      */
@@ -47,24 +53,27 @@ class ProductTypeManagementController extends Controller
     /**
      * Store a newly created product type
      */
-    public function store(Request $request, CustomFieldService $cf)
+    public function store(StoreProductTypeRequest $request, CustomFieldService $cf, ImageSanitizer $sanitizer)
     {
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:product_types',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'unit_of_measure' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
-        ], $cf->rules('product_type')), [], $cf->attributeNames('product_type'));
+        // Store the photo before the insert: nothing about it depends on the
+        // row, so a file we can't accept fails the form instead of leaving a
+        // product type behind with an error pinned to it.
+        try {
+            $image = $this->storeImage($request->file('image'), $sanitizer);
+        } catch (InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['image' => $e->getMessage()]);
+        }
+
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['unit_of_measure'] = $validated['unit_of_measure'] ?? 'pcs';
-        unset($validated['custom_field_files']);
+        unset($validated['custom_field_files'], $validated['image']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'product_type') ?: null;
         }
 
-        ProductType::create($validated);
+        ProductType::make($validated)->forceFill($image)->save();
 
         return redirect()->route('admin.product-types.index')
             ->with('success', 'Product type created successfully.');
@@ -98,6 +107,7 @@ class ProductTypeManagementController extends Controller
                 'description' => $productType->description,
                 'unit_of_measure' => $productType->unit_of_measure,
                 'is_active' => $productType->is_active,
+                'image_url' => $productType->imageUrl(),
                 'custom_fields' => $productType->custom_fields,
                 'process_templates' => $productType->processTemplates->map(fn ($t) => [
                     'id' => $t->id,
@@ -206,7 +216,7 @@ class ProductTypeManagementController extends Controller
         return Inertia::render('admin/product-types/Edit', [
             'productType' => $productType->only(
                 'id', 'code', 'name', 'description', 'unit_of_measure', 'is_active', 'custom_fields'
-            ),
+            ) + ['image_url' => $productType->imageUrl()],
             'customFields' => $cf->clientConfig('product_type'),
         ]);
     }
@@ -214,27 +224,86 @@ class ProductTypeManagementController extends Controller
     /**
      * Update the specified product type
      */
-    public function update(Request $request, ProductType $productType, CustomFieldService $cf)
-    {
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:product_types,code,'.$productType->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'unit_of_measure' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
-        ], $cf->rules('product_type')), [], $cf->attributeNames('product_type'));
+    public function update(
+        UpdateProductTypeRequest $request,
+        ProductType $productType,
+        CustomFieldService $cf,
+        ImageSanitizer $sanitizer,
+    ) {
+        // A new upload always wins over the remove flag.
+        try {
+            $image = $this->storeImage($request->file('image'), $sanitizer);
+        } catch (InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['image' => $e->getMessage()]);
+        }
+        if (! $image && $request->boolean('remove_image')) {
+            $image = ['image_path' => null, 'image_mime' => null];
+        }
+
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['unit_of_measure'] = $validated['unit_of_measure'] ?? 'pcs';
-        unset($validated['custom_field_files']);
+        unset($validated['custom_field_files'], $validated['image'], $validated['remove_image']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'product_type', $productType->custom_fields) ?: null;
         }
 
-        $productType->update($validated);
+        $replaced = $image ? $productType->image_path : null;
+
+        // One write, so subscribers see one CollectionChanged carrying the
+        // whole edit rather than a half-applied row followed by the rest.
+        $productType->fill($validated)->forceFill($image)->save();
+
+        if ($replaced) {
+            Storage::delete($replaced);
+        }
 
         return redirect()->route('admin.product-types.index')
             ->with('success', 'Product type updated successfully.');
+    }
+
+    /**
+     * Stream the product photo. Files live on the private disk under a
+     * server-generated name and are only ever served through here.
+     */
+    public function image(ProductType $productType)
+    {
+        abort_unless($productType->image_path && Storage::exists($productType->image_path), 404);
+
+        // mime comes from our own re-encode — a known-safe raster type.
+        return Storage::response($productType->image_path, null, [
+            'Content-Type' => $productType->image_mime,
+            'Content-Disposition' => 'inline',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Re-encode the upload (destroying anything smuggled inside it) and store
+     * it under a random server-generated name, returning the columns that
+     * point at it — the caller folds them into its own write.
+     *
+     * @return array{image_path?: string, image_mime?: string} empty when nothing was uploaded
+     *
+     * @throws InvalidArgumentException when the file is not a clean raster image
+     */
+    private function storeImage(?UploadedFile $file, ImageSanitizer $sanitizer): array
+    {
+        if (! $file) {
+            return [];
+        }
+
+        $clean = $sanitizer->sanitize($file->getRealPath());
+
+        // Never the client filename, never a client-supplied extension. The
+        // random name is unique on its own, so the path needs no row id and
+        // can therefore be written before the row exists.
+        $path = 'product-type-images/'.Str::random(40).'.'.$clean['extension'];
+        Storage::put($path, $clean['bytes']);
+
+        return ['image_path' => $path, 'image_mime' => $clean['mime']];
     }
 
     /**

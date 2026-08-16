@@ -4,6 +4,8 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 
 const WORK_ORDER_STATUS_LABELS = {
     PENDING: 'Pending',
@@ -36,6 +38,7 @@ function Icon({ d, className = 'w-5 h-5' }) {
 
 function LineStatusesCard({ line, lineStatuses }) {
     const form = useForm({ color: '#F59E0B', name: '', sort_order: 10 });
+    const { confirm, dialog } = useConfirm();
 
     const submit = (e) => {
         e.preventDefault();
@@ -43,9 +46,9 @@ function LineStatusesCard({ line, lineStatuses }) {
     };
 
     const deleteStatus = (statusId) => {
-        if (confirm('Delete this status?')) {
+        confirm({ title: 'Delete this status?' }, () => {
             router.delete(`/admin/line-statuses/${statusId}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
@@ -83,13 +86,15 @@ function LineStatusesCard({ line, lineStatuses }) {
                             {status.line_id === null ? (
                                 <span className="text-xs opacity-60">{__('global')}</span>
                             ) : (
-                                <button
-                                    onClick={() => deleteStatus(status.id)}
-                                    className="ml-1 opacity-75 hover:opacity-100"
-                                    title={__('Delete')}
-                                >
-                                    <Icon d="M6 18L18 6M6 6l12 12" className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip label={__('Delete')}>
+                                    <button
+                                        onClick={() => deleteStatus(status.id)}
+                                        className="ml-1 opacity-75 hover:opacity-100"
+                                        aria-label={__('Delete')}
+                                    >
+                                        <Icon d="M6 18L18 6M6 6l12 12" className="w-3.5 h-3.5" />
+                                    </button>
+                                </Tooltip>
                             )}
                         </div>
                     ))
@@ -134,6 +139,7 @@ function LineStatusesCard({ line, lineStatuses }) {
                     {__('Add to this line')}
                 </Button>
             </form>
+            {dialog}
         </div>
     );
 }
@@ -299,6 +305,7 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
 
 function OperatorsCard({ line, availableOperators }) {
     const form = useForm({ user_id: '' });
+    const { confirm, dialog } = useConfirm();
 
     const submit = (e) => {
         e.preventDefault();
@@ -309,9 +316,9 @@ function OperatorsCard({ line, availableOperators }) {
     };
 
     const unassign = (userId, userName) => {
-        if (confirm(`Remove ${userName} from this line?`)) {
+        confirm({ title: `Remove ${userName} from this line?` }, () => {
             router.delete(`/admin/lines/${line.id}/operators/${userId}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
@@ -333,13 +340,15 @@ function OperatorsCard({ line, availableOperators }) {
                                     <p className="text-sm text-om-muted">{user.username}</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => unassign(user.id, user.name)}
-                                className="text-om-blocked hover:text-om-blocked p-2"
-                                title="Remove operator"
-                            >
-                                <Icon d="M6 18L18 6M6 6l12 12" />
-                            </button>
+                            <Tooltip label="Remove operator">
+                                <button
+                                    onClick={() => unassign(user.id, user.name)}
+                                    className="text-om-blocked hover:text-om-blocked p-2"
+                                    aria-label="Remove operator"
+                                >
+                                    <Icon d="M6 18L18 6M6 6l12 12" />
+                                </button>
+                            </Tooltip>
                         </div>
                     ))}
                 </div>
@@ -382,6 +391,7 @@ function OperatorsCard({ line, availableOperators }) {
                     </p>
                 </div>
             )}
+            {dialog}
         </div>
     );
 }
@@ -624,30 +634,36 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                                 <code className="text-xs text-om-muted bg-om-line2 px-1.5 py-0.5 rounded">
                                     {col.source}.{col.key}
                                 </code>
-                                <button
-                                    type="button"
-                                    onClick={() => moveUp(i)}
-                                    className="p-1 text-om-faint hover:text-om-ink"
-                                    title="Move up"
-                                >
-                                    <Icon d="M5 15l7-7 7 7" className="w-4 h-4" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => moveDown(i)}
-                                    className="p-1 text-om-faint hover:text-om-ink"
-                                    title="Move down"
-                                >
-                                    <Icon d="M19 9l-7 7-7-7" className="w-4 h-4" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => remove(i)}
-                                    className="p-1 text-red-400 hover:text-om-blocked"
-                                    title="Remove"
-                                >
-                                    <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
-                                </button>
+                                <Tooltip label="Move up">
+                                    <button
+                                        type="button"
+                                        onClick={() => moveUp(i)}
+                                        className="p-1 text-om-faint hover:text-om-ink"
+                                        aria-label="Move up"
+                                    >
+                                        <Icon d="M5 15l7-7 7 7" className="w-4 h-4" />
+                                    </button>
+                                </Tooltip>
+                                <Tooltip label="Move down">
+                                    <button
+                                        type="button"
+                                        onClick={() => moveDown(i)}
+                                        className="p-1 text-om-faint hover:text-om-ink"
+                                        aria-label="Move down"
+                                    >
+                                        <Icon d="M19 9l-7 7-7-7" className="w-4 h-4" />
+                                    </button>
+                                </Tooltip>
+                                <Tooltip label="Remove">
+                                    <button
+                                        type="button"
+                                        onClick={() => remove(i)}
+                                        className="p-1 text-red-400 hover:text-om-blocked"
+                                        aria-label="Remove"
+                                    >
+                                        <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
+                                    </button>
+                                </Tooltip>
                             </div>
                         ))
                     )}

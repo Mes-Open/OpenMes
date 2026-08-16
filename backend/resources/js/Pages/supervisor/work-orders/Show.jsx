@@ -1,10 +1,13 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (status transitions, modal post and batch logic untouched).
 import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, StatusPill } from '@openmes/ui';
+import { Button, StatusPill, Stepper } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
+import DueCountdown from '../../../components/DueCountdown';
 import { apiCall } from '../../../lib/http';
-import { __, formatDate, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatNumber, timeAgo } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -27,9 +30,12 @@ const BATCH_PILL_STATUS = {
     DONE: 'done',
 };
 
-const STEP_STATUS_STYLES = {
-    DONE: 'bg-om-running-bg text-om-running',
-    IN_PROGRESS: 'bg-om-selected text-om-accent',
+/** Routing-step status → the stepper's vocabulary. */
+const STEP_STATUS = {
+    DONE: 'done',
+    IN_PROGRESS: 'active',
+    READY: 'active',
+    BLOCKED: 'blocked',
 };
 
 const ISSUE_PILL_STATUS = {
@@ -109,27 +115,33 @@ function BatchRow({ batch, processSnapshot, workstationTypeNames = {}, onAssign 
                 </svg>
             </div>
 
+            {/* Same routing, same stepper as the admin detail page — the estimate
+                here comes from the order's frozen process snapshot rather than the
+                step row, which is the only difference between the two. */}
             {open && (
-                <div className="mt-3 space-y-1">
-                    {(batch.steps ?? []).map((step) => {
-                        const stepStyle = STEP_STATUS_STYLES[step.status] ?? 'bg-om-chip text-om-faint';
-                        const estimated = snapshotSteps[step.step_number] ?? null;
-                        const overTime = estimated && step.duration_minutes != null && step.duration_minutes > estimated;
-                        return (
-                            <div key={step.id} className="flex items-center gap-3 py-1.5 px-2 rounded-om-sm text-sm hover:bg-om-bg">
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-xs flex-shrink-0 ${stepStyle}`}>
-                                    {step.step_number}
-                                </span>
-                                <span className="flex-1 text-om-ink">{step.name}</span>
-                                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{step.status.replace('_', ' ')}</span>
-                                {step.duration_minutes != null ? (
-                                    <span className={`font-mono text-xs font-medium ${overTime ? 'text-om-blocked' : 'text-om-running'}`}>
-                                        {step.duration_minutes}min{estimated ? ` / est. ${estimated}min` : ''}
+                <div className="mt-3 pl-1">
+                    <Stepper
+                        size="sm"
+                        steps={(batch.steps ?? []).map((step) => {
+                            const estimated = snapshotSteps[step.step_number] ?? null;
+                            const actual = step.duration_minutes ?? null;
+                            const overTime = estimated != null && actual != null && actual > estimated;
+                            return {
+                                key: step.id,
+                                title: step.name,
+                                label: step.step_number,
+                                // The status the flat list used to print on the right; as the second
+                                // line it sits with the step it describes.
+                                description: __(step.status),
+                                status: STEP_STATUS[step.status] ?? 'pending',
+                                meta: actual != null ? (
+                                    <span className={`font-mono font-medium ${overTime ? 'text-om-blocked' : 'text-om-running'}`}>
+                                        {actual}min{estimated ? ` / est. ${estimated}min` : ''}
                                     </span>
-                                ) : estimated ? (
-                                    <span className="font-mono text-xs text-om-faint">est. {estimated}min</span>
-                                ) : null}
-                                {['PENDING', 'READY'].includes(step.status) && step.workstation_type_id && !step.workstation_id && (
+                                ) : estimated != null ? (
+                                    <span className="font-mono text-om-faint">est. {estimated}min</span>
+                                ) : null,
+                                action: ['PENDING', 'READY'].includes(step.status) && step.workstation_type_id && !step.workstation_id ? (
                                     <button
                                         type="button"
                                         onClick={(event) => {
@@ -141,10 +153,10 @@ function BatchRow({ batch, processSnapshot, workstationTypeNames = {}, onAssign 
                                     >
                                         {__('Assign')}
                                     </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                                ) : null,
+                            };
+                        })}
+                    />
                     {batch.started_at && (
                         <p className="text-xs text-om-faint pt-1">
                             Started: {fmtDateTime(batch.started_at)}
@@ -252,6 +264,7 @@ export default function SupervisorWorkOrderShow() {
     const { workOrder, workstations = [], workstationTypeNames = {} } = usePage().props;
     const [assignStep, setAssignStep] = useState(null); // batch step being assigned a workstation (#52)
     const [showDoneModal, setShowDoneModal] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const post = (verb) => router.post(`/supervisor/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
 
@@ -275,6 +288,7 @@ export default function SupervisorWorkOrderShow() {
     return (
         <>
             <Head title={__('Work Order :no', { no: workOrder.order_no })} />
+            <PageTrail items={[{ label: __('Supervisor'), href: '/supervisor/dashboard', icon: 'layout-dashboard' }, { label: __('Work Orders'), href: '/supervisor/work-orders', icon: 'clipboard-list' }, { label: `#${workOrder.order_no}` }]} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -298,7 +312,7 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                                 <Button
                                     variant="danger"
-                                    onClick={() => { if (confirm(__('Reject this work order?'))) post('reject'); }}
+                                    onClick={() => confirm({ title: __('Reject this work order?') }, () => post('reject'))}
                                 >
                                     Reject
                                 </Button>
@@ -307,7 +321,7 @@ export default function SupervisorWorkOrderShow() {
                         {status === 'ACCEPTED' && (
                             <Button
                                 variant="danger"
-                                onClick={() => { if (confirm(__('Reject this work order?'))) post('reject'); }}
+                                onClick={() => confirm({ title: __('Reject this work order?') }, () => post('reject'))}
                             >
                                 Reject
                             </Button>
@@ -333,7 +347,7 @@ export default function SupervisorWorkOrderShow() {
                         {isTerminal ? (
                             <Button
                                 variant="primary"
-                                onClick={() => { if (confirm(__('Reopen this work order?'))) post('reopen'); }}
+                                onClick={() => confirm({ title: __('Reopen this work order?') }, () => post('reopen'))}
                             >
                                 Reopen
                             </Button>
@@ -346,7 +360,7 @@ export default function SupervisorWorkOrderShow() {
                                     Edit
                                 </Link>
                                 <button
-                                    onClick={() => { if (confirm(__('Cancel this work order?'))) post('cancel'); }}
+                                    onClick={() => confirm({ title: __('Cancel this work order?') }, () => post('cancel'))}
                                     className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"
                                 >
                                     Cancel
@@ -401,6 +415,11 @@ export default function SupervisorWorkOrderShow() {
                                         <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
+                                        <DueCountdown
+                                            due={workOrder.due_date}
+                                            settled={TERMINAL.includes(status)}
+                                            className="text-[11px]"
+                                        />
                                     </div>
                                 )}
                                 {workOrder.description && (
@@ -515,6 +534,7 @@ export default function SupervisorWorkOrderShow() {
             {showDoneModal && (
                 <DoneModal workOrder={workOrder} onClose={() => setShowDoneModal(false)} />
             )}
+            {dialog}
 
             {assignStep && (
                 <AssignWorkstationModal

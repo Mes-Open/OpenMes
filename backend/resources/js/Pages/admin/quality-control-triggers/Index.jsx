@@ -21,10 +21,12 @@ export default function QualityControlTriggersIndex() {
     };
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         {
             key: 'trigger_type',
             label: __('Type'),
+            value: (r) => TRIGGER_TYPE_LABELS[r.trigger_type] ?? r.trigger_type,
+           
             render: (r) => (
                 <span className="text-xs px-2 py-0.5 rounded font-medium bg-om-line2 text-om-muted">
                     {TRIGGER_TYPE_LABELS[r.trigger_type] ?? r.trigger_type}
@@ -35,17 +37,20 @@ export default function QualityControlTriggersIndex() {
             key: 'threshold_n',
             label: __('N'),
             className: 'text-om-muted',
+           
             render: (r) => (r.threshold_n ?? '—'),
         },
         {
             key: 'quality_check_template_id',
             label: __('Control'),
             className: 'text-om-muted',
+            value: (r) => templateNames[r.quality_check_template_id] ?? '—',
+           
             render: (r) => templateNames[r.quality_check_template_id] ?? '—',
         },
-        { key: 'scope', label: __('Scope'), className: 'text-om-muted', render: scope },
+        { key: 'scope', label: __('Scope'), className: 'text-om-muted', value: scope, render: scope },
         { key: 'is_blocking', label: __('Blocking'), render: (r) => (r.is_blocking ? __('Yes') : __('No')) },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -59,11 +64,11 @@ export default function QualityControlTriggersIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete trigger ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/quality-control-triggers/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete trigger ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/quality-control-triggers/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -74,7 +79,7 @@ export default function QualityControlTriggersIndex() {
                 shape="quality_control_triggers"
                 title={__('Quality Control Triggers')}
                 createHref="/admin/quality-control-triggers/create"
-                createLabel={__('+ New Trigger')}
+                createLabel={__('New Trigger')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

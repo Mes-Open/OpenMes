@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -92,12 +92,11 @@ export default function NetRequirementsIndex() {
                     {shortages.length === 0 ? (
                         <Empty>{__('No shortages — on-hand stock covers the planned work orders.')}</Empty>
                     ) : (
-                        <DataTable
+                        <AppDataTable
                             data={shortages}
                             columns={shortageColumns}
                             searchable
                             paginated
-                            searchPlaceholder={__('Search components…')}
                             emptyLabel={__('No shortages.')}
                         />
                     )}
@@ -108,13 +107,12 @@ export default function NetRequirementsIndex() {
                     {requirements.length === 0 ? (
                         <Empty>{__('No planned work orders in this period.')}</Empty>
                     ) : (
-                        <DataTable
+                        <AppDataTable
                             data={requirements}
                             columns={reqColumns}
                             searchable
                             columnToggle
                             paginated
-                            searchPlaceholder={__('Search components…')}
                             emptyLabel={__('No requirements.')}
                         />
                     )}

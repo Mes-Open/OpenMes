@@ -57,6 +57,27 @@
                     <p class="text-sm text-gray-500 mt-1">The URL where OpenMES will be accessed</p>
                 </div>
 
+                <div class="mb-6">
+                    <label for="app_timezone" class="form-label">Plant Timezone</label>
+                    <select id="app_timezone" name="app_timezone" class="form-input w-full" required>
+                        @foreach($timezones as $region => $identifiers)
+                            <optgroup label="{{ $region }}">
+                                @foreach($identifiers as $identifier)
+                                    <option value="{{ $identifier }}" @selected(old('app_timezone', $currentTimezone) === $identifier)>
+                                        {{ $identifier }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Used for every timestamp, report boundary and shift edge. Set the
+                        timezone of the plant, not of the server — otherwise a day's report
+                        covers different hours than the shift that was worked. You can change
+                        it later without reinstalling.
+                    </p>
+                </div>
+
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                     <p class="text-blue-800 text-sm">
                         <strong>Note:</strong> This will create the configuration file and prepare the system for database setup.

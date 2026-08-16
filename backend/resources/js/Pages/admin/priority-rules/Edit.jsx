@@ -4,13 +4,13 @@ import ResourceForm from '../../../components/ResourceForm';
 import { priorityRuleFields } from './fields';
 import { __ } from '../../../lib/i18n';
 
-export default function PriorityRuleEdit({ priorityRule }) {
+export default function PriorityRuleEdit({ priorityRule, basePath }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('Edit Priority Rule')} />
             <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Priority Rule')}</h1>
             <ResourceForm
-                action={`/admin/priority-rules/${priorityRule.id}`}
+                action={`${basePath}/${priorityRule.id}`}
                 method="put"
                 fields={priorityRuleFields()}
                 initial={{
@@ -24,7 +24,7 @@ export default function PriorityRuleEdit({ priorityRule }) {
                     is_active: !!priorityRule.is_active,
                 }}
                 submitLabel={__('Save Changes')}
-                cancelHref="/admin/priority-rules"
+                cancelHref={basePath}
             />
         </div>
     );

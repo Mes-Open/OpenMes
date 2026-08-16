@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -292,15 +292,13 @@ export default function AuditLogs() {
                 </div>
 
                 {/* Table */}
-                <DataTable
+                <AppDataTable
+                    filterable={false}
                     data={logs}
                     columns={columns}
                     searchable
                     columnToggle
                     paginated={false}
-                    searchPlaceholder="Search audit logs…"
-                    columnsLabel="Columns"
-                    columnsMenuLabel="Toggle columns"
                     emptyLabel={__('No audit logs found')}
                 />
 

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import PageTrail from '../../../components/PageTrail';
+import { __ } from '../../../lib/i18n';
 
 const AUTO_MAP_RULES = {
     symbol:           'external_code',
@@ -107,15 +109,7 @@ export default function MaterialsImportMapping() {
             <Head title="Map Material Columns" />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
-                <span>/</span>
-                <Link href="/admin/materials" className="hover:text-om-ink">Materials</Link>
-                <span>/</span>
-                <Link href="/admin/materials/import" className="hover:text-om-ink">Import</Link>
-                <span>/</span>
-                <span className="text-om-ink font-medium">Map Columns</span>
-            </nav>
+            <PageTrail append={[{ label: __('Import'), href: '/admin/materials-import' }, { label: __('Map Columns') }]} />
 
             <div className="flex justify-between items-center mb-6">
                 <div>

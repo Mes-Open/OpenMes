@@ -11,6 +11,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 | [Operator Guide](operator-guide.md) | Production operators | How to work with production orders on the shop floor |
 | [Supervisor Guide](supervisor-guide.md) | Supervisors & team leads | Managing lines, monitoring production, handling issues |
 | [Admin Guide](admin-guide.md) | System administrators | Installation, configuration, user management, modules |
+| [Implementation Runbook](implementation-runbook.md) | Integrators & IT leads | End-to-end procedure for deploying OpenMES in a plant: infrastructure, install, master data, pilot, go-live, handover |
 
 ---
 
@@ -42,6 +43,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 | [Module Hooks](../HOOKS.md) | Extend OpenMES with modules — event, menu and dashboard-widget hooks |
 | [Technical Documentation](development.md) | Architecture, modules system, development guide |
 | [Machine Connectivity](machine-connectivity.md) | Signal pipeline, Modbus/OPC UA/MQTT, adding a new protocol |
+| [Warehouses & ERP Sync Rollout](warehouse-erp-rollout.md) | Deployment runbook for warehousing and the ERP master-data / stock sync |
 | [MQTT Connectivity](mqtt-connectivity.md) | MQTT setup and the listener daemon |
 | [Contributing](CONTRIBUTING.md) | How to contribute to OpenMES |
 
@@ -50,8 +52,10 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 ## Quick Navigation
 
 - **New to OpenMES?** → Start with the [Admin Guide](admin-guide.md) to set up the system
+- **Deploying OpenMES in a plant?** → Follow the [Implementation Runbook](implementation-runbook.md)
 - **Onboarding a plant team?** → Use the [Training Program](training-program.md)
 - **Setting up tablets?** → See [PWA Installation](../README.md#-pwa-installation-tablets) in the main README
 - **Building integrations?** → See the [API Documentation](API_DOCUMENTATION.md)
+- **Rolling out warehousing / ERP sync?** → Follow the [rollout runbook](warehouse-erp-rollout.md)
 - **Writing a module?** → See [HOOKS.md](../HOOKS.md) and [Technical Documentation](development.md)
 - **What counts as config vs custom code?** → See [Customization Layers](customization-layers.md)

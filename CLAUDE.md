@@ -7,8 +7,8 @@ Human-oriented docs live in [`docs/`](docs/index.md); contributor workflow in [`
 
 - **Backend:** Laravel 12 (`backend/`), PostgreSQL 17, served by Octane/RoadRunner in Docker
 - **Frontend:** React 19 + Inertia.js (`backend/resources/js/`), Tailwind, built by Vite
-- **Live sync:** [Electric SQL](https://electric-sql.com) — read-path sync from Postgres WAL to the browser (see "Electric shapes" below); writes always go through Laravel controllers
-- **Infra:** `docker-compose.yml` (postgres, backend, electric, caddy + optional connectivity daemons)
+- **Live sync:** Laravel Reverb (Pusher-protocol WebSockets) + TanStack DB — read-path sync from Laravel to the browser (see "Synced collections" below); writes always go through Laravel controllers
+- **Infra:** `docker-compose.yml` (postgres, backend, reverb, caddy + optional connectivity daemons)
 
 ## Commands
 
@@ -45,18 +45,19 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
    - if the table has `cascadeOnDelete` children, mirror them in the model's `softDeleteCascades()` (DB cascades don't fire on soft delete),
    - tests assert deletes with `assertSoftDeleted`, not `assertDatabaseMissing`.
 
-## Electric shapes (live data)
+## Synced collections (live data)
 
-- Shapes are declared server-side in `backend/app/Sync/ShapeRegistry.php` (table + column allowlist + optional WHERE). The browser never queries Postgres directly.
-- Flow: client asks `GET /api/shapes/{name}` (Laravel authorizes, returns an HMAC-signed capability) → streams via Caddy `/electric/*` (`forward_auth` re-checks the signature) → Electric → Postgres WAL.
-- **Adding a column to a synced table?** Add it to the shape's `columns` list too, or the UI will never see it.
-- Frontend hooks: `useLiveShape` (always live), `useSyncedShape` (live on HTTP/2, polls on HTTP/1.1), `usePolledShape` (one-shot snapshot). Hot app-wide shapes are shared via `LiveShapesProvider` — don't subscribe to them again per page.
+- Collections are declared server-side in `backend/app/Sync/ShapeRegistry.php` (table + column allowlist + optional WHERE). The browser never queries Postgres directly.
+- Flow: client loads the initial snapshot from `GET /api/collections/{name}` (`CollectionController`, Laravel authorizes and applies the tenant scope) → live deltas then arrive as `CollectionChanged` broadcasts on a private channel (`backend/routes/channels.php`) → Laravel Reverb (Pusher protocol) → `laravel-echo` / `pusher-js`.
+- One app-wide multiplexed WebSocket carries every collection channel (`backend/resources/js/lib/echo.js`), so there's no per-connection budget. Client state is TanStack DB (`lib/realtimeCollection.js`).
+- **Adding a column to a synced table?** Add it to the collection's `columns` list too, or the UI will never see it.
+- Frontend hooks (`lib/useSyncedShape.js`): `useLiveShape(name)` and `useSyncedShape(name)` — identical, both live, both return `{ data, isLoading }`; the two names only signal call-site intent. Hot app-wide collections are shared via `LiveShapesProvider` — don't subscribe to them again per page.
 - New pages should use Sanctum SPA cookie auth (session), not tokens.
 
 ## Frontend conventions
 
 - New pages are React/Inertia (`backend/resources/js/Pages/...`); legacy Blade+Livewire pages still exist and are being ported — don't add new Blade pages.
-- Config-driven CRUD: `ResourceTable` (list, fed by an Electric shape) + `ResourceForm` (create/edit via Inertia `useForm`). Custom forms only when those don't fit.
+- Config-driven CRUD: `ResourceTable` (list, fed by a synced collection) + `ResourceForm` (create/edit via Inertia `useForm`). Custom forms only when those don't fit.
 - React escaping is the XSS defense — `dangerouslySetInnerHTML` is effectively banned.
 
 ## Workflow
@@ -70,6 +71,6 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 ## Gotchas
 
 - `php artisan test` needs a Vite manifest for Inertia feature tests — run `npm run build` first if you see `ViteException`.
-- A number of legacy `assertSee` tests fail by design after the React migration (data arrives via Electric, not server-rendered HTML) — compare against the develop baseline before assuming you broke something.
+- A number of legacy `assertSee` tests fail by design after the React migration (rows live-sync to the browser, they aren't server-rendered HTML) — compare against the develop baseline before assuming you broke something.
 - `TrustProxies(at: '*')` in `bootstrap/app.php` is required for HTTPS behind Caddy — don't remove it.
 - Modules under `modules/` are deprecated in favor of core (`.gitignore` documents this) — don't add new module code there.

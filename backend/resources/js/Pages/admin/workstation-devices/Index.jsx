@@ -30,6 +30,8 @@ export default function WorkstationDevicesIndex() {
         {
             key: 'status',
             label: __('Status'),
+            value: (r) => (isOnline(r) ? __('Online') : __('Offline')),
+           
             render: (r) => {
                 const online = isOnline(r);
                 return (
@@ -45,11 +47,11 @@ export default function WorkstationDevicesIndex() {
                 );
             },
         },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'ip_address', label: __('IP address'), className: 'font-mono text-om-muted' },
-        { key: 'line', label: __('Line'), render: (r) => (r.line_id ? lines[r.line_id] ?? `#${r.line_id}` : '—') },
+        { key: 'line', label: __('Line'), value: (r) => (r.line_id ? lines[r.line_id] ?? `#${r.line_id}` : '—'), render: (r) => (r.line_id ? lines[r.line_id] ?? `#${r.line_id}` : '—') },
         { key: 'app_version', label: __('Version'), className: 'font-mono text-om-muted', render: (r) => r.app_version || '—' },
-        { key: 'last_seen_at', label: __('Last seen'), render: (r) => (r.last_seen_at ? timeAgo(r.last_seen_at) : '—') },
+        { key: 'last_seen_at', filter: 'date', label: __('Last seen'), render: (r) => (r.last_seen_at ? timeAgo(r.last_seen_at) : '—') },
     ];
 
     const actions = (r) => [
@@ -57,11 +59,11 @@ export default function WorkstationDevicesIndex() {
             label: __('Forget'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Forget workstation ":name"? It can re-register later.', { name: r.name }))) {
-                    router.delete(`/admin/workstation-devices/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Forget workstation ":name"? It can re-register later.', { name: r.name }),
+                confirmLabel: __('Forget'),
             },
+            onClick: () => router.delete(`/admin/workstation-devices/${r.id}`, { preserveScroll: true }),
         },
     ];
 

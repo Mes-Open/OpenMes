@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Events\Schedule\WorkOrderScheduled;
 use App\Events\WorkOrder\WorkOrderCompleted;
 use App\Events\WorkOrder\WorkOrderCreated;
 use App\Events\WorkOrder\WorkOrderUpdated;
@@ -37,6 +38,13 @@ class WorkOrderEventObserver
         // First transition into DONE is the completion hook.
         if ($workOrder->wasChanged('status') && $workOrder->status === WorkOrder::STATUS_DONE) {
             $this->fire(fn () => WorkOrderCompleted::dispatch($workOrder));
+        }
+
+        // A write touching where/when the order sits is a schedule change. Fired
+        // here rather than from the planner service so it also covers the admin
+        // edit form, the ERP import and anything else that moves an order.
+        if ($workOrder->wasChanged(WorkOrder::PLACEMENT_FIELDS)) {
+            $this->fire(fn () => WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges()));
         }
     }
 

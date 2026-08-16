@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 /**
  * Admin alerts for the mobile/tablet app, mirroring the web alerts page
  * (Pages/admin/alerts/Index.jsx). The web page derives the four lists
- * client-side from Electric shapes; here we compute them server-side:
+ * client-side from synced collections; here we compute them server-side:
  * blocking issues, non-blocking (open) issues, overdue work orders, blocked
  * work orders — plus the combined total used for the nav badge.
  */

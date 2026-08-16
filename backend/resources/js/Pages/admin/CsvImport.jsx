@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import useConfirm from '../../components/useConfirm';
 import { __ } from '../../lib/i18n';
+import PageTrail from '../../components/PageTrail';
 
 function Icon({ d, className = 'w-5 h-5' }) {
     return (
@@ -21,6 +23,7 @@ export default function CsvImport() {
         productionPeriod = 'none',
         import_result: importResult = null,
         csrf_token: csrfToken,
+        basePath,
     } = usePage().props;
 
     const [dragging, setDragging] = useState(false);
@@ -29,6 +32,7 @@ export default function CsvImport() {
     const [importStrategy, setImportStrategy] = useState('update_or_create');
     const [mappingId, setMappingId] = useState('');
     const [targetLineId, setTargetLineId] = useState('');
+    const { confirm, dialog } = useConfirm();
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -53,11 +57,7 @@ export default function CsvImport() {
             <Head title={__('CSV Import')} />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
-                <span>/</span>
-                <span className="text-om-ink font-medium">{__('CSV Import')}</span>
-            </nav>
+            <PageTrail />
 
             <div className="flex justify-between items-center mb-6">
                 <div>
@@ -112,7 +112,7 @@ export default function CsvImport() {
                     <h2 className="text-xl font-bold text-om-ink mb-4">{__('Upload File')}</h2>
                     <form
                         method="POST"
-                        action="/admin/csv-import/upload"
+                        action={`${basePath}/upload`}
                         encType="multipart/form-data"
                     >
                         <input type="hidden" name="_token" value={csrfToken} />
@@ -320,12 +320,18 @@ export default function CsvImport() {
                                         {!m.is_default && (
                                             <form
                                                 method="POST"
-                                                action={`/admin/csv-import/mappings/${m.id}`}
-                                                onSubmit={(e) => !window.confirm(__('Delete mapping profile?')) && e.preventDefault()}
+                                                action={`${basePath}/mappings/${m.id}`}
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />
-                                                <button type="submit" className="text-red-400 hover:text-om-blocked p-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        const el = e.currentTarget.closest('form');
+                                                        confirm({ title: __('Delete mapping profile?') }, () => el.submit());
+                                                    }}
+                                                    className="text-red-400 hover:text-om-blocked p-1"
+                                                >
                                                     <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" className="w-4 h-4" />
                                                 </button>
                                             </form>
@@ -379,6 +385,7 @@ export default function CsvImport() {
                 </div>
 
             </div>
+            {dialog}
         </div>
     );
 }

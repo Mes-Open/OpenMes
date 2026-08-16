@@ -11,7 +11,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 /**
  * A single create/update/delete to a synced collection, pushed to the
  * collection's private channel so the client's realtimeCollection adapter can
- * apply it. Replaces an Electric shape delta.
+ * apply it.
  *
  * Channel: col.{tenantKey}.{collection}  (tenantKey = tenant_id or "g" for null,
  * mirroring the null-safe TenantScope). Broadcast NOW (synchronous) since

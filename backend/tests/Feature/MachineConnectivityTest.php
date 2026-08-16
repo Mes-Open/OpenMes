@@ -100,7 +100,7 @@ class MachineConnectivityTest extends TestCase
         app(MachineSignalIngestor::class)->ingest($tag, 1);
 
         $this->assertEquals('RUNNING', app(WorkstationStateMachine::class)->current($ws)->state);
-        $this->assertEquals(1, MachineEvent::where('event_type', 'state_change')->count());
+        $this->assertEquals(1, MachineEvent::where('event_type', 'state_change')->where('workstation_id', $ws->id)->count());
     }
 
     public function test_ingest_counter_emits_delta_only(): void
@@ -112,7 +112,9 @@ class MachineConnectivityTest extends TestCase
         $ingestor->ingest($tag, 10); // first reading → baseline, delta 0
         $ingestor->ingest($tag, 13); // delta 3
 
-        $events = MachineEvent::where('event_type', 'counter')->get();
+        // Scoped to this test's own workstation: the assertion is about what
+        // these two ingests produced, not about the table being empty.
+        $events = MachineEvent::where('event_type', 'counter')->where('workstation_id', $ws->id)->get();
         $this->assertCount(1, $events);
         $this->assertEquals(3, $events->first()->payload['delta']);
     }

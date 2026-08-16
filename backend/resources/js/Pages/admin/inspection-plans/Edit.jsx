@@ -2,6 +2,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import InspectionPlanForm from './Form';
 import { __, formatDateTime } from '../../../lib/i18n';
+import useConfirm from '../../../components/useConfirm';
 
 function VersionBadge({ v }) {
     const cls = v.is_draft
@@ -15,6 +16,7 @@ function VersionBadge({ v }) {
 
 export default function InspectionPlanEdit() {
     const { plan, materials = [], materialTypes = [], history = [] } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const form = useForm({
         name: plan.name ?? '',
@@ -31,9 +33,9 @@ export default function InspectionPlanEdit() {
     };
 
     const publish = () => {
-        if (confirm(__('Publish this version? It becomes the live plan used for new inspections.'))) {
+        confirm({ title: __('Publish this version? It becomes the live plan used for new inspections.') }, () => {
             router.post(`/admin/inspection-plans/${plan.id}/publish`);
-        }
+        });
     };
 
     return (
@@ -96,6 +98,7 @@ export default function InspectionPlanEdit() {
                     </div>
                 </div>
             )}
+            {dialog}
         </div>
     );
 }

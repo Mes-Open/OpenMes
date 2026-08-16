@@ -14,10 +14,13 @@ export const WO_FORM_INITIAL = {
 //
 // `stay` posts a `stay` flag the controller answers with back() instead of
 // redirecting to the work-orders index — the caller keeps its page (planner).
-export default function WorkOrderForm({ lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [], cancelHref, onCancel, onSuccess, stay = false, initial = {} }) {
+//
+// `action` is what lets the supervisor tree render the same form: same fields,
+// posted to /supervisor/work-orders so the request stays in its own section.
+export default function WorkOrderForm({ action = '/admin/work-orders', lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [], cancelHref, onCancel, onSuccess, stay = false, initial = {} }) {
     return (
         <ResourceForm
-            action="/admin/work-orders"
+            action={action}
             method="post"
             fields={woFields(lines, productTypes, { customers, bomTemplates, productRevisions })}
             customFields={customFields}

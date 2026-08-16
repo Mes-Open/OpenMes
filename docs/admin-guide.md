@@ -41,6 +41,11 @@ This guide covers installation, configuration, and administration of OpenMES.
 
 ## Installation
 
+> Deploying OpenMES in a plant for the first time? This chapter covers the software.
+> The [Implementation Runbook](implementation-runbook.md) covers the whole procedure
+> around it — infrastructure, configuration order, master data, pilot, go-live and
+> handover.
+
 ### Prerequisites
 
 - Docker 20.10+ and Docker Compose
@@ -61,11 +66,18 @@ docker-compose up -d
 ```
 
 The web installer will guide you through three steps:
-1. **Basic Configuration** — site name, URL
+1. **Basic Configuration** — site name, URL and the **plant timezone**
 2. **Database Configuration** — PostgreSQL connection details
 3. **Admin Account** — your admin username, email, and password
 
 After completing the wizard, the system is ready.
+
+> **Plant timezone.** Pick the timezone of the *plant*, not of the server: every
+> timestamp, report boundary and shift edge is expressed in it, so a mismatch makes
+> a day's report cover different hours than the shift that was worked. The wizard
+> stores it in the database, and that value takes precedence over `APP_TIMEZONE` —
+> on Docker the environment variable comes from `docker-compose.yml` and cannot be
+> changed from inside the application.
 
 ### Production Deployment
 
@@ -249,6 +261,10 @@ Controls whether work orders must specify a week or month number:
 Warehousing is an optional module — enable **Warehouses** under
 **Settings → System → Modules** (see [Modules](#modules)). With it off, the pages
 below are hidden and nothing in this section applies.
+
+> Rolling this out on an existing production install? Follow the
+> [Warehouses & ERP Sync rollout runbook](warehouse-erp-rollout.md) — it covers the
+> deployment order, loading opening stock, the acceptance test and the rollback path.
 
 ### Setting Up Warehouses
 

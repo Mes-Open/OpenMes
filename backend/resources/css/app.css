@@ -54,9 +54,30 @@
     --color-om-accepted-bg: var(--om-accepted-bg);
     --color-om-maint: var(--om-maint);
     --color-om-maint-bg: var(--om-maint-bg);
+    --color-om-rejected: var(--om-rejected);
+    --color-om-rejected-bg: var(--om-rejected-bg);
+    /* Timeline colours (shift monitor): the empty gutter a state bar sits in,
+       a classified stop (deeper than --om-blocked, which means "needs a
+       cause"), and planned/scheduled time that is not a loss. */
+    --color-om-track: var(--om-track);
+    --color-om-deep: var(--om-deep);
+    --color-om-planned: var(--om-planned);
 
     --radius-om: 12px;
     --radius-om-sm: 8px;
+
+    /* Anchored menu opening (Dropdown, DataTable column picker) */
+    --animate-om-menu-in: om-menu-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+    @keyframes om-menu-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px) scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
 
     /* Pulsing live-status dot (StatusPill RUNNING, OnlineDot) */
     --animate-om-pulse: om-pulse 2s infinite;
@@ -67,6 +88,20 @@
         }
         50% {
             opacity: 0.3;
+        }
+    }
+
+    /* Swelling "?" badge on a stop nobody has given a cause yet (shift monitor).
+       Scale rather than opacity: it has to read as demanding an answer, and it
+       sits on a bar small enough that fading would lose it. */
+    --animate-om-blink: om-blink 1.4s infinite;
+    @keyframes om-blink {
+        0%,
+        100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.16);
         }
     }
 }
@@ -106,6 +141,13 @@
     --om-accepted-bg: #e7effa;
     --om-maint: #7a5fb0;
     --om-maint-bg: #f0ebf8;
+    /* Deeper red than --om-blocked: a rejected order is a decision, a blocked
+       one is an obstacle, and the two sit next to each other in status lists. */
+    --om-rejected: #a32d2d;
+    --om-rejected-bg: #fcebeb;
+    --om-track: #efede8;
+    --om-deep: #a8301f;
+    --om-planned: #dcdad3;
 }
 
 /* Dark token values (design ref: OpenMES Components.dc.html — themes.dark). */
@@ -141,6 +183,11 @@ html.dark {
     --om-accepted-bg: rgba(94, 146, 224, 0.16);
     --om-maint: #a98ee0;
     --om-maint-bg: rgba(169, 142, 224, 0.15);
+    --om-rejected: #e0665e;
+    --om-rejected-bg: rgba(224, 102, 94, 0.16);
+    --om-track: #0a0908;
+    --om-deep: #7e2118;
+    --om-planned: #3a3833;
 }
 
 /* Custom styles for touch-optimized UI */

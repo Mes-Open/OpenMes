@@ -10,12 +10,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class ProductType extends Model
 {
     use HasCustomFields, HasFactory, HasTenant;
     use SoftDeletesWithAudit;
 
+    /**
+     * `image_path` / `image_mime` are deliberately NOT fillable — they are
+     * written only by the controller after ImageSanitizer has re-encoded the
+     * upload, never from request input.
+     */
     protected $fillable = [
         'code',
         'name',
@@ -34,6 +40,17 @@ class ProductType extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Only drop the photo on a permanent delete — a soft delete is
+        // reversible, and a restore from Trash should come back whole.
+        static::forceDeleted(function (self $productType) {
+            if ($productType->image_path) {
+                Storage::delete($productType->image_path);
+            }
+        });
     }
 
     /**
@@ -91,5 +108,24 @@ class ProductType extends Model
     public function warehouseStocks(): HasMany
     {
         return $this->hasMany(WarehouseStock::class);
+    }
+
+    /**
+     * Authenticated stream URL for the product photo, or null when there is
+     * none. The stored file is never web-reachable directly.
+     *
+     * The URL is `/{id}/image` whatever the photo is, so it carries the head
+     * of the file's random name as a cache buster: a replacement busts the
+     * browser's private hour-long copy, while renaming the product — or any
+     * other edit to the row — leaves the cached image alone.
+     */
+    public function imageUrl(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        return route('admin.product-types.image', $this)
+            .'?v='.substr(pathinfo($this->image_path, PATHINFO_FILENAME), 0, 8);
     }
 }

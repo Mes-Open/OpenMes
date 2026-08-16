@@ -50,14 +50,16 @@ export default function MaterialLotsIndex() {
     };
 
     const columns = [
-        { key: 'lot_number', label: __('Lot Number'), className: 'font-mono text-om-muted' },
-        { key: 'material', label: __('Material'), className: 'text-om-muted', render: (r) => materialNames[r.material_id] ?? '—' },
-        { key: 'qty', label: __('Avail / Recv'), className: 'text-om-muted', render: (r) => `${r.quantity_available ?? '—'} / ${r.quantity_received ?? '—'}` },
+        { key: 'lot_number', label: __('Lot Number'), className: 'font-mono text-om-muted', filter: 'text' },
+        { key: 'material', label: __('Material'), className: 'text-om-muted', value: (r) => materialNames[r.material_id] ?? '—', render: (r) => materialNames[r.material_id] ?? '—' },
+        { key: 'qty', label: __('Avail / Recv'), className: 'text-om-muted', value: (r) => Number(r.quantity_available ?? 0), render: (r) => `${r.quantity_available ?? '—'} / ${r.quantity_received ?? '—'}` },
         { key: 'unit_of_measure', label: __('Unit'), className: 'text-om-muted' },
-        { key: 'expiry_date', label: __('Expiry'), className: 'text-om-muted', render: (r) => (r.expiry_date ? r.expiry_date.slice(0, 10) : '—') },
+        { key: 'expiry_date', filter: 'date', label: __('Expiry'), className: 'text-om-muted', render: (r) => (r.expiry_date ? r.expiry_date.slice(0, 10) : '—') },
         {
             key: 'status',
             label: __('Status'),
+           
+            value: (r) => r.status,
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                     {materialLotStatusLabel(r.status)}
@@ -80,11 +82,11 @@ export default function MaterialLotsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete material lot ":name"?', { name: r.lot_number }))) {
-                    router.delete(`/admin/material-lots/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete material lot ":name"?', { name: r.lot_number }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/material-lots/${r.id}`, { preserveScroll: true }),
         });
         return list;
     };
@@ -94,9 +96,10 @@ export default function MaterialLotsIndex() {
             <Head title={__('Material Lots')} />
             <ResourceTable
                 shape="material_lots"
+                detailHref={(r) => `/admin/material-lots/${r.id}`}
                 title={__('Material Lots')}
                 createHref="/admin/material-lots/create"
-                createLabel={__('+ New Lot')}
+                createLabel={__('New Lot')}
                 columns={columns}
                 orderBy="lot_number"
                 actions={actions}

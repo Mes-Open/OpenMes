@@ -27,6 +27,7 @@
         "alpinejs": "^3.15.8",
         "chart.js": "^4.5.1",
         "laravel-echo": "^2.3.7",
+        "lucide-react": "^1.28.0",
         "pusher-js": "^8.5.0",
         "react": "^19.2.6",
         "react-dnd": "^16.0.1",

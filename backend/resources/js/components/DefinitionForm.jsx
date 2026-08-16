@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
+import Tooltip from './Tooltip';
 import { __ } from '../lib/i18n';
 
 /**
@@ -139,8 +140,10 @@ function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
                             onChange={(e) => setOption(i, { value: e.target.value })} />
                         <input className="form-input flex-1" placeholder={__('label')} value={o.label ?? ''}
                             onChange={(e) => setOption(i, { label: e.target.value })} />
-                        <button type="button" onClick={() => removeOption(i)}
-                            className="text-om-blocked hover:text-om-blocked text-sm px-2" title={__('Remove')}>✕</button>
+                        <Tooltip label={__('Remove')}>
+                            <button type="button" onClick={() => removeOption(i)}
+                                className="text-om-blocked hover:text-om-blocked text-sm px-2" aria-label={__('Remove')}>✕</button>
+                        </Tooltip>
                     </div>
                 ))}
             </div>

@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown, StatusPill } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber, __ } from '../../lib/i18n';
 
@@ -241,13 +241,12 @@ export default function InspectionsIndex() {
                 </div>
 
                 {/* Table */}
-                <DataTable
+                <AppDataTable
                     data={inspections}
                     columns={columns}
                     searchable
                     columnToggle
                     paginated
-                    searchPlaceholder="Search inspections…"
                     emptyLabel={__('No inspections in this tab.')}
                 />
             </div>

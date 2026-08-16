@@ -107,6 +107,53 @@ class ModuleHookEventsTest extends TestCase
         Event::assertDispatched(WorkOrderScheduled::class, fn ($e) => $e->workOrder->is($wo));
     }
 
+    /**
+     * The hook hangs off the model lifecycle, not the planner, so a placement
+     * written anywhere else — the admin edit form, an ERP import — counts too.
+     */
+    public function test_work_order_scheduled_fires_on_any_placement_write(): void
+    {
+        $line = Line::factory()->create();
+        $wo = WorkOrder::factory()->create(['line_id' => null]);
+
+        Event::fake([WorkOrderScheduled::class]);
+        $wo->update(['line_id' => $line->id, 'due_date' => now()->addDay()]);
+        Event::assertDispatchedTimes(WorkOrderScheduled::class, 1);
+
+        // A write that moves nothing is not a schedule change.
+        Event::fake([WorkOrderScheduled::class]);
+        $wo->update(['notes' => 'unrelated edit']);
+        Event::assertNotDispatched(WorkOrderScheduled::class);
+    }
+
+    /**
+     * An order's extra segments live in their own table, so a segment-only edit
+     * changes no work_orders column — the hook has to watch them separately or a
+     * multi-line placement change goes unreported.
+     */
+    public function test_work_order_scheduled_fires_for_segment_only_edits(): void
+    {
+        $line = Line::factory()->create();
+        $other = Line::factory()->create();
+        $wo = WorkOrder::factory()->create(['line_id' => $line->id, 'due_date' => now()]);
+
+        Event::fake([WorkOrderScheduled::class]);
+        $segment = $wo->extraPlacements()->create([
+            'line_id' => $other->id,
+            'due_date' => now()->addDay()->format('Y-m-d'),
+            'shift_number' => 1,
+        ]);
+        Event::assertDispatched(WorkOrderScheduled::class, fn ($e) => $e->workOrder->is($wo));
+
+        Event::fake([WorkOrderScheduled::class]);
+        $segment->update(['shift_number' => 2]);
+        Event::assertDispatched(WorkOrderScheduled::class, fn ($e) => $e->workOrder->is($wo));
+
+        Event::fake([WorkOrderScheduled::class]);
+        $segment->delete();
+        Event::assertDispatched(WorkOrderScheduled::class, fn ($e) => $e->workOrder->is($wo));
+    }
+
     public function test_user_assigned_to_line_fires_on_assignment(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);

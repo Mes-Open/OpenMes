@@ -4,6 +4,8 @@ import { Button, Checkbox, IconButton } from '@openmes/ui';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 /**
@@ -36,6 +38,9 @@ function Editor() {
     const { data: rows } = useLiveQuery((q) =>
         q.from({ s: collection }).orderBy(({ s }) => s.sort_order, 'asc'),
     );
+    // The dialog lives here rather than in StatusRow: a <tr> can't host it, and
+    // one shared dialog beats one per row.
+    const { confirm, dialog } = useConfirm();
 
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
@@ -51,16 +56,17 @@ function Editor() {
                 </thead>
                 <tbody>
                     {rows.map((s) => (
-                        <StatusRow key={s.id} status={s} />
+                        <StatusRow key={s.id} status={s} confirm={confirm} />
                     ))}
                     <AddRow nextOrder={rows.length} />
                 </tbody>
             </table>
+            {dialog}
         </div>
     );
 }
 
-function StatusRow({ status }) {
+function StatusRow({ status, confirm }) {
     const [name, setName] = useState(status.name);
     const [color, setColor] = useState(status.color);
     const [sortOrder, setSortOrder] = useState(status.sort_order ?? 0);
@@ -83,9 +89,9 @@ function StatusRow({ status }) {
     };
 
     const destroy = () => {
-        if (confirm(__('Delete status ":name"?', { name: status.name }))) {
+        confirm({ title: __('Delete status ":name"?', { name: status.name }) }, () => {
             router.delete(`/admin/line-statuses/${status.id}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
@@ -115,16 +121,17 @@ function StatusRow({ status }) {
                     >
                         {saving ? __('Saving…') : __('Save')}
                     </Button>
-                    <IconButton
-                        variant="danger"
-                        onClick={destroy}
-                        title={__('Delete')}
-                        aria-label={__('Delete')}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </IconButton>
+                    <Tooltip label={__('Delete')}>
+                        <IconButton
+                            variant="danger"
+                            onClick={destroy}
+                            aria-label={__('Delete')}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </IconButton>
+                    </Tooltip>
                 </div>
             </td>
         </tr>
