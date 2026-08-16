@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import PageTrail from '../../components/PageTrail';
 
 const AUTO_DETECT_MAP = {
     order_no:          ['order_no', 'order no', 'orderno', 'order number', 'order_number', 'wo_no', 'work_order', 'wo no'],
@@ -54,6 +55,7 @@ export default function CsvImportMapping() {
         prevMapping = null,
         mappingError = null,
         csrf_token: csrfToken,
+        basePath,
     } = usePage().props;
 
     const initialPrev = prevMapping ?? existingMapping?.mapping_config?.column_mappings ?? null;
@@ -123,13 +125,7 @@ export default function CsvImportMapping() {
             <Head title={__('Map Columns')} />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
-                <span>/</span>
-                <Link href="/admin/csv-import" className="hover:text-om-ink">{__('CSV Import')}</Link>
-                <span>/</span>
-                <span className="text-om-ink font-medium">{__('Map Columns')}</span>
-            </nav>
+            <PageTrail append={[{ label: __('Map Columns') }]} />
 
             <div className="flex justify-between items-center mb-6">
                 <div>
@@ -140,7 +136,7 @@ export default function CsvImportMapping() {
                         Strategy: <span className="font-medium">{importStrategy.replace(/_/g, ' ')}</span>
                     </p>
                 </div>
-                <Link href="/admin/csv-import" className="btn-touch btn-secondary text-sm">
+                <Link href={basePath} className="btn-touch btn-secondary text-sm">
                     &larr; {__('Back')}
                 </Link>
             </div>
@@ -155,7 +151,7 @@ export default function CsvImportMapping() {
 
             <form
                 method="POST"
-                action="/admin/csv-import/process"
+                action={`${basePath}/process`}
                 ref={formRef}
                 onSubmit={handleSubmit}
             >

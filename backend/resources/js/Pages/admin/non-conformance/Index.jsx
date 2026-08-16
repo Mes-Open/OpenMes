@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -91,13 +91,12 @@ export default function NonConformanceReportIndex() {
                                     </div>
                                 ))}
                             </div>
-                            <DataTable
+                            <AppDataTable
                                 data={types}
                                 columns={paretoColumns}
                                 searchable
                                 columnToggle
                                 paginated
-                                searchPlaceholder={__('Search types…')}
                                 emptyLabel={__('No non-conformances in this period.')}
                             />
                         </>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
+import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { apiGet, apiCall } from '../../../../lib/http';
 import { OrderCard } from './OrderCard';
@@ -18,8 +19,10 @@ const LEGEND = [
 
 function NavBtn({ children, onClick, title }) {
     return (
-        <span onClick={onClick} title={title}
-            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--om-line)', background: 'var(--om-card)', color: 'var(--om-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, cursor: 'pointer' }}>{children}</span>
+        <Tooltip label={title}>
+            <span onClick={onClick} role="button" aria-label={title}
+                style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--om-line)', background: 'var(--om-card)', color: 'var(--om-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, cursor: 'pointer' }}>{children}</span>
+        </Tooltip>
     );
 }
 
@@ -124,7 +127,11 @@ function ChangesPanel({ ctx }) {
                 return (
                     <div key={c.id} style={{ border: '1px solid var(--om-line)', borderRadius: 9, padding: '9px 11px', background: 'var(--om-card)', opacity: undone ? 0.55 : 1 }}>
                         <div className="flex items-center gap-2">
-                            {c.action === 'undo' && <span title={__('Undo')} style={{ fontSize: 10, color: 'var(--om-accent)' }}>↩</span>}
+                            {c.action === 'undo' && (
+                                <Tooltip label={__('Undo')}>
+                                    <span style={{ fontSize: 10, color: 'var(--om-accent)' }}>↩</span>
+                                </Tooltip>
+                            )}
                             <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{c.order_no}</span>
                             <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)' }}>
                                 {formatDate(new Date(c.created_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}

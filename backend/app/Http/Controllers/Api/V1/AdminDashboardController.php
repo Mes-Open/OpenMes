@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Admin dashboard data for the mobile/tablet app, mirroring the web Inertia
  * dashboard (Pages/admin/Dashboard.jsx + Web/Admin/DashboardController). The web
- * page gets row data via Electric live-sync and computes KPI stats client-side;
- * here we compute the same aggregates server-side and return them in one call so
- * the mobile screen renders 1:1 without Electric.
+ * page gets row data via live sync and computes KPI stats client-side; here we
+ * compute the same aggregates server-side and return them in one call so the
+ * mobile screen renders 1:1 without a live-sync subscription.
  */
 class AdminDashboardController extends Controller
 {

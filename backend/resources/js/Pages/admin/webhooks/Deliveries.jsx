@@ -19,12 +19,12 @@ export default function WebhookDeliveries() {
 
     const columns = [
         {
-            key: 'created_at',
+            key: 'created_at', filter: 'date',
             label: __('Created'),
             render: (r) => (r.created_at ? new Date(r.created_at).toLocaleString() : '—'),
         },
         { key: 'event_type', label: __('Event'), className: 'font-mono text-[12px] text-om-muted' },
-        { key: 'status', label: __('Status'), render: (r) => <StatusBadge status={r.status} /> },
+        { key: 'status', label: __('Status'), value: (r) => r.status, render: (r) => <StatusBadge status={r.status} /> },
         { key: 'attempts', label: __('Attempts') },
         { key: 'response_code', label: __('Response'), render: (r) => r.response_code ?? '—' },
         { key: 'error', label: __('Error'), className: 'text-[12px] text-om-blocked', render: (r) => r.error ?? '—' },

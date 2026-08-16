@@ -4,8 +4,9 @@
  * RN Modal (transparent) + centered card over scrim.
  */
 import React from 'react';
-import { Modal as RNModal, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Modal as RNModal, Pressable, StyleSheet, View, Text, type StyleProp, type ViewStyle } from 'react-native';
 
+import { Icon } from '../Icon';
 import { colors, fonts, radius } from '../tokens';
 
 export interface ModalProps {
@@ -16,6 +17,13 @@ export interface ModalProps {
     footer?: React.ReactNode;
     children?: React.ReactNode;
     closeLabel?: string;
+    /**
+     * Accepted for parity with the web twin, where it keeps a half-filled form
+     * alive across a close. It has no effect here: RN's Modal renders null while
+     * hidden, so the subtree unmounts no matter what we do around it. A native
+     * screen that must survive a dismiss should hold the form state itself.
+     */
+    keepMounted?: boolean;
     style?: StyleProp<ViewStyle>;
 }
 
@@ -32,7 +40,7 @@ export function Modal({ open, onClose, title, subtitle, footer, children, closeL
                             {subtitle != null && <Text style={styles.subtitle}>{subtitle}</Text>}
                         </View>
                         <Pressable accessibilityRole="button" accessibilityLabel={closeLabel} hitSlop={8} onPress={onClose}>
-                            <Text style={styles.close}>×</Text>
+                            <Icon name="x" size={16} color={colors.blocked} />
                         </Pressable>
                     </View>
                     <View style={styles.body}>{children}</View>
@@ -82,11 +90,6 @@ const styles = StyleSheet.create({
         marginTop: 3,
         fontSize: 9.5,
         fontFamily: fonts.mono.native.regular,
-        color: colors.faint,
-    },
-    close: {
-        fontSize: 18,
-        lineHeight: 19,
         color: colors.faint,
     },
     body: {

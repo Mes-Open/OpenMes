@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { Button, ConfirmDialog, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime } from '../../../lib/i18n';
 
@@ -94,12 +94,9 @@ export default function TrashIndex() {
                     />
                 </div>
 
-                <DataTable
+                <AppDataTable
                     data={items}
                     columns={columns}
-                    searchPlaceholder={__('Search…')}
-                    columnsLabel={__('Columns')}
-                    columnsMenuLabel={__('Toggle columns')}
                     emptyLabel={__('Trash is empty.')}
                     rangeLabel={(start, end, total) => (total === 0 ? __('0 results') : `${start}–${end} / ${total}`)}
                     pageSize={15}

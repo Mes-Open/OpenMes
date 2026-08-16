@@ -1,21 +1,23 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomFieldsIndex() {
     const { definitions = [], entities = [] } = usePage().props;
     const [entity, setEntity] = useState('');
+    const { confirm, dialog } = useConfirm();
 
     const rows = entity ? definitions.filter((d) => d.entity_type === entity) : definitions;
 
     const toggle = (d) => router.post(`/admin/custom-fields/${d.id}/toggle-active`, {}, { preserveScroll: true });
     const destroy = (d) => {
-        if (confirm(__('Delete custom field ":label"? Stored values on existing records are left untouched.', { label: d.label }))) {
+        confirm({ title: __('Delete custom field ":label"? Stored values on existing records are left untouched.', { label: d.label }) }, () => {
             router.delete(`/admin/custom-fields/${d.id}`, { preserveScroll: true });
-        }
+        });
     };
 
     const columns = useMemo(() => [
@@ -118,13 +120,13 @@ export default function CustomFieldsIndex() {
                     />
                 </div>
 
-                <DataTable
+                <AppDataTable
                     data={rows}
                     columns={columns}
-                    searchPlaceholder={__('Search custom fields…')}
                     emptyLabel={__('No custom fields yet.')}
                 />
             </div>
+            {dialog}
         </>
     );
 }

@@ -22,6 +22,7 @@ export default function PalletMovementsIndex() {
             key: 'pallet',
             label: __('Pallet'),
             className: 'font-medium text-om-ink',
+            value: (r) => palletNumbers[r.pallet_id] ?? `#${r.pallet_id}`,
             render: (r) => palletNumbers[r.pallet_id] ?? `#${r.pallet_id}`,
         },
         {
@@ -54,6 +55,7 @@ export default function PalletMovementsIndex() {
             key: 'operator',
             label: __('Operator'),
             className: 'text-om-muted',
+            value: (r) => operatorNames[r.worker_id] ?? '—',
             render: (r) => operatorNames[r.worker_id] ?? '—',
         },
         {

@@ -198,7 +198,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'counting_source', 'status', 'snapshot_version', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'packed_qty', 'counting_source', 'status', 'snapshot_version', 'priority', 'priority_score', 'due_date', 'completed_at', 'description', 'planned_start_at', 'planned_end_at', 'end_date', 'shift_number', 'end_shift_number', 'week_number', 'month_number', 'production_year', 'line_status_id', 'customer_totals_counted', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // Change control (#182). Stops and change requests drive what the shop floor
         // and the supervisor board show while production is held, so both sync live.

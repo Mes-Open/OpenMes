@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ReclassifyClassRequest;
 use App\Http\Requests\Api\V1\RecordConsumptionRequest;
 use App\Http\Requests\Api\V1\ReturnAllocationRequest;
+use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
@@ -14,7 +16,6 @@ use App\Models\Line;
 use App\Models\Material;
 use App\Models\MaterialAllocation;
 use App\Models\MaterialLot;
-use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
@@ -28,13 +29,22 @@ use Inertia\Inertia;
 
 class WorkOrderManagementController extends Controller
 {
+    use BuildsWorkOrderFormOptions;
+
+    /**
+     * Entries in the detail page's activity panel. A finished order has one per
+     * step per batch, which is a scroll, not a summary — the panel answers "what
+     * happened lately", and the batch list below it holds the rest.
+     */
+    private const ACTIVITY_LIMIT = 8;
+
     public function __construct(protected WorkOrderService $workOrderService) {}
 
     /**
      * Work order list. Rows live-sync via the `work_orders_all` shape; line and
      * product-type name maps + batch counts come as props.
      */
-    public function index()
+    public function index(CustomFieldService $customFields)
     {
         $counts = WorkOrder::withCount('batches')
             ->get(['id'])
@@ -42,64 +52,21 @@ class WorkOrderManagementController extends Controller
 
         return Inertia::render('admin/work-orders/Index', [
             'counts' => $counts,
+            // Name maps cover every line/product/customer an existing row might
+            // reference, including deactivated ones — unlike the create-form
+            // options below, which only offer what is still selectable.
             'lineNames' => Line::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
             'customerNames' => Customer::pluck('name', 'id'),
+            // Feeds the list's "New work order" modal, which renders the same form
+            // as the create page.
+            ...$this->createFormOptions($customFields),
         ]);
     }
 
     public function create(CustomFieldService $customFields)
     {
-        return Inertia::render('admin/work-orders/Create', [
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'bomTemplates' => $this->bomTemplateOptions(),
-            'productRevisions' => $this->productRevisionOptions(),
-            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
-            'customFields' => $customFields->clientConfig('work_order'),
-        ]);
-    }
-
-    /**
-     * Selectable BOMs (process templates) for the work-order forms - every
-     * template a user could pick as a variant/alternative bill of materials,
-     * newest version first. The forms scope the picker to the order's product
-     * type client-side (each option carries its product_type_id).
-     *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    protected function bomTemplateOptions()
-    {
-        return ProcessTemplate::orderBy('product_type_id')
-            ->orderByDesc('version')
-            ->get(['id', 'name', 'version', 'is_active', 'product_type_id'])
-            ->map(fn ($t) => [
-                'id' => $t->id,
-                'name' => $t->name,
-                'version' => $t->version,
-                'is_active' => (bool) $t->is_active,
-                'product_type_id' => $t->product_type_id,
-            ]);
-    }
-
-    /**
-     * Released product revisions (#180) selectable on the work-order forms. Each
-     * option carries its product_type_id so the form can scope it to the order's
-     * product type.
-     *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    protected function productRevisionOptions()
-    {
-        return \App\Models\ProductRevision::selectable()
-            ->orderBy('product_type_id')
-            ->orderBy('revision_code')
-            ->get(['id', 'revision_code', 'product_type_id'])
-            ->map(fn ($r) => [
-                'id' => $r->id,
-                'revision_code' => $r->revision_code,
-                'product_type_id' => $r->product_type_id,
-            ]);
+        return Inertia::render('admin/work-orders/Create', $this->createFormOptions($customFields));
     }
 
     public function store(StoreWorkOrderRequest $request, CustomFieldService $cf)
@@ -132,7 +99,7 @@ class WorkOrderManagementController extends Controller
 
     public function show(WorkOrder $workOrder, CustomFieldService $customFields)
     {
-        $workOrder->load(['customer', 'line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
+        $workOrder->load(['customer', 'line', 'productType', 'batches.steps.completedBy', 'issues.issueType', 'issues.reportedBy']);
 
         $batches = $workOrder->batches->map(function ($batch) {
             return [
@@ -151,6 +118,8 @@ class WorkOrderManagementController extends Controller
                     'status' => $s->status,
                     'duration_minutes' => $s->duration_minutes,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes ?? null,
+                    'started_at' => $s->started_at?->toISOString(),
+                    'completed_at' => $s->completed_at?->toISOString(),
                 ])->values(),
             ];
         })->values();
@@ -161,6 +130,8 @@ class WorkOrderManagementController extends Controller
             'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
             'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
+            'reported_at' => $i->reported_at?->toISOString(),
+            'reported_by' => $i->reportedBy?->name,
         ])->values();
 
         // Materials reconciliation (#99): the allocations pulled for this order, so
@@ -262,10 +233,12 @@ class WorkOrderManagementController extends Controller
                 'process_snapshot' => $workOrder->process_snapshot,
                 'estimated_standard_production_minutes' => $workOrder->estimatedStandardProductionMinutes(),
                 'created_at' => $workOrder->created_at->toISOString(),
+                'completed_at' => $workOrder->completed_at?->toISOString(),
                 'line_name' => $workOrder->line?->name,
                 'product_type_name' => $workOrder->productType?->name,
                 'batches' => $batches,
                 'issues' => $issues,
+                'activity' => $this->activityFeed($workOrder),
                 'allocations' => $allocations,
             ],
             'canReclassify' => $canReclassify,
@@ -274,6 +247,99 @@ class WorkOrderManagementController extends Controller
                 : [],
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
+    }
+
+    /**
+     * What has actually happened to this order, newest first.
+     *
+     * Assembled from the timestamps the records already carry rather than from
+     * an event log: there is no audit trail on work orders, and inventing one
+     * for a sidebar panel would mean writing a row on every transition. Every
+     * entry here is a fact some column states — nothing is inferred, so an entry
+     * is missing rather than approximate when a timestamp was never recorded.
+     *
+     * @return array<int, array{title: string, meta: ?string, at: string, tone: string}>
+     */
+    private function activityFeed(WorkOrder $workOrder): array
+    {
+        $events = [];
+
+        $events[] = [
+            'title' => __('Order created'),
+            'meta' => implode(' · ', array_filter([
+                $workOrder->productType?->name,
+                __(':count pcs', ['count' => (float) $workOrder->planned_qty]),
+                $workOrder->line?->name,
+            ])),
+            'at' => $workOrder->created_at->toISOString(),
+            'tone' => 'muted',
+        ];
+
+        foreach ($workOrder->batches as $batch) {
+            if ($batch->started_at) {
+                $events[] = [
+                    'title' => __('Batch #:number started', ['number' => $batch->batch_number]),
+                    'meta' => __(':count pcs', ['count' => (float) $batch->target_qty]),
+                    'at' => $batch->started_at->toISOString(),
+                    'tone' => 'accent',
+                ];
+            }
+
+            foreach ($batch->steps as $step) {
+                if (! $step->completed_at) {
+                    continue;
+                }
+
+                $events[] = [
+                    'title' => __(':step completed', ['step' => $step->name]),
+                    'meta' => implode(' · ', array_filter([
+                        __('Batch #:number', ['number' => $batch->batch_number]),
+                        __('step :n/:total', ['n' => $step->step_number, 'total' => $batch->steps->count()]),
+                        $step->completedBy?->name,
+                    ])),
+                    'at' => $step->completed_at->toISOString(),
+                    'tone' => 'running',
+                ];
+            }
+
+            if ($batch->completed_at) {
+                $events[] = [
+                    'title' => __('Batch #:number completed', ['number' => $batch->batch_number]),
+                    'meta' => __(':count pcs', ['count' => (float) $batch->produced_qty]),
+                    'at' => $batch->completed_at->toISOString(),
+                    'tone' => 'running',
+                ];
+            }
+        }
+
+        foreach ($workOrder->issues as $issue) {
+            if (! $issue->reported_at) {
+                continue;
+            }
+
+            $events[] = [
+                'title' => __('Issue reported: :title', ['title' => $issue->title]),
+                'meta' => implode(' · ', array_filter([$issue->issueType?->name, $issue->reportedBy?->name])),
+                'at' => $issue->reported_at->toISOString(),
+                'tone' => 'blocked',
+            ];
+        }
+
+        if ($workOrder->completed_at) {
+            $events[] = [
+                'title' => __('Order completed'),
+                'meta' => __(':produced / :planned pcs', [
+                    'produced' => (float) $workOrder->produced_qty,
+                    'planned' => (float) $workOrder->planned_qty,
+                ]),
+                'at' => $workOrder->completed_at->toISOString(),
+                'tone' => 'running',
+            ];
+        }
+
+        usort($events, fn ($a, $b) => strcmp($b['at'], $a['at']));
+
+        return array_slice($events, 0, self::ACTIVITY_LIMIT);
     }
 
     /**
@@ -454,6 +520,13 @@ class WorkOrderManagementController extends Controller
 
     public function destroy(WorkOrder $workOrder)
     {
+        // Not Admin-only any more: supervisors reach these pages for change
+        // control (#182), and they hold `edit work orders` but not `delete work
+        // orders`. The tab gate answers "may you open this section", not "may
+        // you destroy this row" — the supervisor twin has always checked the
+        // policy here, and this one has to as well.
+        $this->authorize('delete', $workOrder);
+
         if ($workOrder->batches()->exists()) {
             return redirect()->back()
                 ->with('error', 'Cannot delete a work order that has batches. Cancel it instead.');
@@ -466,47 +539,47 @@ class WorkOrderManagementController extends Controller
             ->with('success', "Work order {$no} deleted.");
     }
 
+    /** Apply one transition to one order, or bounce back with its refusal message. */
+    private function transition(WorkOrder $workOrder, string $action)
+    {
+        $result = WorkOrderService::applyTransition($workOrder, $action);
+
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+    }
+
+    /**
+     * Apply one transition to many selected orders (the list's bulk-action bar).
+     * The skip-the-ineligible rules live in the service, shared with the
+     * supervisor list so the two can't drift.
+     */
+    public function bulk(BulkWorkOrderActionRequest $request)
+    {
+        $message = WorkOrderService::applyBulkTransition(
+            $request->validated('ids'),
+            $request->validated('action'),
+        );
+
+        return redirect()->back()->with('success', $message);
+    }
+
     public function cancel(WorkOrder $workOrder)
     {
-        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()
-                ->with('error', 'Cannot cancel a work order that is already in a terminal state.');
-        }
-
-        $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
-
-        return redirect()->back()
-            ->with('success', "Work order {$workOrder->order_no} cancelled.");
+        return $this->transition($workOrder, 'cancel');
     }
 
     public function accept(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
+        return $this->transition($workOrder, 'accept');
     }
 
     public function reject(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
-            return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
+        return $this->transition($workOrder, 'reject');
     }
 
     public function pause(WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
+        return $this->transition($workOrder, 'pause');
     }
 
     /**
@@ -529,12 +602,7 @@ class WorkOrderManagementController extends Controller
 
     public function reopen(WorkOrder $workOrder)
     {
-        if (! in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
-            return redirect()->back()->with('error', 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.');
-        }
-        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
+        return $this->transition($workOrder, 'reopen');
     }
 
     public function complete(Request $request, WorkOrder $workOrder)

@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Broadcast;
  * by tenant so a user only receives their own tenant's rows (tenantKey = the
  * user's tenant_id, or "g" for null — mirrors the null-safe TenantScope).
  *
- * This is the read-path authorization the Electric shapes never had.
+ * This is the authorization for the read path: without it any authenticated
+ * user would receive every tenant's row deltas.
  */
 Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant, string $collection) {
     if (! $user) {
@@ -27,5 +28,22 @@ Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant,
 
     // Admin lists are Admin/Supervisor only. Refine per-collection as operator
     // screens move onto Reverb.
+    return $user->hasAnyRole(['Admin', 'Supervisor']);
+});
+
+/**
+ * Live shift monitor — one private channel per workstation, carrying the nudge
+ * that its shift changed (ShiftMonitorChanged).
+ *
+ * Same audience as the screen itself: the monitor is reachable by Admin and
+ * Supervisor, so subscribing to a station's channel must be too. The nudge
+ * carries no production data, but the snapshot it prompts does, and that fetch
+ * is authorized separately by the route.
+ */
+Broadcast::channel('shift-monitor.{workstation}', function ($user, string $workstation) {
+    if (! $user || ! ctype_digit($workstation)) {
+        return false;
+    }
+
     return $user->hasAnyRole(['Admin', 'Supervisor']);
 });

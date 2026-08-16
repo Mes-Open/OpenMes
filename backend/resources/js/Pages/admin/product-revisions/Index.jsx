@@ -13,6 +13,10 @@ export default function ProductRevisionsIndex() {
     const columns = [
         {
             key: 'product_type_id', label: __('Product Type'), className: 'text-om-ink',
+            value: (r) => {
+                const p = typeById[String(r.product_type_id)];
+                return p ? (p.code ? `${p.code} — ${p.name}` : p.name) : '—';
+            },
             render: (r) => {
                 const p = typeById[String(r.product_type_id)];
                 return p ? (p.code ? `${p.code} — ${p.name}` : p.name) : '—';
@@ -29,13 +33,17 @@ export default function ProductRevisionsIndex() {
         },
         {
             key: 'process_template_id', label: __('Process Template'), className: 'text-om-muted',
+            value: (r) => {
+                const t = templateById[String(r.process_template_id)];
+                return t ? `${t.name} v${t.version}` : '—';
+            },
             render: (r) => {
                 const t = templateById[String(r.process_template_id)];
                 return t ? `${t.name} v${t.version}` : '—';
             },
         },
         { key: 'description', label: __('Description'), className: 'text-om-muted', render: (r) => r.description ?? '—' },
-        { key: 'work_orders', label: __('Work orders'), align: 'right', render: (r) => counts[r.id] ?? 0 },
+        { key: 'work_orders', label: __('Work orders'), align: 'right', value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
     ];
 
     const actions = (r) => {
@@ -80,7 +88,7 @@ export default function ProductRevisionsIndex() {
                 shape="product_revisions"
                 title={__('Product Revisions')}
                 createHref="/admin/product-revisions/create"
-                createLabel={__('+ New Revision')}
+                createLabel={__('New Revision')}
                 columns={columns}
                 orderBy="revision_code"
                 actions={actions}

@@ -5,7 +5,7 @@ import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
 import { conditionSummary, sourceLabel } from './fields';
 import { __ } from '../../../lib/i18n';
 
-function BandEditor({ bands }) {
+function BandEditor({ bands, basePath }) {
     const form = useForm({ bands: bands.map((b) => String(b)) });
     const setBand = (i, v) => {
         const next = [...form.data.bands];
@@ -17,8 +17,10 @@ function BandEditor({ bands }) {
     const submit = (e) => {
         e.preventDefault();
         if (hasBlank) return;
-        form.transform((d) => ({ bands: d.bands.map((b) => Number(b)) }))
-            .post('/admin/priority-rules/bands', { preserveScroll: true });
+        // transform() mutates and returns void in Inertia v3 — chaining .post()
+        // off it threw, so this button never saved.
+        form.transform((d) => ({ bands: d.bands.map((b) => Number(b)) }));
+        form.post(`${basePath}/bands`, { preserveScroll: true });
     };
 
     // Row descriptors: P1..P4 are "≤ threshold[i]", P5 is "> threshold[3]".
@@ -57,30 +59,30 @@ function BandEditor({ bands }) {
 }
 
 export default function PriorityRulesIndex() {
-    const { bands = [20, 40, 60, 80] } = usePage().props;
+    const { bands = [20, 40, 60, 80], basePath } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'field_source', label: __('Source'), className: 'text-om-muted', render: (r) => sourceLabel(r.field_source) },
-        { key: 'condition', label: __('Condition'), className: 'text-om-muted', render: (r) => conditionSummary(r) },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'field_source', label: __('Source'), className: 'text-om-muted', value: (r) => sourceLabel(r.field_source), render: (r) => sourceLabel(r.field_source) },
+        { key: 'condition', label: __('Condition'), className: 'text-om-muted', value: (r) => conditionSummary(r), render: (r) => conditionSummary(r) },
         { key: 'points', label: __('Points'), align: 'right', className: 'font-mono', render: (r) => (Number(r.points) > 0 ? `+${r.points}` : r.points) },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), href: `/admin/priority-rules/${r.id}/edit` },
+        { label: __('Edit'), href: `${basePath}/${r.id}/edit` },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
-            onClick: () => router.post(`/admin/priority-rules/${r.id}/toggle-active`, {}, { preserveScroll: true }),
+            onClick: () => router.post(`${basePath}/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: __('Delete'),
             className: 'text-om-blocked hover:underline',
-            onClick: () => {
-                if (confirm(__('Delete priority rule ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/priority-rules/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete priority rule ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`${basePath}/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -91,12 +93,12 @@ export default function PriorityRulesIndex() {
                 <h1 className="text-3xl font-bold text-om-ink">{__('Priority Settings')}</h1>
                 <p className="text-[13px] text-om-muted mt-1">{__('Rules add points to a work order; the total maps to a 1–5 priority. Scoring stays off until at least one active rule exists.')}</p>
             </div>
-            <BandEditor bands={bands} />
+            <BandEditor bands={bands} basePath={basePath} />
             <ResourceTable
                 shape="priority_rules"
                 title={__('Scoring rules')}
-                createHref="/admin/priority-rules/create"
-                createLabel={__('+ New Rule')}
+                createHref={`${basePath}/create`}
+                createLabel={__('New Rule')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}

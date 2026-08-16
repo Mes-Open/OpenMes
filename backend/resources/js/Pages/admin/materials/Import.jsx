@@ -2,6 +2,8 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import PageTrail from '../../../components/PageTrail';
+import { __ } from '../../../lib/i18n';
 
 function Icon({ d, className = 'w-5 h-5' }) {
     return (
@@ -26,13 +28,7 @@ export default function MaterialsImport() {
             <Head title="Import Materials" />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
-                <span>/</span>
-                <Link href="/admin/materials" className="hover:text-om-ink">Materials</Link>
-                <span>/</span>
-                <span className="text-om-ink font-medium">Import</span>
-            </nav>
+            <PageTrail append={[{ label: __('Import') }]} />
 
             <div className="flex justify-between items-center mb-6">
                 <div>

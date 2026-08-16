@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 // Explicit extension: `components/engineeringDocuments.js` (the helper module)
 // differs only in case, so an extensionless import resolves to the wrong file on a
 // case-insensitive filesystem (macOS) and breaks the build.
 import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
+import PageTrail from '../../../components/PageTrail';
 
 const MOVEMENT_TYPE_COLORS = {
     receipt:    'text-om-running',
@@ -199,13 +200,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
             <Head title={`Material — ${material.name}`} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
-                <span>/</span>
-                <Link href="/admin/materials" className="hover:underline">Materials</Link>
-                <span>/</span>
-                <span className="text-om-ink">{material.name}</span>
-            </nav>
+            <PageTrail append={[{ label: material.name }]} />
 
             <div className="max-w-5xl mx-auto">
                 {/* Header */}
@@ -309,7 +304,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         <h3 className="text-lg font-semibold mb-4">
                             Lots <span className="text-sm font-normal text-om-faint">({lots.length})</span>
                         </h3>
-                        <DataTable
+                        <AppDataTable
                             data={lots}
                             columns={lotColumns}
                             searchable={false}
@@ -323,10 +318,10 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 {recentMovements.length > 0 && (
                     <div className="card mb-6">
                         <h3 className="text-lg font-semibold mb-4">Recent stock movements</h3>
-                        <DataTable
+                        <AppDataTable
+                            filterable={false}
                             data={recentMovements}
                             columns={movementColumns}
-                            searchPlaceholder="Search movements…"
                         />
                     </div>
                 )}
@@ -337,7 +332,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         <h3 className="text-lg font-semibold mb-4">
                             Used in BOM ({material.bom_items.length} templates)
                         </h3>
-                        <DataTable
+                        <AppDataTable
                             data={material.bom_items}
                             columns={bomColumns}
                             searchable={false}

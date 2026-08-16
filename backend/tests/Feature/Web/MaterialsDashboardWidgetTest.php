@@ -74,7 +74,7 @@ class MaterialsDashboardWidgetTest extends TestCase
             'status' => MaterialLot::STATUS_RELEASED,
         ]);
 
-        // The expiring-lot rows themselves stream to the browser via Electric;
+        // The expiring-lot rows themselves stream to the browser via live sync;
         // the dashboard payload carries the aggregate "expiring within 30d"
         // count that the widget header shows.
         $this->actingAs($this->admin)->get(route('admin.dashboard'))

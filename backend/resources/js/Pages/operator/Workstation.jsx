@@ -5,6 +5,8 @@ import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
+import Tooltip from '../../components/Tooltip';
+import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
@@ -38,8 +40,18 @@ function getCellValue(wo, col) {
     // field
     if (col.key === 'due_date') {
         if (!wo.due_date) return '—';
-        const d = new Date(wo.due_date);
-        return formatDate(d, { day: '2-digit', month: 'short' });
+        // The date alone leaves the operator counting days off a calendar to see
+        // which order is the urgent one; the countdown under it says so directly.
+        return (
+            <span className="inline-flex flex-col leading-tight">
+                <span>{formatDate(new Date(wo.due_date), { day: '2-digit', month: 'short' })}</span>
+                <DueCountdown
+                    due={wo.due_date}
+                    settled={SETTLED_STATUSES.includes(wo.status)}
+                    className="text-[11px]"
+                />
+            </span>
+        );
     }
     if (col.key === 'week_number') {
         return wo.week_number ? weekLabel(wo.week_number) : '—';
@@ -112,17 +124,19 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
     if (!visible) return null;
 
     return (
-        <Link
-            href={`/operator/shift-entry/${entry.id}/correct`}
-            className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
-            title="Correct quantity"
-            onClick={(e) => e.stopPropagation()}
-        >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-        </Link>
+        <Tooltip label="Correct quantity">
+            <Link
+                href={`/operator/shift-entry/${entry.id}/correct`}
+                className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
+                aria-label="Correct quantity"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+            </Link>
+        </Tooltip>
     );
 }
 
@@ -375,7 +389,10 @@ function InfoModal({ info, onClose }) {
                         </div>
                     </div>
                     <InfoRow label={__("Priority")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
-                    <InfoRow label={__("Due Date")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
+                    <InfoRow label={__("Due Date")}>
+                        <span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span>
+                        {info.dueRaw && <DueCountdown due={info.dueRaw} settled={info.settled} className="ml-2 font-mono text-[12px]" />}
+                    </InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
                             <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
@@ -538,18 +555,20 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
     return (
         <div className="relative" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
-                title="Configure columns"
-            >
-                <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            </button>
+            <Tooltip label="Configure columns">
+                <button
+                    type="button"
+                    onClick={() => setOpen((v) => !v)}
+                    className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
+                    aria-label="Configure columns"
+                >
+                    <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </Tooltip>
 
             {open && (
                 <div className="absolute right-0 mt-2 w-64 bg-om-card rounded-om shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] border border-om-line z-50 p-3">
@@ -705,51 +724,61 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
                     {!isDone && (
+                        <Tooltip label="Add produced quantity">
+                            <IconButton
+                                variant="primary"
+                                onClick={() =>
+                                    onComplete({
+                                        open: true,
+                                        id: wo.id,
+                                        orderNo: wo.order_no,
+                                        product: wo.product_type?.name ?? wo.order_no,
+                                        planned,
+                                        produced,
+                                    })
+                                }
+                                className="bg-om-accent hover:bg-om-accent hover:brightness-95"
+                                aria-label="Add produced quantity"
+                            >
+                                +
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <Tooltip label="Report problem">
                         <IconButton
-                            variant="primary"
+                            variant="danger"
+                            onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
+                            aria-label="Report problem"
+                        >
+                            !
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip label="Details">
+                        <IconButton
+                            variant="default"
                             onClick={() =>
-                                onComplete({
-                                    open: true,
-                                    id: wo.id,
+                                onInfo({
                                     orderNo: wo.order_no,
-                                    product: wo.product_type?.name ?? wo.order_no,
-                                    planned,
-                                    produced,
+                                    product: wo.product_type?.name ?? '-',
+                                    line: wo.line?.name ?? '-',
+                                    status: statusLabel(wo.status),
+                                    planned: fmt(planned),
+                                    produced: fmt(produced),
+                                    remaining: fmt(remaining),
+                                    priority: wo.priority ?? '-',
+                                    dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
+                                    // Raw value too, so the details modal can put
+                                    // the countdown beside the date it prints.
+                                    dueRaw: wo.due_date ?? null,
+                                    settled: SETTLED_STATUSES.includes(wo.status),
+                                    description: wo.description ?? '-',
                                 })
                             }
-                            className="bg-om-accent hover:bg-om-accent hover:brightness-95"
-                            title="Add produced quantity"
+                            aria-label="Details"
                         >
-                            +
+                            ?
                         </IconButton>
-                    )}
-                    <IconButton
-                        variant="danger"
-                        onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                        title="Report problem"
-                    >
-                        !
-                    </IconButton>
-                    <IconButton
-                        variant="default"
-                        onClick={() =>
-                            onInfo({
-                                orderNo: wo.order_no,
-                                product: wo.product_type?.name ?? '-',
-                                line: wo.line?.name ?? '-',
-                                status: statusLabel(wo.status),
-                                planned: fmt(planned),
-                                produced: fmt(produced),
-                                remaining: fmt(remaining),
-                                priority: wo.priority ?? '-',
-                                dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
-                                description: wo.description ?? '-',
-                            })
-                        }
-                        title="Details"
-                    >
-                        ?
-                    </IconButton>
+                    </Tooltip>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
                         <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
                     )}

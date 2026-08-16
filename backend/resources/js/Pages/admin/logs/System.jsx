@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const LEVEL_BADGE = {
     debug:     'bg-om-chip text-om-muted',
@@ -334,14 +335,12 @@ function FailedJobsTab({ entries, missing }) {
 
     return (
         <div>
-            <DataTable
+            <AppDataTable
+                filterable={false}
                 data={logItems}
                 columns={columns}
                 paginated={false}
-                searchPlaceholder="Search failed jobs…"
-                columnsLabel="Columns"
-                columnsMenuLabel="Toggle columns"
-                emptyLabel="No failed jobs."
+                emptyLabel={__('No failed jobs.')}
             />
             {meta && meta.last_page > 1 && (
                 <div className="mt-3">
@@ -473,14 +472,12 @@ function DeploymentsTab({ entries, missing }) {
 
     return (
         <div>
-            <DataTable
+            <AppDataTable
+                filterable={false}
                 data={logItems}
                 columns={columns}
                 paginated={false}
-                searchPlaceholder="Search deployments…"
-                columnsLabel="Columns"
-                columnsMenuLabel="Toggle columns"
-                emptyLabel="No deployments recorded."
+                emptyLabel={__('No deployments recorded.')}
             />
             {meta && meta.last_page > 1 && (
                 <div className="mt-3">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreCustomerRequest;
 use App\Http\Requests\Web\Admin\UpdateCustomerRequest;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
+    use ServesBothSections;
+
     /**
      * List customers. Rows live-sync via the `customers` shape; work-order
      * counts come as a prop.
@@ -22,12 +25,15 @@ class CustomerController extends Controller
 
         return Inertia::render('admin/customers/Index', [
             'counts' => $counts,
+            'basePath' => $this->basePath('/customers'),
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('admin/customers/Create');
+        return Inertia::render('admin/customers/Create', [
+            'basePath' => $this->basePath('/customers'),
+        ]);
     }
 
     public function store(StoreCustomerRequest $request)
@@ -38,13 +44,20 @@ class CustomerController extends Controller
 
         Customer::create($validated);
 
-        return redirect()->route('admin.customers.index')
+        // The list's New-customer modal posts `stay` so the user keeps their page
+        // — filters, paging and scroll — while the new row live-syncs in.
+        if ($request->boolean('stay')) {
+            return back()->with('success', __('Customer created successfully.'));
+        }
+
+        return redirect()->to($this->sectionRoute('customers.index'))
             ->with('success', __('Customer created successfully.'));
     }
 
     public function edit(Customer $customer)
     {
         return Inertia::render('admin/customers/Edit', [
+            'basePath' => $this->basePath('/customers'),
             'customer' => $customer->only(
                 'id', 'name', 'code', 'tier', 'payment_score',
                 'total_orders', 'total_revenue', 'notes', 'is_active'
@@ -60,7 +73,7 @@ class CustomerController extends Controller
 
         $customer->update($validated);
 
-        return redirect()->route('admin.customers.index')
+        return redirect()->to($this->sectionRoute('customers.index'))
             ->with('success', __('Customer updated successfully.'));
     }
 
@@ -70,7 +83,7 @@ class CustomerController extends Controller
         // customer can always be removed. Soft delete preserves the record.
         $customer->delete();
 
-        return redirect()->route('admin.customers.index')
+        return redirect()->to($this->sectionRoute('customers.index'))
             ->with('success', __('Customer deleted successfully.'));
     }
 
@@ -80,7 +93,7 @@ class CustomerController extends Controller
 
         $status = $customer->is_active ? __('activated') : __('deactivated');
 
-        return redirect()->route('admin.customers.index')
+        return redirect()->to($this->sectionRoute('customers.index'))
             ->with('success', __('Customer :status successfully.', ['status' => $status]));
     }
 }

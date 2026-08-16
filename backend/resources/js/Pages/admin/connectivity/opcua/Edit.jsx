@@ -2,14 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import OpcuaConnectionForm from './OpcuaConnectionForm';
 import { __ } from '../../../../lib/i18n';
+import useConfirm from '../../../../components/useConfirm';
 
 export default function OpcuaEdit() {
     const { connection } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
-        if (confirm(__('Delete this connection and all its tags?'))) {
+        confirm({ title: __('Delete this connection and all its tags?') }, () => {
             router.delete(`/admin/connectivity/opcua/${connection.id}`);
-        }
+        });
     };
 
     return (
@@ -38,6 +40,7 @@ export default function OpcuaEdit() {
                     onDelete={handleDelete}
                 />
             </div>
+            {dialog}
         </>
     );
 }

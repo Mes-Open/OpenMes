@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { Dropdown, DatePicker } from '@openmes/ui';
 import { __ } from '../../../../lib/i18n';
+import DueCountdown from '../../../../components/DueCountdown';
 import WorkOrderForm from '../../work-orders/WorkOrderForm';
 import { statusOf, statusLabel, priorityMeta, fmtQty, MONO } from './helpers';
 import { StatusPill } from './OrderCard';
@@ -43,7 +44,14 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                             <div className="flex items-center gap-2.5 mb-1.5">
                                 <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
                                 <StatusPill status={wo.status} />
-                                {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 20, padding: '2px 7px' }}>⚠ {__('Overdue')}</span>}
+                                {/* "Overdue" said an order was late but never by how
+                                    much, which is what decides where it gets moved
+                                    to. The chip now carries the size of the overrun. */}
+                                {wo.is_overdue && (
+                                    <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 20, padding: '2px 7px' }}>
+                                        ⚠ <DueCountdown due={wo.due_date} />
+                                    </span>
+                                )}
                             </div>
                             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.product_name} · {fmtQty(wo.planned_qty)} {__('pcs')}</div>
                         </div>
@@ -86,6 +94,14 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 {due && <button type="button" onClick={() => setDue('')} style={{ color: 'var(--om-accent)', textTransform: 'none', letterSpacing: 0 }}>{__('Clear')}</button>}
                             </div>
                             <DatePicker value={due || null} onChange={(iso) => setDue(iso ?? '')} className="w-full" />
+                            {/* Reads off the value being edited, not the saved one,
+                                so a date picked here answers "how much room does
+                                that leave?" before the sheet is saved. */}
+                            {due && (
+                                <div style={{ fontFamily: MONO, fontSize: 10, marginTop: 4 }}>
+                                    <DueCountdown due={due} />
+                                </div>
+                            )}
                         </div>
                         <div>
                             <div style={{ ...lblStyle, display: 'flex', justifyContent: 'space-between' }}>

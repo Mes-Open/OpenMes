@@ -8,9 +8,9 @@ export default function FactoriesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'divisions', label: __('Divisions'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'divisions', label: __('Divisions'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -24,11 +24,11 @@ export default function FactoriesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete factory ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/factories/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete factory ":name"?', { name: r.name }),
+                confirmLabel: __('Delete factory'),
             },
+            onClick: () => router.delete(`/admin/factories/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -37,9 +37,10 @@ export default function FactoriesIndex() {
             <Head title={__('Factories')} />
             <ResourceTable
                 shape="factories"
+                detailHref={(r) => `/admin/factories/${r.id}`}
                 title={__('Factories')}
                 createHref="/admin/factories/create"
-                createLabel={__('+ New Factory')}
+                createLabel={__('New Factory')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

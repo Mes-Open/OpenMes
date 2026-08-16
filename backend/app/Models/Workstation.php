@@ -20,6 +20,7 @@ class Workstation extends Model
         'code',
         'name',
         'workstation_type',
+        'ideal_rate_per_hour',
         'is_active',
     ];
 
@@ -27,6 +28,7 @@ class Workstation extends Model
     {
         return [
             'is_active' => 'boolean',
+            'ideal_rate_per_hour' => 'decimal:2',
         ];
     }
 
@@ -60,6 +62,15 @@ class Workstation extends Model
     public function workers(): HasMany
     {
         return $this->hasMany(Worker::class);
+    }
+
+    /**
+     * Time-sliced machine state history — the timeline behind the shift monitor
+     * and the machine monitor's availability figures.
+     */
+    public function states(): HasMany
+    {
+        return $this->hasMany(WorkstationState::class);
     }
 
     /**

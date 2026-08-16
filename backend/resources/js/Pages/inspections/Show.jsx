@@ -4,6 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
+import Tooltip from '../../components/Tooltip';
 import { formatDateTime, formatNumber, __ } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
@@ -261,7 +262,9 @@ function ResultsEntryForm({ inspection }) {
                                 <td className="p-2 font-medium text-om-ink">
                                     {row.criterion_name}
                                     {row.required && (
-                                        <span className="text-om-accent ml-0.5" title={__('Required')}>*</span>
+                                        <Tooltip label={__('Required')}>
+                                            <span className="text-om-accent ml-0.5">*</span>
+                                        </Tooltip>
                                     )}
                                 </td>
                                 <td className="p-2 text-om-muted">{row.criterion_type}</td>

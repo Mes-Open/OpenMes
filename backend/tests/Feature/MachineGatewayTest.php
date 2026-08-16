@@ -102,7 +102,7 @@ class MachineGatewayTest extends TestCase
             ->assertJsonPath('accepted', 1);
 
         $this->assertEquals('RUNNING', WorkstationState::where('workstation_id', $ws->id)->whereNull('ended_at')->first()->state);
-        $this->assertEquals(1, MachineEvent::where('event_type', 'state_change')->count());
+        $this->assertEquals(1, MachineEvent::where('event_type', 'state_change')->where('workstation_id', $ws->id)->count());
         // Posting refreshed the runtime heartbeat
         $this->assertTrue(app(RuntimeMonitor::class)->isAlive('opcua', $conn->id));
     }
@@ -123,7 +123,12 @@ class MachineGatewayTest extends TestCase
             'readings' => [['node_id' => 'ns=2;s=Good', 'value' => 7]],
         ])->assertJsonPath('accepted', 1);
 
-        $counter = MachineEvent::where('event_type', 'counter')->first();
+        // Scoped to this test's own workstation: the assertion is about the
+        // event this ingest produced, not about the table being empty.
+        $counter = MachineEvent::where('event_type', 'counter')
+            ->where('workstation_id', $ws->id)
+            ->latest('event_timestamp')
+            ->first();
         $this->assertEquals(7, $counter->payload['delta']);
     }
 }

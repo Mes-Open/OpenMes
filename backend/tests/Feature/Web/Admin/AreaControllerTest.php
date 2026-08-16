@@ -31,7 +31,7 @@ class AreaControllerTest extends TestCase
         $site = Site::factory()->create();
         Area::factory()->create(['site_id' => $site->id, 'name' => 'Painting Booth']);
 
-        // Rows live-sync to the browser via the Electric `areas` shape, so the
+        // Rows live-sync to the browser via the `areas` collection, so the
         // names are not in the server HTML — assert the Inertia page renders.
         $this->actingAs($this->admin)->get(route('admin.areas.index'))
             ->assertOk()

@@ -56,7 +56,7 @@ class WorkstationRoutingTest extends TestCase
         ]);
         $this->operatorB->assignRole('Operator');
 
-        $this->lineOperator = User::factory()->create(['account_type' => 'operator', 'workstation_id' => null]);
+        $this->lineOperator = User::factory()->create(['workstation_id' => null]);
         $this->lineOperator->assignRole('Operator');
 
         $this->admin = User::factory()->create();

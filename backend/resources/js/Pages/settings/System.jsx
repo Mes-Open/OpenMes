@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import useConfirm from '../../components/useConfirm';
+import { useToast } from '@openmes/ui';
 import { __ } from '../../lib/i18n';
 
 // Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
@@ -45,6 +47,7 @@ function SelectCard({ value, current, onChange, label, desc, disabled }) {
 }
 
 export default function System() {
+    const toast = useToast();
     const { settings, availableLocales, appUrl, modules = [], backups } = usePage().props;
 
     const [tab, setTab] = useState('general');
@@ -60,6 +63,8 @@ export default function System() {
     const [statusMessage, setStatusMessage] = useState('');
 
     const { csrf_token } = usePage().props;
+
+    const { confirm, dialog } = useConfirm();
 
     const { data, setData, post, processing, errors } = useForm({
         production_period: settings.production_period ?? 'none',
@@ -142,11 +147,11 @@ export default function System() {
                 }, 1000);
             } else {
                 setIsResetting(false);
-                alert(result.message || __('An error occurred while resetting the system.'));
+                toast({ severity: 'error', title: __('An error occurred while resetting the system.'), body: result.message });
             }
         } catch (err) {
             setIsResetting(false);
-            alert(__('Connection error: ') + err.message);
+            toast({ severity: 'error', title: __('Connection error: '), body: err.message });
         }
     };
 
@@ -180,24 +185,17 @@ export default function System() {
                 }, 1000);
             } else {
                 setIsRestoring(false);
-                alert(result.message || __('An error occurred while restoring the system.'));
+                toast({ severity: 'error', title: __('An error occurred while restoring the system.'), body: result.message });
             }
         } catch (err) {
             setIsRestoring(false);
-            alert(__('Connection error: ') + err.message);
+            toast({ severity: 'error', title: __('Connection error: '), body: err.message });
         }
     };
 
-    const handleUploadRestoreSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!confirm(__('Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.'))) {
-            return;
-        }
-
-        const fileInput = e.target.elements.backup_file;
+    const runUploadRestore = async (fileInput) => {
         if (!fileInput || !fileInput.files[0]) {
-            alert(__('Please select a backup file.'));
+            toast({ severity: 'warning', title: __('Please select a backup file.') });
             return;
         }
 
@@ -220,7 +218,7 @@ export default function System() {
             const uploadResult = await uploadResponse.json();
             if (!uploadResponse.ok || !uploadResult.success) {
                 setIsRestoring(false);
-                alert(uploadResult.message || __('An error occurred while uploading the backup file.'));
+                toast({ severity: 'error', title: __('An error occurred while uploading the backup file.'), body: uploadResult.message });
                 return;
             }
 
@@ -251,12 +249,21 @@ export default function System() {
                 }, 1000);
             } else {
                 setIsRestoring(false);
-                alert(restoreResult.message || __('An error occurred while restoring the system.'));
+                toast({ severity: 'error', title: __('An error occurred while restoring the system.'), body: restoreResult.message });
             }
         } catch (err) {
             setIsRestoring(false);
-            alert(__('Connection error: ') + err.message);
+            toast({ severity: 'error', title: __('Connection error: '), body: err.message });
         }
+    };
+
+    const handleUploadRestoreSubmit = (e) => {
+        e.preventDefault();
+        const fileInput = e.target.elements.backup_file;
+        confirm(
+            { title: __('Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.') },
+            () => runUploadRestore(fileInput),
+        );
     };
 
     return (
@@ -915,13 +922,13 @@ export default function System() {
                                             <a href={`/settings/backups/download/${backup.filename}`} className="text-[12.5px] font-semibold text-om-ink hover:underline">{__('Download')}</a>
                                             <button
                                                 type="button"
-                                                onClick={(e) => confirm(__('Are you sure you want to restore the system from this backup? Current data will be overwritten.')) && handleRestoreSubmit(e, backup.filename)}
+                                                onClick={(e) => confirm({ title: __('Are you sure you want to restore the system from this backup? Current data will be overwritten.') }, () => handleRestoreSubmit(e, backup.filename))}
                                                 disabled={isRestoring}
                                                 className="text-[12.5px] font-semibold text-om-accent hover:underline disabled:opacity-50"
                                             >
                                                 {__('Restore')}
                                             </button>
-                                            <form method="POST" action={`/settings/backups/${backup.filename}`} onSubmit={(e) => !confirm(__('Are you sure you want to delete this backup?')) && e.preventDefault()}>
+                                            <form method="POST" action={`/settings/backups/${backup.filename}`} onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget; confirm({ title: __('Are you sure you want to delete this backup?') }, () => f.submit()); }}>
                                                 <input type="hidden" name="_token" value={csrf_token} />
                                                 <input type="hidden" name="_method" value="DELETE" />
                                                 <button type="submit" className="text-[12.5px] font-semibold text-om-blocked hover:underline">{__('Delete')}</button>
@@ -990,6 +997,7 @@ export default function System() {
                     </div>
                 </div>
             )}
+            {dialog}
         </div>
     );
 }

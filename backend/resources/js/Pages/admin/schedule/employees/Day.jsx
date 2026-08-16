@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
+import Tooltip from '../../../../components/Tooltip';
 import { formatDate, __ } from '../../../../lib/i18n';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -313,9 +314,11 @@ export default function EmployeeDay() {
                                             <div className="font-mono text-[10px] mt-0.5 font-bold tracking-wider" style={{ color: def.color }}>{fmtMins(a.duration)}</div>
                                         </div>
                                         {a.id && (
-                                            <button onClick={() => handleDelete(a.id)} className="p-1 text-om-faint hover:text-om-blocked" title={__('Delete')}>
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/></svg>
-                                            </button>
+                                            <Tooltip label={__('Delete')}>
+                                                <button onClick={() => handleDelete(a.id)} className="p-1 text-om-faint hover:text-om-blocked" aria-label={__('Delete')}>
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/></svg>
+                                                </button>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 );

@@ -77,9 +77,7 @@ export default function QualityTasksIndex() {
     };
 
     const skip = (task) => {
-        if (confirm(__('Skip this quality control?'))) {
-            router.post(`${base}/quality-tasks/${task.id}/skip`, {}, { preserveScroll: true });
-        }
+        router.post(`${base}/quality-tasks/${task.id}/skip`, {}, { preserveScroll: true });
     };
 
     const submitRoaming = () => {
@@ -95,6 +93,8 @@ export default function QualityTasksIndex() {
             key: 'quality_control_trigger_id',
             label: __('Control'),
             className: 'font-medium text-om-ink',
+            value: (r) => triggers[r.quality_control_trigger_id]?.name ?? `#${r.quality_control_trigger_id}`,
+           
             render: (r) => triggers[r.quality_control_trigger_id]?.name ?? `#${r.quality_control_trigger_id}`,
         },
         { key: 'due_reason', label: __('Reason'), className: 'text-om-muted' },
@@ -102,22 +102,26 @@ export default function QualityTasksIndex() {
             key: 'work_order_id',
             label: __('Work order'),
             className: 'text-om-muted',
+            value: (r) => (r.work_order_id ? (workOrderNos[r.work_order_id] ?? `#${r.work_order_id}`) : '—'),
             render: (r) => (r.work_order_id ? (workOrderNos[r.work_order_id] ?? `#${r.work_order_id}`) : '—'),
         },
         {
             key: 'batch_id',
             label: __('Batch'),
             className: 'text-om-muted',
+            value: (r) => (r.batch_id ? (batchNumbers[r.batch_id] ?? `#${r.batch_id}`) : '—'),
             render: (r) => (r.batch_id ? (batchNumbers[r.batch_id] ?? `#${r.batch_id}`) : '—'),
         },
         {
             key: 'line_id',
             label: __('Line'),
             className: 'text-om-muted',
+            value: (r) => (r.line_id ? (lineNames[r.line_id] ?? `#${r.line_id}`) : '—'),
+           
             render: (r) => (r.line_id ? (lineNames[r.line_id] ?? `#${r.line_id}`) : '—'),
         },
         {
-            key: 'fired_at',
+            key: 'fired_at', filter: 'date',
             label: __('Due since'),
             className: 'text-om-faint',
             render: (r) => (r.fired_at ? String(r.fired_at).slice(0, 16).replace('T', ' ') : '—'),
@@ -129,7 +133,14 @@ export default function QualityTasksIndex() {
         if (r.batch_id) {
             list.push({ label: __('Perform'), variant: 'primary', onClick: () => openPerform(r) });
         }
-        list.push({ label: __('Skip'), onClick: () => skip(r) });
+        list.push({
+            label: __('Skip'),
+            confirm: {
+                title: __('Skip this quality control?'),
+                confirmLabel: __('Skip'),
+            },
+            onClick: () => skip(r),
+        });
         return list;
     };
 

@@ -6,6 +6,8 @@ import AppLayout from '../../../layouts/AppLayout';
 // case and would resolve wrong on case-insensitive filesystems.
 import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 
 /* ------------------------------------------------------------------ */
 /* Small SVG helper                                                      */
@@ -420,6 +422,7 @@ function StepPhoto({ step, photo, baseUrl }) {
     const form = useForm({ photo: null, template_step_id: step.id });
     const inputRef = useRef(null);
     const [zoom, setZoom] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     const pick = () => inputRef.current?.click();
 
@@ -439,22 +442,28 @@ function StepPhoto({ step, photo, baseUrl }) {
     };
 
     const remove = () => {
-        if (confirm(__('Delete this step photo?'))) {
+        confirm({ title: __('Delete this step photo?') }, () => {
             router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
-        }
+        });
     };
 
     return (
         <div className="mt-3 flex items-center gap-3">
             {photo ? (
                 <>
-                    <button type="button" onClick={() => setZoom(true)} title={photo.caption || photo.original_name}>
-                        <img
-                            src={photo.url}
-                            alt={photo.caption || 'Step photo'}
-                            className="w-20 h-20 object-cover rounded-om-sm border border-om-line2 bg-om-chip"
-                        />
-                    </button>
+                    <Tooltip label={photo.caption || photo.original_name}>
+                        <button
+                            type="button"
+                            onClick={() => setZoom(true)}
+                            aria-label={photo.caption || photo.original_name}
+                        >
+                            <img
+                                src={photo.url}
+                                alt={photo.caption || 'Step photo'}
+                                className="w-20 h-20 object-cover rounded-om-sm border border-om-line2 bg-om-chip"
+                            />
+                        </button>
+                    </Tooltip>
                     <div className="flex flex-col gap-1">
                         <button type="button" onClick={pick} disabled={form.processing} className="text-xs text-om-accent hover:underline text-left">
                             {form.processing ? __('Uploading…') : __('Replace photo')}
@@ -484,6 +493,7 @@ function StepPhoto({ step, photo, baseUrl }) {
                     <img src={photo.url} alt={photo.caption || ''} className="max-w-full max-h-[85vh] rounded-om-sm shadow-2xl" onClick={(e) => e.stopPropagation()} />
                 </div>
             )}
+            {dialog}
         </div>
     );
 }
@@ -638,19 +648,22 @@ function StepCard({
                 <div className="flex items-start justify-between">
                     <div className="flex gap-4 flex-1">
                         {/* Drag handle */}
-                        <div
-                            className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
-                            title="Drag to reorder"
-                        >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                <circle cx="9" cy="5" r="1.5" />
-                                <circle cx="15" cy="5" r="1.5" />
-                                <circle cx="9" cy="12" r="1.5" />
-                                <circle cx="15" cy="12" r="1.5" />
-                                <circle cx="9" cy="19" r="1.5" />
-                                <circle cx="15" cy="19" r="1.5" />
-                            </svg>
-                        </div>
+                        <Tooltip label="Drag to reorder">
+                            <div
+                                className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
+                                role="img"
+                                aria-label="Drag to reorder"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="9" cy="5" r="1.5" />
+                                    <circle cx="15" cy="5" r="1.5" />
+                                    <circle cx="9" cy="12" r="1.5" />
+                                    <circle cx="15" cy="12" r="1.5" />
+                                    <circle cx="9" cy="19" r="1.5" />
+                                    <circle cx="15" cy="19" r="1.5" />
+                                </svg>
+                            </div>
+                        </Tooltip>
 
                         <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
                             <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
@@ -717,45 +730,53 @@ function StepCard({
 
                                 {/* Actions */}
                                 <div className="flex gap-1 ml-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => onEditStart(step.id)}
-                                        className="text-om-accent hover:text-om-accent p-2"
-                                        title="Edit"
-                                    >
-                                        <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </button>
-
-                                    {!isFirst && (
+                                    <Tooltip label="Edit">
                                         <button
                                             type="button"
-                                            onClick={() => onMoveUp(step)}
-                                            className="text-om-muted hover:text-om-ink p-2"
-                                            title="Move up"
+                                            onClick={() => onEditStart(step.id)}
+                                            className="text-om-accent hover:text-om-accent p-2"
+                                            aria-label="Edit"
                                         >
-                                            <Icon d="M5 15l7-7 7 7" />
+                                            <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </button>
+                                    </Tooltip>
+
+                                    {!isFirst && (
+                                        <Tooltip label="Move up">
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveUp(step)}
+                                                className="text-om-muted hover:text-om-ink p-2"
+                                                aria-label="Move up"
+                                            >
+                                                <Icon d="M5 15l7-7 7 7" />
+                                            </button>
+                                        </Tooltip>
                                     )}
 
                                     {!isLast && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onMoveDown(step)}
-                                            className="text-om-muted hover:text-om-ink p-2"
-                                            title="Move down"
-                                        >
-                                            <Icon d="M19 9l-7 7-7-7" />
-                                        </button>
+                                        <Tooltip label="Move down">
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveDown(step)}
+                                                className="text-om-muted hover:text-om-ink p-2"
+                                                aria-label="Move down"
+                                            >
+                                                <Icon d="M19 9l-7 7-7-7" />
+                                            </button>
+                                        </Tooltip>
                                     )}
 
-                                    <button
-                                        type="button"
-                                        onClick={() => onDelete(step)}
-                                        className="text-om-blocked hover:text-om-blocked p-2"
-                                        title="Delete"
-                                    >
-                                        <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </button>
+                                    <Tooltip label="Delete">
+                                        <button
+                                            type="button"
+                                            onClick={() => onDelete(step)}
+                                            className="text-om-blocked hover:text-om-blocked p-2"
+                                            aria-label="Delete"
+                                        >
+                                            <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
 
@@ -804,6 +825,7 @@ export default function ProcessTemplatesShow() {
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
+    const { confirm, dialog } = useConfirm();
 
     const handleMoveUp = (step) => {
         router.post(
@@ -822,11 +844,12 @@ export default function ProcessTemplatesShow() {
     };
 
     const handleDelete = (step) => {
-        if (!confirm('Delete this step?')) return;
-        router.delete(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
-            { preserveScroll: true },
-        );
+        confirm({ title: 'Delete this step?' }, () => {
+            router.delete(
+                `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
+                { preserveScroll: true },
+            );
+        });
     };
 
     /* Drag-sort via SortableJS (loaded globally via vendor/sortable.min.js) */
@@ -1041,6 +1064,7 @@ export default function ProcessTemplatesShow() {
                     </div>
                 )}
             </div>
+            {dialog}
         </>
     );
 }
@@ -1058,6 +1082,7 @@ function PhotosSection({ productType, processTemplate }) {
     const form = useForm({ photo: null, caption: '' });
     const fileInputRef = useRef(null);
     const [lightbox, setLightbox] = useState(null); // photo object or null
+    const { confirm, dialog } = useConfirm();
 
     const submit = (e) => {
         e.preventDefault();
@@ -1073,8 +1098,9 @@ function PhotosSection({ productType, processTemplate }) {
     };
 
     const handleDelete = (photo) => {
-        if (!confirm(__('Delete this photo?'))) return;
-        router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+        confirm({ title: __('Delete this photo?') }, () => {
+            router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+        });
     };
 
     return (
@@ -1124,33 +1150,37 @@ function PhotosSection({ productType, processTemplate }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                     {photos.map((photo) => (
                         <div key={photo.id} className="card p-2 group relative">
-                            <button
-                                type="button"
-                                onClick={() => setLightbox(photo)}
-                                className="block w-full"
-                                title={photo.original_name}
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.caption || photo.original_name}
-                                    loading="lazy"
-                                    className="w-full h-32 object-cover rounded-om-sm bg-om-chip"
-                                />
-                            </button>
+                            <Tooltip label={photo.original_name}>
+                                <button
+                                    type="button"
+                                    onClick={() => setLightbox(photo)}
+                                    className="block w-full"
+                                    aria-label={photo.original_name}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || photo.original_name}
+                                        loading="lazy"
+                                        className="w-full h-32 object-cover rounded-om-sm bg-om-chip"
+                                    />
+                                </button>
+                            </Tooltip>
                             <div className="mt-2 text-xs text-om-muted truncate" title={photo.caption || ''}>
                                 {photo.caption || <span className="text-om-faint">{__("No caption")}</span>}
                             </div>
                             <div className="text-[10px] text-om-faint">
                                 {photo.width}×{photo.height} • {photo.file_size}
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => handleDelete(photo)}
-                                className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                                title={__("Delete photo")}
-                            >
-                                <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
-                            </button>
+                            <Tooltip label={__("Delete photo")}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDelete(photo)}
+                                    className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                    aria-label={__("Delete photo")}
+                                >
+                                    <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
+                                </button>
+                            </Tooltip>
                         </div>
                     ))}
                 </div>
@@ -1179,16 +1209,19 @@ function PhotosSection({ productType, processTemplate }) {
                             )}
                         </figcaption>
                     </figure>
-                    <button
-                        type="button"
-                        onClick={() => setLightbox(null)}
-                        className="absolute top-5 right-5 text-white/80 hover:text-white"
-                        title="Close"
-                    >
-                        <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
-                    </button>
+                    <Tooltip label="Close">
+                        <button
+                            type="button"
+                            onClick={() => setLightbox(null)}
+                            className="absolute top-5 right-5 text-white/80 hover:text-white"
+                            aria-label="Close"
+                        >
+                            <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
+                        </button>
+                    </Tooltip>
                 </div>
             )}
+            {dialog}
         </div>
     );
 }

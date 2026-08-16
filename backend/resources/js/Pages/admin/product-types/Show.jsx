@@ -6,6 +6,7 @@ import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 // case-insensitive filesystem (macOS) and breaks the build.
 import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const WO_STATUS_LABELS = {
     PENDING:     'Pending',
@@ -70,13 +71,7 @@ export default function ProductTypeShow({
             <Head title={__("Product Type Details")} />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">{__("Dashboard")}</Link>
-                <span>/</span>
-                <Link href="/admin/product-types" className="hover:underline">{__("Product Types")}</Link>
-                <span>/</span>
-                <span className="text-om-ink">{productType.name}</span>
-            </nav>
+            <PageTrail append={[{ label: productType.name }]} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -89,6 +84,13 @@ export default function ProductTypeShow({
                     </Link>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
+                            {productType.image_url && (
+                                <img
+                                    src={productType.image_url}
+                                    alt={productType.name}
+                                    className="h-14 w-14 rounded-om-sm border border-om-line object-cover bg-om-bg"
+                                />
+                            )}
                             <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
                             {productType.is_active ? (
                                 <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__("Active")}</span>

@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const bomColumns = [
     { id: 'material_name', accessorKey: 'material_name', header: 'Material', cell: ({ row }) => <span className="font-medium">{row.original.material_name}</span> },
@@ -133,7 +134,7 @@ export default function BatchReport() {
                 {/* BOM */}
                 {bom.length > 0 && (
                     <Section title="Materials (BOM)">
-                        <DataTable
+                        <AppDataTable
                             data={bom}
                             columns={bomColumns}
                             searchable={false}
@@ -145,20 +146,20 @@ export default function BatchReport() {
 
                 {/* Production Steps */}
                 <Section title="Production Steps">
-                    <DataTable
+                    <AppDataTable
                         data={steps}
                         columns={stepColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No steps recorded."
+                        emptyLabel={__('No steps recorded.')}
                     />
                 </Section>
 
                 {/* Process Confirmations */}
                 {confirmations.length > 0 && (
                     <Section title="Process Confirmations">
-                        <DataTable
+                        <AppDataTable
                             data={confirmations}
                             columns={confirmationColumns}
                             searchable={false}
@@ -183,7 +184,7 @@ export default function BatchReport() {
                                         )}
                                         <PassBadge pass={qc.all_passed} />
                                     </div>
-                                    <DataTable
+                                    <AppDataTable
                                         data={qc.samples ?? []}
                                         columns={sampleColumns}
                                         searchable={false}
