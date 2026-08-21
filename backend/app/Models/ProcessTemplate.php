@@ -104,6 +104,7 @@ class ProcessTemplate extends Model
                     'workstation_id' => $step->workstation_id,
                     'workstation_name' => $step->workstation?->name,
                     'workstation_type_id' => $step->effectiveWorkstationType(),
+                    'parameters' => $step->effectiveParameters(),
                     'is_optional' => (bool) $step->is_optional,
                     'variant_group' => $step->variant_group,
                     'is_default_variant' => (bool) $step->is_default_variant,

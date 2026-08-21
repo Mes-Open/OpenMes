@@ -29,6 +29,7 @@ class TemplateStep extends Model
         'workstation_type_id',
         'setup_time_minutes',
         'run_time_per_unit_minutes',
+        'parameters',
         'is_optional',
         'variant_group',
         'is_default_variant',
@@ -41,6 +42,7 @@ class TemplateStep extends Model
             'estimated_duration_minutes' => 'integer',
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',
+            'parameters' => 'array',
             'required_operators' => 'integer',
             'min_duration_minutes' => 'integer',
             'requires_confirmation' => 'boolean',
@@ -150,5 +152,21 @@ class TemplateStep extends Model
     public function effectiveWorkstationType(): ?int
     {
         return $this->workstation_type_id ?? $this->processSegment?->workstation_type_id;
+    }
+
+    /**
+     * Resolve the effective equipment parameters — the linked Process Segment
+     * supplies defaults, the step's own values override them key by key. Both
+     * absent yields an empty map. Used by the work-order snapshot so a client can
+     * read the recipe an external system needs to drive equipment.
+     *
+     * @return array<string, mixed>
+     */
+    public function effectiveParameters(): array
+    {
+        return array_merge(
+            $this->processSegment?->parameters ?? [],
+            $this->parameters ?? [],
+        );
     }
 }
