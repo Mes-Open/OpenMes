@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Equipment parameters on process-template steps** *(admin / API)* — each step can now carry a free-form `key:value` recipe (temperature, humidity, pressure, sample size…) that an external client reads to drive equipment. Set them in the step editor (a key/value row editor beside the ISA-95 fields). A linked Process Segment supplies defaults; the step's own values override them key by key (`effectiveParameters()`). The values are frozen onto a work order's `process_snapshot` (so `GET /api/v1/work-orders/{id}` exposes the exact recipe each order was built with) **and** readable live from the current template (`GET /api/v1/process-templates/{id}`). Nullable and additive — existing steps and workflows are unaffected.
+
 ## [0.20.0] - 2026-08-16
 
 ### Added

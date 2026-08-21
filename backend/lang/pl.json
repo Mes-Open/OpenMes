@@ -5628,5 +5628,9 @@
     "Material returned to stock": "Materiał zwrócony do magazynu",
     "Material reclassified": "Materiał przeklasyfikowany",
     "Work order :code created.": "Zlecenie :code utworzone.",
-    "Customers & order data": "Klienci i dane zamówień"
+    "Customers & order data": "Klienci i dane zamówień",
+    "Equipment parameters": "Parametry sprzętu",
+    "Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.": "Ustawienia klucz:wartość potrzebne maszynie (np. temperatura, wilgotność). Odczyt przez API.",
+    "key (e.g. temperature_c)": "klucz (np. temperature_c)",
+    "+ Add parameter": "+ Dodaj parametr"
 }

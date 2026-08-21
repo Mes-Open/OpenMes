@@ -26,6 +26,9 @@ abstract class TemplateStepRequest extends FormRequest
             'estimated_duration_minutes' => 'nullable|integer|min:0',
             'setup_time_minutes' => 'nullable|integer|min:0',
             'run_time_per_unit_minutes' => 'nullable|numeric|min:0',
+            // Equipment key:value parameters (temperature, humidity, …) — a flat map.
+            'parameters' => 'nullable|array',
+            'parameters.*' => 'nullable|string|max:1000',
             'required_operators' => 'nullable|integer|min:1',
             'workstation_id' => 'nullable|exists:workstations,id',
             'workstation_type_id' => ['nullable', Rule::exists('workstation_types', 'id')->where('is_active', true)->whereNull('deleted_at')],
