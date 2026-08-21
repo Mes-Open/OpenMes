@@ -14,8 +14,11 @@ class ProcessTemplateApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -32,8 +35,15 @@ class ProcessTemplateApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     public function test_can_list_templates_for_product_type(): void
     {
@@ -82,6 +92,45 @@ class ProcessTemplateApiTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.name', 'Cut metal')
             ->assertJsonPath('data.step_number', 1);
+    }
+
+    public function test_admin_can_set_and_read_equipment_parameters_via_api(): void
+    {
+        $pt = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $pt->id]);
+
+        $this->authAdmin()->postJson("/api/v1/process-templates/{$template->id}/steps", [
+            'name' => 'Reflow oven',
+            'parameters' => ['temperature_c' => '250', 'humidity_pct' => '40'],
+        ])->assertStatus(201)
+            ->assertJsonPath('data.parameters.temperature_c', '250');
+
+        // Live read: the current template exposes the params for equipment control.
+        $this->authAdmin()->getJson("/api/v1/process-templates/{$template->id}")
+            ->assertOk()
+            ->assertJsonPath('data.steps.0.parameters.humidity_pct', '40');
+    }
+
+    public function test_parameters_must_be_an_object(): void
+    {
+        $pt = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $pt->id]);
+
+        $this->authAdmin()->postJson("/api/v1/process-templates/{$template->id}/steps", [
+            'name' => 'Bad', 'parameters' => 'not-an-array',
+        ])->assertStatus(422)->assertJsonValidationErrors('parameters');
+    }
+
+    public function test_parameters_reject_a_positional_list(): void
+    {
+        $pt = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $pt->id]);
+
+        // A positional list ["250","40"] passes the `array` rule but is not a
+        // key:value recipe — it must be rejected, not frozen with integer keys.
+        $this->authAdmin()->postJson("/api/v1/process-templates/{$template->id}/steps", [
+            'name' => 'Bad', 'parameters' => ['250', '40'],
+        ])->assertStatus(422)->assertJsonValidationErrors('parameters');
     }
 
     public function test_step_numbers_auto_increment(): void

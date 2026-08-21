@@ -125,6 +125,64 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
     );
 }
 
+// Equipment key:value parameters for a step (temperature, humidity, …). Edited as
+// rows and stored as a flat object; a client reads it from the work-order snapshot
+// (or the live template) to drive equipment.
+function ParametersEditor({ value = {}, onChange }) {
+    const rows = Object.entries(value ?? {});
+
+    const emit = (pairs) => {
+        const obj = {};
+        for (const [k, v] of pairs) {
+            if (String(k).trim() !== '') obj[k] = v;
+        }
+        onChange(obj);
+    };
+    const setRow = (i, key, val) => emit(rows.map((r, idx) => (idx === i ? [key, val] : r)));
+    const addRow = () => onChange({ ...(value ?? {}), '': '' });
+    const removeRow = (i) => emit(rows.filter((_, idx) => idx !== i));
+
+    return (
+        <div className="md:col-span-2 bg-om-panel rounded-om-sm p-3 border border-om-line">
+            <label className="form-label">{__('Equipment parameters')}</label>
+            <p className="text-xs text-om-muted mb-2">
+                {__('Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.')}
+            </p>
+            <div className="space-y-2">
+                {rows.map(([k, v], i) => (
+                    <div key={i} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={k}
+                            onChange={(e) => setRow(i, e.target.value, v)}
+                            className="form-input w-1/2"
+                            placeholder={__('key (e.g. temperature_c)')}
+                        />
+                        <input
+                            type="text"
+                            value={v ?? ''}
+                            onChange={(e) => setRow(i, k, e.target.value)}
+                            className="form-input w-1/2"
+                            placeholder={__('value')}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => removeRow(i)}
+                            className="px-2 text-om-muted hover:text-om-blocked"
+                            title={__('Remove')}
+                        >
+                            ×
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <button type="button" onClick={addRow} className="mt-2 text-xs text-om-accent hover:underline">
+                {__('+ Add parameter')}
+            </button>
+        </div>
+    );
+}
+
 /* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
@@ -139,6 +197,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         required_operators: '',
         workstation_id: '',
         workstation_type_id: '',
+        parameters: {},
         process_segment_id: '',
         is_optional: false,
         variant_group: '',
@@ -264,6 +323,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                    <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -294,6 +354,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         workstation_type_id: step.workstation_type_id != null ? String(step.workstation_type_id) : '',
+        parameters: step.parameters ?? {},
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
         variant_group: step.variant_group ?? '',
@@ -397,6 +458,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
@@ -516,6 +578,26 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     const fileRef = useRef(null);
     const itemForm = useForm({ label: '', is_required: false, template_step_id: step.id });
 
+    const outputsBase = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/outputs`;
+    const outputs = (processTemplate.outputs ?? []).filter((o) => o.template_step_id === step.id);
+    const outputForm = useForm({ key: '', label: '', value_type: 'text', unit: '', options: '', is_required: false, template_step_id: step.id });
+
+    const addOutput = (e) => {
+        e.preventDefault();
+        if (!outputForm.data.key.trim() || !outputForm.data.label.trim()) return;
+        outputForm.transform((d) => ({
+            ...d,
+            options: d.value_type === 'select'
+                ? d.options.split(',').map((s) => s.trim()).filter(Boolean)
+                : null,
+        }));
+        outputForm.post(outputsBase, {
+            preserveScroll: true,
+            onSuccess: () => outputForm.reset('key', 'label', 'unit', 'options', 'is_required'),
+            onFinish: () => outputForm.transform((d) => d),
+        });
+    };
+
     const onFile = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -611,6 +693,49 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                     </label>
                     <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
                 </form>
+            </div>
+
+            {/* Typed operator outputs */}
+            <div>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Operator outputs')}</p>
+                {outputs.length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                        {outputs.map((o) => (
+                            <li key={o.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-om-ink">{o.label}</span>
+                                <span className="font-mono text-[10px] text-om-muted">{o.key}</span>
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{o.value_type}</span>
+                                {o.is_required && <span className="text-[10px] uppercase text-om-downtime">{__('required')}</span>}
+                                <button type="button" onClick={() => router.delete(`${outputsBase}/${o.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <form onSubmit={addOutput} className="flex flex-wrap items-center gap-2">
+                    <input type="text" value={outputForm.data.key} onChange={(e) => outputForm.setData('key', e.target.value)} placeholder={__('key (e.g. output_qcpic)')} className="form-input text-sm py-1 w-[160px]" />
+                    <input type="text" value={outputForm.data.label} onChange={(e) => outputForm.setData('label', e.target.value)} placeholder={__('Label')} className="form-input text-sm py-1 flex-1 min-w-[120px]" />
+                    <select value={outputForm.data.value_type} onChange={(e) => outputForm.setData('value_type', e.target.value)} className="form-select text-sm py-1">
+                        <option value="text">{__('Text')}</option>
+                        <option value="number">{__('Number')}</option>
+                        <option value="boolean">{__('Yes/No')}</option>
+                        <option value="select">{__('Select')}</option>
+                        <option value="date">{__('Date')}</option>
+                        <option value="picture">{__('Picture')}</option>
+                    </select>
+                    {outputForm.data.value_type === 'number' && (
+                        <input type="text" value={outputForm.data.unit} onChange={(e) => outputForm.setData('unit', e.target.value)} placeholder={__('unit')} className="form-input text-sm py-1 w-[80px]" />
+                    )}
+                    {outputForm.data.value_type === 'select' && (
+                        <input type="text" value={outputForm.data.options} onChange={(e) => outputForm.setData('options', e.target.value)} placeholder={__('options, comma-separated')} className="form-input text-sm py-1 w-[180px]" />
+                    )}
+                    <label className="flex items-center gap-1.5 text-xs text-om-muted">
+                        <input type="checkbox" checked={outputForm.data.is_required} onChange={(e) => outputForm.setData('is_required', e.target.checked)} />
+                        {__('Required')}
+                    </label>
+                    <button type="submit" disabled={outputForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
+                </form>
+                {outputForm.errors.options && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.options}</p>}
+                {outputForm.errors.key && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.key}</p>}
             </div>
         </div>
     );

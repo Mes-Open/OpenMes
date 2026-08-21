@@ -81,6 +81,12 @@ class ProcessTemplate extends Model
         return $this->hasMany(TemplateStepChecklistItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** Typed operator-output definitions across this template's steps. */
+    public function outputs(): HasMany
+    {
+        return $this->hasMany(TemplateStepOutput::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Generate a JSON snapshot of this template for work order storage.
      * This ensures work orders are immune to template changes.
@@ -104,6 +110,7 @@ class ProcessTemplate extends Model
                     'workstation_id' => $step->workstation_id,
                     'workstation_name' => $step->workstation?->name,
                     'workstation_type_id' => $step->effectiveWorkstationType(),
+                    'parameters' => $step->effectiveParameters(),
                     'is_optional' => (bool) $step->is_optional,
                     'variant_group' => $step->variant_group,
                     'is_default_variant' => (bool) $step->is_default_variant,

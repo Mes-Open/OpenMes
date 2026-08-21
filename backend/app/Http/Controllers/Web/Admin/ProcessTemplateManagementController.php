@@ -87,6 +87,7 @@ class ProcessTemplateManagementController extends Controller
             'photos.uploadedBy',
             'stepMedia',
             'checklistItems',
+            'outputs',
         ]);
         $workstations = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
@@ -113,6 +114,7 @@ class ProcessTemplateManagementController extends Controller
                     'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
                     'workstation_id' => $s->workstation_id,
                     'workstation_type_id' => $s->workstation_type_id,
+                    'parameters' => $s->parameters ?? [],
                     'process_segment_id' => $s->process_segment_id,
                     'is_optional' => (bool) $s->is_optional,
                     'variant_group' => $s->variant_group,
@@ -152,6 +154,16 @@ class ProcessTemplateManagementController extends Controller
                     'template_step_id' => $c->template_step_id,
                     'label' => $c->label,
                     'is_required' => (bool) $c->is_required,
+                ]),
+                'outputs' => $processTemplate->outputs->map(fn ($o) => [
+                    'id' => $o->id,
+                    'template_step_id' => $o->template_step_id,
+                    'key' => $o->key,
+                    'label' => $o->label,
+                    'value_type' => $o->value_type,
+                    'unit' => $o->unit,
+                    'options' => $o->options ?? [],
+                    'is_required' => (bool) $o->is_required,
                 ]),
             ],
             'workstations' => $workstations->map(fn ($w) => [

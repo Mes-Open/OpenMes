@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Http\Requests\Concerns\ValidatesEquipmentParameters;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTemplateStepRequest extends FormRequest
 {
+    use ValidatesEquipmentParameters;
+
     public function authorize(): bool
     {
         return true;
@@ -20,6 +23,8 @@ class UpdateTemplateStepRequest extends FormRequest
             'estimated_duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'setup_time_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'run_time_per_unit_minutes' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'parameters' => ['sometimes', 'nullable', 'array', self::keyValueMapRule()],
+            'parameters.*' => ['nullable', 'string', 'max:1000'],
             'required_operators' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'workstation_id' => ['sometimes', 'nullable', 'integer', 'exists:workstations,id'],
             'workstation_type_id' => ['sometimes', 'nullable', 'integer', Rule::exists('workstation_types', 'id')->where('is_active', true)->whereNull('deleted_at')],

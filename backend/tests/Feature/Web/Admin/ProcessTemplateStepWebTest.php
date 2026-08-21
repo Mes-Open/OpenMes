@@ -95,6 +95,21 @@ class ProcessTemplateStepWebTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_set_equipment_parameters_on_a_step(): void
+    {
+        [$pt, $tpl] = $this->template();
+
+        $this->actingAs($this->admin)
+            ->post($this->base($pt, $tpl).'/steps', [
+                'name' => 'Reflow oven',
+                'parameters' => ['temperature_c' => '250', 'humidity_pct' => '40'],
+            ])->assertRedirect();
+
+        $step = \App\Models\TemplateStep::where('process_template_id', $tpl->id)
+            ->where('name', 'Reflow oven')->firstOrFail();
+        $this->assertSame(['temperature_c' => '250', 'humidity_pct' => '40'], $step->parameters);
+    }
+
     public function test_admin_can_update_step(): void
     {
         [$pt, $tpl] = $this->template();

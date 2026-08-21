@@ -7,6 +7,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-21
+
+### Added
+- **Typed operator outputs on process-template steps** *(admin / operator / API)* — a step can define what the operator must **record** at execution: a `key`, a label and a **value type** — `text`, `number` (with unit), `boolean`, `select` (with options), `date`, or **`picture`** (e.g. a QC photo, `output_qcpic`). Admins add these in the step editor (beside the checklist). At the workstation the operator fills each one — typing a value, picking an option, or **capturing/uploading a photo** — and the MES records it with who/when. Any output marked **required blocks step completion** until it's recorded (same gate family as checklists and mandatory documents). Photos are decoded + re-encoded through the image sanitiser and stored on the private disk, served only through an authenticated endpoint. Recorded values (and picture URLs) are exposed to external systems over `GET /api/v1/work-orders/{id}/step-outputs`. Additive — existing steps and workflows are unaffected.
+- **Equipment parameters on process-template steps** *(admin / API)* — each step can now carry a free-form `key:value` recipe (temperature, humidity, pressure, sample size…) that an external client reads to drive equipment. Set them in the step editor (a key/value row editor beside the ISA-95 fields). A linked Process Segment supplies defaults; the step's own values override them key by key (`effectiveParameters()`). The values are frozen onto a work order's `process_snapshot` (so `GET /api/v1/work-orders/{id}` exposes the exact recipe each order was built with) **and** readable live from the current template (`GET /api/v1/process-templates/{id}`). Nullable and additive — existing steps and workflows are unaffected.
+
+### Fixed
+- **Assigning product types to a production line 404'd** *(admin)* — the line-detail page posts the assignment to `/admin/lines/{line}/product-types/sync`, but the route was registered at `/admin/lines/{line}/product-types` (no `/sync`), so every save hit a non-existent URL and silently failed. The route path now matches the frontend (and its own `lines.product-types.sync` name); a feature test pins the literal URL so it can't drift again.
+
 ## [0.20.0] - 2026-08-16
 
 ### Added

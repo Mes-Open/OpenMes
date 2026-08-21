@@ -1,0 +1,38 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/reference/yaml-template
+# Schema: https://coderabbit.ai/integrations/schema.v2.json
+#
+# Auto-review is enabled for the branches OpenMES actually merges into: `develop`
+# (where all feature/fix PRs land) and `main` (release merges). Without listing
+# them here CodeRabbit reports "reviews are disabled for this base branch" and
+# skips the PR, which is what was happening on PRs targeting develop.
+language: en-US
+early_access: false
+
+reviews:
+  # Balanced signal — flags real issues without nitpicking every style choice.
+  profile: chill
+  # Don't post a blocking "changes requested" review; leave the merge decision to us.
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    # The base branches CodeRabbit auto-reviews (regex). This is the key setting.
+    base_branches:
+      - develop
+      - main
+      - "feat/.*"
+      - "fix/.*"
+  # Keep generated assets and dependency lockfiles out of the review.
+  path_filters:
+    - "!**/*.lock"
+    - "!**/package-lock.json"
+    - "!**/composer.lock"
+    - "!backend/public/build/**"
+    - "!**/vendor/**"
+    - "!**/node_modules/**"
+
+chat:
+  auto_reply: true
