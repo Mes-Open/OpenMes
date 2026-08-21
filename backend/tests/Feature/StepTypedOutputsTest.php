@@ -171,6 +171,35 @@ class StepTypedOutputsTest extends TestCase
         $this->assertSame($this->operator->id, $value->recorded_by_id);
     }
 
+    public function test_boolean_output_requires_an_explicit_value(): void
+    {
+        $output = $this->def(['key' => 'passed', 'value_type' => 'boolean']);
+        $url = "/operator/batch-step/{$this->batchStep->id}/outputs/{$output->id}";
+
+        // Omitting `value` must 422 — not silently record false and pass the gate.
+        $this->asOperator()->post($url, [])->assertSessionHasErrors('value');
+        $this->assertDatabaseCount('batch_step_output_values', 0);
+
+        // The UI posts '0' for a ticked-off false; that records false explicitly.
+        $this->asOperator()->post($url, ['value' => '0'])->assertRedirect();
+        $this->assertFalse((bool) BatchStepOutputValue::firstWhere('output_id', $output->id)->value_boolean);
+    }
+
+    public function test_select_output_accepts_zero_as_its_only_option(): void
+    {
+        $base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
+
+        // "0" is a legitimate option; the non-blank filter must not drop it.
+        $this->actingAs($this->admin)->post("{$base}/outputs", [
+            'template_step_id' => $this->templateStep->id,
+            'key' => 'flag', 'label' => 'Flag', 'value_type' => 'select', 'options' => ['0'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('template_step_outputs', [
+            'process_template_id' => $this->template->id, 'key' => 'flag', 'value_type' => 'select',
+        ]);
+    }
+
     public function test_operator_uploads_a_picture_output_and_it_serves_back(): void
     {
         $output = $this->def(['key' => 'output_qcpic', 'value_type' => 'picture']);

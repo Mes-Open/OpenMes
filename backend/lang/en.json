@@ -5645,5 +5645,6 @@
     "Picture": "Picture",
     "options, comma-separated": "options, comma-separated",
     "Take / upload photo": "Take / upload photo",
-    "Enter value…": "Enter value…"
+    "Enter value…": "Enter value…",
+    "The :attribute field must be a key:value map, not a list.": "The :attribute field must be a key:value map, not a list."
 }
