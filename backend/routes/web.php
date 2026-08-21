@@ -579,7 +579,7 @@ Route::middleware('auth')->group(function () {
         // Per-line statuses
         Route::post('/lines/{line}/statuses', [AdminLineStatusController::class, 'storeForLine'])->name('lines.statuses.store');
         // Per-line product types
-        Route::post('/lines/{line}/product-types', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
+        Route::post('/lines/{line}/product-types/sync', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
         Route::post('/lines/{line}/view-columns', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'saveViewColumns'])->name('lines.view-columns.save');
         Route::post('/lines/{line}/view-template', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'assignViewTemplate'])->name('lines.view-template.assign');
         Route::post('/lines/{line}/default-view', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'setDefaultView'])->name('lines.default-view.set');
