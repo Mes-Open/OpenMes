@@ -116,6 +116,16 @@ class BatchService
                 ));
             }
 
+            // Output control: required typed outputs on this step must be recorded
+            // by the operator before it can be completed.
+            $pendingOutputs = $step->pendingRequiredOutputs();
+            if ($pendingOutputs->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the required output(s) ":items" must be recorded before it can be completed.',
+                    ['items' => $pendingOutputs->implode(', ')],
+                ));
+            }
+
             // Read-confirmation control: a step flagged as carrying critical
             // instructions must be acknowledged (read-confirmed) by the operator
             // before it can be completed.

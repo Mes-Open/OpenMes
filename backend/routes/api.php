@@ -338,6 +338,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Scrap entries (operators can record against a work order; admins/supers manage)
     Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
     Route::get('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'show']);
+    // Typed operator outputs recorded on a work order (#B) — read for ERP/reporting.
+    Route::get('/work-orders/{workOrder}/step-outputs', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'forWorkOrder'])->name('api.v1.work-orders.step-outputs');
+    Route::get('/batch-step-outputs/{batchStepOutputValue}/file', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'file'])->name('api.v1.batch-step-outputs.file');
+
     Route::get('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'forWorkOrder']);
     Route::post('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'store']);
     Route::patch('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'update']);

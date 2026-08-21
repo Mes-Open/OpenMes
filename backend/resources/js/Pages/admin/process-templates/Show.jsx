@@ -578,6 +578,26 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     const fileRef = useRef(null);
     const itemForm = useForm({ label: '', is_required: false, template_step_id: step.id });
 
+    const outputsBase = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/outputs`;
+    const outputs = (processTemplate.outputs ?? []).filter((o) => o.template_step_id === step.id);
+    const outputForm = useForm({ key: '', label: '', value_type: 'text', unit: '', options: '', is_required: false, template_step_id: step.id });
+
+    const addOutput = (e) => {
+        e.preventDefault();
+        if (!outputForm.data.key.trim() || !outputForm.data.label.trim()) return;
+        outputForm.transform((d) => ({
+            ...d,
+            options: d.value_type === 'select'
+                ? d.options.split(',').map((s) => s.trim()).filter(Boolean)
+                : null,
+        }));
+        outputForm.post(outputsBase, {
+            preserveScroll: true,
+            onSuccess: () => outputForm.reset('key', 'label', 'unit', 'options', 'is_required'),
+            onFinish: () => outputForm.transform((d) => d),
+        });
+    };
+
     const onFile = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -673,6 +693,49 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                     </label>
                     <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
                 </form>
+            </div>
+
+            {/* Typed operator outputs */}
+            <div>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Operator outputs')}</p>
+                {outputs.length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                        {outputs.map((o) => (
+                            <li key={o.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-om-ink">{o.label}</span>
+                                <span className="font-mono text-[10px] text-om-muted">{o.key}</span>
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{o.value_type}</span>
+                                {o.is_required && <span className="text-[10px] uppercase text-om-downtime">{__('required')}</span>}
+                                <button type="button" onClick={() => router.delete(`${outputsBase}/${o.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <form onSubmit={addOutput} className="flex flex-wrap items-center gap-2">
+                    <input type="text" value={outputForm.data.key} onChange={(e) => outputForm.setData('key', e.target.value)} placeholder={__('key (e.g. output_qcpic)')} className="form-input text-sm py-1 w-[160px]" />
+                    <input type="text" value={outputForm.data.label} onChange={(e) => outputForm.setData('label', e.target.value)} placeholder={__('Label')} className="form-input text-sm py-1 flex-1 min-w-[120px]" />
+                    <select value={outputForm.data.value_type} onChange={(e) => outputForm.setData('value_type', e.target.value)} className="form-select text-sm py-1">
+                        <option value="text">{__('Text')}</option>
+                        <option value="number">{__('Number')}</option>
+                        <option value="boolean">{__('Yes/No')}</option>
+                        <option value="select">{__('Select')}</option>
+                        <option value="date">{__('Date')}</option>
+                        <option value="picture">{__('Picture')}</option>
+                    </select>
+                    {outputForm.data.value_type === 'number' && (
+                        <input type="text" value={outputForm.data.unit} onChange={(e) => outputForm.setData('unit', e.target.value)} placeholder={__('unit')} className="form-input text-sm py-1 w-[80px]" />
+                    )}
+                    {outputForm.data.value_type === 'select' && (
+                        <input type="text" value={outputForm.data.options} onChange={(e) => outputForm.setData('options', e.target.value)} placeholder={__('options, comma-separated')} className="form-input text-sm py-1 w-[180px]" />
+                    )}
+                    <label className="flex items-center gap-1.5 text-xs text-om-muted">
+                        <input type="checkbox" checked={outputForm.data.is_required} onChange={(e) => outputForm.setData('is_required', e.target.checked)} />
+                        {__('Required')}
+                    </label>
+                    <button type="submit" disabled={outputForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
+                </form>
+                {outputForm.errors.options && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.options}</p>}
+                {outputForm.errors.key && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.key}</p>}
             </div>
         </div>
     );

@@ -10,11 +10,14 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BatchStepChecklistCompletion;
 use App\Models\BatchStepDocument;
+use App\Models\BatchStepOutputValue;
 use App\Models\TemplateStepChecklistItem;
+use App\Models\TemplateStepOutput;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
 use App\Services\Material\MaterialAllocationService;
+use App\Services\Media\ImageSanitizer;
 use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
@@ -242,6 +245,118 @@ class BatchController extends Controller
         ]);
 
         return back()->with('success', 'Checklist item checked.');
+    }
+
+    /**
+     * Record (or overwrite) the operator's value for a typed step output (#B).
+     * Scalars write the typed column; a `picture` output sanitises + stores the
+     * uploaded image on the private disk. Re-recording soft-deletes the prior
+     * value (audit preserved) and inserts a fresh one.
+     */
+    public function recordOutput(Request $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        // Anti-IDOR: the output must belong to this step's template + step number.
+        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
+        $output->loadMissing('templateStep:id,step_number');
+        if ($output->process_template_id !== $templateId
+            || $output->templateStep?->step_number !== $batchStep->step_number) {
+            return back()->with('error', 'This output does not belong to this step.');
+        }
+
+        $attrs = [
+            'batch_step_id' => $batchStep->id,
+            'output_id' => $output->id,
+            'recorded_by_id' => $request->user()->id,
+            'recorded_at' => now(),
+        ];
+
+        try {
+            if ($output->value_type === TemplateStepOutput::TYPE_PICTURE) {
+                $validated = $request->validate(['value' => ['required', 'image', 'max:10240']]);
+                $clean = $sanitizer->sanitize($validated['value']->getRealPath());
+                $path = 'batch-step-outputs/'.\Illuminate\Support\Str::random(40).'.'.$clean['extension'];
+                \Illuminate\Support\Facades\Storage::put($path, $clean['bytes']);
+                $attrs += [
+                    'file_path' => $path,
+                    'original_name' => $validated['value']->getClientOriginalName(),
+                    'mime_type' => $clean['mime'],
+                    'file_size' => strlen($clean['bytes']),
+                ];
+            } else {
+                $attrs += $this->scalarOutputAttrs($request, $output);
+            }
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', __('The uploaded file is not a valid image.'));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
+
+        // Overwrite: soft-delete any live value, then insert the new one (keeps the
+        // partial-unique index happy and preserves the prior value as audit).
+        BatchStepOutputValue::where('batch_step_id', $batchStep->id)
+            ->where('output_id', $output->id)
+            ->get()->each->delete();
+        BatchStepOutputValue::create($attrs);
+
+        return back()->with('success', __('Output recorded'));
+    }
+
+    /**
+     * Validate + map a scalar output value to its typed column.
+     *
+     * @return array<string, mixed>
+     */
+    private function scalarOutputAttrs(Request $request, TemplateStepOutput $output): array
+    {
+        return match ($output->value_type) {
+            TemplateStepOutput::TYPE_NUMBER => [
+                'value_number' => $request->validate(['value' => ['required', 'numeric']])['value'],
+            ],
+            TemplateStepOutput::TYPE_BOOLEAN => [
+                'value_boolean' => $request->boolean('value'),
+            ],
+            TemplateStepOutput::TYPE_DATE => [
+                'value_date' => $request->validate(['value' => ['required', 'date']])['value'],
+            ],
+            TemplateStepOutput::TYPE_SELECT => [
+                'value_text' => $request->validate([
+                    'value' => ['required', \Illuminate\Validation\Rule::in($output->options ?? [])],
+                ])['value'],
+            ],
+            default => [
+                'value_text' => $request->validate(['value' => ['required', 'string', 'max:5000']])['value'],
+            ],
+        };
+    }
+
+    /**
+     * Serve an operator-recorded output picture (private disk, line-scoped, safe
+     * inline mime + nosniff). Mirrors showDocumentFile().
+     */
+    public function showOutputFile(Request $request, BatchStepOutputValue $batchStepOutputValue)
+    {
+        $batchStepOutputValue->loadMissing('batchStep');
+        $step = $batchStepOutputValue->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            abort(403);
+        }
+        abort_unless($batchStepOutputValue->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepOutputValue->file_path), 404);
+
+        $inlineSafe = ['image/png', 'image/jpeg', 'image/webp'];
+        $mime = $batchStepOutputValue->mime_type ?? 'application/octet-stream';
+        $disposition = in_array($mime, $inlineSafe, true) ? 'inline' : 'attachment';
+
+        return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepOutputValue->file_path), [
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="'.addslashes($batchStepOutputValue->original_name ?? 'output').'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
     }
 
     /**
