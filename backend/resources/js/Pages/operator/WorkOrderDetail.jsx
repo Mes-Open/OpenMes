@@ -655,7 +655,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -725,7 +725,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -739,7 +739,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
@@ -792,6 +792,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         );
     };
 
+    // Record a typed output value (scalar or a picture file). forceFormData carries
+    // the File for a picture; scalars post a plain value.
+    const handleRecordOutput = (step, output, value) => {
+        setInflightCheckId(`out:${step.id}:${output.id}`);
+        router.post(
+            `/operator/batch-step/${step.id}/outputs/${output.id}`,
+            { value },
+            { preserveScroll: true, forceFormData: value instanceof File, onFinish: () => setInflightCheckId(null) }
+        );
+    };
+
     // Starting a step: first ask the server which material lots (if any) need
     // picking. With lots to pick, open the WO-time picking modal seeded with the
     // system's proposal; otherwise start the step directly (unchanged behavior).
@@ -837,6 +848,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const checklist = stepChecklists[step.step_number] || [];
                     const completions = step.checklist_completions || [];
                     const completedItemIds = new Set(completions.map((c) => c.checklist_item_id));
+                    const outputs = stepOutputs[step.step_number] || [];
+                    const outputValues = step.output_values || [];
                     const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
                     return (
                         <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
@@ -957,6 +970,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 canCheck={canCheck}
                                 inflightCheckId={inflightCheckId}
                                 onToggle={handleToggleChecklist}
+                            />
+                        )}
+
+                        {outputs.length > 0 && (
+                            <StepOutputs
+                                step={step}
+                                outputs={outputs}
+                                values={outputValues}
+                                canRecord={canCheck}
+                                inflightCheckId={inflightCheckId}
+                                onRecord={handleRecordOutput}
                             />
                         )}
 
@@ -1239,6 +1263,103 @@ function StepChecklist({ step, items = [], completedItemIds, completions = [], c
                 })}
             </ul>
         </div>
+    );
+}
+
+// Typed operator outputs on a step: one input per definition; a picture output
+// takes a file upload and shows the recorded photo. Records who filled each value.
+function StepOutputs({ step, outputs = [], values = [], canRecord, inflightCheckId, onRecord }) {
+    const byOutput = Object.fromEntries(values.map((v) => [v.output_id, v]));
+
+    const displayValue = (o, v) => {
+        if (!v) return null;
+        switch (o.value_type) {
+            case 'number': return v.value_number;
+            case 'boolean': return v.value_boolean ? __('Yes') : __('No');
+            case 'date': return v.value_date;
+            case 'picture': return null;
+            default: return v.value_text;
+        }
+    };
+
+    return (
+        <div className="border-t border-om-line2 px-3 py-2">
+            <p className="text-[12px] font-semibold text-om-muted mb-1">{__('Operator outputs')}</p>
+            <ul className="space-y-2">
+                {outputs.map((o) => {
+                    const v = byOutput[o.id];
+                    const busy = inflightCheckId === `out:${step.id}:${o.id}`;
+                    const recorded = !!v;
+                    return (
+                        <li key={o.id} className="text-sm">
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-om-ink">{o.label}</span>
+                                {o.unit && <span className="text-[11px] text-om-muted">({o.unit})</span>}
+                                {o.is_required && <span className="text-[10px] uppercase tracking-wide text-om-downtime">{__('Required')}</span>}
+                                {recorded && v.recorded_by && <span className="ml-auto font-mono text-[11px] text-om-done">{v.recorded_by.name}</span>}
+                            </div>
+                            {o.value_type === 'picture' ? (
+                                <div className="flex items-center gap-2">
+                                    {v?.file_url && (
+                                        <a href={v.file_url} target="_blank" rel="noopener noreferrer">
+                                            <img src={v.file_url} alt={o.label} className="h-14 w-14 object-cover rounded border border-om-line2" />
+                                        </a>
+                                    )}
+                                    <label className={`text-sm text-om-accent hover:underline cursor-pointer ${(!canRecord || busy) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {busy ? __('Uploading…') : recorded ? __('Replace photo') : __('Take / upload photo')}
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            capture="environment"
+                                            className="hidden"
+                                            disabled={!canRecord || busy}
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) onRecord(step, o, f); e.target.value = ''; }}
+                                        />
+                                    </label>
+                                </div>
+                            ) : o.value_type === 'boolean' ? (
+                                <label className="flex items-center gap-2">
+                                    <input type="checkbox" checked={!!v?.value_boolean} disabled={!canRecord || busy} onChange={(e) => onRecord(step, o, e.target.checked ? '1' : '0')} className="w-5 h-5 rounded border-om-line2 accent-om-accent" />
+                                    <span className="text-om-muted">{v?.value_boolean ? __('Yes') : __('No')}</span>
+                                </label>
+                            ) : o.value_type === 'select' ? (
+                                <select
+                                    defaultValue={v?.value_text ?? ''}
+                                    disabled={!canRecord || busy}
+                                    onChange={(e) => e.target.value && onRecord(step, o, e.target.value)}
+                                    className="form-select w-full text-sm"
+                                >
+                                    <option value="">{__('Select…')}</option>
+                                    {(o.options ?? []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            ) : (
+                                <OutputScalarInput output={o} initial={displayValue(o, v)} disabled={!canRecord || busy} onSubmit={(val) => onRecord(step, o, val)} />
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
+
+// Text/number/date output: a controlled field committed on blur/Enter, so the
+// operator types the value then it saves without a separate button per row.
+function OutputScalarInput({ output, initial, disabled, onSubmit }) {
+    const [val, setVal] = useState(initial ?? '');
+    const type = output.value_type === 'number' ? 'number' : output.value_type === 'date' ? 'date' : 'text';
+    const commit = () => { if (String(val).trim() !== '' && String(val) !== String(initial ?? '')) onSubmit(val); };
+    return (
+        <input
+            type={type}
+            value={val}
+            disabled={disabled}
+            onChange={(e) => setVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+            placeholder={__('Enter value…')}
+            className="form-input w-full text-sm"
+        />
     );
 }
 
@@ -1829,7 +1950,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, engineeringDocuments = [] } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [] } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2006,6 +2127,7 @@ export default function WorkOrderDetail() {
                                             stepPhotos={stepPhotos}
                                             stepMedia={stepMedia}
                                             stepChecklists={stepChecklists}
+                                            stepOutputs={stepOutputs}
                                         />
                                     ))}
                                 </div>

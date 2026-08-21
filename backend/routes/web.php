@@ -273,6 +273,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/batch-step-document/{batchStepDocument}/file', [OperatorBatchController::class, 'showDocumentFile'])->name('batch-step-document.file');
         // Work-instruction checklist: tick / un-tick a step checklist item.
         Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->name('batch-step.checklist.toggle');
+        // Typed step outputs — operator records a value (incl. picture upload).
+        Route::post('/batch-step/{batchStep}/outputs/{output}', [OperatorBatchController::class, 'recordOutput'])->name('batch-step.outputs.record');
+        Route::get('/batch-step-output/{batchStepOutputValue}/file', [OperatorBatchController::class, 'showOutputFile'])->name('batch-step-output.file');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
@@ -644,6 +647,10 @@ Route::middleware('auth')->group(function () {
             // Per-step checklist items (work-instruction sign-offs).
             Route::post('/{process_template}/checklist-items', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'store'])->name('checklist-items.store');
             Route::delete('/{process_template}/checklist-items/{checklistItem}', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'destroy'])->name('checklist-items.destroy');
+
+            // Per-step typed operator outputs (values the operator records at execution).
+            Route::post('/{process_template}/outputs', [\App\Http\Controllers\Web\Admin\TemplateStepOutputController::class, 'store'])->name('outputs.store');
+            Route::delete('/{process_template}/outputs/{output}', [\App\Http\Controllers\Web\Admin\TemplateStepOutputController::class, 'destroy'])->name('outputs.destroy');
 
             // BOM Management (nested under process templates)
             Route::get('/{process_template}/bom', [BomManagementController::class, 'index'])->name('bom');
