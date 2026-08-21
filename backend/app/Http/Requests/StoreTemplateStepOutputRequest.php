@@ -33,8 +33,13 @@ class StoreTemplateStepOutputRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($v) {
+            // Explicit non-blank predicate: PHP's default array_filter would drop the
+            // string "0", wrongly rejecting a select whose only option is "0".
             if ($this->input('value_type') === TemplateStepOutput::TYPE_SELECT
-                && empty(array_filter((array) $this->input('options', [])))) {
+                && empty(array_filter(
+                    (array) $this->input('options', []),
+                    static fn ($option) => trim((string) $option) !== '',
+                ))) {
                 $v->errors()->add('options', __('A select output needs at least one option.'));
             }
         });

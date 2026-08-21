@@ -5645,5 +5645,6 @@
     "Picture": "Zdjęcie",
     "options, comma-separated": "opcje, po przecinku",
     "Take / upload photo": "Zrób / prześlij zdjęcie",
-    "Enter value…": "Wpisz wartość…"
+    "Enter value…": "Wpisz wartość…",
+    "The :attribute field must be a key:value map, not a list.": "Pole :attribute musi być mapą klucz:wartość, a nie listą."
 }

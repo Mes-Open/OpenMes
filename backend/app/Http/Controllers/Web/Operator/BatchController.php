@@ -279,7 +279,9 @@ class BatchController extends Controller
                 $validated = $request->validate(['value' => ['required', 'image', 'max:10240']]);
                 $clean = $sanitizer->sanitize($validated['value']->getRealPath());
                 $path = 'batch-step-outputs/'.\Illuminate\Support\Str::random(40).'.'.$clean['extension'];
-                \Illuminate\Support\Facades\Storage::put($path, $clean['bytes']);
+                // Pin to the private disk explicitly: the default disk follows
+                // FILESYSTEM_DISK, and a `public` default would web-expose the file.
+                \Illuminate\Support\Facades\Storage::disk('local')->put($path, $clean['bytes']);
                 $attrs += [
                     'file_path' => $path,
                     'original_name' => $validated['value']->getClientOriginalName(),
@@ -296,11 +298,17 @@ class BatchController extends Controller
         }
 
         // Overwrite: soft-delete any live value, then insert the new one (keeps the
-        // partial-unique index happy and preserves the prior value as audit).
-        BatchStepOutputValue::where('batch_step_id', $batchStep->id)
-            ->where('output_id', $output->id)
-            ->get()->each->delete();
-        BatchStepOutputValue::create($attrs);
+        // partial-unique index happy and preserves the prior value as audit). Both
+        // steps run in one transaction with the live rows locked, so a failed insert
+        // can't leave the output with no value and two concurrent posts can't both
+        // pass the delete and then collide on the partial-unique index.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($batchStep, $output, $attrs) {
+            BatchStepOutputValue::where('batch_step_id', $batchStep->id)
+                ->where('output_id', $output->id)
+                ->lockForUpdate()
+                ->get()->each->delete();
+            BatchStepOutputValue::create($attrs);
+        });
 
         return back()->with('success', __('Output recorded'));
     }
@@ -317,7 +325,11 @@ class BatchController extends Controller
                 'value_number' => $request->validate(['value' => ['required', 'numeric']])['value'],
             ],
             TemplateStepOutput::TYPE_BOOLEAN => [
-                'value_boolean' => $request->boolean('value'),
+                // Require the field: without it a missing value would silently record
+                // `false` and satisfy the required-output gate. The UI posts '1'/'0'.
+                'value_boolean' => (bool) $request->validate([
+                    'value' => ['required', 'boolean'],
+                ])['value'],
             ],
             TemplateStepOutput::TYPE_DATE => [
                 'value_date' => $request->validate(['value' => ['required', 'date']])['value'],
@@ -345,13 +357,13 @@ class BatchController extends Controller
         if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
             abort(403);
         }
-        abort_unless($batchStepOutputValue->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepOutputValue->file_path), 404);
+        abort_unless($batchStepOutputValue->file_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($batchStepOutputValue->file_path), 404);
 
         $inlineSafe = ['image/png', 'image/jpeg', 'image/webp'];
         $mime = $batchStepOutputValue->mime_type ?? 'application/octet-stream';
         $disposition = in_array($mime, $inlineSafe, true) ? 'inline' : 'attachment';
 
-        return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepOutputValue->file_path), [
+        return response()->file(\Illuminate\Support\Facades\Storage::disk('local')->path($batchStepOutputValue->file_path), [
             'Content-Type' => $mime,
             'Content-Disposition' => $disposition.'; filename="'.addslashes($batchStepOutputValue->original_name ?? 'output').'"',
             'X-Content-Type-Options' => 'nosniff',

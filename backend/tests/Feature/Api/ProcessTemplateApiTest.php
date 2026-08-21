@@ -121,6 +121,18 @@ class ProcessTemplateApiTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('parameters');
     }
 
+    public function test_parameters_reject_a_positional_list(): void
+    {
+        $pt = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $pt->id]);
+
+        // A positional list ["250","40"] passes the `array` rule but is not a
+        // key:value recipe — it must be rejected, not frozen with integer keys.
+        $this->authAdmin()->postJson("/api/v1/process-templates/{$template->id}/steps", [
+            'name' => 'Bad', 'parameters' => ['250', '40'],
+        ])->assertStatus(422)->assertJsonValidationErrors('parameters');
+    }
+
     public function test_step_numbers_auto_increment(): void
     {
         $template = ProcessTemplate::factory()->create();
