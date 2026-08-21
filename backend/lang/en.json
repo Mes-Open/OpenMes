@@ -5632,5 +5632,18 @@
     "Equipment parameters": "Equipment parameters",
     "Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.": "Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.",
     "key (e.g. temperature_c)": "key (e.g. temperature_c)",
-    "+ Add parameter": "+ Add parameter"
+    "+ Add parameter": "+ Add parameter",
+    "This step is blocked: the required output(s) \":items\" must be recorded before it can be completed.": "This step is blocked: the required output(s) \":items\" must be recorded before it can be completed.",
+    "Output added.": "Output added.",
+    "Output removed.": "Output removed.",
+    "Output recorded": "Output recorded",
+    "A select output needs at least one option.": "A select output needs at least one option.",
+    "The uploaded file is not a valid image.": "The uploaded file is not a valid image.",
+    "Operator outputs": "Operator outputs",
+    "key (e.g. output_qcpic)": "key (e.g. output_qcpic)",
+    "Yes/No": "Yes/No",
+    "Picture": "Picture",
+    "options, comma-separated": "options, comma-separated",
+    "Take / upload photo": "Take / upload photo",
+    "Enter value…": "Enter value…"
 }
