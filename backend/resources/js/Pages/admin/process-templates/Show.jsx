@@ -125,6 +125,64 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
     );
 }
 
+// Equipment key:value parameters for a step (temperature, humidity, …). Edited as
+// rows and stored as a flat object; a client reads it from the work-order snapshot
+// (or the live template) to drive equipment.
+function ParametersEditor({ value = {}, onChange }) {
+    const rows = Object.entries(value ?? {});
+
+    const emit = (pairs) => {
+        const obj = {};
+        for (const [k, v] of pairs) {
+            if (String(k).trim() !== '') obj[k] = v;
+        }
+        onChange(obj);
+    };
+    const setRow = (i, key, val) => emit(rows.map((r, idx) => (idx === i ? [key, val] : r)));
+    const addRow = () => onChange({ ...(value ?? {}), '': '' });
+    const removeRow = (i) => emit(rows.filter((_, idx) => idx !== i));
+
+    return (
+        <div className="md:col-span-2 bg-om-panel rounded-om-sm p-3 border border-om-line">
+            <label className="form-label">{__('Equipment parameters')}</label>
+            <p className="text-xs text-om-muted mb-2">
+                {__('Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.')}
+            </p>
+            <div className="space-y-2">
+                {rows.map(([k, v], i) => (
+                    <div key={i} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={k}
+                            onChange={(e) => setRow(i, e.target.value, v)}
+                            className="form-input w-1/2"
+                            placeholder={__('key (e.g. temperature_c)')}
+                        />
+                        <input
+                            type="text"
+                            value={v ?? ''}
+                            onChange={(e) => setRow(i, k, e.target.value)}
+                            className="form-input w-1/2"
+                            placeholder={__('value')}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => removeRow(i)}
+                            className="px-2 text-om-muted hover:text-om-blocked"
+                            title={__('Remove')}
+                        >
+                            ×
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <button type="button" onClick={addRow} className="mt-2 text-xs text-om-accent hover:underline">
+                {__('+ Add parameter')}
+            </button>
+        </div>
+    );
+}
+
 /* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
@@ -139,6 +197,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         required_operators: '',
         workstation_id: '',
         workstation_type_id: '',
+        parameters: {},
         process_segment_id: '',
         is_optional: false,
         variant_group: '',
@@ -264,6 +323,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                    <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -294,6 +354,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         workstation_type_id: step.workstation_type_id != null ? String(step.workstation_type_id) : '',
+        parameters: step.parameters ?? {},
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
         variant_group: step.variant_group ?? '',
@@ -397,6 +458,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 

@@ -113,6 +113,7 @@ class ProcessTemplateManagementController extends Controller
                     'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
                     'workstation_id' => $s->workstation_id,
                     'workstation_type_id' => $s->workstation_type_id,
+                    'parameters' => $s->parameters ?? [],
                     'process_segment_id' => $s->process_segment_id,
                     'is_optional' => (bool) $s->is_optional,
                     'variant_group' => $s->variant_group,

@@ -78,6 +78,36 @@ class SnapshotServiceTest extends TestCase
         $this->assertArrayHasKey('workstation_type_id', $step);
         $this->assertArrayHasKey('setup_time_minutes', $step);
         $this->assertArrayHasKey('run_time_per_unit_minutes', $step);
+        // Equipment parameters (Feature A).
+        $this->assertArrayHasKey('parameters', $step);
+    }
+
+    public function test_snapshot_step_carries_equipment_parameters(): void
+    {
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        $template->steps()->first()->update(['parameters' => ['temperature_c' => '250']]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(['temperature_c' => '250'], $step['parameters']);
+    }
+
+    public function test_snapshot_parameters_merge_segment_defaults_with_step_overrides(): void
+    {
+        $segment = \App\Models\ProcessSegment::factory()->create([
+            'parameters' => ['temperature_c' => '200', 'humidity_pct' => '40'],
+        ]);
+
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        // Step overrides temperature, inherits humidity from the segment.
+        $template->steps()->first()->update([
+            'process_segment_id' => $segment->id,
+            'parameters' => ['temperature_c' => '250'],
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(['temperature_c' => '250', 'humidity_pct' => '40'], $step['parameters']);
     }
 
     public function test_snapshot_step_carries_isa95_standard_times(): void

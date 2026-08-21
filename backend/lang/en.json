@@ -5628,5 +5628,9 @@
     "Material returned to stock": "Material returned to stock",
     "Material reclassified": "Material reclassified",
     "Work order :code created.": "Work order :code created.",
-    "Customers & order data": "Customers & order data"
+    "Customers & order data": "Customers & order data",
+    "Equipment parameters": "Equipment parameters",
+    "Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.": "Key:value settings the equipment needs (e.g. temperature, humidity). Read via API.",
+    "key (e.g. temperature_c)": "key (e.g. temperature_c)",
+    "+ Add parameter": "+ Add parameter"
 }

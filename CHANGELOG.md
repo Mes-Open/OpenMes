@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Equipment parameters on process-template steps** *(admin / API)* — each step can now carry a free-form `key:value` recipe (temperature, humidity, pressure, sample size…) that an external client reads to drive equipment. Set them in the step editor (a key/value row editor beside the ISA-95 fields). A linked Process Segment supplies defaults; the step's own values override them key by key (`effectiveParameters()`). The values are frozen onto a work order's `process_snapshot` (so `GET /api/v1/work-orders/{id}` exposes the exact recipe each order was built with) **and** readable live from the current template (`GET /api/v1/process-templates/{id}`). Nullable and additive — existing steps and workflows are unaffected.
+
 ### Fixed
 - **Assigning product types to a production line 404'd** *(admin)* — the line-detail page posts the assignment to `/admin/lines/{line}/product-types/sync`, but the route was registered at `/admin/lines/{line}/product-types` (no `/sync`), so every save hit a non-existent URL and silently failed. The route path now matches the frontend (and its own `lines.product-types.sync` name); a feature test pins the literal URL so it can't drift again.
 
