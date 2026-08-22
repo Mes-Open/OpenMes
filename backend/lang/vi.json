@@ -5806,8 +5806,8 @@
     "Yes/No": "Có/Không",
     "Picture": "Ảnh",
     "options, comma-separated": "các lựa chọn, phân tách bằng dấu phẩy",
-    "Take / upload photo": "Chụp / tải lên ảnh",
+    "Take / upload photo": "Chụp / tải ảnh lên",
     "Enter value…": "Nhập giá trị…",
     "The :attribute field must be a key:value map, not a list.": "Trường :attribute phải là dạng cặp key:value, không phải là danh sách.",
-    "This step is blocked: the required output(s) \":items\" must be recorded before it can be completed.": "Bước này bị khóa: (các) đầu ra bắt buộc \":items\" phải được ghi nhận trước khi có thể hoàn tất."
+    "This step is blocked: the required output(s) \":items\" must be recorded before it can be completed.": "Bước này bị khóa: các đầu ra bắt buộc \":items\" phải được ghi nhận trước khi có thể hoàn tất."
 }
