@@ -18,7 +18,7 @@ class BomService
     public function listForTemplate(ProcessTemplate $template): Collection
     {
         return $template->bomItems()
-            ->with(['material.materialType', 'templateStep'])
+            ->with(['material.materialType', 'productType', 'templateStep'])
             ->orderBy('sort_order')
             ->get();
     }

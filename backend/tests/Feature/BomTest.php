@@ -189,6 +189,98 @@ class BomTest extends TestCase
         $this->assertSoftDeleted('bom_items', ['id' => $bomItem->id]);
     }
 
+    // ── Product-type components (sub-assemblies) ────────────────
+
+    public function test_admin_can_add_product_type_to_bom(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $subAssembly = ProductType::factory()->create();
+
+        $response = $this->actingAs($this->admin)->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            [
+                'component_kind' => 'product_type',
+                'product_type_id' => $subAssembly->id,
+                'quantity_per_unit' => 2,
+                'consumed_at' => 'start',
+            ]
+        );
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('bom_items', [
+            'process_template_id' => $template->id,
+            'product_type_id' => $subAssembly->id,
+            'material_id' => null,
+            'quantity_per_unit' => 2,
+        ]);
+    }
+
+    public function test_cannot_add_same_product_type_twice(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $sub = ProductType::factory()->create();
+        BomItem::create([
+            'process_template_id' => $template->id,
+            'product_type_id' => $sub->id,
+            'quantity_per_unit' => 1,
+        ]);
+
+        $response = $this->actingAs($this->admin)->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            ['product_type_id' => $sub->id, 'quantity_per_unit' => 1]
+        );
+
+        $response->assertSessionHasErrors('product_type_id');
+    }
+
+    public function test_product_type_cannot_be_a_component_of_itself(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+
+        $response = $this->actingAs($this->admin)->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            ['product_type_id' => $productType->id, 'quantity_per_unit' => 1]
+        );
+
+        $response->assertSessionHasErrors('product_type_id');
+        $this->assertDatabaseMissing('bom_items', ['product_type_id' => $productType->id]);
+    }
+
+    public function test_bom_line_needs_a_material_or_a_product_type(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+
+        $response = $this->actingAs($this->admin)->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            ['quantity_per_unit' => 1]
+        );
+
+        $response->assertSessionHasErrors(['material_id', 'product_type_id']);
+    }
+
+    public function test_snapshot_captures_a_product_type_component_without_crashing(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $sub = ProductType::factory()->create(['name' => 'Sub Widget']);
+        BomItem::create([
+            'process_template_id' => $template->id,
+            'product_type_id' => $sub->id,
+            'quantity_per_unit' => 3,
+        ]);
+
+        $snapshot = app(\App\Services\ProcessTemplate\SnapshotService::class)->createSnapshot($template->fresh());
+
+        $this->assertCount(1, $snapshot['bom']);
+        $this->assertSame('product_type', $snapshot['bom'][0]['component_kind']);
+        $this->assertSame('Sub Widget', $snapshot['bom'][0]['material_name']);
+        $this->assertNull($snapshot['bom'][0]['material_id']);
+    }
+
     // ── Snapshot with BOM ───────────────────────────────────────
 
     public function test_snapshot_includes_bom(): void

@@ -5646,5 +5646,14 @@
     "options, comma-separated": "options, comma-separated",
     "Take / upload photo": "Take / upload photo",
     "Enter value…": "Enter value…",
-    "The :attribute field must be a key:value map, not a list.": "The :attribute field must be a key:value map, not a list."
+    "The :attribute field must be a key:value map, not a list.": "The :attribute field must be a key:value map, not a list.",
+    "Add Component to BOM": "Add Component to BOM",
+    "Add Component": "Add Component",
+    "Select product type…": "Select product type…",
+    "Add a manufactured product type as a sub-assembly component.": "Add a manufactured product type as a sub-assembly component.",
+    "Remove this component from BOM?": "Remove this component from BOM?",
+    "This product type is already in the BOM for this template.": "This product type is already in the BOM for this template.",
+    "A product type cannot be a component of itself.": "A product type cannot be a component of itself.",
+    "Component added to BOM.": "Component added to BOM.",
+    "This material is already in the BOM for this template.": "This material is already in the BOM for this template."
 }

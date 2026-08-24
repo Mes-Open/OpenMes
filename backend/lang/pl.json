@@ -5646,5 +5646,14 @@
     "options, comma-separated": "opcje, po przecinku",
     "Take / upload photo": "Zrób / prześlij zdjęcie",
     "Enter value…": "Wpisz wartość…",
-    "The :attribute field must be a key:value map, not a list.": "Pole :attribute musi być mapą klucz:wartość, a nie listą."
+    "The :attribute field must be a key:value map, not a list.": "Pole :attribute musi być mapą klucz:wartość, a nie listą.",
+    "Add Component to BOM": "Dodaj komponent do BOM",
+    "Add Component": "Dodaj komponent",
+    "Select product type…": "Wybierz typ produktu…",
+    "Add a manufactured product type as a sub-assembly component.": "Dodaj wytwarzany typ produktu jako komponent-podzespół.",
+    "Remove this component from BOM?": "Usunąć ten komponent z BOM?",
+    "This product type is already in the BOM for this template.": "Ten typ produktu jest już w BOM dla tego szablonu.",
+    "A product type cannot be a component of itself.": "Typ produktu nie może być komponentem samego siebie.",
+    "Component added to BOM.": "Dodano komponent do BOM.",
+    "This material is already in the BOM for this template.": "Ten materiał jest już w BOM dla tego szablonu."
 }
