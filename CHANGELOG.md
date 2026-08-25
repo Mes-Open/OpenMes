@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
+
 ## [0.21.0] - 2026-08-21
 
 ### Added

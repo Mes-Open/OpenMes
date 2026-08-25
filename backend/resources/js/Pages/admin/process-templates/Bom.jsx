@@ -16,10 +16,12 @@ function typeColorClass(code) {
     return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
 
-function MaterialForm({ productType, processTemplate, materials, steps, item, onCancel }) {
+function MaterialForm({ productType, processTemplate, materials, productTypes = [], steps, item, onCancel }) {
     const isEdit = !!item;
     const form = useForm({
+        component_kind: item ? (item.component_kind ?? 'material') : 'material',
         material_id: item ? String(item.material_id ?? '') : '',
+        product_type_id: item ? String(item.product_type_id ?? '') : '',
         quantity_per_unit: item ? String(item.quantity_per_unit ?? '') : '',
         template_step_id: item && item.template_step_id != null ? String(item.template_step_id) : '',
         scrap_percentage: item ? String(item.scrap_percentage ?? '0') : '0',
@@ -29,10 +31,16 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
 
     const { data, setData, errors, processing } = form;
 
+    const isProductType = data.component_kind === 'product_type';
     const selectedMaterial = isEdit
         ? null
         : materials.find((m) => String(m.id) === String(data.material_id));
-    const unit = isEdit ? item.unit_of_measure : selectedMaterial?.unit_of_measure;
+    const selectedProductType = isEdit
+        ? null
+        : productTypes.find((p) => String(p.id) === String(data.product_type_id));
+    const unit = isEdit
+        ? item.unit_of_measure
+        : (isProductType ? selectedProductType?.unit_of_measure : selectedMaterial?.unit_of_measure);
 
     // When a material with a default scrap % is picked, pre-fill it (only while
     // the field still holds the untouched default) and surface that it was auto-set.
@@ -57,16 +65,58 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
     return (
         <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
             <h3 className="text-lg font-semibold mb-4">
-                {isEdit ? `${__("Edit BOM Item")} - ${item.material_name}` : __("Add Material to BOM")}
+                {isEdit ? `${__("Edit BOM Item")} - ${item.component_name}` : __("Add Component to BOM")}
             </h3>
             <form onSubmit={submit}>
+                {!isEdit && (
+                    <div className="mb-4 inline-flex rounded-lg border border-om-border overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setData((d) => ({ ...d, component_kind: 'material', product_type_id: '' }))}
+                            className={`px-4 py-2 text-sm font-medium ${!isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
+                        >
+                            {__("Material")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setData((d) => ({ ...d, component_kind: 'product_type', material_id: '' }))}
+                            className={`px-4 py-2 text-sm font-medium ${isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
+                        >
+                            {__("Product type")}
+                        </button>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {isEdit ? (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">{__("Material")}</label>
+                            <label className="block text-sm font-medium text-om-muted mb-1">
+                                {item.component_kind === 'product_type' ? __("Product type") : __("Material")}
+                            </label>
                             <div className="form-input w-full bg-om-panel text-om-muted">
-                                {item.material_code} - {item.material_name}
+                                {item.component_code ? `${item.component_code} - ` : ''}{item.component_name}
                             </div>
+                        </div>
+                    ) : isProductType ? (
+                        <div>
+                            <label className="block text-sm font-medium text-om-muted mb-1">
+                                {__("Product type")} <span className="text-om-blocked">*</span>
+                            </label>
+                            <Dropdown
+                                value={data.product_type_id == null ? '' : String(data.product_type_id)}
+                                onChange={(v) => setData('product_type_id', v)}
+                                placeholder={__("Select product type…")}
+                                options={productTypes.map((p) => ({
+                                    value: String(p.id),
+                                    label: `${p.code} - ${p.name}`,
+                                }))}
+                                className="w-full"
+                            />
+                            <p className="mt-1 text-xs text-om-faint">
+                                {__("Add a manufactured product type as a sub-assembly component.")}
+                            </p>
+                            {errors.product_type_id && (
+                                <p className="mt-1 text-sm text-om-blocked">{errors.product_type_id}</p>
+                            )}
                         </div>
                     ) : (
                         <div>
@@ -188,7 +238,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
 }
 
 export default function ProcessTemplatesBom() {
-    const { productType, processTemplate, bomItems = [], materials = [], steps = [] } = usePage().props;
+    const { productType, processTemplate, bomItems = [], materials = [], productTypes = [], steps = [] } = usePage().props;
 
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -200,7 +250,7 @@ export default function ProcessTemplatesBom() {
     };
 
     const handleRemove = (item) => {
-        confirm({ title: __('Remove this material from BOM?') }, () => {
+        confirm({ title: __('Remove this component from BOM?') }, () => {
             router.delete(
                 `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom/${item.id}`,
                 { preserveScroll: true },
@@ -211,14 +261,14 @@ export default function ProcessTemplatesBom() {
     const columns = useMemo(() => [
         {
             id: 'material',
-            accessorKey: 'material_name',
-            header: __('Material'),
+            accessorKey: 'component_name',
+            header: __('Component'),
             cell: ({ row }) => (
                 <>
                     <div className="text-sm font-medium text-om-ink">
-                        {row.original.material_name}
+                        {row.original.component_name}
                     </div>
-                    <div className="text-xs text-om-muted font-mono">{row.original.material_code}</div>
+                    <div className="text-xs text-om-muted font-mono">{row.original.component_code}</div>
                 </>
             ),
         },
@@ -227,13 +277,19 @@ export default function ProcessTemplatesBom() {
             accessorKey: 'material_type_name',
             header: __('Type'),
             cell: ({ row }) => (
-                <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
-                        row.original.material_type_code,
-                    )}`}
-                >
-                    {row.original.material_type_name}
-                </span>
+                row.original.component_kind === 'product_type' ? (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-om-accent/10 text-om-accent">
+                        {__("Product type")}
+                    </span>
+                ) : (
+                    <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
+                            row.original.material_type_code,
+                        )}`}
+                    >
+                        {row.original.material_type_name}
+                    </span>
+                )
             ),
         },
         {
@@ -346,7 +402,7 @@ export default function ProcessTemplatesBom() {
                             <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            {__("Add Material")}
+                            {__("Add Component")}
                         </button>
                     </div>
                 </div>
@@ -356,6 +412,7 @@ export default function ProcessTemplatesBom() {
                         productType={productType}
                         processTemplate={processTemplate}
                         materials={materials}
+                        productTypes={productTypes}
                         steps={steps}
                         onCancel={() => setShowAddForm(false)}
                     />
@@ -367,6 +424,7 @@ export default function ProcessTemplatesBom() {
                         productType={productType}
                         processTemplate={processTemplate}
                         materials={materials}
+                        productTypes={productTypes}
                         steps={steps}
                         item={editingItem}
                         onCancel={() => setEditingItem(null)}
