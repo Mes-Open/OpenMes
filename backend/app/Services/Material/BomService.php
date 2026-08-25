@@ -104,7 +104,11 @@ class BomService
      */
     public function calculateRequirements(ProcessTemplate $template, float $productionQty): array
     {
-        $items = $this->listForTemplate($template);
+        // Product-type lines are sub-assembly references, not stockable materials —
+        // they don't contribute a material requirement.
+        $items = $this->listForTemplate($template)
+            ->filter(fn (BomItem $item) => $item->material_id !== null)
+            ->values();
 
         return $items->map(function (BomItem $item) use ($productionQty) {
             $baseQty = round($item->quantity_per_unit * $productionQty, 4);
@@ -131,7 +135,12 @@ class BomService
      */
     public function calculateFromSnapshot(array $snapshot, float $productionQty): array
     {
-        $bom = $snapshot['bom'] ?? [];
+        // Skip product-type (sub-assembly) snapshot entries — no material to stock.
+        // Entries without an explicit kind are legacy material lines, so keep them.
+        $bom = array_values(array_filter(
+            $snapshot['bom'] ?? [],
+            fn ($item) => ($item['component_kind'] ?? 'material') !== 'product_type',
+        ));
 
         return array_map(function ($item) use ($productionQty) {
             $baseQty = round($item['quantity_per_unit'] * $productionQty, 4);

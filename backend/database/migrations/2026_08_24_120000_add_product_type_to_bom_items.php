@@ -30,10 +30,26 @@ return new class extends Migration
             'CREATE UNIQUE INDEX bom_items_template_product_type_unique '.
             'ON bom_items (process_template_id, product_type_id) WHERE deleted_at IS NULL'
         );
+
+        // Enforce exactly-one component at the DB level, so a direct create()
+        // (bypassing controller validation) can't leave a line with neither or
+        // both references. SQLite can't ALTER ADD CONSTRAINT, so this guards the
+        // Postgres production database; tests + Form-request validation cover the
+        // rest.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement(
+                'ALTER TABLE bom_items ADD CONSTRAINT bom_items_exactly_one_component_check '.
+                'CHECK ((material_id IS NULL) <> (product_type_id IS NULL))'
+            );
+        }
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE bom_items DROP CONSTRAINT IF EXISTS bom_items_exactly_one_component_check');
+        }
+
         DB::statement('DROP INDEX IF EXISTS bom_items_template_product_type_unique');
 
         Schema::table('bom_items', function (Blueprint $table) {

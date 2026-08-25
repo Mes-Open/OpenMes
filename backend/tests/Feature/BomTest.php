@@ -216,6 +216,57 @@ class BomTest extends TestCase
         ]);
     }
 
+    public function test_guest_cannot_add_product_type_to_bom(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $sub = ProductType::factory()->create();
+
+        $this->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            ['product_type_id' => $sub->id, 'quantity_per_unit' => 1]
+        )->assertRedirect(route('login'));
+
+        $this->assertDatabaseMissing('bom_items', ['product_type_id' => $sub->id]);
+    }
+
+    public function test_operator_cannot_add_product_type_to_bom(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $sub = ProductType::factory()->create();
+
+        $this->actingAs($this->operator)->post(
+            route('admin.product-types.process-templates.bom.store', [$productType, $template]),
+            ['product_type_id' => $sub->id, 'quantity_per_unit' => 1]
+        )->assertForbidden();
+
+        $this->assertDatabaseMissing('bom_items', ['product_type_id' => $sub->id]);
+    }
+
+    public function test_requirements_skip_product_type_lines(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $material = Material::factory()->create(['material_type_id' => $this->rawMaterial->id]);
+        BomItem::create([
+            'process_template_id' => $template->id,
+            'material_id' => $material->id,
+            'quantity_per_unit' => 2,
+        ]);
+        BomItem::create([
+            'process_template_id' => $template->id,
+            'product_type_id' => ProductType::factory()->create()->id,
+            'quantity_per_unit' => 5,
+        ]);
+
+        $requirements = app(BomService::class)->calculateRequirements($template->fresh(), 10);
+
+        // Only the material line contributes a stock requirement.
+        $this->assertCount(1, $requirements);
+        $this->assertSame($material->id, $requirements[0]['material_id']);
+    }
+
     public function test_cannot_add_same_product_type_twice(): void
     {
         $productType = ProductType::factory()->create();

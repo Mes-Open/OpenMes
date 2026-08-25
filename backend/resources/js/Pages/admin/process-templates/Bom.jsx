@@ -72,14 +72,14 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     <div className="mb-4 inline-flex rounded-lg border border-om-border overflow-hidden">
                         <button
                             type="button"
-                            onClick={() => setData('component_kind', 'material')}
+                            onClick={() => setData((d) => ({ ...d, component_kind: 'material', product_type_id: '' }))}
                             className={`px-4 py-2 text-sm font-medium ${!isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
                         >
                             {__("Material")}
                         </button>
                         <button
                             type="button"
-                            onClick={() => setData('component_kind', 'product_type')}
+                            onClick={() => setData((d) => ({ ...d, component_kind: 'product_type', material_id: '' }))}
                             className={`px-4 py-2 text-sm font-medium ${isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
                         >
                             {__("Product type")}
