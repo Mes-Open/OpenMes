@@ -135,6 +135,22 @@ class TimezoneRegistry
         return self::stored() ?? (string) config('app.timezone', 'UTC');
     }
 
+    /**
+     * Re-read the setting and apply it, discarding the per-process cache first.
+     *
+     * `apply()` alone runs in `AppServiceProvider::boot()`, which on Octane (and
+     * in a long-lived queue worker) happens once per worker, not once per
+     * request — so a zone changed in Settings would keep rendering the old one in
+     * every already-booted worker until a restart. Called per request/job, this
+     * costs one lookup on a unique key of a tiny table and keeps every worker
+     * honest.
+     */
+    public static function refresh(): void
+    {
+        self::flush();
+        self::apply();
+    }
+
     /** Test seam — the cache is per process and would leak between tests. */
     public static function flush(): void
     {

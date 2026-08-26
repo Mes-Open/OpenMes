@@ -46,9 +46,51 @@ function SelectCard({ value, current, onChange, label, desc, disabled }) {
     );
 }
 
+/**
+ * Region + zone pair rather than one 400-entry menu: Dropdown has no type-ahead,
+ * so scrolling every IANA identifier to reach "America/Argentina/Buenos_Aires"
+ * is the difference between a usable control and an unusable one. The form still
+ * holds one value — the full identifier.
+ */
+function TimezonePicker({ groups, value, onChange }) {
+    const regions = Object.keys(groups);
+    // "Europe/Warsaw" -> "Europe"; "UTC" is grouped under "Other" server-side.
+    const regionOf = (tz) => (tz && tz.includes('/') ? tz.split('/')[0] : 'Other');
+    const [region, setRegion] = useState(() => regionOf(value));
+    const zones = groups[region] ?? [];
+
+    // Picking a region moves the selection to that region's first zone, so the
+    // two controls never disagree about what is saved.
+    const changeRegion = (next) => {
+        setRegion(next);
+        const first = (groups[next] ?? [])[0];
+        if (first && regionOf(value) !== next) onChange(first);
+    };
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            <Dropdown
+                options={regions.map((r) => ({ value: r, label: r }))}
+                value={region}
+                onChange={changeRegion}
+                aria-label={__('Region')}
+                className="w-full max-w-[12rem]"
+            />
+            <Dropdown
+                options={zones.map((tz) => ({ value: tz, label: tz.includes('/') ? tz.slice(tz.indexOf('/') + 1).replace(/_/g, ' ') : tz }))}
+                value={zones.includes(value) ? value : ''}
+                placeholder={__('Select timezone')}
+                onChange={onChange}
+                aria-label={__('Timezone')}
+                className="w-full max-w-xs"
+            />
+        </div>
+    );
+}
+
 export default function System() {
     const toast = useToast();
-    const { settings, availableLocales, appUrl, modules = [], backups } = usePage().props;
+    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
@@ -76,6 +118,7 @@ export default function System() {
         workflow_mode: settings.workflow_mode ?? 'status',
         pin_login_enabled: settings.pin_login_enabled ?? false,
         language: settings.language ?? 'en',
+        app_timezone: settings.app_timezone ?? 'UTC',
         schedule_view_mode: settings.schedule_view_mode ?? 'weekly',
         schedule_shifts_per_day: settings.schedule_shifts_per_day ?? 1,
         schedule_horizon_weeks: settings.schedule_horizon_weeks ?? 6,
@@ -101,13 +144,15 @@ export default function System() {
 
     function handleSubmit(e) {
         e.preventDefault();
-        // Language is loaded once at bootstrap (see lib/i18n), so a change only
-        // takes effect after a full reload — an Inertia (SPA) redirect won't
-        // swap the locale chunk. Reload when the language actually changed.
-        const languageChanged = data.language !== settings.language;
+        // Language and timezone are both read once at bootstrap (see lib/i18n:
+        // loadLocale / setTimezone), so a change only takes effect after a full
+        // reload — an Inertia (SPA) redirect swaps neither the locale chunk nor
+        // the zone the format* helpers use. Reload when either actually changed.
+        const needsReload = data.language !== settings.language
+            || data.app_timezone !== settings.app_timezone;
         post('/settings/system', {
             onSuccess: () => {
-                if (languageChanged) window.location.reload();
+                if (needsReload) window.location.reload();
             },
         });
     }
@@ -336,6 +381,22 @@ export default function System() {
                             <p className={`${HELP_CLASS} mt-2`}>
                                 {__('Want to add a new language? Create a JSON file in')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/</code> {__('directory.')}
                                 {' '}{__('See')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/en.json</code> {__('as reference.')}
+                            </p>
+                        </div>
+
+                        <div className="border-t border-om-line pt-4 mt-4">
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Timezone')}</h2>
+                            <p className={`${HELP_CLASS} mb-2`}>
+                                {__('Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.')}
+                            </p>
+                            <TimezonePicker
+                                groups={timezones}
+                                value={data.app_timezone}
+                                onChange={(v) => setData('app_timezone', v)}
+                            />
+                            {errors.app_timezone && <p className="text-om-blocked text-[12px] mt-1">{errors.app_timezone}</p>}
+                            <p className={`${HELP_CLASS} mt-2`}>
+                                {__('Changing the timezone reloads the page so every displayed time switches over at once.')}
                             </p>
                         </div>
 

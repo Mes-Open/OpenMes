@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateRoleTabAccessRequest;
 use App\Support\TabRegistry;
+use App\Support\TimezoneRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -125,6 +126,9 @@ class SettingsController extends Controller
             'default_currency' => json_decode($rows['default_currency']?->value ?? '"PLN"', true) ?? 'PLN',
             'default_pay_type' => json_decode($rows['default_pay_type']?->value ?? '"hourly"', true) ?? 'hourly',
             'default_pay_rate' => json_decode($rows['default_pay_rate']?->value ?? 'null', true),
+            // Stored raw (not JSON) by TimezoneRegistry, and falls back to
+            // whatever APP_TIMEZONE resolved to when nothing is stored yet.
+            'app_timezone' => TimezoneRegistry::current(),
         ];
 
         // Same source as the validation rule and the language switcher.
@@ -156,6 +160,9 @@ class SettingsController extends Controller
         return Inertia::render('settings/System', [
             'settings' => $settings,
             'availableLocales' => $availableLocales,
+            // Every IANA identifier, grouped by region — same source the
+            // installer's timezone step uses.
+            'timezones' => TimezoneRegistry::grouped(),
             'appUrl' => config('app.url'),
             'modules' => \App\Support\ModuleRegistry::forForm(),
             'backups' => $backups,
@@ -334,6 +341,9 @@ class SettingsController extends Controller
             'pin_login_enabled' => 'nullable|boolean',
             // Single source of truth — the language switcher's configured locales.
             'language' => ['nullable', Rule::in(array_keys(config('app.available_locales', [])))],
+            // Plant timezone. Persisted by TimezoneRegistry, not through the
+            // JSON $map below — it stores the identifier raw.
+            'app_timezone' => ['nullable', 'string', Rule::in(TimezoneRegistry::identifiers())],
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
@@ -398,6 +408,13 @@ class SettingsController extends Controller
                 ['key' => $key],
                 ['value' => json_encode($value)]
             );
+        }
+
+        // Plant timezone — only when submitted, and applied immediately so the
+        // redirect that follows already renders in the new zone.
+        if (! empty($validated['app_timezone'])) {
+            TimezoneRegistry::save($validated['app_timezone']);
+            TimezoneRegistry::apply();
         }
 
         // Optional feature modules (#144) — only when the section was submitted,

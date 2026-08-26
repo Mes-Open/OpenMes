@@ -5655,5 +5655,9 @@
     "This product type is already in the BOM for this template.": "This product type is already in the BOM for this template.",
     "A product type cannot be a component of itself.": "A product type cannot be a component of itself.",
     "Component added to BOM.": "Component added to BOM.",
-    "This material is already in the BOM for this template.": "This material is already in the BOM for this template."
+    "This material is already in the BOM for this template.": "This material is already in the BOM for this template.",
+    "Region": "Region",
+    "Select timezone": "Select timezone",
+    "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.",
+    "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once."
 }

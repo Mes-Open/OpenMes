@@ -35,6 +35,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // Append request logging at the end of the web stack so $request->user()
         // is populated by SubstituteBindings/StartSession/Authenticate before us.
         $middleware->web(append: [
+            // Plant timezone before anything renders a date: on Octane the
+            // provider that applies it boots once per worker, so a zone changed
+            // in Settings only reaches this worker via this middleware.
+            \App\Http\Middleware\ApplyPlantTimezone::class,
             // SetLocale first so app()->getLocale() is correct by the time
             // HandleInertiaRequests::share() reads it.
             \App\Http\Middleware\SetLocale::class,
@@ -45,6 +49,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // Also log API requests; the middleware resolves the user from the
         // sanctum guard when the default web guard isn't populated.
         $middleware->api(append: [
+            \App\Http\Middleware\ApplyPlantTimezone::class,
             \App\Http\Middleware\LogRequest::class,
         ]);
 
