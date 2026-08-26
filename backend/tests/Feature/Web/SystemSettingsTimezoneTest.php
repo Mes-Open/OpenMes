@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Models\User;
 use App\Support\TimezoneRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -162,5 +163,28 @@ class SystemSettingsTimezoneTest extends TestCase
             ->getOriginalContent()->getData()['page']['props'];
 
         $this->assertSame('Asia/Tokyo', $props['timezone']);
+    }
+
+    /**
+     * The other half of that: once the setting is gone (a system reset truncates
+     * `system_settings`), a worker that had already applied a zone must fall back
+     * to the one it booted on — APP_TIMEZONE — not stay on the removed value.
+     */
+    public function test_removing_the_setting_puts_a_worker_back_on_the_env_zone(): void
+    {
+        config(['app.timezone' => 'Europe/Warsaw']);
+        TimezoneRegistry::flush();
+        TimezoneRegistry::apply();          // boot: nothing stored yet
+
+        TimezoneRegistry::save('Asia/Tokyo');
+        TimezoneRegistry::apply();
+        $this->assertSame('Asia/Tokyo', config('app.timezone'));
+
+        DB::table('system_settings')->where('key', TimezoneRegistry::SETTING_KEY)->delete();
+
+        TimezoneRegistry::refresh();
+
+        $this->assertSame('Europe/Warsaw', config('app.timezone'));
+        $this->assertSame('Europe/Warsaw', date_default_timezone_get());
     }
 }
