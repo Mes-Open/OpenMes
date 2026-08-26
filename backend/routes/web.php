@@ -688,6 +688,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
 
         // Materials Management
+        Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
         Route::resource('materials', MaterialManagementController::class);
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
         Route::get('/materials-import', [MaterialImportController::class, 'index'])->name('materials.import');
