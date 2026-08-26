@@ -317,7 +317,7 @@ function OperatorsCard({ line, availableOperators }) {
 
     const unassign = (userId, userName) => {
         confirm({ title: `Remove ${userName} from this line?` }, () => {
-            router.delete(`/admin/lines/${line.id}/operators/${userId}`, { preserveScroll: true });
+            router.delete(`/admin/lines/${line.id}/unassign-operator/${userId}`, { preserveScroll: true });
         });
     };
 
