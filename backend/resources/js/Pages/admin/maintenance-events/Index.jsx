@@ -1,7 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { default as ResourceTable } from '../../../components/ResourceTable';
-import { EVENT_STATUS_STYLES } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { EVENT_STATUS_STYLES, maintenanceEventFields, maintenanceEventInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaintenanceEventsIndex() {
@@ -10,7 +11,11 @@ export default function MaintenanceEventsIndex() {
         lineNames = {},
         workstationNames = {},
         userNames = {},
-    } = usePage().props;
+        // No defaults: these are Inertia::optional, and `ready` below tells the
+        // drawer they haven't arrived by their being undefined.
+        tools, lines, workstations, costSources, users } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'title', label: __('Title'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -69,7 +74,7 @@ export default function MaintenanceEventsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/maintenance-events/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -89,12 +94,23 @@ export default function MaintenanceEventsIndex() {
                 shape="maintenance_events"
                 title={__('Maintenance Events')}
                 createHref="/admin/maintenance-events/create"
+                onCreate={drawer.create}
                 createLabel={__('New Event')}
                 columns={columns}
                 orderBy="scheduled_at"
                 orderDir="desc"
                 actions={actions}
                 emptyText={__('No maintenance events yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/maintenance-events"
+                fields={maintenanceEventFields({ tools: tools ?? [], lines: lines ?? [], workstations: workstations ?? [], costSources: costSources ?? [], users: users ?? [] })}
+                initial={maintenanceEventInitial}
+                ensure={['tools', 'lines', 'workstations', 'costSources', 'users']}
+                ready={tools !== undefined}
+                title={{ create: __('New Maintenance Event'), edit: __('Edit Maintenance Event') }}
             />
         </>
     );

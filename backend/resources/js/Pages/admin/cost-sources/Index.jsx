@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { COST_SOURCE_FIELDS, costSourceInitial } from './fields';
 
 export default function CostSourcesIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -16,7 +20,7 @@ export default function CostSourcesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/cost-sources/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -41,11 +45,20 @@ export default function CostSourcesIndex() {
                 shape="cost_sources"
                 title={__('Cost Sources')}
                 createHref="/admin/cost-sources/create"
+                onCreate={drawer.create}
                 createLabel={__('New Cost Source')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No cost sources yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/cost-sources"
+                fields={COST_SOURCE_FIELDS}
+                initial={costSourceInitial}
+                title={{ create: __('New Cost Source'), edit: __('Edit Cost Source') }}
             />
         </>
     );

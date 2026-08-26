@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreMaterialRequest;
 use App\Http\Requests\Web\Admin\UpdateMaterialRequest;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class MaterialManagementController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         $counts = Material::withCount('bomItems')
@@ -21,6 +24,10 @@ class MaterialManagementController extends Controller
         return Inertia::render('admin/materials/Index', [
             'counts' => $counts,
             'materialTypeNames' => MaterialType::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'materialTypes' => Inertia::optional(fn () => MaterialType::orderBy('name')->get(['id', 'name'])),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('material')),
         ]);
     }
 
@@ -47,8 +54,7 @@ class MaterialManagementController extends Controller
 
         Material::create($validated);
 
-        return redirect()->route('admin.materials.index')
-            ->with('success', 'Material created successfully.');
+        return $this->saved($request, redirect()->route('admin.materials.index'), 'Material created successfully.');
     }
 
     public function show(Material $material, CustomFieldService $customFields)
@@ -154,8 +160,7 @@ class MaterialManagementController extends Controller
 
         $material->update($validated);
 
-        return redirect()->route('admin.materials.index')
-            ->with('success', 'Material updated successfully.');
+        return $this->saved($request, redirect()->route('admin.materials.index'), 'Material updated successfully.');
     }
 
     public function destroy(Material $material)

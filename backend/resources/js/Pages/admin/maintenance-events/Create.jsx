@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { maintenanceEventFields } from './fields';
+import { maintenanceEventFields, maintenanceEventInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaintenanceEventCreate() {
@@ -17,20 +17,7 @@ export default function MaintenanceEventCreate() {
                 action="/admin/maintenance-events"
                 method="post"
                 fields={maintenanceEventFields(lists)}
-                initial={{
-                    title: '',
-                    event_type: 'planned',
-                    tool_id: '',
-                    line_id: '',
-                    workstation_id: '',
-                    cost_source_id: '',
-                    assigned_to_id: '',
-                    scheduled_at: '',
-                    scheduled_end_at: '',
-                    actual_cost: '',
-                    currency: 'PLN',
-                    description: '',
-                }}
+                initial={maintenanceEventInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/maintenance-events"
             />

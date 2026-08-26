@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { skillFields } from './fields';
+import { skillFields, skillInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SkillCreate() {
@@ -13,7 +13,7 @@ export default function SkillCreate() {
                 action="/admin/skills"
                 method="post"
                 fields={skillFields()}
-                initial={{ code: '', name: '', description: '' }}
+                initial={skillInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/skills"
             />

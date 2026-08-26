@@ -323,10 +323,11 @@ function CompleteModal({ modal, onClose }) {
                             Planned: <strong className="font-mono text-om-ink">{fmt(modal.planned)}</strong> | Already produced: <strong className="font-mono text-om-ink">{fmt(modal.produced)}</strong>
                         </p>
                         <div>
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 Quantity <span className="text-om-blocked">*</span>
-                            </label>
+                            </div>
                             <input
+                                aria-label="Quantity"
                                 type="number"
                                 value={qty}
                                 onChange={(e) => setQty(e.target.value)}
@@ -458,9 +459,9 @@ function ReportModal({ report, issueTypes, onClose }) {
                 <form onSubmit={handleSubmit}>
                     <div className="px-[18px] py-4 space-y-4">
                         <div>
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 Type <span className="text-om-blocked">*</span>
-                            </label>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                                 {issueTypes.map((t) => (
                                     <label
@@ -490,10 +491,11 @@ function ReportModal({ report, issueTypes, onClose }) {
                         </div>
 
                         <div>
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 Title <span className="text-om-blocked">*</span>
-                            </label>
+                            </div>
                             <input
+                                aria-label="Title"
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
@@ -504,10 +506,11 @@ function ReportModal({ report, issueTypes, onClose }) {
                         </div>
 
                         <div>
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 Details <span className="text-om-faint normal-case tracking-normal">(optional)</span>
-                            </label>
+                            </div>
                             <textarea
+                                aria-label="Details"
                                 value={desc}
                                 onChange={(e) => setDesc(e.target.value)}
                                 rows={3}

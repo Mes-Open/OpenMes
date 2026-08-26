@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { siteFields } from './fields';
+import { siteFields, siteInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SiteCreate() {
@@ -15,7 +15,7 @@ export default function SiteCreate() {
                 action="/admin/sites"
                 method="post"
                 fields={siteFields(companies)}
-                initial={{ company_id: '', code: '', name: '', description: '', address: '', city: '', country: '', timezone: '', is_active: true }}
+                initial={siteInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/sites"
             />

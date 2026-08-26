@@ -18,6 +18,18 @@ export interface ModalProps {
     children?: React.ReactNode;
     closeLabel?: string;
     /**
+     * Accepted for parity with the web twin, where it moves the panel to a
+     * screen edge and slides it in. It has no effect here: an edge panel on a
+     * phone is a different component, not a variant of the form modal — reach
+     * for BottomSheet or Drawer from '@openmes/ui/native' instead.
+     */
+    side?: 'center' | 'right' | 'left';
+    /**
+     * Accepted for parity with the web twin. Ignored here: the card is sized by
+     * the screen, and a phone has no width to spare for a cap.
+     */
+    width?: number | string;
+    /**
      * Accepted for parity with the web twin, where it keeps a half-filled form
      * alive across a close. It has no effect here: RN's Modal renders null while
      * hidden, so the subtree unmounts no matter what we do around it. A native

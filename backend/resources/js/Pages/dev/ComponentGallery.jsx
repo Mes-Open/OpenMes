@@ -4,31 +4,8 @@
  * Specimen strings below are sample data on purpose (not product UI — no i18n).
  */
 import { useState } from 'react';
-import {
-    ActionMenu,
-    Badge,
-    Button,
-    Checkbox,
-    Calendar,
-    ConfirmDialog,
-    DatePicker,
-    Dropdown,
-    IconButton,
-    InlineAlert,
-    Modal,
-    OnlineDot,
-    ProgressBar,
-    QuantityStepper,
-    RadioGroup,
-    SegmentedControl,
-    Skeleton,
-    StatusPill,
-    Switch,
-    Tabs,
-    TextField,
-    ToastProvider,
-    useToast,
-} from '@openmes/ui';
+import { ActionMenu, Badge, Button, Checkbox, Calendar, ConfirmDialog, Dropdown, IconButton, InlineAlert, Modal, OnlineDot, ProgressBar, QuantityStepper, RadioGroup, SegmentedControl, Skeleton, StatusPill, Switch, Tabs, TextField, ToastProvider, useToast } from '@openmes/ui';
+import AppDatePicker from '../../components/AppDatePicker';
 import AppDataTable from '../../components/AppDataTable';
 import { __ } from '../../lib/i18n';
 
@@ -112,6 +89,7 @@ function GalleryBody() {
     const [tab, setTab] = useState('details');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const [status, setStatus] = useState('all');
     const [lines, setLines] = useState(['WSZ-01', 'WSZ-02']);
     const [due, setDue] = useState('2026-05-26');
@@ -171,18 +149,21 @@ function GalleryBody() {
                 <Section label="05 — Selection & tabs" cols>
                     <div className="w-72">
                         <SegmentedControl
+                            label="Size"
                             options={[{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }]}
                             value={size}
                             onChange={setSize}
                         />
                     </div>
                     <RadioGroup
+                        label="Counting mode"
                         options={[{ value: 'batch', label: 'Per batch' }, { value: 'shift', label: 'Per shift' }]}
                         value={mode}
                         onChange={setMode}
                     />
                     <div className="w-72">
                         <Tabs
+                            label="Work order sections"
                             tabs={[{ value: 'details', label: 'Details' }, { value: 'routing', label: 'Routing' }, { value: 'history', label: 'History' }]}
                             value={tab}
                             onChange={setTab}
@@ -233,7 +214,7 @@ function GalleryBody() {
                 </Section>
 
                 <Section label="14 — Date picker" cols>
-                    <div className="w-60"><DatePicker label="Due date" value={due} onChange={setDue} /></div>
+                    <div className="w-60"><AppDatePicker label="Due date" value={due} onChange={setDue} /></div>
                     <Calendar value={day} onChange={setDay} />
                 </Section>
 
@@ -268,6 +249,7 @@ function GalleryBody() {
                     </Button>
                     <Button variant="danger" onClick={() => setConfirmOpen(true)}>Confirm dialog</Button>
                     <Button variant="primary" onClick={() => setModalOpen(true)}>Form modal</Button>
+                    <Button variant="primary" onClick={() => setDrawerOpen(true)}>Right drawer</Button>
                 </Section>
 
                 <Section label="12 — Data table">
@@ -314,6 +296,34 @@ function GalleryBody() {
                     <>
                         <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
                         <Button variant="primary" onClick={() => setModalOpen(false)}>Create</Button>
+                    </>
+                }
+            >
+                <div className="flex flex-col gap-3">
+                    <Dropdown
+                        options={[{ value: 'hepa13', label: 'HEPA-13 Standard' }, { value: 'carbon', label: 'Carbon Pre-Filter' }]}
+                        value="hepa13"
+                        onChange={() => {}}
+                    />
+                    <div className="flex gap-2.5">
+                        <div className="flex-1"><TextField label="Qty" mono value="250" onChange={() => {}} /></div>
+                        <div className="flex-1"><TextField label="Due" mono value="26 May" onChange={() => {}} /></div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Same shell, `side="right"`: full height, flush to the edge, slides in. */}
+            <Modal
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                side="right"
+                title="New work order"
+                subtitle="LINE WSZ-01"
+                width={520}
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={() => setDrawerOpen(false)}>Cancel</Button>
+                        <Button variant="primary" onClick={() => setDrawerOpen(false)}>Create</Button>
                     </>
                 }
             >

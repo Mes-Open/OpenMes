@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class CompanyController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of companies.
      */
@@ -45,8 +48,7 @@ class CompanyController extends Controller
 
         Company::create($validated);
 
-        return redirect()->route('admin.companies.index')
-            ->with('success', 'Company created successfully.');
+        return $this->saved($request, redirect()->route('admin.companies.index'), 'Company created successfully.');
     }
 
     /**
@@ -79,8 +81,7 @@ class CompanyController extends Controller
 
         $company->update($validated);
 
-        return redirect()->route('admin.companies.index')
-            ->with('success', 'Company updated successfully.');
+        return $this->saved($request, redirect()->route('admin.companies.index'), 'Company updated successfully.');
     }
 
     /**

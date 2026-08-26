@@ -18,7 +18,7 @@ export default function EngineeringViewerModal({ viewer, onClose }) {
             onClose={onClose}
             title={viewer.title}
             subtitle={__('Interactive viewer — sandboxed')}
-            className="max-w-5xl"
+            width="64rem"
         >
             <div className="flex flex-col gap-2">
                 <iframe
