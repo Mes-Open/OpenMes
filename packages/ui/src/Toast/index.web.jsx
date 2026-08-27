@@ -6,6 +6,16 @@
  * `ToastProvider` renders a fixed top-right stack; `useToast()` returns
  * `toast({ severity, title, body, duration = 4000 })` (auto-dismiss + manual ×).
  * API is identical to the native twin (index.native.tsx).
+ *
+ * Use this for a write that leaves you on the page — one that goes out over
+ * `fetch`/`apiCall`, typically because the rows are a synced collection and the
+ * screen updates itself. A write that *redirects* should flash instead
+ * (`->with('success', …)`), which the app layout renders for free.
+ *
+ * **A toast does not survive an Inertia visit.** The visit remounts the layout
+ * that holds `ToastProvider`, and the provider's state goes with it, so
+ * `router.post(…, { onSuccess: () => toast(…) })` shows nothing at all — no
+ * error, no toast. Navigate → flash. Toast → don't navigate.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../components/AppDatePicker';
 import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
@@ -206,8 +207,9 @@ export default function AuditLogs() {
                         <div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Entity Type')}</label>
+                                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Entity Type')}</div>
                                     <Dropdown
+                                        aria-label={__('Entity Type')}
                                         options={[
                                             { value: '', label: __('All Types') },
                                             ...entityTypes.map((t) => ({ value: String(t), label: t })),
@@ -219,8 +221,9 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('User')}</label>
+                                    <div className="block text-sm font-medium text-om-muted mb-1">{__('User')}</div>
                                     <Dropdown
+                                        aria-label={__('User')}
                                         options={[
                                             { value: '', label: __('All Users') },
                                             ...users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.username})` })),
@@ -232,8 +235,9 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Action')}</label>
+                                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Action')}</div>
                                     <Dropdown
+                                        aria-label={__('Action')}
                                         options={[
                                             { value: '', label: __('All Actions') },
                                             { value: 'created', label: __('Created') },
@@ -247,8 +251,9 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Start Date')}</label>
-                                    <DatePicker
+                                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Start Date')}</div>
+                                    <AppDatePicker
+                                        aria-label={__('Start Date')}
                                         value={form.start_date || null}
                                         onChange={(iso) => setForm((f) => ({ ...f, start_date: iso ?? '' }))}
                                         className="w-full"
@@ -256,8 +261,9 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('End Date')}</label>
-                                    <DatePicker
+                                    <div className="block text-sm font-medium text-om-muted mb-1">{__('End Date')}</div>
+                                    <AppDatePicker
+                                        aria-label={__('End Date')}
                                         value={form.end_date || null}
                                         onChange={(iso) => setForm((f) => ({ ...f, end_date: iso ?? '' }))}
                                         className="w-full"

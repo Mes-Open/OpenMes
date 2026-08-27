@@ -140,10 +140,11 @@ function SetupPanel({ secret, qrCodeDataUri }) {
 
             <form onSubmit={submit} className="space-y-3 pt-2 border-t border-om-line">
                 <div>
-                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                    <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                         {__('Enter the 6-digit code to confirm')}
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Enter the 6-digit code to confirm')}
                         type="text"
                         value={form.data.code}
                         onChange={(e) => form.setData('code', e.target.value.replace(/\D/g, '').slice(0, 6))}

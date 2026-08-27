@@ -54,10 +54,11 @@ export default function WorkstationEdit() {
 
             <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Code')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Code')}
                         type="text"
                         value={form.data.code}
                         onChange={(e) => form.setData('code', e.target.value)}
@@ -71,10 +72,11 @@ export default function WorkstationEdit() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Name')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Name')}
                         type="text"
                         value={form.data.name}
                         onChange={(e) => form.setData('name', e.target.value)}
@@ -86,10 +88,11 @@ export default function WorkstationEdit() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Type')}
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Type')}
                         type="text"
                         value={form.data.workstation_type}
                         onChange={(e) => form.setData('workstation_type', e.target.value)}
@@ -118,11 +121,15 @@ export default function WorkstationEdit() {
                             {workers.map((worker) => {
                                 const isAssigned = form.data.worker_ids.includes(worker.id);
                                 return (
-                                    <label
+                                    <div
                                         key={worker.id}
                                         className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-om-bg ${isAssigned ? 'bg-om-chip' : ''}`}
                                     >
                                         <Checkbox
+                                            // The name sits in the sibling text, which a
+                                            // <label> around a button-based checkbox never
+                                            // associated with it.
+                                            aria-label={worker.name}
                                             checked={isAssigned}
                                             onChange={() => toggleWorker(worker.id)}
                                         />
@@ -138,7 +145,7 @@ export default function WorkstationEdit() {
                                         {worker.crew_name && (
                                             <span className="text-xs text-om-faint shrink-0">{worker.crew_name}</span>
                                         )}
-                                    </label>
+                                    </div>
                                 );
                             })}
                         </div>

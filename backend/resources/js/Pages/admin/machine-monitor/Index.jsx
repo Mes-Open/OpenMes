@@ -199,7 +199,7 @@ function Tile({ t, now, states = [], onSetState }) {
 
             {states.length > 0 && onSetState && (
                 <div className="mt-3 pt-2 border-t border-om-line2 flex items-center gap-2">
-                    <label className="text-[10px] uppercase text-om-faint shrink-0">{__('Set state')}</label>
+                    <div className="text-[10px] uppercase text-om-faint shrink-0">{__('Set state')}</div>
                     <select
                         value={t.state}
                         onChange={(e) => onSetState(t.id, e.target.value)}

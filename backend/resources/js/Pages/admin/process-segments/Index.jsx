@@ -8,7 +8,7 @@ export default function ProcessSegmentsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', link: true },
         { key: 'segment_type', label: __('Type'), className: 'text-om-muted', render: (r) => r.segment_type },
         { key: 'wstype', label: __('Workstation Type'), className: 'text-om-muted', value: (r) => workstationTypeNames[r.workstation_type_id] ?? '—', render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—' },
         { key: 'required_operators', label: __('Operators'), className: 'text-om-muted' },

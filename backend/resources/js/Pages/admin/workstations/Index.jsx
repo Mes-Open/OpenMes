@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Icon } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { ActiveBadge } from '../../../components/ResourceTable';
 import Tooltip from '../../../components/Tooltip';
@@ -44,9 +45,10 @@ export default function WorkstationsIndex() {
                     </div>
                     <Link
                         href={`/admin/lines/${line.id}/workstations/create`}
-                        className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
+                        className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
-                        {__('+ Add Workstation')}
+                        <Icon name="plus" size={14} />
+                        {__('Add Workstation')}
                     </Link>
                 </div>
             </div>
@@ -60,9 +62,10 @@ export default function WorkstationsIndex() {
                     <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first workstation for this line.')}</p>
                     <Link
                         href={`/admin/lines/${line.id}/workstations/create`}
-                        className="inline-block bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
+                        className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
-                        {__('+ Create Workstation')}
+                        <Icon name="plus" size={14} />
+                        {__('Create Workstation')}
                     </Link>
                 </div>
             ) : (

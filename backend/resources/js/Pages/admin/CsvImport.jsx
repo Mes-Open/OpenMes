@@ -158,6 +158,9 @@ export default function CsvImport() {
                             <input
                                 type="file"
                                 name="csv_file"
+                                // Visually hidden behind the drop zone's button, but
+                                // still reachable and announced, so it needs a name.
+                                aria-label={__('Choose a file to import')}
                                 ref={setFileInput}
                                 accept=".csv,.txt,.xlsx,.xls"
                                 className="hidden"
@@ -171,9 +174,10 @@ export default function CsvImport() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label className="form-label">{__('Duplicate Strategy')}</label>
+                                <div className="form-label">{__('Duplicate Strategy')}</div>
                                 <input type="hidden" name="import_strategy" value={importStrategy} />
                                 <Dropdown
+                                    aria-label={__('Duplicate Strategy')}
                                     options={[
                                         { value: 'update_or_create', label: __('Update if exists, create if new') },
                                         { value: 'skip_existing', label: __('Skip existing records') },
@@ -185,9 +189,10 @@ export default function CsvImport() {
                                 />
                             </div>
                             <div>
-                                <label className="form-label">{__('Load Mapping Profile (optional)')}</label>
+                                <div className="form-label">{__('Load Mapping Profile (optional)')}</div>
                                 <input type="hidden" name="mapping_id" value={mappingId} />
                                 <Dropdown
+                                    aria-label={__('Load Mapping Profile (optional)')}
                                     options={[
                                         { value: '', label: __('— Map columns manually —') },
                                         ...savedMappings.map((m) => ({
@@ -204,9 +209,10 @@ export default function CsvImport() {
 
                         {/* Target line */}
                         <div className="mb-4">
-                            <label className="form-label">{__('Assign all rows to Production Line (optional)')}</label>
+                            <div className="form-label">{__('Assign all rows to Production Line (optional)')}</div>
                             <input type="hidden" name="target_line_id" value={targetLineId} />
                             <Dropdown
+                                aria-label={__('Assign all rows to Production Line (optional)')}
                                 options={[
                                     { value: '', label: __('— Use line_code column from file —') },
                                     ...lines.map((line) => ({ value: String(line.id), label: line.name })),
@@ -232,8 +238,9 @@ export default function CsvImport() {
                                 <div className="grid grid-cols-2 gap-3">
                                     {productionPeriod === 'weekly' ? (
                                         <div>
-                                            <label className="form-label text-xs">{__('Week Number (1–53)')}</label>
+                                            <div className="form-label text-xs">{__('Week Number (1–53)')}</div>
                                             <input
+                                                aria-label={__('Week Number (1–53)')}
                                                 type="number"
                                                 name="import_week"
                                                 min="1"
@@ -244,8 +251,9 @@ export default function CsvImport() {
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="form-label text-xs">{__('Month Number (1–12)')}</label>
+                                            <div className="form-label text-xs">{__('Month Number (1–12)')}</div>
                                             <input
+                                                aria-label={__('Month Number (1–12)')}
                                                 type="number"
                                                 name="import_month"
                                                 min="1"
@@ -256,8 +264,9 @@ export default function CsvImport() {
                                         </div>
                                     )}
                                     <div>
-                                        <label className="form-label text-xs">{__('Year')}</label>
+                                        <div className="form-label text-xs">{__('Year')}</div>
                                         <input
+                                            aria-label={__('Year')}
                                             type="number"
                                             name="production_year"
                                             min="2000"

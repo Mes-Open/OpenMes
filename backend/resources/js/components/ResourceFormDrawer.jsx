@@ -79,12 +79,27 @@ export default function ResourceFormDrawer({
         onClose?.();
     }, [onClose]);
 
-    // Fetch the optional props once, the first time the drawer is opened.
+    /**
+     * Fetch the optional props once per opening — not once per page.
+     *
+     * Saving takes the `stay` path, and `back()` is a full visit, not a partial
+     * one: Inertia's `mergeProps` bails out for those, so `page.props` is
+     * replaced wholesale by what `index()` returns, which is exactly the set
+     * that leaves the `Inertia::optional` props out. `ready` therefore goes true
+     * → false after every save, while the component survives (the visit
+     * preserves state), so a latch that only ever armed once would leave every
+     * later opening stuck on the skeleton with nothing to click. Re-arming on
+     * the closed → open edge asks again, and only again, when it has to.
+     */
     const asked = useRef(false);
+    const wasOpen = useRef(false);
     // Depend on the names, not the array: call sites pass a literal, so a new
     // identity every render would re-run this on every keystroke in the form.
     const wanted = ensure?.join(',') ?? '';
     useEffect(() => {
+        const opening = open && !wasOpen.current;
+        wasOpen.current = open;
+        if (opening) asked.current = false;
         if (!open || ready || asked.current || !wanted) return;
         asked.current = true;
         router.reload({

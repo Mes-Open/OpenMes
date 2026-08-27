@@ -51,7 +51,8 @@ const BCP47 = {
     vi: 'vi-VN',
 };
 
-function localeTag() {
+/** The active locale as a BCP-47 tag, for `Intl` and for locale-free packages. */
+export function localeTag() {
     return BCP47[activeLocale] ?? activeLocale;
 }
 

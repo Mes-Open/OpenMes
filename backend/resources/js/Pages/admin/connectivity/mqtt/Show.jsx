@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber, formatTime } from '../../../../lib/i18n';
 import useConfirm from '../../../../components/useConfirm';
+import { nameControl } from '../../../../lib/fieldName';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -276,8 +277,9 @@ function EditTopicForm({ topic, connectionId, onClose }) {
         <div className="px-4 py-3 border-b border-om-line2 bg-om-chip/40">
             <form onSubmit={submit} className="flex gap-3 items-end flex-wrap">
                 <div className="flex-1 min-w-48">
-                    <label className="block text-xs font-medium text-om-muted mb-1">Pattern</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Pattern</div>
                     <input
+                        aria-label="Pattern"
                         type="text"
                         value={form.data.topic_pattern}
                         onChange={(e) => form.setData('topic_pattern', e.target.value)}
@@ -286,16 +288,18 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-om-muted mb-1">Format</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Format</div>
                     <Dropdown
+                        aria-label="Format"
                         value={form.data.payload_format}
                         onChange={(v) => form.setData('payload_format', v)}
                         options={['json', 'plain', 'csv', 'hex'].map((f) => ({ value: f, label: f.toUpperCase() }))}
                     />
                 </div>
                 <div className="flex-1 min-w-36">
-                    <label className="block text-xs font-medium text-om-muted mb-1">Description</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Description</div>
                     <input
+                        aria-label="Description"
                         type="text"
                         value={form.data.description}
                         onChange={(e) => form.setData('description', e.target.value)}
@@ -475,9 +479,9 @@ function AddTopicForm({ connectionId }) {
                 <form onSubmit={submit} className="mt-4 space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="col-span-2">
-                            <label className="block text-xs font-medium text-om-muted mb-1">
+                            <div className="block text-xs font-medium text-om-muted mb-1">
                                 Topic pattern <span className="text-om-faint font-normal">(supports + and # wildcards)</span>
-                            </label>
+                            </div>
                             <input
                                 type="text"
                                 value={form.data.topic_pattern}
@@ -488,8 +492,9 @@ function AddTopicForm({ connectionId }) {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Payload format</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">Payload format</div>
                             <Dropdown
+                                aria-label="Payload format"
                                 value={form.data.payload_format}
                                 onChange={(v) => form.setData('payload_format', v)}
                                 options={[
@@ -503,8 +508,9 @@ function AddTopicForm({ connectionId }) {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Description (optional)</label>
+                        <div className="block text-xs font-medium text-om-muted mb-1">Description (optional)</div>
                         <input
+                            aria-label="Description (optional)"
                             type="text"
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
@@ -582,8 +588,8 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
 function MiniField({ label, children }) {
     return (
         <div>
-            <label className="block text-xs text-om-muted mb-0.5">{label}</label>
-            {children}
+            <div className="block text-xs text-om-muted mb-0.5">{label}</div>
+            {nameControl(children, label)}
         </div>
     );
 }

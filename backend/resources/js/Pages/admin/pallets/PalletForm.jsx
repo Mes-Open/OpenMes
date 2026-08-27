@@ -18,10 +18,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
     return (
         <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">
+                <div className="block text-sm font-medium text-om-muted mb-1">
                     {__('Work order')} <span className="text-om-blocked">*</span>
-                </label>
+                </div>
                 <Dropdown
+                    aria-label={__('Work order')}
                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
                     onChange={(v) => { setData('work_order_id', v); setData('batch_id', ''); }}
                     placeholder={__('— Select work order —')}
@@ -33,8 +34,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             {batches.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Batch')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Batch')}</div>
                     <Dropdown
+                        aria-label={__('Batch')}
                         value={data.batch_id == null ? '' : String(data.batch_id)}
                         onChange={(v) => setData('batch_id', v)}
                         placeholder={__('— None —')}
@@ -47,8 +49,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Quantity')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Quantity')}</div>
                     <input
+                        aria-label={__('Quantity')}
                         type="number"
                         min={0}
                         value={data.qty ?? 0}
@@ -58,10 +61,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                     {errors.qty && <p className="mt-1 text-xs text-om-blocked">{errors.qty}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Status')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <Dropdown
+                        aria-label={__('Status')}
                         value={data.status == null ? '' : String(data.status)}
                         onChange={(v) => setData('status', v)}
                         options={statuses.map((s) => ({ value: String(s.value), label: s.label }))}
@@ -109,8 +113,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 function TextField({ label, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">{label}</label>
+            <div className="block text-sm font-medium text-om-muted mb-1">{label}</div>
             <input
+                aria-label={label}
                 type="text"
                 value={value ?? ''}
                 onChange={(e) => onChange(e.target.value)}

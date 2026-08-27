@@ -82,8 +82,17 @@ const ICON_PATH: Record<NonNullable<DataTableAction['icon']>, string> = {
   activate: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
 };
 
+// Same colour vocabulary as the web ICON_COLOR map: destructive/off verbs take
+// `blocked`, the "switch it on" verb takes `running`, everything else stays muted.
+const ICON_TINT: Record<NonNullable<DataTableAction['icon']>, string> = {
+  edit: colors.muted,
+  delete: colors.blocked,
+  deactivate: colors.blocked,
+  activate: colors.running,
+};
+
 function ActionIcon({ icon }: { icon: NonNullable<DataTableAction['icon']> }) {
-  const color = icon === 'delete' ? colors.blocked : colors.muted;
+  const color = ICON_TINT[icon] ?? colors.muted;
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path d={ICON_PATH[icon]} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -217,14 +226,21 @@ export function DataTable<Row extends object>({
                 <Text style={styles.emptyText}>{emptyText}</Text>
               </View>
             ) : (
-              pageRows.map((row) => (
+              pageRows.map((row) => {
+                // A deactivated record fades, exactly as it does on web (the rule
+                // lives in ResourceTable there): it stays in the list because
+                // switching it back on is why you looked, but it shouldn't read as
+                // loud as a live one. The actions cell keeps full contrast — the
+                // control that reactivates the row is the point of the row.
+                const dimmed = 'is_active' in row && !(row as { is_active?: unknown }).is_active;
+                return (
                 <Pressable
                   key={getKey(row)}
                   onPress={onRowPress ? () => onRowPress(row) : undefined}
                   disabled={!onRowPress}
                   style={({ pressed }) => [styles.row, styles.dataRow, pressed && onRowPress ? { opacity: 0.6 } : null]}>
                   {visibleColumns.map((c) => (
-                    <View key={c.key} style={cellStyle(c)}>
+                    <View key={c.key} style={[cellStyle(c), dimmed && styles.dimmedCell]}>
                       {c.render ? (
                         wrapCell(c.render(row), c.align)
                       ) : (
@@ -264,7 +280,8 @@ export function DataTable<Row extends object>({
                     </View>
                   ) : null}
                 </Pressable>
-              ))
+                );
+              })
             )}
 
             {/* Footer — "1-N / T" + pager, like web. */}
@@ -419,6 +436,8 @@ const styles = StyleSheet.create({
   headerText: { fontFamily: fonts.mono.native.medium, fontSize: 9, letterSpacing: 0.8, color: colors.faint },
   dataRow: { paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
   cellText: { fontSize: 13, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  // Matches the web ResourceTable's dim for a deactivated row.
+  dimmedCell: { opacity: 0.5 },
   emptyRow: { padding: 16 },
   emptyText: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular },
   actionsCell: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },

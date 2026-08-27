@@ -13,7 +13,7 @@
  * mono 10.5px in a 6px-radius field, matching the design's filter controls. The
  * menu itself stays full size; only the trigger shrinks.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
@@ -52,6 +52,10 @@ export function Dropdown({
     const [open, setOpen] = useState(false);
     // Keyboard/hover highlight; -1 while nothing is highlighted.
     const [active, setActive] = useState(-1);
+    const uid = useId();
+    const listboxId = `${uid}-listbox`;
+    const triggerId = `${uid}-trigger`;
+    const optionId = (i) => `${uid}-opt-${i}`;
     const rootRef = useRef(null);
     const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 320 });
 
@@ -142,9 +146,22 @@ export function Dropdown({
                 ref={anchorRef}
                 type="button"
                 disabled={disabled}
+                id={triggerId}
                 aria-label={ariaLabel}
+                // Unlike a button, a combobox does not take its name from its own
+                // text, so a trigger that was named by the word inside it ("Columns")
+                // would lose that name outright. Pointing at itself puts the content
+                // back into the name computation.
+                aria-labelledby={ariaLabel ? undefined : triggerId}
+                // `combobox`, not the implicit `button` role: `aria-activedescendant`
+                // is only honoured on a role that supports it, and without it the
+                // arrow keys move a highlight that a screen reader never hears —
+                // focus stays on the trigger the whole time the list is open.
+                role="combobox"
                 aria-haspopup="listbox"
+                aria-controls={open ? listboxId : undefined}
                 aria-expanded={open}
+                aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
                 onClick={toggle}
                 className={`flex w-full items-center justify-between border bg-om-bg text-left transition-[border-color,box-shadow,background-color] duration-150 ${TRIGGER_SIZE[size]} ${
                     disabled
@@ -170,7 +187,10 @@ export function Dropdown({
             {open && style && createPortal(
                 <div
                     ref={popRef}
+                    id={listboxId}
                     role="listbox"
+                    aria-label={ariaLabel}
+                    aria-labelledby={ariaLabel ? undefined : triggerId}
                     aria-multiselectable={multiple || undefined}
                     style={style}
                     className="max-h-[320px] w-max max-w-[min(22rem,calc(100vw-2rem))] origin-top overflow-auto rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] motion-safe:animate-om-menu-in"
@@ -187,6 +207,7 @@ export function Dropdown({
                             return (
                                 <div
                                     key={o.value}
+                                    id={optionId(i)}
                                     role="option"
                                     aria-selected={on}
                                     onClick={() => pick(o)}
@@ -206,6 +227,7 @@ export function Dropdown({
                         return (
                             <div
                                 key={o.value}
+                                id={optionId(i)}
                                 role="option"
                                 aria-selected={selected}
                                 onClick={() => pick(o)}

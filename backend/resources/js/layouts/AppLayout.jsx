@@ -356,6 +356,15 @@ export default function AppLayout({ children }) {
     );
 }
 
+/**
+ * The default "that worked" for a write that redirects: any controller ending in
+ * `->with('success'|'error', …)` lands here, and the page itself needs no code.
+ *
+ * In the document flow on purpose — it should push the page down and be read,
+ * having just arrived from somewhere else. That makes it the wrong choice under
+ * a rapid in-place interaction (dragging rows, say), where the shift moves what
+ * you were looking at; those use `useToast()` instead.
+ */
 function FlashMessages() {
     const { flash } = usePage().props;
     if (!flash?.success && !flash?.error) return null;
@@ -763,6 +772,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
                         if (e.key === 'Enter') onSubmit();
                     }}
                     placeholder={__('Search menu…')}
+                    aria-label={__('Search menu…')}
                     className="w-full pl-9 pr-3 py-2 rounded-om-sm bg-om-bg border border-om-line text-[13px]
                                text-om-ink placeholder:text-om-faint
                                focus:outline-none focus:border-om-ink focus:ring-1 focus:ring-om-ink"

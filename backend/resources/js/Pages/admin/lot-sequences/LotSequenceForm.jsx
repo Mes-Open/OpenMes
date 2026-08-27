@@ -100,8 +100,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
             <TextField label={__('Name')} required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</label>
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</div>
                 <Dropdown
+                    aria-label={__('Product Type')}
                     value={data.product_type_id == null ? '' : String(data.product_type_id)}
                     onChange={(v) => setData('product_type_id', v)}
                     options={[
@@ -135,10 +136,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
             {mode === 'pattern' ? (
                 <div className="space-y-3">
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
+                        <div className="block text-sm font-medium text-om-muted mb-1">
                             {__('Pattern')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <input
+                            aria-label={__('Pattern')}
                             ref={patternInputRef}
                             type="text"
                             value={data.pattern ?? ''}
@@ -190,8 +192,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</div>
                     <input
+                        aria-label={__('Pad Size')}
                         type="number"
                         min={1}
                         max={10}
@@ -202,8 +205,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                     {errors.pad_size && <p className="mt-1 text-xs text-om-blocked">{errors.pad_size}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</div>
                     <Dropdown
+                        aria-label={__('Counter Reset')}
                         value={data.reset_period == null ? 'none' : String(data.reset_period)}
                         onChange={(v) => setData('reset_period', v)}
                         options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: __(o.label) }))}
@@ -228,10 +232,10 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 function TextField({ label, required, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            <input type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+            </div>
+            <input aria-label={label} type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

@@ -17,7 +17,7 @@ export default function PersonnelClassesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', link: true },
         { key: 'skills', label: __('Req. Skills'), value: (r) => asArray(r.required_skill_ids).length, render: (r) => asArray(r.required_skill_ids).length },
         { key: 'workers', label: __('Workers'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },

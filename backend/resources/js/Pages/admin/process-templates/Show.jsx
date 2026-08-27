@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Dropdown, Checkbox, TextField } from '@openmes/ui';
+import { Dropdown, Checkbox, Icon as UiIcon, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 // Explicit extension: the helper module `engineeringDocuments.js` differs only in
 // case and would resolve wrong on case-insensitive filesystems.
@@ -84,8 +84,9 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
     return (
         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
             <div>
-                <label className="form-label">{__('Workstation type (ISA-95)')}</label>
+                <div className="form-label">{__('Workstation type (ISA-95)')}</div>
                 <Dropdown
+                    aria-label={__('Workstation type (ISA-95)')}
                     value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
                     onChange={(v) => setData('workstation_type_id', v)}
                     options={[
@@ -99,8 +100,9 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
                 </p>
             </div>
             <div>
-                <label className="form-label">{__('Setup time (minutes)')}</label>
+                <div className="form-label">{__('Setup time (minutes)')}</div>
                 <input
+                    aria-label={__('Setup time (minutes)')}
                     type="number"
                     min="0"
                     value={data.setup_time_minutes}
@@ -110,8 +112,9 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
                 />
             </div>
             <div>
-                <label className="form-label">{__('Run time per unit (minutes)')}</label>
+                <div className="form-label">{__('Run time per unit (minutes)')}</div>
                 <input
+                    aria-label={__('Run time per unit (minutes)')}
                     type="number"
                     min="0"
                     step="0.01"
@@ -176,8 +179,9 @@ function ParametersEditor({ value = {}, onChange }) {
                     </div>
                 ))}
             </div>
-            <button type="button" onClick={addRow} className="mt-2 text-xs text-om-accent hover:underline">
-                {__('+ Add parameter')}
+            <button type="button" onClick={addRow} className="mt-2 inline-flex items-center gap-1 text-xs text-om-accent hover:underline">
+                <UiIcon name="plus" size={12} />
+                {__('Add parameter')}
             </button>
         </div>
     );
@@ -237,8 +241,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
             <form onSubmit={submit}>
                 {processSegments.length > 0 && (
                     <div className="mb-4">
-                        <label className="form-label">Use Process Segment (optional)</label>
+                        <div className="form-label">Use Process Segment (optional)</div>
                         <Dropdown
+                            aria-label="Use Process Segment (optional)"
                             value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                             onChange={(v) => applySegment(v)}
                             options={[
@@ -258,8 +263,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="form-label">Step Name</label>
+                        <div className="form-label">Step Name</div>
                         <input
+                            aria-label="Step Name"
                             type="text"
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
@@ -271,8 +277,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <div>
-                        <label className="form-label">Workstation (Optional)</label>
+                        <div className="form-label">Workstation (Optional)</div>
                         <Dropdown
+                            aria-label="Workstation (Optional)"
                             value={data.workstation_id == null ? '' : String(data.workstation_id)}
                             onChange={(v) => setData('workstation_id', v)}
                             options={[
@@ -287,8 +294,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="form-label">Instructions</label>
+                        <div className="form-label">Instructions</div>
                         <textarea
+                            aria-label="Instructions"
                             value={data.instruction}
                             onChange={(e) => setData('instruction', e.target.value)}
                             rows={3}
@@ -298,8 +306,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <div>
-                        <label className="form-label">Estimated Duration (minutes)</label>
+                        <div className="form-label">Estimated Duration (minutes)</div>
                         <input
+                            aria-label="Estimated Duration (minutes)"
                             type="number"
                             value={data.estimated_duration_minutes}
                             onChange={(e) => setData('estimated_duration_minutes', e.target.value)}
@@ -310,8 +319,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <div>
-                        <label className="form-label">Operators Required</label>
+                        <div className="form-label">Operators Required</div>
                         <input
+                            aria-label="Operators Required"
                             type="number"
                             value={data.required_operators}
                             onChange={(e) => setData('required_operators', e.target.value)}
@@ -375,8 +385,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         <form onSubmit={submit}>
             {processSegments.length > 0 && (
                 <div className="mb-4">
-                    <label className="form-label">Linked Process Segment</label>
+                    <div className="form-label">Linked Process Segment</div>
                     <Dropdown
+                        aria-label="Linked Process Segment"
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => setData('process_segment_id', v)}
                         options={[
@@ -396,8 +407,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="form-label">Step Name</label>
+                    <div className="form-label">Step Name</div>
                     <input
+                        aria-label="Step Name"
                         type="text"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
@@ -408,8 +420,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <div>
-                    <label className="form-label">Workstation (Optional)</label>
+                    <div className="form-label">Workstation (Optional)</div>
                     <Dropdown
+                        aria-label="Workstation (Optional)"
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
@@ -424,8 +437,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <div className="md:col-span-2">
-                    <label className="form-label">Instructions</label>
+                    <div className="form-label">Instructions</div>
                     <textarea
+                        aria-label="Instructions"
                         value={data.instruction}
                         onChange={(e) => setData('instruction', e.target.value)}
                         rows={3}
@@ -434,8 +448,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <div>
-                    <label className="form-label">Estimated Duration (minutes)</label>
+                    <div className="form-label">Estimated Duration (minutes)</div>
                     <input
+                        aria-label="Estimated Duration (minutes)"
                         type="number"
                         value={data.estimated_duration_minutes}
                         onChange={(e) => setData('estimated_duration_minutes', e.target.value)}
@@ -445,8 +460,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <div>
-                    <label className="form-label">Operators Required</label>
+                    <div className="form-label">Operators Required</div>
                     <input
+                        aria-label="Operators Required"
                         type="number"
                         value={data.required_operators}
                         onChange={(e) => setData('required_operators', e.target.value)}
@@ -1238,10 +1254,11 @@ function PhotosSection({ productType, processTemplate }) {
             {/* Upload form */}
             <form onSubmit={submit} className="card mb-4 flex flex-wrap items-end gap-3">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__("Photo")} <span className="text-xs text-om-faint">{__("(JPEG/PNG/WebP, max 10 MB)")}</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__("Photo")}
                         ref={fileInputRef}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -1250,8 +1267,9 @@ function PhotosSection({ productType, processTemplate }) {
                     />
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__("Caption")}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__("Caption")}</div>
                     <input
+                        aria-label={__("Caption")}
                         type="text"
                         value={form.data.caption}
                         onChange={(e) => form.setData('caption', e.target.value)}

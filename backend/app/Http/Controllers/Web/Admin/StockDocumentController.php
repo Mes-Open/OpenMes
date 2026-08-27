@@ -26,7 +26,10 @@ class StockDocumentController extends Controller
     public function index()
     {
         return Inertia::render('admin/stock-documents/Index', [
-            'warehouses' => Warehouse::orderBy('code')->get(['id', 'code', 'name', 'kind']),
+            // Covers every warehouse an existing row might reference, deactivated
+            // ones included — unlike the create-form options below, which only
+            // offer what is still selectable.
+            'warehouseCodes' => Warehouse::pluck('code', 'id'),
             // Subquery, not a pluck: the id list never has to travel to PHP and back.
             'workOrders' => WorkOrder::whereIn(
                 'id',
@@ -36,17 +39,29 @@ class StockDocumentController extends Controller
                 ->keyBy('id')
                 ->map
                 ->order_no,
+            // Feeds the list's "New Document" modal, which renders the same form
+            // as the create page.
+            ...$this->createFormOptions(),
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('admin/stock-documents/Create', [
+        return Inertia::render('admin/stock-documents/Create', $this->createFormOptions());
+    }
+
+    /**
+     * Options the create form needs, wherever it is rendered — the standalone
+     * create page and the list's modal must offer exactly the same choices.
+     */
+    private function createFormOptions(): array
+    {
+        return [
             'warehouses' => Warehouse::active()->orderBy('code')->get(['id', 'code', 'name', 'kind', 'is_default']),
             'materials' => Material::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'unit_of_measure']),
             'types' => StockDocument::TYPES,
-        ]);
+        ];
     }
 
     public function store(StoreStockDocumentRequest $request)
@@ -55,6 +70,12 @@ class StockDocumentController extends Controller
             $document = $this->documents->createDraft($request->validated(), $request->user());
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        }
+
+        // The list's New-Document modal posts `stay` so the user keeps their page
+        // (the new draft lands there through the synced collection).
+        if ($request->boolean('stay')) {
+            return back()->with('success', __('Stock document :no created.', ['no' => $document->document_no]));
         }
 
         return redirect()->route('admin.stock-documents.show', $document)

@@ -59,6 +59,21 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 - New pages are React/Inertia (`backend/resources/js/Pages/...`); legacy Blade+Livewire pages still exist and are being ported — don't add new Blade pages.
 - Config-driven CRUD: `ResourceTable` (list, fed by a synced collection) + `ResourceForm` (create/edit via Inertia `useForm`). Custom forms only when those don't fit.
 - React escaping is the XSS defense — `dangerouslySetInnerHTML` is effectively banned.
+- **Telling the user a write worked** — three mechanisms, pick by whether the page navigates:
+  - **Redirecting (the usual CRUD case) → flash.** `->with('success'|'error', …)` on the
+    redirect; `FlashMessages` in `AppLayout` renders it. The page needs no code. This is what
+    ~86 controllers already do. It sits in the document flow, so it shifts the page down —
+    fine after a navigation, wrong under a rapid in-place interaction.
+  - **Staying on the page → `useToast()`** (`@openmes/ui`, provider already in `AppLayout`;
+    `Snackbar` is its native twin). Portaled, auto-dismisses, no layout shift. For actions
+    that write over `fetch`/`apiCall` — typically because the rows are a synced collection
+    and the screen updates itself.
+    **A toast does not survive an Inertia visit**: the visit remounts `AppLayout` and the
+    provider with it, so `router.post(…, { onSuccess: () => toast(…) })` silently shows
+    nothing. Navigate → flash. Toast → don't navigate.
+  - **Message belonging to one form or section → `InlineAlert`.** Stays where you put it.
+  - Field-level 422s need none of these: `ResourceForm` already prints each error under its
+    own field.
 
 ## Workflow
 

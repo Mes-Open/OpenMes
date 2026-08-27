@@ -1,4 +1,5 @@
-import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
+import { Checkbox, Dropdown } from '@openmes/ui';
+import AppDatePicker from './AppDatePicker';
 import { __ } from '../lib/i18n';
 
 /**
@@ -66,9 +67,9 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
         const url = fileUrl(meta);
         return (
             <div>
-                <label className={LABEL_CLASS}>
+                <div className={LABEL_CLASS}>
                     {label} {required && <span className="text-om-accent">*</span>}
-                </label>
+                </div>
                 {showExisting && (
                     <div className="flex items-center gap-3 mb-2">
                         {type === 'image' ? (
@@ -138,7 +139,7 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
         );
     } else if (type === 'date') {
         control = (
-            <DatePicker
+            <AppDatePicker
                 className="w-full"
                 value={value || null}
                 onChange={(iso) => onChange(iso ?? '')}
@@ -161,9 +162,9 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
 
     return (
         <div>
-            <label className={LABEL_CLASS}>
+            <div className={LABEL_CLASS}>
                 {label} {required && <span className="text-om-accent">*</span>}
-            </label>
+            </div>
             {control}
             {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
         </div>

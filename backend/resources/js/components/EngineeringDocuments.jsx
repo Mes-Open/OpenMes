@@ -169,8 +169,9 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                 <form onSubmit={submitUpload} className="mb-5 rounded-om-sm border border-om-line bg-om-chip p-4">
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                         <div className="md:col-span-2">
-                            <label className="block text-sm text-om-muted mb-1">{__('File')}</label>
+                            <div className="block text-sm text-om-muted mb-1">{__('File')}</div>
                             <input
+                                aria-label={__('File')}
                                 ref={fileRef}
                                 type="file"
                                 onChange={(ev) => setFile(ev.target.files?.[0] ?? null)}
@@ -179,8 +180,9 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                             {fieldErrors.file && <p className="text-xs text-om-blocked mt-1">{fieldErrors.file[0]}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm text-om-muted mb-1">{__('Revision')}</label>
+                            <div className="block text-sm text-om-muted mb-1">{__('Revision')}</div>
                             <input
+                                aria-label={__('Revision')}
                                 type="text"
                                 value={revision}
                                 onChange={(ev) => setRevision(ev.target.value)}
@@ -190,8 +192,9 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                             {fieldErrors.revision && <p className="text-xs text-om-blocked mt-1">{fieldErrors.revision[0]}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm text-om-muted mb-1">{__('Document type')}</label>
+                            <div className="block text-sm text-om-muted mb-1">{__('Document type')}</div>
                             <input
+                                aria-label={__('Document type')}
                                 type="text"
                                 value={documentType}
                                 onChange={(ev) => setDocumentType(ev.target.value)}

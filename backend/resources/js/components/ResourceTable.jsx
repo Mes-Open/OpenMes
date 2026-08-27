@@ -1,4 +1,4 @@
-import { createContext, Fragment, useContext, useEffect, useMemo, useState } from 'react';
+import { Fragment, useContext, useMemo } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { ActionMenu, Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
@@ -9,40 +9,8 @@ import { dedupeTrail, PageTitleContext } from '../layouts/AppLayout';
 import Tooltip from './Tooltip';
 import useConfirm from './useConfirm';
 import { __ } from '../lib/i18n';
-import { tableLabels, filterLabels, normalizeFilter } from '../lib/tableLabels';
-
-// Shared "now" clock for columns flagged `live: true` (e.g. an elapsed-time
-// column). A single interval per table bumps this context; each live cell is a
-// context consumer, so it re-renders on every tick even though the underlying
-// row data (and the memoized DataTable) didn't change. 30s cadence is plenty for
-// minute/hour/day-granularity durations and stays cheap.
-const NowContext = createContext(Date.now());
-const LIVE_TICK_MS = 30_000;
-
-/** A cell whose value depends on the current time; recomputes on each clock tick. */
-function LiveCell({ col, row }) {
-    const now = useContext(NowContext);
-    return col.render ? col.render(row, now) : row[col.key];
-}
-
-/**
- * Owns the shared clock so a tick re-renders only this thin wrapper and the
- * NowContext consumers (the live cells) - NOT the parent ResourceTable body,
- * which would otherwise re-run its live query/filter and hand DataTable freshly
- * allocated props every 30s, defeating its memoization. The interval runs only
- * while `active`, so tables without a live column never schedule a timer.
- */
-function LiveClockProvider({ active, children }) {
-    const [now, setNow] = useState(() => Date.now());
-
-    useEffect(() => {
-        if (!active) return undefined;
-        const id = setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
-        return () => clearInterval(id);
-    }, [active]);
-
-    return <NowContext.Provider value={now}>{children}</NowContext.Provider>;
-}
+import { tableLabels } from '../lib/tableLabels';
+import { buildColumnDefs, hasLiveColumn, LiveClockProvider, withDetailLinks } from './resourceColumns';
 
 /**
  * Generic admin list backed by a Reverb-synced collection + TanStack DB live
@@ -95,6 +63,9 @@ function LiveClockProvider({ active, children }) {
  *                 confirm: a string (title) or { title, body, confirmLabel } — routes
  *                   the action through the design's confirm modal instead of firing
  *                   immediately. Use it for anything destructive; never `window.confirm`.
+ *   rowClassName — row → extra classes for that row's <tr>. Defaults to fading
+ *                 deactivated rows (`is_active` false); pass your own to change
+ *                 the rule, or `() => ''` to switch it off.
  *   emptyText   — shown when no rows
  *   pageSize    — rows per page (default 12)
  *   bulkActions — (rows, clearSelection, confirm) => nodes, shown beside the selection
@@ -137,12 +108,28 @@ const ACTION_ICON = {
     reopen: 'rotate-ccw',
     cancel: 'ban',
 };
+// Icon-only row buttons carry their meaning in colour as well as glyph: the two
+// state verbs take the same running/blocked pair the status pills use, so
+// "turns it on" reads green and "turns it off" reads red at a glance.
 const ICON_COLOR = {
     edit: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
     delete: 'text-om-blocked hover:bg-om-blocked-bg',
-    deactivate: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
-    activate: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
+    deactivate: 'text-om-blocked hover:bg-om-blocked-bg',
+    activate: 'text-om-running hover:bg-om-running-bg',
 };
+
+/**
+ * A deactivated record still belongs in its list — turning it back on is why you
+ * went looking for it — but it shouldn't read as loud as a live one, so its row
+ * fades. Every list whose rows carry `is_active` gets this without asking; pass
+ * `rowClassName` to decide differently.
+ *
+ * The fade covers the record and stops at the table's own furniture (`dt-chrome-cell`:
+ * the selection box, the drag handle, the actions). Reactivating the row is usually
+ * why you went looking for it, and a faded checkbox reads as one you can't tick.
+ */
+const dimInactiveRow = (row) =>
+    row && 'is_active' in row && !row.is_active ? '[&>td:not(.dt-chrome-cell)]:opacity-50' : '';
 
 /**
  * Labeled-button styles for non-CRUD domain actions (Accept, Pause, Cancel, …)
@@ -346,7 +333,7 @@ export default function ResourceTable({
     onCreate,
     /** row → detail URL. Double-clicking a row opens it; omit for lists with no detail page. */
     detailHref,
-    createLabel = '+ New',
+    createLabel = 'New',
     columns,
     orderBy = 'name',
     orderDir = 'asc',
@@ -355,6 +342,8 @@ export default function ResourceTable({
     /** Fixed action rail: [{ key, width, resolve(row) => action|null }]. Takes
      *  precedence over `actions` — same actions, but in aligned per-row slots. */
     actionSlots,
+    /** Manual row order: (orderedIds) => void. Grows a drag-handle column. */
+    onReorder,
     /** Design §12 selection chips: [{ key, label, variant, confirm, onClick(rows, clear) }].
      *  Rendered as styled chips with the shared confirm modal wired in — preferred
      *  over the raw `bulkActions` render-prop, which leaves confirmation to callers. */
@@ -377,6 +366,8 @@ export default function ResourceTable({
     /** Swap the pager for rows that keep coming as you scroll (design reference:
      *  the work-order list). The summary row then ends the table. */
     infinite = false,
+    /** `(row) => string` — per-row classes. Defaults to fading deactivated rows. */
+    rowClassName,
 }) {
     // Every list gets selection checkboxes, whether or not the page defines bulk
     // actions — picking rows is useful on its own (counting a subset, keeping your
@@ -403,7 +394,12 @@ export default function ResourceTable({
     // A live column (e.g. elapsed time) opts the table into a shared clock. The
     // clock state lives in LiveClockProvider (below the memoized DataTable), so a
     // tick never re-renders this component or its DataTable props.
-    const hasLiveColumn = useMemo(() => columns.some((c) => c.live), [columns]);
+    const liveColumns = useMemo(() => hasLiveColumn(columns), [columns]);
+
+    // A column marked `link: true` becomes the row's way into its detail page.
+    // Wired here rather than at each call site because the list already knows
+    // the URL — `detailHref` is what double-click uses.
+    const linkedColumns = useMemo(() => withDetailLinks(columns, detailHref), [columns, detailHref]);
 
     // Optional client-side filter (e.g. a dashboard KPI deep-link like
     // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
@@ -418,68 +414,8 @@ export default function ResourceTable({
     // Map the declarative column config → TanStack column defs. Column ids stay
     // stable (= c.key) so sort/page/filter state survives live data re-renders.
     const tableColumns = useMemo(() => {
-        // One copy of the filter-cell strings for every column below.
-        const filterCopy = filterLabels();
-        // Pick the column that absorbs horizontal slack so short count/status
-        // columns don't balloon: prefer the free-text column, else the first
-        // left-aligned one. Pages can override per-column with `flex: true`.
-        const flexKey =
-            ['description', 'name', 'title', 'label'].find((k) => columns.some((c) => c.key === k)) ??
-            columns.find((c) => c.align !== 'right')?.key;
+        const defs = buildColumnDefs(linkedColumns);
 
-        const defs = columns.map((c) => {
-            const def = {
-                id: c.key,
-                // `value` is what search/sort/filter operate on. Columns rendered from
-                // a lookup (`lineNames[row.line_id]`) have no row field under `key`, so
-                // without it the accessor yields undefined and the column silently
-                // drops out of search and can't be filtered.
-                accessorFn: c.value ?? ((row) => row[c.key]),
-                header: __(c.label),
-                enableSorting: c.sortable !== false,
-                cell: ({ row }) => {
-                    const content = c.live
-                        ? <LiveCell col={c} row={row.original} />
-                        : (c.render ? c.render(row.original) : row.original[c.key]);
-                    return c.className ? <span className={c.className}>{content}</span> : content;
-                },
-                meta: {
-                    // Passed through as-is (undefined when unset) so DataTable can
-                    // auto-centre numeric columns; forcing 'left' here suppressed that.
-                    align: c.align,
-                    flex: c.flex || c.key === flexKey,
-                    // Filtering is on by default: every column gets a control chosen
-                    // from its own data, so a list never has arbitrary gaps in the
-                    // filter row. Pin the kind with a string, or opt a column out
-                    // with `filter: false` when its cell isn't what the value holds.
-                    ...filterCopy,
-                    filter: normalizeFilter(c.filter),
-                    options: c.options,
-                    optionLabel: c.optionLabel,
-                    allLabel: c.allLabel ?? filterCopy.allLabel,
-                    filterPlaceholder: c.filterPlaceholder ?? filterCopy.filterPlaceholder,
-                    menuLabel: __(c.label),
-                    // Off by default, still in the Columns menu — for fields worth
-                    // having but not worth the width on every screen.
-                    hidden: c.hidden,
-                    // 'sum' | 'avg' | fn(rows) — aggregate shown in the footer row.
-                    summary: c.summary,
-                },
-            };
-
-            // Sort by a derived value (e.g. elapsed time) instead of the raw field,
-            // so the arrow direction matches what the cell shows. accessorFn stays
-            // the raw field so global search keeps working on it.
-            if (c.sortAccessor) {
-                def.sortingFn = (a, b) => {
-                    const va = c.sortAccessor(a.original);
-                    const vb = c.sortAccessor(b.original);
-                    return va === vb ? 0 : va < vb ? -1 : 1;
-                };
-            }
-
-            return def;
-        });
         if (actionSlots || actions) {
             defs.push({
                 id: '_actions',
@@ -492,12 +428,12 @@ export default function ResourceTable({
                     ) : (
                         <RowActions actions={actions} row={row.original} confirm={confirm} />
                     ),
-                meta: { align: 'right', menuLabel: __('Actions') },
+                meta: { align: 'right', menuLabel: __('Actions'), chrome: true },
             });
         }
         return defs;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [columns, actions, actionSlots]);
+    }, [linkedColumns, actions, actionSlots]);
 
     // `onCreate` opens the page's own modal; `createHref` navigates to the full
     // create page. A page may pass both — the button then opens the modal, and the
@@ -509,7 +445,7 @@ export default function ResourceTable({
         : null;
 
     return (
-        <LiveClockProvider active={hasLiveColumn}>
+        <LiveClockProvider active={liveColumns}>
         {/* Full width, unlike the form pages' max-w-7xl: a list with a dozen
             columns should spend the space it has rather than scroll sideways
             inside a 1280px box on a 1900px screen. */}
@@ -545,7 +481,11 @@ export default function ResourceTable({
                     if (href) router.visit(href);
                 } : undefined}
                 enableSelection={selectable}
+                onReorder={onReorder}
+                reorderLabel={__('Drag to reorder')}
+                reorderBlockedLabel={__('Clear the sort and filters to reorder rows')}
                 getRowId={(row) => String(getKey(row))}
+                rowClassName={rowClassName ?? dimInactiveRow}
                 // Third arg is the same confirm modal the row actions use, so a
                 // destructive bulk action doesn't have to reach for window.confirm.
                 bulkActions={

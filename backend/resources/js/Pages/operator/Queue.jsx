@@ -121,9 +121,9 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                         <div className="px-5 py-4 space-y-4">
                             {/* Issue type */}
                             <div>
-                                <label className={monoLabelCls}>
+                                <div className={monoLabelCls}>
                                     {__("Type")} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <div className="grid grid-cols-2 gap-2 mb-2">
                                     {issueTypes.map((type) => {
                                         const selected = String(form.data.issue_type_id) === String(type.id);
@@ -157,10 +157,10 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
 
                             {/* Title */}
                             <div>
-                                <label className={monoLabelCls}>
+                                <div className={monoLabelCls}>
                                     {__("Title")} <span className="text-om-blocked">*</span>
-                                </label>
-                                <input type="text" name="title"
+                                </div>
+                                <input aria-label={__("Title")} type="text" name="title"
                                        value={form.data.title}
                                        onChange={(e) => form.setData('title', e.target.value)}
                                        className={inputCls}
@@ -170,10 +170,10 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
 
                             {/* Description */}
                             <div>
-                                <label className={monoLabelCls}>
+                                <div className={monoLabelCls}>
                                     {__("Details")} <span className="text-om-faintest normal-case tracking-normal">({__("optional")})</span>
-                                </label>
-                                <textarea name="description"
+                                </div>
+                                <textarea aria-label={__("Details")} name="description"
                                           value={form.data.description}
                                           onChange={(e) => form.setData('description', e.target.value)}
                                           rows={3}
@@ -255,10 +255,10 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
 
                     <form onSubmit={submit}>
                         <div className="px-5 py-4">
-                            <label className={monoLabelCls}>
+                            <div className={monoLabelCls}>
                                 {__("Produced quantity")} <span className="text-om-blocked">*</span>
-                            </label>
-                            <input type="number"
+                            </div>
+                            <input aria-label={__("Produced quantity")} type="number"
                                    value={qty}
                                    onChange={(e) => setQty(e.target.value)}
                                    className="w-full rounded-om-sm border border-om-line bg-om-bg font-mono text-3xl font-medium text-center py-4 text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
@@ -337,10 +337,11 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                         <div className="px-5 py-4 space-y-4">
                             {/* Reason */}
                             <div>
-                                <label className={monoLabelCls}>
+                                <div className={monoLabelCls}>
                                     {__("Reason")} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <Dropdown
+                                    aria-label={__("Reason")}
                                     options={downtimeReasons.map((r) => ({ value: String(r.id), label: r.name }))}
                                     value={form.data.reason_id == null ? '' : String(form.data.reason_id)}
                                     onChange={(v) => form.setData('reason_id', v)}
@@ -354,10 +355,10 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
 
                             {/* Notes */}
                             <div>
-                                <label className={monoLabelCls}>
+                                <div className={monoLabelCls}>
                                     {__("Notes")} <span className="text-om-faintest normal-case tracking-normal">({__("optional")})</span>
-                                </label>
-                                <textarea name="notes"
+                                </div>
+                                <textarea aria-label={__("Notes")} name="notes"
                                           value={form.data.notes}
                                           onChange={(e) => form.setData('notes', e.target.value)}
                                           rows={3}

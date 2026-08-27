@@ -1,8 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
+import { nameControl } from '../../../lib/fieldName';
 
 const categoryLabels = () => ({
     material: __('Material'),
@@ -67,10 +69,10 @@ export default function ScrapReportsIndex() {
                         />
                     </Filter>
                     <Filter label={__('From')}>
-                        <DatePicker value={dateFrom || null} onChange={(iso) => apply({ date_from: iso ?? '' })} className="w-44" />
+                        <AppDatePicker value={dateFrom || null} onChange={(iso) => apply({ date_from: iso ?? '' })} className="w-44" />
                     </Filter>
                     <Filter label={__('To')}>
-                        <DatePicker value={dateTo || null} onChange={(iso) => apply({ date_to: iso ?? '' })} className="w-44" />
+                        <AppDatePicker value={dateTo || null} onChange={(iso) => apply({ date_to: iso ?? '' })} className="w-44" />
                     </Filter>
                 </div>
 
@@ -137,8 +139,8 @@ ScrapReportsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 function Filter({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
-            {children}
+            <div className="block text-xs font-medium text-om-muted mb-1">{label}</div>
+            {nameControl(children, label)}
         </div>
     );
 }
