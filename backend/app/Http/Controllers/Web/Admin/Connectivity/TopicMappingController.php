@@ -42,18 +42,19 @@ class TopicMappingController extends Controller
         abort_if($mapping->machine_topic_id !== $topic->id, 403);
 
         $mapping->delete();
+
         return back()->with('success', 'Mapping deleted.');
     }
 
     private function validateMapping(Request $request): array
     {
         $validated = $request->validate([
-            'description'   => ['nullable', 'string', 'max:255'],
-            'field_path'    => ['nullable', 'string', 'max:255'],
-            'action_type'   => ['required', 'in:update_batch_step,update_work_order_qty,create_issue,update_line_status,set_work_order_status,log_event,webhook_forward'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'field_path' => ['nullable', 'string', 'max:255'],
+            'action_type' => ['required', 'in:update_batch_step,update_work_order_qty,count_step,create_issue,update_line_status,set_work_order_status,log_event,webhook_forward'],
             'action_params' => ['nullable', 'string'],  // JSON string from textarea
             'condition_expr' => ['nullable', 'string', 'max:255'],
-            'priority'      => ['required', 'integer', 'min:1', 'max:9999'],
+            'priority' => ['required', 'integer', 'min:1', 'max:9999'],
         ]);
 
         // Parse action_params JSON
