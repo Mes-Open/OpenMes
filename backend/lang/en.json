@@ -5669,5 +5669,8 @@
     "Region": "Region",
     "Select timezone": "Select timezone",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.",
-    "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once."
+    "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once.",
+    "Choose your setup": "Choose your setup",
+    "Before the setup wizard": "Before the setup wizard",
+    "First pick the feature set you want. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules. Next, the setup wizard will walk you through your first line, product and work order.": "First pick the feature set you want. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules. Next, the setup wizard will walk you through your first line, product and work order."
 }

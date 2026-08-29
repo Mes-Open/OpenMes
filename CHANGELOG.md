@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **Onboarding: the module-preset choice now precedes the setup wizard** *(admin)* — picking Lightweight / Advanced / Custom is an **independent screen shown before** the wizard, not its first step. The wizard's stepper is hidden on that screen and now counts **4 steps** (Line → Product → Process → Work Order) instead of five. You choose the feature set first, then the wizard walks you through the rest. No change to what each preset enables.
+
 ### Added
 - **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
 - **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
