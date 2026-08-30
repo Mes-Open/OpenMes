@@ -260,8 +260,12 @@ class MaterialAllocationService
                 // Finalise the location balance against the quantity that actually
                 // stands. Deducts only the part not already booked by the operator's
                 // own entries, so a batch whose consumption was recorded step by step
-                // is not deducted twice.
-                $this->consumptionLocation->deduct($allocation, $actualConsumed);
+                // is not deducted twice. Scrap counts: it physically left the store
+                // too — only the leftover being returned above stayed behind.
+                $this->consumptionLocation->deduct(
+                    $allocation,
+                    $actualConsumed + (float) $allocation->scrap_qty,
+                );
 
                 $allocation->update([
                     'status' => MaterialAllocation::STATUS_CONSUMED,
@@ -340,10 +344,11 @@ class MaterialAllocationService
                 'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
             ]);
 
-            // Take it off the location it came from. Same transaction as the quantity
-            // itself, so a refused deduction (location short, plant blocks negatives)
-            // leaves no consumed_qty claiming material that never moved.
-            $this->consumptionLocation->deduct($allocation->fresh(), $actualConsumed);
+            // Take it off the location it came from — consumed plus scrap, since both
+            // physically left the store. Same transaction as the quantity itself, so a
+            // refused deduction (location short, plant blocks negatives) leaves no
+            // consumed_qty claiming material that never moved.
+            $this->consumptionLocation->deduct($allocation->fresh(), $actualConsumed + $scrap);
 
             return $allocation->fresh();
         });

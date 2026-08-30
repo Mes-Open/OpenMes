@@ -238,19 +238,21 @@ class StockDocumentService
     {
         $signed = $document->direction() * (float) $line->quantity * ($reverse ? -1 : 1);
 
-        $this->adjustWarehouseStock($document, $line, $signed);
+        $material = $document->isMaterialDocument() && $line->material_id !== null
+            ? Material::find($line->material_id)
+            : null;
 
-        if (! $document->isMaterialDocument() || $line->material_id === null) {
-            return;
+        // Before anything moves: an issue the stock cannot cover is refused here, not
+        // rolled back after the balances have already been written.
+        if ($material) {
+            $this->guardNegativeStock($document, $material, $signed);
         }
 
-        $material = Material::find($line->material_id);
+        $this->adjustWarehouseStock($document, $line, $signed);
 
         if (! $material) {
             return;
         }
-
-        $this->guardNegativeStock($material, $signed);
 
         // materials.stock_quantity + the stock_movements ledger. The movement
         // type mirrors the direction so the ledger reads the same as a shop-floor
@@ -332,12 +334,34 @@ class StockDocumentService
 
     /**
      * Honour the system-wide "block negative stock" setting, the same switch the
-     * material allocation path respects.
+     * material allocation and shop-floor consumption paths respect.
+     *
+     * Both views of the stock are checked, because either can be the short one: the
+     * plant may hold plenty of a material while the warehouse this document issues
+     * from holds none of it.
      */
-    private function guardNegativeStock(Material $material, float $signed): void
+    private function guardNegativeStock(StockDocument $document, Material $material, float $signed): void
     {
         if ($signed >= 0 || ! $this->warehouseStock->blocksNegativeStock()) {
             return;
+        }
+
+        // Locked, not just read: the lock is held for the rest of this transaction, so
+        // the balance cannot be spent by a concurrent posting between the check here
+        // and the move that follows it.
+        $balance = $this->warehouseStock->lockOrCreate([
+            'warehouse_id' => $document->warehouse_id,
+            'material_id' => $material->id,
+        ]);
+
+        if ((float) $balance->quantity + $signed < 0) {
+            throw ValidationException::withMessages([
+                'lines' => __('Posting would drive :material below zero at :warehouse (:available available).', [
+                    'material' => $material->code,
+                    'warehouse' => $document->warehouse?->code ?? $document->warehouse_id,
+                    'available' => (float) $balance->quantity,
+                ]),
+            ]);
         }
 
         if ((float) $material->stock_quantity + $signed < 0) {

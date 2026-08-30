@@ -31,26 +31,28 @@ class ConsumptionLocationService
     ) {}
 
     /**
-     * Book consumption for an allocation against its location, moving the balance by
-     * the difference between what is now consumed and what was already deducted.
+     * Book consumption for an allocation against its location(s), moving the balance
+     * by the difference between what is now consumed and what was already deducted.
      *
      * Called every time a consumed quantity is written — an operator's entry, a
      * correction, batch completion — so it must be the delta, not the total. A
-     * downward correction produces a positive delta and credits the location back.
+     * downward correction produces a negative delta and credits the location back.
      *
-     * Returns the movement it wrote, or null when there was nothing to move (no
-     * location resolvable, the Warehouses module is off, or the quantity did not
-     * change).
+     * Returns the movements it wrote, one per location touched, and an empty array
+     * when there was nothing to move (no location resolvable, the Warehouses module
+     * is off, or the quantity did not change).
      *
-     * @throws \DomainException When the location lacks the stock and the plant blocks negative balances.
+     * @return array<int, StockMovement>
+     *
+     * @throws \DomainException When a location lacks the stock and the plant blocks negative balances.
      */
-    public function deduct(MaterialAllocation $allocation, float $consumedTotal, ?User $user = null): ?StockMovement
+    public function deduct(MaterialAllocation $allocation, float $consumedTotal, ?User $user = null): array
     {
         // Per-location balances belong to the Warehouses module (#212). With it off,
         // a plant that once had warehouses must not have production refused — or
         // silently booked — against balances nobody is maintaining any more.
         if (! ModuleRegistry::isModuleEnabled('warehouse')) {
-            return null;
+            return [];
         }
 
         return DB::transaction(function () use ($allocation, $consumedTotal, $user) {
@@ -60,72 +62,120 @@ class ConsumptionLocationService
             $locked = MaterialAllocation::where('id', $allocation->getKey())->lockForUpdate()->first();
 
             if (! $locked) {
-                return null;
+                return [];
             }
 
-            $warehouse = $this->resolveWarehouse($locked);
+            $fallback = $this->resolveWarehouse($locked);
 
-            if ($warehouse === null) {
+            if ($fallback === null) {
                 // No location to attribute this to — a plant that does not track stock
                 // per location. Global stock and the lot already moved at allocation,
                 // so there is simply nothing further to do.
-                return null;
+                return [];
             }
 
-            $delta = round($consumedTotal - (float) $locked->location_deducted_qty, 4);
+            // Quantise to the precision `warehouse_stocks.quantity` actually stores
+            // (decimal(14,3)). Booking a 4-decimal quantity against a 3-decimal column
+            // would leave the allocation's running total and the balance disagreeing by
+            // the rounding, and the residue would be re-deducted on every later call.
+            $delta = round(round($consumedTotal, 3) - (float) $locked->location_deducted_qty, 3);
 
-            if (abs($delta) < 0.00005) {
-                return null;
+            if (abs($delta) < 0.0005) {
+                return [];
             }
 
-            $keys = [
-                'warehouse_id' => $warehouse->id,
-                'material_id' => $locked->material_id,
-            ];
+            $movements = [];
 
-            // Read the balance once, before anything moves: it decides both whether the
-            // deduction is refused and — when it is not — how big a shortfall to flag.
-            $available = $this->warehouseStock->available($keys);
+            foreach ($this->splitByLocation($locked, $delta, $fallback) as $warehouseId => $split) {
+                $movement = $this->applyAtLocation($locked, (int) $warehouseId, $split, $user);
 
-            $this->assertSufficient($locked, $warehouse, $delta, $available);
-
-            // The lot-level balance and the material total for that location are kept
-            // separately (#212), so a per-material view does not have to sum lots.
-            foreach ($this->lotShares($locked, $delta) as $lotId => $lotDelta) {
-                $this->warehouseStock->adjust([...$keys, 'material_lot_id' => $lotId], -$lotDelta);
+                if ($movement) {
+                    $movements[] = $movement;
+                }
             }
-
-            $this->warehouseStock->adjust([...$keys, 'material_lot_id' => null], -$delta);
 
             $locked->update([
-                'consumption_warehouse_id' => $warehouse->id,
-                'location_deducted_qty' => round((float) $locked->location_deducted_qty + $delta, 4),
+                // The allocation's own location: the one resolved for it, kept for the
+                // lot-less path and frozen so a correction credits back the same store.
+                'consumption_warehouse_id' => $locked->consumption_warehouse_id ?? $fallback->id,
+                'location_deducted_qty' => round((float) $locked->location_deducted_qty + $delta, 3),
             ]);
 
-            // Audit: one ledger row per deduction, carrying the location. `adjustGlobal`
-            // is off because allocation already moved the plant-wide quantity — this
-            // row exists to say which location gave the material up.
-            return $this->stockMovements->record(
-                material: $locked->material,
-                movementType: $delta > 0 ? StockMovement::TYPE_CONSUME : StockMovement::TYPE_RETURN,
-                signedQuantity: -$delta,
-                user: $user,
-                sourceType: $locked->batch_step_id
-                    ? StockMovement::SOURCE_BATCH_STEP
-                    : StockMovement::SOURCE_BATCH,
-                sourceId: $locked->batch_step_id ?: $locked->batch_id,
-                reason: $this->reason($locked, $delta, $available),
-                warehouseId: $warehouse->id,
-                adjustGlobal: false,
-            );
+            return $movements;
         });
     }
 
     /**
-     * Give back everything this allocation took off its location — used when a batch
-     * is cancelled after consumption had already been booked.
+     * Move one location's share of a deduction and write its ledger row.
+     *
+     * @param  array{total: float, lots: array<int, float>}  $split
      */
-    public function reverse(MaterialAllocation $allocation, ?User $user = null): ?StockMovement
+    private function applyAtLocation(
+        MaterialAllocation $allocation,
+        int $warehouseId,
+        array $split,
+        ?User $user,
+    ): ?StockMovement {
+        $delta = $split['total'];
+
+        if (abs($delta) < 0.0005) {
+            return null;
+        }
+
+        $keys = [
+            'warehouse_id' => $warehouseId,
+            'material_id' => $allocation->material_id,
+        ];
+
+        // Lock the material total for this location before reading it: the balance
+        // decides both whether the deduction is refused and how big a shortfall to
+        // flag, and an unlocked read would let two bookings pass the same check and
+        // overdraw together. The lock is held for the rest of this transaction, so the
+        // adjust() below re-locks nothing.
+        $balance = $this->warehouseStock->lockOrCreate([...$keys, 'material_lot_id' => null]);
+        $available = (float) $balance->quantity;
+
+        $warehouse = Warehouse::find($warehouseId);
+
+        if ($warehouse === null) {
+            return null;
+        }
+
+        $this->assertSufficient($allocation, $warehouse, $delta, $available);
+
+        // The lot-level balance and the material total for that location are kept
+        // separately (#212), so a per-material view does not have to sum lots.
+        foreach ($split['lots'] as $lotId => $lotDelta) {
+            $this->warehouseStock->adjust([...$keys, 'material_lot_id' => $lotId], -$lotDelta);
+        }
+
+        $this->warehouseStock->adjust([...$keys, 'material_lot_id' => null], -$delta);
+
+        // Audit: one ledger row per location per deduction, carrying the warehouse.
+        // `adjustGlobal` is off because allocation already moved the plant-wide
+        // quantity — this row exists to say which location gave the material up.
+        return $this->stockMovements->record(
+            material: $allocation->material,
+            movementType: $delta > 0 ? StockMovement::TYPE_CONSUME : StockMovement::TYPE_RETURN,
+            signedQuantity: -$delta,
+            user: $user,
+            sourceType: $allocation->batch_step_id
+                ? StockMovement::SOURCE_BATCH_STEP
+                : StockMovement::SOURCE_BATCH,
+            sourceId: $allocation->batch_step_id ?: $allocation->batch_id,
+            reason: $this->reason($allocation, $delta, $available),
+            warehouseId: $warehouseId,
+            adjustGlobal: false,
+        );
+    }
+
+    /**
+     * Give back everything this allocation took off its location(s) — used when a
+     * batch is cancelled after consumption had already been booked.
+     *
+     * @return array<int, StockMovement>
+     */
+    public function reverse(MaterialAllocation $allocation, ?User $user = null): array
     {
         return $this->deduct($allocation, 0, $user);
     }
@@ -165,38 +215,54 @@ class ConsumptionLocationService
     }
 
     /**
-     * Split a deduction across the lots this allocation picked, proportionally to what
-     * was picked from each, so a lot-level balance never drifts from the material
-     * total above it. Returns [lot id => quantity] and is empty when nothing was
-     * picked by lot.
+     * Split a deduction across the locations it actually comes off.
      *
-     * @return array<int, float>
+     * Lot picks are not guaranteed to sit in one store — lot selection is FEFO across
+     * the material's lots, so a single allocation can legitimately draw from two.
+     * Each pick's share therefore goes to its own lot's warehouse (falling back to the
+     * allocation's location for a lot that names none), proportionally to what was
+     * picked from it, so no store is ever charged for material another one gave up.
+     * With nothing picked by lot, the whole delta goes to the allocation's location.
+     *
+     * The shares are proportional to `picked_qty`, which does not change after the
+     * fact — so a later correction splits exactly the way the deduction did and every
+     * store is credited back precisely what it gave.
+     *
+     * @return array<int, array{total: float, lots: array<int, float>}>
      */
-    private function lotShares(MaterialAllocation $allocation, float $delta): array
+    private function splitByLocation(MaterialAllocation $allocation, float $delta, Warehouse $fallback): array
     {
         $picks = $allocation->lotPicks->filter(fn ($pick) => (float) $pick->picked_qty > 0);
         $total = (float) $picks->sum('picked_qty');
 
         if ($total <= 0) {
-            return [];
+            return [$fallback->id => ['total' => $delta, 'lots' => []]];
         }
 
-        $shares = [];
+        $split = [];
         $assigned = 0.0;
 
         foreach ($picks->values() as $index => $pick) {
-            // The last share takes the remainder, so rounding can never leave the lot
-            // rows summing to something other than the material total.
+            // The last share takes the remainder, so rounding can never leave the
+            // per-location rows summing to something other than the delta.
             $share = $index === $picks->count() - 1
-                ? round($delta - $assigned, 4)
-                : round($delta * ((float) $pick->picked_qty / $total), 4);
+                ? round($delta - $assigned, 3)
+                : round($delta * ((float) $pick->picked_qty / $total), 3);
 
-            $assigned += $share;
+            $assigned = round($assigned + $share, 3);
+
+            if (abs($share) < 0.0005) {
+                continue;
+            }
+
+            $warehouseId = (int) ($pick->lot?->warehouse_id ?: $fallback->id);
             $lotId = (int) $pick->material_lot_id;
-            $shares[$lotId] = round(($shares[$lotId] ?? 0) + $share, 4);
+
+            $split[$warehouseId]['total'] = round(($split[$warehouseId]['total'] ?? 0) + $share, 3);
+            $split[$warehouseId]['lots'][$lotId] = round(($split[$warehouseId]['lots'][$lotId] ?? 0) + $share, 3);
         }
 
-        return $shares;
+        return $split;
     }
 
     /**

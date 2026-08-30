@@ -185,7 +185,7 @@ class ConsumptionLocationTest extends TestCase
         $this->service->deduct($allocation, 25);
         $movements = StockMovement::count();
 
-        $this->assertNull($this->service->deduct($allocation, 25));
+        $this->assertSame([], $this->service->deduct($allocation, 25));
         $this->assertSame($movements, StockMovement::count());
     }
 
@@ -262,7 +262,7 @@ class ConsumptionLocationTest extends TestCase
             'batch_id' => \App\Models\Batch::factory()->create(['work_order_id' => $workOrder->id])->id,
         ]);
 
-        $this->assertNull($this->service->deduct($allocation, 25));
+        $this->assertSame([], $this->service->deduct($allocation, 25));
         $this->assertSame(0, WarehouseStock::count());
         $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
     }
@@ -278,7 +278,7 @@ class ConsumptionLocationTest extends TestCase
         $allocation = $this->allocationOnLine($warehouse, $material);
 
         // Balances nobody maintains any more must neither move nor refuse production.
-        $this->assertNull($this->service->deduct($allocation, 120));
+        $this->assertSame([], $this->service->deduct($allocation, 120));
         $this->assertEquals(500.0, (float) $stock->fresh()->quantity);
         $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
         $this->assertNull($allocation->fresh()->consumption_warehouse_id);
@@ -346,7 +346,7 @@ class ConsumptionLocationTest extends TestCase
         $this->stockAt($warehouse, $material, 10);
 
         $allocation = $this->allocationOnLine($warehouse, $material);
-        $movement = $this->service->deduct($allocation, 40);
+        $movement = $this->service->deduct($allocation, 40)[0];
 
         // Production is not stopped, but the overdraw is on the record.
         $this->assertEquals(-30.0, $this->balance($warehouse, $material));
@@ -363,7 +363,7 @@ class ConsumptionLocationTest extends TestCase
         $this->stockAt($warehouse, $material, 40);
 
         $allocation = $this->allocationOnLine($warehouse, $material);
-        $movement = $this->service->deduct($allocation, 40);
+        $movement = $this->service->deduct($allocation, 40)[0];
 
         $this->assertEquals(0.0, $this->balance($warehouse, $material));
         $this->assertStringNotContainsString('SHORTFALL', $movement->reason);
@@ -399,6 +399,106 @@ class ConsumptionLocationTest extends TestCase
         app(MaterialAllocationService::class)->consumeForBatch($allocation->batch);
 
         $this->assertEquals(425.0, $this->balance($warehouse, $material));
+    }
+
+    public function test_scrap_is_taken_off_the_location_together_with_what_was_used(): void
+    {
+        $warehouse = $this->warehouse('WS-1');
+        $material = Material::factory()->create();
+        $this->stockAt($warehouse, $material, 500);
+
+        $allocation = $this->allocationOnLine($warehouse, $material);
+        $allocations = app(MaterialAllocationService::class);
+
+        // 60 used + 5 spoiled: both left the store, only the rest stayed behind.
+        $allocations->recordConsumption($allocation, 60, scrap: 5);
+
+        $this->assertEquals(435.0, $this->balance($warehouse, $material));
+        $this->assertEquals(65.0, (float) $allocation->fresh()->location_deducted_qty);
+
+        // Batch completion finalises the same consumed + scrap pair: no second bite.
+        $allocations->consumeForBatch($allocation->batch);
+
+        $this->assertEquals(435.0, $this->balance($warehouse, $material));
+    }
+
+    public function test_cancelling_a_batch_gives_back_the_scrap_it_took_too(): void
+    {
+        $warehouse = $this->warehouse('WS-1');
+        $material = Material::factory()->create();
+        $this->stockAt($warehouse, $material, 500);
+
+        $allocation = $this->allocationOnLine($warehouse, $material);
+        $allocations = app(MaterialAllocationService::class);
+
+        $allocations->recordConsumption($allocation, 60, scrap: 5);
+        $allocations->returnForBatch($allocation->batch);
+
+        $this->assertEquals(500.0, $this->balance($warehouse, $material));
+        $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
+    }
+
+    /**
+     * Lot picking is FEFO across the material's lots and knows nothing about stores,
+     * so one allocation can legitimately draw from two — and neither may be charged
+     * for what the other gave up.
+     */
+    public function test_picks_spanning_two_locations_are_split_between_them(): void
+    {
+        $lineWarehouse = $this->warehouse('WS-LINE');
+        $first = $this->warehouse('WS-A');
+        $second = $this->warehouse('WS-B');
+        $material = Material::factory()->create();
+
+        $lotA = MaterialLot::factory()->create(['material_id' => $material->id, 'warehouse_id' => $first->id]);
+        $lotB = MaterialLot::factory()->create(['material_id' => $material->id, 'warehouse_id' => $second->id]);
+
+        $this->stockAt($first, $material, 500);
+        $this->stockAt($first, $material, 500, $lotA);
+        $this->stockAt($second, $material, 500);
+        $this->stockAt($second, $material, 500, $lotB);
+
+        $allocation = $this->allocationOnLine($lineWarehouse, $material);
+        $allocation->lotPicks()->create(['material_lot_id' => $lotA->id, 'picked_qty' => 75]);
+        $allocation->lotPicks()->create(['material_lot_id' => $lotB->id, 'picked_qty' => 25]);
+
+        $movements = $this->service->deduct($allocation->fresh(), 40);
+
+        // 75/25 of the picked quantity, so 30/10 of the consumption.
+        $this->assertEquals(470.0, $this->balance($first, $material));
+        $this->assertEquals(470.0, $this->balance($first, $material, $lotA));
+        $this->assertEquals(490.0, $this->balance($second, $material));
+        $this->assertEquals(490.0, $this->balance($second, $material, $lotB));
+
+        // One ledger row per location, each naming its own.
+        $this->assertCount(2, $movements);
+        $this->assertEqualsCanonicalizing(
+            [$first->id, $second->id],
+            collect($movements)->pluck('warehouse_id')->all(),
+        );
+    }
+
+    public function test_a_correction_credits_each_location_its_own_share_back(): void
+    {
+        $first = $this->warehouse('WS-A');
+        $second = $this->warehouse('WS-B');
+        $material = Material::factory()->create();
+
+        $lotA = MaterialLot::factory()->create(['material_id' => $material->id, 'warehouse_id' => $first->id]);
+        $lotB = MaterialLot::factory()->create(['material_id' => $material->id, 'warehouse_id' => $second->id]);
+
+        $this->stockAt($first, $material, 500);
+        $this->stockAt($second, $material, 500);
+
+        $allocation = $this->allocationOnLine($first, $material);
+        $allocation->lotPicks()->create(['material_lot_id' => $lotA->id, 'picked_qty' => 50]);
+        $allocation->lotPicks()->create(['material_lot_id' => $lotB->id, 'picked_qty' => 50]);
+
+        $this->service->deduct($allocation->fresh(), 40);
+        $this->service->deduct($allocation->fresh(), 10);
+
+        $this->assertEquals(495.0, $this->balance($first, $material));
+        $this->assertEquals(495.0, $this->balance($second, $material));
     }
 
     public function test_cancelling_a_batch_gives_the_location_its_material_back(): void

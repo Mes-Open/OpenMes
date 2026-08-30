@@ -95,6 +95,80 @@ class LineStockLocationTest extends TestCase
             ->assertSessionHasErrors('warehouse_id');
     }
 
+    public function test_a_finished_goods_location_is_rejected(): void
+    {
+        $finishedGoods = Warehouse::factory()->finishedGoods()->create();
+
+        // A line draws components, never finished product — the picker does not offer
+        // this warehouse, and a hand-made request must not get past that either.
+        $this->actingAs($this->admin)
+            ->post('/admin/lines', [
+                'code' => 'L-FG',
+                'name' => 'Assembly FG',
+                'warehouse_id' => $finishedGoods->id,
+            ])
+            ->assertSessionHasErrors('warehouse_id');
+
+        $this->assertDatabaseMissing('lines', ['code' => 'L-FG']);
+    }
+
+    public function test_an_archived_location_is_rejected(): void
+    {
+        $archived = Warehouse::factory()->rawMaterial()->create(['is_active' => false]);
+
+        $this->actingAs($this->admin)
+            ->post('/admin/lines', [
+                'code' => 'L-OFF',
+                'name' => 'Assembly Off',
+                'warehouse_id' => $archived->id,
+            ])
+            ->assertSessionHasErrors('warehouse_id');
+    }
+
+    /** The API shape of the same rejection: a JSON client gets 422, not a redirect. */
+    public function test_the_rejection_is_a_422_for_a_json_client(): void
+    {
+        $this->actingAs($this->admin)
+            ->postJson('/admin/lines', [
+                'code' => 'L-4',
+                'name' => 'Assembly 4',
+                'warehouse_id' => 999999,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('warehouse_id');
+    }
+
+    public function test_a_guest_cannot_point_a_line_at_a_location(): void
+    {
+        $warehouse = Warehouse::factory()->rawMaterial()->create();
+
+        $this->post('/admin/lines', [
+            'code' => 'L-GUEST',
+            'name' => 'Assembly Guest',
+            'warehouse_id' => $warehouse->id,
+        ])->assertRedirect('/login');
+
+        $this->assertDatabaseMissing('lines', ['code' => 'L-GUEST']);
+    }
+
+    public function test_an_operator_cannot_point_a_line_at_a_location(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $warehouse = Warehouse::factory()->rawMaterial()->create();
+        $line = Line::factory()->create(['warehouse_id' => null]);
+
+        $this->actingAs($operator)
+            ->put("/admin/lines/{$line->id}", [
+                'code' => $line->code,
+                'name' => $line->name,
+                'warehouse_id' => $warehouse->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertNull($line->fresh()->warehouse_id);
+    }
+
     /** Stock location stays optional — a plant that doesn't track it is unaffected. */
     public function test_a_line_without_a_stock_location_is_still_valid(): void
     {

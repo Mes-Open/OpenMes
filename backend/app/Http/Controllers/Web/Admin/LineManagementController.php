@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreLineRequest;
+use App\Http\Requests\Web\Admin\UpdateLineRequest;
 use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
@@ -69,20 +71,11 @@ class LineManagementController extends Controller
     /**
      * Store a newly created line
      */
-    public function store(Request $request)
+    public function store(StoreLineRequest $request)
     {
         $cf = app(CustomFieldService::class);
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:lines',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'area_id' => 'nullable|exists:areas,id',
-            // The stock location this line's consumption comes off.
-            'warehouse_id' => 'nullable|exists:warehouses,id',
-            'is_active' => 'boolean',
-        ], $cf->rules('line')), [], $cf->attributeNames('line'));
+        $validated = $request->validated();
 
-        $validated['is_active'] = $request->boolean('is_active', true);
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'line') ?: null;
@@ -184,20 +177,11 @@ class LineManagementController extends Controller
     /**
      * Update the specified line
      */
-    public function update(Request $request, Line $line)
+    public function update(UpdateLineRequest $request, Line $line)
     {
         $cf = app(CustomFieldService::class);
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:lines,code,'.$line->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'area_id' => 'nullable|exists:areas,id',
-            // The stock location this line's consumption comes off.
-            'warehouse_id' => 'nullable|exists:warehouses,id',
-            'is_active' => 'boolean',
-        ], $cf->rules('line')), [], $cf->attributeNames('line'));
+        $validated = $request->validated();
 
-        $validated['is_active'] = $request->boolean('is_active');
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'line', $line->custom_fields) ?: null;
