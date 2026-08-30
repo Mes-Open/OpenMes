@@ -63,6 +63,7 @@ class ActionExecutor
             $outcome = match ($mapping->action_type) {
                 TopicMapping::ACTION_UPDATE_BATCH_STEP => $this->updateBatchStep($params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_UPDATE_WORK_ORDER_QTY => $this->updateWorkOrderQty($params, $parsedData, $fieldValue),
+                TopicMapping::ACTION_COUNT_STEP => $this->countStep($mapping, $params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_CREATE_ISSUE => $this->createIssue($params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_UPDATE_LINE_STATUS => $this->updateLineStatus($params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_SET_WORK_ORDER_STATUS => $this->setWorkOrderStatus($params, $parsedData, $fieldValue),
@@ -130,15 +131,20 @@ class ActionExecutor
         $qty = $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue;
         $increment = (bool) ($params['qty_increment'] ?? false);
 
+        $lineId = $this->resolveParam($params, 'line_id_path', $data) ?? ($params['line_id'] ?? null);
+
         $workOrder = null;
         if ($orderNo) {
             $workOrder = WorkOrder::where('order_no', $orderNo)->first();
         } elseif ($orderId) {
             $workOrder = WorkOrder::find($orderId);
+        } elseif ($lineId) {
+            // Target whatever order is running on the line — no per-order config.
+            $workOrder = $this->activeWorkOrderOnLine((int) $lineId);
         }
 
         if (! $workOrder) {
-            throw new \RuntimeException("WorkOrder not found (order_no={$orderNo})");
+            throw new \RuntimeException("WorkOrder not found (order_no={$orderNo}, line_id={$lineId})");
         }
 
         // Route through the shared machine-count path so counting_source is
@@ -158,6 +164,99 @@ class ActionExecutor
             'applied' => $applied,
             'skipped' => $applied ? null : 'work order is not machine-counted (counting_source)',
         ];
+    }
+
+    /**
+     * Break-beam / interrupt sensor count: each pulse is one unit that has left a
+     * station. Resolves the line (explicit param, else the device's assigned
+     * line), takes the line's running work order, and increments the passed_qty
+     * of the batch step identified by step_number. When the mapping flags this as
+     * the finished-goods counting point, the same delta also feeds the work
+     * order's produced_qty (through MachineProductionService, so counting_source
+     * and auto start/complete are honoured — no double counting).
+     *
+     * params: { line_id (static) | line_id_path, workstation_id (preferred) |
+     *           workstation_id_path, step_number | step_number_path,
+     *           increment (default 1) | increment_path, also_count_work_order }
+     */
+    private function countStep(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
+    {
+        $lineId = $this->resolveParam($params, 'line_id_path', $data)
+            ?? ($params['line_id'] ?? null)
+            ?? $mapping->topic?->machineConnection?->line_id;
+
+        $line = $lineId ? Line::find($lineId) : null;
+        if (! $line) {
+            throw new \RuntimeException("count_step: no line resolved (mapping {$mapping->id})");
+        }
+
+        $workOrder = $this->activeWorkOrderOnLine((int) $line->id);
+        if (! $workOrder) {
+            // Line is idle — nothing to count. Not an error.
+            return ['line_id' => $line->id, 'skipped' => 'no in-progress work order on line'];
+        }
+
+        // A break-beam pulse is one whole unit; normalise once to an int so the
+        // per-step counter and the work-order good-count stay in lock-step.
+        $increment = (int) ($this->resolveParam($params, 'increment_path', $data) ?? $params['increment'] ?? 1);
+        if ($increment < 1) {
+            $increment = 1;
+        }
+
+        // Target the step by workstation (preferred — a stable, named station on
+        // the line) or by step_number. Whichever the mapping supplies.
+        $workstationId = $this->resolveParam($params, 'workstation_id_path', $data) ?? ($params['workstation_id'] ?? null);
+        $stepNumber = $this->resolveParam($params, 'step_number_path', $data) ?? ($params['step_number'] ?? null);
+
+        $stepResult = null;
+        if ($workstationId !== null || $stepNumber !== null) {
+            $query = BatchStep::whereHas('batch', fn ($b) => $b->where('work_order_id', $workOrder->id));
+            if ($workstationId !== null) {
+                $query->where('workstation_id', (int) $workstationId);
+            } else {
+                $query->where('step_number', (int) $stepNumber);
+            }
+            $step = $query->latest('id')->first();
+            if ($step) {
+                $step->increment('passed_qty', $increment);
+                $stepResult = [
+                    'step_number' => $step->step_number,
+                    'workstation_id' => $step->workstation_id,
+                    'passed_qty' => (int) $step->fresh()->passed_qty,
+                ];
+            } else {
+                $stepResult = [
+                    'workstation_id' => $workstationId,
+                    'step_number' => $stepNumber,
+                    'skipped' => 'step not found on active work order',
+                ];
+            }
+        }
+
+        // Optionally treat this station as the line's finished-goods counting point.
+        $countedToWorkOrder = false;
+        if ((bool) ($params['also_count_work_order'] ?? false)) {
+            $countedToWorkOrder = $this->production->recordGoodCount($workOrder, $increment);
+        }
+
+        return [
+            'line_id' => $line->id,
+            'work_order_id' => $workOrder->id,
+            'increment' => $increment,
+            'step' => $stepResult,
+            'counted_to_work_order' => $countedToWorkOrder,
+        ];
+    }
+
+    /**
+     * The line's current running work order (most recent IN_PROGRESS).
+     */
+    private function activeWorkOrderOnLine(int $lineId): ?WorkOrder
+    {
+        return WorkOrder::where('line_id', $lineId)
+            ->where('status', WorkOrder::STATUS_IN_PROGRESS)
+            ->latest()
+            ->first();
     }
 
     private function createIssue(array $params, array $data, mixed $fieldValue): array

@@ -65,11 +65,11 @@ export default function OnboardingModules() {
 
     return (
         <>
-            <Head title={__('Step 1 — Modules')} />
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 1/5</div>
+            <Head title={__('Choose your setup')} />
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">{__('Before the setup wizard')}</div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Choose your modules')}</h2>
             <p className="text-sm text-om-muted mb-6">
-                {__('Turn on only the feature areas your team needs. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules.')}
+                {__('First pick the feature set you want. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules. Next, the setup wizard will walk you through your first line, product, process template and work order.')}
             </p>
 
             <form onSubmit={submit}>
