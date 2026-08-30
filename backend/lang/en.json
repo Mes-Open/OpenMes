@@ -5670,5 +5670,9 @@
     "Select timezone": "Select timezone",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.",
     "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once.",
-    "Count at Station / Step": "Count at Station / Step"
+    "Count at Station / Step": "Count at Station / Step",
+    "Station (workstation)": "Station (workstation)",
+    "…or step number": "…or step number",
+    "— Select station —": "— Select station —",
+    "— No stations on this line —": "— No stations on this line —"
 }

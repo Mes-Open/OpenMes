@@ -11,6 +11,7 @@ use App\Models\MachineTopic;
 use App\Models\Tenant;
 use App\Models\TopicMapping;
 use App\Models\WorkOrder;
+use App\Models\Workstation;
 use App\Services\Connectivity\ActionExecutor;
 use App\Services\Connectivity\MqttMessageParser;
 use App\Support\TenantContext;
@@ -156,6 +157,33 @@ class MqttStepCountingTest extends TestCase
             ->handle(app(MqttMessageParser::class), app(ActionExecutor::class), $tenant);
 
         $this->assertSame(0, $stepB->fresh()->passed_qty);
+    }
+
+    public function test_a_pulse_can_target_a_step_by_workstation(): void
+    {
+        $line = Line::factory()->create();
+        $workstation = Workstation::factory()->create(['line_id' => $line->id]);
+
+        $wo = WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_IN_PROGRESS,
+            'counting_source' => WorkOrder::COUNTING_MACHINE,
+        ]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        // Two steps on the order — the pulse must find the one bound to the
+        // workstation, regardless of its step number.
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 1, 'passed_qty' => 0]);
+        $target = BatchStep::factory()->create([
+            'batch_id' => $batch->id, 'step_number' => 7,
+            'workstation_id' => $workstation->id, 'passed_qty' => 0,
+        ]);
+
+        // The mapping addresses the station by workstation_id, not step number.
+        $mapping = $this->mapping($this->device($line->id), ['workstation_id' => $workstation->id]);
+
+        app(ActionExecutor::class)->executeSingle($mapping, []);
+
+        $this->assertSame(1, $target->fresh()->passed_qty);
     }
 
     public function test_an_idle_line_is_skipped_not_errored(): void

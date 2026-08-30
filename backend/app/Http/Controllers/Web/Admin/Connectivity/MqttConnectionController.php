@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\MachineConnection;
 use App\Models\MachineMessage;
 use App\Models\MqttConnection;
+use App\Models\Workstation;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -123,6 +124,11 @@ class MqttConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/mqtt/Show', [
             'lines' => $this->lineOptions(),
+            'workstations' => Workstation::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'line_id'])
+                ->map(fn ($w) => ['id' => $w->id, 'name' => $w->name, 'line_id' => $w->line_id])
+                ->values()->all(),
             'connection' => [
                 'id' => $mqttConnection->id,
                 'name' => $mqttConnection->name,

@@ -175,7 +175,8 @@ class ActionExecutor
      * order's produced_qty (through MachineProductionService, so counting_source
      * and auto start/complete are honoured — no double counting).
      *
-     * params: { line_id (static) | line_id_path, step_number | step_number_path,
+     * params: { line_id (static) | line_id_path, workstation_id (preferred) |
+     *           workstation_id_path, step_number | step_number_path,
      *           increment (default 1) | increment_path, also_count_work_order }
      */
     private function countStep(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
@@ -202,19 +203,33 @@ class ActionExecutor
             $increment = 1;
         }
 
+        // Target the step by workstation (preferred — a stable, named station on
+        // the line) or by step_number. Whichever the mapping supplies.
+        $workstationId = $this->resolveParam($params, 'workstation_id_path', $data) ?? ($params['workstation_id'] ?? null);
         $stepNumber = $this->resolveParam($params, 'step_number_path', $data) ?? ($params['step_number'] ?? null);
 
         $stepResult = null;
-        if ($stepNumber !== null) {
-            $step = BatchStep::whereHas('batch', fn ($b) => $b->where('work_order_id', $workOrder->id))
-                ->where('step_number', (int) $stepNumber)
-                ->latest('id')
-                ->first();
+        if ($workstationId !== null || $stepNumber !== null) {
+            $query = BatchStep::whereHas('batch', fn ($b) => $b->where('work_order_id', $workOrder->id));
+            if ($workstationId !== null) {
+                $query->where('workstation_id', (int) $workstationId);
+            } else {
+                $query->where('step_number', (int) $stepNumber);
+            }
+            $step = $query->latest('id')->first();
             if ($step) {
                 $step->increment('passed_qty', $increment);
-                $stepResult = ['step_number' => (int) $stepNumber, 'passed_qty' => (int) $step->fresh()->passed_qty];
+                $stepResult = [
+                    'step_number' => $step->step_number,
+                    'workstation_id' => $step->workstation_id,
+                    'passed_qty' => (int) $step->fresh()->passed_qty,
+                ];
             } else {
-                $stepResult = ['step_number' => (int) $stepNumber, 'skipped' => 'step not found on active work order'];
+                $stepResult = [
+                    'workstation_id' => $workstationId,
+                    'step_number' => $stepNumber,
+                    'skipped' => 'step not found on active work order',
+                ];
             }
         }
 

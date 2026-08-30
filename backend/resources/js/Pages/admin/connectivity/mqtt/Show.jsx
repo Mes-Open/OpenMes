@@ -401,7 +401,7 @@ function MappingRow({ mapping, topic, connectionId }) {
  * JSON string the mapping form already submits.
  */
 function CountStepFields({ value, onChange }) {
-    const { lines = [], connection } = usePage().props;
+    const { lines = [], workstations = [], connection } = usePage().props;
     let p = {};
     try { p = value ? JSON.parse(value) : {}; } catch { p = {}; }
 
@@ -415,12 +415,18 @@ function CountStepFields({ value, onChange }) {
         onChange(JSON.stringify(next));
     };
 
+    // Workstations belong to the effective line (the mapping's own, else the
+    // device's). Picking one clears the step number, and vice-versa — a mapping
+    // targets a station either by workstation or by step number, not both.
+    const effectiveLineId = p.line_id ?? connection?.line_id ?? null;
+    const lineWorkstations = workstations.filter((w) => w.line_id === effectiveLineId);
+
     return (
         <div className="grid grid-cols-2 gap-2 rounded border border-om-line2 bg-om-card p-2">
             <MiniField label="Line">
                 <Dropdown
                     value={p.line_id != null ? String(p.line_id) : ''}
-                    onChange={(v) => set({ line_id: v ? Number(v) : '' })}
+                    onChange={(v) => set({ line_id: v ? Number(v) : '', workstation_id: '' })}
                     options={[
                         { value: '', label: deviceLine ? `— Device line (${deviceLine}) —` : '— Select line —' },
                         ...lines.map((l) => ({ value: String(l.id), label: l.name })),
@@ -428,8 +434,20 @@ function CountStepFields({ value, onChange }) {
                     className="w-full"
                 />
             </MiniField>
-            <MiniField label="Step number (station)">
-                <input type="number" min="1" value={p.step_number ?? ''} onChange={(e) => set({ step_number: e.target.value ? Number(e.target.value) : '' })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
+            <MiniField label="Station (workstation)">
+                <Dropdown
+                    value={p.workstation_id != null ? String(p.workstation_id) : ''}
+                    onChange={(v) => set({ workstation_id: v ? Number(v) : '', step_number: '' })}
+                    placeholder={lineWorkstations.length ? '— Select station —' : '— No stations on this line —'}
+                    options={[
+                        { value: '', label: '— Select station —' },
+                        ...lineWorkstations.map((w) => ({ value: String(w.id), label: w.name })),
+                    ]}
+                    className="w-full"
+                />
+            </MiniField>
+            <MiniField label="…or step number">
+                <input type="number" min="1" value={p.step_number ?? ''} onChange={(e) => set({ step_number: e.target.value ? Number(e.target.value) : '', workstation_id: '' })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
             </MiniField>
             <MiniField label="Increment per pulse">
                 <input type="number" min="1" value={p.increment ?? 1} onChange={(e) => set({ increment: e.target.value ? Number(e.target.value) : 1 })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
