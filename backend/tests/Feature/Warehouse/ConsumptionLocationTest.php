@@ -12,6 +12,7 @@ use App\Models\WarehouseStock;
 use App\Models\WorkOrder;
 use App\Services\Material\ConsumptionLocationService;
 use App\Services\Material\MaterialAllocationService;
+use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -264,6 +265,23 @@ class ConsumptionLocationTest extends TestCase
         $this->assertNull($this->service->deduct($allocation, 25));
         $this->assertSame(0, WarehouseStock::count());
         $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
+    }
+
+    public function test_the_deduction_stays_out_of_the_way_when_the_module_is_off(): void
+    {
+        ModuleRegistry::save(array_values(array_diff(ModuleRegistry::enabled(), ['warehouse'])));
+
+        $warehouse = $this->warehouse('WS-1', default: true);
+        $material = Material::factory()->create();
+        $stock = $this->stockAt($warehouse, $material, 500);
+
+        $allocation = $this->allocationOnLine($warehouse, $material);
+
+        // Balances nobody maintains any more must neither move nor refuse production.
+        $this->assertNull($this->service->deduct($allocation, 120));
+        $this->assertEquals(500.0, (float) $stock->fresh()->quantity);
+        $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
+        $this->assertNull($allocation->fresh()->consumption_warehouse_id);
     }
 
     /**

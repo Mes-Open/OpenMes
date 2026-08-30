@@ -7,6 +7,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Warehouse\WarehouseStockService;
+use App\Support\ModuleRegistry;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -38,12 +39,20 @@ class ConsumptionLocationService
      * downward correction produces a positive delta and credits the location back.
      *
      * Returns the movement it wrote, or null when there was nothing to move (no
-     * location resolvable, or the quantity did not change).
+     * location resolvable, the Warehouses module is off, or the quantity did not
+     * change).
      *
      * @throws \DomainException When the location lacks the stock and the plant blocks negative balances.
      */
     public function deduct(MaterialAllocation $allocation, float $consumedTotal, ?User $user = null): ?StockMovement
     {
+        // Per-location balances belong to the Warehouses module (#212). With it off,
+        // a plant that once had warehouses must not have production refused — or
+        // silently booked — against balances nobody is maintaining any more.
+        if (! ModuleRegistry::isModuleEnabled('warehouse')) {
+            return null;
+        }
+
         return DB::transaction(function () use ($allocation, $consumedTotal, $user) {
             // Re-read under a lock: `location_deducted_qty` is a read-modify-write, and
             // two operators booking on the same allocation would otherwise each deduct
