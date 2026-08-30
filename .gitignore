@@ -48,6 +48,8 @@ backend/yarn-error.log
 !.claude/skills/
 .claude-flow/
 .mcp.json
+.agents/
+
 
 # IDE
 .vscode/

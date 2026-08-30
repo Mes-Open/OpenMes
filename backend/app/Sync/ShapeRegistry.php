@@ -35,6 +35,10 @@ class ShapeRegistry
             'table' => 'skills',
             'columns' => ['id', 'code', 'name', 'description', 'created_at', 'updated_at'],
         ],
+        'material_types' => [
+            'table' => 'material_types',
+            'columns' => ['id', 'code', 'name', 'created_at', 'updated_at'],
+        ],
         'anomaly_reasons' => [
             'table' => 'anomaly_reasons',
             'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'created_at', 'updated_at'],

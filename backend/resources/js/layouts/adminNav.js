@@ -122,7 +122,7 @@ export const ADMIN_GROUPS = [
         icon: 'beaker',
         lucide: 'factory',
         match: [
-            '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-lots',
+            '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-types', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
@@ -134,6 +134,7 @@ export const ADMIN_GROUPS = [
             // group but is gated by its own module so it can be switched off alone.
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials', '/admin/materials-import'], tab: 'materials', lucide: 'boxes' },
+            { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
             // Warehousing (#212) — gated by its own module so an install without

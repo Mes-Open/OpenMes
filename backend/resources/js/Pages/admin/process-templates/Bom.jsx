@@ -129,7 +129,7 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                                 placeholder="Select material..."
                                 options={materials.map((m) => ({
                                     value: String(m.id),
-                                    label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name})`,
+                                    label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name ?? __('No type')})`,
                                 }))}
                                 className="w-full"
                             />

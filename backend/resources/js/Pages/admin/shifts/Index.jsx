@@ -12,7 +12,7 @@ export default function ShiftsIndex() {
         { key: 'line', label: __('Line'), className: 'text-om-muted', value: (r) => (r.line_id ? lineNames[r.line_id] ?? `#${r.line_id}` : __('Global')), render: (r) => (r.line_id ? lineNames[r.line_id] ?? `#${r.line_id}` : __('Global')) },
         { key: 'start_time', label: __('Start'), className: 'text-om-muted', render: (r) => (r.start_time ?? '').slice(0, 5) },
         { key: 'end_time', label: __('End'), className: 'text-om-muted', render: (r) => (r.end_time ?? '').slice(0, 5) },
-        { key: 'sort_order', label: __('Order'), className: 'text-om-muted' },
+        { key: 'sort_order', label: __('Sort Order'), className: 'text-om-muted' },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
