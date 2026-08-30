@@ -95,6 +95,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by('erp-read:'.$id);
         });
 
+        // Self-enrolled sensor pulse ingest, keyed per device token (falling back
+        // to client IP before the token is resolved). A break-beam sensor can
+        // fire fast, so the ceiling is generous but still bounds a runaway device.
+        RateLimiter::for('device-ingest', function ($request) {
+            $token = $request->attributes->get('device_token');
+            $id = $token?->id ?? $request->ip();
+
+            return Limit::perMinute(600)->by('device-ingest:'.$id);
+        });
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 

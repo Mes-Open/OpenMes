@@ -103,6 +103,18 @@ Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\Workstation
     ->middleware('throttle:120,1')
     ->name('api.workstations.heartbeat');
 
+// Self-enrolling HTTP sensors. Enrollment is unauthenticated: a fresh sensor
+// only holds a one-time pairing code (issued in the admin panel) which is the
+// authorization and carries the tenant. It exchanges the code for a long-lived
+// device token, then pulses under that token (auth.device), rate limited per
+// token. Revoking is admin-panel-only — there is no device-facing revoke.
+Route::post('/v1/devices/enroll', [\App\Http\Controllers\Api\V1\DeviceEnrollmentController::class, 'enroll'])
+    ->middleware('throttle:20,1')
+    ->name('api.devices.enroll');
+Route::post('/v1/devices/pulse', [\App\Http\Controllers\Api\V1\DeviceIngestController::class, 'pulse'])
+    ->middleware(['auth.device', 'throttle:device-ingest'])
+    ->name('api.devices.pulse');
+
 // NOTE: the live-sync snapshot GET /api/collections/{name} lives in routes/web.php
 // so it authenticates via the session cookie (host-independent) instead of Sanctum
 // stateful-domain matching. See the "#193" comment there.
