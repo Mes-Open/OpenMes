@@ -4,6 +4,7 @@ namespace Tests\Feature\Connectivity;
 
 use App\Models\Line;
 use App\Models\MachineConnection;
+use App\Models\MachineTopic;
 use App\Models\MqttConnection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,5 +82,22 @@ class MqttConnectionLineTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.connectivity.mqtt.store'), $this->payload(['line_id' => 999999]))
             ->assertSessionHasErrors('line_id');
+    }
+
+    public function test_invalid_action_params_json_is_rejected_and_not_persisted(): void
+    {
+        $conn = MachineConnection::create([
+            'name' => 'C', 'protocol' => 'mqtt', 'is_active' => false, 'status' => 'disconnected',
+        ]);
+        $topic = MachineTopic::create([
+            'machine_connection_id' => $conn->id, 'topic_pattern' => 't', 'payload_format' => 'json', 'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin)->post(
+            route('admin.connectivity.mqtt.topics.mappings.store', [$conn, $topic]),
+            ['action_type' => 'log_event', 'priority' => 100, 'action_params' => '{not valid json']
+        )->assertSessionHasErrors('action_params');
+
+        $this->assertDatabaseCount('topic_mappings', 0);
     }
 }

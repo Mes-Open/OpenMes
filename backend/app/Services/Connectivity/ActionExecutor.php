@@ -195,8 +195,10 @@ class ActionExecutor
             return ['line_id' => $line->id, 'skipped' => 'no in-progress work order on line'];
         }
 
-        $increment = (float) ($this->resolveParam($params, 'increment_path', $data) ?? $params['increment'] ?? 1);
-        if ($increment <= 0) {
+        // A break-beam pulse is one whole unit; normalise once to an int so the
+        // per-step counter and the work-order good-count stay in lock-step.
+        $increment = (int) ($this->resolveParam($params, 'increment_path', $data) ?? $params['increment'] ?? 1);
+        if ($increment < 1) {
             $increment = 1;
         }
 
@@ -209,7 +211,7 @@ class ActionExecutor
                 ->latest('id')
                 ->first();
             if ($step) {
-                $step->increment('passed_qty', (int) $increment);
+                $step->increment('passed_qty', $increment);
                 $stepResult = ['step_number' => (int) $stepNumber, 'passed_qty' => (int) $step->fresh()->passed_qty];
             } else {
                 $stepResult = ['step_number' => (int) $stepNumber, 'skipped' => 'step not found on active work order'];

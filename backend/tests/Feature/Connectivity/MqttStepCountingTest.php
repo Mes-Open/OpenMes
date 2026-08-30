@@ -2,14 +2,18 @@
 
 namespace Tests\Feature\Connectivity;
 
+use App\Jobs\ProcessMqttMessageJob;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Line;
 use App\Models\MachineConnection;
 use App\Models\MachineTopic;
+use App\Models\Tenant;
 use App\Models\TopicMapping;
 use App\Models\WorkOrder;
 use App\Services\Connectivity\ActionExecutor;
+use App\Services\Connectivity\MqttMessageParser;
+use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -126,6 +130,32 @@ class MqttStepCountingTest extends TestCase
         app(ActionExecutor::class)->executeSingle($mapping, []);
 
         $this->assertSame(1, $step->fresh()->passed_qty);
+    }
+
+    public function test_a_payload_line_id_cannot_reach_another_tenants_work_order(): void
+    {
+        $tenant = app(TenantContext::class);
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+
+        // Tenant B's running order + step (created under B's context).
+        $tenant->set($tenantB->id);
+        $lineB = Line::factory()->create();
+        [, $stepB] = $this->runningOrderOnLine($lineB);
+        $tenant->clear();
+
+        // Device belongs to tenant A; its mapping tries to target tenant B's line.
+        $tenant->set($tenantA->id);
+        $mapping = $this->mapping($this->device(null), ['line_id' => $lineB->id, 'step_number' => 2]);
+        $connId = $mapping->topic->machine_connection_id;
+        $tenant->clear();
+
+        // The queued job scopes execution to the device's tenant (A), so the
+        // cross-tenant line_id resolves to nothing — B's step is untouched.
+        (new ProcessMqttMessageJob($connId, 'line/sensor', '{}', now()->toIso8601String()))
+            ->handle(app(MqttMessageParser::class), app(ActionExecutor::class), $tenant);
+
+        $this->assertSame(0, $stepB->fresh()->passed_qty);
     }
 
     public function test_an_idle_line_is_skipped_not_errored(): void
