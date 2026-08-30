@@ -5669,5 +5669,14 @@
     "Region": "Region",
     "Select timezone": "Select timezone",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.",
-    "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once."
+    "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once.",
+    "Add maintenance": "Add maintenance",
+    "Defined maintenance": "Defined maintenance",
+    "— None (custom) —": "— None (custom) —",
+    "e.g. Lubrication": "e.g. Lubrication",
+    "Minutes": "Minutes",
+    "Add to planner": "Add to planner",
+    "Pick a line, a date and a maintenance (defined or a title).": "Pick a line, a date and a maintenance (defined or a title).",
+    "Maintenance added to the planner.": "Maintenance added to the planner.",
+    "Could not add maintenance.": "Could not add maintenance."
 }

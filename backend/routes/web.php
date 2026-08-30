@@ -472,6 +472,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedule/changes/{change}/undo', [SchedulePlannerController::class, 'undoChange'])->name('schedule.changes.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
+        Route::post('/schedule/maintenance', [SchedulePlannerController::class, 'storeMaintenance'])->name('schedule.maintenance.store');
 
         // Schedule · Employees (tachograph-style day/team/month planner)
         Route::get('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'index'])->name('schedule.employees');

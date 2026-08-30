@@ -158,6 +158,28 @@ class SchedulePlannerController extends Controller
         ]);
     }
 
+    /**
+     * Place a maintenance event on the planner (the "Add maintenance" modal). A
+     * defined maintenance schedule can pre-fill it, or an ad-hoc title/type.
+     */
+    public function storeMaintenance(Request $request)
+    {
+        $validated = $request->validate([
+            'schedule_id' => ['nullable', 'integer', 'exists:maintenance_schedules,id'],
+            'title' => ['required_without:schedule_id', 'nullable', 'string', 'max:255'],
+            'event_type' => ['nullable', 'in:planned,corrective,inspection'],
+            'line_id' => ['required', 'integer', 'exists:lines,id'],
+            'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
+            'scheduled_at' => ['required', 'date'],
+            'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:10080'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $this->planner->createMaintenanceEvent($validated);
+
+        return back()->with('success', __('Maintenance added to the planner.'));
+    }
+
     public function checkUpdates(Request $request)
     {
         $lastUpdated = WorkOrder::max('updated_at');

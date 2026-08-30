@@ -13,6 +13,7 @@ import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import {
     OrderEditSheet, AssignPopup, ConflictDialog, LiveTrackingBar, Toasts, SavingOverlay,
+    AddMaintenanceModal,
 } from './planner/modals';
 
 // Hover affordances for the design's work-order blocks (brightness + reveal ✕).
@@ -40,7 +41,7 @@ export default function Planner() {
         workOrders = [], lines = [], allLines = [], shifts = [],
         viewMode = 'weekly', shiftsPerDay = 1, slotMinutes = 15, showWeekends = true,
         startDate, rangeStart, rangeEnd, navPrev, navNext,
-        backlogOrders = [], maintenanceEvents = [], realtimeMode = 'polling',
+        backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], realtimeMode = 'polling',
         overdueImportant = { count: 0, orders: [] },
     } = usePage().props;
 
@@ -65,6 +66,7 @@ export default function Planner() {
     const [conflict, setConflict] = useState(null);     // { apply }
     const [confirmBox, setConfirmBox] = useState(null); // { title, body, confirmLabel, apply }
     const [trackingData, setTrackingData] = useState(null);
+    const [maintOpen, setMaintOpen] = useState(false);
     const draggingRef = useRef(false);
 
     const toast = useCallback((msg, kind = 'success') => {
@@ -362,6 +364,13 @@ export default function Planner() {
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
                 live={live} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
+            <div className="flex justify-end mb-2">
+                <button type="button" onClick={() => setMaintOpen(true)}
+                    style={{ fontSize: 12.5, fontWeight: 600, color: '#78350f', background: '#fde68a', border: '1px solid #d97706', borderRadius: 8, padding: '7px 12px' }}>
+                    + {__('Maintenance')}
+                </button>
+            </div>
+
             <div className="flex items-start" style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-bg)' }}>
                 <div className="om-main flex-1 min-w-0" style={{ padding: '18px 20px', overflow: 'auto' }}>
                     {viewMode === 'weekly' && <WeeklyView ctx={ctx} />}
@@ -382,6 +391,16 @@ export default function Planner() {
                     title={confirmBox.title} confirmLabel={confirmBox.confirmLabel} cancelLabel={__('Cancel')}>
                     {confirmBox.body}
                 </ConfirmDialog>
+            )}
+            {maintOpen && (
+                <AddMaintenanceModal
+                    lines={allLines}
+                    schedules={maintenanceSchedules}
+                    startDate={startDate}
+                    onClose={() => setMaintOpen(false)}
+                    onCreated={() => { setMaintOpen(false); toast(__('Maintenance added to the planner.')); }}
+                    onError={(msg) => toast(msg || __('Could not add maintenance.'), 'error')}
+                />
             )}
             {saving && <SavingOverlay />}
             <Toasts toasts={toasts} />

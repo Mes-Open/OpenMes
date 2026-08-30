@@ -1,7 +1,7 @@
 // Edit panel, assign popup, new-order modal, conflict dialog, live tracking,
 // toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import { Dropdown, DatePicker } from '@openmes/ui';
 import { __ } from '../../../../lib/i18n';
 import DueCountdown from '../../../../components/DueCountdown';
@@ -10,6 +10,117 @@ import { statusOf, statusLabel, priorityMeta, fmtQty, MONO } from './helpers';
 import { StatusPill } from './OrderCard';
 
 const lblStyle = { fontFamily: MONO, fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)', marginBottom: 5 };
+
+const inputStyle = { width: '100%', fontSize: 13, padding: '8px 10px', border: '1px solid var(--om-line)', borderRadius: 8, background: 'var(--om-card)', color: 'var(--om-ink)' };
+
+/**
+ * "Add maintenance" — place a defined maintenance (a MaintenanceSchedule) or an
+ * ad-hoc one onto a line/day as a yellow tile. Posts to the planner; the board
+ * reloads with the new tile.
+ */
+export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onClose, onCreated, onError }) {
+    const [scheduleId, setScheduleId] = useState('');
+    const [title, setTitle] = useState('');
+    const [eventType, setEventType] = useState('planned');
+    const [lineId, setLineId] = useState(lines[0] ? String(lines[0].id) : '');
+    const [date, setDate] = useState(startDate || '');
+    const [time, setTime] = useState('08:00');
+    const [duration, setDuration] = useState('60');
+    const [busy, setBusy] = useState(false);
+
+    const pickSchedule = (v) => {
+        setScheduleId(v);
+        const s = schedules.find((x) => String(x.id) === String(v));
+        if (s) {
+            setTitle(s.name || '');
+            if (s.event_type) setEventType(s.event_type);
+            if (s.line_id) setLineId(String(s.line_id));
+        }
+    };
+
+    const submit = () => {
+        if (!lineId || !date || (!scheduleId && !title.trim())) {
+            onError(__('Pick a line, a date and a maintenance (defined or a title).'));
+            return;
+        }
+        setBusy(true);
+        router.post('/admin/schedule/maintenance', {
+            schedule_id: scheduleId || null,
+            title: title || null,
+            event_type: eventType,
+            line_id: Number(lineId),
+            scheduled_at: `${date} ${time || '00:00'}`,
+            duration_minutes: Number(duration) || 60,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => onCreated(),
+            onError: () => onError(),
+            onFinish: () => setBusy(false),
+        });
+    };
+
+    return (
+        <Backdrop onClose={onClose}>
+            <div style={{ width: 460, maxWidth: '92vw', background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--om-line2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: '#fde68a', border: '1px solid #d97706' }} />
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--om-ink)' }}>{__('Add maintenance')}</h3>
+                </div>
+                <div style={{ padding: '16px 20px', display: 'grid', gap: 12 }}>
+                    <div>
+                        <div style={lblStyle}>{__('Defined maintenance')}</div>
+                        <Dropdown value={scheduleId} onChange={pickSchedule}
+                            placeholder={__('— None (custom) —')}
+                            options={[{ value: '', label: __('— None (custom) —') }, ...schedules.map((s) => ({ value: String(s.id), label: s.name }))]}
+                            className="w-full" />
+                    </div>
+                    <div>
+                        <div style={lblStyle}>{__('Title')}</div>
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={__('e.g. Lubrication')} style={inputStyle} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                            <div style={lblStyle}>{__('Type')}</div>
+                            <Dropdown value={eventType} onChange={setEventType}
+                                options={[
+                                    { value: 'planned', label: __('Planned') },
+                                    { value: 'corrective', label: __('Corrective') },
+                                    { value: 'inspection', label: __('Inspection') },
+                                ]} className="w-full" />
+                        </div>
+                        <div>
+                            <div style={lblStyle}>{__('Line')}</div>
+                            <Dropdown value={lineId} onChange={setLineId}
+                                options={lines.map((l) => ({ value: String(l.id), label: l.code ? `${l.code} · ${l.name}` : l.name }))}
+                                className="w-full" />
+                        </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 12 }}>
+                        <div>
+                            <div style={lblStyle}>{__('Date')}</div>
+                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+                        </div>
+                        <div>
+                            <div style={lblStyle}>{__('Time')}</div>
+                            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle} />
+                        </div>
+                        <div>
+                            <div style={lblStyle}>{__('Minutes')}</div>
+                            <input type="number" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} style={inputStyle} />
+                        </div>
+                    </div>
+                </div>
+                <div style={{ padding: '14px 20px', borderTop: '1px solid var(--om-line2)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 9, padding: '9px 16px' }}>{__('Cancel')}</button>
+                    <button type="button" onClick={submit} disabled={busy}
+                        style={{ fontSize: 13, fontWeight: 700, color: '#78350f', background: '#fde68a', border: '1px solid #d97706', borderRadius: 9, padding: '9px 18px', opacity: busy ? 0.6 : 1 }}>
+                        {busy ? __('Adding…') : __('Add to planner')}
+                    </button>
+                </div>
+            </div>
+        </Backdrop>
+    );
+}
 
 function Backdrop({ children, onClose }) {
     return (
