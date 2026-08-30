@@ -6,6 +6,7 @@ use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -35,6 +36,7 @@ class MachineConnection extends Model
         'name',
         'description',
         'protocol',
+        'line_id',
         'is_active',
         'status',
         'status_message',
@@ -49,6 +51,15 @@ class MachineConnection extends Model
             'last_connected_at' => 'datetime',
             'messages_received' => 'integer',
         ];
+    }
+
+    /**
+     * The production line this device feeds — the default target for its topic
+     * mappings (e.g. a break-beam sensor counting units on this line).
+     */
+    public function line(): BelongsTo
+    {
+        return $this->belongsTo(Line::class);
     }
 
     public function mqttConnection(): HasOne

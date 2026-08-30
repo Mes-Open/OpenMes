@@ -4,7 +4,7 @@ import MqttConnectionForm from './MqttConnectionForm';
 import useConfirm from '../../../../components/useConfirm';
 
 export default function MqttEdit() {
-    const { connection } = usePage().props;
+    const { connection, lines = [] } = usePage().props;
     const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
@@ -38,6 +38,7 @@ export default function MqttEdit() {
                     submitLabel="Save Changes"
                     cancelHref={`/admin/connectivity/mqtt/${connection.id}`}
                     connection={connection}
+                    lines={lines}
                     onDelete={handleDelete}
                 />
             </div>

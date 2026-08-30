@@ -1,8 +1,9 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import MqttConnectionForm from './MqttConnectionForm';
 
 export default function MqttCreate() {
+    const { lines = [] } = usePage().props;
     return (
         <>
             <Head title="New MQTT Connection" />
@@ -25,6 +26,7 @@ export default function MqttCreate() {
                     method="post"
                     submitLabel="Create Connection"
                     cancelHref="/admin/connectivity/mqtt"
+                    lines={lines}
                 />
             </div>
         </>
