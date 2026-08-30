@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\PairingCodeUnavailableException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\EnrollDeviceRequest;
 use App\Models\DevicePairingCode;
@@ -9,6 +10,7 @@ use App\Models\DeviceToken;
 use App\Models\MachineConnection;
 use App\Models\MachineTopic;
 use App\Models\TopicMapping;
+use App\Scopes\TenantScope;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,22 @@ class DeviceEnrollmentController extends Controller
 
         try {
             $result = DB::transaction(function () use ($code, $data) {
+                // Atomically claim the code before provisioning anything. A single
+                // conditional UPDATE means only one of two concurrent requests can
+                // flip used_at — the loser gets 0 rows and is rejected, so one code
+                // never provisions two devices/tokens.
+                $claimed = DevicePairingCode::withoutGlobalScope(TenantScope::class)
+                    ->whereKey($code->id)
+                    ->whereNull('used_at')
+                    ->where('is_active', true)
+                    ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                    ->update(['used_at' => now(), 'is_active' => false]);
+
+                if ($claimed === 0) {
+                    // Lost the race, or the code was spent/expired between checks.
+                    throw new PairingCodeUnavailableException;
+                }
+
                 $connection = MachineConnection::create([
                     'name' => $data['name'],
                     'protocol' => MachineConnection::PROTOCOL_REST,
@@ -92,10 +110,15 @@ class DeviceEnrollmentController extends Controller
                     'is_active' => true,
                 ]);
 
-                $code->markRedeemed($connection);
+                // Record which connection the (already-claimed) code created.
+                DevicePairingCode::withoutGlobalScope(TenantScope::class)
+                    ->whereKey($code->id)
+                    ->update(['used_by_connection_id' => $connection->id]);
 
                 return [$connection, $token, $plaintext];
             });
+        } catch (PairingCodeUnavailableException) {
+            return response()->json(['message' => __('Invalid or expired pairing code.')], 422);
         } finally {
             $this->tenant->set($previousTenant);
         }

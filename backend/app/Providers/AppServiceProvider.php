@@ -164,9 +164,15 @@ class AppServiceProvider extends ServiceProvider
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
         // so a module can hook any create/update/delete without per-model wiring.
         // Sensitive models are excluded — ResourceChanged carries the full model
-        // to third-party listeners, so we never hand out User (password hash) or
-        // ApiKey (secret hash) rows.
-        $sensitive = [\App\Models\User::class, \App\Models\ApiKey::class];
+        // to third-party listeners, so we never hand out User (password hash),
+        // ApiKey, or device credential (code_hash / token_hash) rows. $hidden does
+        // not protect a model instance handed to a listener, so exclude them here.
+        $sensitive = [
+            \App\Models\User::class,
+            \App\Models\ApiKey::class,
+            \App\Models\DevicePairingCode::class,
+            \App\Models\DeviceToken::class,
+        ];
         $hookedModels = array_diff_key(
             array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS)),
             array_flip($sensitive),

@@ -139,6 +139,32 @@ class DeviceEnrollmentTest extends TestCase
         $this->assertEqualsWithDelta(4.0, (float) $wo->fresh()->produced_qty, 0.0001);
     }
 
+    public function test_a_repeated_idempotency_key_counts_once(): void
+    {
+        $line = Line::factory()->create();
+        $workstation = Workstation::factory()->create(['line_id' => $line->id]);
+        [, $plain] = $this->pairingCode(['line_id' => $line->id, 'workstation_id' => $workstation->id]);
+        $token = $this->enroll($plain)->json('token');
+
+        $wo = WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_IN_PROGRESS,
+            'counting_source' => WorkOrder::COUNTING_MACHINE,
+        ]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        $step = BatchStep::factory()->create([
+            'batch_id' => $batch->id, 'step_number' => 3,
+            'workstation_id' => $workstation->id, 'passed_qty' => 0,
+        ]);
+
+        // Same key twice — the retry is acknowledged but not double-counted.
+        $this->withToken($token)->postJson('/api/v1/devices/pulse', ['idempotency_key' => 'abc-1'])->assertStatus(202);
+        $this->withToken($token)->postJson('/api/v1/devices/pulse', ['idempotency_key' => 'abc-1'])
+            ->assertStatus(202)->assertJsonPath('idempotent_replay', true);
+
+        $this->assertSame(1, $step->fresh()->passed_qty);
+    }
+
     public function test_a_pulse_without_a_token_is_unauthorized(): void
     {
         $this->postJson('/api/v1/devices/pulse')->assertStatus(401);

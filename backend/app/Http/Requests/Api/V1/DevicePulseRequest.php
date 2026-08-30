@@ -20,6 +20,8 @@ class DevicePulseRequest extends FormRequest
     {
         return [
             'qty' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            // Optional client-generated key so a retried pulse is applied once.
+            'idempotency_key' => ['nullable', 'string', 'max:128'],
         ];
     }
 }
