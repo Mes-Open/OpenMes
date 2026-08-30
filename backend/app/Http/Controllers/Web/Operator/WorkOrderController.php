@@ -234,6 +234,7 @@ class WorkOrderController extends Controller
             'batches.steps.confirmedBy',
             'batches.steps.documents.validatedBy',
             'batches.steps.checklistCompletions.checkedBy',
+            'batches.steps.outputValues.recordedBy',
             'batches.workstation',
             'batches.processConfirmations.confirmedBy',
             'batches.qualityChecks.samples',
@@ -306,6 +307,7 @@ class WorkOrderController extends Controller
         // reach in-flight orders.
         $stepMedia = [];      // step_number => [ {id, url, media_type, title, ...} ]
         $stepChecklists = []; // step_number => [ {id, label, is_required} ]
+        $stepOutputs = [];    // step_number => [ {id, key, label, value_type, unit, options, is_required} ]
         if ($templateId) {
             foreach (TemplateStepMedia::where('process_template_id', $templateId)
                 ->whereNotNull('template_step_id')
@@ -339,10 +341,34 @@ class WorkOrderController extends Controller
                     'is_required' => $it->is_required,
                 ];
             }
+
+            foreach (\App\Models\TemplateStepOutput::where('process_template_id', $templateId)
+                ->whereNotNull('template_step_id')
+                ->with('templateStep:id,step_number')
+                ->orderBy('sort_order')->orderBy('id')->get() as $o) {
+                $num = $o->templateStep?->step_number;
+                if ($num === null) {
+                    continue;
+                }
+                $stepOutputs[$num][] = [
+                    'id' => $o->id,
+                    'key' => $o->key,
+                    'label' => $o->label,
+                    'value_type' => $o->value_type,
+                    'unit' => $o->unit,
+                    'options' => $o->options ?? [],
+                    'is_required' => $o->is_required,
+                ];
+            }
         }
 
         $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'issueCustomFields'));
+        // Engineering documents (#179) frozen onto this order at release — read-only
+        // for operators (download + interactive view), gated by `view engineering
+        // documents` on the client (Operator has it; see the seeder).
+        $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments'));
     }
 }

@@ -10,7 +10,7 @@
  * (or cards) and a Recently Completed DataTable (or cards). Report Issue and
  * Report Downtime open modals that POST via REST.
  *
- * Data comes from REST (the web uses Electric shapes): work orders for the line
+ * Data comes from REST (the web uses synced collections): work orders for the line
  * (with batches.steps), line statuses, issue types, downtime reasons + active
  * downtime. Gaps vs. web (no REST endpoint): the board-status badge is read-only
  * (no line-status write / done-qty modal), and there is no per-operation tracking

@@ -68,7 +68,9 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WageGroupController;
 use App\Http\Controllers\Api\V1\WorkerAbsenceController;
 use App\Http\Controllers\Api\V1\WorkerController;
+use App\Http\Controllers\Api\V1\WorkOrderChangeRequestController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
+use App\Http\Controllers\Api\V1\WorkOrderStopController;
 use App\Http\Controllers\Api\V1\WorkstationController;
 use App\Http\Controllers\Api\V1\WorkstationTypeController;
 use Illuminate\Support\Facades\Route;
@@ -336,6 +338,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Scrap entries (operators can record against a work order; admins/supers manage)
     Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
     Route::get('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'show']);
+    // Typed operator outputs recorded on a work order (#B) — read for ERP/reporting.
+    Route::get('/work-orders/{workOrder}/step-outputs', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'forWorkOrder'])->name('api.v1.work-orders.step-outputs');
+    Route::get('/batch-step-outputs/{batchStepOutputValue}/file', [\App\Http\Controllers\Api\V1\StepOutputController::class, 'file'])->name('api.v1.batch-step-outputs.file');
+
     Route::get('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'forWorkOrder']);
     Route::post('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'store']);
     Route::patch('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'update']);
@@ -622,6 +628,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::delete('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'destroy']);
         Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [MaintenanceScheduleController::class, 'generateNow']);
 
+        // Schedule planner board — the mobile planner's read path (lines,
+        // shifts, orders in range, backlog, maintenance). Mirrors the props the
+        // web Admin\SchedulePlannerController.index ships to Inertia.
+        // Declared before /schedule/{workOrder} so the literal segments win.
+        Route::get('/schedule/board', [ScheduleController::class, 'board']);
+        Route::get('/schedule/changes', [ScheduleController::class, 'changes']);
+        Route::post('/schedule/changes/{change}/undo', [ScheduleController::class, 'undoChange']);
+
         // Schedule planner write — minute-level move / resize for work orders.
         // Mirrors web Admin\SchedulePlannerController.updateOrder / resizeOrder.
         Route::put('/schedule/{workOrder}', [ScheduleController::class, 'updateOrder']);
@@ -657,6 +671,24 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/work-orders/{workOrder}/reopen', [WorkOrderController::class, 'reopen']);
     Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete']);
 
+    // Change control (#182): a structured production stop, the change request that
+    // comes out of it, and the review workflow that must complete before the order
+    // can run on a new configuration. Resume stays on the transition route above.
+    Route::get('/work-orders/{workOrder}/stops', [WorkOrderStopController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/stop', [WorkOrderStopController::class, 'store']);
+
+    Route::get('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'index']);
+    Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeRequestController::class, 'store']);
+
+    Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'show']);
+    Route::get('/work-order-change-requests/{changeRequest}/impact', [WorkOrderChangeRequestController::class, 'impact']);
+    Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeRequestController::class, 'update']);
+    Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeRequestController::class, 'submit']);
+    Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeRequestController::class, 'approve']);
+    Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeRequestController::class, 'reject']);
+    Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeRequestController::class, 'cancel']);
+    Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeRequestController::class, 'apply']);
+
     // Batches (nested under work orders)
     Route::get('/work-orders/{workOrder}/batches', [BatchController::class, 'index']);
     Route::post('/work-orders/{workOrder}/batches', [BatchController::class, 'store']);
@@ -679,6 +711,19 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
     Route::middleware('role:Supervisor|Admin')
         ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
+    // Pool dispatch (#52): supervisor assigns a specific workstation to a pending step.
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/assign', [\App\Http\Controllers\Api\V1\BatchStepController::class, 'assign']);
+
+    // Material reconciliation (#99): declare partial consumption and return unused
+    // material to stock against a work-order allocation (production users).
+    Route::post('/material-allocations/{allocation}/consume', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'consume']);
+    Route::post('/material-allocations/{allocation}/return', [\App\Http\Controllers\Api\V1\MaterialAllocationController::class, 'return']);
+    // Reclassification (#99): regrade between material classes / change a lot status.
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        Route::post('/material-reclassifications/class', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'class']);
+        Route::post('/material-lots/{materialLot}/reclassify-status', [\App\Http\Controllers\Api\V1\MaterialReclassificationController::class, 'status']);
+    });
 
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);

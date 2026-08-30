@@ -49,6 +49,7 @@ use App\Http\Controllers\Web\Admin\WageGroupController;
 use App\Http\Controllers\Web\Admin\WorkerAbsenceController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
 use App\Http\Controllers\Web\Admin\WorkstationTypeController;
@@ -272,6 +273,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/batch-step-document/{batchStepDocument}/file', [OperatorBatchController::class, 'showDocumentFile'])->name('batch-step-document.file');
         // Work-instruction checklist: tick / un-tick a step checklist item.
         Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->name('batch-step.checklist.toggle');
+        // Typed step outputs — operator records a value (incl. picture upload).
+        Route::post('/batch-step/{batchStep}/outputs/{output}', [OperatorBatchController::class, 'recordOutput'])->name('batch-step.outputs.record');
+        Route::get('/batch-step-output/{batchStepOutputValue}/file', [OperatorBatchController::class, 'showOutputFile'])->name('batch-step-output.file');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
@@ -306,8 +310,44 @@ Route::middleware('auth')->group(function () {
     });
 
     // Supervisor routes (Supervisor and Admin)
-    Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
+    // The `section` group attribute tells controllers mounted in both trees
+    // which one served the request (ServesBothSections), so their redirects and
+    // the URLs they hand the page stay inside it.
+    Route::group([
+        'prefix' => 'supervisor',
+        'as' => 'supervisor.',
+        'middleware' => 'role:Supervisor|Admin',
+        'section' => 'supervisor',
+    ], function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
+
+        // Order administration a supervisor also needs. Same controllers as the
+        // admin section — one implementation, two URL trees — resolving their
+        // own prefix through ServesBothSections so redirects and the page's
+        // links stay inside whichever section served the request.
+        Route::resource('customers', CustomerController::class)->except(['show']);
+        Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+
+        Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
+        Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
+        Route::post('/priority-rules/{priority_rule}/toggle-active', [PriorityRuleController::class, 'toggleActive'])->name('priority-rules.toggle-active');
+
+        Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
+        Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
+        Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
+        Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
+
+        // Live shift monitor — hourly state timeline, output vs target, and the
+        // stops still waiting on a cause.
+        Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
+        Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+
+        // Line overview — every machine on one line for the running shift, as a
+        // way in to the monitor above rather than a second copy of it.
+        Route::get('/shift-overview', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'index'])->name('shift-overview.index');
+        Route::get('/shift-overview/check', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'check'])->name('shift-overview.check');
 
         // Shift handover — produced/packed/WIP/shipped balance + close shift (audit snapshot)
         Route::get('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'index'])->name('shift-handover.index');
@@ -316,7 +356,8 @@ Route::middleware('auth')->group(function () {
 
         // Work Orders (supervisor can create + manage)
         Route::get('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'index'])->name('work-orders.index');
-        // create/store before the {workOrder} routes so "create" isn't bound as an id.
+        // create/store and bulk before the {workOrder} routes so they aren't bound as an id.
+        Route::post('/work-orders/bulk', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'bulk'])->name('work-orders.bulk');
         Route::get('/work-orders/create', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'create'])->name('work-orders.create');
         Route::post('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'store'])->name('work-orders.store');
         Route::get('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'show'])->name('work-orders.show');
@@ -329,38 +370,71 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::get('/work-orders/{workOrder}/edit', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'edit'])->name('work-orders.edit');
         Route::put('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'update'])->name('work-orders.update');
+        // Authorized per-order by WorkOrderPolicy::delete — the Supervisor role
+        // doesn't hold `delete work orders`, an Admin browsing this tree does.
+        Route::delete('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'destroy'])->name('work-orders.destroy');
 
-        // Issues management
-        Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
-        Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
-        Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
-        Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
-        // Non-conformance disposition (#11)
-        Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
-        // Corrective / preventive actions (CAPA)
-        Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
-        Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
-        Route::put('/issues/actions/{action}', [IssueManagementController::class, 'updateAction'])->name('issues.actions.update');
-        Route::post('/issues/actions/{action}/start', [IssueManagementController::class, 'startAction'])->name('issues.actions.start');
-        Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
-        Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
-        Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+        // Issues management. Gated like the /admin twin, which maps to the
+        // optional `quality` module ("Issues & reasons").
+        Route::middleware('module:quality')->group(function () {
+            Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+            // Bulk acknowledge / resolve — the alerts page acts on a whole list.
+            Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
+            Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
+            Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
+            Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+            // Non-conformance disposition (#11)
+            Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
+            // Corrective / preventive actions (CAPA)
+            Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
+            Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
+            Route::put('/issues/actions/{action}', [IssueManagementController::class, 'updateAction'])->name('issues.actions.update');
+            Route::post('/issues/actions/{action}/start', [IssueManagementController::class, 'startAction'])->name('issues.actions.start');
+            Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
+            Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
+            Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+        });
 
         // Quality-control trigger queue (#105) — outstanding controls.
-        Route::get('/quality-tasks', [QualityControlTaskController::class, 'index'])->name('quality-tasks.index');
-        Route::post('/quality-tasks', [QualityControlTaskController::class, 'storeRoaming'])->name('quality-tasks.roaming');
-        Route::post('/quality-tasks/{task}/perform', [QualityControlTaskController::class, 'perform'])->name('quality-tasks.perform');
-        Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
+        // `module:` because the /admin twins get their module gate from
+        // tab.access, which this tree doesn't use — without it, switching Quality
+        // off in Settings → Modules would hide it from admins and leave it fully
+        // live for every supervisor.
+        Route::middleware('module:quality')->group(function () {
+            Route::get('/quality-tasks', [QualityControlTaskController::class, 'index'])->name('quality-tasks.index');
+            Route::post('/quality-tasks', [QualityControlTaskController::class, 'storeRoaming'])->name('quality-tasks.roaming');
+            Route::post('/quality-tasks/{task}/perform', [QualityControlTaskController::class, 'perform'])->name('quality-tasks.perform');
+            Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
+        });
 
-        Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
+        Route::middleware('module:reports')->group(function () {
+            Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
+            Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
+            Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show')->whereNumber('workOrder');
+        });
     });
 
     // Admin routes
     // Per-tab access (Settings → Access matrix) replaces the blanket role:Admin;
     // TabAccessMiddleware maps each /admin path to a tab and checks tab:<key>.
-    Route::prefix('admin')->name('admin.')->middleware('tab.access')->group(function () {
+    Route::group([
+        'prefix' => 'admin',
+        'as' => 'admin.',
+        'middleware' => 'tab.access',
+        'section' => 'admin',
+    ], function () {
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        // Live shift monitor — same screen the supervisor section serves.
+        Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
+        Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+
+        // Line overview — same screen the supervisor section serves.
+        Route::get('/shift-overview', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'index'])->name('shift-overview.index');
+        Route::get('/shift-overview/check', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'check'])->name('shift-overview.check');
 
         // OEE
         Route::get('/oee', [AdminOeeController::class, 'index'])->name('oee.index');
@@ -414,6 +488,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'destroy'])->name('shifts.destroy');
 
         // Work Orders
+        // Declared before the resource so /work-orders/bulk isn't swallowed by
+        // the {work_order} wildcard.
+        Route::post('/work-orders/bulk', [AdminWorkOrderController::class, 'bulk'])->name('work-orders.bulk');
         Route::resource('work-orders', AdminWorkOrderController::class);
         Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
         Route::post('/work-orders/{workOrder}/accept', [AdminWorkOrderController::class, 'accept'])->name('work-orders.accept');
@@ -423,12 +500,41 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
 
+        // Materials reconciliation (#99) — declare consumption, return leftovers,
+        // reclassify a quantity to another class. All three move stock, so all three
+        // are gated to Supervisor|Admin (the operator path is the API endpoints).
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/consume', [AdminWorkOrderController::class, 'recordConsumption'])->name('work-orders.allocations.consume');
+            Route::post('/work-orders/{workOrder}/allocations/{allocation}/return', [AdminWorkOrderController::class, 'returnAllocation'])->name('work-orders.allocations.return');
+            Route::post('/work-orders/{workOrder}/reclassify', [AdminWorkOrderController::class, 'reclassify'])->name('work-orders.reclassify');
+        });
+
+        // Change control (#182) — structured stop, change request and its review.
+        Route::post('/work-orders/{workOrder}/stop', [WorkOrderChangeControlController::class, 'stop'])
+            ->name('work-orders.stop');
+        Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
+            ->name('work-orders.change-requests.store');
+        Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
+            ->name('work-order-change-requests.show');
+        Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])
+            ->name('work-order-change-requests.update');
+        Route::post('/work-order-change-requests/{changeRequest}/submit', [WorkOrderChangeControlController::class, 'submit'])
+            ->name('work-order-change-requests.submit');
+        Route::post('/work-order-change-requests/{changeRequest}/approve', [WorkOrderChangeControlController::class, 'approve'])
+            ->name('work-order-change-requests.approve');
+        Route::post('/work-order-change-requests/{changeRequest}/reject', [WorkOrderChangeControlController::class, 'reject'])
+            ->name('work-order-change-requests.reject');
+        Route::post('/work-order-change-requests/{changeRequest}/cancel', [WorkOrderChangeControlController::class, 'cancel'])
+            ->name('work-order-change-requests.cancel');
+        Route::post('/work-order-change-requests/{changeRequest}/apply', [WorkOrderChangeControlController::class, 'apply'])
+            ->name('work-order-change-requests.apply');
+
         // Customers
         Route::resource('customers', CustomerController::class)->except(['show']);
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
         // Product revisions (#180) — versioned released configuration per product type.
-        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class);
         Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
         Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
 
@@ -443,6 +549,8 @@ Route::middleware('auth')->group(function () {
 
         // Issues Management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        // Bulk acknowledge / resolve — the alerts page acts on a whole list.
+        Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
@@ -474,7 +582,7 @@ Route::middleware('auth')->group(function () {
         // Per-line statuses
         Route::post('/lines/{line}/statuses', [AdminLineStatusController::class, 'storeForLine'])->name('lines.statuses.store');
         // Per-line product types
-        Route::post('/lines/{line}/product-types', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
+        Route::post('/lines/{line}/product-types/sync', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
         Route::post('/lines/{line}/view-columns', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'saveViewColumns'])->name('lines.view-columns.save');
         Route::post('/lines/{line}/view-template', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'assignViewTemplate'])->name('lines.view-template.assign');
         Route::post('/lines/{line}/default-view', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'setDefaultView'])->name('lines.default-view.set');
@@ -502,6 +610,10 @@ Route::middleware('auth')->group(function () {
         // Product Types Management
         Route::resource('product-types', \App\Http\Controllers\Web\Admin\ProductTypeManagementController::class);
         Route::post('/product-types/{product_type}/toggle-active', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'toggleActive'])->name('product-types.toggle-active');
+
+        // Product photo — streamed from the private disk to authenticated
+        // admins; the file is NEVER publicly reachable.
+        Route::get('/product-types/{product_type}/image', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'image'])->name('product-types.image');
 
         // Process Templates Management (nested under product types)
         Route::prefix('product-types/{product_type}/process-templates')->name('product-types.process-templates.')->group(function () {
@@ -535,6 +647,10 @@ Route::middleware('auth')->group(function () {
             // Per-step checklist items (work-instruction sign-offs).
             Route::post('/{process_template}/checklist-items', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'store'])->name('checklist-items.store');
             Route::delete('/{process_template}/checklist-items/{checklistItem}', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'destroy'])->name('checklist-items.destroy');
+
+            // Per-step typed operator outputs (values the operator records at execution).
+            Route::post('/{process_template}/outputs', [\App\Http\Controllers\Web\Admin\TemplateStepOutputController::class, 'store'])->name('outputs.store');
+            Route::delete('/{process_template}/outputs/{output}', [\App\Http\Controllers\Web\Admin\TemplateStepOutputController::class, 'destroy'])->name('outputs.destroy');
 
             // BOM Management (nested under process templates)
             Route::get('/{process_template}/bom', [BomManagementController::class, 'index'])->name('bom');
@@ -650,7 +766,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
 
         // Subassemblies
-        Route::resource('subassemblies', SubassemblyController::class)->except(['show']);
+        Route::resource('subassemblies', SubassemblyController::class);
         Route::post('/subassemblies/{subassembly}/toggle-active', [SubassemblyController::class, 'toggleActive'])->name('subassemblies.toggle-active');
 
         // ── Gate 3: Basics / Dictionaries ────────────────────────────────────

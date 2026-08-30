@@ -8,12 +8,13 @@ export default function SubassembliesIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', value: (r) => productTypeNames[r.product_type_id] ?? '—', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
+        { label: __('View'), href: `/admin/subassemblies/${r.id}` },
         { label: __('Edit'), icon: 'edit', href: `/admin/subassemblies/${r.id}/edit` },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
@@ -24,11 +25,11 @@ export default function SubassembliesIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete subassembly ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/subassemblies/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete subassembly ":name"?', { name: r.name }),
+                confirmLabel: __('Delete subassembly'),
             },
+            onClick: () => router.delete(`/admin/subassemblies/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -39,7 +40,7 @@ export default function SubassembliesIndex() {
                 shape="subassemblies"
                 title={__('Subassemblies')}
                 createHref="/admin/subassemblies/create"
-                createLabel={__('+ New Subassembly')}
+                createLabel={__('New Subassembly')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import DueCountdown from '../../../components/DueCountdown';
 import { __ } from '../../../lib/i18n';
 import { loadBarClass, loadPercClass } from '../../../lib/load';
 import { apiCall, apiGet } from '../../../lib/http';
@@ -76,7 +77,11 @@ function OrderRow({ order, lines, onSaved }) {
                         </select>
                     </label>
                     <label className="text-[10px] text-om-muted">
+                        {/* The countdown reads the value being edited, not the
+                            saved one, so a date typed here answers "how much room
+                            does that leave?" before Move is pressed. */}
                         {__('Due date')}
+                        {dueDate && <DueCountdown due={dueDate} className="ml-1.5" />}
                         <input
                             type="date"
                             value={dueDate ?? ''}

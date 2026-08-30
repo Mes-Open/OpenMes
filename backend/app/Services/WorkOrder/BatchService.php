@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\QualityControlTask;
 use App\Models\User;
+use App\Models\Workstation;
 use App\Services\Material\MaterialAllocationService;
 use App\Services\Quality\QualityTriggerService;
 use Illuminate\Support\Facades\DB;
@@ -115,6 +116,16 @@ class BatchService
                 ));
             }
 
+            // Output control: required typed outputs on this step must be recorded
+            // by the operator before it can be completed.
+            $pendingOutputs = $step->pendingRequiredOutputs();
+            if ($pendingOutputs->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the required output(s) ":items" must be recorded before it can be completed.',
+                    ['items' => $pendingOutputs->implode(', ')],
+                ));
+            }
+
             // Read-confirmation control: a step flagged as carrying critical
             // instructions must be acknowledged (read-confirmed) by the operator
             // before it can be completed.
@@ -124,10 +135,26 @@ class BatchService
                 ));
             }
 
-            // Calculate duration
+            // Recorded time (ISA-95 L3 system value) — the wall-clock diff, kept for
+            // audit. Retained regardless of any operator-confirmed actuals below.
             $durationMinutes = null;
             if ($step->started_at) {
                 $durationMinutes = (int) abs(now()->diffInMinutes($step->started_at));
+            }
+
+            // Operator-confirmed actual times (ISA-95 L3), stored separately from the
+            // recorded value and authoritative for performance reporting (#52). The
+            // optional setup/run split must fit within the confirmed elapsed total.
+            $actualElapsed = $data['actual_elapsed_minutes'] ?? null;
+            $actualSetup = $data['actual_setup_minutes'] ?? null;
+            $actualRun = $data['actual_run_minutes'] ?? null;
+            // A setup/run split is only meaningful against a total: reject a split
+            // supplied without an elapsed value so reporting can always verify it.
+            if ($actualElapsed === null && ($actualSetup !== null || $actualRun !== null)) {
+                throw new \Exception(__('Actual elapsed time is required when setup or run time is provided.'));
+            }
+            if ($actualElapsed !== null && ((int) $actualSetup + (int) $actualRun) > (int) $actualElapsed) {
+                throw new \Exception(__('Actual setup + run time cannot exceed the actual elapsed time.'));
             }
 
             // Complete the step
@@ -136,6 +163,9 @@ class BatchService
                 'completed_at' => now(),
                 'completed_by_id' => $user->id,
                 'duration_minutes' => $durationMinutes,
+                'actual_elapsed_minutes' => $actualElapsed,
+                'actual_setup_minutes' => $actualSetup,
+                'actual_run_minutes' => $actualRun,
             ]);
 
             // Update batch status
@@ -243,6 +273,43 @@ class BatchService
         // This will be implemented in Phase 4: Issue/Andon
         // For now, return a placeholder
         throw new \Exception('Issue reporting will be implemented in Phase 4');
+    }
+
+    /**
+     * Pool dispatch (#52): a supervisor assigns a specific workstation to a step
+     * that carries only an Equipment Class (workstation_type_id). Valid only while
+     * the step is still assignable (PENDING/READY) and the chosen workstation is
+     * active and of the required type. Once assigned, guardWorkstationRouting
+     * enforces that only operators on that workstation may start the step.
+     */
+    public function assignWorkstation(BatchStep $step, int $workstationId, User $user): BatchStep
+    {
+        return DB::transaction(function () use ($step, $workstationId, $user) {
+            // Lock the row and re-read its status inside the transaction so a step
+            // an operator starts concurrently cannot still receive a workstation.
+            $locked = BatchStep::whereKey($step->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! in_array($locked->status, [BatchStep::STATUS_PENDING, BatchStep::STATUS_READY], true)) {
+                throw new \Exception(__('Only a pending step can be assigned a workstation.'));
+            }
+
+            $workstation = Workstation::find($workstationId);
+            if (! $workstation || ! $workstation->is_active) {
+                throw new \Exception(__('The selected workstation is not available.'));
+            }
+
+            if ($locked->workstation_type_id && (int) $workstation->workstation_type_id !== (int) $locked->workstation_type_id) {
+                throw new \Exception(__('The selected workstation is not of the required type for this step.'));
+            }
+
+            $locked->update([
+                'workstation_id' => $workstation->id,
+                'assigned_by_id' => $user->id,
+                'assigned_at' => now(),
+            ]);
+
+            return $locked->fresh();
+        });
     }
 
     /**

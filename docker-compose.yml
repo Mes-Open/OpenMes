@@ -48,6 +48,10 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-OpenMES}
       APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
       # Sanctum SPA stateful hosts. Empty by default (production derives them
@@ -96,7 +100,7 @@ services:
     networks:
       - openmmes-network
 
-  # ── Reverb WebSocket server (live sync; replaces Electric) ────────────────
+  # ── Reverb WebSocket server (live sync) ───────────────────────────────────
   # Single multiplexed WebSocket (Pusher protocol). Laravel publishes deltas to
   # it; clients connect through Caddy (/app/*). NOT exposed publicly.
   reverb:
@@ -115,6 +119,10 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-OpenMES}
       APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       APP_KEY: ${APP_KEY}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
@@ -158,6 +166,10 @@ services:
       ["php", "artisan", "mqtt:listen"]
     environment:
       APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       APP_KEY: ${APP_KEY}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
@@ -197,6 +209,10 @@ services:
       ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
     environment:
       APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       APP_KEY: ${APP_KEY}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
@@ -258,6 +274,10 @@ services:
     command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=5", "--timeout=120"]
     environment:
       APP_ENV: ${APP_ENV:-production}
+      # Plant timezone: every rendered timestamp, report boundary and scheduled job
+      # uses it (config/app.php → app.timezone, and the `timezone` Inertia prop).
+      # Without this passthrough a Docker install is stuck on UTC.
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       APP_KEY: ${APP_KEY}
       QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
       DB_CONNECTION: pgsql

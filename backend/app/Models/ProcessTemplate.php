@@ -81,6 +81,12 @@ class ProcessTemplate extends Model
         return $this->hasMany(TemplateStepChecklistItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** Typed operator-output definitions across this template's steps. */
+    public function outputs(): HasMany
+    {
+        return $this->hasMany(TemplateStepOutput::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Generate a JSON snapshot of this template for work order storage.
      * This ensures work orders are immune to template changes.
@@ -98,17 +104,43 @@ class ProcessTemplate extends Model
                     'instruction' => $step->instruction,
                     'requires_confirmation' => (bool) $step->requires_confirmation,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
+                    'setup_time_minutes' => $step->setup_time_minutes,
+                    'run_time_per_unit_minutes' => $step->run_time_per_unit_minutes,
                     'required_operators' => $step->effectiveRequiredOperators(),
                     'workstation_id' => $step->workstation_id,
                     'workstation_name' => $step->workstation?->name,
+                    'workstation_type_id' => $step->effectiveWorkstationType(),
+                    'parameters' => $step->effectiveParameters(),
                     'is_optional' => (bool) $step->is_optional,
                     'variant_group' => $step->variant_group,
                     'is_default_variant' => (bool) $step->is_default_variant,
                 ];
             })->toArray(),
             'bom' => $this->bomItems->map(function ($item) {
+                // Product-type lines are sub-assembly references (no material).
+                if ($item->component_kind === 'product_type') {
+                    return [
+                        'component_kind' => 'product_type',
+                        'material_id' => null,
+                        'product_type_id' => $item->product_type_id,
+                        'material_code' => $item->productType?->code,
+                        'material_name' => $item->productType?->name,
+                        'material_type' => 'product_type',
+                        'tracking_type' => null,
+                        'unit_of_measure' => $item->productType?->unit_of_measure,
+                        'quantity_per_unit' => (float) $item->quantity_per_unit,
+                        'scrap_percentage' => (float) $item->scrap_percentage,
+                        'consumed_at' => $item->consumed_at,
+                        'step_number' => $item->templateStep?->step_number,
+                        'external_code' => null,
+                        'external_system' => null,
+                    ];
+                }
+
                 return [
+                    'component_kind' => 'material',
                     'material_id' => $item->material_id,
+                    'product_type_id' => null,
                     'material_code' => $item->material->code,
                     'material_name' => $item->material->name,
                     'material_type' => $item->material->materialType?->code,

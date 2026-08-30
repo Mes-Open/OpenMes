@@ -6,10 +6,11 @@ import en from '@/lang/en.json';
 import pl from '@/lang/pl.json';
 import de from '@/lang/de.json';
 import tr from '@/lang/tr.json';
+import vi from '@/lang/vi.json';
 
-export type AppLocale = 'en' | 'pl' | 'de' | 'tr';
+export type AppLocale = 'en' | 'pl' | 'de' | 'tr' | 'vi';
 
-export const SUPPORTED_LOCALES: AppLocale[] = ['en', 'pl', 'de', 'tr'];
+export const SUPPORTED_LOCALES: AppLocale[] = ['en', 'pl', 'de', 'tr', 'vi'];
 
 export function detectDeviceLocale(): AppLocale {
   const locales = Localization.getLocales();
@@ -25,6 +26,7 @@ i18n
       pl: { translation: pl },
       de: { translation: de },
       tr: { translation: tr },
+      vi: { translation: vi },
     },
     lng: detectDeviceLocale(),
     fallbackLng: 'en',

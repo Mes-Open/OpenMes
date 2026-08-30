@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
-use Illuminate\Http\Request;
+use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
 {
@@ -16,9 +18,6 @@ class WorkOrderController extends Controller
 
     /**
      * Get list of work orders (filtered by user's assigned lines).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -38,9 +37,6 @@ class WorkOrderController extends Controller
 
     /**
      * Get a specific work order.
-     *
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function show(WorkOrder $workOrder): JsonResponse
     {
@@ -54,6 +50,9 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
+        // ISA-95 L4 standard production target (#52), computed from the snapshot.
+        $workOrder->setAttribute('estimated_standard_production_minutes', $workOrder->estimatedStandardProductionMinutes());
+
         return response()->json([
             'data' => $workOrder,
         ]);
@@ -61,9 +60,6 @@ class WorkOrderController extends Controller
 
     /**
      * Create a new work order.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -91,10 +87,6 @@ class WorkOrderController extends Controller
 
     /**
      * Update a work order.
-     *
-     * @param Request $request
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function update(Request $request, WorkOrder $workOrder): JsonResponse
     {
@@ -118,9 +110,6 @@ class WorkOrderController extends Controller
 
     /**
      * Delete a work order.
-     *
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function destroy(WorkOrder $workOrder): JsonResponse
     {
@@ -164,6 +153,7 @@ class WorkOrderController extends Controller
             ], 422);
         }
         $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
+
         return response()->json([
             'message' => 'Work order cancelled',
             'data' => $workOrder->fresh(['line', 'productType']),
@@ -176,11 +166,28 @@ class WorkOrderController extends Controller
             'Only IN_PROGRESS work orders can be paused.');
     }
 
-    public function resume(WorkOrder $workOrder): JsonResponse
+    /**
+     * Resume production (#182).
+     *
+     * Delegates to the stop service so a structured stop is closed, its duration
+     * recorded and the change-hold gate enforced. An order paused the simple way has
+     * no stop record and resumes on an empty body exactly as before.
+     */
+    public function resume(ResumeWorkOrderRequest $request, WorkOrder $workOrder, WorkOrderStopService $stops): JsonResponse
     {
-        return $this->transition($workOrder, WorkOrder::STATUS_IN_PROGRESS,
-            [WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_BLOCKED],
-            'Only PAUSED or BLOCKED work orders can be resumed.');
+        $this->authorize('update', $workOrder);
+
+        try {
+            $stop = $stops->resume($workOrder, $request->validated(), $request->user());
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Work order status set to '.WorkOrder::STATUS_IN_PROGRESS,
+            'data' => $workOrder->fresh(['line', 'productType']),
+            'stop' => $stop,
+        ]);
     }
 
     public function reopen(WorkOrder $workOrder): JsonResponse
@@ -200,7 +207,7 @@ class WorkOrderController extends Controller
     {
         $this->authorize('update', $workOrder);
 
-        if (!in_array($workOrder->status, $allowedFrom, true)) {
+        if (! in_array($workOrder->status, $allowedFrom, true)) {
             return response()->json(['message' => $errorMessage], 422);
         }
 

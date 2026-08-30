@@ -87,6 +87,7 @@ class ProcessTemplateManagementController extends Controller
             'photos.uploadedBy',
             'stepMedia',
             'checklistItems',
+            'outputs',
         ]);
         $workstations = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
@@ -109,7 +110,11 @@ class ProcessTemplateManagementController extends Controller
                     'instruction' => $s->instruction,
                     'requires_confirmation' => (bool) $s->requires_confirmation,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes,
+                    'setup_time_minutes' => $s->setup_time_minutes,
+                    'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
                     'workstation_id' => $s->workstation_id,
+                    'workstation_type_id' => $s->workstation_type_id,
+                    'parameters' => $s->parameters ?? [],
                     'process_segment_id' => $s->process_segment_id,
                     'is_optional' => (bool) $s->is_optional,
                     'variant_group' => $s->variant_group,
@@ -150,12 +155,24 @@ class ProcessTemplateManagementController extends Controller
                     'label' => $c->label,
                     'is_required' => (bool) $c->is_required,
                 ]),
+                'outputs' => $processTemplate->outputs->map(fn ($o) => [
+                    'id' => $o->id,
+                    'template_step_id' => $o->template_step_id,
+                    'key' => $o->key,
+                    'label' => $o->label,
+                    'value_type' => $o->value_type,
+                    'unit' => $o->unit,
+                    'options' => $o->options ?? [],
+                    'is_required' => (bool) $o->is_required,
+                ]),
             ],
             'workstations' => $workstations->map(fn ($w) => [
                 'id' => $w->id,
                 'name' => $w->name,
                 'line_name' => $w->line?->name,
             ]),
+            // ISA-95 Equipment Classes (#52) for the step's workstation-type picker.
+            'workstationTypes' => \App\Models\WorkstationType::query()->active()->orderBy('name')->get(['id', 'name']),
             'processSegments' => $processSegments->map(fn ($s) => [
                 'id' => $s->id,
                 'code' => $s->code,

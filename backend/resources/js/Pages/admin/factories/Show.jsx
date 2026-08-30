@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 export default function FactoryShow() {
     const { factory } = usePage().props;
@@ -69,13 +71,7 @@ export default function FactoryShow() {
             <Head title={factory.name} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
-                <nav className="flex flex-wrap gap-1 items-center text-sm text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-accent">Dashboard</Link>
-                    <span>/</span>
-                    <Link href="/admin/factories" className="hover:text-om-accent">Factories</Link>
-                    <span>/</span>
-                    <span className="text-om-muted">{factory.name}</span>
-                </nav>
+                <PageTrail append={[{ label: factory.name }]} />
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
@@ -118,13 +114,13 @@ export default function FactoryShow() {
                             Divisions <span className="text-om-muted">({divisions.length})</span>
                         </h2>
                     </div>
-                    <DataTable
+                    <AppDataTable
                         data={divisions}
                         columns={divisionColumns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="No divisions assigned to this factory yet."
+                        emptyLabel={__('No divisions assigned to this factory yet.')}
                     />
                 </div>
             </div>

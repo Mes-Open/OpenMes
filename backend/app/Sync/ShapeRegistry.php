@@ -198,8 +198,21 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'counting_source', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'packed_qty', 'counting_source', 'status', 'snapshot_version', 'priority', 'priority_score', 'due_date', 'completed_at', 'description', 'planned_start_at', 'planned_end_at', 'end_date', 'shift_number', 'end_shift_number', 'week_number', 'month_number', 'production_year', 'line_status_id', 'customer_totals_counted', 'custom_fields', 'created_at', 'updated_at'],
         ],
+        // Change control (#182). Stops and change requests drive what the shop floor
+        // and the supervisor board show while production is held, so both sync live.
+        // `context`, `proposed`, `previous` and `impact` are deliberately included:
+        // the impact analysis is the whole point of the review screen.
+        'work_order_stops' => [
+            'table' => 'work_order_stops',
+            'columns' => ['id', 'work_order_id', 'batch_id', 'type', 'reason', 'requires_change', 'produced_qty_at_stop', 'snapshot_version_at_stop', 'context', 'production_downtime_id', 'issue_id', 'stopped_by_id', 'stopped_at', 'resumed_by_id', 'resumed_at', 'resume_notes', 'duration_minutes', 'applied_change_request_id', 'resulting_status', 'created_at', 'updated_at'],
+        ],
+        'work_order_change_requests' => [
+            'table' => 'work_order_change_requests',
+            'columns' => ['id', 'code', 'work_order_id', 'work_order_stop_id', 'title', 'reason', 'status', 'proposed', 'previous_values', 'impact', 'effective_from', 'effective_from_batch_id', 'produced_disposition', 'material_disposition', 'implementation_notes', 'rejection_reason', 'requested_by_id', 'submitted_at', 'approved_by_id', 'approved_at', 'rejected_by_id', 'rejected_at', 'applied_by_id', 'applied_at', 'resulting_snapshot_version', 'created_at', 'updated_at'],
+        ],
+
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
             'table' => 'lines',

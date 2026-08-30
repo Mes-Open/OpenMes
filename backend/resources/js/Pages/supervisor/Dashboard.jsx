@@ -5,6 +5,7 @@ import { Dropdown, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import PageTrail from '../../components/PageTrail';
 
 // Issue status → Geist White pill state (labels stay the translated app statuses).
 const ISSUE_PILL_STATUS = {
@@ -93,6 +94,7 @@ export default function SupervisorDashboard() {
     return (
         <>
             <Head title={__('Supervisor Dashboard')} />
+            <PageTrail items={[{ label: __('Supervisor'), href: '/supervisor/dashboard', icon: 'layout-dashboard' }]} />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Supervisor Dashboard')}</h1>

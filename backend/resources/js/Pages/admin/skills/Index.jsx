@@ -8,9 +8,9 @@ export default function SkillsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'description', label: __('Description'), className: 'text-om-muted' },
-        { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
+        { key: 'workers', label: __('Workers'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
     ];
 
     const actions = (r) => [
@@ -19,11 +19,11 @@ export default function SkillsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete skill ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/skills/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete skill ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/skills/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -34,7 +34,7 @@ export default function SkillsIndex() {
                 shape="skills"
                 title={__('Skills')}
                 createHref="/admin/skills/create"
-                createLabel={__('+ New Skill')}
+                createLabel={__('New Skill')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

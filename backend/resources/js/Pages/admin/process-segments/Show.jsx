@@ -1,7 +1,9 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
+import useConfirm from '../../../components/useConfirm';
+import { __ } from '../../../lib/i18n';
 
 const TYPE_COLORS = {
     production:  'bg-om-chip text-om-accent',
@@ -15,13 +17,15 @@ const TYPE_COLORS = {
 
 export default function ProcessSegmentShow() {
     const { segment, usingSteps = [], requiredSkills = [] } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const typeColor = TYPE_COLORS[segment.segment_type] ?? 'bg-om-chip text-om-muted';
     const usageCount = usingSteps.length;
 
     const handleDelete = () => {
-        if (!confirm('Delete this process segment?')) return;
-        router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
+        confirm({ title: 'Delete this process segment?' }, () => {
+            router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
+        });
     };
 
     const usageColumns = useMemo(() => [
@@ -198,13 +202,13 @@ export default function ProcessSegmentShow() {
                         <section className="card">
                             <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-1">Usage</h2>
                             <p className="text-xs text-om-muted mb-3">Template steps that reference this segment.</p>
-                            <DataTable
+                            <AppDataTable
                                 data={usingSteps}
                                 columns={usageColumns}
                                 searchable={false}
                                 columnToggle={false}
                                 paginated={false}
-                                emptyLabel="Not used by any process template yet."
+                                emptyLabel={__('Not used by any process template yet.')}
                             />
                         </section>
                     </div>
@@ -237,6 +241,7 @@ export default function ProcessSegmentShow() {
                     </div>
                 </div>
             </div>
+            {dialog}
         </>
     );
 }

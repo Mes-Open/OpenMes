@@ -9,13 +9,13 @@ export default function MaterialsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'type', label: __('Type'), className: 'text-om-muted', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => materialTypeNames[r.material_type_id] ?? '—', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
         { key: 'unit_of_measure', label: __('UoM'), className: 'text-om-muted' },
         { key: 'tracking_type', label: __('Tracking'), className: 'text-om-muted', render: (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—' },
-        { key: 'stock_quantity', label: __('Stock'), className: 'text-om-muted', render: (r) => (r.stock_quantity ?? '—') },
-        { key: 'bom', label: __('In BOMs'), render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'stock_quantity', label: __('Stock'), className: 'text-om-muted', value: (r) => Number(r.stock_quantity ?? 0), render: (r) => (r.stock_quantity ?? '—') },
+        { key: 'bom', label: __('In BOMs'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -29,11 +29,11 @@ export default function MaterialsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete material ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/materials/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete material ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/materials/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -42,9 +42,10 @@ export default function MaterialsIndex() {
             <Head title={__('Materials')} />
             <ResourceTable
                 shape="materials"
+                detailHref={(r) => `/admin/materials/${r.id}`}
                 title={__('Materials')}
                 createHref="/admin/materials/create"
-                createLabel={__('+ New Material')}
+                createLabel={__('New Material')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

@@ -224,8 +224,10 @@ class MaterialAllocationService
                 // flip to CONSUMED), so this never double-writes.
                 $this->writeGenealogy($allocation);
 
-                // Default: operator did not record per-step consumption → assume planned.
-                $actualConsumed = (float) $allocation->consumed_qty > 0
+                // Use the operator-declared quantity when consumption was recorded —
+                // including an explicit zero (nothing used, return everything). Only
+                // fall back to the planned quantity when nothing was ever declared.
+                $actualConsumed = $allocation->consumption_recorded
                     ? (float) $allocation->consumed_qty
                     : (float) $allocation->allocated_qty;
 
@@ -331,6 +333,7 @@ class MaterialAllocationService
         return DB::transaction(function () use ($allocation, $actualConsumed, $scrap) {
             $allocation->update([
                 'consumed_qty' => $actualConsumed,
+                'consumption_recorded' => true,
                 'scrap_qty' => $scrap,
                 // Snapshot the price so historical cost reports stay stable.
                 'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
@@ -395,6 +398,75 @@ class MaterialAllocationService
             $allocation->update([
                 'allocated_qty' => (float) $allocation->allocated_qty + $deltaQty,
                 'adjustment_qty' => (float) $allocation->adjustment_qty + $deltaQty,
+            ]);
+
+            return $allocation->fresh();
+        });
+    }
+
+    /**
+     * Return a leftover quantity from an in-flight allocation to stock (#99) —
+     * e.g. the operator over-issued and hands the surplus back before the batch
+     * completes. Books TYPE_RETURN, releases the reservation and restores the
+     * picked lots for the returned quantity.
+     *
+     * Crucially it DECREMENTS allocated_qty by the returned amount so the
+     * completion reconciler (consumeForBatch: leftover = allocated − consumed −
+     * scrap) never returns the same quantity a second time.
+     *
+     * @throws \DomainException|\InvalidArgumentException
+     */
+    public function returnQuantity(
+        MaterialAllocation $allocation,
+        float $qty,
+        User $user,
+        ?string $reason = null,
+    ): MaterialAllocation {
+        if ($qty <= 0) {
+            throw new \InvalidArgumentException('Return quantity must be positive.');
+        }
+
+        return DB::transaction(function () use ($allocation, $qty, $user, $reason) {
+            // Lock and re-read inside the transaction so two concurrent returns can't
+            // both validate the same returnable quantity and over-return.
+            $allocation = MaterialAllocation::query()->lockForUpdate()->findOrFail($allocation->getKey());
+
+            if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
+                throw new \DomainException('Can only return material from an `allocated` allocation.');
+            }
+
+            $returnable = (float) $allocation->allocated_qty
+                - (float) $allocation->consumed_qty
+                - (float) $allocation->scrap_qty;
+            if ($qty > $returnable + 1e-9) {
+                throw new \InvalidArgumentException('Return quantity exceeds the unconsumed allocated quantity.');
+            }
+
+            $material = $allocation->material;
+
+            if (! $material) {
+                throw new \DomainException('Allocation has no associated material.');
+            }
+
+            $this->stockMovements->record(
+                $material,
+                StockMovement::TYPE_RETURN,
+                $qty,
+                user: $user,
+                sourceType: StockMovement::SOURCE_BATCH,
+                sourceId: $allocation->batch_id,
+                reason: $reason ?? 'Batch #'.$allocation->batch_id.' — unused material returned to stock',
+            );
+
+            $this->releaseReservation($material, $qty);
+
+            // Lot tracking: hand the returned quantity back to the picked lots.
+            $this->lotPicking->returnPartialForAllocation($allocation, $qty);
+
+            $allocation->update([
+                // Shrink the allocation so consumeForBatch's leftover calc excludes what we just returned.
+                'allocated_qty' => (float) $allocation->allocated_qty - $qty,
+                'returned_qty' => (float) $allocation->returned_qty + $qty,
             ]);
 
             return $allocation->fresh();

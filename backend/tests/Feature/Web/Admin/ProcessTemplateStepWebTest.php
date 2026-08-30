@@ -73,6 +73,43 @@ class ProcessTemplateStepWebTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_set_isa95_workstation_type_and_standard_times(): void
+    {
+        [$pt, $tpl] = $this->template();
+        $type = \App\Models\WorkstationType::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->post($this->base($pt, $tpl).'/steps', [
+                'name' => 'CNC mill',
+                'workstation_type_id' => $type->id,
+                'setup_time_minutes' => 12,
+                'run_time_per_unit_minutes' => 1.5,
+            ])->assertRedirect();
+
+        $this->assertDatabaseHas('template_steps', [
+            'process_template_id' => $tpl->id,
+            'name' => 'CNC mill',
+            'workstation_type_id' => $type->id,
+            'setup_time_minutes' => 12,
+            'run_time_per_unit_minutes' => 1.5,
+        ]);
+    }
+
+    public function test_admin_can_set_equipment_parameters_on_a_step(): void
+    {
+        [$pt, $tpl] = $this->template();
+
+        $this->actingAs($this->admin)
+            ->post($this->base($pt, $tpl).'/steps', [
+                'name' => 'Reflow oven',
+                'parameters' => ['temperature_c' => '250', 'humidity_pct' => '40'],
+            ])->assertRedirect();
+
+        $step = \App\Models\TemplateStep::where('process_template_id', $tpl->id)
+            ->where('name', 'Reflow oven')->firstOrFail();
+        $this->assertSame(['temperature_c' => '250', 'humidity_pct' => '40'], $step->parameters);
+    }
+
     public function test_admin_can_update_step(): void
     {
         [$pt, $tpl] = $this->template();

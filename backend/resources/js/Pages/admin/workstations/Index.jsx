@@ -1,19 +1,26 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { ActiveBadge } from '../../../components/ResourceTable';
+import Tooltip from '../../../components/Tooltip';
+import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 export default function WorkstationsIndex() {
     const { line, workstations = [] } = usePage().props;
+    const { confirm, dialog: confirmDialog } = useConfirm();
 
     const handleToggle = (ws) => {
         router.post(`/admin/lines/${line.id}/workstations/${ws.id}/toggle-active`, {}, { preserveScroll: true });
     };
 
     const handleDelete = (ws) => {
-        if (confirm(__('Are you sure you want to delete this workstation?'))) {
-            router.delete(`/admin/lines/${line.id}/workstations/${ws.id}`, { preserveScroll: true });
-        }
+        confirm(
+            {
+                title: __('Are you sure you want to delete this workstation?'),
+                confirmLabel: __('Delete workstation'),
+            },
+            () => router.delete(`/admin/lines/${line.id}/workstations/${ws.id}`, { preserveScroll: true }),
+        );
     };
 
     return (
@@ -93,43 +100,51 @@ export default function WorkstationsIndex() {
                                 >
                                     {__('Edit')}
                                 </Link>
-                                <button
-                                    onClick={() => handleToggle(ws)}
-                                    className="p-2 text-om-muted hover:text-om-ink"
-                                    title={ws.is_active ? __('Deactivate') : __('Activate')}
-                                >
-                                    {ws.is_active ? (
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    )}
-                                </button>
-                                {ws.template_steps_count === 0 ? (
+                                <Tooltip label={ws.is_active ? __('Deactivate') : __('Activate')}>
                                     <button
-                                        onClick={() => handleDelete(ws)}
-                                        className="p-2 text-om-blocked hover:text-om-blocked"
-                                        title={__('Delete')}
+                                        onClick={() => handleToggle(ws)}
+                                        className="p-2 text-om-muted hover:text-om-ink"
+                                        aria-label={ws.is_active ? __('Deactivate') : __('Activate')}
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                        {ws.is_active ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        )}
                                     </button>
+                                </Tooltip>
+                                {ws.template_steps_count === 0 ? (
+                                    <Tooltip label={__('Delete')}>
+                                        <button
+                                            onClick={() => handleDelete(ws)}
+                                            className="p-2 text-om-blocked hover:text-om-blocked"
+                                            aria-label={__('Delete')}
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </Tooltip>
                                 ) : (
-                                    <span className="p-2 text-om-faintest" title={__('Cannot delete — has template steps')}>
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
-                                    </span>
+                                    <Tooltip label={__('Cannot delete — has template steps')}>
+                                        <span className="p-2 text-om-faintest">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                        </span>
+                                    </Tooltip>
                                 )}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {confirmDialog}
         </div>
     );
 }

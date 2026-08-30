@@ -16,23 +16,27 @@ export default function ToolsIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         {
             key: 'type',
             label: __('Workstation Type'),
             className: 'text-om-muted',
+            value: (r) => workstationTypeNames[r.workstation_type_id] ?? '—',
             render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—',
+           
         },
         {
             key: 'status',
             label: __('Status'),
+            value: (r) => TOOL_STATUS_LABELS[r.status] ?? r.status ?? '—',
+           
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                     {TOOL_STATUS_LABELS[r.status] ?? r.status ?? '—'}
                 </span>
             ),
         },
-        { key: 'next_service_at', label: __('Next Service'), className: 'text-om-muted', render: (r) => (r.next_service_at ?? '—') },
+        { key: 'next_service_at', filter: 'date', label: __('Next Service'), className: 'text-om-muted', render: (r) => (r.next_service_at ?? '—') },
     ];
 
     const actions = (r) => [
@@ -41,11 +45,11 @@ export default function ToolsIndex() {
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => {
-                if (confirm(__('Delete tool ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/tools/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete tool ":name"?', { name: r.name }),
+                confirmLabel: __('Delete tool'),
             },
+            onClick: () => router.delete(`/admin/tools/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -56,7 +60,7 @@ export default function ToolsIndex() {
                 shape="tools"
                 title={__('Tools')}
                 createHref="/admin/tools/create"
-                createLabel={__('+ New Tool')}
+                createLabel={__('New Tool')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

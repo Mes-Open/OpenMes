@@ -74,6 +74,71 @@ class SnapshotServiceTest extends TestCase
         $this->assertArrayHasKey('estimated_duration_minutes', $step);
         $this->assertArrayHasKey('required_operators', $step);
         $this->assertArrayHasKey('workstation_id', $step);
+        // ISA-95 additions (#52).
+        $this->assertArrayHasKey('workstation_type_id', $step);
+        $this->assertArrayHasKey('setup_time_minutes', $step);
+        $this->assertArrayHasKey('run_time_per_unit_minutes', $step);
+        // Equipment parameters (Feature A).
+        $this->assertArrayHasKey('parameters', $step);
+    }
+
+    public function test_snapshot_step_carries_equipment_parameters(): void
+    {
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        $template->steps()->first()->update(['parameters' => ['temperature_c' => '250']]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(['temperature_c' => '250'], $step['parameters']);
+    }
+
+    public function test_snapshot_parameters_merge_segment_defaults_with_step_overrides(): void
+    {
+        $segment = \App\Models\ProcessSegment::factory()->create([
+            'parameters' => ['temperature_c' => '200', 'humidity_pct' => '40'],
+        ]);
+
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        // Step overrides temperature, inherits humidity from the segment.
+        $template->steps()->first()->update([
+            'process_segment_id' => $segment->id,
+            'parameters' => ['temperature_c' => '250'],
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(['temperature_c' => '250', 'humidity_pct' => '40'], $step['parameters']);
+    }
+
+    public function test_snapshot_step_carries_isa95_standard_times(): void
+    {
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        $template->steps()->first()->update([
+            'setup_time_minutes' => 15,
+            'run_time_per_unit_minutes' => 2.5,
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame(15, (int) $step['setup_time_minutes']);
+        $this->assertEquals(2.5, (float) $step['run_time_per_unit_minutes']);
+    }
+
+    public function test_snapshot_workstation_type_falls_back_to_process_segment(): void
+    {
+        $type = \App\Models\WorkstationType::factory()->create();
+        $segment = \App\Models\ProcessSegment::factory()->create(['workstation_type_id' => $type->id]);
+
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        // Own workstation_type_id stays null so the segment value must flow through.
+        $template->steps()->first()->update([
+            'workstation_type_id' => null,
+            'process_segment_id' => $segment->id,
+        ]);
+
+        $step = $this->service->createSnapshot($template->fresh())['steps'][0];
+
+        $this->assertSame($type->id, $step['workstation_type_id']);
     }
 
     public function test_snapshot_step_carries_required_operators(): void

@@ -16,6 +16,9 @@ class ProductionDowntime extends Model
         'line_id',
         'workstation_id',
         'downtime_reason_id',
+        'needs_reason',
+        'classified_at',
+        'classified_by_id',
         'shift_id',
         'started_at',
         'ended_at',
@@ -30,6 +33,8 @@ class ProductionDowntime extends Model
         return [
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
+            'classified_at' => 'datetime',
+            'needs_reason' => 'boolean',
             'duration_minutes' => 'integer',
         ];
     }
@@ -57,6 +62,27 @@ class ProductionDowntime extends Model
     public function reportedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reported_by');
+    }
+
+    public function classifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'classified_by_id');
+    }
+
+    /**
+     * Give an automatically-logged stop its cause. Clears the "needs a cause"
+     * flag and records who decided, so the shift log shows judgement rather
+     * than the machine's own placeholder.
+     */
+    public function classify(DowntimeReason $reason, ?User $user = null, ?string $notes = null): void
+    {
+        $this->update([
+            'downtime_reason_id' => $reason->id,
+            'needs_reason' => false,
+            'classified_at' => now(),
+            'classified_by_id' => $user?->id,
+            'notes' => $notes ?? $this->notes,
+        ]);
     }
 
     public function isActive(): bool

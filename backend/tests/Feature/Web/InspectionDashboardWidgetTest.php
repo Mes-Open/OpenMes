@@ -139,7 +139,7 @@ class InspectionDashboardWidgetTest extends TestCase
 
     public function test_recent_failures_link_to_inspection_detail(): void
     {
-        // Recent-failure rows themselves arrive in the browser via Electric SQL,
+        // Recent-failure rows themselves arrive in the browser via live sync,
         // not as Inertia props, so the dashboard payload only carries the
         // aggregate failure count. Assert that count reflects the failed
         // inspection (the client builds the detail links from synced rows).

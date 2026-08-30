@@ -23,6 +23,26 @@ class SubassemblyController extends Controller
     }
 
     /**
+     * Detail page — primarily a host for the engineering-documents panel (#179),
+     * so CAD files can be attached to a specific subassembly.
+     */
+    public function show(Subassembly $subassembly)
+    {
+        $subassembly->load('productType:id,code,name');
+
+        return Inertia::render('admin/subassemblies/Show', [
+            'subassembly' => [
+                'id' => $subassembly->id,
+                'code' => $subassembly->code,
+                'name' => $subassembly->name,
+                'description' => $subassembly->description,
+                'is_active' => $subassembly->is_active,
+                'product_type' => $subassembly->productType?->only('id', 'code', 'name'),
+            ],
+        ]);
+    }
+
+    /**
      * Show the form for creating a new subassembly.
      */
     public function create()
@@ -40,11 +60,11 @@ class SubassemblyController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'            => 'required|string|max:50|unique:subassemblies',
-            'name'            => 'required|string|max:255',
-            'description'     => 'nullable|string|max:2000',
+            'code' => 'required|string|max:50|unique:subassemblies',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
             'product_type_id' => 'nullable|exists:product_types,id',
-            'is_active'       => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -74,11 +94,11 @@ class SubassemblyController extends Controller
     public function update(Request $request, Subassembly $subassembly)
     {
         $validated = $request->validate([
-            'code'            => 'required|string|max:50|unique:subassemblies,code,' . $subassembly->id,
-            'name'            => 'required|string|max:255',
-            'description'     => 'nullable|string|max:2000',
+            'code' => 'required|string|max:50|unique:subassemblies,code,'.$subassembly->id,
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
             'product_type_id' => 'nullable|exists:product_types,id',
-            'is_active'       => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');

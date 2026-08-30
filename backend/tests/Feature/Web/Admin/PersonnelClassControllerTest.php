@@ -33,7 +33,7 @@ class PersonnelClassControllerTest extends TestCase
     {
         PersonnelClass::factory()->create(['code' => 'PC-LIST', 'name' => 'Press Operator']);
 
-        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        // Row data is delivered client-side via live sync, not in server HTML.
         $this->actingAs($this->admin)->get(route('admin.personnel-classes.index'))
             ->assertStatus(200)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/personnel-classes/Index'));

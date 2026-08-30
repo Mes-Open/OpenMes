@@ -3,6 +3,7 @@
 // lines), drag the edges to stretch across shifts/days. Backlog cards drop onto
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
+import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { OrderCard, TwinChip, TierDot } from './OrderCard';
 import { DraggableOrder, useOrderDrop } from './dnd';
@@ -135,9 +136,11 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     return (
         <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, padding: '0 2px', zIndex: drag ? 30 : 5 }}>
             <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 6, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
-                <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
-                    title={isPrimary ? __('Send to backlog') : __('Remove from this line')}
-                    style={{ position: 'absolute', top: -6, right: -6, width: 15, height: 15, borderRadius: 999, background: 'var(--om-blocked)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', zIndex: 4, cursor: 'pointer' }}>✕</span>
+                <Tooltip label={isPrimary ? __('Send to backlog') : __('Remove from this line')}>
+                    <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
+                        role="button" aria-label={isPrimary ? __('Send to backlog') : __('Remove from this line')}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 15, height: 15, borderRadius: 999, background: 'var(--om-blocked)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', zIndex: 4, cursor: 'pointer' }}>✕</span>
+                </Tooltip>
                 <span onPointerDown={(e) => begin('l', e)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'ew-resize', zIndex: 3 }} />
                 <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '5px 9px', cursor: 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>

@@ -29,7 +29,7 @@ class OperatorProcessPhotosTest extends TestCase
         Role::create(['name' => 'Supervisor', 'guard_name' => 'web']);
         Role::create(['name' => 'Admin', 'guard_name' => 'web']);
 
-        $this->operator = User::factory()->create(['account_type' => 'operator']);
+        $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
     }
 

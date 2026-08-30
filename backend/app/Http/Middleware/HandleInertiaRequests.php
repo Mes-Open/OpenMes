@@ -37,6 +37,12 @@ class HandleInertiaRequests extends Middleware
                     'accessibleTabLinks' => $this->accessibleTabLinks($user),
                 ] : null,
             ],
+            // Optional feature modules switched on for this installation. The
+            // admin nav gets this filtering for free through `accessibleTabs`
+            // (TabRegistry consults ModuleRegistry); the supervisor tree is gated
+            // by role rather than by tab, so it needs the list directly to hide
+            // entries for a module an admin has turned off.
+            'enabledModules' => fn () => \App\Support\ModuleRegistry::enabled(),
             // Nav chrome needs the alert badge and a CSRF token for the
             // logout form. Lazy closures so they only run when a page renders.
             'nav' => [
@@ -80,8 +86,11 @@ class HandleInertiaRequests extends Middleware
      */
     private function accessibleTabs($user): array
     {
-        return \App\Support\TabRegistry::accessibleFor($user);
+        return $this->accessibleTabs ??= \App\Support\TabRegistry::accessibleFor($user);
     }
+
+    /** Memoised per request; this middleware instance does not outlive one. */
+    private ?array $accessibleTabs = null;
 
     /**
      * Accessible tabs as {key, label, url}, in registry order — for the operator
@@ -99,6 +108,8 @@ class HandleInertiaRequests extends Middleware
                 'label' => $labels[$key] ?? $key,
                 'url' => \App\Support\TabRegistry::url($key),
             ],
+            // Resolved once per request — the tab set is not cheap to compute
+            // and both this and the `accessibleTabs` prop need it.
             $this->accessibleTabs($user),
         );
     }

@@ -26,6 +26,9 @@ export default function ProductTypeEdit({ productType, customFields = [] }) {
                     name: productType.name ?? '',
                     description: productType.description ?? '',
                     unit_of_measure: productType.unit_of_measure ?? 'pcs',
+                    image: null,
+                    image_url: productType.image_url ?? null,
+                    remove_image: false,
                     is_active: !!productType.is_active,
                     custom_fields: productType.custom_fields ?? {},
                 }}

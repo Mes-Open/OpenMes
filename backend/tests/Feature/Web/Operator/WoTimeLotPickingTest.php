@@ -40,7 +40,7 @@ class WoTimeLotPickingTest extends TestCase
 
         Role::create(['name' => 'Operator', 'guard_name' => 'web']);
         Role::create(['name' => 'Viewer', 'guard_name' => 'web']);
-        $this->operator = User::factory()->create(['account_type' => 'operator']);
+        $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
 
         $type = MaterialType::create(['code' => 'RAW', 'name' => 'Raw']);

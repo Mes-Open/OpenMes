@@ -40,7 +40,12 @@ backend/yarn-error.log
 .aiderrules
 .copilot-instructions.md
 .github/copilot-instructions.md
-.claude/
+# Personal AI-assistant config stays out of the repo, but skills under
+# .claude/skills/ are shared project workflows and are tracked. The parent is
+# `.claude/*` rather than `.claude/`: git does not descend into an excluded
+# directory, so a negation inside one would never be reached.
+.claude/*
+!.claude/skills/
 .claude-flow/
 .mcp.json
 

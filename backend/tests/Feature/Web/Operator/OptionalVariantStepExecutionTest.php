@@ -25,7 +25,7 @@ class OptionalVariantStepExecutionTest extends TestCase
     {
         parent::setUp();
         Role::create(['name' => 'Operator', 'guard_name' => 'web']);
-        $this->operator = User::factory()->create(['account_type' => 'operator']);
+        $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
     }
 

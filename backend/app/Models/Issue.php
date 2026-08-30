@@ -41,6 +41,7 @@ class Issue extends Model
 
     protected $fillable = [
         'work_order_id',
+        'production_downtime_id',
         'batch_step_id',
         'material_id',
         'source',
@@ -82,6 +83,12 @@ class Issue extends Model
     public function workOrder(): BelongsTo
     {
         return $this->belongsTo(WorkOrder::class);
+    }
+
+    /** The machine stop this was escalated from, if it came from one. */
+    public function productionDowntime(): BelongsTo
+    {
+        return $this->belongsTo(ProductionDowntime::class);
     }
 
     /**

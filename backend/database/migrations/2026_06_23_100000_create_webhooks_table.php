@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
  * domain events (see WebhookEventRegistry) and receives an HMAC-signed HTTP
  * POST when any of them fire. The signing secret is stored encrypted at the
  * application layer (Webhook::$casts) and is never exposed through the sync
- * read-path (excluded from the Electric shape).
+ * read-path (excluded from the synced collection).
  */
 return new class extends Migration
 {

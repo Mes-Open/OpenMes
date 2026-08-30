@@ -53,8 +53,19 @@ class AppServiceProvider extends ServiceProvider
             ]);
         }
 
+        // Plant timezone chosen in the installer. Applied here rather than left to
+        // APP_TIMEZONE because docker-compose sets that variable on every service,
+        // and a real environment variable overrides the .env file — so on a Docker
+        // install the env route cannot be changed without editing compose files.
+        // Absent setting = keep whatever APP_TIMEZONE resolved to.
+        \App\Support\TimezoneRegistry::apply();
+
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
+
+        // Reverb push for the live shift monitor: machine state, counters and
+        // stops nudge their workstation's channel so the page re-fetches.
+        \App\Sync\ShiftMonitorBroadcaster::boot();
 
         // unique:/exists: validation ignores soft-deleted rows on tables in
         // SoftDeleteRegistry (one hook instead of per-rule whereNull clauses).
@@ -129,6 +140,9 @@ class AppServiceProvider extends ServiceProvider
         // save path; BatchCreated is fired via Batch::$dispatchesEvents.
         \App\Models\WorkOrder::observe(\App\Observers\WorkOrderEventObserver::class);
         \App\Models\BatchStep::observe(\App\Observers\BatchStepEventObserver::class);
+        // Extra segments live in their own table, so a segment-only planner edit
+        // changes no work_orders column — watch them for the schedule hook too.
+        \App\Models\WorkOrderPlacement::observe(\App\Observers\WorkOrderPlacementEventObserver::class);
 
         // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)

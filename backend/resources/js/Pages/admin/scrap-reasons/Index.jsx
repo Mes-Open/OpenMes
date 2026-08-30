@@ -9,11 +9,11 @@ export default function ScrapReasonsIndex() {
     const categoryLabels = Object.fromEntries(scrapCategoryOptions().map((c) => [c.value, c.label]));
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', filter: 'text' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'category', label: __('Category'), className: 'text-om-muted', render: (r) => categoryLabels[r.category] ?? r.category },
-        { key: 'scrap_entries', label: __('Used'), align: 'right', render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'category', label: __('Category'), className: 'text-om-muted', value: (r) => categoryLabels[r.category] ?? r.category, render: (r) => categoryLabels[r.category] ?? r.category },
+        { key: 'scrap_entries', label: __('Used'), align: 'right', value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
@@ -25,11 +25,11 @@ export default function ScrapReasonsIndex() {
         {
             label: __('Delete'),
             className: 'text-om-blocked hover:underline',
-            onClick: () => {
-                if (confirm(__('Delete scrap reason ":name"?', { name: r.name }))) {
-                    router.delete(`/admin/scrap-reasons/${r.id}`, { preserveScroll: true });
-                }
+            confirm: {
+                title: __('Delete scrap reason ":name"?', { name: r.name }),
+                confirmLabel: __('Delete'),
             },
+            onClick: () => router.delete(`/admin/scrap-reasons/${r.id}`, { preserveScroll: true }),
         },
     ];
 
@@ -40,7 +40,7 @@ export default function ScrapReasonsIndex() {
                 shape="scrap_reasons"
                 title={__('Scrap Reasons')}
                 createHref="/admin/scrap-reasons/create"
-                createLabel={__('+ New Reason')}
+                createLabel={__('New Reason')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}

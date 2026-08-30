@@ -1,17 +1,47 @@
 import { __ } from '../../../lib/i18n';
 
-export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
+export const WO_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'PAUSED', 'CHANGE_HOLD', 'BLOCKED', 'DONE', 'REJECTED', 'CANCELLED'];
 
-export const WO_STATUS_STYLES = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    ACCEPTED: 'bg-blue-100 text-blue-800',
-    IN_PROGRESS: 'bg-emerald-100 text-emerald-800',
-    PAUSED: 'bg-gray-200 text-gray-700',
-    BLOCKED: 'bg-red-100 text-red-800',
-    DONE: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
-    CANCELLED: 'bg-gray-200 text-gray-500',
+/**
+ * Tone + Lucide icon per work-order status, feeding `<StatusBadge>`.
+ *
+ * The tones spend green exactly once, on DONE. The old palette gave emerald to
+ * IN_PROGRESS and green to DONE, so a list of running orders read as a list of
+ * finished ones — the single most misleading thing the table did. Everything
+ * that isn't "successfully finished" now gives up its claim to green:
+ *
+ *   IN_PROGRESS  purple — has to feel active and distinct, and purple carries no
+ *                success/warning convention to be misread as.
+ *   ACCEPTED     blue   — approved but not started: informational, not a result.
+ *   PAUSED       amber  — someone chose to stop it (pause icon).
+ *   BLOCKED      red    — something is stopping it (warning triangle). The icons
+ *                carry the distinction, since the two are the closest pair here.
+ *   REJECTED     deep red — a decision, not an obstacle.
+ *   CANCELLED    hollow — PENDING and CANCELLED are both semantically grey, so
+ *                rather than hunt for a ninth hue this one varies the treatment.
+ *                An outlined chip also reads as "this row is inert".
+ *
+ * Every status keeps a distinct icon, so none of it depends on hue alone.
+ */
+export const WO_STATUS_META = {
+    PENDING: { tone: 'neutral', icon: 'clock' },
+    ACCEPTED: { tone: 'info', icon: 'thumbs-up' },
+    IN_PROGRESS: { tone: 'active', icon: 'play' },
+    PAUSED: { tone: 'warn', icon: 'pause' },
+    // Amber, not grey: a change hold blocks production until a change is approved,
+    // which is nearer to BLOCKED than to a coffee break (#182).
+    CHANGE_HOLD: { tone: 'warn', icon: 'lock' },
+    BLOCKED: { tone: 'danger', icon: 'triangle-alert' },
+    DONE: { tone: 'success', icon: 'circle-check' },
+    REJECTED: { tone: 'critical', icon: 'x' },
+    CANCELLED: { tone: 'ghost', icon: 'slash' },
 };
+
+/** Props for `<StatusBadge>` from a status enum value. */
+export function woStatusBadge(status) {
+    const meta = WO_STATUS_META[status] ?? { tone: 'neutral' };
+    return { ...meta, label: woStatusLabel(status) };
+}
 
 /** Localized display label for a work-order status enum value. */
 export function woStatusLabel(status) {
@@ -20,6 +50,7 @@ export function woStatusLabel(status) {
         ACCEPTED: __('Accepted'),
         IN_PROGRESS: __('In Progress'),
         PAUSED: __('Paused'),
+        CHANGE_HOLD: __('Change hold'),
         BLOCKED: __('Blocked'),
         DONE: __('Done'),
         REJECTED: __('Rejected'),

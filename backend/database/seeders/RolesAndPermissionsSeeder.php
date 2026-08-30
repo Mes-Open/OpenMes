@@ -16,6 +16,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $permissions = [
             // Work Orders
             'view work orders', 'create work orders', 'edit work orders', 'delete work orders',
+            // Change control (#182) — kept separate from 'edit work orders' so a plant
+            // can let a planner raise a change while only a reviewer approves it.
+            'approve work order changes',
 
             // Batch & Steps
             'start batch step', 'complete batch step', 'skip batch step',
@@ -101,7 +104,18 @@ class RolesAndPermissionsSeeder extends Seeder
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
-            // Orders admin tab — per the role docs, supervisors create & manage orders.
+            // Supervisors are the reviewers on the shop floor: they approve and apply
+            // production changes (#182).
+            'approve work order changes',
+            // The one admin tab a supervisor gets. Everything else they need has
+            // its own route under /supervisor (gated by role) — customers,
+            // priority rules, CSV import, the shift monitor — but change control
+            // (#182) lives on the /admin work-order pages, and a supervisor who
+            // cannot open those cannot stop a line or review the change that
+            // releases it. `orders` is scoped to exactly those screens; the
+            // commercial pages that used to share it are on `order_data`, which
+            // supervisors do not hold. An admin can grant more through
+            // Settings → Access if a particular plant wants it.
             'tab:orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',

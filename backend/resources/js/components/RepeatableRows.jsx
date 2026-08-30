@@ -1,4 +1,5 @@
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import Tooltip from './Tooltip';
 
 /**
  * Editable list of sub-rows for dynamic subforms (e.g. view-template columns,
@@ -60,14 +61,16 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = '+ 
                             )}
                         </div>
                     ))}
-                    <button
-                        type="button"
-                        onClick={() => remove(i)}
-                        className="w-8 h-8 shrink-0 rounded-om-sm text-lg leading-none text-om-blocked hover:bg-om-blocked-bg transition-colors"
-                        title="Remove"
-                    >
-                        ×
-                    </button>
+                    <Tooltip label="Remove">
+                        <button
+                            type="button"
+                            onClick={() => remove(i)}
+                            className="w-8 h-8 shrink-0 rounded-om-sm text-lg leading-none text-om-blocked hover:bg-om-blocked-bg transition-colors"
+                            aria-label="Remove"
+                        >
+                            ×
+                        </button>
+                    </Tooltip>
                 </div>
             ))}
             <Button variant="ghost" onClick={add}>{addLabel}</Button>

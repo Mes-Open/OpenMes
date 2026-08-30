@@ -56,13 +56,13 @@ function LineCard({ line }) {
                     {line.workstations.length > 0 ? (
                         <>
                             <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">
-                                Workstation <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
+                                {__('Workstation')} <span className="text-om-faintest normal-case tracking-normal">{__('(optional)')}</span>
                             </label>
                             <Dropdown
                                 value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
                                 onChange={(v) => form.setData('workstation_id', v)}
                                 options={[
-                                    { value: '', label: 'All workstations' },
+                                    { value: '', label: __('All workstations') },
                                     ...line.workstations.map((ws) => ({ value: String(ws.id), label: `${ws.name}${ws.code ? ` (${ws.code})` : ''}` })),
                                 ]}
                                 className="w-full"

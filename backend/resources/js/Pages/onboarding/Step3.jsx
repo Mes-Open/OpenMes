@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import Tooltip from '../../components/Tooltip';
 import { __ } from '../../lib/i18n';
 
 /**
@@ -124,12 +125,11 @@ export default function Step3() {
                                 onDragEnd={handleDragEnd}
                             >
                                 {/* Drag handle */}
-                                <span
-                                    className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted select-none"
-                                    title={__('Drag to reorder')}
-                                >
-                                    <DragHandle />
-                                </span>
+                                <Tooltip label={__('Drag to reorder')}>
+                                    <span className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted select-none">
+                                        <DragHandle />
+                                    </span>
+                                </Tooltip>
                                 <input
                                     type="text"
                                     value={step.name}

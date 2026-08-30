@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
  * is set. Outside-click handlers must check BOTH refs (the popover no longer
  * lives inside the trigger's subtree).
  */
-export function useAnchoredPopover(open, { estHeight = 340, gap = 4 } = {}) {
+export function useAnchoredPopover(open, { estHeight = 340, estWidth = 0, gap = 4 } = {}) {
     const anchorRef = useRef(null);
     const popRef = useRef(null);
     const [style, setStyle] = useState(null);
@@ -27,12 +27,24 @@ export function useAnchoredPopover(open, { estHeight = 340, gap = 4 } = {}) {
             if (!el) return;
             const r = el.getBoundingClientRect();
             const height = popRef.current?.offsetHeight || estHeight;
-            const width = popRef.current?.offsetWidth || r.width;
+            // The first pass runs before the popover exists (it only renders once
+            // `style` is set), so it falls back to the trigger's own width. That is
+            // fine for a popover as wide as its trigger, but a narrow trigger with
+            // a wide card — an icon button opening a menu — would measure 34px,
+            // skip the clamp and hang off the right edge for a frame. `estWidth`
+            // lets such a caller declare the card's real width up front.
+            const width = popRef.current?.offsetWidth || estWidth || r.width;
             const flip = r.bottom + gap + height > window.innerHeight && r.top - gap - height > 0;
+            // Flipping needs room above; when there is none either way — a short
+            // viewport, a landscape tablet — the popover would hang off the bottom
+            // at `position: fixed` with nothing to scroll it back, taking the last
+            // items in the card (often the destructive one) out of reach. Clamp
+            // into the viewport as the horizontal axis already does.
+            const wanted = flip ? r.top - gap - height : r.bottom + gap;
             setStyle({
                 position: 'fixed',
                 left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
-                top: flip ? r.top - gap - height : r.bottom + gap,
+                top: Math.max(8, Math.min(wanted, window.innerHeight - height - 8)),
                 minWidth: r.width,
                 zIndex: 80,
             });
@@ -47,7 +59,7 @@ export function useAnchoredPopover(open, { estHeight = 340, gap = 4 } = {}) {
             window.removeEventListener('resize', measure);
             window.removeEventListener('scroll', measure, true);
         };
-    }, [open, estHeight, gap]);
+    }, [open, estHeight, estWidth, gap]);
 
     return { anchorRef, popRef, style };
 }

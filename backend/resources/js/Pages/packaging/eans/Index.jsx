@@ -5,6 +5,7 @@ import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
+import PageTrail from '../../../components/PageTrail';
 
 const STATUS_PILLS = {
     DONE: 'done',
@@ -137,13 +138,7 @@ export default function EansIndex() {
             <Head title={__('EAN Codes — Management')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
-                <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
-                    <span className="mx-1">/</span>
-                    <Link href="/packaging" className="hover:text-om-ink hover:underline">{__('Packaging')}</Link>
-                    <span className="mx-1">/</span>
-                    <span className="text-om-ink">{__('EAN Codes')}</span >
-                </nav>
+                <PageTrail />
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">

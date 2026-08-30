@@ -52,7 +52,7 @@ class DivisionTest extends TestCase
             'is_active' => false,
         ]);
 
-        // Rows live-sync to the browser via the Electric `divisions` shape, so
+        // Rows live-sync to the browser via the `divisions` collection, so
         // the names are not in the server HTML — assert the Inertia page renders.
         $this->actingAs($this->admin)->get(route('admin.divisions.index'))
             ->assertStatus(200)

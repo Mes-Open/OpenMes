@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Web;
 
+use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\Line;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class AdminWorkOrderWebTest extends TestCase
@@ -73,6 +76,82 @@ class AdminWorkOrderWebTest extends TestCase
         $response = $this->actingAs($this->admin)->get("/admin/work-orders/{$wo->id}");
 
         $response->assertSee('WO-2026-TEST');
+    }
+
+    // ── Show: the activity panel ─────────────────────────────────────────────
+
+    public function test_show_page_reports_the_orders_activity_newest_first(): void
+    {
+        $wo = WorkOrder::factory()->create(['created_at' => now()->subDays(3)]);
+        $batch = Batch::factory()->for($wo)->create([
+            'batch_number' => 1,
+            'started_at' => now()->subDay(),
+        ]);
+        BatchStep::factory()->for($batch)->create([
+            'step_number' => 1,
+            'name' => 'Cutting',
+            'status' => 'DONE',
+            'completed_at' => now()->subHours(2),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/admin/work-orders/{$wo->id}");
+
+        $response->assertInertia(function (AssertableInertia $page) {
+            $activity = $page->toArray()['props']['workOrder']['activity'];
+
+            // Newest first: the completed step, then the batch, then creation.
+            $titles = array_column($activity, 'title');
+            $this->assertSame(
+                [__(':step completed', ['step' => 'Cutting']), __('Batch #:number started', ['number' => 1]), __('Order created')],
+                $titles,
+            );
+
+            $timestamps = array_column($activity, 'at');
+            $sorted = $timestamps;
+            rsort($sorted);
+            $this->assertSame($sorted, $timestamps);
+        });
+    }
+
+    public function test_a_step_that_never_finished_is_not_in_the_activity(): void
+    {
+        $wo = WorkOrder::factory()->create();
+        $batch = Batch::factory()->for($wo)->create(['batch_number' => 1, 'started_at' => null]);
+        BatchStep::factory()->for($batch)->create([
+            'step_number' => 1,
+            'name' => 'Cutting',
+            'status' => 'IN_PROGRESS',
+            'completed_at' => null,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/admin/work-orders/{$wo->id}");
+
+        $response->assertInertia(function (AssertableInertia $page) {
+            $titles = array_column($page->toArray()['props']['workOrder']['activity'], 'title');
+
+            // Only the one thing that has a timestamp to stand on.
+            $this->assertSame([__('Order created')], $titles);
+        });
+    }
+
+    public function test_the_activity_panel_is_capped(): void
+    {
+        $wo = WorkOrder::factory()->create();
+        $batch = Batch::factory()->for($wo)->create(['batch_number' => 1]);
+        foreach (range(1, 12) as $n) {
+            BatchStep::factory()->for($batch)->create([
+                'step_number' => $n,
+                'name' => "Step {$n}",
+                'status' => 'DONE',
+                'completed_at' => now()->subMinutes(60 - $n),
+            ]);
+        }
+
+        $response = $this->actingAs($this->admin)->get("/admin/work-orders/{$wo->id}");
+
+        $response->assertInertia(function (AssertableInertia $page) {
+            $this->assertCount(8, $page->toArray()['props']['workOrder']['activity']);
+        });
     }
 
     // ── Create ───────────────────────────────────────────────────────────────

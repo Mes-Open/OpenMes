@@ -2,14 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import ModbusConnectionForm from './ModbusConnectionForm';
 import { __ } from '../../../../lib/i18n';
+import useConfirm from '../../../../components/useConfirm';
 
 export default function ModbusEdit() {
     const { connection } = usePage().props;
+    const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
-        if (confirm(__('Delete this connection and all its tags?'))) {
+        confirm({ title: __('Delete this connection and all its tags?') }, () => {
             router.delete(`/admin/connectivity/modbus/${connection.id}`);
-        }
+        });
     };
 
     return (
@@ -38,6 +40,7 @@ export default function ModbusEdit() {
                     onDelete={handleDelete}
                 />
             </div>
+            {dialog}
         </>
     );
 }

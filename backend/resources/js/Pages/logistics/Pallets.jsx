@@ -180,8 +180,9 @@ export default function LogisticsPallets() {
         {
             key: 'transit',
             label: __('Transit'),
-            // Sort/search still read the raw destination field; the badge is a
-            // presentation of it plus arrived_at.
+            // `transit` is derived, not a row field — without `value` the filter
+            // (now on by default) would read undefined and match nothing.
+            value: (r) => __(TRANSIT_LABELS[transitOf(r)]),
             sortAccessor: (r) => transitOf(r),
             render: (r) => {
                 const state = transitOf(r);

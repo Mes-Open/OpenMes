@@ -6,6 +6,10 @@ import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
+import Tooltip from '../../components/Tooltip';
+import EngineeringViewerModal from '../../components/EngineeringViewerModal';
+import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
+import { apiGet } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -254,19 +258,21 @@ function ProcessPhotosSection({ photos = [] }) {
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {photos.map((photo) => (
                         <figure key={photo.id} className="m-0">
-                            <button
-                                type="button"
-                                onClick={() => setLightbox(photo)}
-                                className="block w-full cursor-pointer"
-                                title={photo.caption || ''}
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.caption || 'Work instruction'}
-                                    loading="lazy"
-                                    className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
-                                />
-                            </button>
+                            <Tooltip label={photo.caption || ''}>
+                                <button
+                                    type="button"
+                                    onClick={() => setLightbox(photo)}
+                                    className="block w-full cursor-pointer"
+                                    aria-label={photo.caption || 'Work instruction'}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || 'Work instruction'}
+                                        loading="lazy"
+                                        className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
+                                    />
+                                </button>
+                            </Tooltip>
                             {photo.caption && (
                                 <figcaption className="mt-1 text-xs text-om-muted truncate">
                                     {photo.caption}
@@ -292,14 +298,16 @@ function ProcessPhotosSection({ photos = [] }) {
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
                         )}
                     </figure>
-                    <button
-                        type="button"
-                        onClick={() => setLightbox(null)}
-                        className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
-                        title="Close"
-                    >
-                        ×
-                    </button>
+                    <Tooltip label="Close">
+                        <button
+                            type="button"
+                            onClick={() => setLightbox(null)}
+                            className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
+                            aria-label="Close"
+                        >
+                            ×
+                        </button>
+                    </Tooltip>
                 </div>
             )}
         </div>
@@ -647,7 +655,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -717,7 +725,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -731,10 +739,11 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
+    const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
 
     if (!steps || steps.length === 0) return null;
 
@@ -783,6 +792,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         );
     };
 
+    // Record a typed output value (scalar or a picture file). forceFormData carries
+    // the File for a picture; scalars post a plain value.
+    const handleRecordOutput = (step, output, value) => {
+        setInflightCheckId(`out:${step.id}:${output.id}`);
+        router.post(
+            `/operator/batch-step/${step.id}/outputs/${output.id}`,
+            { value },
+            { preserveScroll: true, forceFormData: value instanceof File, onFinish: () => setInflightCheckId(null) }
+        );
+    };
+
     // Starting a step: first ask the server which material lots (if any) need
     // picking. With lots to pick, open the WO-time picking modal seeded with the
     // system's proposal; otherwise start the step directly (unchanged behavior).
@@ -828,6 +848,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const checklist = stepChecklists[step.step_number] || [];
                     const completions = step.checklist_completions || [];
                     const completedItemIds = new Set(completions.map((c) => c.checklist_item_id));
+                    const outputs = stepOutputs[step.step_number] || [];
+                    const outputValues = step.output_values || [];
                     const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
                     return (
                         <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
@@ -836,19 +858,21 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 {step.step_number}
                             </span>
                             {photo && (
-                                <button
-                                    type="button"
-                                    onClick={() => setPhotoZoom(photo)}
-                                    className="flex-shrink-0 cursor-pointer"
-                                    title={photo.caption || 'Step photo'}
-                                >
-                                    <img
-                                        src={photo.url}
-                                        alt={photo.caption || 'Step photo'}
-                                        loading="lazy"
-                                        className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
-                                    />
-                                </button>
+                                <Tooltip label={photo.caption || 'Step photo'}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPhotoZoom(photo)}
+                                        className="flex-shrink-0 cursor-pointer"
+                                        aria-label={photo.caption || 'Step photo'}
+                                    >
+                                        <img
+                                            src={photo.url}
+                                            alt={photo.caption || 'Step photo'}
+                                            loading="lazy"
+                                            className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
+                                        />
+                                    </button>
+                                </Tooltip>
                             )}
                             <span className="flex-1 text-sm font-medium text-om-ink">
                                 {step.name}
@@ -897,7 +921,13 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 <Button
                                     variant="primary"
                                     disabled={isInflight || isDocBlocked || needsConfirm}
-                                    onClick={() => handleStepAction(step, 'complete')}
+                                    onClick={() => (
+                                        // Opt-in: only steps with ISA-95 standard times (#52) prompt for
+                                        // operator-confirmed actuals; the rest complete directly as before.
+                                        step.setup_time_minutes != null || step.run_time_per_unit_minutes != null
+                                            ? setCompleteModal({ step })
+                                            : handleStepAction(step, 'complete')
+                                    )}
                                     title={
                                         isDocBlocked
                                             ? __('Validate the mandatory document(s) before completing this step.')
@@ -943,6 +973,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                             />
                         )}
 
+                        {outputs.length > 0 && (
+                            <StepOutputs
+                                step={step}
+                                outputs={outputs}
+                                values={outputValues}
+                                canRecord={canCheck}
+                                inflightCheckId={inflightCheckId}
+                                onRecord={handleRecordOutput}
+                            />
+                        )}
+
                         {stepDocs.length > 0 && (
                             <StepDocuments
                                 docs={stepDocs}
@@ -975,7 +1016,88 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     onClose={() => setPickModal(null)}
                 />
             )}
+
+            {completeModal && (
+                <ConfirmTimesModal
+                    step={completeModal.step}
+                    onClose={() => setCompleteModal(null)}
+                />
+            )}
         </div>
+    );
+}
+
+/**
+ * Confirm-actual-times modal (#52), shown at step completion only for steps with
+ * ISA-95 standard times configured. Prefills elapsed from started_at→now and the
+ * setup/run split from the plan; the operator can correct them. Setup + run must
+ * fit within elapsed. Posts to the same complete route with the actual times.
+ */
+function ConfirmTimesModal({ step, onClose }) {
+    const startedAt = step.started_at ? new Date(step.started_at).getTime() : null;
+    const initialElapsed = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 60000)) : 0;
+    const initialSetup = step.setup_time_minutes != null ? Number(step.setup_time_minutes) : 0;
+
+    const [elapsed, setElapsed] = useState(String(initialElapsed));
+    const [setup, setSetup] = useState(step.setup_time_minutes != null ? String(initialSetup) : '');
+    const [run, setRun] = useState(String(Math.max(0, initialElapsed - initialSetup)));
+    const [saving, setSaving] = useState(false);
+
+    // Backend rules are integer|min:0; mirror them so bad values never submit
+    // (the number inputs' min= does not block this custom-button submission).
+    const isNonNegInt = (v) => /^\d+$/.test(String(v).trim());
+    const elapsedValid = isNonNegInt(elapsed);
+    const setupValid = setup === '' || isNonNegInt(setup);
+    const runValid = run === '' || isNonNegInt(run);
+    const elapsedNum = elapsedValid ? Number(elapsed) : 0;
+    const overflow = (Number(setup) || 0) + (Number(run) || 0) > elapsedNum;
+    const invalid = ! elapsedValid || ! setupValid || ! runValid || overflow;
+
+    const submit = () => {
+        if (invalid) return;
+        setSaving(true);
+        router.post(`/operator/batch-step/${step.id}/complete`, {
+            actual_elapsed_minutes: elapsedNum,
+            actual_setup_minutes: setup === '' ? null : Number(setup),
+            actual_run_minutes: run === '' ? null : Number(run),
+        }, {
+            preserveScroll: true,
+            // Close only on success; keep the modal open (with values intact) so a
+            // 422 or completion error stays visible instead of being dismissed.
+            onSuccess: () => onClose(),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    const inputCls = 'w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-[15px]';
+    const labelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1';
+
+    return (
+        <ModalShell title={__('Confirm actual times')} subtitle={step.name} onClose={onClose}>
+            <div className="px-[18px] py-4 space-y-3">
+                <div>
+                    <label className={labelCls}>{__('Actual elapsed (minutes)')}</label>
+                    <input type="number" min="0" value={elapsed} onChange={(e) => setElapsed(e.target.value)} className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className={labelCls}>{__('Actual setup (minutes)')}</label>
+                        <input type="number" min="0" value={setup} onChange={(e) => setSetup(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>{__('Actual run (minutes)')}</label>
+                        <input type="number" min="0" value={run} onChange={(e) => setRun(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                    </div>
+                </div>
+                {overflow && <p className="text-om-blocked text-xs">{__('Setup + run cannot exceed the elapsed time.')}</p>}
+            </div>
+            <div className={modalFooterCls}>
+                <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                <Button variant="primary" disabled={invalid || saving} onClick={submit}>
+                    {saving ? '…' : __('Complete step')}
+                </Button>
+            </div>
+        </ModalShell>
     );
 }
 
@@ -1144,6 +1266,103 @@ function StepChecklist({ step, items = [], completedItemIds, completions = [], c
     );
 }
 
+// Typed operator outputs on a step: one input per definition; a picture output
+// takes a file upload and shows the recorded photo. Records who filled each value.
+function StepOutputs({ step, outputs = [], values = [], canRecord, inflightCheckId, onRecord }) {
+    const byOutput = Object.fromEntries(values.map((v) => [v.output_id, v]));
+
+    const displayValue = (o, v) => {
+        if (!v) return null;
+        switch (o.value_type) {
+            case 'number': return v.value_number;
+            case 'boolean': return v.value_boolean ? __('Yes') : __('No');
+            case 'date': return v.value_date;
+            case 'picture': return null;
+            default: return v.value_text;
+        }
+    };
+
+    return (
+        <div className="border-t border-om-line2 px-3 py-2">
+            <p className="text-[12px] font-semibold text-om-muted mb-1">{__('Operator outputs')}</p>
+            <ul className="space-y-2">
+                {outputs.map((o) => {
+                    const v = byOutput[o.id];
+                    const busy = inflightCheckId === `out:${step.id}:${o.id}`;
+                    const recorded = !!v;
+                    return (
+                        <li key={o.id} className="text-sm">
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-om-ink">{o.label}</span>
+                                {o.unit && <span className="text-[11px] text-om-muted">({o.unit})</span>}
+                                {o.is_required && <span className="text-[10px] uppercase tracking-wide text-om-downtime">{__('Required')}</span>}
+                                {recorded && v.recorded_by && <span className="ml-auto font-mono text-[11px] text-om-done">{v.recorded_by.name}</span>}
+                            </div>
+                            {o.value_type === 'picture' ? (
+                                <div className="flex items-center gap-2">
+                                    {v?.file_url && (
+                                        <a href={v.file_url} target="_blank" rel="noopener noreferrer">
+                                            <img src={v.file_url} alt={o.label} className="h-14 w-14 object-cover rounded border border-om-line2" />
+                                        </a>
+                                    )}
+                                    <label className={`text-sm text-om-accent hover:underline cursor-pointer ${(!canRecord || busy) ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {busy ? __('Uploading…') : recorded ? __('Replace photo') : __('Take / upload photo')}
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            capture="environment"
+                                            className="hidden"
+                                            disabled={!canRecord || busy}
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) onRecord(step, o, f); e.target.value = ''; }}
+                                        />
+                                    </label>
+                                </div>
+                            ) : o.value_type === 'boolean' ? (
+                                <label className="flex items-center gap-2">
+                                    <input type="checkbox" checked={!!v?.value_boolean} disabled={!canRecord || busy} onChange={(e) => onRecord(step, o, e.target.checked ? '1' : '0')} className="w-5 h-5 rounded border-om-line2 accent-om-accent" />
+                                    <span className="text-om-muted">{v?.value_boolean ? __('Yes') : __('No')}</span>
+                                </label>
+                            ) : o.value_type === 'select' ? (
+                                <select
+                                    defaultValue={v?.value_text ?? ''}
+                                    disabled={!canRecord || busy}
+                                    onChange={(e) => e.target.value && onRecord(step, o, e.target.value)}
+                                    className="form-select w-full text-sm"
+                                >
+                                    <option value="">{__('Select…')}</option>
+                                    {(o.options ?? []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            ) : (
+                                <OutputScalarInput output={o} initial={displayValue(o, v)} disabled={!canRecord || busy} onSubmit={(val) => onRecord(step, o, val)} />
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
+
+// Text/number/date output: a controlled field committed on blur/Enter, so the
+// operator types the value then it saves without a separate button per row.
+function OutputScalarInput({ output, initial, disabled, onSubmit }) {
+    const [val, setVal] = useState(initial ?? '');
+    const type = output.value_type === 'number' ? 'number' : output.value_type === 'date' ? 'date' : 'text';
+    const commit = () => { if (String(val).trim() !== '' && String(val) !== String(initial ?? '')) onSubmit(val); };
+    return (
+        <input
+            type={type}
+            value={val}
+            disabled={disabled}
+            onChange={(e) => setVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+            placeholder={__('Enter value…')}
+            className="form-input w-full text-sm"
+        />
+    );
+}
+
 // ---------------------------------------------------------------------------
 // WO-time lot picking modal (ERP-aligned "suggest + override"): the system
 // proposes lots (FEFO/FIFO/LIFO); the operator can split/reassign quantities
@@ -1283,14 +1502,16 @@ function LotPickModal({ step, materials, onClose }) {
                                                         onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeLine(m.material_id, idx)}
-                                                        className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                        title="Remove lot"
-                                                    >
-                                                        ×
-                                                    </button>
+                                                    <Tooltip label="Remove lot">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeLine(m.material_id, idx)}
+                                                            className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
+                                                            aria-label="Remove lot"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </Tooltip>
                                                 </div>
                                             </div>
                                         );
@@ -1661,11 +1882,88 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 }
 
 // ---------------------------------------------------------------------------
+// Engineering documents frozen onto this order (#179) — read-only for operators:
+// download the native file, or open an interactive package in the sandboxed viewer.
+// ---------------------------------------------------------------------------
+
+function EngineeringDocsSection({ docs = [], onView }) {
+    const [open, setOpen] = useState(true);
+    if (!docs || docs.length === 0) return null;
+
+    const BASE = '/api/v1/engineering-documents';
+
+    return (
+        <div className={cardCls}>
+            <button
+                type="button"
+                className="flex justify-between items-center w-full text-left cursor-pointer"
+                onClick={() => setOpen((v) => !v)}
+            >
+                <h2 className={sectionLabelCls}>{__('Engineering documents')}</h2>
+                <div className="flex items-center gap-2">
+                    <Badge variant="neutral">{docs.length}</Badge>
+                    <ChevronIcon open={open} />
+                </div>
+            </button>
+
+            {open && (
+                <ul className="mt-4 divide-y divide-om-line">
+                    {docs.map((doc) => {
+                        const pkg = packageMeta(doc.package_type);
+                        return (
+                            <li key={doc.document_id} className="flex items-center justify-between gap-3 py-2">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium text-om-ink break-all">
+                                        {doc.original_filename ?? __('Document')}
+                                    </div>
+                                    <div className="text-xs text-om-muted">
+                                        {__(pkg.label)} · {__('Rev')} {doc.revision || '—'}
+                                        {doc.file_size ? ` · ${formatBytes(doc.file_size)}` : ''}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {isInteractive(doc.package_type) && doc.entry_point && (
+                                        <button type="button" className="btn btn-sm" onClick={() => onView(doc)}>
+                                            {__('View')}
+                                        </button>
+                                    )}
+                                    <a
+                                        className="btn btn-sm"
+                                        href={`${BASE}/${doc.document_id}/download`}
+                                        target={pkg.inline ? '_blank' : undefined}
+                                        rel="noopener noreferrer"
+                                    >
+                                        {__('Download')}
+                                    </a>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [] } = usePage().props;
+
+    const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
+
+    async function openEngViewer(doc) {
+        try {
+            const res = await apiGet(`/api/v1/engineering-documents/${doc.document_id}/viewer-url`);
+            if (!res.ok) return;
+            const json = await res.json();
+            if (json.data?.url) setEngViewer({ url: json.data.url, title: doc.original_filename });
+        } catch {
+            // silent — the Download link remains available as a fallback
+        }
+    }
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1796,6 +2094,9 @@ export default function WorkOrderDetail() {
                         {/* Process reference photos (work instructions) */}
                         <ProcessPhotosSection photos={processPhotos} />
 
+                        {/* Engineering documents frozen onto this order (#179) */}
+                        <EngineeringDocsSection docs={engineeringDocuments} onView={openEngViewer} />
+
                         {/* Batches */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
@@ -1826,6 +2127,7 @@ export default function WorkOrderDetail() {
                                             stepPhotos={stepPhotos}
                                             stepMedia={stepMedia}
                                             stepChecklists={stepChecklists}
+                                            stepOutputs={stepOutputs}
                                         />
                                     ))}
                                 </div>
@@ -2003,6 +2305,8 @@ export default function WorkOrderDetail() {
                     onClose={() => setReportScrapOpen(false)}
                 />
             )}
+
+            <EngineeringViewerModal viewer={engViewer} onClose={() => setEngViewer(null)} />
         </>
     );
 }

@@ -1,7 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { DatePicker } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber, __ } from '../../../lib/i18n';
 
@@ -199,10 +199,9 @@ export default function OeeShow() {
                 {records.length > 0 ? (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
                         <h2 className="text-lg font-bold text-om-ink mb-4">{__('Daily Records')}</h2>
-                        <DataTable
+                        <AppDataTable
                             data={records}
                             columns={columns}
-                            searchPlaceholder="Search records…"
                             emptyLabel={__('No OEE records for this period.')}
                         />
                     </div>

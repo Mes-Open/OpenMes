@@ -31,6 +31,7 @@ class MaterialAllocation extends Model
         'expected_qty',
         'returned_qty',
         'consumed_qty',
+        'consumption_recorded',
         // How much of it has already been taken off that location's balance.
         'location_deducted_qty',
         'adjustment_qty',
@@ -51,6 +52,7 @@ class MaterialAllocation extends Model
             'expected_qty' => 'decimal:4',
             'returned_qty' => 'decimal:4',
             'consumed_qty' => 'decimal:4',
+            'consumption_recorded' => 'boolean',
             'location_deducted_qty' => 'decimal:4',
             'adjustment_qty' => 'decimal:4',
             'scrap_qty' => 'decimal:4',
