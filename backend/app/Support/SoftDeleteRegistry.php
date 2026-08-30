@@ -112,6 +112,8 @@ class SoftDeleteRegistry
         'machine_topics' => Models\MachineTopic::class,
         'topic_mappings' => Models\TopicMapping::class,
         'machine_tags' => Models\MachineTag::class,
+        'device_pairing_codes' => Models\DevicePairingCode::class,
+        'device_tokens' => Models\DeviceToken::class,
 
         // Integrations
         'webhooks' => Models\Webhook::class,

@@ -53,6 +53,9 @@ export default function ConnectivityIndex() {
                     <Link href="/admin/connectivity/opcua" className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-om-muted hover:text-om-ink transition-colors">
                         OPC UA ({counts.opcua ?? 0})
                     </Link>
+                    <Link href="/admin/connectivity/devices" className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-om-muted hover:text-om-ink transition-colors">
+                        {__('Devices')} ({counts.rest ?? 0})
+                    </Link>
                 </div>
 
                 {/* Connection cards */}

@@ -37,6 +37,7 @@ class MachineConnection extends Model
         'description',
         'protocol',
         'line_id',
+        'mac_address',
         'is_active',
         'status',
         'status_message',
@@ -65,6 +66,12 @@ class MachineConnection extends Model
     public function mqttConnection(): HasOne
     {
         return $this->hasOne(MqttConnection::class);
+    }
+
+    /** The credential of a self-enrolled HTTP sensor (protocol = rest). */
+    public function deviceToken(): HasOne
+    {
+        return $this->hasOne(DeviceToken::class);
     }
 
     public function topics(): HasMany
@@ -153,6 +160,7 @@ class MachineConnection extends Model
         return [
             [\App\Models\MachineTopic::class, 'machine_connection_id'],
             [\App\Models\MachineTag::class, 'machine_connection_id'],
+            [\App\Models\DeviceToken::class, 'machine_connection_id'],
             // Protocol-specific config rows had cascadeOnDelete FKs too.
             [\App\Models\MqttConnection::class, 'machine_connection_id'],
             [\App\Models\ModbusConnection::class, 'machine_connection_id'],

@@ -95,6 +95,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by('erp-read:'.$id);
         });
 
+        // Self-enrolled sensor pulse ingest, keyed per device token (falling back
+        // to client IP before the token is resolved). A break-beam sensor can
+        // fire fast, so the ceiling is generous but still bounds a runaway device.
+        RateLimiter::for('device-ingest', function ($request) {
+            $token = $request->attributes->get('device_token');
+            $id = $token?->id ?? $request->ip();
+
+            return Limit::perMinute(600)->by('device-ingest:'.$id);
+        });
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 
@@ -154,9 +164,15 @@ class AppServiceProvider extends ServiceProvider
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
         // so a module can hook any create/update/delete without per-model wiring.
         // Sensitive models are excluded — ResourceChanged carries the full model
-        // to third-party listeners, so we never hand out User (password hash) or
-        // ApiKey (secret hash) rows.
-        $sensitive = [\App\Models\User::class, \App\Models\ApiKey::class];
+        // to third-party listeners, so we never hand out User (password hash),
+        // ApiKey, or device credential (code_hash / token_hash) rows. $hidden does
+        // not protect a model instance handed to a listener, so exclude them here.
+        $sensitive = [
+            \App\Models\User::class,
+            \App\Models\ApiKey::class,
+            \App\Models\DevicePairingCode::class,
+            \App\Models\DeviceToken::class,
+        ];
         $hookedModels = array_diff_key(
             array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS)),
             array_flip($sensitive),

@@ -885,6 +885,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
         Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
 
+        // Self-enrolled HTTP sensors (device pairing codes + tokens)
+        Route::get('/connectivity/devices', [\App\Http\Controllers\Web\Admin\Connectivity\DeviceController::class, 'index'])->name('connectivity.devices.index');
+        Route::post('/connectivity/devices/pairing-codes', [\App\Http\Controllers\Web\Admin\Connectivity\DeviceController::class, 'generatePairingCode'])->name('connectivity.devices.pairing-codes.store');
+        Route::delete('/connectivity/devices/pairing-codes/{pairingCode}', [\App\Http\Controllers\Web\Admin\Connectivity\DeviceController::class, 'revokePairingCode'])->name('connectivity.devices.pairing-codes.destroy');
+        Route::delete('/connectivity/devices/{device}', [\App\Http\Controllers\Web\Admin\Connectivity\DeviceController::class, 'destroy'])->name('connectivity.devices.destroy');
+
         // Modbus connections (React/Inertia — ported from the original develop Blade UI)
         Route::resource('connectivity/modbus', \App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class)
             ->parameters(['modbus' => 'machineConnection'])
