@@ -5677,5 +5677,14 @@
     "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.": "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.",
     "Edit a template that is in use?": "Edit a template that is in use?",
     "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.",
-    "Posting would drive :material below zero at :warehouse (:available available).": "Posting would drive :material below zero at :warehouse (:available available)."
+    "Posting would drive :material below zero at :warehouse (:available available).": "Posting would drive :material below zero at :warehouse (:available available).",
+    "Choose your setup": "Choose your setup",
+    "Before the setup wizard": "Before the setup wizard",
+    "First pick the feature set you want. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules. Next, the setup wizard will walk you through your first line, product, process template and work order.": "First pick the feature set you want. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules. Next, the setup wizard will walk you through your first line, product, process template and work order.",
+    "Count at Station / Step": "Count at Station / Step",
+    "Station (workstation)": "Station (workstation)",
+    "…or step number": "…or step number",
+    "— Select station —": "— Select station —",
+    "— No stations on this line —": "— No stations on this line —",
+    "Action parameters must be a JSON object.": "Action parameters must be a JSON object."
 }
