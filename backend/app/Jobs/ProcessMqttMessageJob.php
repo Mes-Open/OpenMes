@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\MachineMessageReceived;
 use App\Models\MachineConnection;
 use App\Models\MachineMessage;
+use App\Scopes\TenantScope;
 use App\Services\Connectivity\ActionExecutor;
 use App\Services\Connectivity\MqttMessageParser;
 use App\Support\TenantContext;
@@ -32,15 +33,23 @@ class ProcessMqttMessageJob implements ShouldQueue
 
     public function handle(MqttMessageParser $parser, ActionExecutor $executor, TenantContext $tenant): void
     {
-        $connection = MachineConnection::with(['activeTopics.activeMappings'])->find($this->connectionId);
+        // Resolve the connection with the tenant scope bypassed: this job runs
+        // headless (no auth user), and a stale/foreign TenantContext left on a
+        // reused Octane worker would otherwise hide the connection and silently
+        // drop the message. The connection id comes from our own daemon, so the
+        // unscoped lookup is trusted.
+        $connection = MachineConnection::withoutGlobalScope(TenantScope::class)
+            ->find($this->connectionId);
         if (! $connection) {
             return;
         }
 
-        // Scope the whole (headless, user-less) run to the device's tenant, so a
-        // payload-supplied line_id can never reach another tenant's work order.
+        // Now scope the whole run to the device's tenant, so a payload-supplied
+        // line_id can never reach another tenant's work order, and load the
+        // topics/mappings under that tenant.
         $previousTenant = $tenant->id();
         $tenant->set($connection->tenant_id);
+        $connection->load(['activeTopics.activeMappings']);
 
         try {
             // Find the matching topic definition (supports wildcards)

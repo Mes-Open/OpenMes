@@ -186,6 +186,38 @@ class MqttStepCountingTest extends TestCase
         $this->assertSame(1, $target->fresh()->passed_qty);
     }
 
+    public function test_workstation_takes_precedence_over_step_number(): void
+    {
+        $line = Line::factory()->create();
+        $workstation = Workstation::factory()->create(['line_id' => $line->id]);
+
+        $wo = WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_IN_PROGRESS,
+            'counting_source' => WorkOrder::COUNTING_MACHINE,
+        ]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        // One step matches the mapping's step_number, a different step is bound to
+        // the workstation. workstation_id must win.
+        $byNumber = BatchStep::factory()->create([
+            'batch_id' => $batch->id, 'step_number' => 5, 'passed_qty' => 0,
+        ]);
+        $byWorkstation = BatchStep::factory()->create([
+            'batch_id' => $batch->id, 'step_number' => 9,
+            'workstation_id' => $workstation->id, 'passed_qty' => 0,
+        ]);
+
+        // Mapping supplies BOTH — workstation_id should take precedence.
+        $mapping = $this->mapping($this->device($line->id), [
+            'workstation_id' => $workstation->id, 'step_number' => 5,
+        ]);
+
+        app(ActionExecutor::class)->executeSingle($mapping, []);
+
+        $this->assertSame(1, $byWorkstation->fresh()->passed_qty);
+        $this->assertSame(0, $byNumber->fresh()->passed_qty);
+    }
+
     public function test_an_idle_line_is_skipped_not_errored(): void
     {
         $line = Line::factory()->create(); // no running work order

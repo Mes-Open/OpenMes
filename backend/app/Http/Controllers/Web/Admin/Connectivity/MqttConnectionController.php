@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin\Connectivity;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\Connectivity\MqttConnectionRequest;
 use App\Models\Line;
 use App\Models\MachineConnection;
 use App\Models\MachineMessage;
@@ -55,26 +56,9 @@ class MqttConnectionController extends Controller
         return Line::orderBy('name')->get(['id', 'name']);
     }
 
-    public function store(Request $request)
+    public function store(MqttConnectionRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'is_active' => ['boolean'],
-            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
-            'broker_host' => ['required', 'string', 'max:255'],
-            'broker_port' => ['required', 'integer', 'min:1', 'max:65535'],
-            'client_id' => ['nullable', 'string', 'max:100'],
-            'username' => ['nullable', 'string', 'max:100'],
-            'password' => ['nullable', 'string', 'max:255'],
-            'use_tls' => ['boolean'],
-            'ca_cert' => ['nullable', 'string'],
-            'keep_alive_seconds' => ['required', 'integer', 'min:5', 'max:3600'],
-            'qos_default' => ['required', 'integer', 'in:0,1,2'],
-            'clean_session' => ['boolean'],
-            'connect_timeout' => ['required', 'integer', 'min:1', 'max:120'],
-            'reconnect_delay_seconds' => ['required', 'integer', 'min:1', 'max:300'],
-        ]);
+        $validated = $request->validated();
 
         $connection = MachineConnection::create([
             'name' => $validated['name'],
@@ -124,7 +108,11 @@ class MqttConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/mqtt/Show', [
             'lines' => $this->lineOptions(),
+            // Only workstations on a line visible to the current tenant — Line is
+            // tenant-scoped, so whereHas('line') keeps another tenant's stations
+            // out of the props.
             'workstations' => Workstation::where('is_active', true)
+                ->whereHas('line')
                 ->orderBy('name')
                 ->get(['id', 'name', 'line_id'])
                 ->map(fn ($w) => ['id' => $w->id, 'name' => $w->name, 'line_id' => $w->line_id])
@@ -205,26 +193,9 @@ class MqttConnectionController extends Controller
         ]);
     }
 
-    public function update(Request $request, MachineConnection $mqttConnection)
+    public function update(MqttConnectionRequest $request, MachineConnection $mqttConnection)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'is_active' => ['boolean'],
-            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
-            'broker_host' => ['required', 'string', 'max:255'],
-            'broker_port' => ['required', 'integer', 'min:1', 'max:65535'],
-            'client_id' => ['nullable', 'string', 'max:100'],
-            'username' => ['nullable', 'string', 'max:100'],
-            'password' => ['nullable', 'string', 'max:255'],
-            'use_tls' => ['boolean'],
-            'ca_cert' => ['nullable', 'string'],
-            'keep_alive_seconds' => ['required', 'integer', 'min:5', 'max:3600'],
-            'qos_default' => ['required', 'integer', 'in:0,1,2'],
-            'clean_session' => ['boolean'],
-            'connect_timeout' => ['required', 'integer', 'min:1', 'max:120'],
-            'reconnect_delay_seconds' => ['required', 'integer', 'min:1', 'max:300'],
-        ]);
+        $validated = $request->validated();
 
         $mqttConnection->update([
             'name' => $validated['name'],
