@@ -36,9 +36,13 @@ class TopicMappingRequest extends FormRequest
         $validator->after(function ($v) {
             $raw = $this->input('action_params');
             if ($raw !== null && $raw !== '') {
-                json_decode($raw, true);
+                $decoded = json_decode($raw, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $v->errors()->add('action_params', __('Invalid JSON in action parameters.'));
+                } elseif (! is_array($decoded)) {
+                    // A JSON scalar (e.g. "5", true) is valid JSON but not a params
+                    // object — reject it so it is never cast to a bogus array.
+                    $v->errors()->add('action_params', __('Action parameters must be a JSON object.'));
                 }
             }
         });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreTemplateStepRequest;
 use App\Http\Requests\Web\Admin\UpdateTemplateStepRequest;
+use App\Models\AuditLog;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStep;
@@ -103,6 +104,9 @@ class ProcessTemplateManagementController extends Controller
                 'name' => $processTemplate->name,
                 'version' => $processTemplate->version,
                 'is_active' => (bool) $processTemplate->is_active,
+                // Warn the admin: editing steps here won't touch these running
+                // orders (they keep their frozen snapshot) and isn't versioned.
+                'active_work_order_count' => $processTemplate->activeWorkOrderCount(),
                 'steps' => $processTemplate->steps->map(fn ($s) => [
                     'id' => $s->id,
                     'step_number' => $s->step_number,
@@ -285,7 +289,9 @@ class ProcessTemplateManagementController extends Controller
         $validated['step_number'] = $maxStepNumber + 1;
         $validated['process_template_id'] = $processTemplate->id;
 
-        TemplateStep::create($validated);
+        $step = TemplateStep::create($validated);
+
+        $this->recordStepAudit($processTemplate, 'template_step.added', null, $this->stepAuditFields($step));
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
             ->with('success', 'Step added successfully.');
@@ -301,7 +307,9 @@ class ProcessTemplateManagementController extends Controller
             abort(404);
         }
 
+        $before = $this->stepAuditFields($step);
         $step->update($this->stepPayload($request));
+        $this->recordStepAudit($processTemplate, 'template_step.updated', $before, $this->stepAuditFields($step->fresh()));
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
             ->with('success', 'Step updated successfully.');
@@ -325,6 +333,54 @@ class ProcessTemplateManagementController extends Controller
     }
 
     /**
+     * The step fields worth keeping in the audit trail (the shape that gets
+     * silently overwritten today).
+     *
+     * @return array<string, mixed>
+     */
+    private function stepAuditFields(TemplateStep $step): array
+    {
+        return $step->only([
+            'id', 'step_number', 'name', 'instruction', 'workstation_id',
+            'workstation_type_id', 'process_segment_id', 'estimated_duration_minutes',
+            'setup_time_minutes', 'run_time_per_unit_minutes', 'parameters',
+            'is_optional', 'variant_group', 'is_default_variant',
+        ]);
+    }
+
+    /**
+     * The template's current step order — `[step_number => name]` — for
+     * before/after reorder snapshots.
+     *
+     * @return array<int, string>
+     */
+    private function stepOrderSnapshot(ProcessTemplate $template): array
+    {
+        return $template->steps()->orderBy('step_number')->pluck('name', 'step_number')->all();
+    }
+
+    /**
+     * Record a template-step change to the immutable audit log, so the previous
+     * shape is never lost even though the edit mutates the row in place.
+     *
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    private function recordStepAudit(ProcessTemplate $template, string $action, ?array $before, ?array $after): void
+    {
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'entity_type' => ProcessTemplate::class,
+            'entity_id' => $template->id,
+            'action' => $action,
+            'before_state' => $before,
+            'after_state' => $after,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+    }
+
+    /**
      * Delete a step from the process template
      */
     public function deleteStep(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
@@ -335,6 +391,7 @@ class ProcessTemplateManagementController extends Controller
         }
 
         $stepNumber = $step->step_number;
+        $before = $this->stepAuditFields($step);
         $step->delete();
 
         // Renumber remaining steps
@@ -342,6 +399,8 @@ class ProcessTemplateManagementController extends Controller
             ->where('process_template_id', $processTemplate->id)
             ->where('step_number', '>', $stepNumber)
             ->decrement('step_number');
+
+        $this->recordStepAudit($processTemplate, 'template_step.deleted', $before, null);
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
             ->with('success', 'Step deleted successfully.');
@@ -373,6 +432,8 @@ class ProcessTemplateManagementController extends Controller
             return response()->json(['error' => 'Invalid step IDs'], 422);
         }
 
+        $before = $this->stepOrderSnapshot($processTemplate);
+
         // Use large offset first to avoid unique(process_template_id, step_number) violations
         DB::transaction(function () use ($stepIds) {
             $offset = 10000;
@@ -383,6 +444,8 @@ class ProcessTemplateManagementController extends Controller
                 DB::table('template_steps')->where('id', $id)->update(['step_number' => $i + 1]);
             }
         });
+
+        $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
 
         return response()->json(['success' => true]);
     }
@@ -408,11 +471,13 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($previousStep) {
+            $before = $this->stepOrderSnapshot($processTemplate);
             $origStep = $step->step_number;
             $origPrevious = $previousStep->step_number;
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
             DB::table('template_steps')->where('id', $previousStep->id)->update(['step_number' => $origStep]);
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origPrevious]);
+            $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
@@ -441,11 +506,13 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($nextStep) {
+            $before = $this->stepOrderSnapshot($processTemplate);
             $origStep = $step->step_number;
             $origNext = $nextStep->step_number;
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
             DB::table('template_steps')->where('id', $nextStep->id)->update(['step_number' => $origStep]);
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origNext]);
+            $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])

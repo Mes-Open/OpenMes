@@ -6,7 +6,9 @@ use App\Models\Line;
 use App\Models\MachineConnection;
 use App\Models\MachineTopic;
 use App\Models\MqttConnection;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -82,6 +84,34 @@ class MqttConnectionLineTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.connectivity.mqtt.store'), $this->payload(['line_id' => 999999]))
             ->assertSessionHasErrors('line_id');
+    }
+
+    public function test_a_line_from_another_tenant_is_rejected(): void
+    {
+        // A line that belongs to tenant B.
+        $tenant = app(TenantContext::class);
+        $tenantB = Tenant::factory()->create();
+        $tenant->set($tenantB->id);
+        $foreignLine = Line::factory()->create();
+        $tenant->clear();
+
+        // The admin (no tenant) must not be able to bind the device to it.
+        $this->actingAs($this->admin)
+            ->post(route('admin.connectivity.mqtt.store'), $this->payload(['line_id' => $foreignLine->id]))
+            ->assertSessionHasErrors('line_id');
+
+        $this->assertDatabaseMissing('machine_connections', ['line_id' => $foreignLine->id]);
+    }
+
+    public function test_a_non_admin_cannot_create_a_device(): void
+    {
+        $operator = tap(User::factory()->create(), fn ($u) => $u->assignRole('Operator'));
+
+        $this->actingAs($operator)
+            ->post(route('admin.connectivity.mqtt.store'), $this->payload())
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('machine_connections', 0);
     }
 
     public function test_invalid_action_params_json_is_rejected_and_not_persisted(): void
