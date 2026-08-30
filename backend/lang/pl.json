@@ -5670,8 +5670,14 @@
     "Select timezone": "Wybierz strefę czasową",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Strefa czasowa zakładu. Wszystkie znaczniki czasu, granice raportów i zmian w aplikacji są w niej wyrażone.",
     "Changing the timezone reloads the page so every displayed time switches over at once.": "Zmiana strefy czasowej przeładowuje stronę, aby wszystkie wyświetlane godziny zmieniły się naraz.",
+    "Count at Station / Step": "Licz na stanowisku / kroku",
+    "Station (workstation)": "Stanowisko (workstation)",
+    "…or step number": "…lub numer kroku",
+    "— Select station —": "— Wybierz stanowisko —",
+    "— No stations on this line —": "— Brak stanowisk na tej linii —",
     "This template backs :count active work order(s).": "Ten szablon obsługuje :count aktywnych zleceń.",
     "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.": "Edycja kroków tutaj nie wpływa na trwające zlecenia — zachowują one zamrożony snapshot z chwili utworzenia. Zmiany nie są wersjonowane; poprzedni kształt pozostaje wyłącznie w dzienniku audytu. Dla kontrolowanej zmiany konkretnego zlecenia użyj jego wniosku o zmianę.",
     "Edit a template that is in use?": "Edytować szablon będący w użyciu?",
-    "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "Ten szablon obsługuje :count aktywnych zleceń. Zachowują one zamrożony snapshot i pozostają nienaruszone, ale ta zmiana nie jest wersjonowana — poprzedni kształt zachowuje tylko dziennik audytu."
+    "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "Ten szablon obsługuje :count aktywnych zleceń. Zachowują one zamrożony snapshot i pozostają nienaruszone, ale ta zmiana nie jest wersjonowana — poprzedni kształt zachowuje tylko dziennik audytu.",
+    "Action parameters must be a JSON object.": "Parametry akcji muszą być obiektem JSON."
 }
