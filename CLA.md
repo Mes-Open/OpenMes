@@ -2,6 +2,16 @@
 
 **Version 1.0**
 
+> **Governing law / Prawo właściwe.** This Agreement is prepared for, and governed by, **the law of the
+> Republic of Poland** — in particular the Act of 4 February 1994 on Copyright and Related Rights
+> (consolidated text: Dz.U. 2025 poz. 24). Its construction reflects that law (a non-exclusive licence
+> rather than a transfer of rights, and expressly enumerated fields of exploitation) so that it is valid
+> and effective under it. The **English text is binding**; Polish law and the courts having jurisdiction
+> over the Project Owner's seat apply. See Sections 4 and 13.
+>
+> *(PL) Niniejsza Umowa jest sporządzona pod prawo polskie i mu podlega (ustawa z 4 lutego 1994 r.
+> o prawie autorskim i prawach pokrewnych). Wersja angielska jest wiążąca.*
+
 ---
 
 ## Plain-language summary (non-binding)
