@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreMaintenanceEventRequest;
 use App\Models\ScheduleChangeLog;
 use App\Models\WorkOrder;
 use App\Services\Schedule\SchedulePlannerService;
@@ -156,6 +157,17 @@ class SchedulePlannerController extends Controller
                 'end_shift_number' => $workOrder->end_shift_number,
             ],
         ]);
+    }
+
+    /**
+     * Place a maintenance event on the planner (the "Add maintenance" modal). A
+     * defined maintenance schedule can pre-fill it, or an ad-hoc title/type.
+     */
+    public function storeMaintenance(StoreMaintenanceEventRequest $request)
+    {
+        $this->planner->createMaintenanceEvent($request->validated());
+
+        return back()->with('success', __('Maintenance added to the planner.'));
     }
 
     public function checkUpdates(Request $request)
