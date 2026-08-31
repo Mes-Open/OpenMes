@@ -119,3 +119,10 @@ magika/
 
 # E2E local specs (not upstream)
 tests/e2e/car-production-buildout.spec.ts
+
+# CLA working files — contain contributor emails (PII), keep out of the repo.
+# Ignore the specific working docs only (NOT the whole docs/cla/ dir, so the
+# tracked CLA docs — CCLA-template.md, SETUP.md — stay versioned).
+docs/cla/contributors-audit.md
+docs/cla/ai-commits.md
+docs/cla/license-scan.md

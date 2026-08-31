@@ -17,8 +17,10 @@ class WorkstationFactory extends Factory
     public function definition(): array
     {
         return [
-            'code'      => strtoupper($this->faker->lexify('WS-???')),
-            'name'      => $this->faker->words(2, true),
+            // Unique so a test that creates several workstations can't hit the
+            // workstations.code unique index by chance (WS-??? is only 26^3 codes).
+            'code' => strtoupper($this->faker->unique()->lexify('WS-???')),
+            'name' => $this->faker->words(2, true),
             'is_active' => true,
         ];
     }

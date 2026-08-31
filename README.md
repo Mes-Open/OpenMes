@@ -554,20 +554,17 @@ subscribe to them again per page.
 
 ## 📄 License
 
-OpenMES is open-source software licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+OpenMES uses a **layered / dual-licensing** model:
 
-This means you can:
-- ✅ Use it commercially
-- ✅ Modify it
-- ✅ Distribute it
-- ✅ Use it privately
+- **Core** — **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE).
+- **Modules** (`modules/`) — **Academic Free License 3.0 (AFL-3.0)** (permissive; modules may be closed/proprietary) — see [LICENSE-AFL-3.0.txt](LICENSE-AFL-3.0.txt).
+- **Commercial licenses** are also available for partners who cannot accept AGPL obligations, OEM/white-label, and hosted/SaaS offerings.
 
-Under the following conditions:
-- 📋 Disclose source — distributing or running a modified version over a network requires making the corresponding source available under the same license
-- 📋 Same license — derivative works must also be licensed under AGPL-3.0
-- 📋 State changes — document significant modifications
+Under AGPL-3.0 you can use, modify, distribute and use OpenMES privately, provided you disclose source for network/distributed modified versions, keep derivative works under AGPL-3.0, and state your changes.
 
-See [LICENSE](LICENSE) for full details.
+Contributions are accepted under the **Contributor License Agreement** ([CLA.md](CLA.md)) — you keep your copyright and grant the rights that make the dual-licensing model possible.
+
+See [LICENSING.md](LICENSING.md) for the full model and [CONTRIBUTING](docs/CONTRIBUTING.md) for how to contribute.
 
 ---
 
