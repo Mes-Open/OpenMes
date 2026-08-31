@@ -93,4 +93,29 @@ class PlannerMaintenanceTest extends TestCase
 
         $this->assertDatabaseCount('maintenance_events', 0);
     }
+
+    public function test_guest_cannot_place_maintenance(): void
+    {
+        $line = Line::factory()->create();
+
+        $this->post(route('admin.schedule.maintenance.store'), [
+            'title' => 'X', 'event_type' => 'planned', 'line_id' => $line->id,
+            'scheduled_at' => now()->addDay()->format('Y-m-d H:i'),
+        ])->assertRedirect(route('login'));
+
+        $this->assertDatabaseCount('maintenance_events', 0);
+    }
+
+    public function test_an_inactive_schedule_is_rejected(): void
+    {
+        $line = Line::factory()->create();
+        $schedule = MaintenanceSchedule::factory()->create(['is_active' => false]);
+
+        $this->actingAs($this->admin)->post(route('admin.schedule.maintenance.store'), [
+            'schedule_id' => $schedule->id, 'line_id' => $line->id,
+            'scheduled_at' => now()->addDay()->format('Y-m-d H:i'),
+        ])->assertSessionHasErrors('schedule_id');
+
+        $this->assertDatabaseCount('maintenance_events', 0);
+    }
 }

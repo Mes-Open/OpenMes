@@ -54,7 +54,7 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
         }, {
             preserveScroll: true,
             onSuccess: () => onCreated(),
-            onError: () => onError(),
+            onError: (errors) => onError(Object.values(errors || {})[0] || __('Could not add the maintenance.')),
             onFinish: () => setBusy(false),
         });
     };
