@@ -25,12 +25,13 @@ const MAINT_H = 17;
 const fmtDow = (d) => formatDate(parseDate(d), { weekday: 'short' });
 const fmtDayMon = (d) => formatDate(parseDate(d), { day: '2-digit', month: 'short' });
 
+// Maintenance tiles are a distinct yellow so they stand out from work orders.
 function MaintPill({ m }) {
     return (
-        <div className="truncate" style={{ border: '1px dashed var(--om-maint)', background: 'var(--om-maint-bg)', borderRadius: 6, padding: '3px 7px', display: 'flex', alignItems: 'center', gap: 5 }}
+        <div className="truncate" style={{ border: '1px solid #d97706', background: '#fde68a', borderRadius: 6, padding: '3px 7px', display: 'flex', alignItems: 'center', gap: 5 }}
             title={m.title + (m.scheduled_at_time ? ' · ' + m.scheduled_at_time : '')}>
-            <span style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--om-maint)', flexShrink: 0 }} />
-            <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-maint)' }}>{m.title}</span>
+            <span style={{ width: 5, height: 5, borderRadius: 999, background: '#d97706', flexShrink: 0 }} />
+            <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: '#78350f' }}>{m.title}</span>
         </div>
     );
 }

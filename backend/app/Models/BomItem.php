@@ -16,6 +16,7 @@ class BomItem extends Model
         'process_template_id',
         'template_step_id',
         'material_id',
+        'product_type_id',
         'quantity_per_unit',
         'scrap_percentage',
         'consumed_at',
@@ -47,6 +48,23 @@ class BomItem extends Model
     public function material(): BelongsTo
     {
         return $this->belongsTo(Material::class);
+    }
+
+    /**
+     * A BOM line may reference a manufactured product type (sub-assembly)
+     * instead of a material.
+     */
+    public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductType::class);
+    }
+
+    /**
+     * 'material' or 'product_type' — which kind of component this line is.
+     */
+    public function getComponentKindAttribute(): string
+    {
+        return $this->product_type_id ? 'product_type' : 'material';
     }
 
     /**

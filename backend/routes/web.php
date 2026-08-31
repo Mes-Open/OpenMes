@@ -472,6 +472,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedule/changes/{change}/undo', [SchedulePlannerController::class, 'undoChange'])->name('schedule.changes.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
+        Route::post('/schedule/maintenance', [SchedulePlannerController::class, 'storeMaintenance'])->name('schedule.maintenance.store');
 
         // Schedule · Employees (tachograph-style day/team/month planner)
         Route::get('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'index'])->name('schedule.employees');
@@ -692,6 +693,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
 
         // Materials Management
+        Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
         Route::resource('materials', MaterialManagementController::class);
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
         Route::get('/materials-import', [MaterialImportController::class, 'index'])->name('materials.import');

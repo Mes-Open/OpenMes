@@ -33,6 +33,15 @@ class TimezoneRegistry
     private static ?string $cached = null;
 
     /**
+     * The zone the process booted on — APP_TIMEZONE, or config's UTC default —
+     * captured before any stored setting overwrote it. Kept for the whole process
+     * so that removing the setting (a system reset) puts a long-lived worker back
+     * on the env value instead of stranding it on the zone it happened to apply
+     * earlier.
+     */
+    private static ?string $fallback = null;
+
+    /**
      * The configured plant timezone, or null when the installation has not chosen
      * one (fresh install, or the DB is not reachable yet during install).
      */
@@ -50,15 +59,26 @@ class TimezoneRegistry
             return null;
         }
 
-        if (! $row || ! self::isValid((string) $row->value)) {
+        if (! $row) {
             return null;
         }
 
-        return self::$cached = (string) $row->value;
+        // `system_settings.value` is a JSON column, so the stored value is
+        // JSON-encoded (e.g. "Europe/Warsaw"). Decode it; tolerate a legacy raw
+        // string too.
+        $decoded = json_decode((string) $row->value, true);
+        $value = is_string($decoded) ? $decoded : (string) $row->value;
+
+        if (! self::isValid($value)) {
+            return null;
+        }
+
+        return self::$cached = $value;
     }
 
     /**
-     * Apply the stored timezone to the running application.
+     * Apply the stored timezone — or, with nothing stored, the zone this process
+     * booted on — to the running application.
      *
      * Both halves are needed: `config('app.timezone')` is what the Inertia
      * `timezone` prop and anything reading config sees, and
@@ -66,11 +86,11 @@ class TimezoneRegistry
      */
     public static function apply(): void
     {
-        $timezone = self::stored();
+        // First call wins: at that point config still holds the env value, which
+        // is what "no setting stored" has to fall back to on every later call.
+        self::$fallback ??= (string) config('app.timezone', 'UTC');
 
-        if ($timezone === null) {
-            return;
-        }
+        $timezone = self::stored() ?? self::$fallback;
 
         config(['app.timezone' => $timezone]);
         date_default_timezone_set($timezone);
@@ -85,7 +105,9 @@ class TimezoneRegistry
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => self::SETTING_KEY],
-            ['value' => $timezone, 'updated_at' => now()],
+            // JSON-encode: `value` is a JSON column, so a bare string is rejected
+            // by Postgres (works on SQLite, which is why tests missed it).
+            ['value' => json_encode($timezone), 'updated_at' => now()],
         );
 
         self::$cached = $timezone;
@@ -135,9 +157,34 @@ class TimezoneRegistry
         return self::stored() ?? (string) config('app.timezone', 'UTC');
     }
 
-    /** Test seam — the cache is per process and would leak between tests. */
+    /**
+     * Re-read the setting and apply it, discarding the per-process cache first.
+     *
+     * `apply()` alone runs in `AppServiceProvider::boot()`, which on Octane (and
+     * in a long-lived queue worker) happens once per worker, not once per
+     * request — so a zone changed in Settings would keep rendering the old one in
+     * every already-booted worker until a restart. Called per request/job, this
+     * costs one lookup on a unique key of a tiny table and keeps every worker
+     * honest.
+     */
+    public static function refresh(): void
+    {
+        // Only the stored value — not $fallback, which is the env baseline this
+        // process booted on and is exactly what apply() needs when the setting
+        // has been removed since.
+        self::$cached = null;
+
+        self::apply();
+    }
+
+    /**
+     * Test seam — both the cached value and the boot fallback are per process and
+     * would leak between tests. Production code wants refresh(), which keeps the
+     * fallback.
+     */
     public static function flush(): void
     {
         self::$cached = null;
+        self::$fallback = null;
     }
 }

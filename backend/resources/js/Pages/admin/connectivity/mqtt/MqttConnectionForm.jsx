@@ -13,12 +13,13 @@ import { Field, Section } from '../ui';
  *   connection   — existing MachineConnection (edit mode); null for create
  *   onDelete     — optional callback for delete button (edit mode only)
  */
-export default function MqttConnectionForm({ action, method, submitLabel, cancelHref, connection = null, onDelete }) {
+export default function MqttConnectionForm({ action, method, submitLabel, cancelHref, connection = null, lines = [], onDelete }) {
     const mqtt = connection?.mqtt ?? null;
 
     const form = useForm({
         name:                    connection?.name ?? '',
         description:             connection?.description ?? '',
+        line_id:                 connection?.line_id != null ? String(connection.line_id) : '',
         is_active:               connection?.is_active ?? false,
         broker_host:             mqtt?.broker_host ?? '',
         broker_port:             String(mqtt?.broker_port ?? 1883),
@@ -61,6 +62,21 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         rows={2}
                         className="form-input w-full"
                     />
+                </Field>
+                <Field label="Assigned line" error={errors.line_id}>
+                    <Dropdown
+                        value={data.line_id}
+                        onChange={(v) => setData('line_id', v)}
+                        options={[
+                            { value: '', label: '— None —' },
+                            ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                        ]}
+                        className="w-full"
+                    />
+                    <p className="mt-1 text-xs text-om-faint">
+                        The production line this device feeds — the default target for its
+                        topic mappings (e.g. a sensor counting units on this line).
+                    </p>
                 </Field>
                 <Checkbox
                     checked={data.is_active}

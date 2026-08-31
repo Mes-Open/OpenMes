@@ -8,7 +8,7 @@ import Tooltip from '../components/Tooltip';
 import HoverPanel from '../components/HoverPanel';
 import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
-import { __ } from '../lib/i18n';
+import { __, formatDate, formatTime } from '../lib/i18n';
 import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 
 // ── Module menu hooks ────────────────────────────────────────────────────────
@@ -336,7 +336,7 @@ export default function AppLayout({ children }) {
                     </div>
                 </header>
 
-                {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
+                {/* Desktop clock (top-right) — ported from app.blade.php's clock */}
                 <DesktopClock
                     collapsed={collapsed}
                     onToggleCollapsed={toggleCollapsed}
@@ -386,9 +386,10 @@ function FlashMessages() {
 
 /**
  * Desktop-only live clock shown top-right on every page (parity with the
- * Europe/Warsaw clock the Blade app.blade.php rendered above <main>). Isolated
+ * clock the Blade app.blade.php rendered above <main>). Isolated
  * so its per-second tick only re-renders this component, not the whole layout.
- * Formatted in the active locale; timezone pinned to Europe/Warsaw like the original.
+ * Formatted in the active locale and the app timezone (the `timezone` Inertia prop),
+ * via the same i18n helpers every other timestamp in the UI goes through.
  */
 function NavTrail({ items, show }) {
     if (!show || items.length === 0) return null;
@@ -396,21 +397,23 @@ function NavTrail({ items, show }) {
 }
 
 function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrail = false }) {
-    const { locale } = usePage().props;
+    const { locale, timezone } = usePage().props;
     const fmt = () => {
         const now = new Date();
-        const tz = { timeZone: 'Europe/Warsaw' };
         return {
-            date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-            time: now.toLocaleTimeString(locale || 'en', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            date: formatDate(now, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+            time: formatTime(now, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         };
     };
     const [t, setT] = useState(fmt);
     useEffect(() => {
+        // Re-render immediately when the locale or timezone changes, rather than
+        // waiting up to a second for the next tick to pick the new format up.
+        setT(fmt());
         const id = setInterval(() => setT(fmt()), 1000);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locale]);
+    }, [locale, timezone]);
     return (
         // `h-11` and the hairline both match the sidebar's logo header, so the two
         // bars read as one band across the top with one rule under it, instead of

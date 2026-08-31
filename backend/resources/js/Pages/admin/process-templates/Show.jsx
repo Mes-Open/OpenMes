@@ -942,6 +942,7 @@ export default function ProcessTemplatesShow() {
     const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
+    const activeWoCount = processTemplate.active_work_order_count ?? 0;
     const allPhotos = processTemplate.photos ?? [];
     const photoByStep = {};
     allPhotos.forEach((p) => {
@@ -965,24 +966,42 @@ export default function ProcessTemplatesShow() {
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
     const { confirm, dialog } = useConfirm();
 
+    // When the template is in use, gate destructive step edits behind a confirm
+    // that spells out the consequence (running orders keep their frozen snapshot;
+    // this change isn't versioned but is recorded in the audit log).
+    const inUseBody = __(
+        'This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.',
+        { count: activeWoCount },
+    );
+    const confirmIfInUse = (onConfirm) => {
+        if (activeWoCount > 0) {
+            confirm({ title: __('Edit a template that is in use?'), body: inUseBody }, onConfirm);
+        } else {
+            onConfirm();
+        }
+    };
+
     const handleMoveUp = (step) => {
-        router.post(
+        confirmIfInUse(() => router.post(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}/move-up`,
             {},
             { preserveScroll: true },
-        );
+        ));
     };
 
     const handleMoveDown = (step) => {
-        router.post(
+        confirmIfInUse(() => router.post(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}/move-down`,
             {},
             { preserveScroll: true },
-        );
+        ));
     };
 
     const handleDelete = (step) => {
-        confirm({ title: 'Delete this step?' }, () => {
+        confirm({
+            title: __('Delete this step?'),
+            body: activeWoCount > 0 ? inUseBody : undefined,
+        }, () => {
             router.delete(
                 `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
                 { preserveScroll: true },
@@ -1047,6 +1066,24 @@ export default function ProcessTemplatesShow() {
                         ]}
                     />
                 </PageTitle>
+
+                {/* In-use warning (template-edit-guard): editing steps here
+                    mutates the template in place. */}
+                {activeWoCount > 0 && (
+                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-om-downtime/40 bg-om-downtime-bg px-4 py-3">
+                        <svg className="w-5 h-5 mt-0.5 shrink-0 text-om-downtime" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                        <div className="text-sm text-om-ink">
+                            <p className="font-semibold">
+                                {__('This template backs :count active work order(s).', { count: activeWoCount })}
+                            </p>
+                            <p className="text-om-muted mt-0.5">
+                                {__('Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.')}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Master–detail shell (design 1b): header bar, step rail + graph +
                     selected-step detail, photos/documents band. */}
