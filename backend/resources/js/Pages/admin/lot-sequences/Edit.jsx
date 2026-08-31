@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import LotSequenceForm from './LotSequenceForm';
+import LotSequenceForm, { lotSequenceInitial } from './LotSequenceForm';
 import { __ } from '../../../lib/i18n';
 
 export default function LotSequenceEdit() {
@@ -13,16 +13,7 @@ export default function LotSequenceEdit() {
             <LotSequenceForm
                 action={`/admin/lot-sequences/${lotSequence.id}`}
                 method="put"
-                initial={{
-                    name: lotSequence.name ?? '',
-                    product_type_id: lotSequence.product_type_id != null ? String(lotSequence.product_type_id) : '',
-                    pattern: lotSequence.pattern ?? '',
-                    prefix: lotSequence.prefix ?? '',
-                    suffix: lotSequence.suffix ?? '',
-                    pad_size: lotSequence.pad_size ?? 4,
-                    year_prefix: !!lotSequence.year_prefix,
-                    reset_period: lotSequence.reset_period ?? 'none',
-                }}
+                initial={lotSequenceInitial(lotSequence)}
                 submitLabel={__('Save Changes')}
             />
         </div>

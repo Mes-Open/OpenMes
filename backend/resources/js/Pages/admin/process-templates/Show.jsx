@@ -1210,7 +1210,7 @@ export default function ProcessTemplatesShow() {
                                     compact
                                     height={280}
                                     steps={steps}
-                                    links={processTemplate.links ?? []}
+                                    links={processTemplate.links}
                                     baseUrl={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`}
                                     selectedId={selectedStep?.id ?? null}
                                     onSelectStep={setSelectedStepId}

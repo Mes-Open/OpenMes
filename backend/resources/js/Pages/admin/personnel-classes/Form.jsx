@@ -11,7 +11,7 @@ import { nameControl } from '../../../lib/fieldName';
  * `form` is an Inertia useForm() instance. Write-through (non-optimistic):
  * parent submits, Laravel validates + redirects to the live list.
  */
-export default function PersonnelClassForm({ form, skills, levels, submitLabel, onSubmit }) {
+export default function PersonnelClassForm({ form, skills, levels, submitLabel, onSubmit, bare = false, onCancel }) {
     const { data, setData, errors, processing } = form;
 
     const selected = new Set((data.required_skill_ids ?? []).map((id) => String(id)));
@@ -39,7 +39,7 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className={bare ? 'space-y-5' : 'bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5'}>
             <Field label={__('Code')} error={errors.code} required>
                 <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" autoFocus />
             </Field>
@@ -80,7 +80,11 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
                 <Button type="submit" variant="primary" loading={processing}>
                     {processing ? __('Saving…') : submitLabel}
                 </Button>
-                <Link href="/admin/personnel-classes" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                {onCancel ? (
+                    <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</button>
+                ) : (
+                    <Link href="/admin/personnel-classes" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                )}
             </div>
         </form>
     );

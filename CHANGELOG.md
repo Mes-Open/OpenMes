@@ -8,13 +8,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
-- **32 admin lists create and edit in place** *(most of Admin)* — New… and the row's Edit
+- **Process template page redesigned as a master–detail rail** — header bar with
+  status/version/duration summary, a compact drag-to-reorder step rail (now @dnd-kit —
+  the old SortableJS wiring had been dead since the React migration and posted to a
+  wrong URL), the routing graph as a read-only strip showing the step sequence, the
+  selected step's full editor beside it (selection syncs with the graph), and reference
+  photos + engineering documents side by side underneath. The step forms and per-step
+  media/checklist/output controls use the design-system components.
+- **36 admin lists create and edit in place** *(most of Admin)* — New… and the row's Edit
   open a right-hand drawer over the table instead of navigating to a form page, so your
   search, column filters, page and scroll survive the write and the saved row live-syncs
   back into the table underneath. Areas, scrap reasons, skills, sites, shifts, tools,
   materials, material lots, lines, crews, divisions, factories, companies, customers,
-  warehouses, webhooks, product types, maintenance events and schedules, and the rest of
-  the config lists.
+  warehouses, webhooks, product types, maintenance events and schedules, material types,
+  LOT sequences, personnel classes, pallets, and the rest of the config lists.
+  - Resources whose form can't be a field config (the LOT-sequence pattern builder, the
+    personnel-class skills matrix, the pallet's dependent work-order → batch pickers)
+    mount their own form in the same drawer through a new `render` escape hatch on
+    `ResourceFormDrawer`.
   - Editing reads the record out of the synced row the table already holds, so the drawer
     opens filled in with no round-trip. Each form's option lists and custom-field config
     are `Inertia::optional()` — fetched the first time the drawer opens, not on every

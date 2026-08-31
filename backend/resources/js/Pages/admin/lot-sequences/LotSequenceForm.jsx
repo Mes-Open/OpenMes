@@ -12,12 +12,30 @@ const RESET_PERIODS = [
 ];
 
 /**
+ * Blank/loaded form values — the one builder Create, Edit and the list drawer
+ * all share, so a new field can't be missed on one of them. The drawer call
+ * site adds `stay: 1` itself (the standalone pages redirect, so they must not).
+ */
+export function lotSequenceInitial(r) {
+    return {
+        name: r?.name ?? '',
+        product_type_id: r?.product_type_id != null ? String(r.product_type_id) : '',
+        pattern: r?.pattern ?? '',
+        prefix: r?.prefix ?? '',
+        suffix: r?.suffix ?? '',
+        pad_size: r?.pad_size ?? 4,
+        year_prefix: !!r?.year_prefix,
+        reset_period: r?.reset_period ?? 'none',
+    };
+}
+
+/**
  * Create/edit form for LOT sequences with two modes:
  *  - Pattern: token template ("test-[date]-[seq]-[hour]") with a clickable
  *    token palette and a debounced live preview from the server.
  *  - Simple (legacy): prefix / year prefix / suffix.
  */
-export default function LotSequenceForm({ action, method, initial, submitLabel }) {
+export default function LotSequenceForm({ action, method, initial, submitLabel, bare = false, onSuccess, onCancel }) {
     const { productTypes = [], patternTokens = [], csrf_token } = usePage().props;
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -92,11 +110,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        form.submit(method, action, { preserveScroll: true, ...(onSuccess ? { onSuccess } : {}) });
     };
 
     return (
-        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className={bare ? 'space-y-5' : 'bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5'}>
             <TextField label={__('Name')} required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
 
             <div>
@@ -221,9 +239,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {submitLabel}
                 </Button>
-                <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">
-                    {__('Cancel')}
-                </Link>
+                {onCancel ? (
+                    <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</button>
+                ) : (
+                    <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                )}
             </div>
         </form>
     );

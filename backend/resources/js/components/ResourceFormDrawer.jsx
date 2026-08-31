@@ -63,6 +63,15 @@ export default function ResourceFormDrawer({
      */
     ensure,
     /**
+     * Escape hatch for resources whose form cannot be expressed as a `fields`
+     * config (a pattern builder, a skills matrix, dependent dropdowns): a
+     * `({ editing, record, finish }) => JSX` render prop that mounts the page's
+     * own form inside the drawer chrome. The form is expected to post with
+     * `stay: 1` in its values and call `finish` when done; keying and
+     * ensure/ready behave exactly as they do for the config-driven path.
+     */
+    render,
+    /**
      * Whether the props named in `ensure` have arrived. Until they have, the
      * drawer opens onto a skeleton rather than a form with empty dropdowns —
      * an empty <select> and a still-loading one look identical, and one of them
@@ -93,6 +102,16 @@ export default function ResourceFormDrawer({
      */
     const asked = useRef(false);
     const wasOpen = useRef(false);
+    // Once the form has rendered ready during this opening, never fall back to
+    // the skeleton: a failed submit is a full visit whose props omit the
+    // `Inertia::optional` lists, so `ready` regresses — swapping to the
+    // skeleton then would unmount the form, destroying the typed values and
+    // the validation errors the 422 just delivered.
+    const [everReady, setEverReady] = useState(false);
+    useEffect(() => {
+        if (open && ready) setEverReady(true);
+        if (!open) setEverReady(false);
+    }, [open, ready]);
     // Depend on the names, not the array: call sites pass a literal, so a new
     // identity every render would re-run this on every keystroke in the form.
     const wanted = ensure?.join(',') ?? '';
@@ -100,6 +119,9 @@ export default function ResourceFormDrawer({
         const opening = open && !wasOpen.current;
         wasOpen.current = open;
         if (opening) asked.current = false;
+        // `ready` regressing while open (the failed-submit visit above) re-arms
+        // the fetch so the option lists come back underneath the mounted form.
+        if (ready) asked.current = false;
         if (!open || ready || asked.current || !wanted) return;
         asked.current = true;
         router.reload({
@@ -128,7 +150,11 @@ export default function ResourceFormDrawer({
             // below, so what's retained belongs to the record it was typed for.
             keepMounted
         >
-            {ready ? (
+            {(ready || everReady) ? (render ? (
+                <div key={`${mode}:${record?.id ?? 'new'}:${run}`}>
+                    {render({ editing, record, finish })}
+                </div>
+            ) : (
                 <ResourceForm
                     // One instance serves create and every row's edit, so the key
                     // has to change with the record — otherwise the retained state
@@ -150,7 +176,7 @@ export default function ResourceFormDrawer({
                     onCancel={finish}
                     onSuccess={finish}
                 />
-            ) : (
+            )) : (
                 <div className="space-y-5">
                     {[...Array(4)].map((_, i) => (
                         <div key={i} className="space-y-[7px]">

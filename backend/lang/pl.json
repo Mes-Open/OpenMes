@@ -5793,5 +5793,8 @@
     "Could not add the maintenance.": "Nie udało się dodać przeglądu.",
     "Pick a maintenance for this slot": "Wybierz przegląd dla tego slotu",
     "Search maintenance": "Szukaj przeglądu",
-    "No maintenance schedules.": "Brak harmonogramów przeglądów."
+    "No maintenance schedules.": "Brak harmonogramów przeglądów.",
+    "Implicit sequence — steps run in order.": "Sekwencja domyślna — kroki wykonywane są po kolei.",
+    "LOT sequence created successfully.": "Sekwencja LOT została utworzona.",
+    "LOT sequence updated successfully.": "Sekwencja LOT została zaktualizowana."
 }

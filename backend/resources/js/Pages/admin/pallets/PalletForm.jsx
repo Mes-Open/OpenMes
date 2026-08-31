@@ -2,7 +2,23 @@ import { Link, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 
-export default function PalletForm({ action, method, initial, submitLabel }) {
+/**
+ * Blank/loaded form values — the one builder Create, Edit and the list drawer
+ * all share. The drawer call site adds `stay: 1` itself.
+ */
+export function palletInitial(r) {
+    return {
+        work_order_id: r?.work_order_id != null ? String(r.work_order_id) : '',
+        batch_id: r?.batch_id != null ? String(r.batch_id) : '',
+        qty: r?.qty ?? 0,
+        status: r?.status ?? 'open',
+        location: r?.location ?? '',
+        destination: r?.destination ?? '',
+        erp_reference: r?.erp_reference ?? '',
+    };
+}
+
+export default function PalletForm({ action, method, initial, submitLabel, bare = false, onSuccess, onCancel }) {
     const { workOrders = [], statuses = [] } = usePage().props;
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -12,11 +28,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        form.submit(method, action, { preserveScroll: true, ...(onSuccess ? { onSuccess } : {}) });
     };
 
     return (
-        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className={bare ? 'space-y-5' : 'bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5'}>
             <div>
                 <div className="block text-sm font-medium text-om-muted mb-1">
                     {__('Work order')} <span className="text-om-blocked">*</span>
@@ -102,9 +118,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 >
                     {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">
-                    {__('Cancel')}
-                </Link>
+                {onCancel ? (
+                    <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</button>
+                ) : (
+                    <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                )}
             </div>
         </form>
     );

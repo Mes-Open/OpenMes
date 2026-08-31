@@ -32,15 +32,15 @@ function layout(steps, pairs) {
     }));
 }
 
-function StepNode({ data, selected }) {
+function StepNode({ data, selected, isConnectable }) {
     const { step } = data;
     return (
         <div
             style={{ width: NODE_W }}
             className={`bg-om-card rounded-om border border-om-line2 shadow-sm px-3 py-2 ${selected ? 'ring-2 ring-om-accent' : ''}`}
         >
-            <Handle type="target" position={Position.Left} className="!bg-om-faint !w-2.5 !h-2.5 !border-2 !border-om-card hover:!bg-om-accent" />
-            <Handle type="source" position={Position.Right} className="!bg-om-faint !w-2.5 !h-2.5 !border-2 !border-om-card hover:!bg-om-accent" />
+            <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="!bg-om-faint !w-2.5 !h-2.5 !border-2 !border-om-card hover:!bg-om-accent" />
+            <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="!bg-om-faint !w-2.5 !h-2.5 !border-2 !border-om-card hover:!bg-om-accent" />
             <div className="flex items-center gap-2">
                 <span className={`shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${selected ? 'bg-om-accent text-white' : 'bg-om-chip text-om-accent'}`}>{step.step_number}</span>
                 <div className="min-w-0">
@@ -78,6 +78,10 @@ function firstError(json) {
 }
 
 export default function RoutingGraph({ steps, links: initialLinks, baseUrl, compact = false, height = 340, selectedId = null, onSelectStep }) {
+    // The backend advertises the link editor by sending a links array; while it
+    // doesn't (the DAG-routing backend hasn't shipped), the graph is read-only:
+    // the implicit chain renders, but nothing can be drawn or removed.
+    const editable = Array.isArray(initialLinks);
     const toast = useToast();
     const [links, setLinks] = useState(initialLinks ?? []);
     useEffect(() => { setLinks(initialLinks ?? []); }, [initialLinks]);
@@ -108,6 +112,10 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
                 ...(prevById[String(s.id)] ?? {}),
                 id: String(s.id),
                 type: 'step',
+                // Steps are created and removed in the rail, never by keyboard
+                // on the canvas — without this, Delete removed the node
+                // client-side only (and in edit mode cascaded real link DELETEs).
+                deletable: false,
                 position: (structureChanged ? null : prevById[String(s.id)]?.position) ?? positions[s.id] ?? { x: 0, y: 0 },
                 selected: selectedId != null && s.id === selectedId,
                 data: { step: s },
@@ -191,13 +199,13 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
             edgeTypes={EDGE_TYPES}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onEdgesDelete={onEdgesDelete}
+            onConnect={editable ? onConnect : undefined}
+            onEdgesDelete={editable ? onEdgesDelete : undefined}
             onNodeClick={onSelectStep ? (_, node) => onSelectStep(Number(node.id)) : undefined}
             nodesDraggable
-            nodesConnectable
+            nodesConnectable={editable}
             edgesReconnectable={false}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
             elementsSelectable
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1.1 }}
@@ -206,7 +214,7 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
         >
             <Background gap={24} color="var(--om-line2)" />
             <Controls showInteractive={false} />
-            {compact && <Panel position="top-right">{kindPicker}</Panel>}
+            {compact && editable && <Panel position="top-right">{kindPicker}</Panel>}
         </ReactFlow>
     );
 
@@ -223,9 +231,11 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
                 <span className="text-sm text-om-muted flex-1 min-w-[240px]">
                     {explicit
                         ? __('Explicit routing — a step waits for every incoming link; several outgoing links run in parallel. Steps without any link start immediately.')
-                        : __('Implicit sequence — draw a link between two steps to switch to explicit routing.')}
+                        : editable
+                            ? __('Implicit sequence — draw a link between two steps to switch to explicit routing.')
+                            : __('Implicit sequence — steps run in order.')}
                 </span>
-                {kindPicker}
+                {editable && kindPicker}
             </div>
             <div style={{ height }} className="rounded-om border border-om-line2 bg-om-panel overflow-hidden">
                 {canvas}

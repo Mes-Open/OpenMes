@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { materialTypeFields, materialTypeInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaterialTypesIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -13,7 +17,7 @@ export default function MaterialTypesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/material-types/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -33,11 +37,20 @@ export default function MaterialTypesIndex() {
                 shape="material_types"
                 title={__('Material Types')}
                 createHref="/admin/material-types/create"
+                onCreate={drawer.create}
                 createLabel={__('New Material Type')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No material types yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/material-types"
+                fields={materialTypeFields()}
+                initial={materialTypeInitial}
+                title={{ create: __('New Material Type'), edit: __('Edit Material Type') }}
             />
         </>
     );

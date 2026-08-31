@@ -5793,5 +5793,8 @@
     "Could not add the maintenance.": "Could not add the maintenance.",
     "Pick a maintenance for this slot": "Pick a maintenance for this slot",
     "Search maintenance": "Search maintenance",
-    "No maintenance schedules.": "No maintenance schedules."
+    "No maintenance schedules.": "No maintenance schedules.",
+    "Implicit sequence — steps run in order.": "Implicit sequence — steps run in order.",
+    "LOT sequence created successfully.": "LOT sequence created successfully.",
+    "LOT sequence updated successfully.": "LOT sequence updated successfully."
 }
