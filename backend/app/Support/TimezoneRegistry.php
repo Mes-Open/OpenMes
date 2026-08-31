@@ -59,11 +59,21 @@ class TimezoneRegistry
             return null;
         }
 
-        if (! $row || ! self::isValid((string) $row->value)) {
+        if (! $row) {
             return null;
         }
 
-        return self::$cached = (string) $row->value;
+        // `system_settings.value` is a JSON column, so the stored value is
+        // JSON-encoded (e.g. "Europe/Warsaw"). Decode it; tolerate a legacy raw
+        // string too.
+        $decoded = json_decode((string) $row->value, true);
+        $value = is_string($decoded) ? $decoded : (string) $row->value;
+
+        if (! self::isValid($value)) {
+            return null;
+        }
+
+        return self::$cached = $value;
     }
 
     /**
@@ -95,7 +105,9 @@ class TimezoneRegistry
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => self::SETTING_KEY],
-            ['value' => $timezone, 'updated_at' => now()],
+            // JSON-encode: `value` is a JSON column, so a bare string is rejected
+            // by Postgres (works on SQLite, which is why tests missed it).
+            ['value' => json_encode($timezone), 'updated_at' => now()],
         );
 
         self::$cached = $timezone;
