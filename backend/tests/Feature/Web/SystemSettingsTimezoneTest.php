@@ -66,12 +66,14 @@ class SystemSettingsTimezoneTest extends TestCase
             ->post('/settings/system', $this->payload(['app_timezone' => 'America/Argentina/Buenos_Aires']))
             ->assertSessionHasNoErrors();
 
-        // Stored raw, not JSON-encoded — TimezoneRegistry reads it as a plain
-        // identifier, so an accidental json_encode() here would break `stored()`.
+        // `system_settings.value` is a JSON column, so the identifier must be
+        // JSON-encoded — a bare string is rejected by Postgres (SQLite tolerates
+        // it, which is how the bug shipped). stored() decodes it back.
         $this->assertDatabaseHas('system_settings', [
             'key' => TimezoneRegistry::SETTING_KEY,
-            'value' => 'America/Argentina/Buenos_Aires',
+            'value' => json_encode('America/Argentina/Buenos_Aires'),
         ]);
+        TimezoneRegistry::flush();
         $this->assertSame('America/Argentina/Buenos_Aires', TimezoneRegistry::stored());
     }
 

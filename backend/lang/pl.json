@@ -5686,5 +5686,18 @@
     "…or step number": "…lub numer kroku",
     "— Select station —": "— Wybierz stanowisko —",
     "— No stations on this line —": "— Brak stanowisk na tej linii —",
-    "Action parameters must be a JSON object.": "Parametry akcji muszą być obiektem JSON."
+    "Action parameters must be a JSON object.": "Parametry akcji muszą być obiektem JSON.",
+    "Add maintenance": "Dodaj utrzymanie",
+    "Defined maintenance": "Zdefiniowane utrzymanie",
+    "— None (custom) —": "— Brak (własne) —",
+    "e.g. Lubrication": "np. Smarowanie",
+    "Minutes": "Minuty",
+    "Add to planner": "Dodaj do planera",
+    "Pick a line, a date and a maintenance (defined or a title).": "Wybierz linię, datę i utrzymanie (zdefiniowane lub tytuł).",
+    "Maintenance added to the planner.": "Utrzymanie dodane do planera.",
+    "Could not add maintenance.": "Nie udało się dodać utrzymania.",
+    "Could not add the maintenance.": "Nie udało się dodać przeglądu.",
+    "Pick a maintenance for this slot": "Wybierz przegląd dla tego slotu",
+    "Search maintenance": "Szukaj przeglądu",
+    "No maintenance schedules.": "Brak harmonogramów przeglądów."
 }

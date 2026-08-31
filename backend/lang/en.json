@@ -5686,5 +5686,18 @@
     "…or step number": "…or step number",
     "— Select station —": "— Select station —",
     "— No stations on this line —": "— No stations on this line —",
-    "Action parameters must be a JSON object.": "Action parameters must be a JSON object."
+    "Action parameters must be a JSON object.": "Action parameters must be a JSON object.",
+    "Add maintenance": "Add maintenance",
+    "Defined maintenance": "Defined maintenance",
+    "— None (custom) —": "— None (custom) —",
+    "e.g. Lubrication": "e.g. Lubrication",
+    "Minutes": "Minutes",
+    "Add to planner": "Add to planner",
+    "Pick a line, a date and a maintenance (defined or a title).": "Pick a line, a date and a maintenance (defined or a title).",
+    "Maintenance added to the planner.": "Maintenance added to the planner.",
+    "Could not add maintenance.": "Could not add maintenance.",
+    "Could not add the maintenance.": "Could not add the maintenance.",
+    "Pick a maintenance for this slot": "Pick a maintenance for this slot",
+    "Search maintenance": "Search maintenance",
+    "No maintenance schedules.": "No maintenance schedules."
 }

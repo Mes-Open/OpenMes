@@ -236,6 +236,19 @@ class SchedulePlannerService
                     : 60,
                 'description' => $m->description,
             ])->values()->all(),
+            // Defined maintenance (schedules) offered in the planner's "Add
+            // maintenance" modal — drop one onto a line/day as a yellow tile.
+            'maintenanceSchedules' => MaintenanceSchedule::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'event_type', 'line_id', 'workstation_id', 'description'])
+                ->map(fn ($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'event_type' => $s->event_type,
+                    'line_id' => $s->line_id,
+                    'workstation_id' => $s->workstation_id,
+                    'description' => $s->description,
+                ])->values()->all(),
             'realtimeMode' => $realtimeMode,
             'overdueImportant' => [
                 'count' => $importantOverdueCount,
@@ -251,6 +264,35 @@ class SchedulePlannerService
      *
      * @return array{conflict:bool, message?:string, warnings?:array<string>}
      */
+    /**
+     * Place a maintenance event on the planner (the "Add maintenance" modal). A
+     * defined schedule (schedule_id) pre-fills the title / type / line; a bare
+     * title + event_type works too. Lands as a pending tile at the chosen slot.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function createMaintenanceEvent(array $input): MaintenanceEvent
+    {
+        $schedule = ! empty($input['schedule_id'])
+            ? MaintenanceSchedule::find($input['schedule_id'])
+            : null;
+
+        $scheduledAt = Carbon::parse($input['scheduled_at']);
+        $duration = (int) ($input['duration_minutes'] ?? 60);
+
+        return MaintenanceEvent::create([
+            'title' => $input['title'] ?? $schedule?->name ?? 'Maintenance',
+            'event_type' => $input['event_type'] ?? $schedule?->event_type ?? MaintenanceEvent::TYPE_PLANNED,
+            'status' => MaintenanceEvent::STATUS_PENDING,
+            'line_id' => $input['line_id'] ?? $schedule?->line_id,
+            'workstation_id' => $input['workstation_id'] ?? $schedule?->workstation_id,
+            'schedule_id' => $schedule?->id,
+            'scheduled_at' => $scheduledAt,
+            'scheduled_end_at' => $scheduledAt->copy()->addMinutes(max(1, $duration)),
+            'description' => $input['description'] ?? $schedule?->description,
+        ]);
+    }
+
     public function updateOrder(WorkOrder $workOrder, array $input, bool $force = false): array
     {
         $data = [];
