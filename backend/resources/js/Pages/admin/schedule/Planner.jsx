@@ -383,7 +383,30 @@ export default function Planner() {
             </DndProvider>
 
             {selected && <OrderEditSheet wo={selected} ctx={ctx} onClose={() => setSelected(null)} onSave={saveEdit} onUnassign={unassign} />}
-            {assignTarget && <AssignPopup target={assignTarget} ctx={ctx} onClose={() => setAssignTarget(null)} onPick={(wo, target) => { setAssignTarget(null); dropToCell(wo, target); }} />}
+            {assignTarget && (
+                <AssignPopup
+                    target={assignTarget}
+                    ctx={ctx}
+                    schedules={maintenanceSchedules}
+                    onClose={() => setAssignTarget(null)}
+                    onPick={(wo, target) => { setAssignTarget(null); dropToCell(wo, target); }}
+                    onPickMaintenance={(s, target) => {
+                        setAssignTarget(null);
+                        router.post('/admin/schedule/maintenance', {
+                            schedule_id: s.id,
+                            title: s.name || null,
+                            event_type: s.event_type || 'planned',
+                            line_id: target.lineId,
+                            scheduled_at: `${target.date} 08:00`,
+                            duration_minutes: s.duration_minutes || 60,
+                        }, {
+                            preserveScroll: true,
+                            onSuccess: () => toast(__('Maintenance added to the planner.')),
+                            onError: (errors) => toast(Object.values(errors || {})[0] || __('Could not add maintenance.'), 'error'),
+                        });
+                    }}
+                />
+            )}
             {conflict && <ConflictDialog onCancel={() => setConflict(null)} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
             {confirmBox && (
                 <ConfirmDialog open onClose={() => setConfirmBox(null)}

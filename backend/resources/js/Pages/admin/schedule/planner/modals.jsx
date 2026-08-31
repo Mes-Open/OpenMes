@@ -245,28 +245,48 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
     );
 }
 
-// Assign popup — pick a backlog order for an empty cell.
-export function AssignPopup({ target, ctx, onClose, onPick }) {
+// Assign popup — pick a backlog order OR a defined maintenance for an empty cell.
+export function AssignPopup({ target, ctx, schedules = [], onClose, onPick, onPickMaintenance }) {
     const { data } = ctx;
     const [q, setQ] = useState('');
+    const [tab, setTab] = useState('orders');
     const line = data.allLines.find((l) => l.id === target.lineId);
-    const items = data.backlog.filter((o) => q === '' || o.order_no.toLowerCase().includes(q.toLowerCase()) || (o.product_name || '').toLowerCase().includes(q.toLowerCase()));
+    const orders = data.backlog.filter((o) => q === '' || o.order_no.toLowerCase().includes(q.toLowerCase()) || (o.product_name || '').toLowerCase().includes(q.toLowerCase()));
+    const maints = schedules.filter((s) => q === '' || (s.name || '').toLowerCase().includes(q.toLowerCase()));
+
+    const tabBtn = (key, label) => (
+        <button onClick={() => setTab(key)} style={{
+            flex: 1, fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 8, cursor: 'pointer',
+            color: tab === key ? 'var(--om-ink)' : 'var(--om-muted)',
+            background: tab === key ? 'var(--om-card)' : 'transparent',
+            border: tab === key ? '1px solid var(--om-line)' : '1px solid transparent',
+        }}>{label}</button>
+    );
+
     return (
         <Backdrop onClose={onClose}>
             <div style={{ width: 440, maxWidth: '92vw', maxHeight: 560, display: 'flex', flexDirection: 'column', background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 14, boxShadow: '0 34px 80px -22px rgba(0,0,0,.5)', overflow: 'hidden' }}>
                 <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--om-line2)' }}>
                     <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--om-ink)' }}>{__('Assign to')} {line?.code} · {target.date}</div>
-                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--om-faint)', marginTop: 3 }}>{__('Pick a backlog order for this slot')}</div>
+                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--om-faint)', marginTop: 3 }}>
+                        {tab === 'orders' ? __('Pick a backlog order for this slot') : __('Pick a maintenance for this slot')}
+                    </div>
                 </div>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--om-line2)' }}>
-                    <div className="flex items-center gap-2" style={{ background: 'var(--om-bg)', border: '1px solid var(--om-line)', borderRadius: 8, padding: '8px 11px' }}>
+                {onPickMaintenance && (
+                    <div className="flex gap-1.5" style={{ padding: '10px 20px 0', background: 'var(--om-bg)' }}>
+                        {tabBtn('orders', __('Orders'))}
+                        {tabBtn('maintenance', __('Maintenance'))}
+                    </div>
+                )}
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-bg)' }}>
+                    <div className="flex items-center gap-2" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: '8px 11px' }}>
                         <span style={{ width: 12, height: 12, borderRadius: 999, border: '2px solid var(--om-faint)' }} />
-                        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={__('Search order or product')} autoFocus
+                        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tab === 'orders' ? __('Search order or product') : __('Search maintenance')} autoFocus
                             className="flex-1 min-w-0 outline-none" style={{ border: 'none', background: 'transparent', fontSize: 12.5, color: 'var(--om-ink)' }} />
                     </div>
                 </div>
                 <div className="om-bl flex-1 overflow-y-auto" style={{ padding: '12px 20px' }}>
-                    {items.map((wo) => (
+                    {tab === 'orders' && orders.map((wo) => (
                         <div key={wo.id} onClick={() => onPick(wo, target)} className="flex items-center gap-3"
                             style={{ padding: '11px 12px', border: '1px solid var(--om-line)', borderRadius: 9, marginBottom: 8, cursor: 'pointer' }}>
                             <div className="flex-1 min-w-0">
@@ -276,7 +296,22 @@ export function AssignPopup({ target, ctx, onClose, onPick }) {
                             <StatusPill status={wo.status} />
                         </div>
                     ))}
-                    {items.length === 0 && <div className="text-center" style={{ padding: 30, color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No matching orders.')}</div>}
+                    {tab === 'orders' && orders.length === 0 && <div className="text-center" style={{ padding: 30, color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No matching orders.')}</div>}
+
+                    {tab === 'maintenance' && maints.map((s) => (
+                        <div key={s.id} onClick={() => onPickMaintenance(s, target)} className="flex items-center gap-3"
+                            style={{ padding: '11px 12px', border: '1px solid var(--om-line)', borderRadius: 9, marginBottom: 8, cursor: 'pointer' }}>
+                            <span style={{ width: 10, height: 10, borderRadius: 3, background: '#fde68a', border: '1px solid #d97706', flexShrink: 0 }} />
+                            <div className="flex-1 min-w-0">
+                                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--om-ink)', marginBottom: 3 }}>{s.name}</div>
+                                <div style={{ fontFamily: MONO, fontSize: 9.5, color: 'var(--om-faint)' }}>
+                                    {__(s.event_type === 'corrective' ? 'Corrective' : s.event_type === 'inspection' ? 'Inspection' : 'Planned')}
+                                    {s.line_id ? ' · ' + (data.allLines.find((l) => l.id === s.line_id)?.code ?? '') : ''}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {tab === 'maintenance' && maints.length === 0 && <div className="text-center" style={{ padding: 30, color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No maintenance schedules.')}</div>}
                 </div>
             </div>
         </Backdrop>

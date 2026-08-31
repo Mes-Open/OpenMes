@@ -5692,5 +5692,8 @@
     "Edit a template that is in use?": "Edit a template that is in use?",
     "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.",
     "Action parameters must be a JSON object.": "Action parameters must be a JSON object.",
-    "Could not add the maintenance.": "Could not add the maintenance."
+    "Could not add the maintenance.": "Could not add the maintenance.",
+    "Pick a maintenance for this slot": "Pick a maintenance for this slot",
+    "Search maintenance": "Search maintenance",
+    "No maintenance schedules.": "No maintenance schedules."
 }
