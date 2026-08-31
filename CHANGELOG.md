@@ -19,6 +19,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
 
 ### Fixed
+- **Settings language picker showed the wrong language** *(admin)* — the Settings → System language dropdown always showed the stored *system default*, so after switching the UI language with the per-session switcher the picker contradicted the language actually on screen (#271). It now reflects the currently effective locale (the session override if set, else the system default).
 - **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
 
 ## [0.21.0] - 2026-08-21

@@ -111,7 +111,10 @@ class SettingsController extends Controller
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
-            'language' => json_decode($rows['language']?->value ?? '"en"', true) ?? 'en',
+            // The currently effective locale (session override applied by SetLocale,
+            // else the stored system default) — so the picker matches the language
+            // the page is actually rendered in, instead of only the system default.
+            'language' => app()->getLocale(),
             'schedule_view_mode' => json_decode($rows['schedule_view_mode']?->value ?? '"weekly"', true) ?? 'weekly',
             'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']?->value ?? '1', true) ?? 1,
             'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']?->value ?? '6', true) ?? 6,
