@@ -125,6 +125,41 @@ class LineStockLocationTest extends TestCase
             ->assertSessionHasErrors('warehouse_id');
     }
 
+    /**
+     * `Rule::exists` queries the table directly and so bypasses the model's global
+     * TenantScope — without the tenant clause, one tenant could name another's
+     * warehouse by id even though the picker never offers it.
+     */
+    public function test_another_tenants_location_is_rejected(): void
+    {
+        $ours = \App\Models\Tenant::factory()->create();
+        $theirs = \App\Models\Tenant::factory()->create();
+
+        $this->admin->update(['tenant_id' => $ours->id]);
+
+        $foreign = Warehouse::factory()->rawMaterial()->create(['tenant_id' => $theirs->id]);
+        $own = Warehouse::factory()->rawMaterial()->create(['tenant_id' => $ours->id]);
+
+        $this->actingAs($this->admin)
+            ->post('/admin/lines', [
+                'code' => 'L-TEN',
+                'name' => 'Assembly Tenant',
+                'warehouse_id' => $foreign->id,
+            ])
+            ->assertSessionHasErrors('warehouse_id');
+
+        $this->assertDatabaseMissing('lines', ['code' => 'L-TEN']);
+
+        // The tenant's own store is still accepted.
+        $this->actingAs($this->admin)
+            ->post('/admin/lines', [
+                'code' => 'L-TEN-OK',
+                'name' => 'Assembly Tenant OK',
+                'warehouse_id' => $own->id,
+            ])
+            ->assertRedirect();
+    }
+
     /** The API shape of the same rejection: a JSON client gets 422, not a redirect. */
     public function test_the_rejection_is_a_422_for_a_json_client(): void
     {

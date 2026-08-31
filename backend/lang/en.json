@@ -5699,5 +5699,6 @@
     "Could not add the maintenance.": "Could not add the maintenance.",
     "Pick a maintenance for this slot": "Pick a maintenance for this slot",
     "Search maintenance": "Search maintenance",
-    "No maintenance schedules.": "No maintenance schedules."
+    "No maintenance schedules.": "No maintenance schedules.",
+    "Lot :lot at :warehouse holds :available, less than the :needed being consumed.": "Lot :lot at :warehouse holds :available, less than the :needed being consumed."
 }

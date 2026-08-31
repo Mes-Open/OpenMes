@@ -478,6 +478,74 @@ class ConsumptionLocationTest extends TestCase
         );
     }
 
+    /**
+     * A lot that has been moved between the deduction and the correction must still
+     * credit back the store that gave the material up — the pick freezes its location
+     * the first time it is deducted, exactly as the allocation does.
+     */
+    public function test_a_moved_lot_still_credits_back_the_store_it_left(): void
+    {
+        $original = $this->warehouse('WS-A');
+        $moved = $this->warehouse('WS-B');
+        $material = Material::factory()->create();
+
+        $lot = MaterialLot::factory()->create([
+            'material_id' => $material->id,
+            'warehouse_id' => $original->id,
+        ]);
+
+        $this->stockAt($original, $material, 500);
+        $this->stockAt($original, $material, 500, $lot);
+        $this->stockAt($moved, $material, 500);
+
+        $allocation = $this->allocationOnLine($original, $material);
+        $allocation->lotPicks()->create(['material_lot_id' => $lot->id, 'picked_qty' => 100]);
+
+        $this->service->deduct($allocation->fresh(), 40);
+        $this->assertEquals(460.0, $this->balance($original, $material));
+
+        // The lot is transferred to another store, then the entry is corrected down.
+        $lot->update(['warehouse_id' => $moved->id]);
+        $this->service->deduct($allocation->fresh(), 10);
+
+        $this->assertEquals(490.0, $this->balance($original, $material));
+        $this->assertEquals(490.0, $this->balance($original, $material, $lot));
+        // The store the lot moved to never gave anything up, so it is left alone.
+        $this->assertEquals(500.0, $this->balance($moved, $material));
+    }
+
+    public function test_a_picked_lot_the_location_cannot_cover_is_refused(): void
+    {
+        $this->blockNegativeStock(true);
+
+        $warehouse = $this->warehouse('WS-1');
+        $material = Material::factory()->create();
+        $lot = MaterialLot::factory()->create([
+            'material_id' => $material->id,
+            'warehouse_id' => $warehouse->id,
+            'lot_number' => 'LOT-EMPTY',
+        ]);
+
+        // The store holds plenty of the material overall, but almost none of this lot.
+        $this->stockAt($warehouse, $material, 500);
+        $this->stockAt($warehouse, $material, 2, $lot);
+
+        $allocation = $this->allocationOnLine($warehouse, $material);
+        $allocation->lotPicks()->create(['material_lot_id' => $lot->id, 'picked_qty' => 100]);
+
+        try {
+            $this->service->deduct($allocation->fresh(), 40);
+            $this->fail('Consuming a lot the location cannot cover should have been refused.');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('LOT-EMPTY', $e->getMessage());
+        }
+
+        // Neither the lot row nor the material total moved.
+        $this->assertEquals(2.0, $this->balance($warehouse, $material, $lot));
+        $this->assertEquals(500.0, $this->balance($warehouse, $material));
+        $this->assertEquals(0.0, (float) $allocation->fresh()->location_deducted_qty);
+    }
+
     public function test_a_correction_credits_each_location_its_own_share_back(): void
     {
         $first = $this->warehouse('WS-A');

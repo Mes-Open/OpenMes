@@ -31,6 +31,11 @@ trait ValidatesLineStockLocation
                 ->where('is_active', true)
                 ->whereIn('kind', [Warehouse::KIND_RAW_MATERIAL, Warehouse::KIND_MIXED])
                 ->where(function ($query) {
+                    // Mirrors TenantScope exactly: scope to the tenant when there is
+                    // one, and to nothing when there is not. Rejecting outright on a
+                    // null tenant would break every single-tenant install — tenancy is
+                    // dormant there, so users and warehouses both carry a null
+                    // tenant_id and the picker offers all of them.
                     $tenantId = $this->user()?->tenant_id;
 
                     if ($tenantId) {

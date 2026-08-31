@@ -3,6 +3,7 @@
 namespace App\Services\Material;
 
 use App\Models\MaterialAllocation;
+use App\Models\MaterialLot;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -145,7 +146,23 @@ class ConsumptionLocationService
 
         // The lot-level balance and the material total for that location are kept
         // separately (#212), so a per-material view does not have to sum lots.
-        foreach ($split['lots'] as $lotId => $lotDelta) {
+        //
+        // Every lot row is locked and checked BEFORE any of them moves: a location can
+        // hold enough of a material in total while the particular lot this allocation
+        // picked is empty, and a half-applied deduction would leave one lot negative
+        // and the material total already spent.
+        $lotDeltas = $split['lots'];
+        ksort($lotDeltas); // Deterministic lock order — two bookings cannot deadlock.
+
+        $lotRows = [];
+
+        foreach ($lotDeltas as $lotId => $lotDelta) {
+            $lotRows[$lotId] = $this->warehouseStock->lockOrCreate([...$keys, 'material_lot_id' => $lotId]);
+
+            $this->assertLotSufficient($lotId, $warehouse, $lotDelta, (float) $lotRows[$lotId]->quantity);
+        }
+
+        foreach ($lotDeltas as $lotId => $lotDelta) {
             $this->warehouseStock->adjust([...$keys, 'material_lot_id' => $lotId], -$lotDelta);
         }
 
@@ -255,14 +272,49 @@ class ConsumptionLocationService
                 continue;
             }
 
-            $warehouseId = (int) ($pick->lot?->warehouse_id ?: $fallback->id);
+            // Frozen first: a lot moved after its first deduction must still credit
+            // back the store that actually gave the material up.
+            $warehouseId = (int) ($pick->consumption_warehouse_id ?: $pick->lot?->warehouse_id ?: $fallback->id);
             $lotId = (int) $pick->material_lot_id;
+
+            if ($pick->consumption_warehouse_id === null) {
+                // Freeze it on first use, inside the caller's transaction — a deduction
+                // refused further down rolls this back with it.
+                $pick->update(['consumption_warehouse_id' => $warehouseId]);
+            }
 
             $split[$warehouseId]['total'] = round(($split[$warehouseId]['total'] ?? 0) + $share, 3);
             $split[$warehouseId]['lots'][$lotId] = round(($split[$warehouseId]['lots'][$lotId] ?? 0) + $share, 3);
         }
 
         return $split;
+    }
+
+    /**
+     * Refuse a deduction a picked lot cannot cover at that location, when the plant
+     * says so. The material total having enough is not the same answer: the total is
+     * every lot plus the untracked remainder, and consuming a lot that is not there
+     * would leave a negative lot row behind a healthy-looking total.
+     *
+     * @throws \DomainException
+     */
+    private function assertLotSufficient(int $lotId, Warehouse $warehouse, float $delta, float $available): void
+    {
+        if ($delta <= 0 || ! $this->warehouseStock->blocksNegativeStock()) {
+            return;
+        }
+
+        if ($available + 0.0005 < $delta) {
+            throw new \DomainException(__(
+                'Lot :lot at :warehouse holds :available, less than the :needed being consumed.',
+                [
+                    'lot' => MaterialLot::find($lotId)?->lot_number ?? $lotId,
+                    'warehouse' => $warehouse->code,
+                    'available' => round($available, 3),
+                    'needed' => round($delta, 3),
+                ],
+            ));
+        }
     }
 
     /**
