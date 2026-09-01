@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { scrapReasonFields } from './fields';
+import { scrapReasonFields, scrapReasonInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ScrapReasonCreate() {
@@ -13,7 +13,7 @@ export default function ScrapReasonCreate() {
                 action="/admin/scrap-reasons"
                 method="post"
                 fields={scrapReasonFields()}
-                initial={{ code: '', name: '', category: '', description: '', sort_order: 0, is_active: true }}
+                initial={scrapReasonInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/scrap-reasons"
             />

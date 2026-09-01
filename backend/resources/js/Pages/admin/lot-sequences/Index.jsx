@@ -1,10 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import LotSequenceForm, { lotSequenceInitial } from './LotSequenceForm';
 import { __ } from '../../../lib/i18n';
 
 export default function LotSequencesIndex() {
-    const { productTypeNames = {} } = usePage().props;
+    const drawer = useResourceDrawer();
+
+    const { productTypeNames = {}, productTypes, patternTokens } = usePage().props;
+    const formReady = productTypes !== undefined && patternTokens !== undefined;
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -28,7 +33,7 @@ export default function LotSequencesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/lot-sequences/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -48,11 +53,30 @@ export default function LotSequencesIndex() {
                 shape="lot_sequences"
                 title={__('LOT Sequences')}
                 createHref="/admin/lot-sequences/create"
+                onCreate={drawer.create}
                 createLabel={__('New Sequence')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No LOT sequences yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                ensure={['productTypes', 'patternTokens']}
+                ready={formReady}
+                title={{ create: __('New LOT Sequence'), edit: __('Edit LOT Sequence') }}
+                render={({ editing, record, finish }) => (
+                    <LotSequenceForm
+                        bare
+                        action={editing ? `/admin/lot-sequences/${record.id}` : '/admin/lot-sequences'}
+                        method={editing ? 'put' : 'post'}
+                        initial={{ ...lotSequenceInitial(editing ? record : null), stay: 1 }}
+                        submitLabel={editing ? __('Save Changes') : __('Create')}
+                        onSuccess={finish}
+                        onCancel={finish}
+                    />
+                )}
             />
         </>
     );

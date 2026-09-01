@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ANOMALY_REASON_FIELDS } from './fields';
+import { ANOMALY_REASON_FIELDS, anomalyReasonInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function AnomalyReasonCreate() {
@@ -13,7 +13,7 @@ export default function AnomalyReasonCreate() {
                 action="/admin/anomaly-reasons"
                 method="post"
                 fields={ANOMALY_REASON_FIELDS}
-                initial={{ code: '', name: '', category: '', description: '', is_active: true }}
+                initial={anomalyReasonInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/anomaly-reasons"
             />

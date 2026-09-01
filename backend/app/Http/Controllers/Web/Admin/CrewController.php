@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Crew;
 use App\Models\Division;
@@ -9,10 +10,13 @@ use App\Models\Line;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class CrewController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of crews.
      */
@@ -26,6 +30,18 @@ class CrewController extends Controller
             'counts' => $counts,
             'divisionNames' => $divisionNames,
             'leaderNames' => $leaderNames,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'divisions' => Inertia::optional(fn () => Division::active()->orderBy('name')->get(['id', 'name'])),
+            'users' => Inertia::optional(fn () => User::orderBy('name')->get(['id', 'name'])),
+            'lines' => Inertia::optional(fn () => Line::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            // Line assignments are a pivot, so they're absent from the `crews`
+            // collection the list rows come from — the drawer can't read them off
+            // the record the way it reads every other field.
+            'crewLines' => Inertia::optional(fn () => DB::table('crew_line')
+                ->get(['crew_id', 'line_id'])
+                ->groupBy('crew_id')
+                ->map(fn ($rows) => $rows->pluck('line_id')->all())),
         ]);
     }
 
@@ -66,8 +82,7 @@ class CrewController extends Controller
         $crew = Crew::create(Arr::except($validated, 'line_ids'));
         $crew->lines()->sync($request->input('line_ids', []));
 
-        return redirect()->route('admin.crews.index')
-            ->with('success', 'Crew created successfully.');
+        return $this->saved($request, redirect()->route('admin.crews.index'), 'Crew created successfully.');
     }
 
     /**
@@ -109,10 +124,14 @@ class CrewController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         $crew->update(Arr::except($validated, 'line_ids'));
-        $crew->lines()->sync($request->input('line_ids', []));
+        // Only touch the pivot when the caller actually sent it. Defaulting to []
+        // here would let any partial update — a form that doesn't carry the field —
+        // silently detach every line the crew is assigned to.
+        if ($request->has('line_ids')) {
+            $crew->lines()->sync($request->input('line_ids', []));
+        }
 
-        return redirect()->route('admin.crews.index')
-            ->with('success', 'Crew updated successfully.');
+        return $this->saved($request, redirect()->route('admin.crews.index'), 'Crew updated successfully.');
     }
 
     /**

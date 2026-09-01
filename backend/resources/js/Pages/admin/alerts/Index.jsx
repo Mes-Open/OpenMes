@@ -561,7 +561,7 @@ function IssueDetail({ issue, onClose, onAcknowledge, onResolve }) {
             title={issue.title ?? issue.type?.name ?? __('Issue')}
             subtitle={issue.type?.name}
             closeLabel={__('Close')}
-            className="max-w-[560px]"
+            width={560}
             footer={
                 <>
                     <Link href="/admin/issues" className="mr-auto text-[12.5px] font-semibold text-om-accent hover:underline">

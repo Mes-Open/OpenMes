@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\MaterialType;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class MaterialTypeController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of material types. Rows live-sync via the
      * `material_types` shape; only the material counts (cross-table) come as a prop.
@@ -45,8 +48,7 @@ class MaterialTypeController extends Controller
 
         MaterialType::create($validated);
 
-        return redirect()->route('admin.material-types.index')
-            ->with('success', __('Material type created successfully.'));
+        return $this->saved($request, redirect()->route('admin.material-types.index'), __('Material type created successfully.'));
     }
 
     /**
@@ -71,8 +73,7 @@ class MaterialTypeController extends Controller
 
         $materialType->update($validated);
 
-        return redirect()->route('admin.material-types.index')
-            ->with('success', __('Material type updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.material-types.index'), __('Material type updated successfully.'));
     }
 
     /**

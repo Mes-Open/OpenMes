@@ -8,7 +8,305 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- **Process template page redesigned as a master–detail rail** — header bar with
+  status/version/duration summary, a compact drag-to-reorder step rail (now @dnd-kit —
+  the old SortableJS wiring had been dead since the React migration and posted to a
+  wrong URL), the routing graph as a read-only strip showing the step sequence, the
+  selected step's full editor beside it (selection syncs with the graph), and reference
+  photos + engineering documents side by side underneath. The step forms and per-step
+  media/checklist/output controls use the design-system components.
+- **36 admin lists create and edit in place** *(most of Admin)* — New… and the row's Edit
+  open a right-hand drawer over the table instead of navigating to a form page, so your
+  search, column filters, page and scroll survive the write and the saved row live-syncs
+  back into the table underneath. Areas, scrap reasons, skills, sites, shifts, tools,
+  materials, material lots, lines, crews, divisions, factories, companies, customers,
+  warehouses, webhooks, product types, maintenance events and schedules, material types,
+  LOT sequences, personnel classes, pallets, and the rest of the config lists.
+  - Resources whose form can't be a field config (the LOT-sequence pattern builder, the
+    personnel-class skills matrix, the pallet's dependent work-order → batch pickers)
+    mount their own form in the same drawer through a new `render` escape hatch on
+    `ResourceFormDrawer`.
+  - Editing reads the record out of the synced row the table already holds, so the drawer
+    opens filled in with no round-trip. Each form's option lists and custom-field config
+    are `Inertia::optional()` — fetched the first time the drawer opens, not on every
+    visit to the list.
+  - Every `/…/create` and `/…/{id}/edit` route still renders the same form standalone; the
+    drawer is a second door onto the same controller actions, not a replacement. Each
+    resource now has one `xInitial(record)` builder shared by all three, so a blank field
+    and a loaded one can't drift apart.
+  - Shared pieces: `ResourceFormDrawer` + `useResourceDrawer()`, a `bare` mode on
+    `ResourceForm` (no card chrome, actions pinned to the bottom of the scroll), and the
+    `StaysOnList` controller concern.
+  - A webhook's secret is still never sent to the browser — the drawer can set a new one,
+    not show the current one.
+- **Fixed: a new area could not be created from `/admin/areas/create`** — the page posted to
+  `POST /admin/areas`, which had no route (areas were only creatable under a site). Added
+  the flat route the page always assumed was there.
+- **New Work Order opens in a right drawer** *(Admin → Orders → All Orders)* — the create
+  form was a centered card whose body scrolled inside the page's own scroll, so on a long
+  order you lost sight of both the list you came from and the form's own actions. It now
+  slides in from the right edge, full height, with the list still readable beside it.
+  - The shared `Modal` grew a `side` prop (`'center'` — unchanged default — `'right'`,
+    `'left'`). Same shell either way: header, scrolling body, optional footer, focus trap,
+    `keepMounted`. Any page that wants the drawer shape opts in with one prop.
+  - The slide honours `prefers-reduced-motion`. The native twin accepts `side` for API
+    parity and ignores it — an edge panel on a phone is `BottomSheet`/`Drawer`, not a
+    variant of the form modal.
+- **Deactivated rows read as deactivated** *(every admin list)* — a switched-off record
+  looked exactly like a live one apart from its status pill, and the two toggles that flip
+  that state were both the same muted grey, so the only cue for which way the switch went
+  was the glyph.
+  - Activate is now green, deactivate red, reusing the running/blocked tokens the
+    Active/Inactive pills already use.
+  - The row itself fades (`is_active` false → 50% on the data cells). The actions cell
+    keeps full contrast: reactivating the record is usually why you went looking for it.
+    `ResourceTable` takes a `rowClassName` prop for lists that want a different rule,
+    on the shared `DataTable`'s new per-row class hook.
+  - The native `DataTable` twin does both, so the mobile lists match.
+- **Line statuses is a normal list now** *(Admin → Production → Line Statuses)* — it was the
+  one admin list that wasn't: a hand-rolled `<table>` of live inputs with a Save button per
+  row, no search, no filters, no sorting, no paging, and an add row whose validation was
+  written separately from the edit row's, so the two could disagree about what a status is.
+  It's now `ResourceTable` over the same synced collection, with create and edit through
+  `ResourceForm` and a single `fields.js` describing a status once.
+  - The colour cell shows the swatch **and** its hex, because the hex is the part you can
+    search for and paste; the Default column marks only the one status that holds it rather
+    than printing "No" on every other row.
+  - Validation moved out of the controller into `LineStatusRequest` and
+    `StoreLineStatusForLineRequest`, per the project's Form Request rule. A line-scoped
+    status still can't claim the global default — "where a new work order starts" is a
+    decision for the global set, and a per-line status taking it would silently override
+    every other line.
+  - **Order is set by dragging**, with a grip handle at the head of each row (`onReorder` on
+    the shared `DataTable`, so any list can opt in). The handle stays visible but goes inert
+    while the table is sorted or filtered, saying why: a drop "above" another row means
+    nothing about the stored order when what you're looking at was arranged by something
+    else, and the row you dropped past may not even be its neighbour.
+  - Dragging runs on **`@dnd-kit/react`** (new dependency, ~1 package + its internals).
+    The first cut used native HTML5 drag-and-drop, which fires **no events at all on touch
+    devices** — this app ships an operator touch shell and tablet layouts, so reordering was
+    simply impossible there. It also drags a browser-generated ghost image rather than the
+    row, never reflows the rows behind it, and offers nothing to the keyboard. dnd-kit moves
+    the real row, slides its neighbours apart as you go, and brings pointer, touch and
+    keyboard sensors. Lists without `onReorder` render a plain row and register nothing, so
+    they pay for none of it.
+    Dropping confirms with a toast rather than the page's flash bar, which would push the
+    table down on every drop. The reorder POST returns 204 instead of redirecting: these
+    rows are a synced collection, so the new order arrives over the websocket by itself —
+    an Inertia visit would re-render a list that is already correct and remount the toast
+    provider mid-confirmation, which is why the first attempt showed no toast at all.
+  - `sort_order` is now a **position, not a label**. Setting it to a number another status
+    already holds moves the status there and slides the rest over; the set is renumbered
+    1..n on every write, so ties and gaps stop being representable — deleting the middle
+    status closes the gap behind it. Previously two statuses could both claim position 2 and
+    the board silently fell back to id order.
+  - Trade-off worth knowing: renaming a status now costs a page load, where the old inline
+    editor did it in place. That's the cost of the list behaving like every other list.
+
+- **Line detail redesigned** *(Admin → Production Lines → a line)* — the last of the admin
+  detail screens on the old look moves to Geist White. A three-up stat strip, then a
+  1.5 / 1 split: the left column is what the line *is* (kanban statuses, its workstations),
+  the right is what operators see when they stand at it. Recent work orders run full width
+  underneath.
+  - **Workstations is now a table with live state and operator**, not a grid of name/code
+    tiles. The state comes from the open `workstation_states` slice — the same "latest slice
+    that hasn't ended" rule the machine monitor uses — in one batched query, so the page says
+    which machine is running without opening the monitor. Rows sort by code.
+  - **The work-order panel is the work-order list**, not a lookalike: it renders
+    `woColumns()` — the same definitions `/admin/work-orders` uses — so an order shows its
+    produced meter, status badge, due countdown, age and batch count here too, with the
+    search box, filter row, column picker, pager and footer totals that come with them.
+    `ResourceTable`'s column builder moved to `components/resourceColumns.jsx` so a list
+    embedded in a card and a list on its own page render from one definition.
+  - Configured workstation-view columns became chips carrying their key and source, with the
+    reorder arrows inside the chip; the whole product-type row is clickable now, where before
+    only the 18px checkbox was.
+  - Icons come from Lucide via `@openmes/ui`'s `Icon` instead of ~20 hand-inlined `<svg>`
+    paths, and every colour is an `om-*` token, so dark mode needs no per-element handling.
+
+- **A list row's name links to its record** — the identity cell is now the way in, the way an
+  order number already opened its order. Every list hands `ResourceTable` a `detailHref` (it
+  powers double-click-to-open), but a plain-text cell gave no sign of it, so the only
+  discoverable route in was the ⋯ menu. A column marks itself with `link: true` and
+  `components/resourceColumns.jsx` renders it through the shared `DetailLink` — one
+  definition of that hover treatment, which the work-order list now uses too. Applied to
+  every list that already knew its detail URL: Production Lines, Sites, Areas, Factories,
+  Materials, Material Lots (lot number), Workers, Personnel Classes and Process Segments.
+
+- **Range presets on the date filter** — the column date filter's calendar now carries the
+  usual period chips under the grid, where a "Date range" caption used to sit: Today,
+  Yesterday, This week, Last week, Last 7 days, This month, Last month, Last 30 days, This
+  quarter, Last quarter, Last 4 quarters, This year, Last year, Last 12 months. Filtering a
+  list to this month took eleven clicks through two month grids; it takes one now.
+  - Every preset resolves to a **whole** period, not a period-to-date — this filter mostly
+    runs over due dates and expiries, which sit in the future, so "This week" meaning
+    Monday→today would hide the rows the reader opened the filter to find. The day-counted
+    ones ("Last 7 days", "Last 30 days") are backward-looking, as their names say.
+  - The chip matching the current selection reads as active, so a range picked by hand that
+    happens to be exactly this month lights that chip too.
+  - `RANGE_PRESETS` lives in `@openmes/ui` with English defaults and the app passes
+    translations through, keeping the package locale-free. Range mode is web-only (the
+    native twin never ported it), so there's no native counterpart to keep in step.
+  - The arithmetic sits in `packages/ui/src/lib/rangePresets.js` — plain JS, no React — and
+    is covered by 33 vitest cases pinning the anchors a manual check never lands on: a
+    Sunday, the 31st of a month whose predecessor has 28 days, a leap February, Q1 reaching
+    back into the previous year, New Year's Eve. Quarter edges and week starts are the parts
+    that fail silently and only in the quarter nobody clicked.
+
+- **The date picker is operable from the keyboard, and reads as a calendar to a screen
+  reader** *(`@openmes/ui` `DatePicker`/`Calendar`, so every date field and date column
+  filter in the app)*. It was neither. The panel is portaled to `document.body`, so Tab
+  from the trigger skipped straight past it into the rest of the page — the calendar could
+  be opened but never reached — and the grid it skipped was a flat run of 31 buttons named
+  after their ISO string, which a screen reader reads out as digits.
+  It now follows the [APG date-picker dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/datepicker-dialog/):
+  - **A real grid.** `role="grid"` → `row` → `gridcell`, seven cells to a row, weekday
+    headers as `columnheader`s carrying the spelled-out day name behind the two-letter
+    abbreviation. The selected day (the whole band, in range mode) is `aria-selected`,
+    today is `aria-current="date"` rather than only a coloured dot, and each day is named
+    by `Intl` — "Saturday, 22 August 2026", not "2026-08-22".
+  - **One tab stop, arrows to move.** Arrows step a day and a week, Home/End reach the ends
+    of the Monday-first week, PageUp/PageDown change month and Shift+PageUp/PageDown change
+    year, each keeping the day number where the target month is long enough. The month and
+    year quick-pick bodies get the same treatment (±1 across, ±3 down).
+  - **Focus is managed.** Opening puts focus on the selected day, Tab cycles inside the
+    dialog instead of escaping into the page behind it, and closing — by Escape or by
+    picking — hands focus back to the trigger. The dialog is `aria-modal`.
+  - Out-of-range days are `aria-disabled` rather than `disabled`, so the arrows can still
+    travel across a gap in `min`/`max` instead of stopping dead at it.
+  - However a `DatePicker` is named — a visible `label` or an `aria-label` from the table's
+    filter row — the name now keeps the value with it: "DUE DATE, 13 Jul 2026" rather than
+    the caption alone (an `aria-label` used to replace the value outright) or the bare date.
+  - The grid's arithmetic (`shiftDays`, `shiftMonths`, `isoWeekStart`/`isoWeekEnd`,
+    `withYearMonth`) lives in `lib/rangePresets.js` with the rest of the date maths and is
+    covered by vitest cases for the edges that break silently — PageUp from 31 March landing
+    on 28 February rather than 3 March, leap days, year rollovers.
+  - **Paging the month is announced.** A polite live region in the panel speaks the new
+    month — 42 cells repaint and, without it, nothing is said at all — and says which
+    half of a range is still wanted. The finished range needs no announcement of its
+    own: closing returns focus to the trigger, whose name now carries it.
+  - The **Today** shortcut renders disabled when `min`/`max` exclude today, instead of
+    looking live and doing nothing.
+- **The date picker speaks the language the rest of the app is in** — it never did.
+  `@openmes/ui` stays locale-free, so every string, the month names and the BCP-47 tag
+  behind the spoken day names arrive as props; the new `components/AppDatePicker.jsx`
+  applies them once, the way `AppDataTable` already does for tables, and all 18 call
+  sites now go through it. Month and weekday names come from `Intl` rather than 31 new
+  lang keys per locale — except in English, where the package's own defaults are kept so
+  nothing shifts (`en` maps to `en-GB`, which abbreviates September as "Sept" where the
+  design says "Sep"). The trigger spells its value with the same month names as the
+  panel, so a translated calendar can't sit under an English date.
+  The native twin gets the platform's equivalents: `Intl`-spoken day names,
+  `accessibilityViewIsModal` on the popover, the month announced on paging, expanded and
+  selected state on the chips, and the same copy props.
+
+- **The rest of the design system now meets the APG patterns it claims.** Auditing the
+  package against [the ARIA patterns](https://www.w3.org/WAI/ARIA/apg/patterns/) turned up
+  the same shape of gap the date picker had — the right roles, none of the keyboard or
+  focus behaviour that makes them mean anything.
+  - **Dialogs** (`Modal`, `ConfirmDialog`) had `role`/`aria-modal` but no accessible name
+    (the heading was a bare div), and never moved, trapped or returned focus. A shared
+    `lib/dialogFocus.web.js` now does all four for every overlay in the package, and
+    `DatePicker` was moved onto it. `ConfirmDialog` also describes itself with the
+    consequence text, and opens focus on **Cancel** — the answer that changes nothing.
+    Escape is answered at the panel, so an overlay inside another no longer closes both.
+  - **`ActionMenu`** put `aria-haspopup`/`aria-expanded` on a wrapper `<span>` rather than
+    the button that takes focus, and its items — portaled to the end of the body — could
+    not be reached by keyboard at all. The trigger is now cloned rather than wrapped, and
+    the menu follows the pattern: Down/Up open onto the first or last item, arrows and
+    Home/End move within one tab stop, Escape closes and hands focus back.
+  - **`Dropdown`** (60 call sites) tracked the arrow-key highlight in React state and told
+    no one: focus stays on the trigger, so without `aria-activedescendant` a screen reader
+    heard nothing while arrowing the list. The trigger is now a `combobox` pointing at the
+    active option.
+  - **`RadioGroup`, `SegmentedControl`, `Tabs`** were each N tab stops with no arrow keys —
+    which is also what told a reader the options were unrelated. A shared
+    `lib/rovingFocus.web.js` gives them one tab stop, arrows, Home/End and wrapping. Tabs
+    additionally link to their panel (`panels`, opt-in so `aria-controls` never names a
+    region that isn't there), and all three take a `label` naming the group.
+  - **`QuantityStepper`** had no ARIA whatsoever: the value was an inert `<span>` between
+    two unlabelled glyph buttons. It is a `spinbutton` now, focusable, with its value and
+    bounds exposed and Arrow/Home/End/PageUp/PageDown wired.
+  - **`TextField`** and the config-driven **`ResourceForm`** captioned their inputs with a
+    `<label>` carrying no `htmlFor` — so every field in every admin create/edit form
+    reached a screen reader as an unlabelled edit box, with its help text and validation
+    error floating unattached beside it. Captions are tied to their control, `help`/`error`
+    arrive through `aria-describedby`, and a rejected field sets `aria-invalid` and
+    announces its error.
+
+- **Every form control in the app now has a name.** The design-system fixes above only
+  reached the components; the pages had reinvented "caption + control" ~40 times over, with
+  a `<label>` carrying no `htmlFor` — an element that, with nothing attached to it, names
+  nothing at all. 220 of them meant most inputs, selects and dropdowns outside `ResourceForm`
+  reached a screen reader as an unlabelled edit box.
+  Fixed by sweep: where the caption sits directly above its control the control is given the
+  name; the ~13 shared `Field`/`Filter`/`MiniField` wrappers hand it to whatever child they
+  wrap; and a caption that names a *group* rather than one control — a `<label>` can never
+  point at a Dropdown, a radio group or a grid of cards — is now plain text instead of a
+  label with nothing on the other end. Two checkboxes whose only name was in a neighbouring
+  `<span>` got it directly. **No unassociated `<label>` is left in the codebase**: all 37
+  remaining either carry `htmlFor` or wrap their own control.
+  Also caught on the way through: `DataTable`'s search box and the sidebar's menu search
+  were named only by their placeholder, which is not a name; the CSV import's file input is
+  hidden behind the drop zone but still announced; and a Dropdown named purely by the word
+  inside it ("Columns") lost that name when the trigger became a `combobox`, since — unlike
+  a button — a combobox does not take its name from its own content.
+
+- **Stock documents are created in a modal now** *(Admin → Warehouse → Stock Documents)* —
+  "New Document" opened a full page, so you came back to a list that had forgotten its
+  filters, sort and scroll. It now opens over the list, the way "New Work Order" does.
+  - The form moved into `StockDocumentForm`, rendered by both the modal and
+    `/admin/stock-documents/create` — the standalone page still works (deep links, and the
+    line grid has more room there), and a field added once shows up in both.
+  - The modal posts `stay`, which the controller answers with `back()` instead of
+    redirecting to the new draft; the row then arrives on its own through the synced
+    collection. A validation failure comes back to the open modal with its errors.
+  - Closing by a stray click on the scrim keeps what you typed (`keepMounted`); a finished
+    create and an explicit Cancel both reset it.
+  - Type, Warehouse and the per-line Material/Product picker were the last native
+    `<select>`s on the page — browser-chrome grey next to the app's own fields. They are
+    `Dropdown` now, like every other select in the system. The menu is portaled, so it
+    escapes the modal rather than being clipped by it.
+  - The list's option props now come from the same `createFormOptions()` the create page
+    uses, so the two can't drift apart. Its warehouse column reads a `warehouseCodes` map
+    (every warehouse, deactivated ones included) rather than the selectable-warehouse list,
+    which only offers what you may still pick.
+
+### Fixed
+- **Doubled plus on three "new" buttons** *(Admin → Warehouses, Stock Documents, Inspection
+  Plans)* — `ResourceTable` already draws a plus icon in the create button, and these three
+  labels carried a literal `+ ` of their own, so they rendered as "+ + New Warehouse". The
+  prefix is gone from the labels (and from `ResourceTable`'s own `'+ New'` default, which
+  had the same problem).
+  - The same `+ ` was swept out of every other add/create control that still spelled its
+    plus as text — Workstations, Stock Document lines, Custom Fields, Modules, Sites →
+    Areas, Process Template parameters, Definition options, `RepeatableRows` (so
+    inspection-plan criteria and view-template columns follow), onboarding steps, the
+    packaging station, operator batches and the planner's "New order". Each now renders the
+    shared plus **icon** beside its label, so one glyph is drawn by one component instead of
+    two conventions disagreeing per page. The three cases inside a `<select>`/Dropdown
+    ("Add lot…", "Add line") can't hold an icon, so they simply lost the character.
+  - Translation keys moved with the labels across all five catalogs (en, pl, vi, de, tr),
+    folding into the already-translated plain key where one existed; 39 orphaned `"+ …"`
+    keys with no call site left were dropped.
+- **Escape inside a date picker closed the surrounding modal too.** Both listened on
+  `document`, so one press dismissed the picker and the form behind it — losing whatever had
+  been typed into it. The picker's key handling is bound to its own panel and stops there.
+- **A column that opted out of filtering could get its filter back.** `normalizeFilter`
+  mapped `false` to `undefined`, which on a second pass is indistinguishable from "never
+  said" — i.e. `'auto'`. Any column config normalised twice (built by `buildColumnDefs`,
+  then passed through `AppDataTable`'s `withFilters`) grew a filter control on a column
+  whose cell shows something other than what the value holds — a date picker under an
+  elapsed-time column, filtering on a timestamp the reader can't see. "Off" is now `false`
+  all the way through, so normalising is idempotent.
+- **Removing an operator from a line 404'd.** The detail page posted to
+  `/admin/lines/{id}/operators/{user}`; the route is `…/unassign-operator/{user}`.
+- Activating or deactivating a line from its detail page no longer bounces you to the line
+  list — it returns to the page the button was pressed on.
 - **Onboarding: the module-preset choice now precedes the setup wizard** *(admin)* — picking Lightweight / Advanced / Custom is an **independent screen shown before** the wizard, not its first step. The wizard's stepper is hidden on that screen and now counts **4 steps** (Line → Product → Process → Work Order) instead of five. You choose the feature set first, then the wizard walks you through the rest. No change to what each preset enables.
+- **Saving system settings crashed on PostgreSQL** *(admin)* — the plant-timezone save wrote the raw identifier (e.g. `Europe/Warsaw`) into the JSON `system_settings.value` column, which PostgreSQL rejects (`invalid input syntax for type json`), 500-ing the whole Settings → System save; SQLite tolerated it, so tests missed it. The value is now JSON-encoded (and decoded on read, tolerating legacy raw values).
+- **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
+- **Settings language picker showed the wrong language** *(admin)* — the Settings → System language dropdown always showed the stored *system default*, so after switching the UI language with the per-session switcher the picker contradicted the language actually on screen (#271). It now reflects the currently effective locale (the session override if set, else the system default).
 
 ### Added
 - **Consumption is deducted from the workshop location it came off** — stock levels per storage location now reflect what production actually used. Allocation already moved the plant-wide quantity and the picked lot, but nothing said *where* the material physically was, so a plant running several stores could not tell which one had emptied.
@@ -29,6 +327,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 - **Saving system settings crashed on PostgreSQL** *(admin)* — the plant-timezone save wrote the raw identifier (e.g. `Europe/Warsaw`) into the JSON `system_settings.value` column, which PostgreSQL rejects (`invalid input syntax for type json`), 500-ing the whole Settings → System save; SQLite tolerated it, so tests missed it. The value is now JSON-encoded (and decoded on read, tolerating legacy raw values).
 - **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
+
+- **Add maintenance to the planner** *(admin)* — a new **+ Maintenance** button on the schedule planner opens a modal to place a **defined maintenance** (a maintenance schedule, which pre-fills its title / type / line) or an ad-hoc one onto a line at a chosen date, time and duration. It lands as a **distinct yellow tile** in the line's maintenance strip (maintenance tiles are now yellow instead of purple, so they stand out from work orders). Backed by `POST /admin/schedule/maintenance`.
+
+- **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
+- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
+
 ## [0.21.0] - 2026-08-21
 
 ### Added

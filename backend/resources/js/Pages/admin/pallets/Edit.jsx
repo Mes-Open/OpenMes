@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import PalletForm from './PalletForm';
+import PalletForm, { palletInitial } from './PalletForm';
 import LabelPrintMenu from '../../../components/LabelPrintMenu';
 import { __ } from '../../../lib/i18n';
 
@@ -19,15 +19,7 @@ export default function PalletEdit() {
             <PalletForm
                 action={`/admin/pallets/${pallet.id}`}
                 method="put"
-                initial={{
-                    work_order_id: pallet.work_order_id != null ? String(pallet.work_order_id) : '',
-                    batch_id: pallet.batch_id != null ? String(pallet.batch_id) : '',
-                    qty: pallet.qty ?? 0,
-                    status: pallet.status ?? 'open',
-                    location: pallet.location ?? '',
-                    destination: pallet.destination ?? '',
-                    erp_reference: pallet.erp_reference ?? '',
-                }}
+                initial={palletInitial(pallet)}
                 submitLabel={__('Save Changes')}
             />
         </div>

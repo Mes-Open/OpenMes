@@ -8,7 +8,7 @@ export default function WorkersIndex() {
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text', link: true },
         { key: 'email', label: __('Email'), className: 'text-om-muted' },
         { key: 'crew', label: __('Crew'), className: 'text-om-muted', value: (r) => crewNames[r.crew_id] ?? '—', render: (r) => crewNames[r.crew_id] ?? '—' },
         { key: 'class', label: __('Class'), className: 'text-om-muted', value: (r) => personnelClassNames[r.personnel_class_id] ?? '—', render: (r) => personnelClassNames[r.personnel_class_id] ?? '—' },

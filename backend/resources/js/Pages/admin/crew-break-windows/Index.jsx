@@ -1,13 +1,16 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { formatDays } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { formatDays, crewBreakWindowFields, crewBreakWindowInitial } from './fields';
 import { useToast } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewBreakWindowsIndex() {
     const toast = useToast();
-    const { crewNames = {} } = usePage().props;
+    const { crewNames = {}, crews } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const time = (t) => (t ? String(t).slice(0, 5) : '');
 
@@ -48,7 +51,7 @@ export default function CrewBreakWindowsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/admin/crew-break-windows/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: 'Delete',
             icon: 'delete',
@@ -73,11 +76,22 @@ export default function CrewBreakWindowsIndex() {
                 shape="crew_break_windows"
                 title={__('Crew Break Windows')}
                 createHref="/admin/crew-break-windows/create"
+                onCreate={drawer.create}
                 createLabel={__('New Break Window')}
                 columns={columns}
                 orderBy="start_time"
                 actions={actions}
                 emptyText={__('No break windows defined yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/crew-break-windows"
+                fields={crewBreakWindowFields(crews ?? [])}
+                initial={crewBreakWindowInitial}
+                ensure={['crews']}
+                ready={crews !== undefined}
+                title={{ create: __('New Break Window'), edit: __('Edit Break Window') }}
             />
         </>
     );

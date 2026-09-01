@@ -38,3 +38,30 @@ export const PRODUCT_TYPE_FIELDS = [
         type: 'checkbox',
     },
 ];
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function productTypeInitial(record, { imageUrls } = {}) {
+    if (!record) {
+        return { code: '', name: '', description: '', unit_of_measure: 'pcs', image: null, is_active: true, custom_fields: {} };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+        description: record.description ?? '',
+        unit_of_measure: record.unit_of_measure ?? 'pcs',
+        image: null,
+        // The standalone edit page gets this from the model accessor; the list
+        // hands it over separately, since no column behind it is synced.
+        image_url: record.image_url ?? imageUrls?.[record.id] ?? null,
+        remove_image: false,
+        is_active: !!record.is_active,
+        custom_fields: record.custom_fields ?? {},
+    };
+}

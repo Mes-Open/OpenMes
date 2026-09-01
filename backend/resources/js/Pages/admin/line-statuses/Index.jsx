@@ -1,183 +1,135 @@
-import { useMemo, useState } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { Button, Checkbox, IconButton } from '@openmes/ui';
-import { useLiveQuery } from '@tanstack/react-db';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Badge, useToast } from '@openmes/ui';
+
 import AppLayout from '../../../layouts/AppLayout';
-import { realtimeCollection } from '../../../lib/realtimeCollection';
-import Tooltip from '../../../components/Tooltip';
-import useConfirm from '../../../components/useConfirm';
+import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { LINE_STATUS_FIELDS, lineStatusInitial } from './fields';
+import { apiCall } from '../../../lib/http';
 import { __ } from '../../../lib/i18n';
 
 /**
- * Global line statuses — inline-managed (no separate create/edit pages; the
- * controller exposes index/store/update/destroy). Rows live-sync via the
- * `line_statuses_global` collection; each row edits in place and writes through
- * to Laravel (non-optimistic — the committed change re-renders via the sync).
+ * Global line statuses — the kanban columns every production line inherits.
+ *
+ * This was a hand-rolled `<table>` of live inputs with a Save button per row.
+ * It worked, but it was the only list in the app that didn't search, filter,
+ * sort or page, and its add row and edit row validated separately — so the two
+ * could disagree about what a status is. It is now the shared `ResourceTable`
+ * over the same synced collection, with create/edit through `ResourceForm`
+ * (`fields.js` is the single description of a status), which is what every
+ * other admin list does.
  */
 export default function LineStatusesIndex() {
+    const toast = useToast();
+    // Only sent once the drawer asks for it — see the controller's index().
+    const { nextSortOrder } = usePage().props;
+
+    const drawer = useResourceDrawer();
+
+    /**
+     * A plain POST, not an Inertia visit: these rows are a synced collection, so
+     * the new order arrives over the websocket by itself. A visit would re-render
+     * a list that is already right and remount the toast provider mid-confirmation.
+     *
+     * And a toast, not the page's flash bar — the bar pushes the whole table down
+     * as it appears, moving the rows you just dropped.
+     */
+    const reorder = async (ids) => {
+        try {
+            const res = await apiCall('/admin/line-statuses/reorder', 'POST', { ids });
+            if (!res.ok) throw new Error(String(res.status));
+            toast({ severity: 'success', title: __('Order saved') });
+        } catch {
+            toast({ severity: 'error', title: __("Couldn't save the new order") });
+        }
+    };
+
+    const columns = [
+        {
+            key: 'color',
+            label: __('Color'),
+            // The hex itself is the searchable value — the swatch can't be typed
+            // into a filter box, and "#1c9a55" is what a designer would paste.
+            value: (r) => r.color ?? '',
+            render: (r) => (
+                <span className="inline-flex items-center gap-2">
+                    <span
+                        aria-hidden
+                        className="size-[18px] shrink-0 rounded-[5px] border border-om-line"
+                        style={{ backgroundColor: r.color }}
+                    />
+                    <span className="font-mono text-[11.5px] text-om-faint uppercase">{r.color}</span>
+                </span>
+            ),
+        },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text', link: true },
+        { key: 'sort_order', label: __('Order'), className: 'font-mono text-om-muted' },
+        {
+            key: 'is_default',
+            label: __('Default'),
+            value: (r) => __(r.is_default ? 'Yes' : 'No'),
+            // Only one status can hold it, so the interesting cell is the one
+            // that says yes — the rest stay quiet rather than each printing "No".
+            render: (r) => (r.is_default ? <Badge variant="outline">{__('Default')}</Badge> : <span className="text-om-faintest">—</span>),
+        },
+    ];
+
+    const actions = (r) => [
+        // The row is the record: `line_statuses_global` syncs every column the
+        // form needs, so the drawer opens filled in without a round-trip.
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        {
+            label: __('Delete'),
+            icon: 'delete',
+            variant: 'danger',
+            confirm: {
+                title: __('Delete status ":name"?', { name: r.name }),
+                body: __('Work orders sitting in it keep their history and move to no status.'),
+                confirmLabel: __('Delete'),
+            },
+            onClick: () => router.delete(`/admin/line-statuses/${r.id}`, { preserveScroll: true }),
+        },
+    ];
+
     return (
         <>
             <Head title={__('Line Statuses')} />
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-2">
-                    {__('Line Statuses')}
-                </h1>
-                <p className="text-om-muted text-sm mb-6">
-                    {__('Global kanban statuses available to every production line.')}
-                </p>
-                <Editor />
-            </div>
+            <ResourceTable
+                shape="line_statuses_global"
+                title={__('Line Statuses')}
+                subtitle={
+                    <span className="text-[13px] text-om-muted">
+                        {__('Global kanban statuses available to every production line.')}
+                    </span>
+                }
+                // No detail page — the name opens the editor, which is the only
+                // thing there is to see about a status.
+                detailHref={(r) => `/admin/line-statuses/${r.id}/edit`}
+                createHref="/admin/line-statuses/create"
+                onCreate={drawer.create}
+                createLabel={__('New Status')}
+                columns={columns}
+                orderBy="sort_order"
+                // The board's column order is the point of this list, so it is
+                // set by dragging rather than by typing a number and hoping it
+                // doesn't collide with someone else's.
+                onReorder={reorder}
+                actions={actions}
+                emptyText={__('No line statuses yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/line-statuses"
+                fields={LINE_STATUS_FIELDS}
+                initial={(record) => lineStatusInitial(record, { nextSortOrder })}
+                ensure={['nextSortOrder']}
+                ready={nextSortOrder !== undefined}
+                title={{ create: __('New Status'), edit: __('Edit Status') }}
+            />
+
         </>
     );
 }
 
 LineStatusesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
-
-function Editor() {
-    const collection = useMemo(() => realtimeCollection('line_statuses_global'), []);
-    const { data: rows } = useLiveQuery((q) =>
-        q.from({ s: collection }).orderBy(({ s }) => s.sort_order, 'asc'),
-    );
-    // The dialog lives here rather than in StatusRow: a <tr> can't host it, and
-    // one shared dialog beats one per row.
-    const { confirm, dialog } = useConfirm();
-
-    return (
-        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="text-left text-om-muted border-b border-om-line bg-om-panel">
-                        <th className="px-4 py-3">{__('Color')}</th>
-                        <th className="px-4 py-3">{__('Name')}</th>
-                        <th className="px-4 py-3 w-24">{__('Order')}</th>
-                        <th className="px-4 py-3 w-24">{__('Default')}</th>
-                        <th className="px-4 py-3 text-right">{__('Actions')}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((s) => (
-                        <StatusRow key={s.id} status={s} confirm={confirm} />
-                    ))}
-                    <AddRow nextOrder={rows.length} />
-                </tbody>
-            </table>
-            {dialog}
-        </div>
-    );
-}
-
-function StatusRow({ status, confirm }) {
-    const [name, setName] = useState(status.name);
-    const [color, setColor] = useState(status.color);
-    const [sortOrder, setSortOrder] = useState(status.sort_order ?? 0);
-    const [isDefault, setIsDefault] = useState(!!status.is_default);
-    const [saving, setSaving] = useState(false);
-
-    const dirty =
-        name !== status.name ||
-        color !== status.color ||
-        Number(sortOrder) !== (status.sort_order ?? 0) ||
-        isDefault !== !!status.is_default;
-
-    const save = () => {
-        setSaving(true);
-        router.put(
-            `/admin/line-statuses/${status.id}`,
-            { name, color, sort_order: sortOrder, is_default: isDefault },
-            { preserveScroll: true, onFinish: () => setSaving(false) },
-        );
-    };
-
-    const destroy = () => {
-        confirm({ title: __('Delete status ":name"?', { name: status.name }) }, () => {
-            router.delete(`/admin/line-statuses/${status.id}`, { preserveScroll: true });
-        });
-    };
-
-    return (
-        <tr className="border-b border-om-line last:border-0">
-            <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
-            </td>
-            <td className="px-4 py-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input w-full" />
-            </td>
-            <td className="px-4 py-2">
-                <input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="form-input w-full" />
-            </td>
-            <td className="px-4 py-2">
-                <div className="flex justify-center">
-                    <Checkbox checked={isDefault} onChange={setIsDefault} />
-                </div>
-            </td>
-            <td className="px-4 py-2">
-                <div className="flex items-center justify-end gap-2">
-                    <Button
-                        type="button"
-                        variant="primary"
-                        onClick={save}
-                        disabled={!dirty || saving}
-                        loading={saving}
-                    >
-                        {saving ? __('Saving…') : __('Save')}
-                    </Button>
-                    <Tooltip label={__('Delete')}>
-                        <IconButton
-                            variant="danger"
-                            onClick={destroy}
-                            aria-label={__('Delete')}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </IconButton>
-                    </Tooltip>
-                </div>
-            </td>
-        </tr>
-    );
-}
-
-function AddRow({ nextOrder }) {
-    const [name, setName] = useState('');
-    const [color, setColor] = useState('#3b82f6');
-    const [adding, setAdding] = useState(false);
-
-    const add = () => {
-        if (!name.trim()) return;
-        setAdding(true);
-        router.post(
-            '/admin/line-statuses',
-            { name, color, sort_order: nextOrder, is_default: false },
-            {
-                preserveScroll: true,
-                onSuccess: () => { setName(''); setColor('#3b82f6'); },
-                onFinish: () => setAdding(false),
-            },
-        );
-    };
-
-    return (
-        <tr className="bg-om-panel/50">
-            <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
-            </td>
-            <td className="px-4 py-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={__('New status name…')} className="form-input w-full" />
-            </td>
-            <td className="px-4 py-2 text-om-faint">{nextOrder}</td>
-            <td />
-            <td className="px-4 py-2 text-right">
-                <Button
-                    type="button"
-                    variant="primary"
-                    onClick={add}
-                    disabled={!name.trim() || adding}
-                    loading={adding}
-                >
-                    {adding ? __('Adding…') : __('Add')}
-                </Button>
-            </td>
-        </tr>
-    );
-}

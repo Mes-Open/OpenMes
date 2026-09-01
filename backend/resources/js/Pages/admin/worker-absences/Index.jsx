@@ -2,12 +2,15 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { useToast } from '@openmes/ui';
 import ResourceTable from '../../../components/ResourceTable';
-import { ABSENCE_TYPE_LABELS, ABSENCE_STATUS_STYLES } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { ABSENCE_TYPE_LABELS, ABSENCE_STATUS_STYLES, absenceFields, absenceInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WorkerAbsencesIndex() {
     const toast = useToast();
-    const { workerNames = {} } = usePage().props;
+    const { workerNames = {}, workers, types, statuses } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const fmt = (d) => d ?? '—';
     const time = (t) => (t ? String(t).slice(0, 5) : '');
@@ -49,7 +52,7 @@ export default function WorkerAbsencesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/admin/worker-absences/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: 'Delete',
             icon: 'delete',
@@ -73,11 +76,22 @@ export default function WorkerAbsencesIndex() {
                 shape="worker_absences"
                 title="Worker Absences"
                 createHref="/admin/worker-absences/create"
+                onCreate={drawer.create}
                 createLabel={__('New Absence')}
                 columns={columns}
                 orderBy="starts_on"
                 actions={actions}
                 emptyText="No absences recorded yet."
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/worker-absences"
+                fields={absenceFields(workers ?? [], types ?? [], statuses ?? [])}
+                initial={absenceInitial}
+                ensure={['workers', 'types', 'statuses']}
+                ready={workers !== undefined}
+                title={{ create: __('New Absence'), edit: __('Edit Absence') }}
             />
         </>
     );

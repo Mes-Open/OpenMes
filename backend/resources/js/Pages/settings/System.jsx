@@ -330,6 +330,7 @@ export default function System() {
             {/* Tabs */}
             <div className="mb-6 overflow-x-auto">
                 <Tabs
+                    label={__('Settings sections')}
                     tabs={[
                         { value: 'general', label: __('General') },
                         { value: 'production', label: __('Production') },
@@ -340,10 +341,19 @@ export default function System() {
                     ]}
                     value={tab}
                     onChange={setTab}
+                    panels
                 />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* One panel, whose identity follows the active tab: only the selected
+                tab's sections are mounted, so the form *is* the current panel. */}
+            <form
+                id={`${tab}-panel`}
+                role="tabpanel"
+                aria-labelledby={`${tab}-tab`}
+                onSubmit={handleSubmit}
+                className="space-y-6"
+            >
                 {/* ═══ Modules — enable only the feature areas you need (#144) ═══ */}
                 {tab === 'modules' && (
                     <div className={CARD_CLASS}>
@@ -371,8 +381,9 @@ export default function System() {
                     <div className={CARD_CLASS}>
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
                         <div className="mb-2">
-                            <label className={LABEL_CLASS}>{__('Select language')}</label>
+                            <div className={LABEL_CLASS}>{__('Select language')}</div>
                             <Dropdown
+                                aria-label={__('Select language')}
                                 options={Object.entries(availableLocales ?? { en: 'English' }).map(([code, name]) => ({ value: String(code), label: name }))}
                                 value={data.language == null ? '' : String(data.language)}
                                 onChange={(v) => setData('language', v)}
@@ -677,7 +688,7 @@ export default function System() {
 
                         {/* View mode */}
                         <div>
-                            <label className={LABEL_CLASS}>{__('View mode')}</label>
+                            <div className={LABEL_CLASS}>{__('View mode')}</div>
                             <p className={`${HELP_CLASS} mb-2`}>{__('Default time scale for the schedule view.')}</p>
                             <div className="grid grid-cols-3 gap-3">
                                 {[
@@ -700,7 +711,7 @@ export default function System() {
 
                         {/* Shifts per day */}
                         <div>
-                            <label className={LABEL_CLASS}>{__('Shifts per day')}</label>
+                            <div className={LABEL_CLASS}>{__('Shifts per day')}</div>
                             <p className={`${HELP_CLASS} mb-2`}>{__('Number of production shifts in a 24-hour period.')}</p>
                             <div className="grid grid-cols-4 gap-3">
                                 {[1, 2, 3, 4].map((n) => (
@@ -761,7 +772,7 @@ export default function System() {
 
                         {/* Realtime updates */}
                         <div>
-                            <label className={LABEL_CLASS}>{__('Realtime updates')}</label>
+                            <div className={LABEL_CLASS}>{__('Realtime updates')}</div>
                             <p className={`${HELP_CLASS} mb-2`}>{__('How the planner receives live updates from other users.')}</p>
                             <div className="grid grid-cols-2 gap-3">
                                 <SelectCard

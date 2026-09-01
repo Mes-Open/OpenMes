@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ISSUE_TYPE_FIELDS } from './fields';
+import { ISSUE_TYPE_FIELDS, issueTypeInitial } from './fields';
 
 export default function IssueTypeEdit({ issueType }) {
     return (
@@ -12,13 +12,7 @@ export default function IssueTypeEdit({ issueType }) {
                 action={`/admin/issue-types/${issueType.id}`}
                 method="put"
                 fields={ISSUE_TYPE_FIELDS}
-                initial={{
-                    code: issueType.code ?? '',
-                    name: issueType.name ?? '',
-                    severity: issueType.severity ?? 'MEDIUM',
-                    is_blocking: !!issueType.is_blocking,
-                    is_active: !!issueType.is_active,
-                }}
+                initial={issueTypeInitial(issueType)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/issue-types"
             />

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreLineRequest;
 use App\Http\Requests\Web\Admin\UpdateLineRequest;
@@ -9,12 +10,18 @@ use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
 use App\Models\ProductType;
+use App\Models\WorkstationState;
 use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class LineManagementController extends Controller
 {
+    use StaysOnList;
+
+    /** Most recent orders shown in the line's work-order panel. */
+    private const WORK_ORDER_PANEL_LIMIT = 100;
+
     /**
      * Display a listing of production lines. Rows live-sync via the `lines_all`
      * shape; area names + counts come as props. Advanced per-line config (view
@@ -31,6 +38,10 @@ class LineManagementController extends Controller
                 'operators' => $l->users_count,
             ]]),
             'areaNames' => Area::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'areas' => Inertia::optional(fn () => $this->areaOptions()),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('line')),
         ]);
     }
 
@@ -83,8 +94,7 @@ class LineManagementController extends Controller
 
         Line::create($validated);
 
-        return redirect()->route('admin.lines.index')
-            ->with('success', 'Production line created successfully.');
+        return $this->saved($request, redirect()->route('admin.lines.index'), 'Production line created successfully.');
     }
 
     /**
@@ -92,16 +102,34 @@ class LineManagementController extends Controller
      */
     public function show(Line $line)
     {
-        $line->load(['workstations', 'users', 'productTypes', 'viewColumns', 'viewTemplate']);
+        $line->load([
+            'workstations.workers:id,name,workstation_id',
+            'users', 'productTypes', 'viewColumns', 'viewTemplate',
+        ]);
         $line->loadCount(['workOrders', 'workstations', 'users']);
 
-        // work_orders has `order_no` (not work_order_number) and no product_name
-        // column — the product name comes from the productType relation.
+        // Rows for the work-order panel, in the same shape the work-order list
+        // renders — it reuses `woColumns()`, so the fields those cells read
+        // (produced_qty for the meter, due_date for the countdown, priority)
+        // have to be here or the panel silently shows a different table.
+        //
+        // Capped rather than unbounded: this is an Inertia prop, not the synced
+        // shape the list page rides on, and a line with a decade of orders would
+        // put all of them in the page payload. The header says when it truncated.
+        // `select()` before `withCount()`, not columns passed to `get()`:
+        // withCount sets `work_orders.*` on the query itself, and Query\Builder
+        // only honours the columns given to get() while none are set — so the
+        // list below was silently ignored and every column (custom_fields,
+        // description) went into the Inertia payload.
         $workOrders = $line->workOrders()
-            ->with('productType:id,name')
+            ->select([
+                'id', 'line_id', 'order_no', 'product_type_id', 'planned_qty', 'produced_qty',
+                'status', 'priority', 'due_date', 'created_at',
+            ])
+            ->withCount('batches')
             ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'status', 'created_at']);
+            ->limit(self::WORK_ORDER_PANEL_LIMIT)
+            ->get();
 
         $availableOperators = \App\Models\User::role('Operator')
             ->whereNotIn('id', $line->users->pluck('id'))
@@ -118,7 +146,28 @@ class LineManagementController extends Controller
             'columns_count' => count($t->columns ?? []),
         ]);
 
-        $effectiveWorkstations = $line->effectiveWorkstations();
+        // Sorted by code so the table reads the same way the shop floor is
+        // labelled — the relation's own order is insertion order, which isn't one.
+        $effectiveWorkstations = $line->effectiveWorkstations()->sortBy('code')->values();
+
+        // Current machine state per workstation, in one query. Same "latest slice
+        // that hasn't ended" rule as MachineMonitorService::fleetStatus(), minus
+        // its OEE maths — the table only needs the state word.
+        $states = WorkstationState::whereIn('workstation_id', $line->workstations->pluck('id'))
+            ->whereNull('ended_at')
+            // Three columns and the ordering done in SQL: the table also carries
+            // a `metadata` JSON telemetry snapshot, which was being fetched for
+            // every open slice only to be sorted and thrown away in PHP.
+            ->orderByDesc('started_at')
+            ->get(['workstation_id', 'state', 'started_at'])
+            ->groupBy('workstation_id')
+            ->map(fn ($slices) => $slices->first()?->state);
+
+        // Who is standing at each workstation. The virtual line-as-workstation
+        // entry has no id, so it falls through to null on both lookups.
+        $operators = $line->workstations->mapWithKeys(
+            fn ($ws) => [$ws->id => $ws->workers->pluck('name')->all()]
+        );
 
         return Inertia::render('admin/lines/Show', [
             'line' => array_merge(
@@ -133,12 +182,23 @@ class LineManagementController extends Controller
             ),
             'workOrders' => $workOrders->map(fn ($wo) => [
                 'id' => $wo->id,
-                'work_order_number' => $wo->order_no,
-                'product_name' => $wo->productType?->name,
+                'order_no' => $wo->order_no,
+                'product_type_id' => $wo->product_type_id,
                 'planned_qty' => $wo->planned_qty,
+                'produced_qty' => $wo->produced_qty,
                 'status' => $wo->status,
+                'priority' => $wo->priority,
+                'due_date' => $wo->due_date,
                 'created_at' => $wo->created_at,
             ])->values(),
+            // Lookups the shared work-order columns render from — narrowed to the
+            // orders actually on this page. `pluck('name', 'id')` over the whole
+            // table put the entire catalogue in the payload of every line detail
+            // page, to name at most a hundred orders.
+            'productTypeNames' => ProductType::whereIn(
+                'id', $workOrders->pluck('product_type_id')->filter()->unique()
+            )->pluck('name', 'id'),
+            'batchCounts' => $workOrders->mapWithKeys(fn ($wo) => [$wo->id => $wo->batches_count]),
             'availableOperators' => $availableOperators->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
             'lineStatuses' => $lineStatuses->map(fn ($s) => [
                 'id' => $s->id,
@@ -156,6 +216,8 @@ class LineManagementController extends Controller
                 'name' => $ws->name,
                 'code' => $ws->code,
                 'is_line_itself' => $ws->is_line_itself ?? false,
+                'state' => $ws->id === null ? null : $states->get($ws->id),
+                'operators' => $ws->id === null ? [] : $operators->get($ws->id, []),
             ])->values(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
@@ -189,8 +251,7 @@ class LineManagementController extends Controller
 
         $line->update($validated);
 
-        return redirect()->route('admin.lines.index')
-            ->with('success', 'Production line updated successfully.');
+        return $this->saved($request, redirect()->route('admin.lines.index'), 'Production line updated successfully.');
     }
 
     /**
@@ -219,8 +280,10 @@ class LineManagementController extends Controller
 
         $status = $line->is_active ? 'activated' : 'deactivated';
 
-        return redirect()->route('admin.lines.index')
-            ->with('success', "Production line {$status} successfully.");
+        // Back to wherever the toggle was pressed — the list has a row action and
+        // the detail page has a header button, and bouncing the latter to the
+        // list threw away the page the user was configuring.
+        return back()->with('success', "Production line {$status} successfully.");
     }
 
     /**

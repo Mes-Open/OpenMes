@@ -1,7 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { TRIGGER_TYPE_LABELS } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TRIGGER_TYPE_LABELS, triggerFields, triggerInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function QualityControlTriggersIndex() {
@@ -10,7 +11,11 @@ export default function QualityControlTriggersIndex() {
         lineNames = {},
         workstationNames = {},
         productTypeNames = {},
-    } = usePage().props;
+        // No defaults: these are Inertia::optional, and `ready` below tells the
+        // drawer they haven't arrived by their being undefined.
+        templates, lines, workstations, productTypes } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const scope = (r) => {
         const parts = [];
@@ -54,7 +59,7 @@ export default function QualityControlTriggersIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/quality-control-triggers/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -79,11 +84,22 @@ export default function QualityControlTriggersIndex() {
                 shape="quality_control_triggers"
                 title={__('Quality Control Triggers')}
                 createHref="/admin/quality-control-triggers/create"
+                onCreate={drawer.create}
                 createLabel={__('New Trigger')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No quality control triggers yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/quality-control-triggers"
+                fields={triggerFields({ templates: templates ?? [], lines: lines ?? [], workstations: workstations ?? [], productTypes: productTypes ?? [] })}
+                initial={triggerInitial}
+                ensure={['templates', 'lines', 'workstations', 'productTypes']}
+                ready={templates !== undefined}
+                title={{ create: __('New Quality Control Trigger'), edit: __('Edit Quality Control Trigger') }}
             />
         </>
     );

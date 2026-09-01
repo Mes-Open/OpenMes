@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { DatePicker } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber, __ } from '../../../lib/i18n';
@@ -149,16 +149,18 @@ export default function OeeShow() {
                 {/* Date filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">{__('From')}</label>
-                        <DatePicker
+                        <div className="block text-xs font-medium text-om-muted mb-1">{__('From')}</div>
+                        <AppDatePicker
+                            aria-label={__('From')}
                             value={dateFrom || null}
                             onChange={(iso) => apply({ date_from: iso ?? '' })}
                             className="w-44"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">{__('To')}</label>
-                        <DatePicker
+                        <div className="block text-xs font-medium text-om-muted mb-1">{__('To')}</div>
+                        <AppDatePicker
+                            aria-label={__('To')}
                             value={dateTo || null}
                             onChange={(iso) => apply({ date_to: iso ?? '' })}
                             className="w-44"

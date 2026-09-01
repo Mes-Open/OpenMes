@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import PalletForm from './PalletForm';
+import PalletForm, { palletInitial } from './PalletForm';
 
 export default function PalletCreate() {
     return (
@@ -10,15 +10,7 @@ export default function PalletCreate() {
             <PalletForm
                 action="/admin/pallets"
                 method="post"
-                initial={{
-                    work_order_id: '',
-                    batch_id: '',
-                    qty: 0,
-                    status: 'open',
-                    location: '',
-                    destination: '',
-                    erp_reference: '',
-                }}
+                initial={palletInitial(null)}
                 submitLabel="Create"
             />
         </div>

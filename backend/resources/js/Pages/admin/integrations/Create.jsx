@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { INTEGRATION_FIELDS } from './fields';
+import { INTEGRATION_FIELDS, integrationInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function IntegrationCreate() {
@@ -13,7 +13,7 @@ export default function IntegrationCreate() {
                 action="/admin/integrations"
                 method="post"
                 fields={INTEGRATION_FIELDS}
-                initial={{ system_type: '', system_name: '', is_active: true }}
+                initial={integrationInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/integrations"
             />

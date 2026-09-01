@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { crewBreakWindowFields } from './fields';
+import { crewBreakWindowFields, crewBreakWindowInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewBreakWindowEdit({ window }) {
@@ -15,14 +15,7 @@ export default function CrewBreakWindowEdit({ window }) {
                 action={`/admin/crew-break-windows/${window.id}`}
                 method="put"
                 fields={crewBreakWindowFields(crews)}
-                initial={{
-                    crew_id: window.crew_id ? String(window.crew_id) : '',
-                    name: window.name ?? '',
-                    start_time: window.start_time ?? '',
-                    end_time: window.end_time ?? '',
-                    days_of_week: (window.days_of_week ?? []).map(Number),
-                    is_active: !!window.is_active,
-                }}
+                initial={crewBreakWindowInitial(window)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/crew-break-windows"
             />

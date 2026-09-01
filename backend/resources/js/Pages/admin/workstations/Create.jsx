@@ -40,10 +40,11 @@ export default function WorkstationCreate() {
 
             <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Code')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Code')}
                         type="text"
                         name="code"
                         value={form.data.code}
@@ -58,10 +59,11 @@ export default function WorkstationCreate() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Name')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Name')}
                         type="text"
                         name="name"
                         value={form.data.name}
@@ -74,10 +76,11 @@ export default function WorkstationCreate() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Workstation Type')}
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('Workstation Type')}
                         type="text"
                         value={form.data.workstation_type}
                         onChange={(e) => form.setData('workstation_type', e.target.value)}

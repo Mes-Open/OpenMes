@@ -224,11 +224,11 @@ class ShapeRegistry
         ],
         'maintenance_events' => [
             'table' => 'maintenance_events',
-            'columns' => ['id', 'title', 'event_type', 'status', 'tool_id', 'line_id', 'workstation_id', 'cost_source_id', 'assigned_to_id', 'scheduled_at', 'scheduled_end_at', 'actual_cost', 'currency', 'created_at', 'updated_at'],
+            'columns' => ['id', 'title', 'event_type', 'status', 'tool_id', 'line_id', 'workstation_id', 'cost_source_id', 'assigned_to_id', 'scheduled_at', 'scheduled_end_at', 'actual_cost', 'currency', 'description', 'created_at', 'updated_at'],
         ],
         'maintenance_schedules' => [
             'table' => 'maintenance_schedules',
-            'columns' => ['id', 'name', 'tool_id', 'line_id', 'workstation_id', 'event_type', 'assigned_to_id', 'cost_source_id', 'frequency', 'interval_value', 'preferred_time', 'lead_time_days', 'next_due_at', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'description', 'tool_id', 'line_id', 'workstation_id', 'event_type', 'assigned_to_id', 'cost_source_id', 'frequency', 'interval_value', 'preferred_time', 'lead_time_days', 'next_due_at', 'is_active', 'created_at', 'updated_at'],
         ],
         'material_lots' => [
             'table' => 'material_lots',

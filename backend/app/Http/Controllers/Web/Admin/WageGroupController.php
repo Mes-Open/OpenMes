@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWageGroupRequest;
 use App\Http\Requests\Web\Admin\UpdateWageGroupRequest;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class WageGroupController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of wage groups. Rows live-sync via the
      * `wage_groups` shape; worker counts come as a prop.
@@ -40,8 +43,7 @@ class WageGroupController extends Controller
     {
         WageGroup::create($request->validated());
 
-        return redirect()->route('admin.wage-groups.index')
-            ->with('success', 'Wage group created successfully.');
+        return $this->saved($request, redirect()->route('admin.wage-groups.index'), 'Wage group created successfully.');
     }
 
     /**
@@ -61,8 +63,7 @@ class WageGroupController extends Controller
     {
         $wageGroup->update($request->validated());
 
-        return redirect()->route('admin.wage-groups.index')
-            ->with('success', 'Wage group updated successfully.');
+        return $this->saved($request, redirect()->route('admin.wage-groups.index'), 'Wage group updated successfully.');
     }
 
     /**

@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { subassemblyFields } from './fields';
+import { subassemblyFields, subassemblyInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SubassemblyCreate() {
@@ -15,7 +15,7 @@ export default function SubassemblyCreate() {
                 action="/admin/subassemblies"
                 method="post"
                 fields={subassemblyFields(productTypes)}
-                initial={{ product_type_id: '', code: '', name: '', description: '', is_active: true }}
+                initial={subassemblyInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/subassemblies"
             />

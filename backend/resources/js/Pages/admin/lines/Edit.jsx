@@ -2,7 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { lineFields } from './fields';
+import { lineFields, lineInitial } from './fields';
 
 export default function LineEdit() {
     const { line, areas = [], warehouses = [] } = usePage().props;
@@ -14,15 +14,7 @@ export default function LineEdit() {
                 action={`/admin/lines/${line.id}`}
                 method="put"
                 fields={lineFields(areas, warehouses)}
-                initial={{
-                    code: line.code ?? '',
-                    name: line.name ?? '',
-                    area_id: line.area_id != null ? String(line.area_id) : '',
-                    warehouse_id: line.warehouse_id != null ? String(line.warehouse_id) : '',
-                    description: line.description ?? '',
-                    is_active: !!line.is_active,
-                    custom_fields: line.custom_fields ?? {},
-                }}
+                initial={lineInitial(line)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/lines"
             />

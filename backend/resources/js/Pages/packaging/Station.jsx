@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls (scanning logic untouched).
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
-import { Badge, Button, Dropdown, StatusPill } from '@openmes/ui';
+import { Badge, Button, Dropdown, Icon, StatusPill } from '@openmes/ui';
 import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { __, formatTime } from '../../lib/i18n';
@@ -411,10 +411,11 @@ export default function Station() {
                     {!activePallet ? (
                         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                             <div className="flex-1">
-                                <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                                <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                                     {__('Create pallet for order')}
-                                </label>
+                                </div>
                                 <Dropdown
+                                    aria-label={__('Create pallet for order')}
                                     value={palletWoId == null ? '' : String(palletWoId)}
                                     onChange={(v) => { setPalletWoId(v); setPalletBatchId(''); }}
                                     placeholder={__('— Select order —')}
@@ -427,10 +428,11 @@ export default function Station() {
                             </div>
                             {palletBatches.length >= 2 && (
                                 <div className="flex-1">
-                                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                                    <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                                         {__('Batch')}
-                                    </label>
+                                    </div>
                                     <Dropdown
+                                        aria-label={__('Batch')}
                                         value={palletBatchId == null ? '' : String(palletBatchId)}
                                         onChange={(v) => setPalletBatchId(v)}
                                         placeholder={__('— Select batch —')}
@@ -444,8 +446,9 @@ export default function Station() {
                                 onClick={createPallet}
                                 disabled={!palletWoId || palletBusy || (palletBatches.length >= 2 && !palletBatchId)}
                                 className="px-6 py-4 text-[15px]"
+                                leftIcon={<Icon name="plus" size={16} />}
                             >
-                                {__('+ Create pallet')}
+                                {__('Create pallet')}
                             </Button>
                         </div>
                     ) : (

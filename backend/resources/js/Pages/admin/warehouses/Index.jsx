@@ -1,10 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { warehouseKinds } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { warehouseKinds, warehouseFields, warehouseInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WarehousesIndex() {
+    const drawer = useResourceDrawer();
+
     const { stockCounts = {}, documentCounts = {} } = usePage().props;
 
     // Built during render: page modules load before the locale chunk, so a
@@ -27,7 +30,7 @@ export default function WarehousesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/warehouses/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         ...(r.is_default
             ? []
             : [{
@@ -59,11 +62,20 @@ export default function WarehousesIndex() {
                 shape="warehouses"
                 title={__('Warehouses')}
                 createHref="/admin/warehouses/create"
-                createLabel={__('+ New Warehouse')}
+                onCreate={drawer.create}
+                createLabel={__('New Warehouse')}
                 columns={columns}
                 orderBy="code"
                 actions={actions}
                 emptyText={__('No warehouses yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/warehouses"
+                fields={warehouseFields()}
+                initial={warehouseInitial}
+                title={{ create: __('New Warehouse'), edit: __('Edit Warehouse') }}
             />
         </>
     );

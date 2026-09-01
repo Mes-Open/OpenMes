@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Dropdown, Checkbox, TextField } from '@openmes/ui';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, TextField } from '@openmes/ui';
+import PageTitle from '../../../components/PageTitle';
+import { DragDropProvider } from '@dnd-kit/react';
+import { useSortable } from '@dnd-kit/react/sortable';
 import AppLayout from '../../../layouts/AppLayout';
 // Explicit extension: the helper module `engineeringDocuments.js` differs only in
 // case and would resolve wrong on case-insensitive filesystems.
 import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
+import RoutingGraph from './RoutingGraph';
 import { __ } from '../../../lib/i18n';
 import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
@@ -84,8 +88,9 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
     return (
         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
             <div>
-                <label className="form-label">{__('Workstation type (ISA-95)')}</label>
+                <div className="form-label">{__('Workstation type (ISA-95)')}</div>
                 <Dropdown
+                    aria-label={__('Workstation type (ISA-95)')}
                     value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
                     onChange={(v) => setData('workstation_type_id', v)}
                     options={[
@@ -99,25 +104,23 @@ function Isa95StepFields({ data, setData, workstationTypes = [] }) {
                 </p>
             </div>
             <div>
-                <label className="form-label">{__('Setup time (minutes)')}</label>
-                <input
+                <TextField
+                    label={__('Setup time (minutes)')}
                     type="number"
                     min="0"
                     value={data.setup_time_minutes}
-                    onChange={(e) => setData('setup_time_minutes', e.target.value)}
-                    className="form-input w-full"
+                    onChange={(v) => setData('setup_time_minutes', v)}
                     placeholder={__('fixed, per run')}
                 />
             </div>
             <div>
-                <label className="form-label">{__('Run time per unit (minutes)')}</label>
-                <input
+                <TextField
+                    label={__('Run time per unit (minutes)')}
                     type="number"
                     min="0"
                     step="0.01"
                     value={data.run_time_per_unit_minutes}
-                    onChange={(e) => setData('run_time_per_unit_minutes', e.target.value)}
-                    className="form-input w-full"
+                    onChange={(v) => setData('run_time_per_unit_minutes', v)}
                     placeholder={__('× quantity')}
                 />
             </div>
@@ -150,21 +153,13 @@ function ParametersEditor({ value = {}, onChange }) {
             </p>
             <div className="space-y-2">
                 {rows.map(([k, v], i) => (
-                    <div key={i} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={k}
-                            onChange={(e) => setRow(i, e.target.value, v)}
-                            className="form-input w-1/2"
-                            placeholder={__('key (e.g. temperature_c)')}
-                        />
-                        <input
-                            type="text"
-                            value={v ?? ''}
-                            onChange={(e) => setRow(i, k, e.target.value)}
-                            className="form-input w-1/2"
-                            placeholder={__('value')}
-                        />
+                    <div key={i} className="flex items-center gap-2">
+                        <div className="w-1/2">
+                            <TextField mono value={k} onChange={(next) => setRow(i, next, v)} placeholder={__('key (e.g. temperature_c)')} aria-label={__('key (e.g. temperature_c)')} />
+                        </div>
+                        <div className="w-1/2">
+                            <TextField mono value={v ?? ''} onChange={(next) => setRow(i, k, next)} placeholder={__('value')} aria-label={__('value')} />
+                        </div>
                         <button
                             type="button"
                             onClick={() => removeRow(i)}
@@ -176,8 +171,9 @@ function ParametersEditor({ value = {}, onChange }) {
                     </div>
                 ))}
             </div>
-            <button type="button" onClick={addRow} className="mt-2 text-xs text-om-accent hover:underline">
-                {__('+ Add parameter')}
+            <button type="button" onClick={addRow} className="mt-2 inline-flex items-center gap-1 text-xs text-om-accent hover:underline">
+                <UiIcon name="plus" size={12} />
+                {__('Add parameter')}
             </button>
         </div>
     );
@@ -226,7 +222,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     };
 
     return (
-        <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
+        <div className="card mb-6" style={{ borderLeft: '4px solid var(--om-accent)' }}>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-om-ink">{__("Add New Step")}</h2>
                 <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink">
@@ -237,8 +233,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
             <form onSubmit={submit}>
                 {processSegments.length > 0 && (
                     <div className="mb-4">
-                        <label className="form-label">Use Process Segment (optional)</label>
+                        <div className="form-label">{__("Use Process Segment (optional)")}</div>
                         <Dropdown
+                            aria-label="Use Process Segment (optional)"
                             value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                             onChange={(v) => applySegment(v)}
                             options={[
@@ -258,21 +255,20 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="form-label">Step Name</label>
-                        <input
-                            type="text"
-                            value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
-                            className={`form-input w-full${errors.name ? ' border-om-blocked' : ''}`}
-                            placeholder="e.g., Attach component A"
+                        <TextField
+                            label={__('Step Name')}
                             required
+                            value={data.name}
+                            onChange={(v) => setData('name', v)}
+                            placeholder={__('e.g., Attach component A')}
+                            error={errors.name}
                         />
-                        {errors.name && <p className="text-om-blocked text-xs mt-1">{errors.name}</p>}
                     </div>
 
                     <div>
-                        <label className="form-label">Workstation (Optional)</label>
+                        <div className="form-label">{__("Workstation (Optional)")}</div>
                         <Dropdown
+                            aria-label="Workstation (Optional)"
                             value={data.workstation_id == null ? '' : String(data.workstation_id)}
                             onChange={(v) => setData('workstation_id', v)}
                             options={[
@@ -287,39 +283,37 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="form-label">Instructions</label>
-                        <textarea
-                            value={data.instruction}
-                            onChange={(e) => setData('instruction', e.target.value)}
+                        <TextField
+                            label={__('Instructions')}
+                            multiline
                             rows={3}
-                            className="form-input w-full"
-                            placeholder="Detailed instructions for this step..."
+                            value={data.instruction}
+                            onChange={(v) => setData('instruction', v)}
+                            placeholder={__('Detailed instructions for this step...')}
                         />
                     </div>
 
                     <div>
-                        <label className="form-label">Estimated Duration (minutes)</label>
-                        <input
+                        <TextField
+                            label={__('Estimated Duration (minutes)')}
                             type="number"
-                            value={data.estimated_duration_minutes}
-                            onChange={(e) => setData('estimated_duration_minutes', e.target.value)}
                             min="0"
-                            className="form-input w-full"
-                            placeholder="e.g., 15"
+                            value={data.estimated_duration_minutes}
+                            onChange={(v) => setData('estimated_duration_minutes', v)}
+                            placeholder={__('e.g., 15')}
                         />
                     </div>
 
                     <div>
-                        <label className="form-label">Operators Required</label>
-                        <input
+                        <TextField
+                            label={__('Operators Required')}
                             type="number"
-                            value={data.required_operators}
-                            onChange={(e) => setData('required_operators', e.target.value)}
                             min="1"
-                            className="form-input w-full"
-                            placeholder="Inherit from segment"
+                            value={data.required_operators}
+                            onChange={(v) => setData('required_operators', v)}
+                            placeholder={__('Inherit from segment')}
+                            hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
                         />
-                        <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                     </div>
 
                     <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
@@ -328,12 +322,8 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                 </div>
 
                 <div className="flex justify-end gap-3 mt-4">
-                    <button type="button" onClick={onCancel} className="btn-touch btn-secondary">
-                        Cancel
-                    </button>
-                    <button type="submit" disabled={processing} className="btn-touch btn-primary">
-                        {processing ? 'Adding…' : 'Add Step'}
-                    </button>
+                    <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                    <Button type="submit" loading={processing}>{processing ? __('Adding…') : __('Add Step')}</Button>
                 </div>
             </form>
         </div>
@@ -375,8 +365,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         <form onSubmit={submit}>
             {processSegments.length > 0 && (
                 <div className="mb-4">
-                    <label className="form-label">Linked Process Segment</label>
+                    <div className="form-label">{__("Linked Process Segment")}</div>
                     <Dropdown
+                        aria-label="Linked Process Segment"
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => setData('process_segment_id', v)}
                         options={[
@@ -396,20 +387,19 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="form-label">Step Name</label>
-                    <input
-                        type="text"
-                        value={data.name}
-                        onChange={(e) => setData('name', e.target.value)}
-                        className={`form-input w-full${errors.name ? ' border-om-blocked' : ''}`}
+                    <TextField
+                        label={__('Step Name')}
                         required
+                        value={data.name}
+                        onChange={(v) => setData('name', v)}
+                        error={errors.name}
                     />
-                    {errors.name && <p className="text-om-blocked text-xs mt-1">{errors.name}</p>}
                 </div>
 
                 <div>
-                    <label className="form-label">Workstation (Optional)</label>
+                    <div className="form-label">{__("Workstation (Optional)")}</div>
                     <Dropdown
+                        aria-label="Workstation (Optional)"
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
@@ -424,37 +414,35 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 </div>
 
                 <div className="md:col-span-2">
-                    <label className="form-label">Instructions</label>
-                    <textarea
-                        value={data.instruction}
-                        onChange={(e) => setData('instruction', e.target.value)}
+                    <TextField
+                        label={__('Instructions')}
+                        multiline
                         rows={3}
-                        className="form-input w-full"
+                        value={data.instruction}
+                        onChange={(v) => setData('instruction', v)}
                     />
                 </div>
 
                 <div>
-                    <label className="form-label">Estimated Duration (minutes)</label>
-                    <input
+                    <TextField
+                        label={__('Estimated Duration (minutes)')}
                         type="number"
-                        value={data.estimated_duration_minutes}
-                        onChange={(e) => setData('estimated_duration_minutes', e.target.value)}
                         min="0"
-                        className="form-input w-full"
+                        value={data.estimated_duration_minutes}
+                        onChange={(v) => setData('estimated_duration_minutes', v)}
                     />
                 </div>
 
                 <div>
-                    <label className="form-label">Operators Required</label>
-                    <input
+                    <TextField
+                        label={__('Operators Required')}
                         type="number"
-                        value={data.required_operators}
-                        onChange={(e) => setData('required_operators', e.target.value)}
                         min="1"
-                        className="form-input w-full"
-                        placeholder="Inherit from segment"
+                        value={data.required_operators}
+                        onChange={(v) => setData('required_operators', v)}
+                        placeholder={__('Inherit from segment')}
+                        hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
                     />
-                    <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                 </div>
 
                 <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
@@ -463,12 +451,8 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
             </div>
 
             <div className="flex justify-end gap-3 mt-4">
-                <button type="button" onClick={onCancel} className="btn-touch btn-secondary">
-                    Cancel
-                </button>
-                <button type="submit" disabled={processing} className="btn-touch btn-primary">
-                    {processing ? 'Saving…' : 'Save Changes'}
-                </button>
+                <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                <Button type="submit" loading={processing}>{processing ? __('Saving…') : __('Save Changes')}</Button>
             </div>
         </form>
     );
@@ -641,25 +625,29 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                     </ul>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                    <select
+                    <Dropdown
+                        size="sm"
+                        className="min-w-[110px]"
                         value={mediaForm.data.media_type}
-                        onChange={(e) => mediaForm.setData('media_type', e.target.value)}
-                        className="form-select text-sm py-1"
-                    >
-                        <option value="image">{__('Image')}</option>
-                        <option value="pdf">{__('PDF')}</option>
-                        <option value="video">{__('Video')}</option>
-                    </select>
-                    <input
-                        type="text"
-                        value={mediaForm.data.title}
-                        onChange={(e) => mediaForm.setData('title', e.target.value)}
-                        placeholder={__('Title (optional)')}
-                        className="form-input text-sm py-1 flex-1 min-w-[120px]"
+                        onChange={(v) => v && mediaForm.setData('media_type', v)}
+                        options={[
+                            { value: 'image', label: __('Image') },
+                            { value: 'pdf', label: __('PDF') },
+                            { value: 'video', label: __('Video') },
+                        ]}
+                        aria-label={__('Media type')}
                     />
-                    <button type="button" onClick={() => fileRef.current?.click()} disabled={mediaForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">
+                    <div className="flex-1 min-w-[140px]">
+                        <TextField
+                            value={mediaForm.data.title}
+                            onChange={(v) => mediaForm.setData('title', v)}
+                            placeholder={__('Title (optional)')}
+                            aria-label={__('Title (optional)')}
+                        />
+                    </div>
+                    <Button variant="secondary" size="sm" loading={mediaForm.processing} onClick={() => fileRef.current?.click()}>
                         {mediaForm.processing ? __('Uploading…') : __('Upload file')}
-                    </button>
+                    </Button>
                     <input ref={fileRef} type="file" accept={MEDIA_ACCEPT[mediaForm.data.media_type]} className="hidden" onChange={onFile} />
                 </div>
                 {mediaForm.errors.file && <p className="text-xs text-om-blocked mt-1">{mediaForm.errors.file}</p>}
@@ -680,18 +668,21 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                     </ul>
                 )}
                 <form onSubmit={addItem} className="flex flex-wrap items-center gap-2">
-                    <input
-                        type="text"
-                        value={itemForm.data.label}
-                        onChange={(e) => itemForm.setData('label', e.target.value)}
-                        placeholder={__('Add checklist item…')}
-                        className="form-input text-sm py-1 flex-1 min-w-[160px]"
+                    <div className="flex-1 min-w-[180px]">
+                        <TextField
+                            value={itemForm.data.label}
+                            onChange={(v) => itemForm.setData('label', v)}
+                            placeholder={__('Add checklist item…')}
+                            aria-label={__('Add checklist item…')}
+                        />
+                    </div>
+                    <Checkbox
+                        size="sm"
+                        checked={itemForm.data.is_required}
+                        onChange={(next) => itemForm.setData('is_required', next)}
+                        label={__('Required')}
                     />
-                    <label className="flex items-center gap-1.5 text-xs text-om-muted">
-                        <input type="checkbox" checked={itemForm.data.is_required} onChange={(e) => itemForm.setData('is_required', e.target.checked)} />
-                        {__('Required')}
-                    </label>
-                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
+                    <Button type="submit" variant="secondary" size="sm" loading={itemForm.processing}>{__('Add')}</Button>
                 </form>
             </div>
 
@@ -712,27 +703,44 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                     </ul>
                 )}
                 <form onSubmit={addOutput} className="flex flex-wrap items-center gap-2">
-                    <input type="text" value={outputForm.data.key} onChange={(e) => outputForm.setData('key', e.target.value)} placeholder={__('key (e.g. output_qcpic)')} className="form-input text-sm py-1 w-[160px]" />
-                    <input type="text" value={outputForm.data.label} onChange={(e) => outputForm.setData('label', e.target.value)} placeholder={__('Label')} className="form-input text-sm py-1 flex-1 min-w-[120px]" />
-                    <select value={outputForm.data.value_type} onChange={(e) => outputForm.setData('value_type', e.target.value)} className="form-select text-sm py-1">
-                        <option value="text">{__('Text')}</option>
-                        <option value="number">{__('Number')}</option>
-                        <option value="boolean">{__('Yes/No')}</option>
-                        <option value="select">{__('Select')}</option>
-                        <option value="date">{__('Date')}</option>
-                        <option value="picture">{__('Picture')}</option>
-                    </select>
+                    <div className="w-[160px]">
+                        <TextField mono value={outputForm.data.key} onChange={(v) => outputForm.setData('key', v)} placeholder={__('key (e.g. output_qcpic)')} aria-label={__('key (e.g. output_qcpic)')} />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                        <TextField value={outputForm.data.label} onChange={(v) => outputForm.setData('label', v)} placeholder={__('Label')} aria-label={__('Label')} />
+                    </div>
+                    <Dropdown
+                        size="sm"
+                        className="min-w-[110px]"
+                        value={outputForm.data.value_type}
+                        onChange={(v) => v && outputForm.setData('value_type', v)}
+                        options={[
+                            { value: 'text', label: __('Text') },
+                            { value: 'number', label: __('Number') },
+                            { value: 'boolean', label: __('Yes/No') },
+                            { value: 'select', label: __('Select') },
+                            { value: 'date', label: __('Date') },
+                            { value: 'picture', label: __('Picture') },
+                        ]}
+                        aria-label={__('Value type')}
+                    />
                     {outputForm.data.value_type === 'number' && (
-                        <input type="text" value={outputForm.data.unit} onChange={(e) => outputForm.setData('unit', e.target.value)} placeholder={__('unit')} className="form-input text-sm py-1 w-[80px]" />
+                        <div className="w-[90px]">
+                            <TextField value={outputForm.data.unit} onChange={(v) => outputForm.setData('unit', v)} placeholder={__('unit')} aria-label={__('unit')} />
+                        </div>
                     )}
                     {outputForm.data.value_type === 'select' && (
-                        <input type="text" value={outputForm.data.options} onChange={(e) => outputForm.setData('options', e.target.value)} placeholder={__('options, comma-separated')} className="form-input text-sm py-1 w-[180px]" />
+                        <div className="w-[200px]">
+                            <TextField value={outputForm.data.options} onChange={(v) => outputForm.setData('options', v)} placeholder={__('options, comma-separated')} aria-label={__('options, comma-separated')} />
+                        </div>
                     )}
-                    <label className="flex items-center gap-1.5 text-xs text-om-muted">
-                        <input type="checkbox" checked={outputForm.data.is_required} onChange={(e) => outputForm.setData('is_required', e.target.checked)} />
-                        {__('Required')}
-                    </label>
-                    <button type="submit" disabled={outputForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
+                    <Checkbox
+                        size="sm"
+                        checked={outputForm.data.is_required}
+                        onChange={(next) => outputForm.setData('is_required', next)}
+                        label={__('Required')}
+                    />
+                    <Button type="submit" variant="secondary" size="sm" loading={outputForm.processing}>{__('Add')}</Button>
                 </form>
                 {outputForm.errors.options && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.options}</p>}
                 {outputForm.errors.key && <p className="text-xs text-om-blocked mt-1">{outputForm.errors.key}</p>}
@@ -741,24 +749,8 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     );
 }
 
-/**
- * Per-step engineering-documents panel (#179), mounted lazily behind a toggle:
- * a template can have many steps, and the panel self-fetches on mount, so we
- * avoid firing one request per step on page load.
- */
-function StepEngineeringDocuments({ stepId }) {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <div className="mt-3">
-            <button type="button" onClick={() => setOpen((o) => ! o)} className="text-sm text-om-accent">
-                {open ? __('Hide engineering documents') : __('Engineering documents')}
-            </button>
-            {open && <EngineeringDocuments entityType="template_step" entityId={stepId} />}
-        </div>
-    );
-}
-
+/* ------------------------------------------------------------------ */
+/* Main page component                                                   */
 function StepCard({
     step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
     productType, processTemplate, processSegments, workstations, workstationTypes = [],
@@ -915,7 +907,6 @@ function StepCard({
 
                             <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
 
-                            <StepEngineeringDocuments stepId={step.id} />
                         </div>
                     </div>
                 </div>
@@ -934,8 +925,18 @@ function StepCard({
     );
 }
 
-/* ------------------------------------------------------------------ */
-/* Main page component                                                   */
+
+/**
+ * One sortable rail row — a component because `useSortable` is a hook and the
+ * rows are a `.map()`. `ref` goes on the card (dnd-kit moves it), `handleRef`
+ * on the grip, so clicking the card still just selects the step.
+ */
+function RailStep({ id, index, disabled, children }) {
+    const { ref, handleRef, isDragging } = useSortable({ id, index, disabled });
+
+    return children({ ref, handleRef, isDragging });
+}
+
 /* ------------------------------------------------------------------ */
 export default function ProcessTemplatesShow() {
     const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
@@ -949,6 +950,18 @@ export default function ProcessTemplatesShow() {
     });
     const photosBaseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
     const [showAddForm, setShowAddForm] = useState(false);
+    const [selectedStepId, setSelectedStepId] = useState(null);
+    const selectedStep = steps.find((st) => st.id === selectedStepId) ?? steps[0] ?? null;
+    const totalMinutes = steps.reduce((acc, st) => acc + (Number(st.estimated_duration_minutes) || 0), 0);
+
+    /** Compact one-line context for the rail: workstation/class · duration · flags. */
+    const railSubline = (st) => [
+        st.workstation?.name ?? st.workstation_type?.name ?? null,
+        st.estimated_duration_minutes != null ? `${st.estimated_duration_minutes}m` : null,
+        st.variant_group ? __('variant') : null,
+        st.is_optional ? __('optional') : null,
+    ].filter(Boolean).join(' · ');
+
     const [editingId, setEditingId] = useState(null);
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
     const { confirm, dialog } = useConfirm();
@@ -996,145 +1009,66 @@ export default function ProcessTemplatesShow() {
         });
     };
 
-    /* Drag-sort via SortableJS (loaded globally via vendor/sortable.min.js) */
-    const listRef = useRef(null);
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.Sortable) return;
-        if (!listRef.current) return;
+    /* Drag-sort via @dnd-kit (same pattern as DataTable's onReorder rows):
+       optimistic local id order, POST the full order, then reload the steps
+       prop so numbering and the routing graph pick up the server renumber. */
+    const [orderIds, setOrderIds] = useState(steps.map((st) => st.id));
+    useEffect(() => { setOrderIds(steps.map((st) => st.id)); }, [processTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
+    const orderedSteps = orderIds.map((id) => steps.find((st) => st.id === id)).filter(Boolean);
 
-        const reorderUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/reorder-steps`;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const persistOrder = (event) => {
+        const source = event?.operation?.source;
+        if (event?.canceled || !source) return;
+        const from = source.initialIndex;
+        const to = source.index;
+        if (from === to || from == null || to == null) return;
 
-        const sortable = window.Sortable.create(listRef.current, {
-            animation: 150,
-            handle: '.drag-handle',
-            ghostClass: 'sortable-ghost',
-            dragClass: 'sortable-drag',
-            chosenClass: 'sortable-chosen',
-            onEnd() {
-                const order = Array.from(listRef.current.children).map((el) =>
-                    parseInt(el.dataset.stepId, 10),
-                );
-                // Optimistic badge update
-                listRef.current.querySelectorAll('.step-number-badge span').forEach((el, i) => {
-                    el.textContent = i + 1;
-                });
+        const ids = [...orderIds];
+        const [moved] = ids.splice(from, 1);
+        ids.splice(to, 0, moved);
+        setOrderIds(ids);
 
-                setSaveStatus('saving');
-                fetch(reorderUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        Accept: 'application/json',
-                    },
-                    body: JSON.stringify({ order }),
-                })
-                    .then((res) => {
-                        if (!res.ok) throw new Error('Server error');
-                        setSaveStatus('saved');
-                    })
-                    .catch(() => setSaveStatus('error'))
-                    .finally(() => {
-                        setTimeout(() => setSaveStatus(null), 2000);
-                    });
+        setSaveStatus('saving');
+        fetch(`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                Accept: 'application/json',
             },
-        });
-
-        return () => sortable.destroy();
-    }, [steps.length, productType.id, processTemplate.id]);
+            body: JSON.stringify({ order: ids }),
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error('Server error');
+                setSaveStatus('saved');
+                router.reload({ only: ['processTemplate'], preserveScroll: true });
+            })
+            .catch(() => setSaveStatus('error'))
+            .finally(() => setTimeout(() => setSaveStatus(null), 2000));
+    };
 
     return (
         <>
             <Head title={`${processTemplate.name} — Process Template`} />
 
-            <style>{`
-                .sortable-ghost  { opacity: 0.4; }
-                .sortable-drag   { opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
-                .sortable-chosen { background: #f0f7ff; }
-            `}</style>
-
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-6">
-                    <a
-                        href={`/admin/product-types/${productType.id}/process-templates`}
-                        className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4"
-                    >
-                        <Icon d="M15 19l-7-7 7-7" />
-                        {__("Back to Templates")}
-                    </a>
-
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-bold text-om-ink">{processTemplate.name}</h1>
-                                {processTemplate.is_active ? (
-                                    <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">
-                                        Active
-                                    </span>
-                                ) : (
-                                    <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">
-                                        Inactive
-                                    </span>
-                                )}
-                                <span className="px-3 py-1 bg-om-chip text-om-accent rounded-full text-sm font-medium">
-                                    v{processTemplate.version}
-                                </span>
-                            </div>
-                            <p className="text-sm text-om-muted mt-1">
-                                {productType.name} &bull; {steps.length} steps
-                            </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <a
-                                href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/edit`}
-                                className="btn-touch btn-secondary"
-                            >
-                                <Icon
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                    className="w-5 h-5 inline-block mr-2"
-                                />
-                                Edit Template
-                            </a>
-
-                            <a
-                                href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`}
-                                className="btn-touch btn-secondary"
-                            >
-                                <Icon
-                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                                    className="w-5 h-5 inline-block mr-2"
-                                />
-                                BOM
-                            </a>
-
-                            <button
-                                type="button"
-                                onClick={() => setShowAddForm(true)}
-                                className="btn-touch btn-primary"
-                            >
-                                <Icon d="M12 4v16m8-8H4" className="w-5 h-5 inline-block mr-2" />
-                                Add Step
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Add Step Form */}
-                {showAddForm && (
-                    <AddStepForm
-                        productType={productType}
-                        processTemplate={processTemplate}
-                        processSegments={processSegments}
-                        workstations={workstations}
-                        workstationTypes={workstationTypes}
-                        onCancel={() => setShowAddForm(false)}
+            <div className="w-full">
+                {/* The trail rides in the app header's bar (like Alerts): the
+                    product-type crumb IS the way back to the template list, so
+                    the page needs no separate back link. */}
+                <PageTitle>
+                    <Breadcrumbs
+                        linkAs={Link}
+                        items={[
+                            { label: __('Dashboard'), href: '/admin/dashboard', icon: 'layout-dashboard' },
+                            { label: __('Product Types'), href: '/admin/product-types', icon: 'box' },
+                            { label: productType.name, href: `/admin/product-types/${productType.id}/process-templates` },
+                            { label: processTemplate.name },
+                        ]}
                     />
-                )}
+                </PageTitle>
 
-                {/* In-use warning: editing steps here mutates the template in place. */}
+                {/* In-use warning (template-edit-guard): editing steps here
+                    mutates the template in place. */}
                 {activeWoCount > 0 && (
                     <div className="mb-4 flex items-start gap-3 rounded-lg border border-om-downtime/40 bg-om-downtime-bg px-4 py-3">
                         <svg className="w-5 h-5 mt-0.5 shrink-0 text-om-downtime" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1151,79 +1085,178 @@ export default function ProcessTemplatesShow() {
                     </div>
                 )}
 
-                {/* Steps List header */}
-                <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-xl font-bold text-om-ink">{__("Production Steps")}</h2>
-                    <span className="text-sm text-om-muted">({__("first to last")})</span>
-                </div>
-
-                {steps.length > 0 ? (
-                    <div className="space-y-3" ref={listRef}>
-                        {steps.map((step, idx) => (
-                            <div key={step.id} data-step-id={step.id}>
-                                <StepCard
-                                    step={step}
-                                    photo={photoByStep[step.id] ?? null}
-                                    photosBaseUrl={photosBaseUrl}
-                                    isFirst={idx === 0}
-                                    isLast={idx === steps.length - 1}
-                                    editingId={editingId}
-                                    onEditStart={(id) => setEditingId(id)}
-                                    onEditCancel={() => setEditingId(null)}
-                                    productType={productType}
-                                    processTemplate={processTemplate}
-                                    processSegments={processSegments}
-                                    workstations={workstations}
-                                    workstationTypes={workstationTypes}
-                                    onMoveUp={handleMoveUp}
-                                    onMoveDown={handleMoveDown}
-                                    onDelete={handleDelete}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="card text-center py-12">
-                        <svg className="mx-auto h-16 w-16 text-om-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <p className="text-lg font-medium text-om-muted">{__("No production steps yet")}</p>
-                        <p className="text-sm text-om-muted mt-1 mb-4">
-                            {__("Add steps to define the manufacturing process for this product.")}
-                        </p>
+                {/* Master–detail shell (design 1b): header bar, step rail + graph +
+                    selected-step detail, photos/documents band. */}
+                <div className="bg-om-panel border-y border-om-line2 overflow-hidden">
+                    {/* Header bar */}
+                    <div className="flex items-center gap-3 px-5 py-3.5 bg-om-card border-b border-om-line2 flex-wrap">
+                        <h1 className="text-lg font-bold text-om-ink">{processTemplate.name}</h1>
+                        {processTemplate.is_active ? (
+                            <span className="px-2.5 py-0.5 bg-om-running-bg text-om-running rounded-full font-mono text-[10px] uppercase tracking-wide">{__("Active")}</span>
+                        ) : (
+                            <span className="px-2.5 py-0.5 bg-om-chip text-om-muted rounded-full font-mono text-[10px] uppercase tracking-wide">{__("Inactive")}</span>
+                        )}
+                        <span className="px-2 py-0.5 border border-om-line2 text-om-muted rounded font-mono text-[10px]">v{processTemplate.version}</span>
+                        <span className="font-mono text-[11px] text-om-muted">
+                            {productType.name} · {steps.length} {__("steps")}{totalMinutes > 0 ? ` · ~${totalMinutes} min` : ''}
+                        </span>
+                        <div className="flex-1" />
+                        <a
+                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/edit`}
+                            className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
+                        >
+                            {__("Edit")}
+                        </a>
+                        <a
+                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`}
+                            className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
+                        >
+                            {__("BOM")}
+                        </a>
                         <button
                             type="button"
                             onClick={() => setShowAddForm(true)}
-                            className="inline-block btn-touch btn-primary"
+                            className="text-[12.5px] font-semibold text-white bg-om-ink rounded-om-sm px-3.5 py-2 hover:opacity-90"
                         >
-                            <Icon d="M12 4v16m8-8H4" className="w-5 h-5 inline-block mr-2" />
-                            {__("Add First Step")}
+                            + {__("Add Step")}
                         </button>
                     </div>
-                )}
 
-                {/* Reference photos (work instructions) */}
-                <PhotosSection productType={productType} processTemplate={processTemplate} />
+                    {/* Add Step Form */}
+                    {showAddForm && (
+                        <div className="p-5 border-b border-om-line2 bg-om-card">
+                            <AddStepForm
+                                productType={productType}
+                                processTemplate={processTemplate}
+                                processSegments={processSegments}
+                                workstations={workstations}
+                                workstationTypes={workstationTypes}
+                                onCancel={() => setShowAddForm(false)}
+                            />
+                        </div>
+                    )}
 
-                {/* Engineering documents (#179) for the process template as a whole */}
-                <EngineeringDocuments entityType="process_template" entityId={processTemplate.id} />
+                    {/* Rail + graph + detail */}
+                    <div className="flex" style={{ minHeight: 560 }}>
+                        {/* Left rail — compact reorderable step list */}
+                        <div className="w-[296px] shrink-0 bg-om-panel border-r border-om-line2 p-3.5 overflow-y-auto" style={{ maxHeight: 720 }}>
+                            <div className="flex items-baseline justify-between mx-1 mb-2.5">
+                                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint">{__("Steps · drag to reorder")}</span>
+                                {saveStatus && (
+                                    <span className={`font-mono text-[9px] ${saveStatus === 'error' ? 'text-om-blocked' : 'text-om-faint'}`}>
+                                        {saveStatus === 'saving' ? __('Saving…') : saveStatus === 'saved' ? __('Saved') : __('Error — reload page')}
+                                    </span>
+                                )}
+                            </div>
+                            {orderedSteps.length > 0 ? (
+                                <DragDropProvider onDragEnd={persistOrder}>
+                                    <div className="flex flex-col gap-[7px]">
+                                        {orderedSteps.map((step, idx) => {
+                                            const isSelected = selectedStep?.id === step.id;
+                                            return (
+                                                <RailStep key={step.id} id={step.id} index={idx}>
+                                                    {({ ref, handleRef, isDragging }) => (
+                                                        <div
+                                                            ref={ref}
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            onClick={() => setSelectedStepId(step.id)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && setSelectedStepId(step.id)}
+                                                            className={`flex items-center gap-2 rounded-om-sm px-2.5 py-2 cursor-pointer select-none border transition-colors ${
+                                                                isDragging ? 'opacity-80 shadow-lg' : ''
+                                                            } ${
+                                                                isSelected
+                                                                    ? 'bg-om-accent-bg border-om-accent'
+                                                                    : 'bg-om-card border-om-line2 hover:border-om-faintest'
+                                                            }`}
+                                                        >
+                                                            <span ref={handleRef} className="cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted text-[11px] leading-none" title={__("Drag to reorder")}>⠿</span>
+                                                            <span className={`w-[22px] h-[22px] rounded-full font-mono text-[10px] font-bold flex items-center justify-center shrink-0 ${
+                                                                isSelected ? 'bg-om-accent text-white' : 'bg-om-chip text-om-accent'
+                                                            }`}
+                                                            >
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-[12.5px] font-semibold text-om-ink truncate">{step.name}</div>
+                                                                <div className="text-[10px] text-om-muted truncate">{railSubline(step) || __("Any workstation")}</div>
+                                                            </div>
+                                                            {step.requires_confirmation && (
+                                                                <span className="w-[7px] h-[7px] rounded-[2px] bg-om-blocked shrink-0" title={__("Requires read confirmation")} />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </RailStep>
+                                            );
+                                        })}
+                                    </div>
+                                </DragDropProvider>
+                            ) : (
+                                <p className="text-xs text-om-faint px-1">{__("No production steps yet")}</p>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowAddForm(true)}
+                                className="mt-2 w-full text-center border border-dashed border-om-faintest rounded-om-sm py-2.5 text-xs text-om-muted hover:text-om-ink hover:border-om-muted"
+                            >
+                                + {__("Add Step")}
+                            </button>
+                        </div>
 
-                {/* Drag-sort save status toast */}
-                {saveStatus && (
-                    <div
-                        className={`fixed bottom-5 right-5 px-4 py-2 rounded-om-sm text-white text-sm font-medium z-50 transition-opacity ${
-                            saveStatus === 'saving'
-                                ? 'bg-indigo-500'
-                                : saveStatus === 'saved'
-                                ? 'bg-om-running'
-                                : 'bg-om-blocked'
-                        }`}
-                    >
-                        {saveStatus === 'saving' && 'Saving…'}
-                        {saveStatus === 'saved' && 'Saved'}
-                        {saveStatus === 'error' && 'Error — reload page'}
+                        {/* Right: graph strip + selected-step detail */}
+                        <div className="flex-1 min-w-0 flex flex-col">
+                            <div className="border-b border-om-line2">
+                                <RoutingGraph
+                                    compact
+                                    height={280}
+                                    steps={steps}
+                                    links={processTemplate.links}
+                                    baseUrl={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`}
+                                    selectedId={selectedStep?.id ?? null}
+                                    onSelectStep={setSelectedStepId}
+                                />
+                            </div>
+                            <div className="flex-1 bg-om-card p-4 overflow-y-auto [&_.drag-handle]:hidden" style={{ maxHeight: 560 }}>
+                                {selectedStep ? (
+                                    <StepCard
+                                        step={selectedStep}
+                                        photo={photoByStep[selectedStep.id] ?? null}
+                                        photosBaseUrl={photosBaseUrl}
+                                        isFirst={selectedStep.id === steps[0]?.id}
+                                        isLast={selectedStep.id === steps[steps.length - 1]?.id}
+                                        editingId={editingId}
+                                        onEditStart={(id) => setEditingId(id)}
+                                        onEditCancel={() => setEditingId(null)}
+                                        productType={productType}
+                                        processTemplate={processTemplate}
+                                        processSegments={processSegments}
+                                        workstations={workstations}
+                                        workstationTypes={workstationTypes}
+                                        onMoveUp={handleMoveUp}
+                                        onMoveDown={handleMoveDown}
+                                        onDelete={handleDelete}
+                                    />
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center py-12">
+                                        <p className="text-lg font-medium text-om-muted">{__("No production steps yet")}</p>
+                                        <p className="text-sm text-om-muted mt-1 mb-4">{__("Add steps to define the manufacturing process for this product.")}</p>
+                                        <button type="button" onClick={() => setShowAddForm(true)} className="inline-block btn-touch btn-primary">
+                                            <Icon d="M12 4v16m8-8H4" className="w-5 h-5 inline-block mr-2" />
+                                            {__("Add First Step")}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                    {/* Photos + documents band */}
+                    <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr] items-start bg-om-panel border-t border-om-line2 p-5">
+                        <PhotosSection productType={productType} processTemplate={processTemplate} />
+                        <EngineeringDocuments entityType="process_template" entityId={processTemplate.id} variant="band" />
+                    </div>
+                </div>
+
             </div>
             {dialog}
         </>
@@ -1265,52 +1298,47 @@ function PhotosSection({ productType, processTemplate }) {
     };
 
     return (
-        <div className="mt-10">
-            <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-xl font-bold text-om-ink">{__("General Reference Photos")}</h2>
-                <span className="text-sm text-om-muted">({photos.length}/20)</span>
+        <div>
+            <div className="flex items-baseline gap-2 mb-2.5">
+                <h2 className="text-sm font-bold text-om-ink">{__("General Reference Photos")}</h2>
+                <span className="font-mono text-[10px] text-om-faint">{photos.length}/20</span>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="ml-auto text-[11.5px] font-semibold text-om-accent hover:underline">
+                    + {__('Upload')}
+                </button>
             </div>
 
-            {/* Upload form */}
-            <form onSubmit={submit} className="card mb-4 flex flex-wrap items-end gap-3">
-                <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
-                        {__("Photo")} <span className="text-xs text-om-faint">{__("(JPEG/PNG/WebP, max 10 MB)")}</span>
-                    </label>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => form.setData('photo', e.target.files[0] ?? null)}
-                        className="block text-sm text-om-muted file:mr-3 file:px-3 file:py-1.5 file:rounded-om-sm file:border-0 file:bg-om-chip file:text-om-accent file:text-sm file:font-medium hover:file:bg-om-chip"
-                    />
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__("Caption")}</label>
-                    <input
-                        type="text"
-                        value={form.data.caption}
-                        onChange={(e) => form.setData('caption', e.target.value)}
+            <input
+                aria-label={__("Photo")}
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => form.setData('photo', e.target.files[0] ?? null)}
+                className="hidden"
+            />
+
+            {/* A picked file gets a caption row before it goes up. */}
+            {form.data.photo && (
+                <form onSubmit={submit} className="mb-2.5 flex flex-wrap items-center gap-2 bg-om-card border border-om-line2 rounded-om-sm px-2.5 py-2">
+                    <span className="text-xs text-om-muted truncate max-w-[180px]">{form.data.photo.name}</span>
+                    <div className="flex-1 min-w-[160px]">
+                        <TextField
+                            value={form.data.caption}
+                            onChange={(v) => form.setData('caption', v)}
                             placeholder={__("Optional description")}
-                        className="form-input w-full"
-                    />
-                </div>
-                <button
-                    type="submit"
-                    disabled={form.processing || !form.data.photo}
-                    className="btn-touch btn-primary disabled:opacity-50"
-                >
-                    {form.processing ? __('Uploading…') : __('Upload')}
-                </button>
-                {form.errors.photo && <p className="w-full text-sm text-om-blocked">{form.errors.photo}</p>}
-                {form.errors.caption && <p className="w-full text-sm text-om-blocked">{form.errors.caption}</p>}
-            </form>
- 
-            {/* Photo grid */}
-            {photos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                            aria-label={__("Caption")}
+                        />
+                    </div>
+                    <Button type="submit" size="sm" loading={form.processing}>{form.processing ? __('Uploading…') : __('Upload')}</Button>
+                    <Button variant="secondary" size="sm" onClick={() => { form.reset(); if (fileInputRef.current) fileInputRef.current.value = ''; }}>{__('Cancel')}</Button>
+                    {form.errors.photo && <p className="w-full text-xs text-om-blocked">{form.errors.photo}</p>}
+                    {form.errors.caption && <p className="w-full text-xs text-om-blocked">{form.errors.caption}</p>}
+                </form>
+            )}
+
+            {/* Photo strip */}
+            <div className="flex flex-wrap gap-2.5">
                     {photos.map((photo) => (
-                        <div key={photo.id} className="card p-2 group relative">
+                        <div key={photo.id} className="w-[150px] bg-om-card border border-om-line2 rounded-om-sm p-1.5 group relative">
                             <Tooltip label={photo.original_name}>
                                 <button
                                     type="button"
@@ -1322,15 +1350,15 @@ function PhotosSection({ productType, processTemplate }) {
                                         src={photo.url}
                                         alt={photo.caption || photo.original_name}
                                         loading="lazy"
-                                        className="w-full h-32 object-cover rounded-om-sm bg-om-chip"
+                                        className="w-full h-[74px] object-cover rounded bg-om-chip"
                                     />
                                 </button>
                             </Tooltip>
-                            <div className="mt-2 text-xs text-om-muted truncate" title={photo.caption || ''}>
+                            <div className="mt-1 text-[10px] text-om-muted truncate" title={photo.caption || ''}>
                                 {photo.caption || <span className="text-om-faint">{__("No caption")}</span>}
                             </div>
-                            <div className="text-[10px] text-om-faint">
-                                {photo.width}×{photo.height} • {photo.file_size}
+                            <div className="font-mono text-[8.5px] text-om-faintest">
+                                {photo.width}×{photo.height} · {photo.file_size}
                             </div>
                             <Tooltip label={__("Delete photo")}>
                                 <button
@@ -1344,12 +1372,14 @@ function PhotosSection({ productType, processTemplate }) {
                             </Tooltip>
                         </div>
                     ))}
-                </div>
-            ) : (
-                <div className="card text-center py-8 text-sm text-om-muted">
-                    {__("No reference photos yet. Upload assembly/work-instruction images for operators.")}
-                </div>
-            )}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-[150px] min-h-[110px] border border-dashed border-om-faintest rounded-om-sm flex items-center justify-center text-center text-[11px] text-om-muted hover:text-om-ink hover:border-om-muted"
+                    >
+                        + {__('JPEG/PNG/WebP')}<br />{__('max 10 MB')}
+                    </button>
+            </div>
 
             {/* Lightbox */}
             {lightbox && (

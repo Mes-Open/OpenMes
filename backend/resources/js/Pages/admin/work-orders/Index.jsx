@@ -240,7 +240,11 @@ export default function WorkOrdersIndex() {
                 onClose={() => setCreating(false)}
                 title={__('New Work Order')}
                 closeLabel={__('Close')}
-                className="max-w-[720px]"
+                // A right-edge drawer rather than a centered card: the order form
+                // is long enough that a card would scroll inside the page's own
+                // scroll, and the drawer keeps the list visible beside it.
+                side="right"
+                width={560}
                 // A misclick on the scrim shouldn't cost a half-filled order.
                 keepMounted
             >

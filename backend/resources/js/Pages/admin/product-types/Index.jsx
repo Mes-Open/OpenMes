@@ -5,6 +5,8 @@ import { Button, ConfirmDialog, IconButton, StatusPill, Switch } from '@openmes/
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import Tooltip from '../../../components/Tooltip';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { PRODUCT_TYPE_FIELDS, productTypeInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 /**
@@ -16,7 +18,12 @@ import { __ } from '../../../lib/i18n';
  * shape; cross-table counts come from the `counts` prop (keyed by id).
  */
 export default function ProductTypesIndex() {
-    const { counts = {} } = usePage().props;
+    // `customFields` is optional — only sent once the drawer asks for it.
+    const { counts = {}, customFields, imageUrls } = usePage().props;
+
+    // This list draws its own cards rather than using ResourceTable, so the
+    // drawer is wired to the two controls by hand; the behaviour is the same.
+    const drawer = useResourceDrawer();
 
     const collection = useMemo(() => realtimeCollection('product_types'), []);
     const { data: rows } = useLiveQuery((q) =>
@@ -64,7 +71,7 @@ export default function ProductTypesIndex() {
                             ?
                         </a>
                     </Tooltip>
-                    <Button variant="accent" onClick={() => router.visit('/admin/product-types/create')}>
+                    <Button variant="accent" onClick={drawer.create}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
@@ -135,7 +142,7 @@ export default function ProductTypesIndex() {
                                             <div className="flex items-center gap-2">
                                                 <Tooltip label={__('Edit')}>
                                                     <IconButton
-                                                        onClick={() => router.visit(`/admin/product-types/${pt.id}/edit`)}
+                                                        onClick={() => drawer.edit(pt)}
                                                         aria-label={__('Edit')}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,6 +229,17 @@ export default function ProductTypesIndex() {
                 confirmLabel={__('Delete')}
                 cancelLabel={__('Cancel')}
                 destructive
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/product-types"
+                fields={PRODUCT_TYPE_FIELDS}
+                initial={(record) => productTypeInitial(record, { imageUrls })}
+                customFields={customFields}
+                ensure={['customFields', 'imageUrls']}
+                ready={customFields !== undefined}
+                title={{ create: __('New Product Type'), edit: __('Edit Product Type') }}
             />
         </div>
     );

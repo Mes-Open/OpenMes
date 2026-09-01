@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { warehouseFields } from './fields';
+import { warehouseFields, warehouseInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WarehouseEdit({ warehouse }) {
@@ -13,15 +13,7 @@ export default function WarehouseEdit({ warehouse }) {
                 action={`/admin/warehouses/${warehouse.id}`}
                 method="put"
                 fields={warehouseFields()}
-                initial={{
-                    code: warehouse.code ?? '',
-                    name: warehouse.name ?? '',
-                    kind: warehouse.kind ?? 'mixed',
-                    description: warehouse.description ?? '',
-                    erp_code: warehouse.erp_code ?? '',
-                    is_default: !!warehouse.is_default,
-                    is_active: !!warehouse.is_active,
-                }}
+                initial={warehouseInitial(warehouse)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/warehouses"
             />

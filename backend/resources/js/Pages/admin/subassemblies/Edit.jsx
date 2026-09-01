@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { subassemblyFields } from './fields';
+import { subassemblyFields, subassemblyInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SubassemblyEdit() {
@@ -15,13 +15,7 @@ export default function SubassemblyEdit() {
                 action={`/admin/subassemblies/${subassembly.id}`}
                 method="put"
                 fields={subassemblyFields(productTypes)}
-                initial={{
-                    product_type_id: subassembly.product_type_id != null ? String(subassembly.product_type_id) : '',
-                    code: subassembly.code ?? '',
-                    name: subassembly.name ?? '',
-                    description: subassembly.description ?? '',
-                    is_active: !!subassembly.is_active,
-                }}
+                initial={subassemblyInitial(subassembly)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/subassemblies"
             />

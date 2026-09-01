@@ -1,10 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { crewFields, crewInitial } from './fields';
 
 export default function CrewsIndex() {
-    const { counts = {}, divisionNames = {}, leaderNames = {} } = usePage().props;
+    const { counts = {}, divisionNames = {}, leaderNames = {}, divisions, users, lines, crewLines } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
@@ -16,7 +20,7 @@ export default function CrewsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/crews/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -41,11 +45,22 @@ export default function CrewsIndex() {
                 shape="crews"
                 title={__('Crews')}
                 createHref="/admin/crews/create"
+                onCreate={drawer.create}
                 createLabel={__('New Crew')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No crews yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/crews"
+                fields={crewFields(divisions ?? [], users ?? [], lines ?? [])}
+                initial={(record) => crewInitial(record, { crewLines })}
+                ensure={['divisions', 'users', 'lines', 'crewLines']}
+                ready={divisions !== undefined}
+                title={{ create: __('New Crew'), edit: __('Edit Crew') }}
             />
         </>
     );

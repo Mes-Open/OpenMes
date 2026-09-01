@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COMPANY_FIELDS } from './fields';
+import { COMPANY_FIELDS, companyInitial } from './fields';
 
 export default function CompanyCreate() {
     return (
@@ -12,7 +12,7 @@ export default function CompanyCreate() {
                 action="/admin/companies"
                 method="post"
                 fields={COMPANY_FIELDS}
-                initial={{ code: '', name: '', tax_id: '', type: 'supplier', email: '', phone: '', address: '', is_active: true }}
+                initial={companyInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/companies"
             />

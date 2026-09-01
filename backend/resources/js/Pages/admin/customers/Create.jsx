@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { customerFields, CUSTOMER_INITIAL } from './fields';
+import { customerFields, CUSTOMER_INITIAL, customerInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomerCreate({ basePath }) {
@@ -13,7 +13,7 @@ export default function CustomerCreate({ basePath }) {
                 action={basePath}
                 method="post"
                 fields={customerFields()}
-                initial={CUSTOMER_INITIAL}
+                initial={customerInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref={basePath}
             />

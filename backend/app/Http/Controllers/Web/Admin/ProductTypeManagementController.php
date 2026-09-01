@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductTypeRequest;
 use App\Http\Requests\UpdateProductTypeRequest;
@@ -19,6 +20,8 @@ use InvalidArgumentException;
 
 class ProductTypeManagementController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of product types.
      *
@@ -37,6 +40,15 @@ class ProductTypeManagementController extends Controller
 
         return Inertia::render('admin/product-types/Index', [
             'counts' => $counts,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('product_type')),
+            // `image_url` is an accessor over `image_path`, and neither is in the
+            // `product_types` collection — so the drawer can't read the current
+            // photo off the row the way it reads every other field.
+            'imageUrls' => Inertia::optional(fn () => ProductType::whereNotNull('image_path')
+                ->get(['id', 'image_path'])
+                ->mapWithKeys(fn ($pt) => [$pt->id => $pt->imageUrl()])),
         ]);
     }
 
@@ -75,8 +87,7 @@ class ProductTypeManagementController extends Controller
 
         ProductType::make($validated)->forceFill($image)->save();
 
-        return redirect()->route('admin.product-types.index')
-            ->with('success', 'Product type created successfully.');
+        return $this->saved($request, redirect()->route('admin.product-types.index'), 'Product type created successfully.');
     }
 
     /**
@@ -259,8 +270,7 @@ class ProductTypeManagementController extends Controller
             Storage::delete($replaced);
         }
 
-        return redirect()->route('admin.product-types.index')
-            ->with('success', 'Product type updated successfully.');
+        return $this->saved($request, redirect()->route('admin.product-types.index'), 'Product type updated successfully.');
     }
 
     /**

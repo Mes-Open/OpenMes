@@ -2,7 +2,8 @@
 // toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { Dropdown, DatePicker } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../../components/AppDatePicker';
 import { __ } from '../../../../lib/i18n';
 import DueCountdown from '../../../../components/DueCountdown';
 import WorkOrderForm from '../../work-orders/WorkOrderForm';
@@ -181,8 +182,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                             <Dropdown value="" onChange={(v) => {
                                 if (!v) return;
                                 setExtras((xs) => [...xs, { id: null, line_id: +v, due_date: due || wo.due_date || data.range.startDate, shift_number: shift ? +shift : 1, end_date: null, end_shift_number: null }]);
-                            }} placeholder={__('+ Add line')} disabled={!line}
-                                options={[{ value: '', label: __('+ Add line') }, ...data.allLines.map((l) => ({ value: String(l.id), label: `${l.code} · ${l.name}` }))]} />
+                            }} placeholder={__('Add line')} disabled={!line}
+                                options={[{ value: '', label: __('Add line') }, ...data.allLines.map((l) => ({ value: String(l.id), label: `${l.code} · ${l.name}` }))]} />
                             {extras.length > 0 && (
                                 <div className="flex flex-col gap-1" style={{ marginTop: 6 }}>
                                     {extras.map((p, i) => {
@@ -204,7 +205,7 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 {__('Due date')}
                                 {due && <button type="button" onClick={() => setDue('')} style={{ color: 'var(--om-accent)', textTransform: 'none', letterSpacing: 0 }}>{__('Clear')}</button>}
                             </div>
-                            <DatePicker value={due || null} onChange={(iso) => setDue(iso ?? '')} className="w-full" />
+                            <AppDatePicker value={due || null} onChange={(iso) => setDue(iso ?? '')} className="w-full" />
                             {/* Reads off the value being edited, not the saved one,
                                 so a date picked here answers "how much room does
                                 that leave?" before the sheet is saved. */}
@@ -219,7 +220,7 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 {__('End date')}
                                 {endDate && <button type="button" onClick={() => setEndDate('')} style={{ color: 'var(--om-accent)', textTransform: 'none', letterSpacing: 0 }}>{__('Clear')}</button>}
                             </div>
-                            <DatePicker value={endDate || null} min={due || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
+                            <AppDatePicker value={endDate || null} min={due || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
                         </div>
                         <div><div style={lblStyle}>{__('Start shift')}</div><Dropdown value={shift == null ? '' : String(shift)} onChange={(v) => setShift(v)} placeholder="—" options={shiftOpts} /></div>
                         <div><div style={lblStyle}>{__('End shift')}</div><Dropdown value={endShift == null ? '' : String(endShift)} onChange={(v) => setEndShift(v)} placeholder="—" options={shiftOpts} /></div>

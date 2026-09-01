@@ -1,3 +1,4 @@
+import { jsonColumn } from '../../../lib/syncedRow';
 import { __ } from '../../../lib/i18n';
 
 // ISO weekdays: 1 = Mon … 7 = Sun (matches the backend days_of_week).
@@ -48,4 +49,33 @@ export function crewBreakWindowFields(crews = []) {
         },
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
+}
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function crewBreakWindowInitial(record) {
+    if (!record) {
+        return {
+            crew_id: '',
+            name: '',
+            start_time: '',
+            end_time: '',
+            days_of_week: [1, 2, 3, 4, 5],
+            is_active: true,
+        };
+    }
+
+    return {
+        crew_id: record.crew_id ? String(record.crew_id) : '',
+        name: record.name ?? '',
+        start_time: record.start_time ?? '',
+        end_time: record.end_time ?? '',
+        days_of_week: jsonColumn(record.days_of_week, []).map(Number),
+        is_active: !!record.is_active,
+    };
 }

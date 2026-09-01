@@ -67,3 +67,46 @@ export const STATUS_STYLES = {
     expired: 'bg-red-100 text-red-700',
     rejected: 'bg-red-100 text-red-700',
 };
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function materialLotInitial(record) {
+    if (!record) {
+        return {
+            lot_number: '',
+            material_id: '',
+            source_id: '',
+            quantity_received: '',
+            quantity_available: '',
+            unit_of_measure: 'pcs',
+            received_at: '',
+            manufacturing_date: '',
+            expiry_date: '',
+            status: 'received',
+            supplier_lot_no: '',
+            supplier_reference: '',
+            source_container_no: '',
+        };
+    }
+
+    return {
+        lot_number: record.lot_number ?? '',
+        material_id: record.material_id != null ? String(record.material_id) : '',
+        source_id: record.source_id != null ? String(record.source_id) : '',
+        quantity_received: record.quantity_received ?? '',
+        quantity_available: record.quantity_available ?? '',
+        unit_of_measure: record.unit_of_measure ?? '',
+        received_at: (record.received_at ?? '').slice(0, 10),
+        manufacturing_date: (record.manufacturing_date ?? '').slice(0, 10),
+        expiry_date: (record.expiry_date ?? '').slice(0, 10),
+        status: record.status ?? 'received',
+        supplier_lot_no: record.supplier_lot_no ?? '',
+        supplier_reference: record.supplier_reference ?? '',
+        source_container_no: record.source_container_no ?? '',
+    };
+}

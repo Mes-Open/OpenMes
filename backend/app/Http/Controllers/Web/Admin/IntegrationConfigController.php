@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\IntegrationConfig;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class IntegrationConfigController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         $counts = IntegrationConfig::withCount('materialSources')
@@ -37,8 +40,7 @@ class IntegrationConfigController extends Controller
 
         IntegrationConfig::create($validated);
 
-        return redirect()->route('admin.integrations.index')
-            ->with('success', 'Integration created successfully.');
+        return $this->saved($request, redirect()->route('admin.integrations.index'), 'Integration created successfully.');
     }
 
     public function edit(IntegrationConfig $integration)
@@ -60,8 +62,7 @@ class IntegrationConfigController extends Controller
 
         $integration->update($validated);
 
-        return redirect()->route('admin.integrations.index')
-            ->with('success', 'Integration updated successfully.');
+        return $this->saved($request, redirect()->route('admin.integrations.index'), 'Integration updated successfully.');
     }
 
     public function destroy(IntegrationConfig $integration)

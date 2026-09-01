@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { toolFields } from './fields';
+import { toolFields, toolInitial } from './fields';
 
 export default function ToolCreate() {
     const { workstationTypes = [] } = usePage().props;
@@ -13,7 +13,7 @@ export default function ToolCreate() {
                 action="/admin/tools"
                 method="post"
                 fields={toolFields(workstationTypes)}
-                initial={{ code: '', name: '', description: '', workstation_type_id: '', status: 'available', next_service_at: '' }}
+                initial={toolInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/tools"
             />

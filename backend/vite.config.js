@@ -30,10 +30,11 @@ export default defineConfig({
     // backend/node_modules (its real path lives outside backend/).
     resolve: {
         extensions: ['.web.jsx', '.web.tsx', '.web.js', '.web.ts', '.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
-        // react-table and lucide are listed too: @openmes/ui imports them, but the package's
-        // real path is outside backend/, where the upward node_modules walk
-        // would miss backend/node_modules. dedupe pins these to the app root.
-        dedupe: ['react', 'react-dom', '@tanstack/react-table', 'lucide-react'],
+        // react-table, lucide and dnd-kit are listed too: @openmes/ui imports them,
+        // but the package's real path is outside backend/, where the upward
+        // node_modules walk would miss backend/node_modules. dedupe pins these
+        // to the app root.
+        dedupe: ['react', 'react-dom', '@tanstack/react-table', 'lucide-react', '@dnd-kit/react'],
     },
     optimizeDeps: {
         exclude: ['@openmes/ui'],

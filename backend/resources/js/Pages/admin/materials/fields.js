@@ -31,3 +31,34 @@ export function materialFields(materialTypes) {
 }
 
 export const TRACKING_LABELS = Object.fromEntries(TRACKING.map((t) => [t.value, t.label]));
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function materialInitial(record) {
+    if (!record) {
+        return {
+            code: '', name: '', material_type_id: '', unit_of_measure: 'pcs',
+            tracking_type: 'none', default_scrap_percentage: '', description: '',
+            external_code: '', external_system: '', is_active: true, custom_fields: {},
+        };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+        material_type_id: record.material_type_id != null ? String(record.material_type_id) : '',
+        unit_of_measure: record.unit_of_measure ?? '',
+        tracking_type: record.tracking_type ?? 'none',
+        default_scrap_percentage: record.default_scrap_percentage ?? '',
+        description: record.description ?? '',
+        external_code: record.external_code ?? '',
+        external_system: record.external_system ?? '',
+        is_active: !!record.is_active,
+        custom_fields: record.custom_fields ?? {},
+    };
+}

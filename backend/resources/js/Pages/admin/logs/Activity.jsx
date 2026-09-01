@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
@@ -333,24 +334,27 @@ export default function Activity() {
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">From</label>
-                            <DatePicker
+                            <div className="block text-xs font-medium text-om-muted mb-1">From</div>
+                            <AppDatePicker
+                                aria-label="From"
                                 value={form.from || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">To</label>
-                            <DatePicker
+                            <div className="block text-xs font-medium text-om-muted mb-1">To</div>
+                            <AppDatePicker
+                                aria-label="To"
                                 value={form.to || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">User</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">User</div>
                             <Dropdown
+                                aria-label="User"
                                 value={form.user_id == null ? '' : String(form.user_id)}
                                 onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
                                 options={[
@@ -361,8 +365,9 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Source</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">Source</div>
                             <Dropdown
+                                aria-label="Source"
                                 value={form.source == null ? '' : String(form.source)}
                                 onChange={(v) => setForm((f) => ({ ...f, source: v }))}
                                 options={[
@@ -374,8 +379,9 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Entity</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">Entity</div>
                             <Dropdown
+                                aria-label="Entity"
                                 value={form.entity_type == null ? '' : String(form.entity_type)}
                                 onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
                                 options={[
@@ -386,8 +392,9 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Action</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">Action</div>
                             <Dropdown
+                                aria-label="Action"
                                 value={form.action == null ? '' : String(form.action)}
                                 onChange={(v) => setForm((f) => ({ ...f, action: v }))}
                                 options={[
