@@ -77,6 +77,13 @@ export function Modal({
     const subtitleId = `${uid}-subtitle`;
 
     const escape = useCallback(() => onClose?.(), [onClose]);
+
+    // A click only counts as "on the scrim" when the gesture also STARTED
+    // there: selecting text in a field and releasing past the panel's edge
+    // makes the browser fire the click on the scrim (the common ancestor of
+    // press and release), and that must not dismiss the dialog — the panel's
+    // stopPropagation never sees an event that never passed through it.
+    const pressOnScrim = useRef(false);
     useDialogFocus(open, panelRef, { onEscape: escape, restoreTo });
 
     const drawer = side === 'right' || side === 'left';
@@ -143,7 +150,8 @@ export function Modal({
         // subtree from the tab order and the accessibility tree.
         <div
             className={`fixed inset-0 z-50 bg-[rgba(10,9,8,0.4)] ${scrim} ${visible ? 'flex' : 'hidden'}`}
-            onClick={onClose}
+            onPointerDown={(e) => { pressOnScrim.current = e.target === e.currentTarget; }}
+            onClick={(e) => { if (e.target === e.currentTarget && pressOnScrim.current) onClose?.(); }}
         >
             <div
                 ref={panelRef}
