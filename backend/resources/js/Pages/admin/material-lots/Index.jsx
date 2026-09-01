@@ -3,11 +3,14 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, Modal, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { STATUS_STYLES, materialLotStatusLabel } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { STATUS_STYLES, materialLotStatusLabel, materialLotFields, materialLotInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaterialLotsIndex() {
-    const { materialNames = {}, sourceNames = {} } = usePage().props;
+    const { materialNames = {}, sourceNames = {}, materials, sources, statuses } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     // Quality hold / release. `holdFor` drives the hold modal (reason + optional
     // linked issue); `releaseFor` drives the release confirm dialog.
@@ -50,7 +53,7 @@ export default function MaterialLotsIndex() {
     };
 
     const columns = [
-        { key: 'lot_number', label: __('Lot Number'), className: 'font-mono text-om-muted', filter: 'text' },
+        { key: 'lot_number', label: __('Lot Number'), className: 'font-mono text-om-muted', filter: 'text', link: true },
         { key: 'material', label: __('Material'), className: 'text-om-muted', value: (r) => materialNames[r.material_id] ?? '—', render: (r) => materialNames[r.material_id] ?? '—' },
         { key: 'qty', label: __('Avail / Recv'), className: 'text-om-muted', value: (r) => Number(r.quantity_available ?? 0), render: (r) => `${r.quantity_available ?? '—'} / ${r.quantity_received ?? '—'}` },
         { key: 'unit_of_measure', label: __('Unit'), className: 'text-om-muted' },
@@ -69,7 +72,7 @@ export default function MaterialLotsIndex() {
     ];
 
     const actions = (r) => {
-        const list = [{ label: __('Edit'), icon: 'edit', href: `/admin/material-lots/${r.id}/edit` }];
+        const list = [{ label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) }];
 
         // Quality hold / release.
         if (r.status === 'received' || r.status === 'released') {
@@ -99,6 +102,7 @@ export default function MaterialLotsIndex() {
                 detailHref={(r) => `/admin/material-lots/${r.id}`}
                 title={__('Material Lots')}
                 createHref="/admin/material-lots/create"
+                onCreate={drawer.create}
                 createLabel={__('New Lot')}
                 columns={columns}
                 orderBy="lot_number"
@@ -164,6 +168,16 @@ export default function MaterialLotsIndex() {
                     ? __('Lot ":name" will be released from quarantine and become available again.', { name: releaseFor.lot_number })
                     : null}
             </ConfirmDialog>
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/material-lots"
+                fields={materialLotFields(materials ?? [], sources ?? [], statuses ?? [])}
+                initial={materialLotInitial}
+                ensure={['materials', 'sources', 'statuses']}
+                ready={materials !== undefined}
+                title={{ create: __('New Material Lot'), edit: __('Edit Material Lot') }}
+            />
         </>
     );
 }

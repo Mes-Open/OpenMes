@@ -89,9 +89,9 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {isEdit ? (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">
+                            <div className="block text-sm font-medium text-om-muted mb-1">
                                 {item.component_kind === 'product_type' ? __("Product type") : __("Material")}
-                            </label>
+                            </div>
                             <div className="form-input w-full bg-om-panel text-om-muted">
                                 {item.component_code ? `${item.component_code} - ` : ''}{item.component_name}
                             </div>
@@ -120,10 +120,11 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">
+                            <div className="block text-sm font-medium text-om-muted mb-1">
                                 {__("Material")} <span className="text-om-blocked">*</span>
-                            </label>
+                            </div>
                             <Dropdown
+                                aria-label={__("Material")}
                                 value={data.material_id == null ? '' : String(data.material_id)}
                                 onChange={(v) => onMaterialChange(v)}
                                 placeholder="Select material..."
@@ -140,9 +141,9 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
+                        <div className="block text-sm font-medium text-om-muted mb-1">
                             {__("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <input
                             type="number"
                             step="0.0001"
@@ -161,10 +162,11 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     </div>
  
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
+                        <div className="block text-sm font-medium text-om-muted mb-1">
                             {__("Step (optional)")}
-                        </label>
+                        </div>
                         <Dropdown
+                            aria-label={__("Step (optional)")}
                             value={data.template_step_id == null ? '' : String(data.template_step_id)}
                             onChange={(v) => setData('template_step_id', v)}
                             options={[
@@ -179,8 +181,9 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     </div>
  
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</div>
                         <input
+                            aria-label={__("Scrap %")}
                             type="number"
                             step="0.01"
                             min="0"
@@ -197,8 +200,9 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Consumed At")}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Consumed At")}</div>
                         <Dropdown
+                            aria-label={__("Consumed At")}
                             value={data.consumed_at == null ? '' : String(data.consumed_at)}
                             onChange={(v) => setData('consumed_at', v)}
                             options={[
@@ -211,8 +215,9 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Notes")}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Notes")}</div>
                         <input
+                            aria-label={__("Notes")}
                             type="text"
                             value={data.notes}
                             onChange={(e) => setData('notes', e.target.value)}

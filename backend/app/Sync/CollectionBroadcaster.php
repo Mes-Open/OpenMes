@@ -67,6 +67,7 @@ class CollectionBroadcaster
             'users' => [Models\User::class, null],
             'workers' => [Models\Worker::class, null],
             'materials' => [Models\Material::class, null],
+            'material_types' => [Models\MaterialType::class, null],
             'material_lots' => [Models\MaterialLot::class, null],
             'lot_sequences' => [Models\LotSequence::class, null],
             'pallets' => [Models\Pallet::class, null],

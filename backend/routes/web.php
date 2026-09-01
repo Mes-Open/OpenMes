@@ -593,7 +593,11 @@ Route::middleware('auth')->group(function () {
 
         // Global line statuses management
         Route::get('/line-statuses', [AdminLineStatusController::class, 'index'])->name('line-statuses.index');
+        // `create` before `{lineStatus}` so the literal segment wins the match.
+        Route::get('/line-statuses/create', [AdminLineStatusController::class, 'create'])->name('line-statuses.create');
+        Route::get('/line-statuses/{lineStatus}/edit', [AdminLineStatusController::class, 'edit'])->name('line-statuses.edit');
         Route::post('/line-statuses', [AdminLineStatusController::class, 'store'])->name('line-statuses.store');
+        Route::post('/line-statuses/reorder', [AdminLineStatusController::class, 'reorder'])->name('line-statuses.reorder');
         Route::put('/line-statuses/{lineStatus}', [AdminLineStatusController::class, 'update'])->name('line-statuses.update');
         Route::delete('/line-statuses/{lineStatus}', [AdminLineStatusController::class, 'destroy'])->name('line-statuses.destroy');
 
@@ -757,6 +761,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/areas/create', [AreaController::class, 'create'])->name('areas.create');
         Route::resource('sites.areas', AreaController::class)->shallow();
         Route::get('/areas', [AreaController::class, 'index'])->name('areas.index'); // flat list across sites
+        // The flat counterpart to the nested sites.areas.store: both the
+        // standalone /areas/create page and the list's create drawer post here,
+        // with the site picked in the form rather than carried by the URL.
+        Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
         Route::post('/areas/{area}/toggle-active', [AreaController::class, 'toggleActive'])->name('areas.toggle-active');
 
         // Workstation Types

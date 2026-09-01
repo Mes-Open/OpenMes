@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { crewBreakWindowFields } from './fields';
+import { crewBreakWindowFields, crewBreakWindowInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewBreakWindowCreate() {
@@ -15,14 +15,7 @@ export default function CrewBreakWindowCreate() {
                 action="/admin/crew-break-windows"
                 method="post"
                 fields={crewBreakWindowFields(crews)}
-                initial={{
-                    crew_id: '',
-                    name: '',
-                    start_time: '',
-                    end_time: '',
-                    days_of_week: [1, 2, 3, 4, 5],
-                    is_active: true,
-                }}
+                initial={crewBreakWindowInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/crew-break-windows"
             />

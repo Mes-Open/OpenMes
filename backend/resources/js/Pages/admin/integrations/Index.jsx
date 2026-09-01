@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { INTEGRATION_FIELDS, integrationInitial } from './fields';
 
 export default function IntegrationsIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -14,7 +18,7 @@ export default function IntegrationsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/integrations/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -34,11 +38,20 @@ export default function IntegrationsIndex() {
                 shape="integration_configs"
                 title={__('Integrations')}
                 createHref="/admin/integrations/create"
+                onCreate={drawer.create}
                 createLabel={__('New Integration')}
                 columns={columns}
                 orderBy="system_name"
                 actions={actions}
                 emptyText={__('No integrations configured.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/integrations"
+                fields={INTEGRATION_FIELDS}
+                initial={integrationInitial}
+                title={{ create: __('New Integration'), edit: __('Edit Integration') }}
             />
         </>
     );

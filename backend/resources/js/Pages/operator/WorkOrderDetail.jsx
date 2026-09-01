@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Badge, Button, Checkbox, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
+import { Badge, Button, Checkbox, Dropdown, Icon, ProgressBar, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
@@ -356,8 +356,9 @@ function QualityCheckForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 <div className="mb-3">
-                    <label className={fieldLabelCls}>{__('Production Quantity')}</label>
+                    <div className={fieldLabelCls}>{__('Production Quantity')}</div>
                     <input
+                        aria-label={__('Production Quantity')}
                         type="number"
                         step="0.01"
                         value={productionQty}
@@ -481,10 +482,11 @@ function ReleaseForm({ batch, onClose }) {
     return (
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <div className="mb-3">
-                <label className={fieldLabelCls}>
+                <div className={fieldLabelCls}>
                     {__('Scrap quantity (optional)')}
-                </label>
+                </div>
                 <input
+                    aria-label={__('Scrap quantity (optional)')}
                     type="number"
                     step="0.01"
                     min="0"
@@ -1076,17 +1078,17 @@ function ConfirmTimesModal({ step, onClose }) {
         <ModalShell title={__('Confirm actual times')} subtitle={step.name} onClose={onClose}>
             <div className="px-[18px] py-4 space-y-3">
                 <div>
-                    <label className={labelCls}>{__('Actual elapsed (minutes)')}</label>
-                    <input type="number" min="0" value={elapsed} onChange={(e) => setElapsed(e.target.value)} className={inputCls} />
+                    <div className={labelCls}>{__('Actual elapsed (minutes)')}</div>
+                    <input aria-label={__('Actual elapsed (minutes)')} type="number" min="0" value={elapsed} onChange={(e) => setElapsed(e.target.value)} className={inputCls} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className={labelCls}>{__('Actual setup (minutes)')}</label>
-                        <input type="number" min="0" value={setup} onChange={(e) => setSetup(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                        <div className={labelCls}>{__('Actual setup (minutes)')}</div>
+                        <input aria-label={__('Actual setup (minutes)')} type="number" min="0" value={setup} onChange={(e) => setSetup(e.target.value)} className={inputCls} placeholder={__('optional')} />
                     </div>
                     <div>
-                        <label className={labelCls}>{__('Actual run (minutes)')}</label>
-                        <input type="number" min="0" value={run} onChange={(e) => setRun(e.target.value)} className={inputCls} placeholder={__('optional')} />
+                        <div className={labelCls}>{__('Actual run (minutes)')}</div>
+                        <input aria-label={__('Actual run (minutes)')} type="number" min="0" value={run} onChange={(e) => setRun(e.target.value)} className={inputCls} placeholder={__('optional')} />
                     </div>
                 </div>
                 {overflow && <p className="text-om-blocked text-xs">{__('Setup + run cannot exceed the elapsed time.')}</p>}
@@ -1526,7 +1528,7 @@ function LotPickModal({ step, materials, onClose }) {
                                         }}
                                         className={`${inputCls} mt-2`}
                                     >
-                                        <option value="">{__('+ Add lot…')}</option>
+                                        <option value="">{__('Add lot…')}</option>
                                         {remaining.map((c) => (
                                             <option key={c.id} value={c.id}>
                                                 {c.lot_number} — {__('avail')} {fmtQty(c.quantity_available, 4)}
@@ -1591,10 +1593,11 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                 <div className="px-[18px] py-4">
                     {/* Quantity */}
                     <div className="mb-4">
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Quantity')}
-                        </label>
+                        </div>
                         <input
+                            aria-label={__('Quantity')}
                             type="number"
                             step="0.01"
                             min="0.01"
@@ -1613,9 +1616,9 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {/* Workstation */}
                     {workstations.length > 0 && (
                         <div className="mb-4">
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 {__('Workstation')}
-                            </label>
+                            </div>
                             {workstations.length === 1 ? (
                                 <>
                                     <input type="hidden" value={workstations[0].id} />
@@ -1650,10 +1653,11 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {/* Manual LOT */}
                     {!form.data.auto_lot && (
                         <div className="mb-4">
-                            <label className={fieldLabelCls}>
+                            <div className={fieldLabelCls}>
                                 {__('LOT Number (manual)')}
-                            </label>
+                            </div>
                             <input
+                                aria-label={__('LOT Number (manual)')}
                                 type="text"
                                 value={form.data.lot_number}
                                 onChange={(e) => form.setData('lot_number', e.target.value)}
@@ -1712,10 +1716,11 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Issue Type')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <Dropdown
+                            aria-label={__('Issue Type')}
                             options={issueTypes.map((type) => ({
                                 value: String(type.id),
                                 label: `${type.name}${type.is_blocking ? ` ${__('⚠ Blocking')}` : ''}`,
@@ -1731,10 +1736,11 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
                     </div>
 
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Title')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <input
+                            aria-label={__('Title')}
                             type="text"
                             value={form.data.title}
                             onChange={(e) => form.setData('title', e.target.value)}
@@ -1749,10 +1755,11 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
                     </div>
 
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Description')}
-                        </label>
+                        </div>
                         <textarea
+                            aria-label={__('Description')}
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
                             rows={3}
@@ -1808,10 +1815,11 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Reason')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <Dropdown
+                            aria-label={__('Reason')}
                             options={scrapReasons.map((reason) => ({
                                 value: String(reason.id),
                                 label: `${reason.code} — ${reason.name}`,
@@ -1827,10 +1835,11 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                     </div>
 
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Quantity')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <input
+                            aria-label={__('Quantity')}
                             type="number"
                             step="0.01"
                             min="0.01"
@@ -1846,10 +1855,11 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                     </div>
 
                     <div>
-                        <label className={fieldLabelCls}>
+                        <div className={fieldLabelCls}>
                             {__('Notes')}
-                        </label>
+                        </div>
                         <textarea
+                            aria-label={__('Notes')}
                             value={form.data.notes}
                             onChange={(e) => form.setData('notes', e.target.value)}
                             rows={3}
@@ -2106,8 +2116,9 @@ export default function WorkOrderDetail() {
                                         variant="accent"
                                         onClick={() => setCreateBatchOpen(true)}
                                         className="px-5 py-3 text-[14px]"
+                                        leftIcon={<Icon name="plus" size={15} />}
                                     >
-                                        {__('+ Create Batch')}
+                                        {__('Create Batch')}
                                     </Button>
                                 )}
                             </div>

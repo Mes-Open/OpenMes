@@ -1,6 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import PalletForm, { palletInitial } from './PalletForm';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_BADGE = {
@@ -81,7 +83,10 @@ function LabelCell({ palletId, templates }) {
 }
 
 export default function PalletsIndex() {
-    const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [] } = usePage().props;
+    const drawer = useResourceDrawer();
+
+    const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [], workOrders, statuses } = usePage().props;
+    const formReady = workOrders !== undefined && statuses !== undefined;
 
     const columns = [
         { key: 'pallet_no', label: __('Pallet number'), className: 'font-mono font-medium text-om-ink', filter: 'text' },
@@ -130,7 +135,7 @@ export default function PalletsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/admin/pallets/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: 'Delete',
             icon: 'delete',
@@ -151,12 +156,31 @@ export default function PalletsIndex() {
                 shape="pallets"
                 title="Pallets"
                 createHref="/admin/pallets/create"
+                onCreate={drawer.create}
                 createLabel={__('New Pallet')}
                 columns={columns}
                 orderBy="pallet_no"
                 orderDir="desc"
                 actions={actions}
                 emptyText="No pallets yet."
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                ensure={['workOrders', 'statuses']}
+                ready={formReady}
+                title={{ create: __('New Pallet'), edit: __('Edit Pallet') }}
+                render={({ editing, record, finish }) => (
+                    <PalletForm
+                        bare
+                        action={editing ? `/admin/pallets/${record.id}` : '/admin/pallets'}
+                        method={editing ? 'put' : 'post'}
+                        initial={{ ...palletInitial(editing ? record : null), stay: 1 }}
+                        submitLabel={editing ? __('Save Changes') : __('Create')}
+                        onSuccess={finish}
+                        onCancel={finish}
+                    />
+                )}
             />
         </>
     );

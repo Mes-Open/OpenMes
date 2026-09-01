@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
 use App\Services\CustomFieldService;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class SiteController extends Controller
 {
+    use StaysOnList;
+
     /**
      * List sites with filters.
      */
@@ -18,7 +21,12 @@ class SiteController extends Controller
         $counts = \App\Models\Site::withCount(['areas', 'lines'])->get(['id'])->mapWithKeys(fn ($s) => [$s->id => ['areas' => $s->areas_count, 'lines' => $s->lines_count]]);
         $companyNames = \App\Models\Company::pluck('name', 'id');
 
-        return Inertia::render('admin/sites/Index', ['counts' => $counts, 'companyNames' => $companyNames]);
+        return Inertia::render('admin/sites/Index', ['counts' => $counts, 'companyNames' => $companyNames,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'companies' => Inertia::optional(fn () => \App\Models\Company::active()->orderBy('name')->get(['id', 'name'])),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('site')),
+        ]);
     }
 
     public function create(CustomFieldService $cf)
@@ -39,8 +47,7 @@ class SiteController extends Controller
 
         Site::create($validated);
 
-        return redirect()->route('admin.sites.index')
-            ->with('success', 'Site created successfully.');
+        return $this->saved($request, redirect()->route('admin.sites.index'), 'Site created successfully.');
     }
 
     public function show(Site $site)
@@ -89,8 +96,7 @@ class SiteController extends Controller
 
         $site->update($validated);
 
-        return redirect()->route('admin.sites.index')
-            ->with('success', 'Site updated successfully.');
+        return $this->saved($request, redirect()->route('admin.sites.index'), 'Site updated successfully.');
     }
 
     public function destroy(Site $site)

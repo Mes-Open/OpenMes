@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\ServesBothSections;
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreCustomerRequest;
 use App\Http\Requests\Web\Admin\UpdateCustomerRequest;
@@ -12,6 +13,7 @@ use Inertia\Inertia;
 class CustomerController extends Controller
 {
     use ServesBothSections;
+    use StaysOnList;
 
     /**
      * List customers. Rows live-sync via the `customers` shape; work-order
@@ -44,14 +46,8 @@ class CustomerController extends Controller
 
         Customer::create($validated);
 
-        // The list's New-customer modal posts `stay` so the user keeps their page
-        // — filters, paging and scroll — while the new row live-syncs in.
-        if ($request->boolean('stay')) {
-            return back()->with('success', __('Customer created successfully.'));
-        }
-
-        return redirect()->to($this->sectionRoute('customers.index'))
-            ->with('success', __('Customer created successfully.'));
+        return $this->saved($request, redirect()->to($this->sectionRoute('customers.index')),
+            __('Customer created successfully.'));
     }
 
     public function edit(Customer $customer)
@@ -73,8 +69,8 @@ class CustomerController extends Controller
 
         $customer->update($validated);
 
-        return redirect()->to($this->sectionRoute('customers.index'))
-            ->with('success', __('Customer updated successfully.'));
+        return $this->saved($request, redirect()->to($this->sectionRoute('customers.index')),
+            __('Customer updated successfully.'));
     }
 
     public function destroy(Customer $customer)

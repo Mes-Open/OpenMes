@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { wageGroupFields } from './fields';
+import { wageGroupFields, wageGroupInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WageGroupEdit({ wageGroup }) {
@@ -13,14 +13,7 @@ export default function WageGroupEdit({ wageGroup }) {
                 action={`/admin/wage-groups/${wageGroup.id}`}
                 method="put"
                 fields={wageGroupFields()}
-                initial={{
-                    code: wageGroup.code ?? '',
-                    name: wageGroup.name ?? '',
-                    description: wageGroup.description ?? '',
-                    base_hourly_rate: wageGroup.base_hourly_rate ?? '',
-                    currency: wageGroup.currency ?? '',
-                    is_active: !!wageGroup.is_active,
-                }}
+                initial={wageGroupInitial(wageGroup)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/wage-groups"
             />

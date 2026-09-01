@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { maintenanceScheduleFields } from './fields';
+import { maintenanceScheduleFields, maintenanceScheduleInitial } from './fields';
 
 export default function MaintenanceScheduleCreate() {
     const lists = usePage().props;
@@ -13,22 +13,7 @@ export default function MaintenanceScheduleCreate() {
                 action="/admin/maintenance-schedules"
                 method="post"
                 fields={maintenanceScheduleFields(lists)}
-                initial={{
-                    name: '',
-                    description: '',
-                    event_type: 'planned',
-                    tool_id: '',
-                    line_id: '',
-                    workstation_id: '',
-                    assigned_to_id: '',
-                    cost_source_id: '',
-                    frequency: 'monthly',
-                    interval_value: 1,
-                    preferred_time: '',
-                    lead_time_days: '',
-                    next_due_at: '',
-                    is_active: true,
-                }}
+                initial={maintenanceScheduleInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/maintenance-schedules"
             />

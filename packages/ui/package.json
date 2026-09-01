@@ -9,7 +9,8 @@
         "react": ">=19",
         "react-native": "*",
         "lucide-react": ">=1",
-        "lucide-react-native": ">=1"
+        "lucide-react-native": ">=1",
+        "@dnd-kit/react": ">=0.5"
     },
     "peerDependenciesMeta": {
         "react-native": {
@@ -19,6 +20,9 @@
             "optional": true
         },
         "lucide-react-native": {
+            "optional": true
+        },
+        "@dnd-kit/react": {
             "optional": true
         }
     }

@@ -55,3 +55,27 @@ export function priorityRuleFields() {
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function priorityRuleInitial(record) {
+    if (!record) {
+        return { name: '', field_source: '', condition_type: '', condition_value: '', condition_value_max: '', points: 0, sort_order: 0, is_active: true };
+    }
+
+    return {
+        name: record.name ?? '',
+        field_source: record.field_source ?? '',
+        condition_type: record.condition_type ?? '',
+        condition_value: record.condition_value ?? '',
+        condition_value_max: record.condition_value_max ?? '',
+        points: record.points ?? 0,
+        sort_order: record.sort_order ?? 0,
+        is_active: !!record.is_active,
+    };
+}

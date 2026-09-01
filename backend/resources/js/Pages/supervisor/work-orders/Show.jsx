@@ -187,8 +187,9 @@ function DoneModal({ workOrder, onClose }) {
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Produced Quantity')}</label>
+                        <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Produced Quantity')}</div>
                         <input
+                            aria-label={__('Produced Quantity')}
                             type="number"
                             step="0.01"
                             min="0.01"

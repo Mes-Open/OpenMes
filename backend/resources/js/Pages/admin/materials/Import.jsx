@@ -103,10 +103,11 @@ export default function MaterialsImport() {
                             <input type="hidden" name="_token" value={csrfToken} />
 
                             <div>
-                                <label className="block text-sm font-medium text-om-muted mb-1">
+                                <div className="block text-sm font-medium text-om-muted mb-1">
                                     File (CSV, XLS, XLSX)
-                                </label>
+                                </div>
                                 <input
+                                    aria-label="File (CSV, XLS, XLSX)"
                                     type="file"
                                     name="import_file"
                                     accept=".csv,.xls,.xlsx,.txt"
@@ -116,11 +117,12 @@ export default function MaterialsImport() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-om-muted mb-1">
+                                <div className="block text-sm font-medium text-om-muted mb-1">
                                     Import Strategy
-                                </label>
+                                </div>
                                 <input type="hidden" name="import_strategy" value={importStrategy} />
                                 <Dropdown
+                                    aria-label="Import Strategy"
                                     options={[
                                         { value: 'update_or_create', label: 'Create new & update existing' },
                                         { value: 'create_only', label: 'Create new only (skip existing)' },
@@ -133,11 +135,12 @@ export default function MaterialsImport() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-om-muted mb-1">
+                                <div className="block text-sm font-medium text-om-muted mb-1">
                                     Source System <span className="text-om-faint font-normal">(optional)</span>
-                                </label>
+                                </div>
                                 <input type="hidden" name="external_system" value={externalSystem} />
                                 <Dropdown
+                                    aria-label="Source System"
                                     options={[
                                         { value: '', label: '-- None --' },
                                         { value: 'subiekt_gt', label: 'Subiekt GT' },

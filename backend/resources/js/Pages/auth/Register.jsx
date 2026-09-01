@@ -134,8 +134,9 @@ export default function Register() {
 
                 {/* Marketing consent */}
                 <div className="mb-6">
-                    <label className="flex items-start gap-2 cursor-pointer">
+                    <div className="flex items-start gap-2 cursor-pointer">
                         <Checkbox
+                            aria-label={__('I agree to receive product updates and marketing communications via email.')}
                             checked={form.data.marketing_consent}
                             onChange={(next) => form.setData('marketing_consent', next)}
                             className="mt-1"
@@ -146,7 +147,7 @@ export default function Register() {
                                 / {__('I agree to receive product updates and marketing communications via email.')}
                             </span>
                         </span>
-                    </label>
+                    </div>
                 </div>
 
                 {/* Submit */}

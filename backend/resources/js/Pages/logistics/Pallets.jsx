@@ -75,10 +75,11 @@ function RerouteCard() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                    <label className="block text-[13px] font-medium text-om-muted mb-1">
+                    <div className="block text-[13px] font-medium text-om-muted mb-1">
                         {__('Pallet')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <Dropdown
+                        aria-label={__('Pallet')}
                         className="w-full"
                         value={data.pallet_id == null ? '' : String(data.pallet_id)}
                         onChange={(v) => setData('pallet_id', v)}
@@ -98,8 +99,9 @@ function RerouteCard() {
                 </div>
 
                 <div>
-                    <label className="block text-[13px] font-medium text-om-muted mb-1">{__('Destination')}</label>
+                    <div className="block text-[13px] font-medium text-om-muted mb-1">{__('Destination')}</div>
                     <input
+                        aria-label={__('Destination')}
                         type="text"
                         name="destination"
                         value={data.destination}
@@ -111,8 +113,9 @@ function RerouteCard() {
                 </div>
 
                 <div>
-                    <label className="block text-[13px] font-medium text-om-muted mb-1">{__('Operator')}</label>
+                    <div className="block text-[13px] font-medium text-om-muted mb-1">{__('Operator')}</div>
                     <Dropdown
+                        aria-label={__('Operator')}
                         className="w-full"
                         value={data.worker_id == null ? '' : String(data.worker_id)}
                         onChange={(v) => setData('worker_id', v)}
@@ -123,8 +126,9 @@ function RerouteCard() {
                 </div>
 
                 <div>
-                    <label className="block text-[13px] font-medium text-om-muted mb-1">{__('Notes')}</label>
+                    <div className="block text-[13px] font-medium text-om-muted mb-1">{__('Notes')}</div>
                     <input
+                        aria-label={__('Notes')}
                         type="text"
                         name="notes"
                         value={data.notes}

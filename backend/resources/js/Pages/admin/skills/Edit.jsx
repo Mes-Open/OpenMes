@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { skillFields } from './fields';
+import { skillFields, skillInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SkillEdit({ skill }) {
@@ -13,11 +13,7 @@ export default function SkillEdit({ skill }) {
                 action={`/admin/skills/${skill.id}`}
                 method="put"
                 fields={skillFields()}
-                initial={{
-                    code: skill.code ?? '',
-                    name: skill.name ?? '',
-                    description: skill.description ?? '',
-                }}
+                initial={skillInitial(skill)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/skills"
             />

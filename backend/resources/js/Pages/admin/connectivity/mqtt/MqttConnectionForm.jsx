@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { Field, Section } from '../ui';
 
 /**
  * Shared create/edit form for MachineConnection (protocol=mqtt) + MqttConnection config.
@@ -258,23 +258,4 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
     );
 }
 
-function Section({ title, children }) {
-    return (
-        <div className="bg-om-card rounded-om border border-om-line2 p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wider">{title}</h2>
-            {children}
-        </div>
-    );
-}
 
-function Field({ label, required, error, children }) {
-    return (
-        <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
-                {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            {children}
-            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
-        </div>
-    );
-}

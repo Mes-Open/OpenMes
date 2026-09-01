@@ -1,7 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { TOOL_STATUS_LABELS } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TOOL_STATUS_LABELS, toolFields, toolInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
@@ -12,7 +13,9 @@ const STATUS_STYLES = {
 };
 
 export default function ToolsIndex() {
-    const { workstationTypeNames = {} } = usePage().props;
+    const { workstationTypeNames = {}, workstationTypes, customFields } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
@@ -40,7 +43,7 @@ export default function ToolsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/tools/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -60,11 +63,23 @@ export default function ToolsIndex() {
                 shape="tools"
                 title={__('Tools')}
                 createHref="/admin/tools/create"
+                onCreate={drawer.create}
                 createLabel={__('New Tool')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No tools yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/tools"
+                fields={toolFields(workstationTypes ?? [])}
+                initial={toolInitial}
+                customFields={customFields}
+                ensure={['workstationTypes', 'customFields']}
+                ready={workstationTypes !== undefined}
+                title={{ create: __('New Tool'), edit: __('Edit Tool') }}
             />
         </>
     );

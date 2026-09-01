@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '@openmes/ui';
+import { Button, TextField } from '@openmes/ui';
 import { apiCall, apiGet } from '../lib/http';
 import EngineeringViewerModal from './EngineeringViewerModal';
 import { __, formatDateTime } from '../lib/i18n';
@@ -34,7 +35,14 @@ async function postForm(url, formData) {
  * Draft → Released → Obsolete lifecycle. Interactive-HTML packages open in a
  * sandboxed <iframe> fed by a short-lived signed URL (never inline in the app).
  */
-export default function EngineeringDocuments({ entityType, entityId, defaultRevision = '' }) {
+/**
+ * `variant="band"` is the compact design-1b look (title · count · "+ Attach",
+ * documents as chip cards); the default keeps the full card + table used on
+ * detail pages.
+ */
+export default function EngineeringDocuments({ entityType, entityId, defaultRevision = '', variant = 'card' }) {
+    const band = variant === 'band';
+    const [uploadOpen, setUploadOpen] = useState(false);
     const [docs, setDocs] = useState([]);
     const [canManage, setCanManage] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -157,20 +165,26 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
     }
 
     return (
-        <section className="card mt-6">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-om-ink">{__('Engineering documents')}</h2>
-                <span className="text-sm text-om-muted">{docs.length}</span>
+        <section className={band ? '' : 'card mt-6'}>
+            <div className={band ? 'flex items-baseline gap-2 mb-2.5' : 'flex items-center justify-between mb-4'}>
+                <h2 className={band ? 'text-sm font-bold text-om-ink' : 'text-lg font-semibold text-om-ink'}>{__('Engineering documents')}</h2>
+                <span className={band ? 'font-mono text-[10px] text-om-faint' : 'text-sm text-om-muted'}>{docs.length}</span>
+                {band && canManage && (
+                    <button type="button" onClick={() => setUploadOpen((o) => !o)} className="ml-auto text-[11.5px] font-semibold text-om-accent hover:underline">
+                        + {__('Attach')}
+                    </button>
+                )}
             </div>
 
             {error && <p className="text-sm text-om-blocked mb-3">{error}</p>}
 
-            {canManage && (
+            {canManage && (!band || uploadOpen) && (
                 <form onSubmit={submitUpload} className="mb-5 rounded-om-sm border border-om-line bg-om-chip p-4">
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                         <div className="md:col-span-2">
-                            <label className="block text-sm text-om-muted mb-1">{__('File')}</label>
+                            <div className="block text-sm text-om-muted mb-1">{__('File')}</div>
                             <input
+                                aria-label={__('File')}
                                 ref={fileRef}
                                 type="file"
                                 onChange={(ev) => setFile(ev.target.files?.[0] ?? null)}
@@ -179,35 +193,28 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                             {fieldErrors.file && <p className="text-xs text-om-blocked mt-1">{fieldErrors.file[0]}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm text-om-muted mb-1">{__('Revision')}</label>
-                            <input
-                                type="text"
+                            <TextField
+                                label={__('Revision')}
+                                mono
                                 value={revision}
-                                onChange={(ev) => setRevision(ev.target.value)}
+                                onChange={(v) => setRevision(v)}
                                 placeholder={__('e.g. A')}
-                                className="block w-full rounded-om-sm border border-om-line px-2 py-1 text-sm"
+                                error={fieldErrors.revision?.[0]}
                             />
-                            {fieldErrors.revision && <p className="text-xs text-om-blocked mt-1">{fieldErrors.revision[0]}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm text-om-muted mb-1">{__('Document type')}</label>
-                            <input
-                                type="text"
+                            <TextField
+                                label={__('Document type')}
                                 value={documentType}
-                                onChange={(ev) => setDocumentType(ev.target.value)}
+                                onChange={(v) => setDocumentType(v)}
                                 placeholder={__('optional')}
-                                className="block w-full rounded-om-sm border border-om-line px-2 py-1 text-sm"
                             />
                         </div>
                     </div>
                     <div className="mt-3 flex items-center gap-3">
-                        <button
-                            type="submit"
-                            disabled={!file || uploading}
-                            className="btn btn-primary disabled:opacity-50"
-                        >
+                        <Button type="submit" disabled={!file} loading={uploading}>
                             {uploading ? __('Uploading…') : __('Upload')}
-                        </button>
+                        </Button>
                         <span className="text-xs text-om-muted">
                             {__('For an interactive HTML package, upload a .zip or a single .html.')}
                         </span>
@@ -219,6 +226,40 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                 <p className="text-sm text-om-muted">{__('Loading…')}</p>
             ) : docs.length === 0 ? (
                 <p className="text-sm text-om-muted">{__('No engineering documents yet.')}</p>
+            ) : band ? (
+                <div className="grid gap-[7px] sm:grid-cols-2">
+                    {docs.map((doc) => {
+                        const pkg = packageMeta(doc.package_type);
+                        const acts = availableActions(doc.lifecycle_status, canManage);
+                        return (
+                            <div key={doc.id} className="group flex items-center gap-2.5 bg-om-card border border-om-line2 rounded-om-sm px-2.5 py-2">
+                                <span className={`shrink-0 font-mono text-[8.5px] font-semibold border rounded px-1.5 py-0.5 ${pkg.badge}`}>{__(pkg.label)}</span>
+                                {isInteractive(doc.package_type) && doc.entry_point ? (
+                                    <button type="button" onClick={() => openViewer(doc)} className="flex-1 min-w-0 text-left text-xs text-om-ink truncate hover:text-om-accent" title={doc.original_filename}>
+                                        {doc.original_filename}
+                                    </button>
+                                ) : (
+                                    <a href={`${BASE}/${doc.id}/download`} target={pkg.inline ? '_blank' : undefined} rel="noopener noreferrer" className="flex-1 min-w-0 text-xs text-om-ink truncate hover:text-om-accent" title={doc.original_filename}>
+                                        {doc.original_filename}
+                                    </a>
+                                )}
+                                {doc.revision && <span className="shrink-0 font-mono text-[9px] text-om-faint">REV {doc.revision}</span>}
+                                <span className="shrink-0 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href={`${BASE}/${doc.id}/download`} className="text-[11px] text-om-muted hover:text-om-ink" title={__('Download')}>↓</a>
+                                    {acts.canRelease && (
+                                        <button type="button" onClick={() => lifecycle(doc, 'release')} className="text-[10px] text-om-running hover:underline" title={__('Release')}>{__('Release')}</button>
+                                    )}
+                                    {acts.canObsolete && (
+                                        <button type="button" onClick={() => lifecycle(doc, 'obsolete')} className="text-[10px] text-om-muted hover:underline" title={__('Obsolete')}>{__('Obsolete')}</button>
+                                    )}
+                                    {acts.canDelete && (
+                                        <button type="button" onClick={() => setToDelete(doc)} className="text-[11px] text-om-blocked" title={__('Delete')}>×</button>
+                                    )}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">

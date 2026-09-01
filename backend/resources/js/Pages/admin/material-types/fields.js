@@ -8,3 +8,15 @@ export function materialTypeFields() {
         { name: 'name', label: __('Name'), required: true },
     ];
 }
+
+/** One builder for the drawer and both standalone pages, so a blank field and a loaded one can't drift apart. */
+export function materialTypeInitial(record) {
+    if (!record) {
+        return { code: '', name: '' };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+    };
+}

@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { customerFields } from './fields';
+import { customerFields, customerInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomerEdit({ customer, basePath }) {
@@ -13,14 +13,7 @@ export default function CustomerEdit({ customer, basePath }) {
                 action={`${basePath}/${customer.id}`}
                 method="put"
                 fields={customerFields()}
-                initial={{
-                    name: customer.name ?? '',
-                    code: customer.code ?? '',
-                    tier: customer.tier ?? 'bronze',
-                    payment_score: customer.payment_score ?? 0,
-                    notes: customer.notes ?? '',
-                    is_active: !!customer.is_active,
-                }}
+                initial={customerInitial(customer)}
                 submitLabel={__('Save Changes')}
                 cancelHref={basePath}
             />

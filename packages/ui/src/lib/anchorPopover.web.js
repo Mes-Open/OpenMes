@@ -51,11 +51,26 @@ export function useAnchoredPopover(open, { estHeight = 340, estWidth = 0, gap = 
         };
         measure();
         // Re-measure once the popover has painted with its real dimensions.
+        // A single rAF is not enough: it can fire before React commits the
+        // portal (the popover only renders once `style` is set), leaving the
+        // estHeight-based flip in place until the next scroll — a menu opened
+        // mid-viewport then hangs far above its trigger. A ResizeObserver on
+        // the popover fires exactly when it first gets laidout (and again if
+        // its content changes), so the position always settles on real sizes.
         const raf = requestAnimationFrame(measure);
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+        let watchRaf = 0;
+        const watch = () => {
+            if (popRef.current) ro?.observe(popRef.current);
+            else watchRaf = requestAnimationFrame(watch);
+        };
+        if (ro) watch();
         window.addEventListener('resize', measure);
         window.addEventListener('scroll', measure, true);
         return () => {
             cancelAnimationFrame(raf);
+            cancelAnimationFrame(watchRaf);
+            ro?.disconnect();
             window.removeEventListener('resize', measure);
             window.removeEventListener('scroll', measure, true);
         };

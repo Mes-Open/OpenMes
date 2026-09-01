@@ -4,6 +4,11 @@
  * Tinted alert row: 9px severity dot, 13px semibold title, 11.5px muted body.
  * Backgrounds per severity (success=runningBg, info=chip + accent dot,
  * warning=downtimeBg, error=blockedBg). API is identical to the native twin.
+ *
+ * For a message that belongs to one form or section and should stay next to it.
+ * The page-wide "that worked" after a write is a flash (redirects) or a toast
+ * (no navigation) — see the feedback rules in CLAUDE.md. Field-level validation
+ * errors need none of the three: `ResourceForm` prints each under its own field.
  */
 const severities = {
     success: { bg: 'bg-om-running-bg', dot: 'bg-om-running' },

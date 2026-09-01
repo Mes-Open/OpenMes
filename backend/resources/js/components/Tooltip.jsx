@@ -172,8 +172,8 @@ export default function Tooltip({
                         id={id}
                         role="tooltip"
                         style={{ top: pos.top, left: pos.left }}
-                        className="fixed z-[100] max-w-xs px-2.5 py-1.5 rounded-om-sm bg-om-ink text-om-on-ink
-                                   text-xs font-medium whitespace-nowrap pointer-events-none
+                        className="fixed z-[100] w-max max-w-xs px-2.5 py-1.5 rounded-om-sm bg-om-ink text-om-on-ink
+                                   text-xs font-medium pointer-events-none
                                    shadow-[0_18px_44px_-18px_rgba(0,0,0,.45)]"
                     >
                         {label}

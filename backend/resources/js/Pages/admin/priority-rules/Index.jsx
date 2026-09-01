@@ -2,7 +2,8 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { conditionSummary, sourceLabel } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { conditionSummary, sourceLabel, priorityRuleFields, priorityRuleInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 function BandEditor({ bands, basePath }) {
@@ -61,6 +62,8 @@ function BandEditor({ bands, basePath }) {
 export default function PriorityRulesIndex() {
     const { bands = [20, 40, 60, 80], basePath } = usePage().props;
 
+    const drawer = useResourceDrawer();
+
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'field_source', label: __('Source'), className: 'text-om-muted', value: (r) => sourceLabel(r.field_source), render: (r) => sourceLabel(r.field_source) },
@@ -70,7 +73,7 @@ export default function PriorityRulesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), href: `${basePath}/${r.id}/edit` },
+        { label: __('Edit'), onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             onClick: () => router.post(`${basePath}/${r.id}/toggle-active`, {}, { preserveScroll: true }),
@@ -98,11 +101,20 @@ export default function PriorityRulesIndex() {
                 shape="priority_rules"
                 title={__('Scoring rules')}
                 createHref={`${basePath}/create`}
+                onCreate={drawer.create}
                 createLabel={__('New Rule')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}
                 emptyText={__('No priority rules yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action={basePath}
+                fields={priorityRuleFields()}
+                initial={priorityRuleInitial}
+                title={{ create: __('New Priority Rule'), edit: __('Edit Priority Rule') }}
             />
         </>
     );

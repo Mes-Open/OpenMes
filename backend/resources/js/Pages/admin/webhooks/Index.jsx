@@ -1,9 +1,15 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { webhookFields, webhookInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WebhooksIndex() {
+    const { events = [], generatedSecret } = usePage().props;
+
+    const drawer = useResourceDrawer();
+
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'url', label: __('URL'), className: 'font-mono text-[12px] text-om-muted' },
@@ -24,7 +30,9 @@ export default function WebhooksIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/webhooks/${r.id}/edit` },
+        // The row is the record — except its secret, which the collection
+        // deliberately never carries. Editing can set a new one, not reveal it.
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Deliveries'),
             variant: 'secondary',
@@ -59,12 +67,24 @@ export default function WebhooksIndex() {
                 shape="webhooks"
                 title={__('Webhooks')}
                 createHref="/admin/webhooks/create"
+                onCreate={drawer.create}
                 createLabel={__('New Webhook')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No webhooks yet.')}
             />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/webhooks"
+                fields={(mode) => webhookFields(events, { isEdit: mode === 'edit' })}
+                initial={(record) => webhookInitial(record, { generatedSecret })}
+                ensure={['generatedSecret']}
+                ready={generatedSecret !== undefined}
+                title={{ create: __('New Webhook'), edit: __('Edit Webhook') }}
+            />
+
         </>
     );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { Button, TextField } from '@openmes/ui';
+import { Button, Icon, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
 import Tooltip from '../../components/Tooltip';
 import { __ } from '../../lib/i18n';
@@ -98,9 +98,9 @@ export default function Step3() {
                     />
 
                     <div>
-                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                        <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                             {__('Production Steps')} <span className="text-om-accent">*</span>
-                        </label>
+                        </div>
                         <p className="text-[12.5px] text-om-muted mb-3">{__('Add steps in order. Drag the handle to reorder.')}</p>
                         {errors.steps && <p className="mb-2 text-[11.5px] text-om-blocked">{errors.steps}</p>}
 
@@ -163,9 +163,10 @@ export default function Step3() {
                         <button
                             type="button"
                             onClick={addStep}
-                            className="text-[13px] text-om-accent hover:underline mt-2 font-medium"
+                            className="inline-flex items-center gap-1 text-[13px] text-om-accent hover:underline mt-2 font-medium"
                         >
-                            {__('+ Add another step')}
+                            <Icon name="plus" size={13} />
+                            {__('Add another step')}
                         </button>
                     </div>
                 </div>

@@ -53,10 +53,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Work Order */}
                             <div className="md:col-span-2">
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Work Order')} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <Dropdown
+                                    aria-label={__('Work Order')}
                                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
                                     onChange={handleWorkOrderChange}
                                     className="w-full"
@@ -73,10 +74,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Batch */}
                             <div className="md:col-span-2">
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Batch')} <span className="text-om-faint text-xs">(optional)</span>
-                                </label>
+                                </div>
                                 <Dropdown
+                                    aria-label={__('Batch')}
                                     value={data.batch_id == null ? '' : String(data.batch_id)}
                                     onChange={(v) => setData('batch_id', v)}
                                     className="w-full"
@@ -96,10 +98,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Anomaly Reason */}
                             <div className="md:col-span-2">
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Anomaly Reason')} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <Dropdown
+                                    aria-label={__('Anomaly Reason')}
                                     value={data.anomaly_reason_id == null ? '' : String(data.anomaly_reason_id)}
                                     onChange={(v) => setData('anomaly_reason_id', v)}
                                     className="w-full"
@@ -116,10 +119,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Product Name */}
                             <div className="md:col-span-2">
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Product Name')} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <input
+                                    aria-label={__('Product Name')}
                                     type="text"
                                     value={data.product_name}
                                     onChange={(e) => setData('product_name', e.target.value)}
@@ -135,10 +139,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Planned Qty */}
                             <div>
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Planned Quantity')} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <input
+                                    aria-label={__('Planned Quantity')}
                                     type="number"
                                     value={data.planned_qty}
                                     onChange={(e) => setData('planned_qty', e.target.value)}
@@ -155,10 +160,11 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Actual Qty */}
                             <div>
-                                <label className="form-label">
+                                <div className="form-label">
                                     {__('Actual Quantity')} <span className="text-om-blocked">*</span>
-                                </label>
+                                </div>
                                 <input
+                                    aria-label={__('Actual Quantity')}
                                     type="number"
                                     value={data.actual_qty}
                                     onChange={(e) => setData('actual_qty', e.target.value)}
@@ -175,8 +181,9 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Comment */}
                             <div className="md:col-span-2">
-                                <label className="form-label">{__('Comment')}</label>
+                                <div className="form-label">{__('Comment')}</div>
                                 <textarea
+                                    aria-label={__('Comment')}
                                     value={data.comment}
                                     onChange={(e) => setData('comment', e.target.value)}
                                     rows={3}

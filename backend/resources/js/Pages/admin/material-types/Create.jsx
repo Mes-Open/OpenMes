@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { materialTypeFields } from './fields';
+import { materialTypeFields, materialTypeInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaterialTypeCreate() {
@@ -13,7 +13,7 @@ export default function MaterialTypeCreate() {
                 action="/admin/material-types"
                 method="post"
                 fields={materialTypeFields()}
-                initial={{ code: '', name: '' }}
+                initial={materialTypeInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/material-types"
             />

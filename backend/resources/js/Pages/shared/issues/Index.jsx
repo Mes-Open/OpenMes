@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Button, IconButton, Dropdown, DatePicker, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
+import { Button, IconButton, Dropdown, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import usePrompt from '../../../components/usePrompt';
@@ -180,7 +181,7 @@ function DispositionModal({ issue, base, onClose }) {
             title={__('Disposition')}
             subtitle={issue.title}
             closeLabel={__('Close')}
-            className="max-w-[520px]"
+            width={520}
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
@@ -190,8 +191,9 @@ function DispositionModal({ issue, base, onClose }) {
         >
             <div className="space-y-4">
                 <div>
-                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Disposition')}</label>
+                    <div className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Disposition')}</div>
                     <Dropdown
+                        aria-label={__('Disposition')}
                         className="w-full"
                         options={dispositionOptions}
                         value={data.disposition}
@@ -202,8 +204,9 @@ function DispositionModal({ issue, base, onClose }) {
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Non-conforming quantity')}</label>
+                        <div className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Non-conforming quantity')}</div>
                         <TextField
+                            aria-label={__('Non-conforming quantity')}
                             inputMode="decimal"
                             value={String(data.non_conforming_qty ?? '')}
                             onChange={(v) => setData('non_conforming_qty', v)}
@@ -212,8 +215,9 @@ function DispositionModal({ issue, base, onClose }) {
                         />
                     </div>
                     <div>
-                        <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Source')}</label>
+                        <div className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Source')}</div>
                         <Dropdown
+                            aria-label={__('Source')}
                             className="w-full"
                             options={sourceOptions}
                             value={data.nc_source}
@@ -224,8 +228,9 @@ function DispositionModal({ issue, base, onClose }) {
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Root cause')}</label>
+                    <div className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Root cause')}</div>
                     <TextField
+                        aria-label={__('Root cause')}
                         multiline
                         value={data.root_cause ?? ''}
                         onChange={(v) => setData('root_cause', v)}
@@ -234,8 +239,9 @@ function DispositionModal({ issue, base, onClose }) {
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Containment action')}</label>
+                    <div className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Containment action')}</div>
                     <TextField
+                        aria-label={__('Containment action')}
                         multiline
                         value={data.containment_action ?? ''}
                         onChange={(v) => setData('containment_action', v)}
@@ -324,7 +330,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
                 title={__('Corrective / preventive actions')}
                 subtitle={issue.title}
                 closeLabel={__('Close')}
-                className="max-w-[640px]"
+                width={640}
             >
                 <div className="space-y-4">
                     {error && (
@@ -416,7 +422,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
                             value={form.assigned_to_id}
                             onChange={(v) => setForm({ ...form, assigned_to_id: v })}
                         />
-                        <DatePicker
+                        <AppDatePicker
                             className="min-w-[10rem]"
                             value={form.due_date}
                             onChange={(v) => setForm({ ...form, due_date: v || '' })}

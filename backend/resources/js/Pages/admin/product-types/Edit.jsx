@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { PRODUCT_TYPE_FIELDS } from './fields';
+import { PRODUCT_TYPE_FIELDS, productTypeInitial } from './fields';
 
 export default function ProductTypeEdit({ productType, customFields = [] }) {
     return (
@@ -21,17 +21,7 @@ export default function ProductTypeEdit({ productType, customFields = [] }) {
                 method="put"
                 fields={PRODUCT_TYPE_FIELDS}
                 customFields={customFields}
-                initial={{
-                    code: productType.code ?? '',
-                    name: productType.name ?? '',
-                    description: productType.description ?? '',
-                    unit_of_measure: productType.unit_of_measure ?? 'pcs',
-                    image: null,
-                    image_url: productType.image_url ?? null,
-                    remove_image: false,
-                    is_active: !!productType.is_active,
-                    custom_fields: productType.custom_fields ?? {},
-                }}
+                initial={productTypeInitial(productType)}
                 submitLabel={__("Save Changes")}
                 cancelHref="/admin/product-types"
             />

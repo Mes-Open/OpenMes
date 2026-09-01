@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { FACTORY_FIELDS } from './fields';
+import { FACTORY_FIELDS, factoryInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function FactoryCreate() {
@@ -13,7 +13,7 @@ export default function FactoryCreate() {
                 action="/admin/factories"
                 method="post"
                 fields={FACTORY_FIELDS}
-                initial={{ code: '', name: '', description: '', is_active: true }}
+                initial={factoryInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/factories"
             />

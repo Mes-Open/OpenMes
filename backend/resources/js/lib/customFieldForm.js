@@ -10,6 +10,8 @@
  *   custom_field_files_remove — [key]         (existing files to clear)
  */
 
+import { jsonColumn } from './syncedRow';
+
 /** Initial custom-field keys to spread into a useForm() initial object. */
 export function customFieldInitial(existing = {}) {
     return {
@@ -17,6 +19,14 @@ export function customFieldInitial(existing = {}) {
         custom_field_files: {},
         custom_field_files_remove: [],
     };
+}
+
+/**
+ * Custom-field values as an object, whichever way the record reached us — see
+ * `lib/syncedRow.js` for why the two ways differ.
+ */
+export function customFieldValues(raw) {
+    return jsonColumn(raw, {});
 }
 
 /** Props for the <CustomFields> component, derived from a useForm() instance. */
