@@ -9,7 +9,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![ISA-95](https://img.shields.io/badge/ISA--95-compatible-blueviolet)](./docs/isa95.md)
 
 **🚀 [Try the live demo → demo-2.getopenmes.com](https://demo.getopenmes.com/register)**
@@ -221,7 +221,7 @@ OpenMES uses a **dead-simple** Laravel monolith architecture:
 - **Frontend**: Tailwind CSS 4 + Alpine.js for interactivity
 - **Real-time**: Livewire 4 for dynamic components
 - **Charts**: Chart.js for analytics
-- **Database**: PostgreSQL 17+ with immutable audit logs
+- **Database**: PostgreSQL 18+ with immutable audit logs
 - **Deployment**: Docker Compose (2 containers only!)
 
 ### Why This Architecture?

@@ -487,6 +487,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **Datalab Pantheon connector** *([#212](https://github.com/orgs/Mes-Open/discussions/212))* — connects OpenMES to **Datalab Pantheon** over its **PAWS** REST API, reading master data out of Pantheon's own views through the canonical ERP contract and pushing posted warehouse documents back as Pantheon **Move** documents. **Ships as a separate, optional install** from [`Mes-Open/openmes-pantheon`](https://github.com/Mes-Open/openmes-pantheon) — clone it into `backend/modules/Pantheon` and enable it under **Admin → Modules**. It is not part of core: an install without Pantheon carries no connector code, no migration, no schedule entry and no menu item, and core keeps no Pantheon vocabulary (view names, `acClassif` codes, document types, column mapping) of its own. What core provides are the **ERP-agnostic building blocks** the connector targets: the `/api/v1/erp/*` import services, the warehouse/stock-document model and the `integration_configs` row (`system_type = 'pantheon'`) whose `api_config` is an encrypted array.
 
+### Changed
+- **PostgreSQL 18** *([#96](https://github.com/Mes-Open/OpenMes/issues/96))* — the bundled database image moves from `postgres:17-alpine` to `postgres:18-alpine`. Logical-replication settings (`wal_level=logical`, replication slots/senders) and the app-level immutable audit log are unchanged and verified on 18. **Fresh installs** pick this up automatically. **Existing deployments:** a major PostgreSQL version cannot reuse a 17 data directory in place — dump on 17 and restore into 18 (`pg_dumpall` / `pg_restore`) during a maintenance window before pulling the new image. Minimum supported server stays PostgreSQL 14+.
+
 ## [0.19.0] - 2026-08-01
 
 ### Fixed
