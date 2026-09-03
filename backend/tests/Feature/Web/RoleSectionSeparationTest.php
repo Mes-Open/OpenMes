@@ -25,7 +25,7 @@ class RoleSectionSeparationTest extends TestCase
         'supervisor.customers.index',
         'supervisor.customers.create',
         'supervisor.priority-rules.index',
-        'supervisor.csv-import',
+        'supervisor.import.index',
         'supervisor.issues.index',
         'supervisor.quality-tasks.index',
         'supervisor.shift-handover.index',
@@ -34,7 +34,7 @@ class RoleSectionSeparationTest extends TestCase
 
     /**
      * The /admin twins a supervisor used to reach and must not any more.
-     * AdminNavSweepTest already sweeps dashboard/work-orders/csv-import/reports
+     * AdminNavSweepTest already sweeps dashboard/work-orders/import/reports
      * for both roles; these are the ones only this change introduced.
      */
     private const ADMIN_TWINS = [

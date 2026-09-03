@@ -18,7 +18,7 @@ This guide covers installation, configuration, and administration of OpenMES.
   - [Process Templates](#process-templates)
 - [Work Orders](#work-orders)
   - [Creating Orders Manually](#creating-orders-manually)
-  - [Importing Orders via CSV/Excel](#importing-orders-via-csvexcel)
+  - [Importing data (Admin → Import)](#importing-data-admin--import)
 - [HR Management](#hr-management)
 - [System Settings](#system-settings)
   - [Production Period](#production-period)
@@ -200,22 +200,37 @@ When creating work orders, selecting a product type automatically selects the as
 
 A supervisor must accept the order before operators can work on it.
 
-### Importing Orders via CSV/Excel
+### Importing data (Admin → Import)
 
-For bulk imports (e.g. from ERP or Excel):
+One importer loads master data and orders from spreadsheets — the same screen for
+every entity, in the style of a shop-system import page:
 
-1. Go to **Admin → Work Orders → CSV Import**
-2. Upload a `.csv`, `.xls`, or `.xlsx` file
-3. Map your file's columns to OpenMES fields:
-   - **Required**: Order Number, Quantity
-   - **Optional**: Product Name, Line, Due Date, Priority, Week, Month, Year
-4. Choose an import strategy:
-   - `Insert only` — skip orders with duplicate order numbers
-   - `Update only` — only update existing orders
-   - `Insert or Update` — upsert (recommended for ERP sync)
-5. Click **Process** to import
+1. Go to **Admin → Import** (supervisors: **Supervisor → Orders → Import**, work orders only).
+   The page sits on its own `import` tab in Settings → Access; after an upgrade only
+   Admin holds it.
+2. Pick **what to import**: product types, materials, work orders or bills of materials.
+   The right-hand panel lists the **available fields** for that entity (required ones
+   starred) and offers a **sample CSV** per entity.
+3. Upload a `.csv`, `.txt`, `.xls` or `.xlsx` file (max 32 MB). For CSV you can pin the
+   **field separator** (auto-detected by default: `;`, `,` or tab) and the **encoding**
+   (UTF-8, ISO-8859-1, Windows-1250 for older Polish exports).
+4. Set the run options for the entity — the **strategy** (insert or update / insert only /
+   update only / error on duplicates), and per entity: the external system and category
+   filter (product types, materials), a default material type, a target line and planning
+   period (work orders), replace vs merge (recipes).
+5. **Map columns**: each file column is assigned to a field. Columns are auto-detected from
+   common English and Polish headers; work orders also accept `custom:<key>` targets that
+   are kept as extra data on the order. Mappings can be saved as **profiles** and reused.
+6. **Run**: the import is queued and processed in the background. The run page shows a
+   live progress bar and, when done, per-row errors with the file line, the field and the
+   reason — downloadable as CSV. The **Recent imports** list on the import page updates
+   live as well.
 
-Previously saved column mappings are stored as profiles and can be reused.
+Rows are processed independently: one bad reference never fails the whole file. The
+older addresses (`/admin/csv-import`, `/admin/materials-import`) redirect here.
+
+Sample files for every entity, matched to the demo data, live in
+[`docs/import-samples/`](import-samples/README.md).
 
 ---
 

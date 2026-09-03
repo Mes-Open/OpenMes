@@ -24,7 +24,7 @@ use RuntimeException;
 trait ServesBothSections
 {
     /** 'admin' or 'supervisor' — whichever tree served this request. */
-    private function section(): string
+    protected function section(): string
     {
         $section = request()->route()?->getAction('section');
 
@@ -42,9 +42,9 @@ trait ServesBothSections
      * A route name in the current section: `sectionRoute('customers.index')`
      * resolves to `admin.customers.index` or `supervisor.customers.index`.
      */
-    protected function sectionRoute(string $name): string
+    protected function sectionRoute(string $name, mixed $parameters = []): string
     {
-        return route($this->section().'.'.$name);
+        return route($this->section().'.'.$name, $parameters);
     }
 
     /** The URL prefix the page should build its own links and posts from. */

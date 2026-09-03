@@ -12,10 +12,10 @@ use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
 use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
-use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\CustomerController;
 use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\DataImportController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
 use App\Http\Controllers\Web\Admin\ImportExampleController;
@@ -25,7 +25,6 @@ use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusContro
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 // Gate 2 — Company structure
-use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
@@ -75,6 +74,33 @@ use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboa
 use Illuminate\Support\Facades\Route;
 
 // Installation routes (blocked after installation)
+
+/**
+ * The unified importer's routes, mounted in both the admin and the supervisor
+ * group (DataImportController serves both). Static paths are registered before
+ * `/import/{entity?}`, and the entity is constrained to the registry's slugs, so
+ * `/import/runs/…` can never be read as an entity.
+ */
+if (! function_exists('registerImportRoutes')) {
+    function registerImportRoutes(): void
+    {
+        Route::get('/import/runs/{import}', [DataImportController::class, 'show'])->name('import.show');
+        Route::get('/import/runs/{import}/errors.csv', [DataImportController::class, 'errors'])->name('import.errors');
+        Route::delete('/import/profiles/{mapping}', [DataImportController::class, 'destroyProfile'])->name('import.profiles.destroy');
+        Route::get('/import/samples/{entity}', [DataImportController::class, 'sample'])->name('import.sample')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+        Route::post('/import/{entity}/upload', [DataImportController::class, 'upload'])->name('import.upload')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+        Route::get('/import/{entity}/map/{token}', [DataImportController::class, 'map'])->name('import.map')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+        Route::post('/import/{entity}/process', [DataImportController::class, 'process'])->name('import.process')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+        Route::get('/import/{entity?}', [DataImportController::class, 'index'])->name('import.index')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+    }
+
+}
+
 Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\CheckInstallation::class)->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('index');
     Route::get('/environment', [InstallController::class, 'showEnvironmentForm'])->name('environment');
@@ -332,10 +358,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
         Route::post('/priority-rules/{priority_rule}/toggle-active', [PriorityRuleController::class, 'toggleActive'])->name('priority-rules.toggle-active');
 
-        Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
-        Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
-        Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
-        Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
+        // Unified importer — work orders only in this section (ImportRegistry).
+        registerImportRoutes();
+        Route::get('/csv-import', fn () => redirect('/supervisor/import/work-orders', 301))->name('csv-import');
 
         // Live shift monitor — hourly state timeline, output vs target, and the
         // stops still waiting on a cause.
@@ -696,9 +721,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
         Route::resource('materials', MaterialManagementController::class);
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
-        Route::get('/materials-import', [MaterialImportController::class, 'index'])->name('materials.import');
-        Route::post('/materials-import/upload', [MaterialImportController::class, 'upload'])->name('materials.import.upload');
-        Route::post('/materials-import/process', [MaterialImportController::class, 'process'])->name('materials.import.process');
+        // The material importer moved into the unified importer (Admin → Import).
+        Route::get('/materials-import', fn () => redirect('/admin/import/materials', 301))->name('materials.import');
 
         // Integration Configs
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
@@ -712,11 +736,10 @@ Route::middleware('auth')->group(function () {
         // Import Example CSV
         Route::get('/import-example/{type}', [ImportExampleController::class, 'download'])->name('import-example');
 
-        // CSV Import
-        Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
-        Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
-        Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
-        Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
+        // Unified importer (Admin → Import): product types, materials, work
+        // orders, recipes. The old work-order importer URL redirects into it.
+        registerImportRoutes();
+        Route::get('/csv-import', fn () => redirect('/admin/import/work-orders', 301))->name('csv-import');
 
         // Trash — soft-deleted rows across all domain entities, with restore.
         Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');

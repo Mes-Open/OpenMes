@@ -5,12 +5,15 @@ namespace App\Services\CsvImport;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
+use App\Services\Erp\Concerns\ReportsImportRows;
 use App\Services\ProcessTemplate\SnapshotService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WorkOrderImportService
 {
+    use ReportsImportRows;
+
     public function __construct(
         protected CsvParserService $csvParser,
         protected SnapshotService $snapshotService
@@ -117,6 +120,146 @@ class WorkOrderImportService
             'skipped' => $skipped,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Import work orders from the unified file importer (Admin → Import).
+     *
+     * Looser than the ERP contract on purpose — this is the path a planner uses
+     * with a spreadsheet, not an ERP: only the order number and quantity are
+     * required, the line and product type are optional lookups, unknown columns
+     * can be kept as `custom:<key>` in extra_data, and a whole file can be pinned
+     * to one line and one planning period from the form.
+     *
+     * @param  list<array<string, mixed>>  $rows  canonical rows from RowMapper
+     * @param  array{strategy?: string, target_line_id?: int|string|null, import_week?: int|null, import_month?: int|null, production_year?: int|null}  $options
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>}
+     */
+    public function importFromFile(array $rows, array $options = []): array
+    {
+        $strategy = $options['strategy'] ?? 'update_or_create';
+        $targetLineId = ! empty($options['target_line_id']) ? (int) $options['target_line_id'] : null;
+        $targetLine = $targetLineId ? Line::find($targetLineId) : null;
+
+        $period = array_filter([
+            'week_number' => ! empty($options['import_week']) ? (int) $options['import_week'] : null,
+            'month_number' => ! empty($options['import_month']) ? (int) $options['import_month'] : null,
+            'production_year' => ! empty($options['production_year']) ? (int) $options['production_year'] : null,
+        ]);
+
+        $lines = Line::pluck('id', 'code');
+        $productTypes = ProductType::get(['id', 'code'])->keyBy('code');
+        $templates = [];   // product type id => active template|null, resolved once
+
+        return $this->processRows($rows, function (array $row) use ($strategy, $targetLineId, $targetLine, $period, $lines, $productTypes, &$templates) {
+            $orderNo = trim((string) ($row['order_no'] ?? ''));
+
+            if ($orderNo === '') {
+                return $this->error('order_no', __('Order number is required'));
+            }
+
+            $qty = (float) ($row['quantity'] ?? $row['planned_qty'] ?? 0);
+
+            if ($qty <= 0) {
+                return $this->error('quantity', __('Planned quantity must be greater than 0'));
+            }
+
+            $data = ['planned_qty' => $qty];
+
+            if ($targetLineId !== null) {
+                if (! $targetLine) {
+                    return $this->error('line_code', __('Target line #:id not found', ['id' => $targetLineId]));
+                }
+                $data['line_id'] = $targetLine->id;
+            } elseif (! empty($row['line_code'])) {
+                $lineId = $lines[$row['line_code']] ?? null;
+
+                if (! $lineId) {
+                    return $this->error('line_code', __("Line ':code' not found", ['code' => $row['line_code']]));
+                }
+                $data['line_id'] = $lineId;
+            }
+
+            $productType = null;
+
+            if (! empty($row['product_type_code'])) {
+                $productType = $productTypes[$row['product_type_code']] ?? null;
+
+                if (! $productType) {
+                    return $this->error('product_type_code', __("Product type ':code' not found", ['code' => $row['product_type_code']]));
+                }
+                $data['product_type_id'] = $productType->id;
+            }
+
+            foreach (['priority' => 'int', 'due_date' => null, 'description' => null, 'customer_order_no' => null, 'unit_price' => 'float'] as $field => $cast) {
+                if (! array_key_exists($field, $row) || $row[$field] === null || $row[$field] === '') {
+                    continue;
+                }
+                $data[$field] = match ($cast) {
+                    'int' => (int) $row[$field],
+                    'float' => (float) $row[$field],
+                    default => $row[$field],
+                };
+            }
+
+            $extra = $row['custom'] ?? [];
+
+            if (! empty($row['product_name'])) {
+                $extra['product_name'] = $row['product_name'];
+            }
+
+            $data = array_merge($data, $period);
+
+            $existing = WorkOrder::where('order_no', $orderNo)->first();
+
+            if ($existing) {
+                if ($strategy === 'skip_existing') {
+                    return $this->skipped();
+                }
+
+                if ($strategy === 'error_on_duplicate') {
+                    return $this->error('order_no', __('Duplicate order number: :order', ['order' => $orderNo]));
+                }
+
+                if (in_array($existing->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED], true)) {
+                    return $this->skipped();
+                }
+
+                if ($extra !== []) {
+                    $data['extra_data'] = array_merge($existing->extra_data ?? [], $extra);
+                }
+
+                $existing->update($data);
+
+                return $this->updated();
+            }
+
+            $data['order_no'] = $orderNo;
+            $data['status'] = WorkOrder::STATUS_PENDING;
+            $data['produced_qty'] = 0;
+
+            if ($extra !== []) {
+                $data['extra_data'] = $extra;
+            }
+
+            // A product type with an active template gets its process frozen onto
+            // the order, as the API path does; without one the order is still
+            // created — a supervisor can attach the process when accepting it.
+            $template = null;
+
+            if ($productType) {
+                $templates[$productType->id] ??= $productType->processTemplates()->where('is_active', true)->first();
+                $template = $templates[$productType->id];
+            }
+
+            if ($template) {
+                $data['process_snapshot'] = $this->snapshotService->createSnapshot($template);
+            }
+
+            WorkOrder::create($data);
+
+            return $this->created();
+        });
     }
 
     /**

@@ -65,7 +65,7 @@ Drag-and-drop production scheduling with Gantt-style views across multiple produ
 - **Work order tracking** - Complete work order lifecycle management
 - **Batch production** - Support partial completion with multiple batches
 - **Process templates** - Reusable, step-by-step process definitions
-- **CSV Import** - Bulk import work orders with flexible column mapping
+- **Data import** - Bulk-load product types, materials, work orders and recipes from CSV/Excel with column mapping, saved profiles and live progress
 - **Real-time status** - Live production status updates
 
 ### Operator Experience

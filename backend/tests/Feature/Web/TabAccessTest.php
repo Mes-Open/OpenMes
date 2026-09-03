@@ -74,6 +74,21 @@ class TabAccessTest extends TestCase
         $this->actingAs($this->supervisor)->get('/admin/priority-rules')->assertOk();
     }
 
+    public function test_the_unified_importer_lives_on_its_own_import_tab(): void
+    {
+        $this->assertSame('import', TabRegistry::tabForPath('/admin/import'));
+        $this->assertSame('import', TabRegistry::tabForPath('/admin/import/materials'));
+        $this->assertSame('import', TabRegistry::tabForPath('/admin/import/runs/12'));
+
+        $this->actingAs($this->supervisor)->get('/admin/import')->assertForbidden();
+
+        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:import');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($this->supervisor)->get('/admin/import')->assertOk();
+        $this->actingAs($this->supervisor)->get('/admin/import/materials')->assertOk();
+    }
+
     public function test_granting_a_tab_lets_the_role_in(): void
     {
         // hr is not a Supervisor default → granting it opens HR pages.

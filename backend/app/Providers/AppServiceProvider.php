@@ -31,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.
         $this->app->singleton(\App\Support\TenantContext::class, fn () => new \App\Support\TenantContext);
+        $this->app->singleton(\App\Import\ImportRegistry::class, fn () => new \App\Import\ImportRegistry);
     }
 
     /**

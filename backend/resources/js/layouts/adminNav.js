@@ -108,12 +108,11 @@ export const ADMIN_GROUPS = [
         icon: 'clipboard',
         lucide: 'clipboard-list',
         href: '/admin/work-orders',
-        match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
+        match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules'],
         children: [
             { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'], tab: 'orders', lucide: 'list' },
             { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'], tab: 'order_data', lucide: 'users' },
             { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'], tab: 'order_data', lucide: 'sliders-horizontal' },
-            { label: 'CSV Import', href: '/admin/csv-import', match: ['/admin/csv-import'], tab: 'order_data', lucide: 'file-up' },
         ],
     },
     {
@@ -133,7 +132,7 @@ export const ADMIN_GROUPS = [
             // Fine-grained feature toggles: each renders under this (core) Production
             // group but is gated by its own module so it can be switched off alone.
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials', '/admin/materials-import'], tab: 'materials', lucide: 'boxes' },
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
             { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
@@ -278,12 +277,14 @@ export const ADMIN_GROUPS = [
         label: 'Admin',
         icon: 'shield',
         lucide: 'shield',
-        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash'],
+        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
         children: [
             { label: 'Users', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },
+            // Unified importer — its own tab so it can be granted without the rest of Admin.
+            { label: 'Import', href: '/admin/import', match: ['/admin/import'], tab: 'import', lucide: 'file-up' },
             { label: 'Trash', href: '/admin/trash', match: ['/admin/trash'], lucide: 'trash-2' },
         ],
     },
