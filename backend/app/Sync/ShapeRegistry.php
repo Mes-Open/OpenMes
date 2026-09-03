@@ -224,7 +224,7 @@ class ShapeRegistry
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
             'table' => 'lines',
-            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'view_template_id', 'default_operator_view', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'warehouse_id', 'view_template_id', 'default_operator_view', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'maintenance_events' => [
             'table' => 'maintenance_events',

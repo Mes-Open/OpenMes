@@ -28,18 +28,26 @@ class StockMovementService
         ?int $sourceId = null,
         ?string $reason = null,
         ?int $warehouseId = null,
+        bool $adjustGlobal = true,
     ): StockMovement {
-        return DB::transaction(function () use ($material, $movementType, $signedQuantity, $user, $sourceType, $sourceId, $reason, $warehouseId) {
+        return DB::transaction(function () use ($material, $movementType, $signedQuantity, $user, $sourceType, $sourceId, $reason, $warehouseId, $adjustGlobal) {
             // Lock + re-read so the balance_after we record is the real
             // post-mutation value, even under concurrency.
             $locked = Material::where('id', $material->id)->lockForUpdate()->first();
 
-            if ($signedQuantity >= 0) {
-                $locked->increment('stock_quantity', $signedQuantity);
-            } else {
-                $locked->decrement('stock_quantity', abs($signedQuantity));
+            // Location-only movements pass adjustGlobal: false. Shop-floor consumption
+            // is the case: the plant-wide quantity already went down when the material
+            // was allocated, and moving it again here would count the same material
+            // twice. The ledger row is still written — it is what makes the per-location
+            // deduction auditable.
+            if ($adjustGlobal) {
+                if ($signedQuantity >= 0) {
+                    $locked->increment('stock_quantity', $signedQuantity);
+                } else {
+                    $locked->decrement('stock_quantity', abs($signedQuantity));
+                }
+                \App\Sync\CollectionBroadcaster::flush($locked); // increment/decrement bypass model events
             }
-            \App\Sync\CollectionBroadcaster::flush($locked); // increment/decrement bypass model events
 
             $locked->refresh();
 

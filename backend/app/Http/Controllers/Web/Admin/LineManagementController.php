@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreLineRequest;
+use App\Http\Requests\Web\Admin\UpdateLineRequest;
 use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
@@ -50,8 +52,24 @@ class LineManagementController extends Controller
     {
         return Inertia::render('admin/lines/Create', [
             'areas' => $this->areaOptions(),
+            'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
+    }
+
+    /**
+     * Raw-material locations a line can consume from. Only those, because a line
+     * draws components, never finished goods.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function warehouseOptions(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Warehouse::forMaterials()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name'])
+            ->map(fn ($w) => ['id' => $w->id, 'name' => "{$w->name} ({$w->code})"]);
     }
 
     /** Areas as {id, name (with site)} options for the line form. */
@@ -64,18 +82,11 @@ class LineManagementController extends Controller
     /**
      * Store a newly created line
      */
-    public function store(Request $request)
+    public function store(StoreLineRequest $request)
     {
         $cf = app(CustomFieldService::class);
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:lines',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'area_id' => 'nullable|exists:areas,id',
-            'is_active' => 'boolean',
-        ], $cf->rules('line')), [], $cf->attributeNames('line'));
+        $validated = $request->validated();
 
-        $validated['is_active'] = $request->boolean('is_active', true);
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'line') ?: null;
@@ -218,8 +229,9 @@ class LineManagementController extends Controller
     public function edit(Line $line)
     {
         return Inertia::render('admin/lines/Edit', [
-            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'is_active', 'custom_fields'),
+            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'warehouse_id', 'is_active', 'custom_fields'),
             'areas' => $this->areaOptions(),
+            'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
     }
@@ -227,18 +239,11 @@ class LineManagementController extends Controller
     /**
      * Update the specified line
      */
-    public function update(Request $request, Line $line)
+    public function update(UpdateLineRequest $request, Line $line)
     {
         $cf = app(CustomFieldService::class);
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:lines,code,'.$line->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'area_id' => 'nullable|exists:areas,id',
-            'is_active' => 'boolean',
-        ], $cf->rules('line')), [], $cf->attributeNames('line'));
+        $validated = $request->validated();
 
-        $validated['is_active'] = $request->boolean('is_active');
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'line', $line->custom_fields) ?: null;

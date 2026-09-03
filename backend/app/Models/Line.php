@@ -20,6 +20,8 @@ class Line extends Model
     protected $fillable = [
         'area_id',
         'division_id',
+        // Stock location this line consumes from; null when stock is not tracked per location.
+        'warehouse_id',
         'code',
         'name',
         'description',
@@ -42,6 +44,12 @@ class Line extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    /** The stock location this line's consumption comes off. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     /**
