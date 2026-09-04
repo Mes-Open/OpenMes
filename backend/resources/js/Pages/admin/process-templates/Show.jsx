@@ -564,7 +564,10 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
 
     const outputsBase = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/outputs`;
     const outputs = (processTemplate.outputs ?? []).filter((o) => o.template_step_id === step.id);
-    const outputForm = useForm({ key: '', label: '', value_type: 'text', unit: '', options: '', is_required: false, template_step_id: step.id });
+    const outputForm = useForm({
+        key: '', label: '', value_type: 'text', unit: '', options: '', is_required: false,
+        expected_min: '', expected_max: '', expected_value: '', template_step_id: step.id,
+    });
 
     const addOutput = (e) => {
         e.preventDefault();
@@ -577,7 +580,7 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
         }));
         outputForm.post(outputsBase, {
             preserveScroll: true,
-            onSuccess: () => outputForm.reset('key', 'label', 'unit', 'options', 'is_required'),
+            onSuccess: () => outputForm.reset('key', 'label', 'unit', 'options', 'is_required', 'expected_min', 'expected_max', 'expected_value'),
             onFinish: () => outputForm.transform((d) => d),
         });
     };
@@ -697,6 +700,16 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                                 <span className="font-mono text-[10px] text-om-muted">{o.key}</span>
                                 <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{o.value_type}</span>
                                 {o.is_required && <span className="text-[10px] uppercase text-om-downtime">{__('required')}</span>}
+                                {(o.expected_min !== null || o.expected_max !== null) && (
+                                    <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">
+                                        {__('pass')}: {o.expected_min ?? '–'}–{o.expected_max ?? '–'}
+                                    </span>
+                                )}
+                                {o.expected_value && (
+                                    <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">
+                                        {__('pass')}: {o.expected_value}
+                                    </span>
+                                )}
                                 <button type="button" onClick={() => router.delete(`${outputsBase}/${o.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
                             </li>
                         ))}
@@ -733,6 +746,40 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         <div className="w-[200px]">
                             <TextField value={outputForm.data.options} onChange={(v) => outputForm.setData('options', v)} placeholder={__('options, comma-separated')} aria-label={__('options, comma-separated')} />
                         </div>
+                    )}
+                    {outputForm.data.value_type === 'number' && (
+                        <span className="flex items-center gap-1">
+                            <div className="w-[80px]">
+                                <TextField type="number" value={outputForm.data.expected_min} onChange={(v) => outputForm.setData('expected_min', v)} placeholder={__('pass min')} aria-label={__('pass min')} />
+                            </div>
+                            <span className="text-xs text-om-muted">–</span>
+                            <div className="w-[80px]">
+                                <TextField type="number" value={outputForm.data.expected_max} onChange={(v) => outputForm.setData('expected_max', v)} placeholder={__('pass max')} aria-label={__('pass max')} />
+                            </div>
+                        </span>
+                    )}
+                    {outputForm.data.value_type === 'boolean' && (
+                        <Checkbox
+                            size="sm"
+                            checked={outputForm.data.expected_value === '1'}
+                            onChange={(next) => outputForm.setData('expected_value', next ? '1' : '')}
+                            label={__('Must be Yes to pass')}
+                        />
+                    )}
+                    {outputForm.data.value_type === 'select' && outputForm.data.options.trim() !== '' && (
+                        <Dropdown
+                            size="sm"
+                            className="min-w-[140px]"
+                            value={outputForm.data.expected_value}
+                            onChange={(v) => outputForm.setData('expected_value', v ?? '')}
+                            options={[
+                                { value: '', label: __('No pass criterion') },
+                                ...outputForm.data.options.split(',').map((s) => s.trim()).filter(Boolean).map((opt) => ({
+                                    value: opt, label: __('Pass: :option', { option: opt }),
+                                })),
+                            ]}
+                            aria-label={__('Pass criterion')}
+                        />
                     )}
                     <Checkbox
                         size="sm"

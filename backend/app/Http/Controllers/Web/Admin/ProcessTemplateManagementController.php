@@ -168,6 +168,9 @@ class ProcessTemplateManagementController extends Controller
                     'unit' => $o->unit,
                     'options' => $o->options ?? [],
                     'is_required' => (bool) $o->is_required,
+                    'expected_min' => $o->expected_min === null ? null : (float) $o->expected_min,
+                    'expected_max' => $o->expected_max === null ? null : (float) $o->expected_max,
+                    'expected_value' => $o->expected_value,
                 ]),
             ],
             'workstations' => $workstations->map(fn ($w) => [
