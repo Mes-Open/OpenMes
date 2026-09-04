@@ -111,6 +111,44 @@ class StepTypedOutputsTest extends TestCase
         ])->assertSessionHasErrors('options');
     }
 
+    public function test_admin_sets_a_number_range_criterion(): void
+    {
+        $base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
+
+        $this->actingAs($this->admin)->post("{$base}/outputs", [
+            'template_step_id' => $this->templateStep->id,
+            'key' => 'pack_voltage', 'label' => 'Pack Voltage', 'value_type' => 'number',
+            'expected_min' => '3.20', 'expected_max' => '4.25',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('template_step_outputs', [
+            'key' => 'pack_voltage', 'expected_min' => 3.2, 'expected_max' => 4.25,
+        ]);
+    }
+
+    public function test_admin_sets_a_boolean_pass_criterion(): void
+    {
+        $base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
+
+        $this->actingAs($this->admin)->post("{$base}/outputs", [
+            'template_step_id' => $this->templateStep->id,
+            'key' => 'passed', 'label' => 'Passed?', 'value_type' => 'boolean', 'expected_value' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('template_step_outputs', ['key' => 'passed', 'expected_value' => '1']);
+    }
+
+    public function test_expected_max_below_expected_min_is_rejected(): void
+    {
+        $base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
+
+        $this->actingAs($this->admin)->post("{$base}/outputs", [
+            'template_step_id' => $this->templateStep->id,
+            'key' => 'x', 'label' => 'X', 'value_type' => 'number',
+            'expected_min' => '10', 'expected_max' => '5',
+        ])->assertSessionHasErrors('expected_max');
+    }
+
     public function test_operator_cannot_author_outputs(): void
     {
         $base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
