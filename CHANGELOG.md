@@ -273,6 +273,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     which only offers what you may still pick.
 
 ### Fixed
+- **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
+  form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
+  so `.post` was read off `undefined` and the submit threw before any request
+  (`can't access property "post", u.transform(...) is undefined`, #282). Set the transform
+  and post in separate statements, matching every other form in the app.
 - **Doubled plus on three "new" buttons** *(Admin → Warehouses, Stock Documents, Inspection
   Plans)* — `ResourceTable` already draws a plus icon in the create button, and these three
   labels carried a literal `+ ` of their own, so they rendered as "+ + New Warehouse". The
