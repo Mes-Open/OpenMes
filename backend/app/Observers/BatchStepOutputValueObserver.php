@@ -24,8 +24,7 @@ class BatchStepOutputValueObserver
     public function __construct(
         private readonly OutputGateEvaluator $evaluator,
         private readonly IssueService $issues,
-    ) {
-    }
+    ) {}
 
     public function created(BatchStepOutputValue $value): void
     {

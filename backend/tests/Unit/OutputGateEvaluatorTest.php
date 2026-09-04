@@ -11,7 +11,7 @@ class OutputGateEvaluatorTest extends TestCase
 {
     private function evaluator(): OutputGateEvaluator
     {
-        return new OutputGateEvaluator();
+        return new OutputGateEvaluator;
     }
 
     private function valueFor(TemplateStepOutput $output, array $attrs): BatchStepOutputValue
