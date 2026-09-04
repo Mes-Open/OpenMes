@@ -150,6 +150,12 @@ class AppServiceProvider extends ServiceProvider
         // changes no work_orders column — watch them for the schedule hook too.
         \App\Models\WorkOrderPlacement::observe(\App\Observers\WorkOrderPlacementEventObserver::class);
 
+        // Quality gates (#quality-gate): a recorded output that fails its
+        // configured expected result auto-raises a blocking Issue, which the
+        // existing WorkOrder::isBlocked()/BatchStep::canStart() checks already
+        // use to stop the next station — see BatchStepOutputValueObserver.
+        \App\Models\BatchStepOutputValue::observe(\App\Observers\BatchStepOutputValueObserver::class);
+
         // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
         // so a module can hook any create/update/delete without per-model wiring.

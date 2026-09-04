@@ -49,6 +49,9 @@ class TemplateStepOutput extends Model
         'options',
         'is_required',
         'sort_order',
+        'expected_min',
+        'expected_max',
+        'expected_value',
     ];
 
     protected function casts(): array
@@ -57,6 +60,8 @@ class TemplateStepOutput extends Model
             'options' => 'array',
             'is_required' => 'boolean',
             'sort_order' => 'integer',
+            'expected_min' => 'decimal:4',
+            'expected_max' => 'decimal:4',
         ];
     }
 
@@ -73,5 +78,17 @@ class TemplateStepOutput extends Model
     public function values(): HasMany
     {
         return $this->hasMany(BatchStepOutputValue::class, 'output_id');
+    }
+
+    /**
+     * True when this output has a configured pass criterion. Callers (the
+     * OutputGateEvaluator) treat "no criterion" as "always passes" — the
+     * required-field gate (is_required) is unaffected either way.
+     */
+    public function hasExpectedResult(): bool
+    {
+        return $this->expected_min !== null
+            || $this->expected_max !== null
+            || $this->expected_value !== null;
     }
 }

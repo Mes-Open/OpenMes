@@ -33,6 +33,9 @@ class TemplateStepOutputController extends Controller
             'unit' => $request->validated('unit'),
             'options' => $request->validated('options'),
             'is_required' => $request->boolean('is_required'),
+            'expected_min' => $request->validated('expected_min'),
+            'expected_max' => $request->validated('expected_max'),
+            'expected_value' => $request->validated('expected_value'),
             'sort_order' => ($processTemplate->outputs()->where('template_step_id', $stepId)->max('sort_order') ?? 0) + 1,
         ]);
 

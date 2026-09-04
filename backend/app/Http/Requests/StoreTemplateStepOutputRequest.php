@@ -27,6 +27,9 @@ class StoreTemplateStepOutputRequest extends FormRequest
             'options' => ['nullable', 'array'],
             'options.*' => ['string', 'max:255'],
             'is_required' => ['sometimes', 'boolean'],
+            'expected_min' => ['nullable', 'numeric'],
+            'expected_max' => ['nullable', 'numeric', 'gte:expected_min'],
+            'expected_value' => ['nullable', 'string', 'max:255'],
         ];
     }
 
