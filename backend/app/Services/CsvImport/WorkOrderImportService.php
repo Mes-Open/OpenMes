@@ -29,6 +29,7 @@ class WorkOrderImportService
     public function import(array $mappedData, string $strategy, ?int $targetLineId = null): array
     {
         $successful = 0;
+        $updated = 0;
         $failed = 0;
         $skipped = 0;
         $errorLog = [];
@@ -39,6 +40,13 @@ class WorkOrderImportService
 
                 if ($result['status'] === 'success') {
                     $successful++;
+
+                    // importRow() has always said which it was; only the caller
+                    // never asked, so a re-import of existing orders reported
+                    // itself as N creations.
+                    if (($result['action'] ?? null) === 'updated') {
+                        $updated++;
+                    }
                 } elseif ($result['status'] === 'skipped') {
                     $skipped++;
                 } else {
@@ -63,7 +71,9 @@ class WorkOrderImportService
         }
 
         return [
+            // `successful` stays created + updated for existing callers.
             'successful' => $successful,
+            'updated' => $updated,
             'failed' => $failed,
             'skipped' => $skipped,
             'error_log' => $errorLog,

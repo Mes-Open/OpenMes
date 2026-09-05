@@ -5956,5 +5956,15 @@
     "Validation passed": "Validation passed",
     "Validation queued. The file is checked row by row and nothing is saved.": "Validation queued. The file is checked row by row and nothing is saved.",
     "Run the import": "Run the import",
-    "Every row would import cleanly. Nothing was saved — use Run the import to apply it.": "Every row would import cleanly. Nothing was saved — use Run the import to apply it."
+    "Every row would import cleanly. Nothing was saved — use Run the import to apply it.": "Every row would import cleanly. Nothing was saved — use Run the import to apply it.",
+    "The file has a header row but no data rows.": "The file has a header row but no data rows.",
+    "This file is not valid UTF-8, so accented characters are being dropped. Excel on Windows usually saves Polish text as Windows-1250.": "This file is not valid UTF-8, so accented characters are being dropped. Excel on Windows usually saves Polish text as Windows-1250.",
+    "Accented characters look doubled (e.g. \"Ä…\" instead of \"ą\") — the file is probably already UTF-8.": "Accented characters look doubled (e.g. \"Ä…\" instead of \"ą\") — the file is probably already UTF-8.",
+    "Every column landed in one — the separator looks wrong for this file.": "Every column landed in one — the separator looks wrong for this file.",
+    "Read as :encoding": "Read as :encoding",
+    "Use this separator": "Use this separator",
+    "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Rejected cells in the preview: :n. Hover a marked cell for the reason.",
+    "Rows": "Rows",
+    ":shown of :total rows": ":shown of :total rows",
+    ":n columns": ":n columns"
 }

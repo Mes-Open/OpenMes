@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\Import\PreviewImportRequest;
 use App\Http\Requests\Web\Admin\Import\ProcessImportRequest;
 use App\Http\Requests\Web\Admin\Import\UploadImportFileRequest;
 use App\Import\Contracts\EntityImporter;
@@ -12,6 +13,8 @@ use App\Jobs\ProcessDataImport;
 use App\Models\CsvImport;
 use App\Models\CsvImportMapping;
 use App\Models\User;
+use App\Services\Import\ParseHealth;
+use App\Services\Import\RowMapper;
 use App\Services\Import\SpreadsheetReader;
 use App\Support\Csv;
 use Illuminate\Http\Response;
@@ -32,7 +35,14 @@ class DataImportController extends Controller
 {
     use ServesBothSections;
 
-    private const PREVIEW_ROWS = 5;
+    /**
+     * Rows read for the preview. Enough to be searched and paged through like
+     * any other list on the site — five rows told you the columns had parsed,
+     * not whether the data further down the file is what you expect. The cost
+     * is bounded: the reader stops here, so a 5k-row file is not loaded to show
+     * a sample of it.
+     */
+    private const PREVIEW_ROWS = 200;
 
     private const HISTORY_ROWS = 50;
 
@@ -44,6 +54,8 @@ class DataImportController extends Controller
     public function __construct(
         private ImportRegistry $registry,
         private SpreadsheetReader $reader,
+        private ParseHealth $health,
+        private RowMapper $mapper,
     ) {}
 
     public function index(?string $entity = null): InertiaResponse
@@ -122,6 +134,22 @@ class DataImportController extends Controller
             'mapping' => $profile?->columnMappings(),
         ]);
 
+        // The upload screen previews the file in place before committing to the
+        // mapping step, so it asks for JSON and stays where it is. Everything
+        // else — a plain form post, a browser without JS — still redirects.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'token' => $token,
+                'headers' => $parsed['headers'],
+                'previewRows' => $this->stripRowKeys($parsed['rows']),
+                'totalRows' => $parsed['total'],
+                'warnings' => $this->health->inspect(Storage::disk('local')->path($path), $fileOptions, $parsed),
+                'fileOptions' => $fileOptions,
+                'originalFilename' => $file->getClientOriginalName(),
+                'mapUrl' => $this->sectionRoute('import.map', ['entity' => $importer->slug(), 'token' => $token]),
+            ]);
+        }
+
         return redirect()->to($this->sectionRoute('import.map', ['entity' => $importer->slug(), 'token' => $token]));
     }
 
@@ -135,7 +163,15 @@ class DataImportController extends Controller
                 ->with('error', __('The uploaded file is no longer available. Please upload it again.'));
         }
 
-        $parsed = $this->reader->read(Storage::disk('local')->path($upload['file_path']), $upload['file_options'], self::PREVIEW_ROWS);
+        // upload() converts a read failure into a validation error; this page is
+        // reached again by refresh, by the back button and after a 422 from
+        // process(), so a file that has become unreadable since must not 500.
+        try {
+            $parsed = $this->reader->read(Storage::disk('local')->path($upload['file_path']), $upload['file_options'], self::PREVIEW_ROWS);
+        } catch (\Throwable $e) {
+            return redirect()->to($this->sectionRoute('import.index', ['entity' => $importer->slug()]))
+                ->with('error', __('The file could not be read. Check the format, separator and encoding.'));
+        }
 
         return Inertia::render('admin/import/Mapping', [
             'basePath' => $this->basePath('/import'),
@@ -145,11 +181,92 @@ class DataImportController extends Controller
             'headers' => $parsed['headers'],
             'previewRows' => $this->stripRowKeys($parsed['rows']),
             'totalRows' => $parsed['total'],
+            'warnings' => $this->health->inspect(Storage::disk('local')->path($upload['file_path']), $upload['file_options'], $parsed),
+            // The preview offers the same parse settings the upload step did.
+            'limits' => [
+                'delimiters' => SpreadsheetReader::DELIMITERS,
+                'encodings' => SpreadsheetReader::ENCODINGS,
+            ],
             'originalFilename' => $upload['original_filename'],
             'fileOptions' => $upload['file_options'],
             'options' => $upload['options'],
             'initialMapping' => $upload['mapping'],
         ]);
+    }
+
+    /**
+     * Re-read an upload the session already holds with different parse settings.
+     *
+     * Separator and encoding are chosen on the upload screen, before the user
+     * can see a single row; getting either wrong used to mean re-uploading. The
+     * file is already on disk, so the mapping screen re-reads it instead — and
+     * the choice is remembered, because it is the one the real run will use.
+     */
+    public function preview(PreviewImportRequest $request, string $entity, string $token)
+    {
+        $importer = $this->resolve($entity);
+        $upload = $this->rememberedUpload($importer, $token);
+
+        if (! $upload) {
+            return response()->json(['message' => __('The uploaded file is no longer available. Please upload it again.')], 410);
+        }
+
+        $fileOptions = $request->fileOptions();
+        $path = Storage::disk('local')->path($upload['file_path']);
+        $parsed = $this->reader->read($path, $fileOptions, self::PREVIEW_ROWS);
+
+        // The settings the user just previewed are the ones process() must run
+        // with, so remember them alongside the upload. The run options travel
+        // here too: the file is uploaded as soon as it is picked, so anything
+        // the user changes afterwards would otherwise never reach the session.
+        $remember = ['file_options' => $fileOptions] + $upload;
+
+        if ($request->has('options')) {
+            $remember['options'] = $request->runOptions();
+        }
+
+        if ($request->filled('mapping_id')) {
+            $remember['mapping'] = CsvImportMapping::find($request->validated('mapping_id'))?->columnMappings();
+        }
+
+        session()->put($this->uploadKey($token), $remember);
+
+        return response()->json([
+            'headers' => $parsed['headers'],
+            'previewRows' => $this->stripRowKeys($parsed['rows']),
+            'totalRows' => $parsed['total'],
+            'warnings' => $this->health->inspect($path, $fileOptions, $parsed),
+            'problems' => $this->cellProblems($parsed['rows'], $request->mapping(), $importer),
+            'fileOptions' => $fileOptions,
+        ]);
+    }
+
+    /**
+     * Per-cell coercion failures for the previewed rows, as
+     * [rowIndex => [header => reason]] — what the import would reject, shown on
+     * the cell that causes it instead of as a row number after the run.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, string>  $mapping
+     * @return array<int, array<string, string>>
+     */
+    private function cellProblems(array $rows, array $mapping, EntityImporter $importer): array
+    {
+        if ($mapping === []) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $problems = $this->mapper->problems($row, $mapping, $importer);
+
+            if ($problems !== []) {
+                $out[$i] = $problems;
+            }
+        }
+
+        return $out;
     }
 
     public function process(ProcessImportRequest $request, string $entity)
@@ -231,24 +348,43 @@ class DataImportController extends Controller
                 : __('Import queued. Progress updates on this page as rows are processed.'));
     }
 
-    public function show(CsvImport $import): InertiaResponse
+    /**
+     * A run belongs to this section, or it does not exist here.
+     *
+     * An entity the registry no longer knows (a legacy or future `entity`
+     * value) is not "allowed by default": it cannot be checked, so it is not
+     * shown. Supervisors reach the same routes under /supervisor and may only
+     * see work orders.
+     */
+    private function authorizeRun(CsvImport $import): EntityImporter
     {
         $importer = $this->registry->get($import->entity);
 
-        if ($importer && ! $this->registry->allowedIn($this->section(), $importer)) {
+        if (! $importer || ! $this->registry->allowedIn($this->section(), $importer)) {
             abort(404);
         }
+
+        return $importer;
+    }
+
+    public function show(CsvImport $import): InertiaResponse
+    {
+        $importer = $this->authorizeRun($import);
 
         return Inertia::render('admin/import/Show', [
             'basePath' => $this->basePath('/import'),
             'import' => $this->importPayload($import),
-            'entity' => $importer ? ['key' => $importer->key(), 'slug' => $importer->slug(), 'label' => $importer->label()] : null,
+            'entity' => ['key' => $importer->key(), 'slug' => $importer->slug(), 'label' => $importer->label()],
             'userName' => $import->user?->name,
         ]);
     }
 
     public function errors(CsvImport $import): Response
     {
+        // The rows carry master-data codes, names and free-text messages, so
+        // this needs the same gate as the page it is downloaded from.
+        $this->authorizeRun($import);
+
         $csv = Csv::row([__('Row'), __('Field'), __('Message')]);
 
         foreach ($import->error_log ?? [] as $error) {
@@ -362,7 +498,11 @@ class DataImportController extends Controller
 
     private function recentImports()
     {
-        return CsvImport::orderByDesc('id')
+        // Only the entities this section can open: a supervisor listing an
+        // admin-only run would be showing a row whose link 404s, and naming a
+        // master-data file they cannot otherwise see.
+        return CsvImport::whereIn('entity', array_keys($this->registry->forSection($this->section())))
+            ->orderByDesc('id')
             ->limit(self::HISTORY_ROWS)
             ->get()
             ->map(fn (CsvImport $i) => $this->importPayload($i, errorLimit: self::HISTORY_ERRORS));

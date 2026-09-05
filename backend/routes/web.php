@@ -93,6 +93,8 @@ if (! function_exists('registerImportRoutes')) {
             ->whereIn('entity', \App\Import\ImportRegistry::slugs());
         Route::get('/import/{entity}/map/{token}', [DataImportController::class, 'map'])->name('import.map')
             ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+        Route::post('/import/{entity}/preview/{token}', [DataImportController::class, 'preview'])->name('import.preview')
+            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
         Route::post('/import/{entity}/process', [DataImportController::class, 'process'])->name('import.process')
             ->whereIn('entity', \App\Import\ImportRegistry::slugs());
         Route::get('/import/{entity?}', [DataImportController::class, 'index'])->name('import.index')

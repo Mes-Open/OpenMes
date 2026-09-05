@@ -1,13 +1,19 @@
 import { useMemo } from 'react';
-import { Link } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { ProgressBar, StatusPill } from '@openmes/ui';
+import AppDataTable from '../AppDataTable';
 import { useSyncedShape } from '../../lib/useSyncedShape';
 import { __ } from '../../lib/i18n';
-import { newerRun, progressOf, statusTone } from './statusTone';
+import { isActiveStatus, newerRun, progressOf, statusTone } from './statusTone';
 
 /**
  * Recent import runs. The server snapshot seeds the list; the `data_imports`
  * collection then keeps status and counters moving while a job runs.
+ *
+ * The panel is narrow, so the file cell carries the entity and user underneath
+ * the name, and a running job's progress bar replaces the counters until it has
+ * some. Per-row errors live on the run page — a row opens it on click — which
+ * lists every failed row and offers them as CSV.
  */
 export default function ImportHistoryTable({ basePath, recentImports = [], entities = [], userNames = {}, limit = 20 }) {
     const { data: live = [] } = useSyncedShape('data_imports');
@@ -21,69 +27,91 @@ export default function ImportHistoryTable({ basePath, recentImports = [], entit
 
     const entityLabel = (key) => entities.find((e) => e.key === key)?.label ?? key;
 
+    const columns = useMemo(() => [
+        {
+            id: 'file',
+            header: __('File'),
+            accessorFn: (r) => r.original_filename ?? r.filename ?? '',
+            enableSorting: false,
+            meta: { flex: true },
+            cell: ({ row }) => {
+                const r = row.original;
+
+                return (
+                    <div className="min-w-0">
+                        <p className="text-sm font-medium text-om-ink truncate" title={r.original_filename ?? r.filename}>
+                            {r.original_filename ?? r.filename}
+                        </p>
+                        <p className="text-xs text-om-muted truncate">
+                            {entityLabel(r.entity)}
+                            {userNames[r.user_id] && <> &middot; {userNames[r.user_id]}</>}
+                        </p>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'rows',
+            header: __('Rows'),
+            accessorFn: (r) => Number(r.processed_rows ?? 0),
+            enableSorting: false,
+            cell: ({ row }) => {
+                const r = row.original;
+                const failed = Number(r.failed_rows ?? 0);
+
+                if (isActiveStatus(r.status)) {
+                    return (
+                        <div className="w-28">
+                            <ProgressBar value={progressOf(r)} />
+                            <p className="text-xs text-om-muted mt-1">
+                                {Number(r.processed_rows ?? 0)} / {Number(r.total_rows ?? 0)}
+                            </p>
+                        </div>
+                    );
+                }
+
+                return (
+                    <p className="text-xs text-om-muted whitespace-nowrap">
+                        <span className="text-om-running">+{Number(r.created_rows ?? 0)}</span>
+                        {' '}
+                        <span className="text-om-accent">~{Number(r.updated_rows ?? 0)}</span>
+                        {failed > 0 && <span className="text-om-blocked"> {__(':n failed', { n: failed })}</span>}
+                    </p>
+                );
+            },
+        },
+        {
+            id: 'status',
+            header: __('Status'),
+            accessorFn: (r) => r.status ?? '',
+            enableSorting: false,
+            cell: ({ row }) => {
+                const { tone, label } = statusTone(row.original.status, row.original.failed_rows);
+
+                return <StatusPill status={tone} label={label} />;
+            },
+        },
+    ], [entities, userNames]);
+
     return (
-        <div className="px-5 py-4">
-            <h2 className="text-sm font-bold text-om-ink mb-2">{__('Recent imports')}</h2>
-            {rows.length === 0 ? (
-                <p className="text-sm text-om-muted">{__('No imports yet.')}</p>
-            ) : (
-                <ul className="divide-y divide-om-line2">
-                    {rows.map((r) => {
-                        const { tone, label } = statusTone(r.status, r.failed_rows);
-                        const pct = progressOf(r);
-                        return (
-                            <li key={r.id} className="py-2.5">
-                                <div className="flex items-center justify-between gap-2 mb-1">
-                                    <Link
-                                        href={`${basePath}/runs/${r.id}`}
-                                        className="text-sm font-medium text-om-ink hover:text-om-accent truncate"
-                                        title={r.original_filename ?? r.filename}
-                                    >
-                                        {r.original_filename ?? r.filename}
-                                    </Link>
-                                    <StatusPill status={tone} label={label} />
-                                </div>
-                                <p className="text-xs text-om-muted mb-1.5">
-                                    {entityLabel(r.entity)}
-                                    {userNames[r.user_id] && <> &middot; {userNames[r.user_id]}</>}
-                                </p>
-                                <ProgressBar value={pct} />
-                                <p className="text-xs text-om-muted mt-1 flex flex-wrap gap-x-3">
-                                    <span>{Number(r.processed_rows ?? 0)} / {Number(r.total_rows ?? 0)}</span>
-                                    <span className="text-om-running">+{Number(r.created_rows ?? 0)}</span>
-                                    <span className="text-om-accent">~{Number(r.updated_rows ?? 0)}</span>
-                                    {Number(r.skipped_rows ?? 0) > 0 && <span>{__(':n skipped', { n: Number(r.skipped_rows ?? 0) })}</span>}
-                                    {Number(r.failed_rows ?? 0) > 0 && <span className="text-om-blocked">{__(':n failed', { n: Number(r.failed_rows ?? 0) })}</span>}
-                                </p>
-                                {Number(r.failed_rows ?? 0) > 0 && (
-                                    <details className="mt-1.5">
-                                        <summary className="text-xs text-om-blocked cursor-pointer hover:underline">
-                                            {__('Show errors (:n)', { n: Number(r.failed_rows ?? 0) })}
-                                        </summary>
-                                        {(r.errors ?? []).length > 0 && (
-                                            <ul className="mt-1.5 space-y-1 rounded-om-sm bg-om-blocked-bg p-2 text-xs">
-                                                {r.errors.map((e, i) => (
-                                                    <li key={i} className="text-om-blocked break-words">
-                                                        {e.row != null && <span className="font-mono">{__('Row')} {e.row}</span>}
-                                                        {e.field && <span className="font-mono"> · {e.field}</span>}
-                                                        {(e.row != null || e.field) && ': '}
-                                                        {e.message}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                        <Link href={`${basePath}/runs/${r.id}`} className="mt-1.5 inline-block text-xs text-om-accent hover:underline">
-                                            {Number(r.failed_rows ?? 0) > (r.errors ?? []).length
-                                                ? __('All :n errors on the run page', { n: Number(r.failed_rows ?? 0) })
-                                                : __('Open the run page')}
-                                        </Link>
-                                    </details>
-                                )}
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+        <div>
+            {/* The table draws its own borders and runs edge to edge, the way the
+                mapping screen's preview does; only the heading is inset. */}
+            <h2 className="px-5 py-3 text-sm font-bold text-om-ink">{__('Recent imports')}</h2>
+            <AppDataTable
+                data={rows}
+                columns={columns}
+                getRowId={(r) => String(r.id)}
+                onRowClick={(r) => router.visit(`${basePath}/runs/${r.id}`)}
+                searchable={false}
+                columnToggle={false}
+                // Paged so the panel stays a fixed height instead of growing with
+                // the entity's field count / the run history. Ten rows rather than
+                // DataTable's default six: these are scanned, not read one by one.
+                pageSize={10}
+                bodyMaxHeight={null}
+                emptyLabel={__('No imports yet.')}
+            />
         </div>
     );
 }

@@ -5956,5 +5956,15 @@
     "Validation passed": "Sprawdzanie zakończone bez błędów",
     "Validation queued. The file is checked row by row and nothing is saved.": "Sprawdzanie w kolejce. Plik jest sprawdzany wiersz po wierszu i nic nie jest zapisywane.",
     "Run the import": "Uruchom import",
-    "Every row would import cleanly. Nothing was saved — use Run the import to apply it.": "Każdy wiersz zaimportowałby się poprawnie. Nic nie zostało zapisane — użyj „Uruchom import”, aby go zastosować."
+    "Every row would import cleanly. Nothing was saved — use Run the import to apply it.": "Każdy wiersz zaimportowałby się poprawnie. Nic nie zostało zapisane — użyj „Uruchom import”, aby go zastosować.",
+    "The file has a header row but no data rows.": "Plik ma wiersz nagłówka, ale nie zawiera wierszy z danymi.",
+    "This file is not valid UTF-8, so accented characters are being dropped. Excel on Windows usually saves Polish text as Windows-1250.": "Ten plik nie jest poprawnym UTF-8, więc znaki diakrytyczne są pomijane. Excel w Windows zwykle zapisuje polski tekst jako Windows-1250.",
+    "Accented characters look doubled (e.g. \"Ä…\" instead of \"ą\") — the file is probably already UTF-8.": "Znaki diakrytyczne wyglądają na zdublowane (np. „Ä…” zamiast „ą”) — plik jest prawdopodobnie już w UTF-8.",
+    "Every column landed in one — the separator looks wrong for this file.": "Wszystkie kolumny trafiły do jednej — separator wygląda na niewłaściwy dla tego pliku.",
+    "Read as :encoding": "Odczytaj jako :encoding",
+    "Use this separator": "Użyj tego separatora",
+    "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Odrzucone komórki w podglądzie: :n. Najedź na oznaczoną komórkę, aby poznać powód.",
+    "Rows": "Wiersze",
+    ":shown of :total rows": ":shown z :total wierszy",
+    ":n columns": ":n kolumn"
 }

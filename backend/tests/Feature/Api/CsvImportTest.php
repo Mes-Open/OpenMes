@@ -264,6 +264,13 @@ class CsvImportTest extends TestCase
         $updated = WorkOrder::where('order_no', 'WO-001')->first();
         $this->assertEquals(200, $updated->planned_qty);
         $this->assertEquals($existing->id, $updated->id);
+
+        // The run's own counters: importRow() has always reported whether a row
+        // was created or updated, but the loop discarded it, so a re-import of
+        // existing orders showed up in the history as N creations.
+        $run = $import->fresh();
+        $this->assertSame(0, $run->created_rows, 'nothing was created');
+        $this->assertSame(1, $run->updated_rows, 'the existing order was updated');
     }
 
     public function test_import_with_skip_existing_does_not_update()

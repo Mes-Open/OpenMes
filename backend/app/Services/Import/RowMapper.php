@@ -71,6 +71,51 @@ class RowMapper
     }
 
     /**
+     * Every cell in the row whose value its mapped field would reject, keyed by
+     * file header.
+     *
+     * map() throws on the first bad cell because an importer cannot use a
+     * half-mapped row; the preview needs all of them at once, on the row the
+     * reader actually produced, so the screen can mark each offending cell.
+     *
+     * @param  array<string, mixed>  $fileRow  header => cell
+     * @param  array<string, string>  $mapping  header => field | `_ignore` | `custom:<key>`
+     * @return array<string, string> header => reason
+     */
+    public function problems(array $fileRow, array $mapping, EntityImporter $importer): array
+    {
+        $fields = $importer->fields();
+        $problems = [];
+
+        foreach ($mapping as $header => $target) {
+            $target = (string) $target;
+
+            // Ignored and custom columns are never coerced, so they cannot fail.
+            if ($target === '' || $target === self::IGNORE || str_starts_with($target, self::CUSTOM_PREFIX)) {
+                continue;
+            }
+
+            if (! isset($fields[$target])) {
+                continue; // a stale profile naming a field this entity dropped
+            }
+
+            $value = trim((string) ($fileRow[$header] ?? ''));
+
+            if ($value === '') {
+                continue; // blank means "leave alone", never an error
+            }
+
+            try {
+                $this->coerce($target, $value, $fields[$target]['type'] ?? 'text');
+            } catch (RowMappingException $e) {
+                $problems[$header] = $e->getMessage();
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
      * @throws RowMappingException
      */
     private function coerce(string $field, string $value, string $type): mixed

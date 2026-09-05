@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTrail from '../../../components/PageTrail';
 import AppDataTable from '../../../components/AppDataTable';
 import { autoDetect } from '../../../components/import/useAutoDetect';
+import { delimiterOptions, encodingOptions } from '../../../components/import/fileOptionLabels';
+import { apiCall } from '../../../lib/http';
 import { __ } from '../../../lib/i18n';
 
 const IGNORE = '_ignore';
@@ -29,6 +31,9 @@ export default function ImportMapping() {
         headers = [],
         previewRows = [],
         totalRows = 0,
+        warnings: initialWarnings = [],
+        fileOptions: initialFileOptions = {},
+        limits = {},
         token = '',
         originalFilename = '',
         initialMapping = null,
@@ -45,7 +50,29 @@ export default function ImportMapping() {
     const fields = entity?.fields ?? [];
     const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
-    const [rows, setRows] = useState(() => buildRows(headers, initialMapping ?? autoDetect(headers, fields)));
+    // Separator and encoding are picked on the upload screen before any row is
+    // visible. Re-reading the stored file here makes a wrong guess correctable
+    // without re-uploading, so the parsed shape is state, not a fixed prop.
+    const [parse, setParse] = useState({
+        headers,
+        previewRows,
+        totalRows,
+        warnings: initialWarnings,
+        problems: {},
+        delimiter: initialFileOptions.delimiter ?? 'auto',
+        encoding: initialFileOptions.encoding ?? 'utf-8',
+        loading: false,
+    });
+
+    const [rows, setRows] = useState(() => buildRows(
+        headers,
+        // An unresolvable profile (one written for another entity, say) comes
+        // back as `[]`, which is not nullish — so `??` kept it and every column
+        // rendered as "ignore" with auto-detection silently skipped.
+        initialMapping && Object.keys(initialMapping).length > 0
+            ? initialMapping
+            : autoDetect(headers, fields),
+    ));
     const [saveProfile, setSaveProfile] = useState(false);
     const [profileId, setProfileId] = useState('');
 
@@ -56,11 +83,58 @@ export default function ImportMapping() {
         dry_run: false,
     });
 
+    // Re-reads the stored upload with the given settings. A changed separator
+    // yields different headers, so the mapping is rebuilt by auto-detection
+    // rather than kept — a mapping keyed by columns that no longer exist would
+    // silently ignore every one of them.
+    const seq = useRef(0);
+    // The mapping the cell check should run against. Held in a ref because a
+    // re-parse triggered by a warning's fix button carries no mapping of its
+    // own, and sending none would silently clear every marked cell until the
+    // user next touched a column.
+    const mappingRef = useRef({});
+    const reparse = useCallback(async (next) => {
+        const mine = ++seq.current;
+        setParse((p) => ({ ...p, ...next, loading: true }));
+
+        const res = await apiCall(`${basePath}/${entity.slug}/preview/${token}`, 'POST', {
+            delimiter: next.delimiter ?? parse.delimiter,
+            encoding: next.encoding ?? parse.encoding,
+            mapping: next.mapping ?? mappingRef.current,
+        });
+
+        // A slower earlier request must not overwrite a newer answer.
+        if (mine !== seq.current) return;
+
+        if (!res.ok) {
+            setParse((p) => ({ ...p, loading: false }));
+            return;
+        }
+
+        const data = await res.json();
+
+        setParse((p) => ({
+            ...p,
+            headers: data.headers,
+            previewRows: data.previewRows,
+            totalRows: data.totalRows,
+            warnings: data.warnings ?? [],
+            problems: data.problems ?? {},
+            delimiter: data.fileOptions.delimiter,
+            encoding: data.fileOptions.encoding,
+            loading: false,
+        }));
+
+        if (next.mapping === undefined) {
+            setRows(buildRows(data.headers, autoDetect(data.headers, fields)));
+        }
+    }, [basePath, entity?.slug, token, parse.delimiter, parse.encoding, fields]);
+
     const setRow = (h, patch) => setRows((prev) => ({ ...prev, [h]: { ...prev[h], ...patch } }));
 
     const resolved = useMemo(() => {
         const out = {};
-        for (const h of headers) {
+        for (const h of parse.headers) {
             const r = rows[h] ?? { select: IGNORE, customKey: '' };
             if (r.select === CUSTOM) {
                 const key = (r.customKey || '').trim();
@@ -70,13 +144,51 @@ export default function ImportMapping() {
             }
         }
         return out;
-    }, [rows, headers]);
+    }, [rows, parse.headers]);
 
     // Header names are free text (dots, spaces), so address cells by function, not key.
     const previewColumns = useMemo(
-        () => headers.map((h) => ({ id: h, header: h, accessorFn: (row) => row[h] ?? '', enableSorting: false })),
-        [headers],
+        () => parse.headers.map((h) => ({
+            id: h,
+            header: h,
+            accessorFn: (row) => row[h] ?? '',
+            enableSorting: false,
+            // A value its mapped field would reject is marked on the cell that
+            // causes it, rather than as a row number in a list after the run.
+            cell: ({ getValue, row }) => {
+                const reason = parse.problems?.[row.index]?.[h];
+                const value = getValue();
+
+                return reason
+                    ? (
+                        <span className="inline-flex items-center gap-1 rounded-om-sm bg-om-blocked-bg px-1.5 py-0.5 text-om-blocked" title={reason}>
+                            {value === '' ? '—' : value}
+                        </span>
+                    )
+                    : value;
+            },
+        })),
+        [parse.headers, parse.problems],
     );
+
+    const problemCount = useMemo(
+        () => Object.values(parse.problems ?? {}).reduce((n, r) => n + Object.keys(r).length, 0),
+        [parse.problems],
+    );
+
+    // Which cells are rejected depends on what each column is mapped to, so the
+    // check re-runs as the mapping changes — debounced, since a custom-field key
+    // is typed a character at a time.
+    const mappingKey = JSON.stringify(resolved);
+    mappingRef.current = resolved;
+    useEffect(() => {
+        const id = setTimeout(() => reparse({ mapping: JSON.parse(mappingKey) }), 400);
+
+        return () => clearTimeout(id);
+        // reparse is intentionally out: it changes with every parse state update,
+        // which would restart this timer forever.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mappingKey]);
 
     const mappedCount = Object.values(resolved).filter((t) => t !== IGNORE).length;
     const requiredMissing = fields
@@ -118,7 +230,7 @@ export default function ImportMapping() {
                     <span className="text-[12px] text-om-muted">
                         {entity?.label}
                         {' · '}
-                        <span className="font-medium text-om-ink">{__(':count rows', { count: totalRows })}</span>
+                        <span className="font-medium text-om-ink">{__(':count rows', { count: parse.totalRows })}</span>
                         {originalFilename && <> {' · '}<span className="font-mono">{originalFilename}</span></>}
                     </span>
                     <div className="ml-auto flex items-center gap-2">
@@ -129,7 +241,7 @@ export default function ImportMapping() {
                             {__('Validate only')}
                         </Button>
                         <Button type="submit" variant="primary" loading={form.processing}>
-                            {__('Run Import (:count rows)', { count: totalRows })}
+                            {__('Run Import (:count rows)', { count: parse.totalRows })}
                         </Button>
                     </div>
                 </div>
@@ -147,20 +259,20 @@ export default function ImportMapping() {
                                 <h2 className="text-sm font-bold text-om-ink">{__('Column Mapping')}</h2>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-om-muted">{__('Quick-fill:')}</span>
-                                    <Button variant="ghost" size="sm" onClick={() => setRows(buildRows(headers, autoDetect(headers, fields)))}>
+                                    <Button variant="ghost" size="sm" onClick={() => setRows(buildRows(parse.headers, autoDetect(parse.headers, fields)))}>
                                         {__('Auto-detect')}
                                     </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => setRows(buildRows(headers, null))}>
+                                    <Button variant="ghost" size="sm" onClick={() => setRows(buildRows(parse.headers, null))}>
                                         {__('Clear all')}
                                     </Button>
                                 </div>
                             </div>
 
                             <div className="divide-y divide-om-line2 border-y border-om-line2">
-                                {headers.map((h) => {
+                                {parse.headers.map((h) => {
                                     const r = rows[h] ?? { select: IGNORE, customKey: '' };
                                     const field = fieldKeys.has(r.select) ? fields.find((f) => f.key === r.select) : null;
-                                    const sample = previewRows[0]?.[h] ?? '—';
+                                    const sample = parse.previewRows[0]?.[h] ?? '—';
                                     return (
                                         <div key={h} className="flex items-start gap-4 py-3">
                                             <div className="flex-shrink-0 w-44">
@@ -206,18 +318,72 @@ export default function ImportMapping() {
                         </div>
 
                         <div className="border-t border-om-line2">
-                            <h2 className="px-5 py-3 text-sm font-bold text-om-ink">
-                                {__('Data Preview')}{' '}
-                                <span className="text-xs font-normal text-om-muted">{__('(first :n rows)', { n: previewRows.length })}</span>
-                            </h2>
+                            <div className="px-5 py-3 flex items-end gap-4 flex-wrap">
+                                <h2 className="text-sm font-bold text-om-ink mr-auto">
+                                    {__('Data Preview')}{' '}
+                                    <span className="text-xs font-normal text-om-muted">
+                                        {__(':shown of :total rows', { shown: parse.previewRows.length, total: parse.totalRows })}
+                                        {' · '}
+                                        {__(':n columns', { n: parse.headers.length })}
+                                    </span>
+                                </h2>
+
+                                {/* The same two settings the upload step asked for, where
+                                    the rows they produce are finally visible. */}
+                                <div className="w-44">
+                                    <Dropdown
+                                        label={__('Field separator')}
+                                        value={parse.delimiter}
+                                        onChange={(v) => reparse({ delimiter: v })}
+                                        options={delimiterOptions(limits.delimiters)}
+                                        disabled={parse.loading}
+                                    />
+                                </div>
+                                <div className="w-44">
+                                    <Dropdown
+                                        label={__('File encoding')}
+                                        value={parse.encoding}
+                                        onChange={(v) => reparse({ encoding: v })}
+                                        options={encodingOptions(limits.encodings)}
+                                        disabled={parse.loading}
+                                    />
+                                </div>
+                            </div>
+
+                            {parse.warnings.length > 0 && (
+                                <div className="px-5 pb-3 space-y-2">
+                                    {parse.warnings.map((w) => (
+                                        <InlineAlert key={w.code} severity="warning" title={w.message}>
+                                            {w.fix && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={parse.loading}
+                                                    onClick={() => reparse(w.fix)}
+                                                >
+                                                    {w.fix.encoding
+                                                        ? __('Read as :encoding', { encoding: w.fix.encoding })
+                                                        : __('Use this separator')}
+                                                </Button>
+                                            )}
+                                        </InlineAlert>
+                                    ))}
+                                </div>
+                            )}
+
+                            {problemCount > 0 && (
+                                <div className="px-5 pb-3">
+                                    <InlineAlert
+                                        severity="warning"
+                                        title={__('Rejected cells in the preview: :n. Hover a marked cell for the reason.', { n: problemCount })}
+                                    />
+                                </div>
+                            )}
                             <AppDataTable
-                                data={previewRows}
+                                data={parse.previewRows}
                                 columns={previewColumns}
                                 getRowId={(_, index) => String(index)}
-                                searchable={false}
                                 columnToggle={false}
-                                paginated={false}
-                                bodyMaxHeight={null}
                                 emptyLabel={__('No rows to preview.')}
                             />
                         </div>
@@ -234,7 +400,7 @@ export default function ImportMapping() {
                                     onChange={(id) => {
                                         setProfileId(id);
                                         const p = profiles.find((x) => String(x.id) === String(id));
-                                        if (p) setRows(buildRows(headers, p.column_mappings ?? {}));
+                                        if (p) setRows(buildRows(parse.headers, p.column_mappings ?? {}));
                                     }}
                                     options={[
                                         { value: '', label: __('— Map columns manually —') },
@@ -271,8 +437,8 @@ export default function ImportMapping() {
                             <h3 className="text-sm font-bold text-om-ink mb-2">{__('Import Summary')}</h3>
                             <dl className="text-sm divide-y divide-om-line2">
                                 <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Entity')}</dt><dd className="font-medium">{entity?.label}</dd></div>
-                                <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Total rows:')}</dt><dd className="font-medium">{totalRows}</dd></div>
-                                <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Columns:')}</dt><dd className="font-medium">{headers.length}</dd></div>
+                                <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Total rows:')}</dt><dd className="font-medium">{parse.totalRows}</dd></div>
+                                <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Columns:')}</dt><dd className="font-medium">{parse.headers.length}</dd></div>
                                 <div className="flex justify-between py-1.5"><dt className="text-om-muted">{__('Mapped:')}</dt><dd className="font-medium">{mappedCount}</dd></div>
                             </dl>
                             {requiredMissing.length > 0 && (

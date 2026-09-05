@@ -2,6 +2,7 @@
 
 namespace App\Sync\Shapes;
 
+use App\Import\ImportRegistry;
 use App\Models\User;
 use App\Sync\Shape;
 
@@ -31,6 +32,19 @@ class DataImportsRecentShape extends Shape
 
     public function where(User $user): ?string
     {
-        return "created_at >= '".now()->subDays(self::DAYS)->toDateTimeString()."'";
+        $recent = "created_at >= '".now()->subDays(self::DAYS)->toDateTimeString()."'";
+
+        // The admin importer loads master data; the supervisor screen only ever
+        // shows work orders. Scoping the page's query alone would still stream
+        // every run over this collection's channel, so the gate has to be here
+        // as well — a filename and its per-entity counters are exactly what a
+        // supervisor should not learn about a materials or BOM import.
+        if ($user->can('tab:import')) {
+            return $recent;
+        }
+
+        $allowed = array_keys(app(ImportRegistry::class)->forSection('supervisor'));
+
+        return $recent." AND entity IN ('".implode("', '", $allowed)."')";
     }
 }
