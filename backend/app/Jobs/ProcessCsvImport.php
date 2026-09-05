@@ -60,8 +60,15 @@ class ProcessCsvImport implements ShouldQueue
             );
 
             // Update import record
+            // The unified importer's history reads the per-outcome counters, so
+            // a mobile run fills them in too.
             $csvImport->update([
                 'status' => 'COMPLETED',
+                'total_rows' => count($mappedData),
+                'processed_rows' => count($mappedData),
+                'created_rows' => $result['successful'] - ($result['updated'] ?? 0),
+                'updated_rows' => $result['updated'] ?? 0,
+                'skipped_rows' => $result['skipped'],
                 'successful_rows' => $result['successful'],
                 'failed_rows' => $result['failed'],
                 'error_log' => $result['error_log'],

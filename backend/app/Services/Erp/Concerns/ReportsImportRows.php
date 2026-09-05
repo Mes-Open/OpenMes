@@ -2,6 +2,7 @@
 
 namespace App\Services\Erp\Concerns;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -9,7 +10,8 @@ use Illuminate\Support\Facades\Log;
  *
  * Every importer processes rows independently and reports per row, matching the
  * contract the work-order importer established: a bad reference in one row never
- * fails the batch, the caller gets counts plus a structured error list, and the
+ * fails the batch (each row runs in its own transaction so a database-level
+ * failure cannot cascade into the rows after it), the caller gets counts plus a structured error list, and the
  * controller turns a non-empty error list into 207 Multi-Status.
  */
 trait ReportsImportRows
@@ -31,7 +33,15 @@ trait ReportsImportRows
             $rowNumber = $index + 1;
 
             try {
-                $result = $handler($row);
+                // Each row gets its own transaction — a savepoint when the
+                // caller already opened one (the importer's dry run wraps a
+                // whole chunk). Without it a row that fails at the database
+                // takes the rest of the batch with it on PostgreSQL: the
+                // failed statement aborts the transaction and every later
+                // statement dies with "current transaction is aborted", so one
+                // bad row is reported as dozens. It also stops a row that
+                // throws mid-write from leaving half of itself behind.
+                $result = DB::transaction(fn () => $handler($row));
 
                 if ($result['status'] === 'success') {
                     ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;

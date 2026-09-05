@@ -244,7 +244,7 @@ export function BacklogRail({ ctx }) {
             )}
             <div className="flex gap-1.5" style={{ padding: '10px 14px', borderTop: '1px solid var(--om-line2)' }}>
                 <button type="button" onClick={() => setShowNew(true)} className="flex-1 inline-flex items-center justify-center gap-1" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--om-ink)', color: 'var(--om-on-ink)' }}><Icon name="plus" size={13} />{__('New order')}</button>
-                <Link href="/admin/csv-import" className="flex-1 text-center" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}>{__('Import CSV')}</Link>
+                <Link href="/admin/import/work-orders" className="flex-1 text-center" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}>{__('Import CSV')}</Link>
             </div>
             {showNew && <NewOrderModal ctx={ctx} onClose={() => setShowNew(false)} />}
         </div>

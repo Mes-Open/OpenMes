@@ -67,6 +67,7 @@ class CollectionBroadcaster
             'users' => [Models\User::class, null],
             'workers' => [Models\Worker::class, null],
             'materials' => [Models\Material::class, null],
+            'data_imports' => [Models\CsvImport::class, fn ($m) => $m->created_at === null || $m->created_at->gte(now()->subDays(\App\Sync\Shapes\DataImportsRecentShape::DAYS))],
             'material_types' => [Models\MaterialType::class, null],
             'material_lots' => [Models\MaterialLot::class, null],
             'lot_sequences' => [Models\LotSequence::class, null],
@@ -158,6 +159,32 @@ class CollectionBroadcaster
         return $columns === null ? [] : array_intersect_key($row, array_flip($columns));
     }
 
+    /** Depth of nested muted() calls; > 0 suppresses every delta. */
+    private static int $muted = 0;
+
+    /**
+     * Run $callback with delta broadcasting suppressed.
+     *
+     * For writes that are going to be rolled back — the importer's dry run.
+     * The rows briefly exist inside the transaction and fire the usual model
+     * events, but broadcasting them would push rows to every open browser that
+     * are about to stop existing, and no later delta would take them back
+     * (TanStack DB keeps what it was told until something contradicts it).
+     *
+     * Nests safely, and restores the counter even when $callback throws —
+     * which the dry run relies on, since a rollback is signalled by throwing.
+     */
+    public static function muted(callable $callback)
+    {
+        self::$muted++;
+
+        try {
+            return $callback();
+        } finally {
+            self::$muted--;
+        }
+    }
+
     /**
      * Dispatch a CollectionChanged delta without ever letting a broadcast
      * failure break the originating write. Live sync is best-effort: if the
@@ -166,6 +193,10 @@ class CollectionBroadcaster
      */
     private static function safeBroadcast(string $name, string $op, array $row, $tenant): void
     {
+        if (self::$muted > 0) {
+            return;
+        }
+
         try {
             event(new CollectionChanged($name, $op, self::project($name, $row), $tenant));
         } catch (\Throwable $e) {
