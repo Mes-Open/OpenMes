@@ -104,12 +104,26 @@ class WorkOrderImporter extends AbstractEntityImporter
     }
 
     /** The plant's planning split: none | weekly | monthly (system_settings.production_period). */
+    private const PERIODS = ['none', 'weekly', 'monthly'];
+
     private function productionPeriod(): string
     {
         try {
-            $row = DB::table('system_settings')->where('key', 'production_period')->first();
+            $raw = DB::table('system_settings')->where('key', 'production_period')->value('value');
 
-            return json_decode($row->value ?? '"none"', true) ?: 'none';
+            if ($raw === null) {
+                return 'none';
+            }
+
+            // Settings are JSON-encoded, but a bare `weekly` survives a raw
+            // table copy on a driver that does not enforce the column type
+            // (settings import, an older export). Decoding that yields null and
+            // would silently drop the week/month option from the screen, so
+            // fall back to the raw value — the same tolerance the timezone
+            // setting reads with.
+            $value = json_decode((string) $raw, true) ?? trim((string) $raw, '"');
+
+            return in_array($value, self::PERIODS, true) ? $value : 'none';
         } catch (\Throwable) {
             return 'none';
         }

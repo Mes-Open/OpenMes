@@ -369,6 +369,12 @@ class DataImportTest extends TestCase
         $tenant = Tenant::create(['name' => 'Other']);
         $import = CsvImport::factory()->create(['tenant_id' => $tenant->id, 'user_id' => $this->admin->id]);
 
+        // A positive control first: without it a 404 for everyone (a broken
+        // route, a wrong id) would read as correct tenant scoping.
+        $owner = User::factory()->create(['tenant_id' => $tenant->id]);
+        $owner->assignRole('Admin');
+        $this->actingAs($owner)->get("/admin/import/runs/{$import->id}")->assertOk();
+
         $stranger = User::factory()->create(['tenant_id' => Tenant::create(['name' => 'Mine'])->id]);
         $stranger->assignRole('Admin');
 

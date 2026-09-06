@@ -25,12 +25,16 @@ class UploadImportFileRequest extends FormRequest
 
         return [
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:'.self::MAX_KB],
+            // Only a profile this user can actually see: profilesFor() offers
+            // their own plus shared defaults for this entity, and both handlers
+            // read the chosen row's column_mappings straight back out.
             'mapping_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('csv_import_mappings', 'id')
-                    ->where('entity', $importer?->key() ?? '')
-                    ->whereNull('deleted_at'),
+                    ->where('entity', $this->importer()?->key() ?? '')
+                    ->whereNull('deleted_at')
+                    ->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_default', true)),
             ],
             ...$this->fileOptionRules(),
             ...$this->entityOptionRules(),

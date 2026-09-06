@@ -27,7 +27,18 @@ class PruneImportUploads extends Command
 
     public function handle(): int
     {
-        $cutoff = now()->subHours((int) $this->option('hours'));
+        $hours = $this->option('hours');
+
+        // (int) turns "abc" into 0, which would make every unreferenced upload
+        // eligible the moment it is written; a negative value puts the cutoff
+        // in the future and does the same.
+        if (! is_numeric($hours) || (int) $hours < 0 || (float) $hours != (int) $hours) {
+            $this->error('--hours must be a non-negative whole number.');
+
+            return self::INVALID;
+        }
+
+        $cutoff = now()->subHours((int) $hours);
         $disk = Storage::disk('local');
 
         // Paths a run still needs. A dry run keeps its file so the real import

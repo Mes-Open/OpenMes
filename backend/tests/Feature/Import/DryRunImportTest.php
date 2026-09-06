@@ -7,6 +7,7 @@ use App\Jobs\ProcessDataImport;
 use App\Models\CsvImport;
 use App\Models\ProductType;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -31,7 +32,11 @@ class DryRunImportTest extends TestCase
 
         Storage::fake('local');
 
-        // The test database pre-seeds roles, so never plain create().
+        // findOrCreate makes the role but grants it nothing; the /admin/import
+        // routes are behind `tab.access`, which needs `tab:import`. The seeder
+        // is what attaches the permissions to Admin.
+        $this->seed(RolesAndPermissionsSeeder::class);
+
         $this->admin = User::factory()->create();
         $this->admin->assignRole(Role::findOrCreate('Admin', 'web'));
     }

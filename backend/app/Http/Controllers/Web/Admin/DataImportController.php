@@ -511,7 +511,15 @@ class DataImportController extends Controller
     /** @return array<int, string> */
     private function userNames(): array
     {
-        $ids = CsvImport::orderByDesc('id')->limit(self::HISTORY_ROWS)->pluck('user_id')->filter()->unique();
+        // The same window recentImports() lists. Taking the newest runs of every
+        // entity instead would miss the user of a listed row (its run is outside
+        // an unfiltered top 50) and name users of runs this section cannot see.
+        $ids = CsvImport::whereIn('entity', array_keys($this->registry->forSection($this->section())))
+            ->orderByDesc('id')
+            ->limit(self::HISTORY_ROWS)
+            ->pluck('user_id')
+            ->filter()
+            ->unique();
 
         return User::whereIn('id', $ids)->pluck('name', 'id')->all();
     }

@@ -104,6 +104,108 @@ class ImportAccessAndUpkeepTest extends TestCase
                 ->where('recentImports', fn ($rows) => collect($rows)->pluck('id')->all() === [$orders->id]));
     }
 
+    public function test_a_mapping_profile_you_cannot_see_is_not_an_acceptable_id(): void
+    {
+        $mine = $this->admin();
+        $stranger = User::factory()->create();
+
+        $theirs = \App\Models\CsvImportMapping::create([
+            'name' => 'Theirs',
+            'entity' => 'product_types',
+            'user_id' => $stranger->id,
+            'mapping_config' => ['column_mappings' => ['a' => 'code']],
+            'is_default' => false,
+        ]);
+
+        $token = str_repeat('m', 32);
+        Storage::fake('local');
+        Storage::disk('local')->put("imports/{$token}.csv", "code,name\r\nA,B\r\n");
+
+        // profilesFor() offers only your own profiles plus shared defaults, so
+        // the id of someone else's private profile must not validate — both
+        // handlers read its column_mappings straight back out.
+        $this->actingAs($mine)
+            ->withSession(['import.uploads.'.$token => [
+                'entity' => 'product_types',
+                'file_path' => "imports/{$token}.csv",
+                'original_filename' => 'x.csv',
+                'file_options' => ['delimiter' => 'comma', 'encoding' => 'utf-8'],
+                'options' => [],
+            ]])
+            ->postJson("/admin/import/product-types/preview/{$token}", [
+                'delimiter' => 'comma',
+                'encoding' => 'utf-8',
+                'mapping_id' => $theirs->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('mapping_id');
+    }
+
+    public function test_a_shared_default_profile_is_still_acceptable(): void
+    {
+        $shared = \App\Models\CsvImportMapping::create([
+            'name' => 'Shared',
+            'entity' => 'product_types',
+            'user_id' => User::factory()->create()->id,
+            'mapping_config' => ['column_mappings' => ['a' => 'code']],
+            'is_default' => true,
+        ]);
+
+        $token = str_repeat('s', 32);
+        Storage::fake('local');
+        Storage::disk('local')->put("imports/{$token}.csv", "code,name\r\nA,B\r\n");
+
+        $this->actingAs($this->admin())
+            ->withSession(['import.uploads.'.$token => [
+                'entity' => 'product_types',
+                'file_path' => "imports/{$token}.csv",
+                'original_filename' => 'x.csv',
+                'file_options' => ['delimiter' => 'comma', 'encoding' => 'utf-8'],
+                'options' => [],
+            ]])
+            ->postJson("/admin/import/product-types/preview/{$token}", [
+                'delimiter' => 'comma',
+                'encoding' => 'utf-8',
+                'mapping_id' => $shared->id,
+            ])
+            ->assertOk();
+    }
+
+    public function test_the_history_user_names_follow_the_same_scope_as_its_rows(): void
+    {
+        $materialsUser = User::factory()->create(['name' => 'Materials Admin']);
+        $this->makeRun('materials', ['user_id' => $materialsUser->id]);
+        $orders = $this->makeRun('work_orders');
+
+        // Names were looked up over the newest runs of every entity, so a
+        // supervisor's page could both miss a listed row's name and carry the
+        // name of someone tied to a run it cannot see.
+        $this->actingAs($this->supervisor())
+            ->get('/supervisor/import/work-orders')
+            ->assertOk()
+            ->assertOk();
+
+        $names = (array) $this->actingAs($this->supervisor())
+            ->get('/supervisor/import/work-orders')
+            ->viewData('page')['props']['userNames'];
+
+        $this->assertSame([$orders->user_id], array_map('intval', array_keys($names)));
+        $this->assertNotContains($materialsUser->name, $names, 'a name from a run this section cannot see');
+    }
+
+    public function test_prune_refuses_a_nonsense_hours_value(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('imports/keep.csv', "code\r\nA\r\n");
+        touch(Storage::disk('local')->path('imports/keep.csv'), now()->subDays(3)->getTimestamp());
+
+        // (int) 'abc' is 0, which would sweep every unreferenced upload.
+        $this->artisan('imports:prune-uploads --hours=abc')->assertFailed();
+        $this->artisan('imports:prune-uploads --hours=-1')->assertFailed();
+
+        $this->assertTrue(Storage::disk('local')->exists('imports/keep.csv'));
+    }
+
     public function test_prune_keeps_only_the_uploads_a_run_still_needs(): void
     {
         Storage::fake('local');

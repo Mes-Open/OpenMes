@@ -94,11 +94,11 @@ class ProcessDataImportTest extends TestCase
     {
         $import = $this->queued("code\nX\n", 'martians', ['code' => 'code']);
 
-        try {
-            ProcessDataImport::dispatchSync($import->id);
-            $this->fail('expected the job to rethrow');
-        } catch (\RuntimeException) {
-        }
+        // The job deliberately does not rethrow — it records the failure on the
+        // row instead. (The previous try/catch here asserted the opposite and
+        // could never fail: PHPUnit's AssertionFailedError extends
+        // RuntimeException, so fail() was caught by its own catch block.)
+        ProcessDataImport::dispatchSync($import->id);
 
         $import->refresh();
         $this->assertSame(CsvImport::STATUS_FAILED, $import->status);

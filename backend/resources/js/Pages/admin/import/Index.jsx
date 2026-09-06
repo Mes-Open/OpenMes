@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Dropdown, InlineAlert } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
@@ -55,11 +55,18 @@ export default function ImportIndex() {
     const [preview, setPreview] = useState(null);
     const [busy, setBusy] = useState(false);
 
+    // Which upload the preview belongs to. Pick a second file while the first
+    // is still in flight and the slower one could land last, leaving submit()
+    // to navigate with the earlier file's token while the picker names the
+    // later one — importing a file the user never chose.
+    const uploadSeq = useRef(0);
+
     const upload = async (file, fileOptions = {}) => {
         setPreview(null);
 
         if (!file) return;
 
+        const mine = ++uploadSeq.current;
         setBusy(true);
         form.clearErrors('file', 'delimiter', 'encoding');
 
@@ -68,26 +75,37 @@ export default function ImportIndex() {
         body.append('delimiter', fileOptions.delimiter ?? form.data.delimiter);
         body.append('encoding', fileOptions.encoding ?? form.data.encoding);
 
-        const res = await fetch(`${basePath}/${entity.slug}/upload`, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body,
-        });
+        try {
+            const res = await fetch(`${basePath}/${entity.slug}/upload`, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
 
-        setBusy(false);
+            if (mine !== uploadSeq.current) return;
 
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            form.setError(data.errors ?? { file: data.message ?? __('The file could not be read. Check the format, separator and encoding.') });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                form.setError(data.errors ?? { file: data.message ?? __('The file could not be read. Check the format, separator and encoding.') });
 
-            return;
+                return;
+            }
+
+            setPreview(await res.json());
+        } catch {
+            // A rejected request (offline, aborted) never reaches the branches
+            // above; without this the file just appears to do nothing.
+            if (mine === uploadSeq.current) {
+                form.setError({ file: __('The file could not be read. Check the format, separator and encoding.') });
+            }
+        } finally {
+            // Only the newest request owns the button state.
+            if (mine === uploadSeq.current) setBusy(false);
         }
-
-        setPreview(await res.json());
     };
 
     // Re-reads the file already on the server; no second upload.
@@ -95,16 +113,20 @@ export default function ImportIndex() {
         if (!preview?.token) return;
 
         setBusy(true);
-        const res = await apiCall(`${basePath}/${entity.slug}/preview/${preview.token}`, 'POST', {
-            delimiter: fileOptions.delimiter ?? form.data.delimiter,
-            encoding: fileOptions.encoding ?? form.data.encoding,
-        });
-        setBusy(false);
 
-        if (!res.ok) return;
+        try {
+            const res = await apiCall(`${basePath}/${entity.slug}/preview/${preview.token}`, 'POST', {
+                delimiter: fileOptions.delimiter ?? form.data.delimiter,
+                encoding: fileOptions.encoding ?? form.data.encoding,
+            });
 
-        const data = await res.json();
-        setPreview((p) => ({ ...p, ...data }));
+            if (!res.ok) return;
+
+            const data = await res.json();
+            setPreview((p) => ({ ...p, ...data }));
+        } finally {
+            setBusy(false);
+        }
     };
 
     const setFileOption = (key, value) => {
@@ -136,13 +158,19 @@ export default function ImportIndex() {
         }
 
         setBusy(true);
-        const res = await apiCall(`${basePath}/${entity.slug}/preview/${preview.token}`, 'POST', {
-            delimiter: form.data.delimiter,
-            encoding: form.data.encoding,
-            options: form.data.options,
-            mapping_id: form.data.mapping_id || null,
-        });
-        setBusy(false);
+
+        let res;
+
+        try {
+            res = await apiCall(`${basePath}/${entity.slug}/preview/${preview.token}`, 'POST', {
+                delimiter: form.data.delimiter,
+                encoding: form.data.encoding,
+                options: form.data.options,
+                mapping_id: form.data.mapping_id || null,
+            });
+        } finally {
+            setBusy(false);
+        }
 
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));

@@ -80,6 +80,9 @@ class TabAccessTest extends TestCase
         $this->assertSame('import', TabRegistry::tabForPath('/admin/import/materials'));
         $this->assertSame('import', TabRegistry::tabForPath('/admin/import/runs/12'));
 
+        // A guest never reaches the tab check at all — auth runs first.
+        $this->get('/admin/import')->assertRedirect('/login');
+
         $this->actingAs($this->supervisor)->get('/admin/import')->assertForbidden();
 
         Role::findByName('Supervisor', 'web')->givePermissionTo('tab:import');

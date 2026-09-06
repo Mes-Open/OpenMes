@@ -4,6 +4,7 @@ namespace App\Http\Requests\Web\Admin\Import;
 
 use App\Http\Requests\Web\Admin\Import\Concerns\SharesImportRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Re-reading an upload the session already holds, with different parse
@@ -31,7 +32,17 @@ class PreviewImportRequest extends FormRequest
             // The run options follow the same rules the upload step applies —
             // the preview persists them, so it must not accept a weaker set.
             ...$this->entityOptionRules(),
-            'mapping_id' => ['nullable', 'integer'],
+            // Only a profile this user can actually see: profilesFor() offers
+            // their own plus shared defaults for this entity, and both handlers
+            // read the chosen row's column_mappings straight back out.
+            'mapping_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('csv_import_mappings', 'id')
+                    ->where('entity', $this->importer()?->key() ?? '')
+                    ->whereNull('deleted_at')
+                    ->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_default', true)),
+            ],
         ];
     }
 

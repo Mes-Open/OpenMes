@@ -97,17 +97,28 @@ export default function ImportMapping() {
         const mine = ++seq.current;
         setParse((p) => ({ ...p, ...next, loading: true }));
 
-        const res = await apiCall(`${basePath}/${entity.slug}/preview/${token}`, 'POST', {
-            delimiter: next.delimiter ?? parse.delimiter,
-            encoding: next.encoding ?? parse.encoding,
-            mapping: next.mapping ?? mappingRef.current,
-        });
+        let res;
+
+        try {
+            res = await apiCall(`${basePath}/${entity.slug}/preview/${token}`, 'POST', {
+                delimiter: next.delimiter ?? parse.delimiter,
+                encoding: next.encoding ?? parse.encoding,
+                mapping: next.mapping ?? mappingRef.current,
+            });
+        } catch {
+            // A rejected request never reaches the branches below, and the
+            // preview would sit disabled until the page is reloaded.
+            if (mine === seq.current) setParse((p) => ({ ...p, loading: false }));
+
+            return;
+        }
 
         // A slower earlier request must not overwrite a newer answer.
         if (mine !== seq.current) return;
 
         if (!res.ok) {
             setParse((p) => ({ ...p, loading: false }));
+
             return;
         }
 
