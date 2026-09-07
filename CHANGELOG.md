@@ -14,12 +14,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
   seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
   header — so the snapshot carries the steps and the BOM the way the application writes it.
-- **Demo data now includes a two-level bill of materials** — `AirFilterDemoSeeder` seeds the
-  purchased parts (media, frame profile, gasket, adhesives, carton) and one manufactured
-  sub-assembly, the HEPA-13 pleat pack, which has its own routing and BOM. The assembly BOM
-  therefore explodes through the pleat pack down to raw media, with scrap cascading between
-  levels, so the BOM screens, the net-requirements report and `BomExplosionService` all have
-  a realistic multi-level structure to work on instead of an empty one.
+- **Demo data now includes a bill of materials for every product** — `AirFilterDemoSeeder`
+  seeds the purchased parts (media grades, frame profiles, resin, carbon, seals, cartons)
+  and a BOM for each routing: HEPA-13 Standard and Slim, pre-filter, carbon and the HVAC
+  cassette. The HEPA-13 Standard BOM is two-level — it consumes a manufactured sub-assembly,
+  the pleat pack, which has its own routing and BOM — so exploding it reaches raw media with
+  scrap cascading between levels. The BOM screens, the net-requirements report and
+  `BomExplosionService` all have a realistic structure to work on instead of an empty one.
+
+### Fixed
+- **Demo seeder could resurrect deleted process-template steps** — it wrote steps with a
+  query-builder `updateOrInsert()` keyed on template + step number, which runs without the
+  model's soft-delete scope. On a database where a step had been deleted the match hit the
+  deleted row, so a re-run updated that instead of inserting a live one, leaving the template
+  short a step. The match now requires `deleted_at IS NULL`.
 - **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
   issues against the demo work orders, one per lifecycle state (open, acknowledged,
   resolved, closed), reported by the demo operators and assigned to the demo supervisor.

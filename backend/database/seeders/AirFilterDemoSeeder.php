@@ -49,7 +49,7 @@ class AirFilterDemoSeeder extends Seeder
         $templates = $this->seedProcessTemplates($productTypes, $workstations);
         $users = $this->seedUsers($lines);
         $materials = $this->seedMaterials($templates['PLEATPACK13']);
-        $this->seedBom($templates['HEPA13_STD'], $templates['PLEATPACK13'], $materials);
+        $this->seedBom($templates, $materials);
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
         $this->seedIssues($workOrders, $users);
@@ -70,13 +70,28 @@ class AirFilterDemoSeeder extends Seeder
         $typeIds = MaterialType::pluck('id', 'code');
 
         $defs = [
-            // Purchased.
+            // Purchased — HEPA-13 line.
             ['code' => 'MEDIA-H13',   'name' => 'HEPA-13 filter media',      'type' => 'raw_material', 'unit_of_measure' => 'm2',  'stock_quantity' => 4200,  'unit_price' => 6.40,  'supplier_name' => 'Filtrair Media BV'],
             ['code' => 'FRAME-AL-13', 'name' => 'Aluminium frame profile',   'type' => 'raw_material', 'unit_of_measure' => 'pcs', 'stock_quantity' => 1800,  'unit_price' => 11.20, 'supplier_name' => 'AluFab Sp. z o.o.'],
+            ['code' => 'FRAME-SLIM',  'name' => 'Slim frame, pre-formed',    'type' => 'raw_material', 'unit_of_measure' => 'pcs', 'stock_quantity' => 900,   'unit_price' => 12.80, 'supplier_name' => 'AluFab Sp. z o.o.'],
             ['code' => 'GASKET-PU-13', 'name' => 'PU gasket seal',           'type' => 'raw_material', 'unit_of_measure' => 'm',   'stock_quantity' => 2600,  'unit_price' => 1.85,  'supplier_name' => 'SealTech GmbH'],
             ['code' => 'ADH-2K-A',    'name' => 'Two-part adhesive (A)',     'type' => 'auxiliary',    'unit_of_measure' => 'kg',  'stock_quantity' => 180,   'unit_price' => 24.50, 'supplier_name' => 'ChemBond'],
             ['code' => 'HOTMELT-01',  'name' => 'Hot-melt edge sealant',     'type' => 'auxiliary',    'unit_of_measure' => 'kg',  'stock_quantity' => 95,    'unit_price' => 18.90, 'supplier_name' => 'ChemBond'],
+
+            // Housing line — moulded products (pre-filter, carbon).
+            ['code' => 'RESIN-ABS',   'name' => 'ABS moulding granulate',    'type' => 'raw_material', 'unit_of_measure' => 'kg',  'stock_quantity' => 1450,  'unit_price' => 4.75,  'supplier_name' => 'PolyNord AB'],
+            ['code' => 'MEDIA-G4',    'name' => 'G4 coarse filter media',    'type' => 'raw_material', 'unit_of_measure' => 'm2',  'stock_quantity' => 3100,  'unit_price' => 2.30,  'supplier_name' => 'Filtrair Media BV'],
+            ['code' => 'CARBON-GRAN', 'name' => 'Activated carbon granulate', 'type' => 'raw_material', 'unit_of_measure' => 'kg', 'stock_quantity' => 860,   'unit_price' => 9.60,  'supplier_name' => 'CarbonWorks Ltd'],
+            ['code' => 'MESH-RET',    'name' => 'Retaining mesh disc',       'type' => 'raw_material', 'unit_of_measure' => 'pcs', 'stock_quantity' => 2400,  'unit_price' => 0.95,  'supplier_name' => 'MeshPro'],
+            ['code' => 'SEAL-EPDM',   'name' => 'EPDM seal strip',           'type' => 'raw_material', 'unit_of_measure' => 'm',   'stock_quantity' => 3400,  'unit_price' => 1.40,  'supplier_name' => 'SealTech GmbH'],
+
+            // HVAC cassette.
+            ['code' => 'FRAME-CASS',  'name' => 'HVAC cassette frame',       'type' => 'raw_material', 'unit_of_measure' => 'pcs', 'stock_quantity' => 420,   'unit_price' => 18.40, 'supplier_name' => 'AluFab Sp. z o.o.'],
+            ['code' => 'MEDIA-F7',    'name' => 'F7 fine filter media',      'type' => 'raw_material', 'unit_of_measure' => 'm2',  'stock_quantity' => 1900,  'unit_price' => 4.10,  'supplier_name' => 'Filtrair Media BV'],
+
+            // Packaging.
             ['code' => 'CARTON-10',   'name' => 'Carton, 10 filters',        'type' => 'packaging',    'unit_of_measure' => 'pcs', 'stock_quantity' => 640,   'unit_price' => 3.10,  'supplier_name' => 'PackLine'],
+            ['code' => 'CARTON-CASS', 'name' => 'Carton, 1 cassette',        'type' => 'packaging',    'unit_of_measure' => 'pcs', 'stock_quantity' => 380,   'unit_price' => 2.40,  'supplier_name' => 'PackLine'],
         ];
 
         $materials = [];
@@ -115,57 +130,97 @@ class AirFilterDemoSeeder extends Seeder
     }
 
     /**
-     * Two BOM levels: the HEPA-13 assembly consumes the pleat pack plus the
-     * purchased parts, and the pleat pack's own template consumes media and
-     * sealant. Exploding the top level therefore reaches the raw media.
+     * A bill of materials for every demo routing, not just the HEPA-13.
+     *
+     * The HEPA-13 assembly is the two-level one: it consumes the pleat pack,
+     * whose own template consumes media and sealant, so exploding the top level
+     * reaches the raw media. The rest are single level.
      *
      * Lines are pinned to the step that actually consumes them, so the operator's
      * kit list matches the routing.
      *
+     * @param  array<string, ProcessTemplate>  $templates  keyed by product code
      * @param  array<string, Material>  $materials
      */
-    private function seedBom(ProcessTemplate $assembly, ProcessTemplate $pleatPack, array $materials): void
+    private function seedBom(array $templates, array $materials): void
     {
+        // [product code => [[step number, material code, qty per unit, scrap %, consumed at], …]]
         $defs = [
-            // HEPA-13 assembly.
-            [$assembly, 2, 'FRAME-AL-13',  1,    0,   'start'],
-            [$assembly, 3, 'PLEATPACK13',  1,    2,   'start'],
-            [$assembly, 4, 'GASKET-PU-13', 1.6,  3,   'during'],
-            [$assembly, 4, 'ADH-2K-A',     0.08, 5,   'during'],
-            // 10 filters to a carton.
-            [$assembly, 6, 'CARTON-10',    0.1,  0,   'end'],
-
-            // Pleat pack — the level below.
-            [$pleatPack, 1, 'MEDIA-H13',   2.4,  5,   'start'],
-            [$pleatPack, 2, 'HOTMELT-01',  0.03, 2,   'during'],
+            'HEPA13_STD' => [
+                [2, 'FRAME-AL-13',  1,    0, 'start'],
+                // The sub-assembly line — this is what explodes a level down.
+                [3, 'PLEATPACK13',  1,    2, 'start'],
+                [4, 'GASKET-PU-13', 1.6,  3, 'during'],
+                [4, 'ADH-2K-A',     0.08, 5, 'during'],
+                // 10 filters to a carton.
+                [6, 'CARTON-10',    0.1,  0, 'end'],
+            ],
+            // Its routing pleats media directly rather than taking a finished
+            // pack, so the BOM names the media, not the sub-assembly.
+            'HEPA13_SLIM' => [
+                [1, 'FRAME-SLIM',   1,    0, 'start'],
+                [2, 'MEDIA-H13',    1.9,  5, 'start'],
+                [3, 'GASKET-PU-13', 1.4,  3, 'during'],
+                [3, 'ADH-2K-A',     0.07, 5, 'during'],
+                [5, 'CARTON-10',    0.1,  0, 'end'],
+            ],
+            'PREFILTER' => [
+                [1, 'RESIN-ABS',    0.42, 3, 'start'],
+                [2, 'MEDIA-G4',     0.8,  4, 'start'],
+                // Coarse filters ship 20 to a box.
+                [4, 'CARTON-10',    0.05, 0, 'end'],
+            ],
+            'CARBON' => [
+                [1, 'RESIN-ABS',    0.85, 3, 'start'],
+                [2, 'CARBON-GRAN',  1.2,  2, 'during'],
+                [3, 'MESH-RET',     1,    1, 'during'],
+                [3, 'SEAL-EPDM',    0.9,  2, 'during'],
+                [5, 'CARTON-10',    0.1,  0, 'end'],
+            ],
+            'HVAC' => [
+                [1, 'FRAME-CASS',   1,    0, 'start'],
+                [2, 'MEDIA-G4',     1.1,  4, 'start'],
+                [3, 'MEDIA-F7',     1.6,  5, 'during'],
+                [4, 'SEAL-EPDM',    2.2,  2, 'during'],
+                [6, 'CARTON-CASS',  1,    0, 'end'],
+            ],
+            // The level below the HEPA-13 assembly.
+            'PLEATPACK13' => [
+                [1, 'MEDIA-H13',    2.4,  5, 'start'],
+                [2, 'HOTMELT-01',   0.03, 2, 'during'],
+            ],
         ];
 
-        $sortOrder = [];
-
-        foreach ($defs as [$template, $stepNumber, $code, $qty, $scrap, $consumedAt]) {
-            $material = $materials[$code] ?? null;
-            if (! $material) {
+        foreach ($defs as $productCode => $lines) {
+            $template = $templates[$productCode] ?? null;
+            if (! $template) {
                 continue;
             }
 
-            $stepId = DB::table('template_steps')
-                ->where('process_template_id', $template->id)
-                ->where('step_number', $stepNumber)
-                ->value('id');
+            $sortOrder = 0;
 
-            $key = $template->id;
-            $sortOrder[$key] = ($sortOrder[$key] ?? 0) + 1;
+            foreach ($lines as [$stepNumber, $code, $qty, $scrap, $consumedAt]) {
+                $material = $materials[$code] ?? null;
+                if (! $material) {
+                    continue;
+                }
 
-            BomItem::updateOrCreate(
-                ['process_template_id' => $template->id, 'material_id' => $material->id],
-                [
-                    'template_step_id' => $stepId,
-                    'quantity_per_unit' => $qty,
-                    'scrap_percentage' => $scrap,
-                    'consumed_at' => $consumedAt,
-                    'sort_order' => $sortOrder[$key],
-                ]
-            );
+                $stepId = DB::table('template_steps')
+                    ->where('process_template_id', $template->id)
+                    ->where('step_number', $stepNumber)
+                    ->value('id');
+
+                BomItem::updateOrCreate(
+                    ['process_template_id' => $template->id, 'material_id' => $material->id],
+                    [
+                        'template_step_id' => $stepId,
+                        'quantity_per_unit' => $qty,
+                        'scrap_percentage' => $scrap,
+                        'consumed_at' => $consumedAt,
+                        'sort_order' => ++$sortOrder,
+                    ]
+                );
+            }
         }
     }
 
@@ -438,8 +493,16 @@ class AirFilterDemoSeeder extends Seeder
             );
 
             foreach ($steps as [$stepNo, $stepName, $instruction, $duration, $wsCode]) {
+                // Match live rows only. template_steps is soft-deletable and
+                // updateOrInsert() runs without the model's scope, so leaving
+                // deleted_at out would let a re-run resurrect (and overwrite) a
+                // step the user had deleted instead of inserting a fresh one.
                 DB::table('template_steps')->updateOrInsert(
-                    ['process_template_id' => $template->id, 'step_number' => $stepNo],
+                    [
+                        'process_template_id' => $template->id,
+                        'step_number' => $stepNo,
+                        'deleted_at' => null,
+                    ],
                     [
                         'name' => $stepName,
                         'instruction' => $instruction,
