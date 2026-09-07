@@ -5966,5 +5966,8 @@
     "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Odrzucone komórki w podglądzie: :n. Najedź na oznaczoną komórkę, aby poznać powód.",
     "Rows": "Wiersze",
     ":shown of :total rows": ":shown z :total wierszy",
-    ":n columns": ":n kolumn"
+    ":n columns": ":n kolumn",
+    "Component kind": "Rodzaj komponentu",
+    "BOM item updated.": "Zaktualizowano pozycję BOM.",
+    "Material removed from BOM.": "Usunięto materiał z BOM."
 }

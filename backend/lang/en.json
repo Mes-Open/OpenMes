@@ -5966,5 +5966,8 @@
     "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Rejected cells in the preview: :n. Hover a marked cell for the reason.",
     "Rows": "Rows",
     ":shown of :total rows": ":shown of :total rows",
-    ":n columns": ":n columns"
+    ":n columns": ":n columns",
+    "Component kind": "Component kind",
+    "BOM item updated.": "BOM item updated.",
+    "Material removed from BOM.": "Material removed from BOM."
 }

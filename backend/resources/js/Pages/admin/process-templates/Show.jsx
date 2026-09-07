@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, TextField } from '@openmes/ui';
+import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, Modal, TextField } from '@openmes/ui';
 import PageTitle from '../../../components/PageTitle';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
@@ -180,9 +180,69 @@ function ParametersEditor({ value = {}, onChange }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Add-step inline form                                                  */
+/* Template-edit form — the same two fields as /edit, in the drawer      */
 /* ------------------------------------------------------------------ */
-function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
+/**
+ * The standalone /edit page still exists and posts the same PUT; this is a
+ * second door onto it from the template it edits. `stay` is what the
+ * controller's StaysOnList concern answers with back() instead of the redirect
+ * to the templates index — otherwise saving a rename would throw you off the
+ * page you were working on.
+ */
+function EditTemplateForm({ productType, processTemplate, onCancel, onSaved }) {
+    const form = useForm({
+        name: processTemplate.name ?? '',
+        is_active: !!processTemplate.is_active,
+        stay: 1,
+    });
+
+    const { data, setData, errors, processing } = form;
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.put(
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`,
+            { onSuccess: onSaved },
+        );
+    };
+
+    return (
+        <form onSubmit={submit}>
+            <div className="mb-6">
+                <TextField
+                    label={__('Template Name')}
+                    required
+                    autoFocus
+                    value={data.name}
+                    onChange={(v) => setData('name', v)}
+                    placeholder={__('e.g., Standard Assembly Process, Quality Inspection v2')}
+                    hint={__('Descriptive name for this manufacturing process')}
+                    error={errors.name}
+                />
+            </div>
+
+            <div className="mb-6">
+                <Checkbox
+                    checked={data.is_active}
+                    onChange={(next) => setData('is_active', next)}
+                    label={__('Active (template is ready for use in work orders)')}
+                />
+            </div>
+
+            <div className="flex justify-end gap-3">
+                <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
+                    {processing ? __('Saving…') : __('Update Template')}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Add-step form — rendered inside the page's right-edge drawer          */
+/* ------------------------------------------------------------------ */
+function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel, onSaved }) {
     const form = useForm({
         name: '',
         instruction: '',
@@ -217,116 +277,107 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         e.preventDefault();
         form.post(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps`,
-            { onSuccess: onCancel },
+            { onSuccess: onSaved },
         );
     };
 
     return (
-        <div className="card mb-6" style={{ borderLeft: '4px solid var(--om-accent)' }}>
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-om-ink">{__("Add New Step")}</h2>
-                <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink">
-                    <Icon d="M6 18L18 6M6 6l12 12" />
-                </button>
+        <form onSubmit={submit}>
+            {processSegments.length > 0 && (
+                <div className="mb-4">
+                    <div className="form-label">{__("Use Process Segment (optional)")}</div>
+                    <Dropdown
+                        aria-label="Use Process Segment (optional)"
+                        value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
+                        onChange={(v) => applySegment(v)}
+                        options={[
+                            { value: '', label: __('— Define ad-hoc step —') },
+                            ...processSegments.map((seg) => ({
+                                value: String(seg.id),
+                                label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
+                    <p className="text-xs text-om-muted mt-1">
+                        Picking a segment pre-fills name, instruction and duration. You can still override after.
+                    </p>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <TextField
+                        label={__('Step Name')}
+                        required
+                        value={data.name}
+                        onChange={(v) => setData('name', v)}
+                        placeholder={__('e.g., Attach component A')}
+                        error={errors.name}
+                    />
+                </div>
+
+                <div>
+                    <div className="form-label">{__("Workstation (Optional)")}</div>
+                    <Dropdown
+                        aria-label="Workstation (Optional)"
+                        value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                        onChange={(v) => setData('workstation_id', v)}
+                        options={[
+                            { value: '', label: __('No specific workstation') },
+                            ...workstations.map((ws) => ({
+                                value: String(ws.id),
+                                label: `${ws.name} (${ws.line_name ?? '-'})`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
+                </div>
+
+                <div className="md:col-span-2">
+                    <TextField
+                        label={__('Instructions')}
+                        multiline
+                        rows={3}
+                        value={data.instruction}
+                        onChange={(v) => setData('instruction', v)}
+                        placeholder={__('Detailed instructions for this step...')}
+                    />
+                </div>
+
+                <div>
+                    <TextField
+                        label={__('Estimated Duration (minutes)')}
+                        type="number"
+                        min="0"
+                        value={data.estimated_duration_minutes}
+                        onChange={(v) => setData('estimated_duration_minutes', v)}
+                        placeholder={__('e.g., 15')}
+                    />
+                </div>
+
+                <div>
+                    <TextField
+                        label={__('Operators Required')}
+                        type="number"
+                        min="1"
+                        value={data.required_operators}
+                        onChange={(v) => setData('required_operators', v)}
+                        placeholder={__('Inherit from segment')}
+                        hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
+                    />
+                </div>
+
+                <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
+                <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
-            <form onSubmit={submit}>
-                {processSegments.length > 0 && (
-                    <div className="mb-4">
-                        <div className="form-label">{__("Use Process Segment (optional)")}</div>
-                        <Dropdown
-                            aria-label="Use Process Segment (optional)"
-                            value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
-                            onChange={(v) => applySegment(v)}
-                            options={[
-                                { value: '', label: __('— Define ad-hoc step —') },
-                                ...processSegments.map((seg) => ({
-                                    value: String(seg.id),
-                                    label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
-                                })),
-                            ]}
-                            className="w-full"
-                        />
-                        <p className="text-xs text-om-muted mt-1">
-                            Picking a segment pre-fills name, instruction and duration. You can still override after.
-                        </p>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <TextField
-                            label={__('Step Name')}
-                            required
-                            value={data.name}
-                            onChange={(v) => setData('name', v)}
-                            placeholder={__('e.g., Attach component A')}
-                            error={errors.name}
-                        />
-                    </div>
-
-                    <div>
-                        <div className="form-label">{__("Workstation (Optional)")}</div>
-                        <Dropdown
-                            aria-label="Workstation (Optional)"
-                            value={data.workstation_id == null ? '' : String(data.workstation_id)}
-                            onChange={(v) => setData('workstation_id', v)}
-                            options={[
-                                { value: '', label: __('No specific workstation') },
-                                ...workstations.map((ws) => ({
-                                    value: String(ws.id),
-                                    label: `${ws.name} (${ws.line_name ?? '-'})`,
-                                })),
-                            ]}
-                            className="w-full"
-                        />
-                    </div>
-
-                    <div className="md:col-span-2">
-                        <TextField
-                            label={__('Instructions')}
-                            multiline
-                            rows={3}
-                            value={data.instruction}
-                            onChange={(v) => setData('instruction', v)}
-                            placeholder={__('Detailed instructions for this step...')}
-                        />
-                    </div>
-
-                    <div>
-                        <TextField
-                            label={__('Estimated Duration (minutes)')}
-                            type="number"
-                            min="0"
-                            value={data.estimated_duration_minutes}
-                            onChange={(v) => setData('estimated_duration_minutes', v)}
-                            placeholder={__('e.g., 15')}
-                        />
-                    </div>
-
-                    <div>
-                        <TextField
-                            label={__('Operators Required')}
-                            type="number"
-                            min="1"
-                            value={data.required_operators}
-                            onChange={(v) => setData('required_operators', v)}
-                            placeholder={__('Inherit from segment')}
-                            hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
-                        />
-                    </div>
-
-                    <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
-                    <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
-                    <OptionalVariantFields data={data} setData={setData} errors={errors} />
-                </div>
-
-                <div className="flex justify-end gap-3 mt-4">
-                    <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
-                    <Button type="submit" loading={processing}>{processing ? __('Adding…') : __('Add Step')}</Button>
-                </div>
-            </form>
-        </div>
+            <div className="flex justify-end gap-3 mt-4">
+                <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                <Button type="submit" loading={processing}>{processing ? __('Adding…') : __('Add Step')}</Button>
+            </div>
+        </form>
     );
 }
 
@@ -950,6 +1001,12 @@ export default function ProcessTemplatesShow() {
     });
     const photosBaseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState(false);
+    // Bumped only after a *successful* save, to remount the form empty. Closing
+    // the drawer — the ×, the scrim, Cancel — deliberately leaves it alone, so
+    // what you typed is still there when you open it again.
+    const [addFormKey, setAddFormKey] = useState(0);
+    const [editFormKey, setEditFormKey] = useState(0);
     const [selectedStepId, setSelectedStepId] = useState(null);
     const selectedStep = steps.find((st) => st.id === selectedStepId) ?? steps[0] ?? null;
     const totalMinutes = steps.reduce((acc, st) => acc + (Number(st.estimated_duration_minutes) || 0), 0);
@@ -1101,12 +1158,13 @@ export default function ProcessTemplatesShow() {
                             {productType.name} · {steps.length} {__("steps")}{totalMinutes > 0 ? ` · ~${totalMinutes} min` : ''}
                         </span>
                         <div className="flex-1" />
-                        <a
-                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/edit`}
+                        <button
+                            type="button"
+                            onClick={() => setEditingTemplate(true)}
                             className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
                         >
                             {__("Edit")}
-                        </a>
+                        </button>
                         <a
                             href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`}
                             className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
@@ -1121,20 +1179,6 @@ export default function ProcessTemplatesShow() {
                             + {__("Add Step")}
                         </button>
                     </div>
-
-                    {/* Add Step Form */}
-                    {showAddForm && (
-                        <div className="p-5 border-b border-om-line2 bg-om-card">
-                            <AddStepForm
-                                productType={productType}
-                                processTemplate={processTemplate}
-                                processSegments={processSegments}
-                                workstations={workstations}
-                                workstationTypes={workstationTypes}
-                                onCancel={() => setShowAddForm(false)}
-                            />
-                        </div>
-                    )}
 
                     {/* Rail + graph + detail */}
                     <div className="flex" style={{ minHeight: 560 }}>
@@ -1258,6 +1302,66 @@ export default function ProcessTemplatesShow() {
                 </div>
 
             </div>
+
+            {/* Both writes happen in a right-edge drawer, the same shape the
+                work-orders list uses for "New Work Order": the template stays on
+                screen behind the form, and nothing about the page — the selected
+                step, the rail's scroll — is lost to a navigation. The standalone
+                /edit page is untouched; this is a second door onto the same
+                controller action. */}
+            <Modal
+                open={editingTemplate}
+                onClose={() => setEditingTemplate(false)}
+                title={__('Edit Process Template')}
+                subtitle={`${productType.name} — ${__('Version')} ${processTemplate.version}`}
+                closeLabel={__('Close')}
+                side="right"
+                width={480}
+                // Closing must not cost what was typed — `keepMounted` hides the
+                // panel instead of unmounting it, so the form's state survives
+                // until a save clears it (see the key).
+                keepMounted
+            >
+                {/* Keyed on the save count, not the close count: only a finished
+                    save starts the next opening over. */}
+                <EditTemplateForm
+                    key={`edit:${editFormKey}`}
+                    productType={productType}
+                    processTemplate={processTemplate}
+                    onCancel={() => setEditingTemplate(false)}
+                    onSaved={() => {
+                        setEditingTemplate(false);
+                        setEditFormKey((k) => k + 1);
+                    }}
+                />
+            </Modal>
+
+            <Modal
+                open={showAddForm}
+                onClose={() => setShowAddForm(false)}
+                title={__('Add New Step')}
+                closeLabel={__('Close')}
+                side="right"
+                // Wider than the 560 the work-order drawer uses: the step form
+                // keeps its two-column grid, and the ISA-95 and variant panels
+                // inside it are three columns of their own.
+                width={640}
+                keepMounted
+            >
+                <AddStepForm
+                    key={`add:${addFormKey}`}
+                    productType={productType}
+                    processTemplate={processTemplate}
+                    processSegments={processSegments}
+                    workstations={workstations}
+                    workstationTypes={workstationTypes}
+                    onCancel={() => setShowAddForm(false)}
+                    onSaved={() => {
+                        setShowAddForm(false);
+                        setAddFormKey((k) => k + 1);
+                    }}
+                />
+            </Modal>
             {dialog}
         </>
     );

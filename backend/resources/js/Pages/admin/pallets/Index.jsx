@@ -170,7 +170,7 @@ export default function PalletsIndex() {
                 ensure={['workOrders', 'statuses']}
                 ready={formReady}
                 title={{ create: __('New Pallet'), edit: __('Edit Pallet') }}
-                render={({ editing, record, finish }) => (
+                render={({ editing, record, finish, dismiss }) => (
                     <PalletForm
                         bare
                         action={editing ? `/admin/pallets/${record.id}` : '/admin/pallets'}
@@ -178,7 +178,7 @@ export default function PalletsIndex() {
                         initial={{ ...palletInitial(editing ? record : null), stay: 1 }}
                         submitLabel={editing ? __('Save Changes') : __('Create')}
                         onSuccess={finish}
-                        onCancel={finish}
+                        onCancel={dismiss}
                     />
                 )}
             />

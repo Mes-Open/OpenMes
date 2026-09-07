@@ -162,7 +162,7 @@ class BomManagementController extends Controller
         $this->bomService->updateItem($bomItem, $validated);
 
         return redirect()->route('admin.product-types.process-templates.bom', [$productType, $processTemplate])
-            ->with('success', 'BOM item updated.');
+            ->with('success', __('BOM item updated.'));
     }
 
     public function destroy(ProductType $productType, ProcessTemplate $processTemplate, BomItem $bomItem)
@@ -174,6 +174,6 @@ class BomManagementController extends Controller
         $this->bomService->removeItem($bomItem);
 
         return redirect()->route('admin.product-types.process-templates.bom', [$productType, $processTemplate])
-            ->with('success', 'Material removed from BOM.');
+            ->with('success', __('Material removed from BOM.'));
     }
 }
