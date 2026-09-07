@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\Issue;
+use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
@@ -24,6 +26,7 @@ use Spatie\Permission\Models\Role;
  *  - 7-step HEPA-13 process template
  *  - 6 work orders (WO-186-001..005 due today/tomorrow + WO-185-088 done)
  *  - A running batch on WO-186-001 with steps 1-2 DONE, step 3 IN_PROGRESS
+ *  - Operator-reported issues, one per lifecycle state (open → closed)
  *
  * Run with: `php artisan db:seed --class=AirFilterDemoSeeder`
  *
@@ -41,6 +44,123 @@ class AirFilterDemoSeeder extends Seeder
         $users = $this->seedUsers($lines);
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $template);
         $this->seedActiveBatch($workOrders['WO-186-001'], $template, $users['operator-mk']);
+        $this->seedIssues($workOrders, $users);
+    }
+
+    /**
+     * Issues as the shop floor actually files them: an operator picks a type on
+     * the work order and writes a line about what stopped them. One per status so
+     * the queue, the supervisor board and the history all have something to show.
+     *
+     * Keyed on (work order, title) so a re-run updates in place — the seeder is
+     * upsert-safe like the rest of this file.
+     *
+     * @param  array<string, WorkOrder>  $workOrders
+     * @param  array<string, User>  $users
+     */
+    private function seedIssues(array $workOrders, array $users): void
+    {
+        $types = IssueType::pluck('id', 'code');
+
+        // Without the issue-type reference data there is nothing to attach to;
+        // IssueTypesSeeder owns those rows.
+        if ($types->isEmpty()) {
+            return;
+        }
+
+        $supervisor = $users['supervisor'];
+        $mk = $users['operator-mk'];
+        $an = $users['operator-an'];
+
+        $defs = [
+            // Blocking, still waiting on someone — what the supervisor board is for.
+            [
+                'wo' => 'WO-186-001',
+                'type' => 'MATERIAL_DEFECT',
+                'title' => 'Pleat pack delaminating on infeed',
+                'description' => 'Every third pack from the current pallet separates at the glue line. Set the pallet aside and stopped feeding it.',
+                'status' => Issue::STATUS_OPEN,
+                'reported_by' => $mk,
+                'reported_ago' => 35,
+            ],
+            // Non-blocking question — production keeps running.
+            [
+                'wo' => 'WO-186-002',
+                'type' => 'OPERATOR_ASSISTANCE',
+                'title' => 'Need a second pair of hands for the frame change',
+                'description' => 'Slim frames need two people to load safely. Asking for support before starting the run.',
+                'status' => Issue::STATUS_OPEN,
+                'reported_by' => $an,
+                'reported_ago' => 20,
+            ],
+            // Picked up by the supervisor — this is why WO-186-004 sits paused.
+            [
+                'wo' => 'WO-186-004',
+                'type' => 'TOOL_FAILURE',
+                'title' => 'Carbon press holding pressure only to 4 bar',
+                'description' => 'Press will not reach the 6 bar set point. Line paused until maintenance looks at it.',
+                'status' => Issue::STATUS_ACKNOWLEDGED,
+                'reported_by' => $an,
+                'reported_ago' => 95,
+                'acknowledged_ago' => 70,
+                'assigned_to' => $supervisor,
+            ],
+            // Fixed, kept open one more shift for verification.
+            [
+                'wo' => 'WO-186-001',
+                'type' => 'MEASUREMENT_ERROR',
+                'title' => 'Depth gauge reading 0.4 mm high',
+                'description' => 'Gauge disagreed with the reference block on the first check of the shift.',
+                'status' => Issue::STATUS_RESOLVED,
+                'reported_by' => $mk,
+                'reported_ago' => 300,
+                'acknowledged_ago' => 280,
+                'resolved_ago' => 240,
+                'assigned_to' => $supervisor,
+                'resolution_notes' => 'Gauge re-zeroed against the reference block and re-checked on ten parts.',
+            ],
+            // Closed out on a finished order — the history view needs one.
+            [
+                'wo' => 'WO-185-088',
+                'type' => 'QUALITY_ISSUE',
+                'title' => 'Two filters with visible frame scratches',
+                'description' => 'Scratches on the short edge, most likely from the transport rack.',
+                'status' => Issue::STATUS_CLOSED,
+                'reported_by' => $mk,
+                'reported_ago' => 1_500,
+                'acknowledged_ago' => 1_480,
+                'resolved_ago' => 1_400,
+                'closed_ago' => 1_380,
+                'assigned_to' => $supervisor,
+                'resolution_notes' => 'Both units reworked and passed the visual check. Rack padding replaced.',
+            ],
+        ];
+
+        foreach ($defs as $def) {
+            $workOrder = $workOrders[$def['wo']] ?? null;
+            $typeId = $types[$def['type']] ?? null;
+
+            if (! $workOrder || ! $typeId) {
+                continue;
+            }
+
+            Issue::updateOrCreate(
+                ['work_order_id' => $workOrder->id, 'title' => $def['title']],
+                [
+                    'issue_type_id' => $typeId,
+                    'description' => $def['description'],
+                    'status' => $def['status'],
+                    'source' => Issue::SOURCE_IN_PROCESS,
+                    'reported_by_id' => $def['reported_by']->id,
+                    'assigned_to_id' => isset($def['assigned_to']) ? $def['assigned_to']->id : null,
+                    'reported_at' => now()->subMinutes($def['reported_ago']),
+                    'acknowledged_at' => isset($def['acknowledged_ago']) ? now()->subMinutes($def['acknowledged_ago']) : null,
+                    'resolved_at' => isset($def['resolved_ago']) ? now()->subMinutes($def['resolved_ago']) : null,
+                    'closed_at' => isset($def['closed_ago']) ? now()->subMinutes($def['closed_ago']) : null,
+                    'resolution_notes' => $def['resolution_notes'] ?? null,
+                ]
+            );
+        }
     }
 
     private function seedLines(): array
@@ -336,7 +456,7 @@ class AirFilterDemoSeeder extends Seeder
                 'produced_qty' => 108,
                 'status' => Batch::STATUS_IN_PROGRESS,
                 'started_at' => $startedAt,
-                'lot_number' => 'LOT-2026-' . str_pad((string) $wo->id, 4, '0', STR_PAD_LEFT),
+                'lot_number' => 'LOT-2026-'.str_pad((string) $wo->id, 4, '0', STR_PAD_LEFT),
                 // varchar(10): trigger code, not a timestamp. Values: on_start / on_release.
                 'lot_assigned_at' => 'on_start',
                 'scrap_qty' => 3,

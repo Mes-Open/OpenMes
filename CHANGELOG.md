@@ -7,6 +7,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
+  issues against the demo work orders, one per lifecycle state (open, acknowledged,
+  resolved, closed), reported by the demo operators and assigned to the demo supervisor.
+  The operator's work-order view, the admin Issues list and the history screens all have
+  something to show instead of an empty state. Upsert-safe like the rest of the seeder.
+
 ### Changed
 - **The two old importers redirect into the unified importer** — Orders → CSV Import
   (`/admin/csv-import`, `/supervisor/csv-import`) and Materials → Import
