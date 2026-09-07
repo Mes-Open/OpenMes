@@ -70,9 +70,11 @@ export default function StockDocumentForm({
                 notes: line.notes || null,
             }));
 
-        form
-            .transform(() => ({ ...data, lines: payload, ...(stay ? { stay: 1 } : {}) }))
-            .post('/admin/stock-documents', { preserveScroll: stay, onSuccess });
+        // transform() mutates and returns void in Inertia v3 — it can't be chained
+        // with .post() (that threw "transform(...) is undefined", #282). Set it,
+        // then post.
+        form.transform(() => ({ ...data, lines: payload, ...(stay ? { stay: 1 } : {}) }));
+        form.post('/admin/stock-documents', { preserveScroll: stay, onSuccess });
     };
 
     return (
