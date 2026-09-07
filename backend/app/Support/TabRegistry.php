@@ -33,7 +33,11 @@ class TabRegistry
         // not shop-floor work. Split from `orders` so a supervisor can run change
         // control without also inheriting the customer list, the priority rules
         // and the CSV importer.
-        'order_data' => ['label' => 'Customers & order data', 'prefixes' => ['/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
+        'order_data' => ['label' => 'Customers & order data', 'prefixes' => ['/admin/customers', '/admin/priority-rules']],
+        // The unified importer (Admin → Import): product types, materials, work
+        // orders and recipes from one screen. Its own tab so a planner can be
+        // given it without the user/log pages the `admin` tab unlocks.
+        'import' => ['label' => 'Import', 'prefixes' => ['/admin/import']],
         'production' => ['label' => 'Production', 'prefixes' => [
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',

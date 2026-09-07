@@ -1,0 +1,8 @@
+Kod;Nazwa;Opis;Typ materiału;JM;Cena;Waluta;Stan minimalny;Stan magazynowy;Dostawca;Kod zewnętrzny;EAN;Śledzenie;Aktywny
+MAT-FLEECE-BK;Fleece black 280 g;Brushed cotton fleece, 160 cm wide;GARMENT;m;24,50;PLN;50;320;Textil Sp. z o.o.;SUB-FL-BK;5901234567890;batch;tak
+MAT-ZIP-60;Zipper 60 cm black;YKK metal zipper;raw_material;pcs;3,20;PLN;200;1 250;Zamki S.A.;SUB-ZIP-60;5901234567906;none;tak
+MAT-YARN-ACR;Acrylic yarn;Acrylic yarn for beanies, 100 g cone;THREAD;kg;18,00;PLN;10;42,5;Przędza Sp. z o.o.;SUB-YRN-ACR;;batch;tak
+MAT-LANYARD-TAPE;Lanyard tape 20 mm;Polyester tape for sublimation;TRANSFER_MEDIA;m;0,45;PLN;500;2 000;Taśmy Polska;SUB-TAPE-20;;none;tak
+MAT-HOOK-METAL;Metal hook;Nickel-plated swivel hook;raw_material;pcs;0,30;PLN;1000;8 000;Zamki S.A.;SUB-HOOK-M;;none;tak
+MAT-BOX-XL;Shipping box XL;Cardboard box 60x40x40;packaging;pcs;2,10;PLN;100;640;Karton Sp. z o.o.;SUB-BOX-XL;;none;nie
+;Missing code and external code (error row);;raw_material;pcs;;;;;;;;none;tak

@@ -8,6 +8,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- **The two old importers redirect into the unified importer** — Orders → CSV Import
+  (`/admin/csv-import`, `/supervisor/csv-import`) and Materials → Import
+  (`/admin/materials-import`) now land on Admin → Import with the entity preselected; their
+  pages and controllers are gone. The mobile app's `/api/v1/csv-imports/*` flow is
+  unchanged. `csv_imports` gains the entity, per-outcome counters, run options and a tenant;
+  `csv_import_mappings` profiles are per entity. The database queue's `retry_after` is
+  raised (`DB_QUEUE_RETRY_AFTER`, 660 s) so a long import is not handed to a second worker
+  mid-run, and the `queue-worker` compose service now carries the Reverb settings so a
+  job's live-sync broadcasts reach the browser.
 - **Process template page redesigned as a master–detail rail** — header bar with
   status/version/duration summary, a compact drag-to-reorder step rail (now @dnd-kit —
   the old SortableJS wiring had been dead since the React migration and posted to a
@@ -273,6 +282,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     which only offers what you may still pick.
 
 ### Fixed
+- **Materials → Import posted to a URL that did not exist** — the page sent its upload and
+  process forms to `/admin/materials/import/*` while the routes lived at
+  `/admin/materials-import/*`, so every material file import 404'd. Superseded by the
+  unified importer.
 - **Doubled plus on three "new" buttons** *(Admin → Warehouses, Stock Documents, Inspection
   Plans)* — `ResourceTable` already draws a plus icon in the create button, and these three
   labels carried a literal `+ ` of their own, so they rendered as "+ + New Warehouse". The
@@ -309,6 +322,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Settings language picker showed the wrong language** *(admin)* — the Settings → System language dropdown always showed the stored *system default*, so after switching the UI language with the per-session switcher the picker contradicted the language actually on screen (#271). It now reflects the currently effective locale (the session override if set, else the system default).
 
 ### Added
+- **Validate an import before running it** *(admin)* — the column-mapping step gains a **Validate only** button beside Run Import. It reads, maps and feeds the file to the importer exactly as a real run — inside a transaction that always rolls back — so the result reports what the import *would* do, including what only the database can answer (unique collisions, missing foreign keys), and writes nothing. The run appears in the history labelled **Validation only**, with "Would create" / "Would update" counters and the same per-row error list. Live-sync deltas are suppressed for the duration, so a validation never pushes rows to open browsers that no later delta takes back.
+- **Unified data importer** *(Admin → Import)* — one PrestaShop-style screen loads
+  **product types, materials, work orders and bills of materials** from CSV / XLS / XLSX:
+  pick the entity, see its available fields (required ones starred) and download a sample
+  file, upload with a chosen separator and encoding (UTF-8, ISO-8859-1, Windows-1250), set
+  the run options (strategy, external system, category filter, default material type,
+  target line and planning period, replace/merge for recipes), map columns (auto-detected
+  from English and Polish headers, saved as reusable per-entity profiles), and run. The run
+  is **queued** and its progress bar, counters and history list update **live** through the
+  `data_imports` synced collection; finished runs list every failed row with its file line,
+  field and reason, downloadable as CSV. Supervisors get the same screen for work orders
+  under Supervisor → Orders. Behind it, each entity is an `EntityImporter` adapter in
+  `app/Import` over the existing ERP import services, one `SpreadsheetReader` replaces the
+  three parsers the old importers carried, and a new `import` tab gates the admin mount.
+  The tab is granted to Admin only — it loads master data and can replace recipes, so
+  roles that used the old work-order importer get it deliberately in Settings → Access.
 - **Consumption is deducted from the workshop location it came off** — stock levels per storage location now reflect what production actually used. Allocation already moved the plant-wide quantity and the picked lot, but nothing said *where* the material physically was, so a plant running several stores could not tell which one had emptied.
   - **Each line names its stock location.** A production line gains a **Stock location** (Admin → Lines), picked from the raw-material warehouses. Optional: a plant that doesn't track stock per location leaves it unset and nothing changes.
   - **The location is resolved most-specific-first.** The **picked lot's** warehouse wins (it knows exactly where it sits), then the **line's** stock location, then the plant's **default raw-material** warehouse. Once a deduction has been made the location is **frozen on the allocation**, so a later correction always credits back the location that actually gave the material up — even if the lot has since been moved or the line re-pointed.

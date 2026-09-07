@@ -2,6 +2,7 @@
 
 namespace App\Sync;
 
+use App\Sync\Shapes\DataImportsRecentShape;
 use App\Sync\Shapes\IssuesOpenShape;
 use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
@@ -29,6 +30,9 @@ class ShapeRegistry
         'lines_active' => LinesActiveShape::class,
         'issue_types' => IssueTypesShape::class,
         'product_types' => ProductTypesShape::class,
+        // Unified importer (Admin → Import) history: the counters move while a
+        // queued job runs, so the list and the progress bar read them live.
+        'data_imports' => DataImportsRecentShape::class,
 
         // Simple admin lookup tables — inline config.
         'skills' => [
