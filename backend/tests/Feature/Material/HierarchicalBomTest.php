@@ -390,6 +390,45 @@ class HierarchicalBomTest extends TestCase
         $this->assertSame(300.0, $required['PART-1160']);
         $this->assertSame(80.0, $required['PART-1110']);
         $this->assertSame(60.0, $required['PART-1200']);
-        $this->assertFalse($required->has('SUBASSEMBLY-1100'));
+
+        // Netting runs level by level, so a subassembly is demand in its own
+        // right and is reported by name — with none in stock the leaves below it
+        // are unchanged.
+        $this->assertSame(20.0, $required['SUBASSEMBLY-1100']);
+        $this->assertSame(60.0, $required['SUBASSEMBLY-1150']);
+    }
+
+    public function test_mrp_nets_a_subassembly_against_its_own_stock_before_exploding(): void
+    {
+        $parent = $this->threeLevelStructure();
+
+        // Twelve of the twenty needed are already on the shelf.
+        Material::where('code', 'SUBASSEMBLY-1100')->update(['stock_quantity' => 12]);
+
+        WorkOrder::factory()->create([
+            'product_type_id' => $parent->product_type_id,
+            'planned_qty' => 10,
+            'status' => WorkOrder::STATUS_PENDING,
+            'due_date' => now()->addDays(3),
+        ]);
+
+        $rows = collect(app(NetRequirementsService::class)
+            ->report(now()->subDay(), now()->addDays(30))['requirements'])
+            ->keyBy('code');
+
+        // Still 20 gross, but only the 8 not covered by stock have to be made.
+        $this->assertSame(20.0, (float) $rows['SUBASSEMBLY-1100']['required_qty']);
+        $this->assertSame(12.0, (float) $rows['SUBASSEMBLY-1100']['available_qty']);
+        $this->assertSame(8.0, (float) $rows['SUBASSEMBLY-1100']['net_qty']);
+        $this->assertTrue($rows['SUBASSEMBLY-1100']['is_short']);
+
+        // Only that shortfall explodes: 8 × 3 = 24 of the next level down, and
+        // 24 × 5 = 120 of its leaf — not the 60 / 300 an ungated explosion gives.
+        $this->assertSame(24.0, (float) $rows['SUBASSEMBLY-1150']['required_qty']);
+        $this->assertSame(120.0, (float) $rows['PART-1160']['required_qty']);
+        $this->assertSame(32.0, (float) $rows['PART-1110']['required_qty']);
+
+        // Components of the parent itself are untouched by the subassembly stock.
+        $this->assertSame(60.0, (float) $rows['PART-1200']['required_qty']);
     }
 }

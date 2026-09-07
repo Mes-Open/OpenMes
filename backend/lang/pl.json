@@ -5966,5 +5966,12 @@
     "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Odrzucone komórki w podglądzie: :n. Najedź na oznaczoną komórkę, aby poznać powód.",
     "Rows": "Wiersze",
     ":shown of :total rows": ":shown z :total wierszy",
-    ":n columns": ":n kolumn"
+    ":n columns": ":n kolumn",
+    "Not enough material": "Za mało materiału",
+    "not in stock list": "brak w kartotece materiałów",
+    "MAT": "MAT",
+    "Not enough material to complete this order": "Za mało materiału, aby wykonać to zlecenie",
+    "need": "potrzeba",
+    "have": "jest",
+    "missing": "brakuje"
 }

@@ -1960,7 +1960,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [] } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [] } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2031,6 +2031,28 @@ export default function WorkOrderDetail() {
                         </Link>
                     </div>
                 </div>
+
+                {/* Stock cannot cover this order. Said here, before the operator
+                    starts, rather than surfacing as a failed allocation mid-run.
+                    A subassembly is named as itself — "not enough pleat packs"
+                    is the useful sentence, not the media it is made from. */}
+                {materialShortages.length > 0 && (
+                    <div className="mb-6 rounded-om border border-om-blocked bg-om-blocked-bg px-4 py-3">
+                        <p className="font-medium text-om-blocked text-[13px]">
+                            {__('Not enough material to complete this order')}
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                            {materialShortages.map((m, i) => (
+                                <li key={i} className="font-mono text-[12px] text-om-blocked">
+                                    {m.material_code || m.material_name}
+                                    {m.material_exists
+                                        ? ` · ${__('need')} ${fmtQty(m.required_qty)} · ${__('have')} ${fmtQty(m.available_qty)} · ${__('missing')} ${fmtQty(m.missing_qty)} ${m.unit_of_measure || ''}`
+                                        : ` · ${__('not in stock list')}`}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main content */}

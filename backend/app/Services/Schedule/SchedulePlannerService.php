@@ -26,6 +26,10 @@ class SchedulePlannerService
 {
     public const VIEW_MODES = ['weekly', 'daily', 'hourly', 'monthly'];
 
+    public function __construct(
+        private readonly \App\Services\Material\MaterialAllocationService $allocation,
+    ) {}
+
     /**
      * Everything the planner board renders for one view/range/line filter.
      *
@@ -185,7 +189,16 @@ class SchedulePlannerService
         $realtimeMode = trim($settings['realtime_mode'] ?? 'polling', '"\'');
 
         return [
-            'workOrders' => $workOrders->map(fn ($wo) => $this->flattenOrder($wo))->values()->all(),
+            // Component cover for everything on the board, in one pass, so a
+            // planner can see an order is unbuildable before scheduling around it.
+            'workOrders' => (function () use ($workOrders) {
+                $shortages = $this->allocation->shortagesForWorkOrders($workOrders);
+
+                return $workOrders
+                    ->map(fn ($wo) => $this->flattenOrder($wo, $shortages[$wo->id] ?? []))
+                    ->values()
+                    ->all();
+            })(),
             'lines' => $this->flattenLines($lines),
             'allLines' => $this->flattenLines($allLines),
             'shifts' => $shifts->map(fn ($s) => [
@@ -534,12 +547,20 @@ class SchedulePlannerService
             ->exists();
     }
 
-    public function flattenOrder(WorkOrder $wo): array
+    /**
+     * @param  list<array<string, mixed>>  $shortages  short component lines for this
+     *                                                 order, empty when stock covers it
+     */
+    public function flattenOrder(WorkOrder $wo, array $shortages = []): array
     {
         $planned = (float) $wo->planned_qty;
         $produced = (float) $wo->produced_qty;
 
         return [
+            // Cannot be built from stock as it stands. Carries the offending
+            // lines so the tile can say what is missing without another call.
+            'has_material_shortage' => $shortages !== [],
+            'material_shortages' => $shortages,
             'id' => $wo->id,
             'order_no' => $wo->order_no,
             'customer_name' => $wo->customer?->name,

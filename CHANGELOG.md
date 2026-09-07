@@ -8,6 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **A shortage of a manufactured subassembly is now reported as such** — previously nothing
+  said "not enough pleat packs to build this order". The net-requirements report exploded
+  straight through a subassembly to the raw materials it is made from, so the subassembly
+  never appeared and the stock of it already on the shelf was ignored; the per-order check
+  that did cover it was an API endpoint no screen called.
+  - MRP now nets level by level: a subassembly's gross demand is met from its own stock
+    first and only the shortfall explodes downwards, so packs on the shelf pull no media and
+    a subassembly that runs out is listed by name.
+  - The planner marks any order stock cannot cover, naming the missing components on hover,
+    so it is visible while scheduling rather than when an operator tries to start.
+  - The operator's work-order screen leads with the same warning, listing what is needed,
+    what is free and what is missing.
 - **Every demo product now has a process template, and work orders carry it** — only the
   HEPA-13 Standard had a routing, so the other four products showed "0 templates" and their
   work orders had no steps for an operator to work through. Each product type now gets its

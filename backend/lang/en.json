@@ -5966,5 +5966,12 @@
     "Rejected cells in the preview: :n. Hover a marked cell for the reason.": "Rejected cells in the preview: :n. Hover a marked cell for the reason.",
     "Rows": "Rows",
     ":shown of :total rows": ":shown of :total rows",
-    ":n columns": ":n columns"
+    ":n columns": ":n columns",
+    "Not enough material": "Not enough material",
+    "not in stock list": "not in stock list",
+    "MAT": "MAT",
+    "Not enough material to complete this order": "Not enough material to complete this order",
+    "need": "need",
+    "have": "have",
+    "missing": "missing"
 }
