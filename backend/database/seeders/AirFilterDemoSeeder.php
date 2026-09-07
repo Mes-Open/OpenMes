@@ -46,50 +46,13 @@ class AirFilterDemoSeeder extends Seeder
         $lines = $this->seedLines();
         $workstations = $this->seedWorkstations($lines);
         $productTypes = $this->seedProductTypes();
-        $template = $this->seedHepaProcessTemplate($productTypes['HEPA13_STD'], $workstations);
+        $templates = $this->seedProcessTemplates($productTypes, $workstations);
         $users = $this->seedUsers($lines);
-        $pleatPackTemplate = $this->seedPleatPackTemplate($productTypes['PLEATPACK13'], $workstations);
-        $materials = $this->seedMaterials($pleatPackTemplate);
-        $this->seedBom($template, $pleatPackTemplate, $materials);
-        $workOrders = $this->seedWorkOrders($lines, $productTypes, $template);
-        $this->seedActiveBatch($workOrders['WO-186-001'], $template, $users['operator-mk']);
+        $materials = $this->seedMaterials($templates['PLEATPACK13']);
+        $this->seedBom($templates['HEPA13_STD'], $templates['PLEATPACK13'], $materials);
+        $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
+        $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
         $this->seedIssues($workOrders, $users);
-    }
-
-    /**
-     * The pleat pack's own routing. Its existence is what makes PLEATPACK13 a
-     * sub-assembly rather than a purchased part: a material flagged
-     * `is_manufactured` and pointed at a producing template is what
-     * BomExplosionService follows down a level.
-     *
-     * @param  array<string, Workstation>  $ws
-     */
-    private function seedPleatPackTemplate(ProductType $productType, array $ws): ProcessTemplate
-    {
-        $template = ProcessTemplate::updateOrCreate(
-            ['product_type_id' => $productType->id, 'version' => 1],
-            ['name' => 'Pleat pack HEPA-13 — production v1', 'is_active' => true]
-        );
-
-        $steps = [
-            [1, 'Media pleating', 'Feed the media roll and fold to the HEPA-13 pitch. Check pleat height on the first five packs.', 6, $ws['WS-PA-01'] ?? null],
-            [2, 'Edge sealing', 'Run a hot-melt bead down both open edges and press until set.', 4, $ws['WS-AB-01'] ?? null],
-        ];
-
-        foreach ($steps as [$stepNo, $name, $instruction, $duration, $workstation]) {
-            DB::table('template_steps')->updateOrInsert(
-                ['process_template_id' => $template->id, 'step_number' => $stepNo],
-                [
-                    'name' => $name,
-                    'instruction' => $instruction,
-                    'estimated_duration_minutes' => $duration,
-                    'workstation_id' => $workstation?->id,
-                    'created_at' => now(),
-                ]
-            );
-        }
-
-        return $template;
     }
 
     /**
@@ -402,37 +365,95 @@ class AirFilterDemoSeeder extends Seeder
         return $result;
     }
 
-    private function seedHepaProcessTemplate(ProductType $productType, array $ws): ProcessTemplate
+    /**
+     * A routing for every demo product, not just the HEPA-13. Without one a
+     * product type shows "0 templates", its work orders carry no steps for the
+     * operator to work through, and there is nowhere to hang a BOM.
+     *
+     * @param  array<string, ProductType>  $pt
+     * @param  array<string, Workstation>  $ws
+     * @return array<string, ProcessTemplate> keyed by product code
+     */
+    private function seedProcessTemplates(array $pt, array $ws): array
     {
-        $template = ProcessTemplate::updateOrCreate(
-            ['product_type_id' => $productType->id, 'version' => 1],
-            ['name' => 'HEPA-13 Standard — assembly v1', 'is_active' => true]
-        );
-
-        $steps = [
-            [1, 'Material kit pickup',     'Pull the BOM kit (pleat sheet, frame blank, adhesive, gasket) from staging.', 5,  $ws['WS-MK-01']],
-            [2, 'Frame stamping',          'Stamp the aluminium frame blank on the housing press; check perpendicularity.', 4, $ws['WS-FR-01']],
-            [3, 'Pleat assembly',          'Pleat the filter media and slot into frame. Maintain pitch ±0.5 mm.', 8, $ws['WS-PA-01']],
-            [4, 'Adhesive bonding',        'Apply two-part adhesive bead around perimeter; cure 6 min at 60 °C.', 10, $ws['WS-AB-01']],
-            [5, 'QC visual inspection',    'Inspect for pleat collapse, adhesive squeeze-out, gasket fit. Photograph defects.', 3, $ws['WS-QC-01']],
-            [6, 'Packaging (10/box)',      'Pack 10 filters per carton with desiccant; apply lot label.', 4, $ws['WS-PK-01']],
-            [7, 'Pallet handoff',          'Stack cartons on pallet, wrap, hand off to dispatch with batch sheet.', 3, $ws['WS-PH-01']],
+        $defs = [
+            'HEPA13_STD' => ['HEPA-13 Standard — assembly v1', [
+                [1, 'Material kit pickup',  'Pull the BOM kit (pleat sheet, frame blank, adhesive, gasket) from staging.', 5, 'WS-MK-01'],
+                [2, 'Frame stamping',       'Stamp the aluminium frame blank on the housing press; check perpendicularity.', 4, 'WS-FR-01'],
+                [3, 'Pleat assembly',       'Pleat the filter media and slot into frame. Maintain pitch ±0.5 mm.', 8, 'WS-PA-01'],
+                [4, 'Adhesive bonding',     'Apply two-part adhesive bead around perimeter; cure 6 min at 60 °C.', 10, 'WS-AB-01'],
+                [5, 'QC visual inspection', 'Inspect for pleat collapse, adhesive squeeze-out, gasket fit. Photograph defects.', 3, 'WS-QC-01'],
+                [6, 'Packaging (10/box)',   'Pack 10 filters per carton with desiccant; apply lot label.', 4, 'WS-PK-01'],
+                [7, 'Pallet handoff',       'Stack cartons on pallet, wrap, hand off to dispatch with batch sheet.', 3, 'WS-PH-01'],
+            ]],
+            // Shares the HEPA line but skips the separate stamping pass — the slim
+            // frame arrives pre-formed.
+            'HEPA13_SLIM' => ['HEPA-13 Slim — assembly v1', [
+                [1, 'Material kit pickup',  'Pull the slim-frame kit from staging; check the frame depth marking.', 5, 'WS-MK-01'],
+                [2, 'Pleat assembly',       'Pleat to the slim pitch and seat into the pre-formed frame.', 9, 'WS-PA-01'],
+                [3, 'Adhesive bonding',     'Bead the perimeter and cure. Slim frames need the lower 55 °C profile.', 10, 'WS-AB-01'],
+                [4, 'QC visual inspection', 'Check pleat pitch, seal continuity and that the depth is within tolerance.', 3, 'WS-QC-01'],
+                [5, 'Packaging (10/box)',   'Pack 10 per carton; slim cartons take the same lot label.', 4, 'WS-PK-01'],
+            ]],
+            // Coarse filter on the housing line — moulded, not pleated.
+            'PREFILTER' => ['Pre-filter G4 — production v1', [
+                [1, 'Housing mould',        'Mould the G4 housing frame; check for short shots before releasing.', 6, 'WS-HM-01'],
+                [2, 'Media insert',         'Cut the G4 media to size and press into the housing.', 5, 'WS-HM-01'],
+                [3, 'Housing QC',           'Verify the media sits flush and the frame has no flash.', 3, 'WS-HQC-01'],
+                [4, 'Pack & label',         'Bag, box and label for stock replenishment.', 4, 'WS-PK-04'],
+            ]],
+            'CARBON' => ['Carbon X2 — production v1', [
+                [1, 'Housing mould',        'Mould the Carbon X2 housing; verify the fill port is clear.', 6, 'WS-HM-01'],
+                [2, 'Carbon fill',          'Fill with activated carbon to the weight target, then settle on the vibrator.', 8, 'WS-HM-01'],
+                [3, 'Seal & press',         'Press the retaining mesh and seal the fill port.', 5, 'WS-HM-01'],
+                [4, 'Housing QC',           'Weigh-check the fill and confirm no carbon migration past the mesh.', 4, 'WS-HQC-01'],
+                [5, 'Pack & label',         'Box, label and stage for dispatch.', 4, 'WS-PK-04'],
+            ]],
+            'HVAC' => ['HVAC cassette — assembly v1', [
+                [1, 'Cassette frame prep',  'Square up the cassette frame and fit the corner brackets.', 6, 'WS-SA-01'],
+                [2, 'Stage 1 media',        'Load the coarse pre-filter stage into the first channel.', 5, 'WS-SA-01'],
+                [3, 'Stage 2 media',        'Load the fine media stage; check the gasket seats on both sides.', 6, 'WS-SA-02'],
+                [4, 'Cassette closing',     'Close the cassette and secure the retaining clips.', 4, 'WS-SA-02'],
+                [5, 'Leak check',           'Pressure-test the cassette seal; log the reading on the batch sheet.', 5, 'WS-SA-02'],
+                [6, 'Pack & label',         'Sleeve, box and label the cassette.', 4, 'WS-PK-04'],
+            ]],
+            // The sub-assembly's own routing — what makes PLEATPACK13 explodable.
+            'PLEATPACK13' => ['Pleat pack HEPA-13 — production v1', [
+                [1, 'Media pleating',       'Feed the media roll and fold to the HEPA-13 pitch. Check pleat height on the first five packs.', 6, 'WS-PA-01'],
+                [2, 'Edge sealing',         'Run a hot-melt bead down both open edges and press until set.', 4, 'WS-AB-01'],
+            ]],
         ];
 
-        foreach ($steps as [$stepNo, $name, $instruction, $duration, $workstation]) {
-            DB::table('template_steps')->updateOrInsert(
-                ['process_template_id' => $template->id, 'step_number' => $stepNo],
-                [
-                    'name' => $name,
-                    'instruction' => $instruction,
-                    'estimated_duration_minutes' => $duration,
-                    'workstation_id' => $workstation?->id,
-                    'created_at' => now(),
-                ]
+        $templates = [];
+
+        foreach ($defs as $productCode => [$name, $steps]) {
+            $productType = $pt[$productCode] ?? null;
+            if (! $productType) {
+                continue;
+            }
+
+            $template = ProcessTemplate::updateOrCreate(
+                ['product_type_id' => $productType->id, 'version' => 1],
+                ['name' => $name, 'is_active' => true]
             );
+
+            foreach ($steps as [$stepNo, $stepName, $instruction, $duration, $wsCode]) {
+                DB::table('template_steps')->updateOrInsert(
+                    ['process_template_id' => $template->id, 'step_number' => $stepNo],
+                    [
+                        'name' => $stepName,
+                        'instruction' => $instruction,
+                        'estimated_duration_minutes' => $duration,
+                        'workstation_id' => $ws[$wsCode]?->id,
+                        'created_at' => now(),
+                    ]
+                );
+            }
+
+            $templates[$productCode] = $template;
         }
 
-        return $template;
+        return $templates;
     }
 
     private function seedUsers(array $lines): array
@@ -493,7 +514,10 @@ class AirFilterDemoSeeder extends Seeder
         return $result;
     }
 
-    private function seedWorkOrders(array $lines, array $pt, ProcessTemplate $hepaTemplate): array
+    /**
+     * @param  array<string, ProcessTemplate>  $templates  keyed by product code
+     */
+    private function seedWorkOrders(array $lines, array $pt, array $templates): array
     {
         $today = now()->copy();
         // We pin due times so a screenshot taken at any clock-hour still sees
@@ -511,7 +535,6 @@ class AirFilterDemoSeeder extends Seeder
                 'priority' => 4,
                 'due_date' => $at(14, 30),
                 'description' => 'Standard HEPA-13, B2B order — Filtex distribution.',
-                'snapshot_template' => $hepaTemplate,
             ],
             [
                 'order_no' => 'WO-186-002',
@@ -586,14 +609,14 @@ class AirFilterDemoSeeder extends Seeder
             if (! empty($def['completed_at'])) {
                 $payload['completed_at'] = $def['completed_at'];
             }
-            if (! empty($def['snapshot_template'])) {
-                $template = $def['snapshot_template'];
-                $payload['process_snapshot'] = [
-                    'template_id' => $template->id,
-                    'template_name' => $template->name,
-                    'template_version' => $template->version,
-                    'snapshotted_at' => now()->toIso8601String(),
-                ];
+            // Snapshot the product's own routing the way the app does — a
+            // hand-rolled header carries no steps and no BOM, which leaves the
+            // operator with nothing to work through and no kit list.
+            $template = $templates[$def['product']] ?? null;
+            if ($template) {
+                $payload['process_snapshot'] = $template
+                    ->fresh(['steps.workstation', 'bomItems.material'])
+                    ->toSnapshot();
             }
 
             $wo = WorkOrder::updateOrCreate(['order_no' => $def['order_no']], $payload);

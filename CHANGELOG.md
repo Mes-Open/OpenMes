@@ -8,6 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Every demo product now has a process template, and work orders carry it** — only the
+  HEPA-13 Standard had a routing, so the other four products showed "0 templates" and their
+  work orders had no steps for an operator to work through. Each product type now gets its
+  own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
+  seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
+  header — so the snapshot carries the steps and the BOM the way the application writes it.
 - **Demo data now includes a two-level bill of materials** — `AirFilterDemoSeeder` seeds the
   purchased parts (media, frame profile, gasket, adhesives, carton) and one manufactured
   sub-assembly, the HEPA-13 pleat pack, which has its own routing and BOM. The assembly BOM
