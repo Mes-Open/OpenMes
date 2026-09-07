@@ -30,6 +30,16 @@ class ShiftMonitorDemoSeeder extends Seeder
     private const BATCH_NUMBER_BASE = 9000;
 
     /**
+     * How much shift history to lay down behind the live one, so paging back
+     * through the monitor keeps finding shifts instead of empty days.
+     *
+     * Only backwards: the monitor draws what the machines actually did, and
+     * there are no actuals for a shift that has not run yet. The forward two
+     * weeks are the planner's job — orders and maintenance, not counters.
+     */
+    private const DAYS_BACK = 14;
+
+    /**
      * Stations to bring to life, with their nameplate rate in pcs/hour. Covers
      * both demo datasets — whichever one is installed; a station that does not
      * exist is skipped with a warning.
@@ -68,29 +78,92 @@ class ShiftMonitorDemoSeeder extends Seeder
 
     private function seedStation(Workstation $workstation, int $ratePerHour): void
     {
-        $window = $this->window($workstation);
+        // One station-wide reset before the loop: the per-window cleanup below
+        // cannot see batches, which are scoped by the seeder's number range.
+        Batch::where('workstation_id', $workstation->id)
+            ->where('batch_number', '>=', self::BATCH_NUMBER_BASE)
+            ->forceDelete();
+
+        $windows = $this->windows($workstation);
         $now = Carbon::now();
-        $elapsed = (int) min(
-            $window->durationMinutes(),
-            max(1, floor($window->start->diffInMinutes($now)))
-        );
+        $stops = 0;
+        $unclassified = 0;
 
-        $this->clear($workstation, $window);
+        // Oldest first when writing. clear() wipes everything at or after the
+        // window it is given, so working newest-first would have each older
+        // shift delete the history already laid down above it. array_reverse
+        // keeps the keys, so index 0 stays the live shift.
+        foreach (array_reverse($windows, true) as $index => $window) {
+            // A finished shift is filled end to end; the one in progress stops
+            // at the current minute so its last slice stays open.
+            $isLive = $window->contains($now);
+            $elapsed = (int) min(
+                $window->durationMinutes(),
+                max(1, floor($window->start->diffInMinutes($now)))
+            );
 
-        $plan = $this->plan($elapsed, $workstation->id);
+            $this->clear($workstation, $window);
 
-        $this->writeStates($workstation, $window, $plan, $elapsed);
-        $this->seedBatches($workstation, $window, $elapsed, $ratePerHour);
-        $this->writeCounters($workstation, $window, $plan, $elapsed, $ratePerHour);
+            // Vary the story per shift, or every day would be a carbon copy.
+            $plan = $this->plan($elapsed, $workstation->id + $index * 101);
+
+            $this->writeStates($workstation, $window, $plan, $elapsed, $isLive);
+            $this->seedBatches($workstation, $window, $elapsed, $ratePerHour, $index);
+            $this->writeCounters($workstation, $window, $plan, $elapsed, $ratePerHour);
+
+            $stops += count(array_filter($plan, fn ($s) => $s['kind'] === 'down'));
+            $unclassified += count(array_filter($plan, fn ($s) => ($s['unclassified'] ?? false)));
+        }
 
         $this->command?->info(sprintf(
-            '%s — %d min of shift %s seeded (%d stops, %d unclassified).',
+            '%s — %d shift(s) seeded back to %s (%d stops, %d unclassified).',
             $workstation->code,
-            $elapsed,
-            $window->shift?->code ?? '—',
-            count(array_filter($plan, fn ($s) => $s['kind'] === 'down')),
-            count(array_filter($plan, fn ($s) => ($s['unclassified'] ?? false))),
+            count($windows),
+            $windows ? end($windows)->start->format('D d.m') : '—',
+            $stops,
+            $unclassified,
         ));
+    }
+
+    /**
+     * The shifts to fill: the one running now, then backwards through
+     * DAYS_BACK. Newest first, so the live shift keeps index 0 and its
+     * generated story stays stable as history grows behind it.
+     *
+     * @return list<ShiftWindow>
+     */
+    private function windows(Workstation $workstation): array
+    {
+        $now = Carbon::now();
+        $shifts = Shift::where('is_active', true)->orderBy('start_time')->get();
+
+        // No shifts defined — fall back to the single synthetic window, which is
+        // what the monitor itself falls back to.
+        if ($shifts->isEmpty()) {
+            return [$this->window($workstation)];
+        }
+
+        $windows = [];
+
+        for ($day = 0; $day <= self::DAYS_BACK; $day++) {
+            $date = $now->copy()->subDays($day)->startOfDay();
+
+            foreach ($shifts as $shift) {
+                $window = ShiftWindow::startingOn($shift, $date);
+
+                // Not started yet — nothing to record.
+                if ($window->start > $now) {
+                    continue;
+                }
+
+                $windows[] = $window;
+            }
+        }
+
+        // Newest first.
+        usort($windows, fn ($a, $b) => $b->start <=> $a->start);
+
+        return $windows;
     }
 
     /** The shift occurrence to fill: whichever one the station's line is running. */
@@ -203,8 +276,13 @@ class ShiftMonitorDemoSeeder extends Seeder
     /**
      * @param  array<int, array<string, mixed>>  $plan
      */
-    private function writeStates(Workstation $workstation, ShiftWindow $window, array $plan, int $elapsed): void
-    {
+    private function writeStates(
+        Workstation $workstation,
+        ShiftWindow $window,
+        array $plan,
+        int $elapsed,
+        bool $isLive = true,
+    ): void {
         $reasons = DowntimeReason::pluck('id', 'code');
 
         foreach ($plan as $segment) {
@@ -216,7 +294,10 @@ class ShiftMonitorDemoSeeder extends Seeder
             };
 
             $from = $window->start->copy()->addMinutes($segment['from']);
-            $isOpen = $segment['to'] >= $elapsed;
+            // Only the shift actually in progress ends on an open slice. A
+            // finished shift left one open would read as a machine still in that
+            // state days later — and the next shift's cleanup would delete it.
+            $isOpen = $isLive && $segment['to'] >= $elapsed;
             $to = $isOpen ? null : $window->start->copy()->addMinutes($segment['to']);
 
             WorkstationState::create([
@@ -285,15 +366,13 @@ class ShiftMonitorDemoSeeder extends Seeder
      * behind it and one still running. Attached to real work orders on the
      * station's line so the panel links back to something that exists.
      */
-    private function seedBatches(Workstation $workstation, ShiftWindow $window, int $elapsed, int $ratePerHour): void
-    {
-        // Scoped by the seeder's own number range rather than by the window: a
-        // later run lands on a different shift, and window-scoped cleanup would
-        // leave the previous run's rows behind to collide on (order, number).
-        Batch::where('workstation_id', $workstation->id)
-            ->where('batch_number', '>=', self::BATCH_NUMBER_BASE)
-            ->forceDelete();
-
+    private function seedBatches(
+        Workstation $workstation,
+        ShiftWindow $window,
+        int $elapsed,
+        int $ratePerHour,
+        int $windowIndex = 0,
+    ): void {
         $workOrders = WorkOrder::where('line_id', $workstation->line_id)
             ->orderBy('id')
             ->limit(4)
@@ -303,11 +382,12 @@ class ShiftMonitorDemoSeeder extends Seeder
             return;
         }
 
-        mt_srand($workstation->id + 4231);
+        mt_srand($workstation->id + 4231 + $windowIndex * 101);
 
         // Split the elapsed shift into four stretches; the last one is open.
         $slice = max(30, intdiv($elapsed, 4));
         $lotDate = $window->start->format('y-md');
+        $shiftMark = $window->shift?->code ?? 'X';
 
         foreach ($workOrders->values() as $i => $workOrder) {
             $from = $window->start->copy()->addMinutes($i * $slice);
@@ -321,10 +401,11 @@ class ShiftMonitorDemoSeeder extends Seeder
             Batch::create([
                 'work_order_id' => $workOrder->id,
                 'workstation_id' => $workstation->id,
-                // Stations on the same line draw from the same work orders, so
-                // the number has to be unique per station, not just per index.
-                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 10 + $i,
-                'lot_number' => sprintf('LOT %s-%s%s', $lotDate, $workstation->id, chr(65 + $i)),
+                // Stations on the same line draw from the same work orders, and
+                // every shift in the history reuses them again, so the number
+                // has to be unique per station AND per shift — not just index.
+                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 1000 + $windowIndex * 10 + $i,
+                'lot_number' => sprintf('LOT %s-%s%s%s', $lotDate, $shiftMark, $workstation->id, chr(65 + $i)),
                 'target_qty' => $target,
                 'produced_qty' => $produced,
                 'scrap_qty' => (int) round($produced * mt_rand(1, 3) / 100),
@@ -354,7 +435,13 @@ class ShiftMonitorDemoSeeder extends Seeder
 
         $perMinute = $ratePerHour / 60;
         $rows = [];
-        $batchId = Batch::where('workstation_id', $workstation->id)->value('id');
+        // The batch this shift's pulses belong to. Scoped to the window: with
+        // history behind it the station has a batch per shift, and an unscoped
+        // lookup would pin every day's counters to the oldest one.
+        $batchId = Batch::where('workstation_id', $workstation->id)
+            ->where('started_at', '>=', $window->start)
+            ->orderBy('started_at')
+            ->value('id');
         $slowFor = 0;
 
         foreach ($plan as $segment) {

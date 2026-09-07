@@ -32,7 +32,8 @@ use Spatie\Permission\Models\Role;
  *  - Lines L-01 .. L-04
  *  - Product types HEPA-13 Std/Slim, Pre-filter G4, Carbon X2, HVAC cassette
  *  - 7-step HEPA-13 process template
- *  - 6 work orders (WO-186-001..005 due today/tomorrow + WO-185-088 done)
+ *  - 16 work orders: WO-186-001..005 due today, WO-185-088 done, and a
+ *    fortnight of scheduled work ahead so the planner's horizon is not empty
  *  - A running batch on WO-186-001 with steps 1-2 DONE, step 3 IN_PROGRESS
  *  - Operator-reported issues, one per lifecycle state (open → closed)
  *  - A two-level BOM: the HEPA-13 assembly consumes a manufactured pleat pack
@@ -173,6 +174,24 @@ class AirFilterDemoSeeder extends Seeder
                 'type' => MaintenanceEvent::TYPE_INSPECTION, 'status' => MaintenanceEvent::STATUS_PENDING,
                 'startsInHours' => 72, 'durationMinutes' => 120,
                 'description' => 'Torque and leak-test rig calibration on the cassette bench.'],
+            // The rest of the fortnight, so the planner's horizon keeps showing
+            // maintenance alongside the scheduled orders rather than only this week.
+            ['title' => 'Housing mould clean-down', 'line' => 'L-02', 'ws' => null, 'tool' => 'TL-MOULD-G4',
+                'type' => MaintenanceEvent::TYPE_PLANNED, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 24 * 5 + 6, 'durationMinutes' => 150,
+                'description' => 'Full clean-down and vent inspection on the G4 housing mould.'],
+            ['title' => 'Pleat table pitch calibration', 'line' => 'L-01', 'ws' => 'WS-PA-01', 'tool' => null,
+                'type' => MaintenanceEvent::TYPE_INSPECTION, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 24 * 8 + 6, 'durationMinutes' => 90,
+                'description' => 'Verify pleat pitch against the reference gauge after the media change.'],
+            ['title' => 'Adhesive nozzle replacement', 'line' => 'L-01', 'ws' => 'WS-AB-01', 'tool' => 'TL-NOZZLE-01',
+                'type' => MaintenanceEvent::TYPE_PLANNED, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 24 * 11 + 6, 'durationMinutes' => 120,
+                'description' => 'Scheduled nozzle set replacement in the bonding booth.'],
+            ['title' => 'Frame press die inspection', 'line' => 'L-01', 'ws' => 'WS-FR-01', 'tool' => 'TL-DIE-01',
+                'type' => MaintenanceEvent::TYPE_INSPECTION, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 24 * 13 + 6, 'durationMinutes' => 180,
+                'description' => 'Wear check on the progressive die; measure the first-off frame.'],
         ];
 
         foreach ($eventDefs as $def) {
@@ -862,6 +881,36 @@ class AirFilterDemoSeeder extends Seeder
                 'completed_at' => $today->copy()->subHours(20),
             ],
         ];
+
+        // A fortnight of scheduled work ahead of today. Without it the planner's
+        // horizon empties out after tomorrow and the board looks abandoned two
+        // days in — the orders above only cover today.
+        $horizon = [
+            [2,  'WO-186-006', 'L-01', 'HEPA13_STD',  200, 3, 'Filtex — stock replenishment.'],
+            [3,  'WO-186-007', 'L-02', 'CARBON',      150, 2, 'Carbon X2 for the Q4 stock build.'],
+            [4,  'WO-186-008', 'L-03', 'HVAC',        80,  4, 'HVAC cassettes — Nordwind contract.'],
+            [5,  'WO-186-009', 'L-01', 'HEPA13_SLIM', 140, 2, 'Slim retrofit, second batch.'],
+            [6,  'WO-186-010', 'L-02', 'PREFILTER',   500, 1, 'G4 pre-filters — bulk stock.'],
+            [8,  'WO-186-011', 'L-01', 'HEPA13_STD',  260, 4, 'Standard HEPA-13 — export pallet.'],
+            [9,  'WO-186-012', 'L-03', 'HVAC',        60,  3, 'HVAC cassette top-up.'],
+            [10, 'WO-186-013', 'L-02', 'CARBON',      180, 2, 'Carbon X2 — service parts.'],
+            [11, 'WO-186-014', 'L-01', 'HEPA13_SLIM', 110, 3, 'Slim filters, retrofit phase 2.'],
+            [13, 'WO-186-015', 'L-01', 'HEPA13_STD',  300, 5, 'Standard HEPA-13 — Filtex quarterly.'],
+        ];
+
+        foreach ($horizon as [$inDays, $orderNo, $line, $product, $qty, $priority, $description]) {
+            $defs[] = [
+                'order_no' => $orderNo,
+                'line' => $line,
+                'product' => $product,
+                'planned_qty' => $qty,
+                'produced_qty' => 0,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => $priority,
+                'due_date' => $today->copy()->addDays($inDays)->setTime(14, 0),
+                'description' => $description,
+            ];
+        }
 
         $result = [];
         foreach ($defs as $def) {

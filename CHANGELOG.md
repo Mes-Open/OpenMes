@@ -14,6 +14,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
   seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
   header — so the snapshot carries the steps and the BOM the way the application writes it.
+- **Demo data now spans a fortnight either side of the day it is seeded** — it used to be a
+  single-day snapshot, so the planner emptied out after tomorrow and the shift monitor had
+  only the shift in progress. The planner now gets two weeks of scheduled orders and
+  maintenance ahead of today, and `ShiftMonitorDemoSeeder` lays down two weeks of finished
+  shifts behind the live one, so paging back through the monitor keeps finding real shifts.
+  History only goes backwards on purpose: the monitor draws what machines actually did, and
+  a shift that has not run yet has no counters to show.
 - **Demo data now includes shifts, maintenance and a live shift monitor** — the demo had no
   shifts at all, so the planner and the shift monitor both fell back to a synthetic window;
   it now seeds round-the-clock morning/afternoon/night cover. The planner board gains
