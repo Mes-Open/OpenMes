@@ -9,6 +9,7 @@ use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\Material;
+use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
@@ -33,6 +34,8 @@ use Spatie\Permission\Models\Role;
  *  - A two-level BOM: the HEPA-13 assembly consumes a manufactured pleat pack
  *    (sub-assembly) plus purchased parts; the pleat pack has its own routing
  *    and BOM, so exploding the top level reaches the raw media
+ *  - Received material lots, one per lot status (released, quarantine, rejected,
+ *    consumed, expired)
  *
  * Run with: `php artisan db:seed --class=AirFilterDemoSeeder`
  *
@@ -50,6 +53,7 @@ class AirFilterDemoSeeder extends Seeder
         $users = $this->seedUsers($lines);
         $materials = $this->seedMaterials($templates['PLEATPACK13']);
         $this->seedBom($templates, $materials);
+        $this->seedMaterialLots($materials);
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
         $this->seedIssues($workOrders, $users);
@@ -127,6 +131,68 @@ class AirFilterDemoSeeder extends Seeder
         );
 
         return $materials;
+    }
+
+    /**
+     * Received material lots — the incoming side of traceability.
+     *
+     * One per material that is worth tracing, covering every lot status the app
+     * knows: stock on hand (released), a delivery still waiting on inbound QC
+     * (quarantine), one that failed it (rejected), one used up (consumed) and a
+     * time-expired adhesive next to its live replacement (expired / released).
+     * Chemicals carry manufacturing and expiry dates; the rest do not.
+     *
+     * @param  array<string, Material>  $materials
+     */
+    private function seedMaterialLots(array $materials): void
+    {
+        // [lot number, material code, status, received, available, days ago, shelf life in days or null]
+        $defs = [
+            ['LOT-MED-26031', 'MEDIA-H13',   MaterialLot::STATUS_RELEASED,   1200, 845,  12, null],
+            // Landed this morning, inbound inspection not done yet.
+            ['LOT-MED-26034', 'MEDIA-H13',   MaterialLot::STATUS_QUARANTINE, 900,  900,  0,  null],
+            // Failed the inbound check — kept for the supplier claim.
+            ['LOT-MED-25488', 'MEDIA-H13',   MaterialLot::STATUS_REJECTED,   600,  0,    46, null],
+            ['LOT-FRM-26030', 'FRAME-AL-13', MaterialLot::STATUS_RELEASED,   900,  612,  15, null],
+            ['LOT-SLM-26031', 'FRAME-SLIM',  MaterialLot::STATUS_RELEASED,   400,  355,  11, null],
+            ['LOT-RES-26029', 'RESIN-ABS',   MaterialLot::STATUS_RELEASED,   750,  410,  18, null],
+            ['LOT-CRB-26030', 'CARBON-GRAN', MaterialLot::STATUS_RELEASED,   500,  268,  16, null],
+            ['LOT-G4-26028',  'MEDIA-G4',    MaterialLot::STATUS_RELEASED,   1400, 980,  21, null],
+            ['LOT-F7-26031',  'MEDIA-F7',    MaterialLot::STATUS_RELEASED,   800,  745,  10, null],
+            ['LOT-SEL-26027', 'SEAL-EPDM',   MaterialLot::STATUS_RELEASED,   1500, 1130, 24, null],
+            // Drawn down to nothing — what a closed-out lot looks like in tracing.
+            ['LOT-MSH-26025', 'MESH-RET',    MaterialLot::STATUS_CONSUMED,   1200, 0,    30, null],
+            // Past its shelf life; the replacement below is the live one.
+            ['LOT-ADH-25512', 'ADH-2K-A',    MaterialLot::STATUS_EXPIRED,    60,   18,   200, 180],
+            ['LOT-ADH-26032', 'ADH-2K-A',    MaterialLot::STATUS_RELEASED,   80,   62,   9,   180],
+            ['LOT-HM-26030',  'HOTMELT-01',  MaterialLot::STATUS_RELEASED,   45,   31,   14,  365],
+            ['LOT-CAS-26029', 'FRAME-CASS',  MaterialLot::STATUS_RELEASED,   220,  168,  19,  null],
+        ];
+
+        foreach ($defs as [$lotNumber, $code, $status, $received, $available, $daysAgo, $shelfLife]) {
+            $material = $materials[$code] ?? null;
+            if (! $material) {
+                continue;
+            }
+
+            $receivedAt = now()->subDays($daysAgo);
+
+            MaterialLot::updateOrCreate(
+                ['lot_number' => $lotNumber],
+                [
+                    'material_id' => $material->id,
+                    'quantity_received' => $received,
+                    'quantity_available' => $available,
+                    'unit_of_measure' => $material->unit_of_measure,
+                    'received_at' => $receivedAt,
+                    'manufacturing_date' => $shelfLife ? $receivedAt->copy()->subDays(14)->toDateString() : null,
+                    'expiry_date' => $shelfLife ? $receivedAt->copy()->addDays($shelfLife)->toDateString() : null,
+                    'status' => $status,
+                    'supplier_lot_no' => str_replace('LOT-', 'S/', $lotNumber),
+                    'supplier_reference' => $material->supplier_name,
+                ]
+            );
+        }
     }
 
     /**

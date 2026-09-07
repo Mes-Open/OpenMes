@@ -14,6 +14,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
   seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
   header — so the snapshot carries the steps and the BOM the way the application writes it.
+- **Demo data now includes received material lots** — `AirFilterDemoSeeder` seeds fifteen
+  lots across the demo materials, covering every lot status: stock on hand, a delivery still
+  in quarantine awaiting inbound QC, one rejected by it, one consumed down to zero, and a
+  time-expired adhesive beside its live replacement. Chemicals carry manufacturing and expiry
+  dates, and every lot carries a supplier lot reference, so the Material Lots list, the lot
+  pickers and traceability search have real data instead of an empty state.
 - **Demo data now includes a bill of materials for every product** — `AirFilterDemoSeeder`
   seeds the purchased parts (media grades, frame profiles, resin, carbon, seals, cartons)
   and a BOM for each routing: HEPA-13 Standard and Slim, pre-filter, carbon and the HVAC
