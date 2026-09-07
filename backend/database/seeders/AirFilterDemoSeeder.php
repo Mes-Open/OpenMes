@@ -8,11 +8,15 @@ use App\Models\BomItem;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Line;
+use App\Models\MaintenanceEvent;
+use App\Models\MaintenanceSchedule;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
+use App\Models\Shift;
+use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
@@ -54,9 +58,145 @@ class AirFilterDemoSeeder extends Seeder
         $materials = $this->seedMaterials($templates['PLEATPACK13']);
         $this->seedBom($templates, $materials);
         $this->seedMaterialLots($materials);
+        $this->seedShifts();
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
         $this->seedIssues($workOrders, $users);
+        $this->seedMaintenance($lines, $workstations, $users);
+    }
+
+    /**
+     * Round-the-clock shift cover. The planner lays orders out against shifts and
+     * the shift monitor fills whichever one is running, so without these both
+     * fall back to a synthetic window — and the monitor looks dead outside it.
+     */
+    private function seedShifts(): void
+    {
+        $defs = [
+            ['code' => 'A', 'name' => 'Morning',   'start_time' => '06:00', 'end_time' => '14:00', 'sort_order' => 1],
+            ['code' => 'B', 'name' => 'Afternoon', 'start_time' => '14:00', 'end_time' => '22:00', 'sort_order' => 2],
+            ['code' => 'C', 'name' => 'Night',     'start_time' => '22:00', 'end_time' => '06:00', 'sort_order' => 3],
+        ];
+
+        foreach ($defs as $def) {
+            Shift::updateOrCreate(
+                ['code' => $def['code']],
+                array_merge($def, [
+                    // Every day, so a demo opened at the weekend still has a
+                    // shift in progress.
+                    'days_of_week' => [1, 2, 3, 4, 5, 6, 7],
+                    'line_id' => null,
+                    'is_active' => true,
+                ])
+            );
+        }
+    }
+
+    /**
+     * Maintenance the planner can show: tools, the recurring schedules its "Add
+     * maintenance" modal offers, and real events in the current week so the
+     * board has tiles on it rather than only orders.
+     *
+     * The corrective one is the counterpart to the acknowledged carbon-press
+     * issue — the same fault, seen from the maintenance side.
+     *
+     * @param  array<string, Line>  $lines
+     * @param  array<string, Workstation>  $ws
+     * @param  array<string, User>  $users
+     */
+    private function seedMaintenance(array $lines, array $ws, array $users): void
+    {
+        $tools = [];
+        $toolDefs = [
+            ['code' => 'TL-DIE-01',    'name' => 'Frame stamping die',   'description' => 'Progressive die for the HEPA-13 aluminium frame.'],
+            ['code' => 'TL-NOZZLE-01', 'name' => 'Adhesive nozzle set',  'description' => 'Two-part adhesive applicator nozzles, bonding booth.'],
+            ['code' => 'TL-MOULD-G4',  'name' => 'Housing mould G4',     'description' => 'Injection mould for the G4 pre-filter housing.'],
+        ];
+
+        foreach ($toolDefs as $def) {
+            $tools[$def['code']] = Tool::updateOrCreate(
+                ['code' => $def['code']],
+                array_merge($def, ['status' => 'available', 'next_service_at' => now()->addDays(21)->toDateString()])
+            );
+        }
+
+        $supervisor = $users['supervisor'];
+
+        $scheduleDefs = [
+            ['name' => 'Weekly press lubrication',   'line' => 'L-01', 'ws' => 'WS-FR-01', 'tool' => 'TL-DIE-01',    'type' => MaintenanceEvent::TYPE_PLANNED,    'frequency' => 'weekly',    'interval' => 1, 'dueInDays' => 3],
+            ['name' => 'Monthly extraction service', 'line' => 'L-01', 'ws' => 'WS-AB-01', 'tool' => 'TL-NOZZLE-01', 'type' => MaintenanceEvent::TYPE_INSPECTION, 'frequency' => 'monthly',   'interval' => 1, 'dueInDays' => 12],
+            ['name' => 'Quarterly mould service',    'line' => 'L-02', 'ws' => null,       'tool' => 'TL-MOULD-G4',  'type' => MaintenanceEvent::TYPE_PLANNED,    'frequency' => 'quarterly', 'interval' => 1, 'dueInDays' => 30],
+        ];
+
+        foreach ($scheduleDefs as $def) {
+            MaintenanceSchedule::updateOrCreate(
+                ['name' => $def['name']],
+                [
+                    'line_id' => $lines[$def['line']]->id,
+                    'workstation_id' => $def['ws'] ? $ws[$def['ws']]->id : null,
+                    'tool_id' => $tools[$def['tool']]->id,
+                    'event_type' => $def['type'],
+                    'assigned_to_id' => $supervisor->id,
+                    'frequency' => $def['frequency'],
+                    'interval_value' => $def['interval'],
+                    'preferred_time' => '06:00',
+                    'lead_time_days' => 2,
+                    'next_due_at' => now()->addDays($def['dueInDays'])->setTime(6, 0),
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $eventDefs = [
+            // Already done — yesterday's planned job, so the board shows history.
+            ['title' => 'Pleat table belt change', 'line' => 'L-01', 'ws' => 'WS-PA-01', 'tool' => null,
+                'type' => MaintenanceEvent::TYPE_PLANNED, 'status' => MaintenanceEvent::STATUS_COMPLETED,
+                'startsInHours' => -26, 'durationMinutes' => 90,
+                'description' => 'Drive belt replaced on the pleat table and re-tensioned.'],
+            // Running right now — the maintenance side of the carbon press issue.
+            ['title' => 'Carbon press pressure fault', 'line' => 'L-02', 'ws' => null, 'tool' => 'TL-MOULD-G4',
+                'type' => MaintenanceEvent::TYPE_CORRECTIVE, 'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
+                'startsInHours' => -1, 'durationMinutes' => 180,
+                'description' => 'Press will not hold 6 bar. Stripping the regulator — line paused.'],
+            // Later today.
+            ['title' => 'Bonding booth extraction check', 'line' => 'L-01', 'ws' => 'WS-AB-01', 'tool' => 'TL-NOZZLE-01',
+                'type' => MaintenanceEvent::TYPE_INSPECTION, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 6, 'durationMinutes' => 60,
+                'description' => 'Airflow and filter check on the bonding booth extraction.'],
+            // Tomorrow morning.
+            ['title' => 'Frame press weekly lubrication', 'line' => 'L-01', 'ws' => 'WS-FR-01', 'tool' => 'TL-DIE-01',
+                'type' => MaintenanceEvent::TYPE_PLANNED, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 22, 'durationMinutes' => 90,
+                'description' => 'Weekly lubrication and die inspection on the frame press.'],
+            // Later in the week, on the sub-assembly line.
+            ['title' => 'Cassette bench calibration', 'line' => 'L-03', 'ws' => 'WS-SA-01', 'tool' => null,
+                'type' => MaintenanceEvent::TYPE_INSPECTION, 'status' => MaintenanceEvent::STATUS_PENDING,
+                'startsInHours' => 72, 'durationMinutes' => 120,
+                'description' => 'Torque and leak-test rig calibration on the cassette bench.'],
+        ];
+
+        foreach ($eventDefs as $def) {
+            $start = now()->addHours($def['startsInHours'])->setSecond(0);
+            $completed = $def['status'] === MaintenanceEvent::STATUS_COMPLETED;
+            $running = $def['status'] === MaintenanceEvent::STATUS_IN_PROGRESS;
+
+            MaintenanceEvent::updateOrCreate(
+                ['title' => $def['title']],
+                [
+                    'event_type' => $def['type'],
+                    'status' => $def['status'],
+                    'line_id' => $lines[$def['line']]->id,
+                    'workstation_id' => $def['ws'] ? $ws[$def['ws']]->id : null,
+                    'tool_id' => $def['tool'] ? $tools[$def['tool']]->id : null,
+                    'assigned_to_id' => $supervisor->id,
+                    'scheduled_at' => $start,
+                    'scheduled_end_at' => $start->copy()->addMinutes($def['durationMinutes']),
+                    'started_at' => ($completed || $running) ? $start : null,
+                    'completed_at' => $completed ? $start->copy()->addMinutes($def['durationMinutes']) : null,
+                    'description' => $def['description'],
+                ]
+            );
+        }
     }
 
     /**

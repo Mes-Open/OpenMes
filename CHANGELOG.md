@@ -14,6 +14,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
   seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
   header — so the snapshot carries the steps and the BOM the way the application writes it.
+- **Demo data now includes shifts, maintenance and a live shift monitor** — the demo had no
+  shifts at all, so the planner and the shift monitor both fell back to a synthetic window;
+  it now seeds round-the-clock morning/afternoon/night cover. The planner board gains
+  maintenance to show: tools, three recurring schedules for its "Add maintenance" modal, and
+  five events across the current week — a completed job, one in progress (the maintenance
+  side of the seeded carbon-press issue) and three upcoming. `ShiftMonitorDemoSeeder` now
+  also knows the air-filter stations, and `DemoDataSeeder` runs it last, so the monitor opens
+  on a shift in progress with a state timeline, a per-minute counter feed and a couple of
+  stops left unclassified for the "needs a cause" flow.
 - **Demo data now includes received material lots** — `AirFilterDemoSeeder` seeds fifteen
   lots across the demo materials, covering every lot status: stock on hand, a delivery still
   in quarantine awaiting inbound QC, one rejected by it, one consumed down to zero, and a

@@ -29,12 +29,22 @@ class ShiftMonitorDemoSeeder extends Seeder
     /** Batch numbers at or above this belong to the seeder and are its to reset. */
     private const BATCH_NUMBER_BASE = 9000;
 
-    /** Stations to bring to life, with their nameplate rate in pcs/hour. */
+    /**
+     * Stations to bring to life, with their nameplate rate in pcs/hour. Covers
+     * both demo datasets — whichever one is installed; a station that does not
+     * exist is skipped with a warning.
+     */
     private const STATIONS = [
+        // Print shop (PrintShopDemoSeeder).
         'DTG-1' => 1200,
         'DTG-2' => 1200,
         'SITO-1' => 900,
         'HAFT-1' => 600,
+        // Air filter line (AirFilterDemoSeeder).
+        'WS-FR-01' => 120,
+        'WS-PA-01' => 80,
+        'WS-AB-01' => 75,
+        'WS-PK-01' => 200,
     ];
 
     public function run(): void
