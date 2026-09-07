@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreTemplateStepRequest;
 use App\Http\Requests\Web\Admin\UpdateTemplateStepRequest;
@@ -16,6 +17,8 @@ use Inertia\Inertia;
 
 class ProcessTemplateManagementController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display process templates for a product type
      */
@@ -228,8 +231,13 @@ class ProcessTemplateManagementController extends Controller
 
         $processTemplate->update($validated);
 
-        return redirect()->route('admin.product-types.process-templates.index', $productType)
-            ->with('success', 'Process template updated successfully.');
+        // The show page edits in a drawer and posts `stay`, so it gets back()
+        // instead of being thrown to the index it was never on.
+        return $this->saved(
+            $request,
+            redirect()->route('admin.product-types.process-templates.index', $productType),
+            'Process template updated successfully.'
+        );
     }
 
     /**

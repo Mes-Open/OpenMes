@@ -24,7 +24,7 @@ function asObject(v) {
 }
 
 /** The drawer's half of the split form: it owns the useForm the shared PersonnelClassForm binds to. */
-function PersonnelClassDrawerForm({ editing, record, finish, skills, levels }) {
+function PersonnelClassDrawerForm({ editing, record, finish, dismiss, skills, levels }) {
     const form = useForm({
         code: record?.code ?? '',
         name: record?.name ?? '',
@@ -50,7 +50,7 @@ function PersonnelClassDrawerForm({ editing, record, finish, skills, levels }) {
             levels={levels}
             submitLabel={editing ? __('Save Changes') : __('Create')}
             onSubmit={submit}
-            onCancel={finish}
+            onCancel={dismiss}
         />
     );
 }
@@ -104,11 +104,12 @@ export default function PersonnelClassesIndex() {
                 ensure={['skills', 'levels']}
                 ready={formReady}
                 title={{ create: __('New Personnel Class'), edit: __('Edit Personnel Class') }}
-                render={({ editing, record, finish }) => (
+                render={({ editing, record, finish, dismiss }) => (
                     <PersonnelClassDrawerForm
                         editing={editing}
                         record={record}
                         finish={finish}
+                        dismiss={dismiss}
                         skills={skills ?? []}
                         levels={levels ?? []}
                     />
