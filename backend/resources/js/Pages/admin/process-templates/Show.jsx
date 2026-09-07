@@ -1144,7 +1144,12 @@ export default function ProcessTemplatesShow() {
 
                 {/* Master–detail shell (design 1b): header bar, step rail + graph +
                     selected-step detail, photos/documents band. */}
-                <div className="bg-om-panel border-y border-om-line2 overflow-hidden">
+                {/* `border-b` only, not `border-y`: the page sits flush under the
+                    app header, which already draws its own bottom hairline — a top
+                    border here lands directly against it and reads as a 2px double
+                    rule. The work-order list is the reference; its table starts
+                    borderless for the same reason. */}
+                <div className="bg-om-panel border-b border-om-line2 overflow-hidden">
                     {/* Header bar */}
                     <div className="flex items-center gap-3 px-5 py-3.5 bg-om-card border-b border-om-line2 flex-wrap">
                         <h1 className="text-lg font-bold text-om-ink">{processTemplate.name}</h1>
