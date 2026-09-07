@@ -19,3 +19,5 @@ Schedule::command('quality:fire-due-triggers')->everyMinute()->withoutOverlappin
 Schedule::command('quality:notify-overdue-actions')->dailyAt('07:00');
 // Keep time-based priority rules (hours-until-due) fresh as due dates approach.
 Schedule::command('priority:recalculate')->hourly()->withoutOverlapping();
+// Uploads the importer abandoned (previewed but never run, validated and left).
+Schedule::command('imports:prune-uploads')->dailyAt('03:20');

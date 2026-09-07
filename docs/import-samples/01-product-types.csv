@@ -1,0 +1,6 @@
+code,name,description,category,unit_of_measure,external_code,external_system,is_active
+HOODIE-ZIP,Zip hoodie,Full-zip hoodie for DTG and embroidery,FG,pcs,ERP-HZ-001,erp,yes
+BEANIE,Knit beanie,Acrylic beanie with woven label,FG,pcs,ERP-BN-001,erp,yes
+LANYARD,Printed lanyard,20 mm sublimated lanyard with hook,FG,pcs,ERP-LY-001,erp,yes
+TOTE-XL,Tote bag XL,Cotton tote bag 42x38 cm,FG,pcs,ERP-TX-001,erp,no
+,Missing code (error row),This row has no code and is reported as an error,FG,pcs,,,yes

@@ -22,7 +22,8 @@ class AdminNavSweepTest extends TestCase
     private const PAGES = [
         'dashboard' => ['/admin/dashboard'],
         'orders' => ['/admin/work-orders', '/admin/work-orders/create'],
-        'order_data' => ['/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
+        'order_data' => ['/admin/customers', '/admin/priority-rules'],
+        'import' => ['/admin/import', '/admin/import/product-types', '/admin/import/materials', '/admin/import/work-orders', '/admin/import/boms'],
         'production' => [
             '/admin/product-types', '/admin/product-types/create', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',

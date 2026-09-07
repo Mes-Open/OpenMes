@@ -97,8 +97,10 @@ class SupervisorWorkOrderCreateTest extends TestCase
             ->get('/admin/customers')
             ->assertForbidden();
 
+        // The importer's admin mount is on its own `import` tab; supervisors
+        // import work orders from /supervisor/import instead.
         $this->actingAs($this->supervisor())
-            ->get('/admin/csv-import')
+            ->get('/admin/import')
             ->assertForbidden();
     }
 

@@ -1,0 +1,7 @@
+order_no,product_type_code,quantity,line_code,due_date,priority,customer_order_no,description,Klient,Kolor
+WO-SAMPLE-001,TSHIRT,500,DTG,2026-09-20,3,PO-2026-1041,Front print white ink,Fundacja Kolory,White
+WO-SAMPLE-002,SWEATSHIRT,120,SITO,2026-09-25,2,PO-2026-1042,Two-colour screen print,Klub Sportowy Orzeł,Navy
+WO-SAMPLE-003,POLO,80,HAFT,2026-09-18,1,PO-2026-1043,Left-chest embroidery,Hotel Zamkowy,Black
+WO-SAMPLE-004,MUG,300,TRANSFER,2026-10-02,4,PO-2026-1044,Sublimation full wrap,Kawiarnia Zielona,
+WO-SAMPLE-005,TOTE,250,SITO,2026-10-05,5,PO-2026-1045,One-colour print both sides,Biblioteka Miejska,Natural
+WO-SAMPLE-006,TSHIRT,40,NOPE,2026-09-30,3,PO-2026-1046,Error row: line NOPE does not exist,Test,Red
