@@ -66,7 +66,7 @@ export default function LotSequencesIndex() {
                 ensure={['productTypes', 'patternTokens']}
                 ready={formReady}
                 title={{ create: __('New LOT Sequence'), edit: __('Edit LOT Sequence') }}
-                render={({ editing, record, finish }) => (
+                render={({ editing, record, finish, dismiss }) => (
                     <LotSequenceForm
                         bare
                         action={editing ? `/admin/lot-sequences/${record.id}` : '/admin/lot-sequences'}
@@ -74,7 +74,7 @@ export default function LotSequencesIndex() {
                         initial={{ ...lotSequenceInitial(editing ? record : null), stay: 1 }}
                         submitLabel={editing ? __('Save Changes') : __('Create')}
                         onSuccess={finish}
-                        onCancel={finish}
+                        onCancel={dismiss}
                     />
                 )}
             />

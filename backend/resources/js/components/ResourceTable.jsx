@@ -1,9 +1,9 @@
-import { Fragment, useContext, useMemo } from 'react';
+import { Fragment, useContext, useEffect, useMemo } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { ActionMenu, Breadcrumbs, Button, Icon, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
-import { realtimeCollection } from '../lib/realtimeCollection';
+import { realtimeCollection, staticCollection } from '../lib/realtimeCollection';
 import PageTitle from './PageTitle';
 import { dedupeTrail, PageTitleContext } from '../layouts/AppLayout';
 import Tooltip from './Tooltip';
@@ -24,6 +24,9 @@ import { buildColumnDefs, hasLiveColumn, LiveClockProvider, withDetailLinks } fr
  *
  * Props:
  *   shape       — collection name (must be in ShapeRegistry)
+ *   rows        — rows the page already holds (Inertia props), for a list whose
+ *                 records aren't a synced shape. Mutually exclusive with `shape`;
+ *                 the table is then only as fresh as the last Inertia response.
  *   title       — heading
  *   detailHref  — row → URL of that record's detail page; double-clicking a row
  *                 opens it. Omit on lists whose records have no detail page.
@@ -327,6 +330,8 @@ const CREATE_BTN_CLASS =
 
 export default function ResourceTable({
     shape,
+    /** Rows supplied by the page instead of a synced shape — see the prop docs. */
+    rows: staticRows,
     title,
     createHref,
     /** Called instead of navigating to `createHref` — for an in-page create modal. */
@@ -385,7 +390,21 @@ export default function ResourceTable({
         ? breadcrumbs.map((b) => ({ ...b, label: __(b.label) }))
         : navTrail.slice(0, -1);
     const trailItems = dedupeTrail(ancestors.concat({ label: __(title), icon: titleIcon }));
-    const collection = useMemo(() => realtimeCollection(shape, getKey), [shape]);
+    // Page-supplied rows and a synced shape reach the same live query; only the
+    // side that fills the collection differs. Which kind it is can't change over
+    // a mount, so the query below stays a single unconditional hook.
+    const collection = useMemo(
+        () => (staticRows ? staticCollection(`page:${shape ?? title}`, getKey) : realtimeCollection(shape, getKey)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [shape, !staticRows],
+    );
+
+    // Push the props in on every change: an Inertia visit after a create, edit or
+    // delete re-renders this page with a fresh array, and that is this list's
+    // only news. Effect rather than render-time so the write lands after commit.
+    useEffect(() => {
+        if (staticRows) collection.applyRows(staticRows);
+    }, [collection, staticRows]);
 
     const { data: rows } = useLiveQuery((q) =>
         q.from({ r: collection }).orderBy(({ r }) => r[orderBy], orderDir),

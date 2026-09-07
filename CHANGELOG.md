@@ -69,6 +69,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   something to show instead of an empty state. Upsert-safe like the rest of the seeder.
 
 ### Changed
+- **BOM page rebuilt on the standard admin list** — the Bill of Materials
+  (Product type → Process template → BOM) now renders through `ResourceTable`, so it
+  matches the work-order list: full-bleed table with the trail in the app header, a
+  toolbar carrying search, column visibility and Add Component, and per-row actions as
+  an Edit button plus a ⋯ menu holding Remove. Adding and editing a line happens in a
+  right-hand drawer instead of a card that pushed the table down.
+  - `ResourceTable` accepts a `rows` prop as an alternative to a synced `shape`, for a
+    list whose records aren't broadcast (a BOM belongs to one process template). Rows
+    come from the page's Inertia props and are pushed into the same TanStack DB
+    collection the live query reads, so such a list gets the full list chrome.
+  - The BOM "item updated" and "material removed" flash messages were never wrapped in
+    `__()`, so they showed in English on a Polish UI.
 - **The two old importers redirect into the unified importer** — Orders → CSV Import
   (`/admin/csv-import`, `/supervisor/csv-import`) and Materials → Import
   (`/admin/materials-import`) now land on Admin → Import with the entity preselected; their
@@ -85,6 +97,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   selected step's full editor beside it (selection syncs with the graph), and reference
   photos + engineering documents side by side underneath. The step forms and per-step
   media/checklist/output controls use the design-system components.
+  - All three writes now open a right-hand drawer, matching the rest of Admin: Add Step
+    no longer pushes the whole rail down, the template Edit no longer navigates away to
+    `/…/edit`, and a step's own Edit no longer replaces the detail pane with a form —
+    the step stays readable behind the drawer while you change it. The standalone
+    `/…/edit` page still works as before.
 - **36 admin lists create and edit in place** *(most of Admin)* — New… and the row's Edit
   open a right-hand drawer over the table instead of navigating to a form page, so your
   search, column filters, page and scroll survive the write and the saved row live-syncs
@@ -343,6 +360,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     which only offers what you may still pick.
 
 ### Fixed
+- **A drawer no longer forgets what you typed when you close it** — dismissing a create or
+  edit drawer (the ×, Escape, Cancel, or a stray click on the scrim) reset the form, so a
+  half-filled record was gone on the way back in. Only a finished save clears it now.
+  Applies to every drawer: the shared `ResourceFormDrawer` behind the admin lists, New
+  Work Order, the BOM line form, and the process template's Add Step, template Edit and
+  step Edit. Forms keyed per record still reset when you open a different row — that is
+  what stops one record's draft appearing under another.
 - **Materials → Import posted to a URL that did not exist** — the page sent its upload and
   process forms to `/admin/materials/import/*` while the routes lived at
   `/admin/materials-import/*`, so every material file import 404'd. Superseded by the

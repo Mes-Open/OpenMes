@@ -95,3 +95,69 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
         },
     });
 }
+
+/**
+ * A TanStack DB collection fed by rows the page already has — Inertia props
+ * rather than a Reverb shape.
+ *
+ * `ResourceTable` renders every admin list, but its rows came exclusively from
+ * a synced collection, so a list whose records aren't in `ShapeRegistry` (a BOM
+ * belongs to one process template; nothing broadcasts it) had to fall back to a
+ * bare `DataTable` and lost the list chrome with it — breadcrumbs, the toolbar's
+ * create button, the action rail. This collection closes that gap: same live
+ * query, same table, rows pushed in instead of pulled down.
+ *
+ * `applyRows` is the push side, called whenever the props change (an Inertia
+ * visit after a create/edit/delete re-renders with a fresh array). It diffs
+ * against the keys already held so an unchanged row isn't rewritten.
+ */
+export function staticCollection(id, getKey = (row) => row.id) {
+    // Set by `sync` once TanStack subscribes. Rows handed over before that
+    // (the first render happens before the effect) wait here.
+    let api = null;
+    let pending = null;
+    const keys = new Set();
+
+    const applyRows = (rows) => {
+        if (!api) {
+            pending = rows;
+            return;
+        }
+        const { begin, write, commit } = api;
+        const fresh = new Set();
+        begin();
+        for (const row of rows) {
+            const key = getKey(row);
+            write({ type: keys.has(key) ? 'update' : 'insert', value: row });
+            fresh.add(key);
+        }
+        for (const key of keys) {
+            if (!fresh.has(key)) write({ type: 'delete', value: { id: key } });
+        }
+        commit();
+        keys.clear();
+        for (const k of fresh) keys.add(k);
+    };
+
+    const collection = createCollection({
+        id,
+        getKey,
+        gcTime: 1000,
+        sync: {
+            sync: ({ begin, write, commit, markReady }) => {
+                api = { begin, write, commit };
+                if (pending) {
+                    applyRows(pending);
+                    pending = null;
+                }
+                markReady();
+                return () => {
+                    api = null;
+                };
+            },
+        },
+    });
+
+    collection.applyRows = applyRows;
+    return collection;
+}

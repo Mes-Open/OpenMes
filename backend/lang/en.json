@@ -5973,5 +5973,9 @@
     "Not enough material to complete this order": "Not enough material to complete this order",
     "need": "need",
     "have": "have",
-    "missing": "missing"
+    "missing": "missing",
+    "Component kind": "Component kind",
+    "BOM item updated.": "BOM item updated.",
+    "Material removed from BOM.": "Material removed from BOM.",
+    "Edit Step": "Edit Step"
 }

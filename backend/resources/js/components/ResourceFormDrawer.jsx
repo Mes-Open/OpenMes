@@ -67,8 +67,9 @@ export default function ResourceFormDrawer({
      * config (a pattern builder, a skills matrix, dependent dropdowns): a
      * `({ editing, record, finish }) => JSX` render prop that mounts the page's
      * own form inside the drawer chrome. The form is expected to post with
-     * `stay: 1` in its values and call `finish` when done; keying and
-     * ensure/ready behave exactly as they do for the config-driven path.
+     * `stay: 1` in its values and call `finish` when saved (which resets it) or
+     * `dismiss` to just close and keep what was typed; keying and ensure/ready
+     * behave exactly as they do for the config-driven path.
      */
     render,
     /**
@@ -81,8 +82,14 @@ export default function ResourceFormDrawer({
 }) {
     const editing = mode === 'edit';
 
-    // Bumped when the form is done with — see the key below.
+    // Bumped when a save completes — see the key below. Closing does NOT bump
+    // it: dismissing the drawer (×, scrim, Cancel) is not the same as being
+    // done with the form, and what was typed has to still be there on the way
+    // back in. `keepMounted` on the Modal is the other half of that.
     const [run, setRun] = useState(0);
+    const dismiss = useCallback(() => {
+        onClose?.();
+    }, [onClose]);
     const finish = useCallback(() => {
         setRun((n) => n + 1);
         onClose?.();
@@ -108,9 +115,11 @@ export default function ResourceFormDrawer({
     // skeleton then would unmount the form, destroying the typed values and
     // the validation errors the 422 just delivered.
     const [everReady, setEverReady] = useState(false);
+    // Not reset on close: with `keepMounted` the form stays in the DOM holding
+    // what was typed, and swapping it for the skeleton would unmount it — the
+    // one thing retaining it was for. The fetch below still re-runs per opening.
     useEffect(() => {
         if (open && ready) setEverReady(true);
-        if (!open) setEverReady(false);
     }, [open, ready]);
     // Depend on the names, not the array: call sites pass a literal, so a new
     // identity every render would re-run this on every keystroke in the form.
@@ -152,7 +161,7 @@ export default function ResourceFormDrawer({
         >
             {(ready || everReady) ? (render ? (
                 <div key={`${mode}:${record?.id ?? 'new'}:${run}`}>
-                    {render({ editing, record, finish })}
+                    {render({ editing, record, finish, dismiss })}
                 </div>
             ) : (
                 <ResourceForm
@@ -173,7 +182,9 @@ export default function ResourceFormDrawer({
                     submitLabel={editing ? (submitLabel?.edit ?? __('Save Changes')) : (submitLabel?.create ?? __('Create'))}
                     // Both of these are deliberate ends to the form, unlike the
                     // stray scrim click `keepMounted` exists for — so both reset it.
-                    onCancel={finish}
+                    // A save is done with the form and resets it; a dismissal
+                    // is not, and leaves the typed values in place.
+                    onCancel={dismiss}
                     onSuccess={finish}
                 />
             )) : (
