@@ -7,6 +7,67 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **A shortage of a manufactured subassembly is now reported as such** — previously nothing
+  said "not enough pleat packs to build this order". The net-requirements report exploded
+  straight through a subassembly to the raw materials it is made from, so the subassembly
+  never appeared and the stock of it already on the shelf was ignored; the per-order check
+  that did cover it was an API endpoint no screen called.
+  - MRP now nets level by level: a subassembly's gross demand is met from its own stock
+    first and only the shortfall explodes downwards, so packs on the shelf pull no media and
+    a subassembly that runs out is listed by name.
+  - The planner marks any order stock cannot cover, naming the missing components on hover,
+    so it is visible while scheduling rather than when an operator tries to start.
+  - The operator's work-order screen leads with the same warning, listing what is needed,
+    what is free and what is missing.
+- **Every demo product now has a process template, and work orders carry it** — only the
+  HEPA-13 Standard had a routing, so the other four products showed "0 templates" and their
+  work orders had no steps for an operator to work through. Each product type now gets its
+  own routing (slim assembly, pre-filter and carbon production, HVAC cassette), and the
+  seeder snapshots it onto the work order with `toSnapshot()` instead of a hand-rolled
+  header — so the snapshot carries the steps and the BOM the way the application writes it.
+- **Demo data now spans a fortnight either side of the day it is seeded** — it used to be a
+  single-day snapshot, so the planner emptied out after tomorrow and the shift monitor had
+  only the shift in progress. The planner now gets two weeks of scheduled orders and
+  maintenance ahead of today, and `ShiftMonitorDemoSeeder` lays down two weeks of finished
+  shifts behind the live one, so paging back through the monitor keeps finding real shifts.
+  History only goes backwards on purpose: the monitor draws what machines actually did, and
+  a shift that has not run yet has no counters to show.
+- **Demo data now includes shifts, maintenance and a live shift monitor** — the demo had no
+  shifts at all, so the planner and the shift monitor both fell back to a synthetic window;
+  it now seeds round-the-clock morning/afternoon/night cover. The planner board gains
+  maintenance to show: tools, three recurring schedules for its "Add maintenance" modal, and
+  five events across the current week — a completed job, one in progress (the maintenance
+  side of the seeded carbon-press issue) and three upcoming. `ShiftMonitorDemoSeeder` now
+  also knows the air-filter stations, and `DemoDataSeeder` runs it last, so the monitor opens
+  on a shift in progress with a state timeline, a per-minute counter feed and a couple of
+  stops left unclassified for the "needs a cause" flow.
+- **Demo data now includes received material lots** — `AirFilterDemoSeeder` seeds fifteen
+  lots across the demo materials, covering every lot status: stock on hand, a delivery still
+  in quarantine awaiting inbound QC, one rejected by it, one consumed down to zero, and a
+  time-expired adhesive beside its live replacement. Chemicals carry manufacturing and expiry
+  dates, and every lot carries a supplier lot reference, so the Material Lots list, the lot
+  pickers and traceability search have real data instead of an empty state.
+- **Demo data now includes a bill of materials for every product** — `AirFilterDemoSeeder`
+  seeds the purchased parts (media grades, frame profiles, resin, carbon, seals, cartons)
+  and a BOM for each routing: HEPA-13 Standard and Slim, pre-filter, carbon and the HVAC
+  cassette. The HEPA-13 Standard BOM is two-level — it consumes a manufactured sub-assembly,
+  the pleat pack, which has its own routing and BOM — so exploding it reaches raw media with
+  scrap cascading between levels. The BOM screens, the net-requirements report and
+  `BomExplosionService` all have a realistic structure to work on instead of an empty one.
+
+### Fixed
+- **Demo seeder could resurrect deleted process-template steps** — it wrote steps with a
+  query-builder `updateOrInsert()` keyed on template + step number, which runs without the
+  model's soft-delete scope. On a database where a step had been deleted the match hit the
+  deleted row, so a re-run updated that instead of inserting a live one, leaving the template
+  short a step. The match now requires `deleted_at IS NULL`.
+- **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
+  issues against the demo work orders, one per lifecycle state (open, acknowledged,
+  resolved, closed), reported by the demo operators and assigned to the demo supervisor.
+  The operator's work-order view, the admin Issues list and the history screens all have
+  something to show instead of an empty state. Upsert-safe like the rest of the seeder.
+
 ### Changed
 - **BOM page rebuilt on the standard admin list** — the Bill of Materials
   (Product type → Process template → BOM) now renders through `ResourceTable`, so it
@@ -315,6 +376,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   process forms to `/admin/materials/import/*` while the routes lived at
   `/admin/materials-import/*`, so every material file import 404'd. Superseded by the
   unified importer.
+- **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
+  form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
+  so `.post` was read off `undefined` and the submit threw before any request
+  (`can't access property "post", u.transform(...) is undefined`, #282). Set the transform
+  and post in separate statements, matching every other form in the app.
 - **Doubled plus on three "new" buttons** *(Admin → Warehouses, Stock Documents, Inspection
   Plans)* — `ResourceTable` already draws a plus icon in the create button, and these three
   labels carried a literal `+ ` of their own, so they rendered as "+ + New Warehouse". The
