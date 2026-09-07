@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, TextField } from '@openmes/ui';
+import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, Modal, TextField } from '@openmes/ui';
 import PageTitle from '../../../components/PageTitle';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
@@ -180,9 +180,69 @@ function ParametersEditor({ value = {}, onChange }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Add-step inline form                                                  */
+/* Template-edit form — the same two fields as /edit, in the drawer      */
 /* ------------------------------------------------------------------ */
-function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
+/**
+ * The standalone /edit page still exists and posts the same PUT; this is a
+ * second door onto it from the template it edits. `stay` is what the
+ * controller's StaysOnList concern answers with back() instead of the redirect
+ * to the templates index — otherwise saving a rename would throw you off the
+ * page you were working on.
+ */
+function EditTemplateForm({ productType, processTemplate, onCancel, onSaved }) {
+    const form = useForm({
+        name: processTemplate.name ?? '',
+        is_active: !!processTemplate.is_active,
+        stay: 1,
+    });
+
+    const { data, setData, errors, processing } = form;
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.put(
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`,
+            { onSuccess: onSaved },
+        );
+    };
+
+    return (
+        <form onSubmit={submit}>
+            <div className="mb-6">
+                <TextField
+                    label={__('Template Name')}
+                    required
+                    autoFocus
+                    value={data.name}
+                    onChange={(v) => setData('name', v)}
+                    placeholder={__('e.g., Standard Assembly Process, Quality Inspection v2')}
+                    hint={__('Descriptive name for this manufacturing process')}
+                    error={errors.name}
+                />
+            </div>
+
+            <div className="mb-6">
+                <Checkbox
+                    checked={data.is_active}
+                    onChange={(next) => setData('is_active', next)}
+                    label={__('Active (template is ready for use in work orders)')}
+                />
+            </div>
+
+            <div className="flex justify-end gap-3">
+                <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
+                    {processing ? __('Saving…') : __('Update Template')}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Add-step form — rendered inside the page's right-edge drawer          */
+/* ------------------------------------------------------------------ */
+function AddStepForm({ productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel, onSaved }) {
     const form = useForm({
         name: '',
         instruction: '',
@@ -217,123 +277,114 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         e.preventDefault();
         form.post(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps`,
-            { onSuccess: onCancel },
+            { onSuccess: onSaved },
         );
     };
 
     return (
-        <div className="card mb-6" style={{ borderLeft: '4px solid var(--om-accent)' }}>
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-om-ink">{__("Add New Step")}</h2>
-                <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink">
-                    <Icon d="M6 18L18 6M6 6l12 12" />
-                </button>
+        <form onSubmit={submit}>
+            {processSegments.length > 0 && (
+                <div className="mb-4">
+                    <div className="form-label">{__("Use Process Segment (optional)")}</div>
+                    <Dropdown
+                        aria-label="Use Process Segment (optional)"
+                        value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
+                        onChange={(v) => applySegment(v)}
+                        options={[
+                            { value: '', label: __('— Define ad-hoc step —') },
+                            ...processSegments.map((seg) => ({
+                                value: String(seg.id),
+                                label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
+                    <p className="text-xs text-om-muted mt-1">
+                        Picking a segment pre-fills name, instruction and duration. You can still override after.
+                    </p>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <TextField
+                        label={__('Step Name')}
+                        required
+                        value={data.name}
+                        onChange={(v) => setData('name', v)}
+                        placeholder={__('e.g., Attach component A')}
+                        error={errors.name}
+                    />
+                </div>
+
+                <div>
+                    <div className="form-label">{__("Workstation (Optional)")}</div>
+                    <Dropdown
+                        aria-label="Workstation (Optional)"
+                        value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                        onChange={(v) => setData('workstation_id', v)}
+                        options={[
+                            { value: '', label: __('No specific workstation') },
+                            ...workstations.map((ws) => ({
+                                value: String(ws.id),
+                                label: `${ws.name} (${ws.line_name ?? '-'})`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
+                </div>
+
+                <div className="md:col-span-2">
+                    <TextField
+                        label={__('Instructions')}
+                        multiline
+                        rows={3}
+                        value={data.instruction}
+                        onChange={(v) => setData('instruction', v)}
+                        placeholder={__('Detailed instructions for this step...')}
+                    />
+                </div>
+
+                <div>
+                    <TextField
+                        label={__('Estimated Duration (minutes)')}
+                        type="number"
+                        min="0"
+                        value={data.estimated_duration_minutes}
+                        onChange={(v) => setData('estimated_duration_minutes', v)}
+                        placeholder={__('e.g., 15')}
+                    />
+                </div>
+
+                <div>
+                    <TextField
+                        label={__('Operators Required')}
+                        type="number"
+                        min="1"
+                        value={data.required_operators}
+                        onChange={(v) => setData('required_operators', v)}
+                        placeholder={__('Inherit from segment')}
+                        hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
+                    />
+                </div>
+
+                <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
+                <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
+                <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
-            <form onSubmit={submit}>
-                {processSegments.length > 0 && (
-                    <div className="mb-4">
-                        <div className="form-label">{__("Use Process Segment (optional)")}</div>
-                        <Dropdown
-                            aria-label="Use Process Segment (optional)"
-                            value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
-                            onChange={(v) => applySegment(v)}
-                            options={[
-                                { value: '', label: __('— Define ad-hoc step —') },
-                                ...processSegments.map((seg) => ({
-                                    value: String(seg.id),
-                                    label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
-                                })),
-                            ]}
-                            className="w-full"
-                        />
-                        <p className="text-xs text-om-muted mt-1">
-                            Picking a segment pre-fills name, instruction and duration. You can still override after.
-                        </p>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <TextField
-                            label={__('Step Name')}
-                            required
-                            value={data.name}
-                            onChange={(v) => setData('name', v)}
-                            placeholder={__('e.g., Attach component A')}
-                            error={errors.name}
-                        />
-                    </div>
-
-                    <div>
-                        <div className="form-label">{__("Workstation (Optional)")}</div>
-                        <Dropdown
-                            aria-label="Workstation (Optional)"
-                            value={data.workstation_id == null ? '' : String(data.workstation_id)}
-                            onChange={(v) => setData('workstation_id', v)}
-                            options={[
-                                { value: '', label: __('No specific workstation') },
-                                ...workstations.map((ws) => ({
-                                    value: String(ws.id),
-                                    label: `${ws.name} (${ws.line_name ?? '-'})`,
-                                })),
-                            ]}
-                            className="w-full"
-                        />
-                    </div>
-
-                    <div className="md:col-span-2">
-                        <TextField
-                            label={__('Instructions')}
-                            multiline
-                            rows={3}
-                            value={data.instruction}
-                            onChange={(v) => setData('instruction', v)}
-                            placeholder={__('Detailed instructions for this step...')}
-                        />
-                    </div>
-
-                    <div>
-                        <TextField
-                            label={__('Estimated Duration (minutes)')}
-                            type="number"
-                            min="0"
-                            value={data.estimated_duration_minutes}
-                            onChange={(v) => setData('estimated_duration_minutes', v)}
-                            placeholder={__('e.g., 15')}
-                        />
-                    </div>
-
-                    <div>
-                        <TextField
-                            label={__('Operators Required')}
-                            type="number"
-                            min="1"
-                            value={data.required_operators}
-                            onChange={(v) => setData('required_operators', v)}
-                            placeholder={__('Inherit from segment')}
-                            hint={__('People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.')}
-                        />
-                    </div>
-
-                    <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
-                    <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
-                    <OptionalVariantFields data={data} setData={setData} errors={errors} />
-                </div>
-
-                <div className="flex justify-end gap-3 mt-4">
-                    <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
-                    <Button type="submit" loading={processing}>{processing ? __('Adding…') : __('Add Step')}</Button>
-                </div>
-            </form>
-        </div>
+            <div className="flex justify-end gap-3 mt-4">
+                <Button variant="secondary" onClick={onCancel}>{__('Cancel')}</Button>
+                <Button type="submit" loading={processing}>{processing ? __('Adding…') : __('Add Step')}</Button>
+            </div>
+        </form>
     );
 }
 
 /* ------------------------------------------------------------------ */
 /* Inline step-edit form                                                 */
 /* ------------------------------------------------------------------ */
-function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
+function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel, onSaved }) {
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
@@ -357,7 +408,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         e.preventDefault();
         form.put(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
-            { onSuccess: onCancel },
+            { onSuccess: onSaved },
         );
     };
 
@@ -752,175 +803,161 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
 /* ------------------------------------------------------------------ */
 /* Main page component                                                   */
 function StepCard({
-    step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
-    productType, processTemplate, processSegments, workstations, workstationTypes = [],
+    step, photo, photosBaseUrl, isFirst, isLast, onEditStart,
+    productType, processTemplate,
     onMoveUp, onMoveDown, onDelete,
     dragHandleProps,
 }) {
-    const isEditing = editingId === step.id;
-
     return (
         <div className="card" {...dragHandleProps}>
-            {!isEditing ? (
-                <div className="flex items-start justify-between">
-                    <div className="flex gap-4 flex-1">
-                        {/* Drag handle */}
-                        <Tooltip label="Drag to reorder">
-                            <div
-                                className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
-                                role="img"
-                                aria-label="Drag to reorder"
-                            >
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="9" cy="5" r="1.5" />
-                                    <circle cx="15" cy="5" r="1.5" />
-                                    <circle cx="9" cy="12" r="1.5" />
-                                    <circle cx="15" cy="12" r="1.5" />
-                                    <circle cx="9" cy="19" r="1.5" />
-                                    <circle cx="15" cy="19" r="1.5" />
-                                </svg>
-                            </div>
-                        </Tooltip>
-
-                        <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
-                            <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
+            <div className="flex items-start justify-between">
+                <div className="flex gap-4 flex-1">
+                    {/* Drag handle */}
+                    <Tooltip label="Drag to reorder">
+                        <div
+                            className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
+                            role="img"
+                            aria-label="Drag to reorder"
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <circle cx="9" cy="5" r="1.5" />
+                                <circle cx="15" cy="5" r="1.5" />
+                                <circle cx="9" cy="12" r="1.5" />
+                                <circle cx="15" cy="12" r="1.5" />
+                                <circle cx="9" cy="19" r="1.5" />
+                                <circle cx="15" cy="19" r="1.5" />
+                            </svg>
                         </div>
+                    </Tooltip>
 
-                        <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
-                                        {step.name}
-                                        {step.is_optional && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
-                                                {__('Optional')}
-                                            </span>
-                                        )}
-                                        {step.variant_group && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
-                                                {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
-                                            </span>
-                                        )}
-                                        {step.requires_confirmation && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
-                                                {__('Read-confirmation')}
-                                            </span>
-                                        )}
-                                    </h3>
+                    <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
+                        <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
+                    </div>
 
-                                    {step.process_segment && (
-                                        <p className="mt-1">
-                                            <a
-                                                href={`/admin/process-segments/${step.process_segment.id}`}
-                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-om-chip"
-                                                title="ISA-95 Process Segment"
-                                            >
-                                                <Icon
-                                                    d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
-                                                    className="w-3 h-3"
-                                                />
-                                                {step.process_segment.code}
-                                            </a>
-                                        </p>
+                    <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                                <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
+                                    {step.name}
+                                    {step.is_optional && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
+                                            {__('Optional')}
+                                        </span>
                                     )}
-
-                                    {step.workstation && (
-                                        <p className="text-sm text-om-muted mt-1">
-                                            <Icon
-                                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                                                className="w-4 h-4 inline-block mr-1"
-                                            />
-                                            {step.workstation.name} ({step.workstation.line_name ?? '-'})
-                                        </p>
+                                    {step.variant_group && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
+                                            {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
+                                        </span>
                                     )}
-
-                                    {step.estimated_duration_minutes != null && (
-                                        <p className="text-sm text-om-muted">
-                                            <Icon
-                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                className="w-4 h-4 inline-block mr-1"
-                                            />
-                                            ~{step.estimated_duration_minutes} min
-                                        </p>
+                                    {step.requires_confirmation && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
+                                            {__('Read-confirmation')}
+                                        </span>
                                     )}
-                                </div>
+                                </h3>
 
-                                {/* Actions */}
-                                <div className="flex gap-1 ml-4">
-                                    <Tooltip label="Edit">
-                                        <button
-                                            type="button"
-                                            onClick={() => onEditStart(step.id)}
-                                            className="text-om-accent hover:text-om-accent p-2"
-                                            aria-label="Edit"
+                                {step.process_segment && (
+                                    <p className="mt-1">
+                                        <a
+                                            href={`/admin/process-segments/${step.process_segment.id}`}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-om-chip"
+                                            title="ISA-95 Process Segment"
                                         >
-                                            <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </button>
-                                    </Tooltip>
+                                            <Icon
+                                                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
+                                                className="w-3 h-3"
+                                            />
+                                            {step.process_segment.code}
+                                        </a>
+                                    </p>
+                                )}
 
-                                    {!isFirst && (
-                                        <Tooltip label="Move up">
-                                            <button
-                                                type="button"
-                                                onClick={() => onMoveUp(step)}
-                                                className="text-om-muted hover:text-om-ink p-2"
-                                                aria-label="Move up"
-                                            >
-                                                <Icon d="M5 15l7-7 7 7" />
-                                            </button>
-                                        </Tooltip>
-                                    )}
+                                {step.workstation && (
+                                    <p className="text-sm text-om-muted mt-1">
+                                        <Icon
+                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                            className="w-4 h-4 inline-block mr-1"
+                                        />
+                                        {step.workstation.name} ({step.workstation.line_name ?? '-'})
+                                    </p>
+                                )}
 
-                                    {!isLast && (
-                                        <Tooltip label="Move down">
-                                            <button
-                                                type="button"
-                                                onClick={() => onMoveDown(step)}
-                                                className="text-om-muted hover:text-om-ink p-2"
-                                                aria-label="Move down"
-                                            >
-                                                <Icon d="M19 9l-7 7-7-7" />
-                                            </button>
-                                        </Tooltip>
-                                    )}
-
-                                    <Tooltip label="Delete">
-                                        <button
-                                            type="button"
-                                            onClick={() => onDelete(step)}
-                                            className="text-om-blocked hover:text-om-blocked p-2"
-                                            aria-label="Delete"
-                                        >
-                                            <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </button>
-                                    </Tooltip>
-                                </div>
+                                {step.estimated_duration_minutes != null && (
+                                    <p className="text-sm text-om-muted">
+                                        <Icon
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            className="w-4 h-4 inline-block mr-1"
+                                        />
+                                        ~{step.estimated_duration_minutes} min
+                                    </p>
+                                )}
                             </div>
 
-                            {step.instruction && (
-                                <div className="mt-2 p-3 bg-om-panel rounded-om-sm">
-                                    <p className="text-sm text-om-muted whitespace-pre-wrap">{step.instruction}</p>
-                                </div>
-                            )}
+                            {/* Actions */}
+                            <div className="flex gap-1 ml-4">
+                                <Tooltip label="Edit">
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditStart(step.id)}
+                                        className="text-om-accent hover:text-om-accent p-2"
+                                        aria-label="Edit"
+                                    >
+                                        <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </button>
+                                </Tooltip>
 
-                            <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
+                                {!isFirst && (
+                                    <Tooltip label="Move up">
+                                        <button
+                                            type="button"
+                                            onClick={() => onMoveUp(step)}
+                                            className="text-om-muted hover:text-om-ink p-2"
+                                            aria-label="Move up"
+                                        >
+                                            <Icon d="M5 15l7-7 7 7" />
+                                        </button>
+                                    </Tooltip>
+                                )}
 
-                            <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+                                {!isLast && (
+                                    <Tooltip label="Move down">
+                                        <button
+                                            type="button"
+                                            onClick={() => onMoveDown(step)}
+                                            className="text-om-muted hover:text-om-ink p-2"
+                                            aria-label="Move down"
+                                        >
+                                            <Icon d="M19 9l-7 7-7-7" />
+                                        </button>
+                                    </Tooltip>
+                                )}
 
+                                <Tooltip label="Delete">
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(step)}
+                                        className="text-om-blocked hover:text-om-blocked p-2"
+                                        aria-label="Delete"
+                                    >
+                                        <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </button>
+                                </Tooltip>
+                            </div>
                         </div>
+
+                        {step.instruction && (
+                            <div className="mt-2 p-3 bg-om-panel rounded-om-sm">
+                                <p className="text-sm text-om-muted whitespace-pre-wrap">{step.instruction}</p>
+                            </div>
+                        )}
+
+                        <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
+
+                        <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+
                     </div>
                 </div>
-            ) : (
-                <EditStepForm
-                    step={step}
-                    productType={productType}
-                    processTemplate={processTemplate}
-                    processSegments={processSegments}
-                    workstations={workstations}
-                    workstationTypes={workstationTypes}
-                    onCancel={onEditCancel}
-                />
-            )}
+            </div>
         </div>
     );
 }
@@ -950,6 +987,13 @@ export default function ProcessTemplatesShow() {
     });
     const photosBaseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState(false);
+    // Bumped only after a *successful* save, to remount the form empty. Closing
+    // the drawer — the ×, the scrim, Cancel — deliberately leaves it alone, so
+    // what you typed is still there when you open it again.
+    const [addFormKey, setAddFormKey] = useState(0);
+    const [editFormKey, setEditFormKey] = useState(0);
+    const [stepFormKey, setStepFormKey] = useState(0);
     const [selectedStepId, setSelectedStepId] = useState(null);
     const selectedStep = steps.find((st) => st.id === selectedStepId) ?? steps[0] ?? null;
     const totalMinutes = steps.reduce((acc, st) => acc + (Number(st.estimated_duration_minutes) || 0), 0);
@@ -962,7 +1006,11 @@ export default function ProcessTemplatesShow() {
         st.is_optional ? __('optional') : null,
     ].filter(Boolean).join(' · ');
 
+    // Which step's edit drawer is open (null = none). The step being edited is
+    // still visible in the detail pane behind the drawer, so you can check it
+    // against what you are typing.
     const [editingId, setEditingId] = useState(null);
+    const editingStep = editingId != null ? (steps.find((st) => st.id === editingId) ?? null) : null;
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
     const { confirm, dialog } = useConfirm();
 
@@ -1087,7 +1135,12 @@ export default function ProcessTemplatesShow() {
 
                 {/* Master–detail shell (design 1b): header bar, step rail + graph +
                     selected-step detail, photos/documents band. */}
-                <div className="bg-om-panel border-y border-om-line2 overflow-hidden">
+                {/* `border-b` only, not `border-y`: the page sits flush under the
+                    app header, which already draws its own bottom hairline — a top
+                    border here lands directly against it and reads as a 2px double
+                    rule. The work-order list is the reference; its table starts
+                    borderless for the same reason. */}
+                <div className="bg-om-panel border-b border-om-line2 overflow-hidden">
                     {/* Header bar */}
                     <div className="flex items-center gap-3 px-5 py-3.5 bg-om-card border-b border-om-line2 flex-wrap">
                         <h1 className="text-lg font-bold text-om-ink">{processTemplate.name}</h1>
@@ -1101,12 +1154,13 @@ export default function ProcessTemplatesShow() {
                             {productType.name} · {steps.length} {__("steps")}{totalMinutes > 0 ? ` · ~${totalMinutes} min` : ''}
                         </span>
                         <div className="flex-1" />
-                        <a
-                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/edit`}
+                        <button
+                            type="button"
+                            onClick={() => setEditingTemplate(true)}
                             className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
                         >
                             {__("Edit")}
-                        </a>
+                        </button>
                         <a
                             href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`}
                             className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
@@ -1121,20 +1175,6 @@ export default function ProcessTemplatesShow() {
                             + {__("Add Step")}
                         </button>
                     </div>
-
-                    {/* Add Step Form */}
-                    {showAddForm && (
-                        <div className="p-5 border-b border-om-line2 bg-om-card">
-                            <AddStepForm
-                                productType={productType}
-                                processTemplate={processTemplate}
-                                processSegments={processSegments}
-                                workstations={workstations}
-                                workstationTypes={workstationTypes}
-                                onCancel={() => setShowAddForm(false)}
-                            />
-                        </div>
-                    )}
 
                     {/* Rail + graph + detail */}
                     <div className="flex" style={{ minHeight: 560 }}>
@@ -1224,14 +1264,9 @@ export default function ProcessTemplatesShow() {
                                         photosBaseUrl={photosBaseUrl}
                                         isFirst={selectedStep.id === steps[0]?.id}
                                         isLast={selectedStep.id === steps[steps.length - 1]?.id}
-                                        editingId={editingId}
                                         onEditStart={(id) => setEditingId(id)}
-                                        onEditCancel={() => setEditingId(null)}
                                         productType={productType}
                                         processTemplate={processTemplate}
-                                        processSegments={processSegments}
-                                        workstations={workstations}
-                                        workstationTypes={workstationTypes}
                                         onMoveUp={handleMoveUp}
                                         onMoveDown={handleMoveDown}
                                         onDelete={handleDelete}
@@ -1258,6 +1293,102 @@ export default function ProcessTemplatesShow() {
                 </div>
 
             </div>
+
+            {/* Both writes happen in a right-edge drawer, the same shape the
+                work-orders list uses for "New Work Order": the template stays on
+                screen behind the form, and nothing about the page — the selected
+                step, the rail's scroll — is lost to a navigation. The standalone
+                /edit page is untouched; this is a second door onto the same
+                controller action. */}
+            <Modal
+                open={editingTemplate}
+                onClose={() => setEditingTemplate(false)}
+                title={__('Edit Process Template')}
+                subtitle={`${productType.name} — ${__('Version')} ${processTemplate.version}`}
+                closeLabel={__('Close')}
+                side="right"
+                width={480}
+                // Closing must not cost what was typed — `keepMounted` hides the
+                // panel instead of unmounting it, so the form's state survives
+                // until a save clears it (see the key).
+                keepMounted
+            >
+                {/* Keyed on the save count, not the close count: only a finished
+                    save starts the next opening over. */}
+                <EditTemplateForm
+                    key={`edit:${editFormKey}`}
+                    productType={productType}
+                    processTemplate={processTemplate}
+                    onCancel={() => setEditingTemplate(false)}
+                    onSaved={() => {
+                        setEditingTemplate(false);
+                        setEditFormKey((k) => k + 1);
+                    }}
+                />
+            </Modal>
+
+            <Modal
+                open={showAddForm}
+                onClose={() => setShowAddForm(false)}
+                title={__('Add New Step')}
+                closeLabel={__('Close')}
+                side="right"
+                // Wider than the 560 the work-order drawer uses: the step form
+                // keeps its two-column grid, and the ISA-95 and variant panels
+                // inside it are three columns of their own.
+                width={640}
+                keepMounted
+            >
+                <AddStepForm
+                    key={`add:${addFormKey}`}
+                    productType={productType}
+                    processTemplate={processTemplate}
+                    processSegments={processSegments}
+                    workstations={workstations}
+                    workstationTypes={workstationTypes}
+                    onCancel={() => setShowAddForm(false)}
+                    onSaved={() => {
+                        setShowAddForm(false);
+                        setAddFormKey((k) => k + 1);
+                    }}
+                />
+            </Modal>
+
+            {/* Editing a step is the same drawer as adding one — the step stays
+                visible in the detail pane behind it, so you can read what you are
+                changing. `editingStep` is looked up from `steps` rather than held
+                in state, so a save that re-renders the page feeds the form the
+                fresh row instead of the stale one it opened with. */}
+            <Modal
+                open={editingStep != null}
+                onClose={() => setEditingId(null)}
+                title={__('Edit Step')}
+                subtitle={editingStep?.name}
+                closeLabel={__('Close')}
+                side="right"
+                width={640}
+                keepMounted
+            >
+                {editingStep && (
+                    <EditStepForm
+                        // Keyed by step as well as by save: one drawer serves every
+                        // row, and without the id the values typed for one step
+                        // would be retained onto the next one opened.
+                        key={`step:${editingStep.id}:${stepFormKey}`}
+                        step={editingStep}
+                        productType={productType}
+                        processTemplate={processTemplate}
+                        processSegments={processSegments}
+                        workstations={workstations}
+                        workstationTypes={workstationTypes}
+                        onCancel={() => setEditingId(null)}
+                        onSaved={() => {
+                            setEditingId(null);
+                            setStepFormKey((k) => k + 1);
+                        }}
+                    />
+                )}
+            </Modal>
             {dialog}
         </>
     );

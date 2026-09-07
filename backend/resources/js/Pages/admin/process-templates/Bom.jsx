@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { __ } from '../../../lib/i18n';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import { Button, Dropdown, Modal, SegmentedControl } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
-import useConfirm from '../../../components/useConfirm';
+import ResourceTable from '../../../components/ResourceTable';
 
 const TYPE_COLORS = {
     raw_material:  'bg-om-downtime-bg text-om-downtime',
@@ -16,7 +15,12 @@ function typeColorClass(code) {
     return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
 
-function MaterialForm({ productType, processTemplate, materials, productTypes = [], steps, item, onCancel }) {
+/**
+ * Add/edit a BOM line. Rendered inside the page's drawer rather than as a card
+ * above the table: the list is the page, and a form that pushes it down moves
+ * the row you were looking at every time you open one.
+ */
+function MaterialForm({ productType, processTemplate, materials, productTypes = [], steps, item, onCancel, onSaved }) {
     const isEdit = !!item;
     const form = useForm({
         component_kind: item ? (item.component_kind ?? 'material') : 'material',
@@ -56,408 +60,382 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
         e.preventDefault();
         const base = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`;
         if (isEdit) {
-            form.put(`${base}/${item.id}`, { onSuccess: onCancel });
+            form.put(`${base}/${item.id}`, { onSuccess: onSaved });
         } else {
-            form.post(base, { onSuccess: onCancel });
+            form.post(base, { onSuccess: onSaved });
         }
     };
 
     return (
-        <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
-            <h3 className="text-lg font-semibold mb-4">
-                {isEdit ? `${__("Edit BOM Item")} - ${item.component_name}` : __("Add Component to BOM")}
-            </h3>
-            <form onSubmit={submit}>
-                {!isEdit && (
-                    <div className="mb-4 inline-flex rounded-lg border border-om-border overflow-hidden">
-                        <button
-                            type="button"
-                            onClick={() => setData((d) => ({ ...d, component_kind: 'material', product_type_id: '' }))}
-                            className={`px-4 py-2 text-sm font-medium ${!isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
-                        >
-                            {__("Material")}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setData((d) => ({ ...d, component_kind: 'product_type', material_id: '' }))}
-                            className={`px-4 py-2 text-sm font-medium ${isProductType ? 'bg-om-accent text-white' : 'bg-om-panel text-om-muted'}`}
-                        >
-                            {__("Product type")}
-                        </button>
-                    </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {isEdit ? (
-                        <div>
-                            <div className="block text-sm font-medium text-om-muted mb-1">
-                                {item.component_kind === 'product_type' ? __("Product type") : __("Material")}
-                            </div>
-                            <div className="form-input w-full bg-om-panel text-om-muted">
-                                {item.component_code ? `${item.component_code} - ` : ''}{item.component_name}
-                            </div>
-                        </div>
-                    ) : isProductType ? (
-                        <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">
-                                {__("Product type")} <span className="text-om-blocked">*</span>
-                            </label>
-                            <Dropdown
-                                value={data.product_type_id == null ? '' : String(data.product_type_id)}
-                                onChange={(v) => setData('product_type_id', v)}
-                                placeholder={__("Select product type…")}
-                                options={productTypes.map((p) => ({
-                                    value: String(p.id),
-                                    label: `${p.code} - ${p.name}`,
-                                }))}
-                                className="w-full"
-                            />
-                            <p className="mt-1 text-xs text-om-faint">
-                                {__("Add a manufactured product type as a sub-assembly component.")}
-                            </p>
-                            {errors.product_type_id && (
-                                <p className="mt-1 text-sm text-om-blocked">{errors.product_type_id}</p>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <div className="block text-sm font-medium text-om-muted mb-1">
-                                {__("Material")} <span className="text-om-blocked">*</span>
-                            </div>
-                            <Dropdown
-                                aria-label={__("Material")}
-                                value={data.material_id == null ? '' : String(data.material_id)}
-                                onChange={(v) => onMaterialChange(v)}
-                                placeholder="Select material..."
-                                options={materials.map((m) => ({
-                                    value: String(m.id),
-                                    label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name ?? __('No type')})`,
-                                }))}
-                                className="w-full"
-                            />
-                            {errors.material_id && (
-                                <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
-                            )}
-                        </div>
-                    )}
-
+        // Fills the drawer's scroller so the sticky footer below sits on the
+        // panel's bottom edge rather than floating under a short form.
+        <form onSubmit={submit} className="flex min-h-full flex-col">
+            {!isEdit && (
+                // Switching kind clears the other side's id, so a half-picked
+                // material can't be submitted as a product-type line.
+                <SegmentedControl
+                    className="mb-4"
+                    label={__('Component kind')}
+                    value={data.component_kind}
+                    onChange={(kind) => setData((d) => ({
+                        ...d,
+                        component_kind: kind,
+                        material_id: kind === 'material' ? d.material_id : '',
+                        product_type_id: kind === 'product_type' ? d.product_type_id : '',
+                    }))}
+                    options={[
+                        { value: 'material', label: __('Material') },
+                        { value: 'product_type', label: __('Product type') },
+                    ]}
+                />
+            )}
+            {/* One column: the drawer is ~560px, and a two-up grid there leaves
+                every dropdown too narrow to read a "CODE - Name (unit, type)"
+                option in. */}
+            <div className="grid flex-1 auto-rows-min grid-cols-1 gap-4">
+                {isEdit ? (
                     <div>
                         <div className="block text-sm font-medium text-om-muted mb-1">
-                            {__("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
+                            {item.component_kind === 'product_type' ? __("Product type") : __("Material")}
                         </div>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            min="0.0001"
-                            required
-                            value={data.quantity_per_unit}
-                            onChange={(e) => setData('quantity_per_unit', e.target.value)}
-                            className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
+                        <div className="form-input w-full bg-om-panel text-om-muted">
+                            {item.component_code ? `${item.component_code} - ` : ''}{item.component_name}
+                        </div>
+                    </div>
+                ) : isProductType ? (
+                    <div>
+                        <label className="block text-sm font-medium text-om-muted mb-1">
+                            {__("Product type")} <span className="text-om-blocked">*</span>
+                        </label>
+                        <Dropdown
+                            value={data.product_type_id == null ? '' : String(data.product_type_id)}
+                            onChange={(v) => setData('product_type_id', v)}
+                            placeholder={__("Select product type…")}
+                            options={productTypes.map((p) => ({
+                                value: String(p.id),
+                                label: `${p.code} - ${p.name}`,
+                            }))}
+                            className="w-full"
                         />
                         <p className="mt-1 text-xs text-om-faint">
-                            {__("How much of this material is needed per one finished product unit.")}
+                            {__("Add a manufactured product type as a sub-assembly component.")}
                         </p>
-                        {errors.quantity_per_unit && (
-                            <p className="mt-1 text-sm text-om-blocked">{errors.quantity_per_unit}</p>
+                        {errors.product_type_id && (
+                            <p className="mt-1 text-sm text-om-blocked">{errors.product_type_id}</p>
                         )}
                     </div>
- 
+                ) : (
                     <div>
                         <div className="block text-sm font-medium text-om-muted mb-1">
-                            {__("Step (optional)")}
+                            {__("Material")} <span className="text-om-blocked">*</span>
                         </div>
                         <Dropdown
-                            aria-label={__("Step (optional)")}
-                            value={data.template_step_id == null ? '' : String(data.template_step_id)}
-                            onChange={(v) => setData('template_step_id', v)}
-                            options={[
-                                { value: '', label: __('All steps / general') },
-                                ...steps.map((s) => ({
-                                    value: String(s.id),
-                                    label: `#${s.step_number} - ${s.name}`,
-                                })),
-                            ]}
+                            aria-label={__("Material")}
+                            value={data.material_id == null ? '' : String(data.material_id)}
+                            onChange={(v) => onMaterialChange(v)}
+                            placeholder="Select material..."
+                            options={materials.map((m) => ({
+                                value: String(m.id),
+                                label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name ?? __('No type')})`,
+                            }))}
                             className="w-full"
                         />
-                    </div>
- 
-                    <div>
-                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</div>
-                        <input
-                            aria-label={__("Scrap %")}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={data.scrap_percentage}
-                            onChange={(e) => setData('scrap_percentage', e.target.value)}
-                            className="form-input w-full"
-                        />
-                        {selectedMaterial?.default_scrap_percentage != null && (
-                            <p className="mt-1 text-xs text-om-faint">
-                                {__("Pre-filled from the material default (:percentage%); adjust if needed.", { percentage: selectedMaterial.default_scrap_percentage })}
-                            </p>
+                        {errors.material_id && (
+                            <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
                         )}
                     </div>
+                )}
 
-                    <div>
-                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Consumed At")}</div>
-                        <Dropdown
-                            aria-label={__("Consumed At")}
-                            value={data.consumed_at == null ? '' : String(data.consumed_at)}
-                            onChange={(v) => setData('consumed_at', v)}
-                            options={[
-                                { value: 'start', label: __('Start of step') },
-                                { value: 'during', label: __('During step') },
-                                { value: 'end', label: __('End of step') },
-                            ]}
-                            className="w-full"
-                        />
+                <div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">
+                        {__("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
                     </div>
-
-                    <div>
-                        <div className="block text-sm font-medium text-om-muted mb-1">{__("Notes")}</div>
-                        <input
-                            aria-label={__("Notes")}
-                            type="text"
-                            value={data.notes}
-                            onChange={(e) => setData('notes', e.target.value)}
-                            placeholder={__("Optional notes")}
-                            className="form-input w-full"
-                        />
-                    </div>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        required
+                        value={data.quantity_per_unit}
+                        onChange={(e) => setData('quantity_per_unit', e.target.value)}
+                        className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
+                    />
+                    <p className="mt-1 text-xs text-om-faint">
+                        {__("How much of this material is needed per one finished product unit.")}
+                    </p>
+                    {errors.quantity_per_unit && (
+                        <p className="mt-1 text-sm text-om-blocked">{errors.quantity_per_unit}</p>
+                    )}
                 </div>
 
-                <div className="flex justify-end gap-3 mt-4">
-                    <button type="button" onClick={onCancel} className="btn-touch btn-secondary">
-                        {__("Cancel")}
-                    </button>
-                    <button type="submit" disabled={processing} className="btn-touch btn-primary">
-                        {isEdit
-                            ? (processing ? __("Saving…") : __("Save Changes"))
-                            : (processing ? __("Adding…") : __("Add to BOM"))}
-                    </button>
+                <div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">
+                        {__("Step (optional)")}
+                    </div>
+                    <Dropdown
+                        aria-label={__("Step (optional)")}
+                        value={data.template_step_id == null ? '' : String(data.template_step_id)}
+                        onChange={(v) => setData('template_step_id', v)}
+                        options={[
+                            { value: '', label: __('All steps / general') },
+                            ...steps.map((s) => ({
+                                value: String(s.id),
+                                label: `#${s.step_number} - ${s.name}`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
                 </div>
-            </form>
-        </div>
+
+                <div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</div>
+                    <input
+                        aria-label={__("Scrap %")}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={data.scrap_percentage}
+                        onChange={(e) => setData('scrap_percentage', e.target.value)}
+                        className="form-input w-full"
+                    />
+                    {selectedMaterial?.default_scrap_percentage != null && (
+                        <p className="mt-1 text-xs text-om-faint">
+                            {__("Pre-filled from the material default (:percentage%); adjust if needed.", { percentage: selectedMaterial.default_scrap_percentage })}
+                        </p>
+                    )}
+                </div>
+
+                <div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__("Consumed At")}</div>
+                    <Dropdown
+                        aria-label={__("Consumed At")}
+                        value={data.consumed_at == null ? '' : String(data.consumed_at)}
+                        onChange={(v) => setData('consumed_at', v)}
+                        options={[
+                            { value: 'start', label: __('Start of step') },
+                            { value: 'during', label: __('During step') },
+                            { value: 'end', label: __('End of step') },
+                        ]}
+                        className="w-full"
+                    />
+                </div>
+
+                <div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__("Notes")}</div>
+                    <input
+                        aria-label={__("Notes")}
+                        type="text"
+                        value={data.notes}
+                        onChange={(e) => setData('notes', e.target.value)}
+                        placeholder={__("Optional notes")}
+                        className="form-input w-full"
+                    />
+                </div>
+            </div>
+
+            {/* Sticks to the bottom of the drawer's own scroller and bleeds to
+                its padding edges — the hairline-over-panel footer ResourceForm
+                draws in the work-order drawer, so both read the same. */}
+            <div className="sticky bottom-0 -mx-[18px] -mb-4 mt-6 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]">
+                <Button type="submit" variant="primary" loading={processing}>
+                    {isEdit
+                        ? (processing ? __("Saving…") : __("Save Changes"))
+                        : (processing ? __("Adding…") : __("Add to BOM"))}
+                </Button>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                >
+                    {__("Cancel")}
+                </button>
+            </div>
+        </form>
     );
 }
 
 export default function ProcessTemplatesBom() {
     const { productType, processTemplate, bomItems = [], materials = [], productTypes = [], steps = [] } = usePage().props;
 
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
-    const { confirm, dialog } = useConfirm();
+    // `null` = closed, `'new'` = the add drawer, a row = editing that line.
+    const [editing, setEditing] = useState(null);
+    // Bumped on a finished save, so the retained form (see keepMounted below)
+    // starts empty next time rather than showing what was just submitted.
+    const [formRun, setFormRun] = useState(0);
+    const isOpen = editing !== null;
+    const item = editing === 'new' ? null : editing;
 
-    const startEdit = (item) => {
-        setShowAddForm(false);
-        setEditingItem(item);
-    };
+    const templateHref = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`;
 
-    const handleRemove = (item) => {
-        confirm({ title: __('Remove this component from BOM?') }, () => {
-            router.delete(
-                `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom/${item.id}`,
-                { preserveScroll: true },
-            );
-        });
-    };
+    const remove = (row) => router.delete(`${templateHref}/bom/${row.id}`, { preserveScroll: true });
 
     const columns = useMemo(() => [
         {
-            id: 'material',
-            accessorKey: 'component_name',
-            header: __('Component'),
-            cell: ({ row }) => (
+            key: 'component_name',
+            label: 'Component',
+            flex: true,
+            render: (row) => (
                 <>
-                    <div className="text-sm font-medium text-om-ink">
-                        {row.original.component_name}
-                    </div>
-                    <div className="text-xs text-om-muted font-mono">{row.original.component_code}</div>
+                    <div className="text-sm font-medium text-om-ink">{row.component_name}</div>
+                    <div className="text-xs text-om-muted font-mono">{row.component_code}</div>
                 </>
             ),
         },
         {
-            id: 'type',
-            accessorKey: 'material_type_name',
-            header: __('Type'),
-            cell: ({ row }) => (
-                row.original.component_kind === 'product_type' ? (
+            key: 'type',
+            label: 'Type',
+            // The cell shows one of two things — a material's type, or the fact
+            // that the line is a sub-assembly — so search and the filter dropdown
+            // need that same string, not the null `material_type_name` a
+            // product-type line carries.
+            value: (row) => (row.component_kind === 'product_type' ? __('Product type') : row.material_type_name),
+            render: (row) => (
+                row.component_kind === 'product_type' ? (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-om-accent/10 text-om-accent">
                         {__("Product type")}
                     </span>
                 ) : (
-                    <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
-                            row.original.material_type_code,
-                        )}`}
-                    >
-                        {row.original.material_type_name}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(row.material_type_code)}`}>
+                        {row.material_type_name}
                     </span>
                 )
             ),
         },
         {
-            id: 'step',
-            accessorFn: (r) => (r.step_number != null ? `#${r.step_number} ${r.step_name}` : ''),
-            header: __('Step'),
-            cell: ({ row }) => (
+            key: 'step',
+            label: 'Step',
+            value: (row) => (row.step_number != null ? `#${row.step_number} ${row.step_name}` : ''),
+            render: (row) => (
                 <span className="text-sm text-om-muted">
-                    {row.original.step_number != null ? (
-                        `#${row.original.step_number} ${row.original.step_name}`
-                    ) : (
-                        <span className="text-om-faint">{__("General")}</span>
-                    )}
+                    {row.step_number != null
+                        ? `#${row.step_number} ${row.step_name}`
+                        : <span className="text-om-faint">{__("General")}</span>}
                 </span>
             ),
         },
         {
-            id: 'qty_per_unit',
-            accessorKey: 'quantity_per_unit',
-            header: __('Qty/Unit'),
-            meta: { align: 'right' },
-            cell: ({ row }) => (
-                <span className="text-sm font-mono">
-                    {row.original.quantity_per_unit} {row.original.unit_of_measure}
-                </span>
+            key: 'quantity_per_unit',
+            label: 'Qty/Unit',
+            align: 'right',
+            render: (row) => (
+                <span className="text-sm font-mono">{row.quantity_per_unit} {row.unit_of_measure}</span>
             ),
         },
         {
-            id: 'scrap',
-            accessorKey: 'scrap_percentage',
-            header: __('Scrap %'),
-            meta: { align: 'right' },
-            cell: ({ row }) => (
-                <span className="text-sm">{row.original.scrap_percentage}%</span>
-            ),
+            key: 'scrap_percentage',
+            label: 'Scrap %',
+            align: 'right',
+            render: (row) => <span className="text-sm">{row.scrap_percentage}%</span>,
         },
         {
-            id: 'consumed',
-            accessorKey: 'consumed_at',
-            header: 'Consumed',
-            cell: ({ row }) => (
-                <span className="text-sm text-om-muted capitalize">{row.original.consumed_at}</span>
-            ),
+            key: 'consumed_at',
+            label: 'Consumed At',
+            render: (row) => <span className="text-sm text-om-muted capitalize">{row.consumed_at}</span>,
         },
         {
-            id: 'tracking',
-            accessorKey: 'tracking_type',
-            header: 'Tracking',
-            cell: ({ row }) => (
-                <span className="text-sm text-om-muted capitalize">{row.original.tracking_type}</span>
-            ),
+            key: 'tracking_type',
+            label: 'Tracking',
+            render: (row) => <span className="text-sm text-om-muted capitalize">{row.tracking_type}</span>,
+        },
+    ], []);
+
+    // The work-order list's two-slot rail: the row's obvious next step, then
+    // everything else behind the menu. Editing a line is that step here; Remove
+    // sits in the menu behind a divider so it isn't one misclick from Edit.
+    const actionSlots = [
+        {
+            key: 'primary',
+            width: 96,
+            resolve: (row) => ({
+                label: __('Edit'),
+                icon: 'edit',
+                variant: 'secondary',
+                onClick: () => setEditing(row),
+            }),
         },
         {
-            id: 'actions',
-            header: __('Actions'),
-            enableSorting: false,
-            meta: { align: 'right' },
-            cell: ({ row }) => (
-                <>
-                    <button
-                        type="button"
-                        onClick={() => startEdit(row.original)}
-                        className="text-om-accent hover:text-om-accent text-sm mr-4"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleRemove(row.original)}
-                        className="text-om-blocked hover:text-om-blocked text-sm"
-                    >
-                        Remove
-                    </button>
-                </>
-            ),
+            key: 'more',
+            width: 34,
+            label: __('More actions'),
+            resolve: (row) => ({
+                label: __('More actions'),
+                menu: [
+                    {
+                        key: 'delete',
+                        label: __('Remove'),
+                        icon: 'delete',
+                        destructive: true,
+                        confirm: {
+                            title: __('Remove this component from BOM?'),
+                            confirmLabel: __('Remove'),
+                        },
+                        onSelect: () => remove(row),
+                    },
+                ],
+            }),
         },
-    ], [productType.id, processTemplate.id]);
+    ];
 
     return (
         <>
             <Head title={`BOM - ${processTemplate.name}`} />
 
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-6">
-                    <a
-                        href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`}
-                        className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Back to Template
-                    </a>
-
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold text-om-ink">{__("Bill of Materials")}</h1>
-                            <p className="text-sm text-om-muted mt-1">
-                                {processTemplate.name} (v{processTemplate.version}) &bull; {productType.name}
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setEditingItem(null);
-                                setShowAddForm((v) => !v);
-                            }}
-                            className="btn-touch btn-primary"
-                        >
-                            <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            {__("Add Component")}
-                        </button>
-                    </div>
-                </div>
-
-                {showAddForm && !editingItem && (
-                    <MaterialForm
-                        productType={productType}
-                        processTemplate={processTemplate}
-                        materials={materials}
-                        productTypes={productTypes}
-                        steps={steps}
-                        onCancel={() => setShowAddForm(false)}
-                    />
+            <ResourceTable
+                // Not a synced shape: a BOM belongs to one process template and
+                // nothing broadcasts it, so the rows come from this page's props.
+                rows={bomItems}
+                title={__('Bill of Materials')}
+                titleIcon="layers"
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard', icon: 'layout-dashboard' },
+                    { label: 'Product Types', href: '/admin/product-types', icon: 'package' },
+                    // Replaces the old "Back to Template" link above the heading.
+                    { label: processTemplate.name, href: templateHref, icon: 'workflow' },
+                ]}
+                subtitle={(
+                    <span className="text-[13px] text-om-muted">
+                        v{processTemplate.version} &bull; {productType.name}
+                    </span>
                 )}
+                columns={columns}
+                orderBy="component_name"
+                actionSlots={actionSlots}
+                onCreate={() => setEditing('new')}
+                createLabel={__('Add Component')}
+                emptyText={__('No materials in BOM yet.')}
+            />
 
-                {editingItem && (
-                    <MaterialForm
-                        key={editingItem.id}
-                        productType={productType}
-                        processTemplate={processTemplate}
-                        materials={materials}
-                        productTypes={productTypes}
-                        steps={steps}
-                        item={editingItem}
-                        onCancel={() => setEditingItem(null)}
-                    />
-                )}
-
-                {bomItems.length > 0 ? (
-                    <DataTable
-                        data={bomItems}
-                        columns={columns}
-                        searchable={false}
-                        columnToggle={false}
-                        paginated={false}
-                    />
-                ) : (
-                    <div className="card text-center py-12">
-                        <p className="text-om-muted text-lg mb-4">{__("No materials in BOM yet.")}</p>
-                        <button
-                            type="button"
-                            onClick={() => setShowAddForm(true)}
-                            className="btn-touch btn-primary"
-                        >
-                            {__("Add First Material")}
-                        </button>
-                    </div>
-                )}
-            </div>
-            {dialog}
+            <Modal
+                open={isOpen}
+                onClose={() => setEditing(null)}
+                title={item ? `${__('Edit BOM Item')} - ${item.component_name}` : __('Add Component to BOM')}
+                closeLabel={__('Close')}
+                side="right"
+                width={560}
+                // Closing without saving keeps what was typed — the panel is
+                // hidden, not unmounted. Safe with the key below: what's retained
+                // belongs to the row it was typed for.
+                keepMounted
+            >
+                {/* Keyed per line: one Modal serves both add and edit, and without
+                    this the previous row's typed values would carry into the next.
+                    The run counter is the other half — a finished save is the only
+                    thing that clears the retained values. */}
+                <MaterialForm
+                    key={`${item ? item.id : 'new'}:${formRun}`}
+                    productType={productType}
+                    processTemplate={processTemplate}
+                    materials={materials}
+                    productTypes={productTypes}
+                    steps={steps}
+                    item={item}
+                    onCancel={() => setEditing(null)}
+                    onSaved={() => {
+                        setEditing(null);
+                        setFormRun((n) => n + 1);
+                    }}
+                />
+            </Modal>
         </>
     );
 }
