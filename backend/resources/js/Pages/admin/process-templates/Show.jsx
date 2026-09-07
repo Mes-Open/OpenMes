@@ -384,7 +384,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 /* ------------------------------------------------------------------ */
 /* Inline step-edit form                                                 */
 /* ------------------------------------------------------------------ */
-function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel }) {
+function EditStepForm({ step, productType, processTemplate, processSegments, workstations, workstationTypes = [], onCancel, onSaved }) {
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
@@ -408,7 +408,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         e.preventDefault();
         form.put(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
-            { onSuccess: onCancel },
+            { onSuccess: onSaved },
         );
     };
 
@@ -803,175 +803,161 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
 /* ------------------------------------------------------------------ */
 /* Main page component                                                   */
 function StepCard({
-    step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
-    productType, processTemplate, processSegments, workstations, workstationTypes = [],
+    step, photo, photosBaseUrl, isFirst, isLast, onEditStart,
+    productType, processTemplate,
     onMoveUp, onMoveDown, onDelete,
     dragHandleProps,
 }) {
-    const isEditing = editingId === step.id;
-
     return (
         <div className="card" {...dragHandleProps}>
-            {!isEditing ? (
-                <div className="flex items-start justify-between">
-                    <div className="flex gap-4 flex-1">
-                        {/* Drag handle */}
-                        <Tooltip label="Drag to reorder">
-                            <div
-                                className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
-                                role="img"
-                                aria-label="Drag to reorder"
-                            >
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="9" cy="5" r="1.5" />
-                                    <circle cx="15" cy="5" r="1.5" />
-                                    <circle cx="9" cy="12" r="1.5" />
-                                    <circle cx="15" cy="12" r="1.5" />
-                                    <circle cx="9" cy="19" r="1.5" />
-                                    <circle cx="15" cy="19" r="1.5" />
-                                </svg>
-                            </div>
-                        </Tooltip>
-
-                        <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
-                            <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
+            <div className="flex items-start justify-between">
+                <div className="flex gap-4 flex-1">
+                    {/* Drag handle */}
+                    <Tooltip label="Drag to reorder">
+                        <div
+                            className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
+                            role="img"
+                            aria-label="Drag to reorder"
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <circle cx="9" cy="5" r="1.5" />
+                                <circle cx="15" cy="5" r="1.5" />
+                                <circle cx="9" cy="12" r="1.5" />
+                                <circle cx="15" cy="12" r="1.5" />
+                                <circle cx="9" cy="19" r="1.5" />
+                                <circle cx="15" cy="19" r="1.5" />
+                            </svg>
                         </div>
+                    </Tooltip>
 
-                        <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
-                                        {step.name}
-                                        {step.is_optional && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
-                                                {__('Optional')}
-                                            </span>
-                                        )}
-                                        {step.variant_group && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
-                                                {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
-                                            </span>
-                                        )}
-                                        {step.requires_confirmation && (
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
-                                                {__('Read-confirmation')}
-                                            </span>
-                                        )}
-                                    </h3>
+                    <div className="flex-shrink-0 w-12 h-12 bg-om-chip rounded-full flex items-center justify-center step-number-badge">
+                        <span className="text-lg font-bold text-om-accent">{step.step_number}</span>
+                    </div>
 
-                                    {step.process_segment && (
-                                        <p className="mt-1">
-                                            <a
-                                                href={`/admin/process-segments/${step.process_segment.id}`}
-                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-om-chip"
-                                                title="ISA-95 Process Segment"
-                                            >
-                                                <Icon
-                                                    d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
-                                                    className="w-3 h-3"
-                                                />
-                                                {step.process_segment.code}
-                                            </a>
-                                        </p>
+                    <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                                <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
+                                    {step.name}
+                                    {step.is_optional && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
+                                            {__('Optional')}
+                                        </span>
                                     )}
-
-                                    {step.workstation && (
-                                        <p className="text-sm text-om-muted mt-1">
-                                            <Icon
-                                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                                                className="w-4 h-4 inline-block mr-1"
-                                            />
-                                            {step.workstation.name} ({step.workstation.line_name ?? '-'})
-                                        </p>
+                                    {step.variant_group && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
+                                            {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
+                                        </span>
                                     )}
-
-                                    {step.estimated_duration_minutes != null && (
-                                        <p className="text-sm text-om-muted">
-                                            <Icon
-                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                className="w-4 h-4 inline-block mr-1"
-                                            />
-                                            ~{step.estimated_duration_minutes} min
-                                        </p>
+                                    {step.requires_confirmation && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
+                                            {__('Read-confirmation')}
+                                        </span>
                                     )}
-                                </div>
+                                </h3>
 
-                                {/* Actions */}
-                                <div className="flex gap-1 ml-4">
-                                    <Tooltip label="Edit">
-                                        <button
-                                            type="button"
-                                            onClick={() => onEditStart(step.id)}
-                                            className="text-om-accent hover:text-om-accent p-2"
-                                            aria-label="Edit"
+                                {step.process_segment && (
+                                    <p className="mt-1">
+                                        <a
+                                            href={`/admin/process-segments/${step.process_segment.id}`}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-om-chip"
+                                            title="ISA-95 Process Segment"
                                         >
-                                            <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </button>
-                                    </Tooltip>
+                                            <Icon
+                                                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
+                                                className="w-3 h-3"
+                                            />
+                                            {step.process_segment.code}
+                                        </a>
+                                    </p>
+                                )}
 
-                                    {!isFirst && (
-                                        <Tooltip label="Move up">
-                                            <button
-                                                type="button"
-                                                onClick={() => onMoveUp(step)}
-                                                className="text-om-muted hover:text-om-ink p-2"
-                                                aria-label="Move up"
-                                            >
-                                                <Icon d="M5 15l7-7 7 7" />
-                                            </button>
-                                        </Tooltip>
-                                    )}
+                                {step.workstation && (
+                                    <p className="text-sm text-om-muted mt-1">
+                                        <Icon
+                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                            className="w-4 h-4 inline-block mr-1"
+                                        />
+                                        {step.workstation.name} ({step.workstation.line_name ?? '-'})
+                                    </p>
+                                )}
 
-                                    {!isLast && (
-                                        <Tooltip label="Move down">
-                                            <button
-                                                type="button"
-                                                onClick={() => onMoveDown(step)}
-                                                className="text-om-muted hover:text-om-ink p-2"
-                                                aria-label="Move down"
-                                            >
-                                                <Icon d="M19 9l-7 7-7-7" />
-                                            </button>
-                                        </Tooltip>
-                                    )}
-
-                                    <Tooltip label="Delete">
-                                        <button
-                                            type="button"
-                                            onClick={() => onDelete(step)}
-                                            className="text-om-blocked hover:text-om-blocked p-2"
-                                            aria-label="Delete"
-                                        >
-                                            <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </button>
-                                    </Tooltip>
-                                </div>
+                                {step.estimated_duration_minutes != null && (
+                                    <p className="text-sm text-om-muted">
+                                        <Icon
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            className="w-4 h-4 inline-block mr-1"
+                                        />
+                                        ~{step.estimated_duration_minutes} min
+                                    </p>
+                                )}
                             </div>
 
-                            {step.instruction && (
-                                <div className="mt-2 p-3 bg-om-panel rounded-om-sm">
-                                    <p className="text-sm text-om-muted whitespace-pre-wrap">{step.instruction}</p>
-                                </div>
-                            )}
+                            {/* Actions */}
+                            <div className="flex gap-1 ml-4">
+                                <Tooltip label="Edit">
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditStart(step.id)}
+                                        className="text-om-accent hover:text-om-accent p-2"
+                                        aria-label="Edit"
+                                    >
+                                        <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </button>
+                                </Tooltip>
 
-                            <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
+                                {!isFirst && (
+                                    <Tooltip label="Move up">
+                                        <button
+                                            type="button"
+                                            onClick={() => onMoveUp(step)}
+                                            className="text-om-muted hover:text-om-ink p-2"
+                                            aria-label="Move up"
+                                        >
+                                            <Icon d="M5 15l7-7 7 7" />
+                                        </button>
+                                    </Tooltip>
+                                )}
 
-                            <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+                                {!isLast && (
+                                    <Tooltip label="Move down">
+                                        <button
+                                            type="button"
+                                            onClick={() => onMoveDown(step)}
+                                            className="text-om-muted hover:text-om-ink p-2"
+                                            aria-label="Move down"
+                                        >
+                                            <Icon d="M19 9l-7 7-7-7" />
+                                        </button>
+                                    </Tooltip>
+                                )}
 
+                                <Tooltip label="Delete">
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(step)}
+                                        className="text-om-blocked hover:text-om-blocked p-2"
+                                        aria-label="Delete"
+                                    >
+                                        <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </button>
+                                </Tooltip>
+                            </div>
                         </div>
+
+                        {step.instruction && (
+                            <div className="mt-2 p-3 bg-om-panel rounded-om-sm">
+                                <p className="text-sm text-om-muted whitespace-pre-wrap">{step.instruction}</p>
+                            </div>
+                        )}
+
+                        <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
+
+                        <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
+
                     </div>
                 </div>
-            ) : (
-                <EditStepForm
-                    step={step}
-                    productType={productType}
-                    processTemplate={processTemplate}
-                    processSegments={processSegments}
-                    workstations={workstations}
-                    workstationTypes={workstationTypes}
-                    onCancel={onEditCancel}
-                />
-            )}
+            </div>
         </div>
     );
 }
@@ -1007,6 +993,7 @@ export default function ProcessTemplatesShow() {
     // what you typed is still there when you open it again.
     const [addFormKey, setAddFormKey] = useState(0);
     const [editFormKey, setEditFormKey] = useState(0);
+    const [stepFormKey, setStepFormKey] = useState(0);
     const [selectedStepId, setSelectedStepId] = useState(null);
     const selectedStep = steps.find((st) => st.id === selectedStepId) ?? steps[0] ?? null;
     const totalMinutes = steps.reduce((acc, st) => acc + (Number(st.estimated_duration_minutes) || 0), 0);
@@ -1019,7 +1006,11 @@ export default function ProcessTemplatesShow() {
         st.is_optional ? __('optional') : null,
     ].filter(Boolean).join(' · ');
 
+    // Which step's edit drawer is open (null = none). The step being edited is
+    // still visible in the detail pane behind the drawer, so you can check it
+    // against what you are typing.
     const [editingId, setEditingId] = useState(null);
+    const editingStep = editingId != null ? (steps.find((st) => st.id === editingId) ?? null) : null;
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
     const { confirm, dialog } = useConfirm();
 
@@ -1273,14 +1264,9 @@ export default function ProcessTemplatesShow() {
                                         photosBaseUrl={photosBaseUrl}
                                         isFirst={selectedStep.id === steps[0]?.id}
                                         isLast={selectedStep.id === steps[steps.length - 1]?.id}
-                                        editingId={editingId}
                                         onEditStart={(id) => setEditingId(id)}
-                                        onEditCancel={() => setEditingId(null)}
                                         productType={productType}
                                         processTemplate={processTemplate}
-                                        processSegments={processSegments}
-                                        workstations={workstations}
-                                        workstationTypes={workstationTypes}
                                         onMoveUp={handleMoveUp}
                                         onMoveDown={handleMoveDown}
                                         onDelete={handleDelete}
@@ -1366,6 +1352,42 @@ export default function ProcessTemplatesShow() {
                         setAddFormKey((k) => k + 1);
                     }}
                 />
+            </Modal>
+
+            {/* Editing a step is the same drawer as adding one — the step stays
+                visible in the detail pane behind it, so you can read what you are
+                changing. `editingStep` is looked up from `steps` rather than held
+                in state, so a save that re-renders the page feeds the form the
+                fresh row instead of the stale one it opened with. */}
+            <Modal
+                open={editingStep != null}
+                onClose={() => setEditingId(null)}
+                title={__('Edit Step')}
+                subtitle={editingStep?.name}
+                closeLabel={__('Close')}
+                side="right"
+                width={640}
+                keepMounted
+            >
+                {editingStep && (
+                    <EditStepForm
+                        // Keyed by step as well as by save: one drawer serves every
+                        // row, and without the id the values typed for one step
+                        // would be retained onto the next one opened.
+                        key={`step:${editingStep.id}:${stepFormKey}`}
+                        step={editingStep}
+                        productType={productType}
+                        processTemplate={processTemplate}
+                        processSegments={processSegments}
+                        workstations={workstations}
+                        workstationTypes={workstationTypes}
+                        onCancel={() => setEditingId(null)}
+                        onSaved={() => {
+                            setEditingId(null);
+                            setStepFormKey((k) => k + 1);
+                        }}
+                    />
+                )}
             </Modal>
             {dialog}
         </>

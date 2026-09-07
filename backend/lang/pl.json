@@ -5969,5 +5969,6 @@
     ":n columns": ":n kolumn",
     "Component kind": "Rodzaj komponentu",
     "BOM item updated.": "Zaktualizowano pozycję BOM.",
-    "Material removed from BOM.": "Usunięto materiał z BOM."
+    "Material removed from BOM.": "Usunięto materiał z BOM.",
+    "Edit Step": "Edytuj krok"
 }
