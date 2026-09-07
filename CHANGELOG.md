@@ -299,6 +299,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     which only offers what you may still pick.
 
 ### Fixed
+- **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
+  form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
+  so `.post` was read off `undefined` and the submit threw before any request
+  (`can't access property "post", u.transform(...) is undefined`, #282). Set the transform
+  and post in separate statements, matching every other form in the app.
 - **A drawer no longer forgets what you typed when you close it** — dismissing a create or
   edit drawer (the ×, Escape, Cancel, or a stray click on the scrim) reset the form, so a
   half-filled record was gone on the way back in. Only a finished save clears it now.
