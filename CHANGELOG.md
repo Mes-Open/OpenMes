@@ -8,6 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Demo data now includes a two-level bill of materials** — `AirFilterDemoSeeder` seeds the
+  purchased parts (media, frame profile, gasket, adhesives, carton) and one manufactured
+  sub-assembly, the HEPA-13 pleat pack, which has its own routing and BOM. The assembly BOM
+  therefore explodes through the pleat pack down to raw media, with scrap cascading between
+  levels, so the BOM screens, the net-requirements report and `BomExplosionService` all have
+  a realistic multi-level structure to work on instead of an empty one.
 - **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
   issues against the demo work orders, one per lifecycle state (open, acknowledged,
   resolved, closed), reported by the demo operators and assigned to the demo supervisor.

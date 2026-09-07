@@ -4,9 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BomItem;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Line;
+use App\Models\Material;
+use App\Models\MaterialType;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\User;
@@ -27,6 +30,9 @@ use Spatie\Permission\Models\Role;
  *  - 6 work orders (WO-186-001..005 due today/tomorrow + WO-185-088 done)
  *  - A running batch on WO-186-001 with steps 1-2 DONE, step 3 IN_PROGRESS
  *  - Operator-reported issues, one per lifecycle state (open → closed)
+ *  - A two-level BOM: the HEPA-13 assembly consumes a manufactured pleat pack
+ *    (sub-assembly) plus purchased parts; the pleat pack has its own routing
+ *    and BOM, so exploding the top level reaches the raw media
  *
  * Run with: `php artisan db:seed --class=AirFilterDemoSeeder`
  *
@@ -42,9 +48,162 @@ class AirFilterDemoSeeder extends Seeder
         $productTypes = $this->seedProductTypes();
         $template = $this->seedHepaProcessTemplate($productTypes['HEPA13_STD'], $workstations);
         $users = $this->seedUsers($lines);
+        $pleatPackTemplate = $this->seedPleatPackTemplate($productTypes['PLEATPACK13'], $workstations);
+        $materials = $this->seedMaterials($pleatPackTemplate);
+        $this->seedBom($template, $pleatPackTemplate, $materials);
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $template);
         $this->seedActiveBatch($workOrders['WO-186-001'], $template, $users['operator-mk']);
         $this->seedIssues($workOrders, $users);
+    }
+
+    /**
+     * The pleat pack's own routing. Its existence is what makes PLEATPACK13 a
+     * sub-assembly rather than a purchased part: a material flagged
+     * `is_manufactured` and pointed at a producing template is what
+     * BomExplosionService follows down a level.
+     *
+     * @param  array<string, Workstation>  $ws
+     */
+    private function seedPleatPackTemplate(ProductType $productType, array $ws): ProcessTemplate
+    {
+        $template = ProcessTemplate::updateOrCreate(
+            ['product_type_id' => $productType->id, 'version' => 1],
+            ['name' => 'Pleat pack HEPA-13 — production v1', 'is_active' => true]
+        );
+
+        $steps = [
+            [1, 'Media pleating', 'Feed the media roll and fold to the HEPA-13 pitch. Check pleat height on the first five packs.', 6, $ws['WS-PA-01'] ?? null],
+            [2, 'Edge sealing', 'Run a hot-melt bead down both open edges and press until set.', 4, $ws['WS-AB-01'] ?? null],
+        ];
+
+        foreach ($steps as [$stepNo, $name, $instruction, $duration, $workstation]) {
+            DB::table('template_steps')->updateOrInsert(
+                ['process_template_id' => $template->id, 'step_number' => $stepNo],
+                [
+                    'name' => $name,
+                    'instruction' => $instruction,
+                    'estimated_duration_minutes' => $duration,
+                    'workstation_id' => $workstation?->id,
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        return $template;
+    }
+
+    /**
+     * The items the two BOMs consume: purchased parts plus the one manufactured
+     * material (the pleat pack) that links the levels together.
+     *
+     * @return array<string, Material>
+     */
+    private function seedMaterials(ProcessTemplate $pleatPackTemplate): array
+    {
+        // raw_material / semi_finished / packaging / auxiliary. Idempotent, and
+        // the demo must not depend on that seeder having been run separately.
+        $this->call(MaterialTypesSeeder::class);
+
+        $typeIds = MaterialType::pluck('id', 'code');
+
+        $defs = [
+            // Purchased.
+            ['code' => 'MEDIA-H13',   'name' => 'HEPA-13 filter media',      'type' => 'raw_material', 'unit_of_measure' => 'm2',  'stock_quantity' => 4200,  'unit_price' => 6.40,  'supplier_name' => 'Filtrair Media BV'],
+            ['code' => 'FRAME-AL-13', 'name' => 'Aluminium frame profile',   'type' => 'raw_material', 'unit_of_measure' => 'pcs', 'stock_quantity' => 1800,  'unit_price' => 11.20, 'supplier_name' => 'AluFab Sp. z o.o.'],
+            ['code' => 'GASKET-PU-13', 'name' => 'PU gasket seal',           'type' => 'raw_material', 'unit_of_measure' => 'm',   'stock_quantity' => 2600,  'unit_price' => 1.85,  'supplier_name' => 'SealTech GmbH'],
+            ['code' => 'ADH-2K-A',    'name' => 'Two-part adhesive (A)',     'type' => 'auxiliary',    'unit_of_measure' => 'kg',  'stock_quantity' => 180,   'unit_price' => 24.50, 'supplier_name' => 'ChemBond'],
+            ['code' => 'HOTMELT-01',  'name' => 'Hot-melt edge sealant',     'type' => 'auxiliary',    'unit_of_measure' => 'kg',  'stock_quantity' => 95,    'unit_price' => 18.90, 'supplier_name' => 'ChemBond'],
+            ['code' => 'CARTON-10',   'name' => 'Carton, 10 filters',        'type' => 'packaging',    'unit_of_measure' => 'pcs', 'stock_quantity' => 640,   'unit_price' => 3.10,  'supplier_name' => 'PackLine'],
+        ];
+
+        $materials = [];
+        foreach ($defs as $def) {
+            $materials[$def['code']] = Material::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'material_type_id' => $typeIds[$def['type']] ?? null,
+                    'unit_of_measure' => $def['unit_of_measure'],
+                    'tracking_type' => 'batch',
+                    'is_manufactured' => false,
+                    'stock_quantity' => $def['stock_quantity'],
+                    'unit_price' => $def['unit_price'],
+                    'supplier_name' => $def['supplier_name'],
+                ]
+            );
+        }
+
+        // The sub-assembly. `is_manufactured` + the producing template is what
+        // lets a BOM line for it be exploded into the level below.
+        $materials['PLEATPACK13'] = Material::updateOrCreate(
+            ['code' => 'PLEATPACK13'],
+            [
+                'name' => 'Pleat pack HEPA-13',
+                'material_type_id' => $typeIds['semi_finished'] ?? null,
+                'unit_of_measure' => 'pcs',
+                'tracking_type' => 'batch',
+                'is_manufactured' => true,
+                'producing_process_template_id' => $pleatPackTemplate->id,
+                'stock_quantity' => 260,
+            ]
+        );
+
+        return $materials;
+    }
+
+    /**
+     * Two BOM levels: the HEPA-13 assembly consumes the pleat pack plus the
+     * purchased parts, and the pleat pack's own template consumes media and
+     * sealant. Exploding the top level therefore reaches the raw media.
+     *
+     * Lines are pinned to the step that actually consumes them, so the operator's
+     * kit list matches the routing.
+     *
+     * @param  array<string, Material>  $materials
+     */
+    private function seedBom(ProcessTemplate $assembly, ProcessTemplate $pleatPack, array $materials): void
+    {
+        $defs = [
+            // HEPA-13 assembly.
+            [$assembly, 2, 'FRAME-AL-13',  1,    0,   'start'],
+            [$assembly, 3, 'PLEATPACK13',  1,    2,   'start'],
+            [$assembly, 4, 'GASKET-PU-13', 1.6,  3,   'during'],
+            [$assembly, 4, 'ADH-2K-A',     0.08, 5,   'during'],
+            // 10 filters to a carton.
+            [$assembly, 6, 'CARTON-10',    0.1,  0,   'end'],
+
+            // Pleat pack — the level below.
+            [$pleatPack, 1, 'MEDIA-H13',   2.4,  5,   'start'],
+            [$pleatPack, 2, 'HOTMELT-01',  0.03, 2,   'during'],
+        ];
+
+        $sortOrder = [];
+
+        foreach ($defs as [$template, $stepNumber, $code, $qty, $scrap, $consumedAt]) {
+            $material = $materials[$code] ?? null;
+            if (! $material) {
+                continue;
+            }
+
+            $stepId = DB::table('template_steps')
+                ->where('process_template_id', $template->id)
+                ->where('step_number', $stepNumber)
+                ->value('id');
+
+            $key = $template->id;
+            $sortOrder[$key] = ($sortOrder[$key] ?? 0) + 1;
+
+            BomItem::updateOrCreate(
+                ['process_template_id' => $template->id, 'material_id' => $material->id],
+                [
+                    'template_step_id' => $stepId,
+                    'quantity_per_unit' => $qty,
+                    'scrap_percentage' => $scrap,
+                    'consumed_at' => $consumedAt,
+                    'sort_order' => $sortOrder[$key],
+                ]
+            );
+        }
     }
 
     /**
@@ -228,6 +387,10 @@ class AirFilterDemoSeeder extends Seeder
             ['code' => 'PREFILTER',   'name' => 'Pre-filter G4',     'description' => 'Coarse pre-filter (G4 grade), upstream of HEPA',         'unit_of_measure' => 'pcs'],
             ['code' => 'CARBON',      'name' => 'Carbon X2',         'description' => 'Activated-carbon odour and VOC filter',                  'unit_of_measure' => 'pcs'],
             ['code' => 'HVAC',        'name' => 'HVAC cassette',     'description' => 'HVAC cassette filter, multi-stage media stack',          'unit_of_measure' => 'pcs'],
+            // Semi-finished: produced on its own template, then consumed by the
+            // HEPA-13 assembly. It needs a product type because that is what a
+            // process template is written against.
+            ['code' => 'PLEATPACK13', 'name' => 'Pleat pack HEPA-13', 'description' => 'Folded and edge-sealed HEPA-13 media pack, ready to frame', 'unit_of_measure' => 'pcs'],
         ];
 
         $result = [];
