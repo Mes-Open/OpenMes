@@ -7,6 +7,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **A fresh install came up missing most of its reference data** — both install paths (the
+  container entrypoint and the web installer) seeded a hand-picked subset of `DatabaseSeeder`
+  rather than running it, so a new install had no scrap reasons, no downtime reasons, no
+  material types and no label templates. The operator's "report scrap" picker was an empty
+  dropdown out of the box. Both paths now run `DatabaseSeeder`; every seeder in it upserts,
+  so it stays safe to repeat on each container start.
+
+### Security
+- **Upgraded `league/commonmark` 2.8.3 → 2.10.1**, clearing ten advisories (several high) on
+  the copy pulled in through `laravel/framework`. OpenMES does not render Markdown itself, so
+  exposure was limited to Laravel's own mail templates — but `composer audit` is a merge gate
+  and it now reports clean.
+
 ### Added
 - **A shortage of a manufactured subassembly is now reported as such** — previously nothing
   said "not enough pleat packs to build this order". The net-requirements report exploded
