@@ -7,19 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Fixed
-- **A fresh install came up missing most of its reference data** — both install paths (the
-  container entrypoint and the web installer) seeded a hand-picked subset of `DatabaseSeeder`
-  rather than running it, so a new install had no scrap reasons, no downtime reasons, no
-  material types and no label templates. The operator's "report scrap" picker was an empty
-  dropdown out of the box. Both paths now run `DatabaseSeeder`; every seeder in it upserts,
-  so it stays safe to repeat on each container start.
-
-### Security
-- **Upgraded `league/commonmark` 2.8.3 → 2.10.1**, clearing ten advisories (several high) on
-  the copy pulled in through `laravel/framework`. OpenMES does not render Markdown itself, so
-  exposure was limited to Laravel's own mail templates — but `composer audit` is a merge gate
-  and it now reports clean.
+## [0.22.0] - 2026-09-08
 
 ### Added
 - **A shortage of a manufactured subassembly is now reported as such** — previously nothing
@@ -70,17 +58,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   scrap cascading between levels. The BOM screens, the net-requirements report and
   `BomExplosionService` all have a realistic structure to work on instead of an empty one.
 
-### Fixed
-- **Demo seeder could resurrect deleted process-template steps** — it wrote steps with a
-  query-builder `updateOrInsert()` keyed on template + step number, which runs without the
-  model's soft-delete scope. On a database where a step had been deleted the match hit the
-  deleted row, so a re-run updated that instead of inserting a live one, leaving the template
-  short a step. The match now requires `deleted_at IS NULL`.
-- **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
-  issues against the demo work orders, one per lifecycle state (open, acknowledged,
-  resolved, closed), reported by the demo operators and assigned to the demo supervisor.
-  The operator's work-order view, the admin Issues list and the history screens all have
-  something to show instead of an empty state. Upsert-safe like the rest of the seeder.
+- **Validate an import before running it** *(admin)* — the column-mapping step gains a **Validate only** button beside Run Import. It reads, maps and feeds the file to the importer exactly as a real run — inside a transaction that always rolls back — so the result reports what the import *would* do, including what only the database can answer (unique collisions, missing foreign keys), and writes nothing. The run appears in the history labelled **Validation only**, with "Would create" / "Would update" counters and the same per-row error list. Live-sync deltas are suppressed for the duration, so a validation never pushes rows to open browsers that no later delta takes back.
+- **Unified data importer** *(Admin → Import)* — one PrestaShop-style screen loads
+  **product types, materials, work orders and bills of materials** from CSV / XLS / XLSX:
+  pick the entity, see its available fields (required ones starred) and download a sample
+  file, upload with a chosen separator and encoding (UTF-8, ISO-8859-1, Windows-1250), set
+  the run options (strategy, external system, category filter, default material type,
+  target line and planning period, replace/merge for recipes), map columns (auto-detected
+  from English and Polish headers, saved as reusable per-entity profiles), and run. The run
+  is **queued** and its progress bar, counters and history list update **live** through the
+  `data_imports` synced collection; finished runs list every failed row with its file line,
+  field and reason, downloadable as CSV. Supervisors get the same screen for work orders
+  under Supervisor → Orders. Behind it, each entity is an `EntityImporter` adapter in
+  `app/Import` over the existing ERP import services, one `SpreadsheetReader` replaces the
+  three parsers the old importers carried, and a new `import` tab gates the admin mount.
+  The tab is granted to Admin only — it loads master data and can replace recipes, so
+  roles that used the old work-order importer get it deliberately in Settings → Access.
+- **Consumption is deducted from the workshop location it came off** — stock levels per storage location now reflect what production actually used. Allocation already moved the plant-wide quantity and the picked lot, but nothing said *where* the material physically was, so a plant running several stores could not tell which one had emptied.
+  - **Each line names its stock location.** A production line gains a **Stock location** (Admin → Lines), picked from the raw-material warehouses. Optional: a plant that doesn't track stock per location leaves it unset and nothing changes.
+  - **The location is resolved most-specific-first.** The **picked lot's** warehouse wins (it knows exactly where it sits), then the **line's** stock location, then the plant's **default raw-material** warehouse. Once a deduction has been made the location is **frozen on the allocation**, so a later correction always credits back the location that actually gave the material up — even if the lot has since been moved or the line re-pointed.
+  - **Split across the stores it really came from.** Lot picking is FEFO across the material's lots and knows nothing about stores, so one allocation can draw from two — each pick's share is booked against its own lot's warehouse, **frozen on the pick at its first deduction** so a lot moved afterwards still credits back the store that gave the material up. A picked lot the location cannot cover is refused on its own account: a healthy material total is not the same answer as the lot being there. **Scrap counts as consumed** for this: it left the store too, unlike the leftover that is returned.
+  - **Booked by difference, never twice.** Consumption is recorded more than once for the same allocation (an operator's entry, a correction, then batch completion finalising the rest), so the balance moves by the **difference** each time. A downward correction credits the location back, and cancelling a batch returns everything it had taken.
+  - **Auditable per deduction.** Every deduction writes a `stock_movements` row carrying the **warehouse**, the batch/step it came from and the quantity — the plant-wide quantity is deliberately *not* moved again, since allocation already booked it.
+  - **Stock cannot silently go negative.** The balance row is **locked before it is read**, so two concurrent bookings cannot both pass the same check; posting a warehouse document now honours the **location's** balance as well as the plant-wide one. Consumption exceeding the location's balance is **refused** when the system-wide **"block negative stock"** setting is on (the same switch warehouse documents respect) — and when it's off, production is not stopped but the movement records the **shortfall** explicitly, so an overdraw stays findable.
+  - **Part of the optional Warehouses module.** With the module off, consumption moves no location balance and refuses nothing — a plant that does not run per-location stock is unaffected. Rollout steps are in [`docs/warehouse-erp-rollout.md`](docs/warehouse-erp-rollout.md).
+  - New `lines.warehouse_id` and `material_allocations.consumption_warehouse_id` / `location_deducted_qty` columns, `App\Services\Material\ConsumptionLocationService`, and a shared `App\Services\Warehouse\WarehouseStockService` that the stock-document posting path now uses too, so both routes into a location balance share one race-safe implementation.
+- **Count production from MQTT machines onto a line/step** *(admin / connectivity)* — a machine/MQTT device can be **assigned to a production line**, and a new **"Count at Station / Step"** topic-mapping action turns each sensor pulse (e.g. a break-beam sensor: one unit leaving a station) into `+1` on the addressed step of the line's **currently running** work order — no per-order configuration. The per-step throughput is tracked in a new `passed_qty` counter; a mapping flagged as the finished-goods counting point also feeds the work order's `produced_qty` (through the shared machine-count path, so `counting_source` and auto start/complete are honoured — no double counting). `update_work_order_qty` can now also target a line directly (the running order) instead of a fixed order number. The device form gains an **Assigned line** picker and the topic-mapping editor a guided **Line + Station/Step** form for the count action (no more hand-written JSON).
+- **Traceability when editing an in-use process template** *(admin)* — editing a template's steps (add / rename / delete / reorder) still mutates the current template in place, and running work orders correctly keep their frozen snapshot — but that used to happen silently. Now the template page shows a **warning banner** when the template backs active (non-finished) work orders, destructive step edits ask for confirmation while it's in use, and **every step change is written to the immutable audit log** (before/after shape) so the previous version is never lost. No change to how orders resolve their steps.
+- **Add maintenance to the planner** *(admin)* — a new **+ Maintenance** button on the schedule planner opens a modal to place a **defined maintenance** (a maintenance schedule, which pre-fills its title / type / line) or an ad-hoc one onto a line at a chosen date, time and duration. It lands as a **distinct yellow tile** in the line's maintenance strip (maintenance tiles are now yellow instead of purple, so they stand out from work orders). Backed by `POST /admin/schedule/maintenance`.
+- **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
+- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
 
 ### Changed
 - **BOM page rebuilt on the standard admin list** — the Bill of Materials
@@ -374,6 +381,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     which only offers what you may still pick.
 
 ### Fixed
+- **A fresh install came up missing most of its reference data** — both install paths (the
+  container entrypoint and the web installer) seeded a hand-picked subset of `DatabaseSeeder`
+  rather than running it, so a new install had no scrap reasons, no downtime reasons, no
+  material types and no label templates. The operator's "report scrap" picker was an empty
+  dropdown out of the box. Both paths now run `DatabaseSeeder`; every seeder in it upserts,
+  so it stays safe to repeat on each container start.
+
+- **Demo seeder could resurrect deleted process-template steps** — it wrote steps with a
+  query-builder `updateOrInsert()` keyed on template + step number, which runs without the
+  model's soft-delete scope. On a database where a step had been deleted the match hit the
+  deleted row, so a re-run updated that instead of inserting a live one, leaving the template
+  short a step. The match now requires `deleted_at IS NULL`.
+- **Demo data now includes operator-reported issues** — `AirFilterDemoSeeder` seeds five
+  issues against the demo work orders, one per lifecycle state (open, acknowledged,
+  resolved, closed), reported by the demo operators and assigned to the demo supervisor.
+  The operator's work-order view, the admin Issues list and the history screens all have
+  something to show instead of an empty state. Upsert-safe like the rest of the seeder.
+
 - **New stock document → "Create Draft" did nothing** *(Admin → Stock Documents)* — the
   form chained `form.transform(...).post(...)`, but Inertia v3's `transform()` returns void,
   so `.post` was read off `undefined` and the submit threw before any request
@@ -430,39 +455,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
 - **Settings language picker showed the wrong language** *(admin)* — the Settings → System language dropdown always showed the stored *system default*, so after switching the UI language with the per-session switcher the picker contradicted the language actually on screen (#271). It now reflects the currently effective locale (the session override if set, else the system default).
 
-### Added
-- **Validate an import before running it** *(admin)* — the column-mapping step gains a **Validate only** button beside Run Import. It reads, maps and feeds the file to the importer exactly as a real run — inside a transaction that always rolls back — so the result reports what the import *would* do, including what only the database can answer (unique collisions, missing foreign keys), and writes nothing. The run appears in the history labelled **Validation only**, with "Would create" / "Would update" counters and the same per-row error list. Live-sync deltas are suppressed for the duration, so a validation never pushes rows to open browsers that no later delta takes back.
-- **Unified data importer** *(Admin → Import)* — one PrestaShop-style screen loads
-  **product types, materials, work orders and bills of materials** from CSV / XLS / XLSX:
-  pick the entity, see its available fields (required ones starred) and download a sample
-  file, upload with a chosen separator and encoding (UTF-8, ISO-8859-1, Windows-1250), set
-  the run options (strategy, external system, category filter, default material type,
-  target line and planning period, replace/merge for recipes), map columns (auto-detected
-  from English and Polish headers, saved as reusable per-entity profiles), and run. The run
-  is **queued** and its progress bar, counters and history list update **live** through the
-  `data_imports` synced collection; finished runs list every failed row with its file line,
-  field and reason, downloadable as CSV. Supervisors get the same screen for work orders
-  under Supervisor → Orders. Behind it, each entity is an `EntityImporter` adapter in
-  `app/Import` over the existing ERP import services, one `SpreadsheetReader` replaces the
-  three parsers the old importers carried, and a new `import` tab gates the admin mount.
-  The tab is granted to Admin only — it loads master data and can replace recipes, so
-  roles that used the old work-order importer get it deliberately in Settings → Access.
-- **Consumption is deducted from the workshop location it came off** — stock levels per storage location now reflect what production actually used. Allocation already moved the plant-wide quantity and the picked lot, but nothing said *where* the material physically was, so a plant running several stores could not tell which one had emptied.
-  - **Each line names its stock location.** A production line gains a **Stock location** (Admin → Lines), picked from the raw-material warehouses. Optional: a plant that doesn't track stock per location leaves it unset and nothing changes.
-  - **The location is resolved most-specific-first.** The **picked lot's** warehouse wins (it knows exactly where it sits), then the **line's** stock location, then the plant's **default raw-material** warehouse. Once a deduction has been made the location is **frozen on the allocation**, so a later correction always credits back the location that actually gave the material up — even if the lot has since been moved or the line re-pointed.
-  - **Split across the stores it really came from.** Lot picking is FEFO across the material's lots and knows nothing about stores, so one allocation can draw from two — each pick's share is booked against its own lot's warehouse, **frozen on the pick at its first deduction** so a lot moved afterwards still credits back the store that gave the material up. A picked lot the location cannot cover is refused on its own account: a healthy material total is not the same answer as the lot being there. **Scrap counts as consumed** for this: it left the store too, unlike the leftover that is returned.
-  - **Booked by difference, never twice.** Consumption is recorded more than once for the same allocation (an operator's entry, a correction, then batch completion finalising the rest), so the balance moves by the **difference** each time. A downward correction credits the location back, and cancelling a batch returns everything it had taken.
-  - **Auditable per deduction.** Every deduction writes a `stock_movements` row carrying the **warehouse**, the batch/step it came from and the quantity — the plant-wide quantity is deliberately *not* moved again, since allocation already booked it.
-  - **Stock cannot silently go negative.** The balance row is **locked before it is read**, so two concurrent bookings cannot both pass the same check; posting a warehouse document now honours the **location's** balance as well as the plant-wide one. Consumption exceeding the location's balance is **refused** when the system-wide **"block negative stock"** setting is on (the same switch warehouse documents respect) — and when it's off, production is not stopped but the movement records the **shortfall** explicitly, so an overdraw stays findable.
-  - **Part of the optional Warehouses module.** With the module off, consumption moves no location balance and refuses nothing — a plant that does not run per-location stock is unaffected. Rollout steps are in [`docs/warehouse-erp-rollout.md`](docs/warehouse-erp-rollout.md).
-  - New `lines.warehouse_id` and `material_allocations.consumption_warehouse_id` / `location_deducted_qty` columns, `App\Services\Material\ConsumptionLocationService`, and a shared `App\Services\Warehouse\WarehouseStockService` that the stock-document posting path now uses too, so both routes into a location balance share one race-safe implementation.
-- **Count production from MQTT machines onto a line/step** *(admin / connectivity)* — a machine/MQTT device can be **assigned to a production line**, and a new **"Count at Station / Step"** topic-mapping action turns each sensor pulse (e.g. a break-beam sensor: one unit leaving a station) into `+1` on the addressed step of the line's **currently running** work order — no per-order configuration. The per-step throughput is tracked in a new `passed_qty` counter; a mapping flagged as the finished-goods counting point also feeds the work order's `produced_qty` (through the shared machine-count path, so `counting_source` and auto start/complete are honoured — no double counting). `update_work_order_qty` can now also target a line directly (the running order) instead of a fixed order number. The device form gains an **Assigned line** picker and the topic-mapping editor a guided **Line + Station/Step** form for the count action (no more hand-written JSON).
-- **Traceability when editing an in-use process template** *(admin)* — editing a template's steps (add / rename / delete / reorder) still mutates the current template in place, and running work orders correctly keep their frozen snapshot — but that used to happen silently. Now the template page shows a **warning banner** when the template backs active (non-finished) work orders, destructive step edits ask for confirmation while it's in use, and **every step change is written to the immutable audit log** (before/after shape) so the previous version is never lost. No change to how orders resolve their steps.
-- **Add maintenance to the planner** *(admin)* — a new **+ Maintenance** button on the schedule planner opens a modal to place a **defined maintenance** (a maintenance schedule, which pre-fills its title / type / line) or an ad-hoc one onto a line at a chosen date, time and duration. It lands as a **distinct yellow tile** in the line's maintenance strip (maintenance tiles are now yellow instead of purple, so they stand out from work orders). Backed by `POST /admin/schedule/maintenance`.
-- **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
-- **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
-
-### Fixed
 - **Saving system settings crashed on PostgreSQL** *(admin)* — the plant-timezone save wrote the raw identifier (e.g. `Europe/Warsaw`) into the JSON `system_settings.value` column, which PostgreSQL rejects (`invalid input syntax for type json`), 500-ing the whole Settings → System save; SQLite tolerated it, so tests missed it. The value is now JSON-encoded (and decoded on read, tolerating legacy raw values).
 - **Header clock ignored the configured timezone** *(all users)* — the live clock top-right was hardcoded to `Europe/Warsaw`, so on any install with a different timezone it was the one timestamp in the UI that disagreed with all the others. It now goes through the same `formatDate`/`formatTime` helpers as the rest of the app.
 
@@ -470,6 +462,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **Plant timezone is changeable after installation** *(admin)* — Settings → System → General now carries a timezone picker (region + zone), writing the same `system_settings` row the installer's step does; the wizard already promised this was possible. The chosen zone is re-applied per request and before each queued job, so on Octane a change reaches every worker immediately instead of waiting for a container restart. Saving reloads the page so every displayed time switches over at once.
 - **Product types as Bill-of-Materials components** *(admin)* — a BOM line can now be a manufactured **product type** (a sub-assembly), not only a material. In the BOM editor a Material / Product type switch picks the component kind; product-type lines carry the same quantity-per-unit, step, scrap %, consumption timing and notes as materials. A product type can't be a component of itself, and each appears once per template. Lines are captured in the work-order snapshot as sub-assembly references; they're a simple component reference (they don't explode into their own BOM) and are skipped by the material stock/consumption engine. Additive — existing material BOMs are unaffected.
+
+### Security
+- **Upgraded `league/commonmark` 2.8.3 → 2.10.1**, clearing ten advisories (several high) on
+  the copy pulled in through `laravel/framework`. OpenMES does not render Markdown itself, so
+  exposure was limited to Laravel's own mail templates — but `composer audit` is a merge gate
+  and it now reports clean.
 
 ## [0.21.0] - 2026-08-21
 
