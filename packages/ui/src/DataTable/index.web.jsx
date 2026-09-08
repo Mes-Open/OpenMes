@@ -87,6 +87,9 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 
+import { DragDropProvider } from '@dnd-kit/react';
+import { useSortable } from '@dnd-kit/react/sortable';
+
 import { Checkbox } from '../Checkbox';
 import { Icon } from '../Icon';
 import { DatePicker } from '../DatePicker';
@@ -363,6 +366,7 @@ function ColumnFilter({ col }) {
                 onChange={set}
                 placeholder={meta.dateFilterPlaceholder}
                 aria-label={meta.menuLabel}
+                dialogLabel={meta.dateDialogLabel}
                 calendarProps={meta.calendarProps}
                 footer={
                     <button
@@ -406,6 +410,47 @@ function ColumnFilter({ col }) {
     return null;
 }
 
+/**
+ * One sortable row.
+ *
+ * A component rather than an inline hook call because `useSortable` is a hook
+ * and the rows are a `.map()`. It hands its refs back through a render prop so
+ * the row markup stays where it was instead of being lifted wholesale into a
+ * second component.
+ *
+ * `rowRef` goes on the `<tr>` (dnd-kit moves and animates it), `handleRef` on
+ * the grip — so dragging starts from the handle and a click on a link or an
+ * action button still means what it says.
+ */
+function SortableRow({ id, index, disabled, children }) {
+    const { ref, handleRef, isDragging } = useSortable({ id, index, disabled });
+
+    return children({ rowRef: ref, handleRef, isDragging });
+}
+
+/**
+ * Marks the cells that are table furniture rather than the record: the drag
+ * handle, the selection box, and any column a caller flags `meta.chrome` (the
+ * row actions). A plain marker class, not a style — it gives `rowClassName` a
+ * way to treat "the row's data" differently from "the controls on the row",
+ * which is what dimming a deactivated row needs.
+ */
+const CHROME_CELL = 'dt-chrome-cell';
+
+/** `DragDropProvider`, but only for the tables that actually reorder. */
+function MaybeDragDrop({ enabled, onDragEnd, children }) {
+    if (!enabled) return children;
+    return <DragDropProvider onDragEnd={onDragEnd}>{children}</DragDropProvider>;
+}
+
+/**
+ * The same shape for a table that never reorders, so lists without `onReorder`
+ * don't register a sortable per visible row just to leave it disabled.
+ */
+function PlainRow({ children }) {
+    return children({ rowRef: undefined, handleRef: undefined, isDragging: false });
+}
+
 /** 1px × 13px drag bar in a 9px hit area at the header-cell edge. */
 function ResizeHandle({ header, side }) {
     const handler = header.getResizeHandler();
@@ -428,6 +473,16 @@ export function DataTable({
     columns,
     searchPlaceholder = '',
     enableSelection = false,
+    /**
+     * Manual row order. Pass a handler to grow a drag-handle column at the head
+     * of every row; it receives the row ids in their new order.
+     *
+     * Only meaningful while the table is showing its natural order — see
+     * `canReorder` below.
+     */
+    onReorder,
+    reorderLabel = 'Drag to reorder',
+    reorderBlockedLabel = 'Clear the sort and filters to reorder rows',
     bulkActions,
     /** The word beside the count badge, e.g. "selected". */
     selectedLabel,
@@ -476,6 +531,10 @@ export function DataTable({
     fluid = true,
     /** Alternating row tint, so the eye tracks a row across a wide table. */
     striped = true,
+    /** `(row) => string` — extra classes for one row's `<tr>`, for state the whole
+     *  row should read as (a deactivated record dimmed, say). Appended last, so it
+     *  wins over the stripe/hover/selection classes when it sets the same property. */
+    rowClassName,
     className = '',
     ...props
 }) {
@@ -563,7 +622,50 @@ export function DataTable({
     const alignClass = (id) =>
         alignByColumn[id] === 'right' ? 'text-right' : alignByColumn[id] === 'center' ? 'text-center' : 'text-left';
 
+    // Manual order and a sorted/filtered/paged view contradict each other:
+    // dropping a row "above" another says nothing about the stored order when
+    // what you are looking at was arranged by something else, and the row you
+    // dropped past might not even be its neighbour. So the handle stays, and
+    // says why it is inert, rather than silently writing a wrong order.
+    /**
+     * dnd-kit reorders the rows on screen as you drag; this turns the finished
+     * gesture into the id order to persist. `initialIndex` is where the row
+     * started, `index` where it was let go.
+     */
+    const persistOrder = (event) => {
+        const source = event?.operation?.source;
+        if (event?.canceled || !source) return;
+
+        const from = source.initialIndex;
+        const to = source.index;
+        if (from === to || from == null || to == null) return;
+
+        // dnd-kit's indices are page-relative, but the order being saved is the
+        // whole list. Sending one page's ids says nothing about the rows on the
+        // others, and a backend that appends whatever it wasn't given would
+        // hoist this page above them — so the move is applied to the full list
+        // at a page-shifted index. `canReorder` has already ruled out sorting
+        // and filtering, so the filtered model *is* the stored order.
+        const ids = table.getFilteredRowModel().rows.map((r) => r.id);
+        const offset = state.pagination.pageIndex * state.pagination.pageSize;
+        const [moved] = ids.splice(offset + from, 1);
+        ids.splice(offset + to, 0, moved);
+        onReorder(ids);
+    };
+
+    // A sortable row costs a registration and a subscription each; a list that
+    // never reorders shouldn't pay for one per visible row.
+    const Row = onReorder ? SortableRow : PlainRow;
+
+    const canReorder =
+        !!onReorder
+        && state.sorting.length === 0
+        && state.columnFilters.length === 0
+        && !state.globalFilter;
+
     const pageRows = table.getRowModel().rows;
+    // Every leading gutter column the body has to span under the rows.
+    const bodyColSpan = visibleCols.length + (enableSelection ? 1 : 0) + (onReorder ? 1 : 0);
     const total = table.getFilteredRowModel().rows.length;
     const pageIndex = state.pagination.pageIndex;
     const pageCount = Math.max(1, table.getPageCount()); // prototype always shows page "1"
@@ -723,6 +825,13 @@ export function DataTable({
     }, [autoFill]);
 
     return (
+        // Mounted only for lists that actually reorder. It is not free: the
+        // provider builds a DragDropManager with the default preset — five
+        // plugins and two sensors, each registering listeners — and every table
+        // in the app would pay for it, while almost none pass `onReorder`.
+        // Rows only call `useSortable` when `Row` is `SortableRow`, which is
+        // gated on the same prop, so leaving it out is safe.
+        <MaybeDragDrop enabled={!!onReorder} onDragEnd={persistOrder}>
         <div ref={rootRef} className={className} {...props}>
             {/* toolbar */}
             {/* Boxed like the table below it, so the controls read as one bar
@@ -737,6 +846,7 @@ export function DataTable({
                         value={state.globalFilter ?? ''}
                         onChange={(e) => table.setGlobalFilter(e.target.value)}
                         placeholder={searchPlaceholder}
+                            aria-label={searchPlaceholder}
                         className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-om-ink outline-none"
                     />
                 </div>
@@ -848,6 +958,12 @@ export function DataTable({
                             non-sticky fallback. */}
                         <thead className="sticky top-0 z-[3]">
                             <tr className="bg-om-panel">
+                                {onReorder && (
+                                    <th
+                                        aria-label={reorderLabel}
+                                        className="w-[34px] border-b border-r border-om-line2 bg-om-bg px-2 py-[10px] last:border-r-0"
+                                    />
+                                )}
                                 {enableSelection && (
                                     <th className="w-[38px] border-b border-r border-om-line2 bg-om-bg px-4 py-[10px] text-left align-middle last:border-r-0">
                                         {/* Page-scoped in a paged table, filter-scoped in an
@@ -916,6 +1032,7 @@ export function DataTable({
                             </tr>
                             {hasFilterRow && (
                                 <tr className="bg-om-card">
+                                    {onReorder && <th className="border-b border-r border-om-line2 bg-om-card last:border-r-0" />}
                                     {enableSelection && <th className="border-b border-r border-om-line2 bg-om-card last:border-r-0" />}
                                     {visibleCols.map((col) => (
                                         <th
@@ -930,8 +1047,10 @@ export function DataTable({
                         </thead>
                         <tbody>
                             {pageRows.map((row, i) => (
+                                <Row key={row.id} id={row.id} index={i} disabled={!canReorder}>
+                                {({ rowRef, handleRef, isDragging }) => (
                                 <tr
-                                    key={row.id}
+                                    ref={rowRef}
                                     onClick={
                                         onRowClick ? () => onRowClick(row.original, row) : undefined
                                     }
@@ -962,10 +1081,31 @@ export function DataTable({
                                         row.getIsSelected()
                                             ? 'bg-om-selected'
                                             : `${striped && i % 2 === 1 ? 'bg-om-bg' : 'bg-om-card'} hover:bg-om-chip`
-                                    } ${onRowClick ? 'cursor-pointer' : ''}`}
+                                    } ${onRowClick ? 'cursor-pointer' : ''} ${
+                                        isDragging ? 'relative z-10 shadow-[0_12px_28px_-12px_rgba(0,0,0,.35)]' : ''
+                                    } ${rowClassName?.(row.original) ?? ''}`}
                                 >
+                                    {onReorder && (
+                                        <td className={`px-2 py-3 align-middle ${CHROME_CELL}`}>
+                                            {/* The handle, not the row, starts the drag —
+                                                a draggable row would fight text selection
+                                                and swallow the click that opens a record. */}
+                                            <span
+                                                ref={handleRef}
+                                                aria-label={canReorder ? reorderLabel : reorderBlockedLabel}
+                                                title={canReorder ? reorderLabel : reorderBlockedLabel}
+                                                className={`flex justify-center ${
+                                                    canReorder
+                                                        ? 'cursor-grab text-om-faintest hover:text-om-muted active:cursor-grabbing'
+                                                        : 'cursor-not-allowed text-om-faintest/40'
+                                                }`}
+                                            >
+                                                <Icon name="grip-vertical" size={15} />
+                                            </span>
+                                        </td>
+                                    )}
                                     {enableSelection && (
-                                        <td className="px-4 py-3 align-middle">
+                                        <td className={`px-4 py-3 align-middle ${CHROME_CELL}`}>
                                             <Check
                                                 on={row.getIsSelected()}
                                                 label={selectRowLabel}
@@ -976,17 +1116,21 @@ export function DataTable({
                                     {row.getVisibleCells().map((cell) => (
                                         <td
                                             key={cell.id}
-                                            className={`px-4 py-3 align-middle ${alignClass(cell.column.id)}`}
+                                            className={`px-4 py-3 align-middle ${alignClass(cell.column.id)} ${
+                                                cell.column.columnDef.meta?.chrome ? CHROME_CELL : ''
+                                            }`}
                                         >
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </td>
                                     ))}
                                 </tr>
+                                )}
+                                </Row>
                             ))}
                             {total === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={visibleCols.length + (enableSelection ? 1 : 0)}
+                                        colSpan={bodyColSpan}
                                         className="p-[34px] text-center text-[13.5px] text-om-faint"
                                     >
                                         {emptyLabel}
@@ -996,7 +1140,7 @@ export function DataTable({
                             {hasMore && (
                                 <tr ref={sentinelRef} aria-hidden="true">
                                     <td
-                                        colSpan={visibleCols.length + (enableSelection ? 1 : 0)}
+                                        colSpan={bodyColSpan}
                                         className="h-px p-0"
                                     />
                                 </tr>
@@ -1008,6 +1152,7 @@ export function DataTable({
                         {showSummaryRow && (
                             <tfoot className="sticky bottom-0 z-[3]">
                                 <tr className="bg-om-panel">
+                                    {onReorder && <td className={SUMMARY_CELL} />}
                                     {enableSelection && (
                                         <td className={SUMMARY_CELL} />
                                     )}
@@ -1083,5 +1228,6 @@ export function DataTable({
                 )}
             </div>
         </div>
+        </MaybeDragDrop>
     );
 }

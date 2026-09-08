@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreCostSourceRequest;
 use App\Http\Requests\Web\Admin\UpdateCostSourceRequest;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class CostSourceController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of cost sources. Rows live-sync via the
      * `cost_sources` shape; usage counts come as a prop.
@@ -40,8 +43,7 @@ class CostSourceController extends Controller
     {
         CostSource::create($request->validated());
 
-        return redirect()->route('admin.cost-sources.index')
-            ->with('success', 'Cost source created successfully.');
+        return $this->saved($request, redirect()->route('admin.cost-sources.index'), 'Cost source created successfully.');
     }
 
     /**
@@ -61,8 +63,7 @@ class CostSourceController extends Controller
     {
         $costSource->update($request->validated());
 
-        return redirect()->route('admin.cost-sources.index')
-            ->with('success', 'Cost source updated successfully.');
+        return $this->saved($request, redirect()->route('admin.cost-sources.index'), 'Cost source updated successfully.');
     }
 
     /**

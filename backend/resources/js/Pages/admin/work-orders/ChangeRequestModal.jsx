@@ -146,8 +146,9 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
 
                 <form onSubmit={submit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Title')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Title')}</div>
                         <input
+                            aria-label={__('Title')}
                             type="text"
                             value={form.data.title}
                             onChange={(e) => form.setData('title', e.target.value)}
@@ -158,8 +159,9 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Reason')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Reason')}</div>
                         <textarea
+                            aria-label={__('Reason')}
                             rows={3}
                             value={form.data.reason}
                             onChange={(e) => form.setData('reason', e.target.value)}
@@ -193,8 +195,9 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
                     </fieldset>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Applies from')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Applies from')}</div>
                         <select
+                            aria-label={__('Applies from')}
                             value={form.data.effective_from}
                             onChange={(e) => form.setData('effective_from', e.target.value)}
                             className="w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent"
@@ -210,8 +213,9 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">{__('Disposition of produced units')}</label>
+                            <div className="block text-sm font-medium text-om-muted mb-1">{__('Disposition of produced units')}</div>
                             <textarea
+                                aria-label={__('Disposition of produced units')}
                                 rows={2}
                                 value={form.data.produced_disposition}
                                 onChange={(e) => form.setData('produced_disposition', e.target.value)}
@@ -219,8 +223,9 @@ export default function ChangeRequestModal({ workOrder, options, onClose }) {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">{__('Disposition of material')}</label>
+                            <div className="block text-sm font-medium text-om-muted mb-1">{__('Disposition of material')}</div>
                             <textarea
+                                aria-label={__('Disposition of material')}
                                 rows={2}
                                 value={form.data.material_disposition}
                                 onChange={(e) => form.setData('material_disposition', e.target.value)}

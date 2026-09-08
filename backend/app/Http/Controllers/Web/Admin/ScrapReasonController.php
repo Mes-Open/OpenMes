@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\ScrapReason;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class ScrapReasonController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of scrap reasons. Rows live-sync via the
      * `scrap_reasons` shape; usage counts come as a prop.
@@ -52,8 +55,7 @@ class ScrapReasonController extends Controller
 
         ScrapReason::create($validated);
 
-        return redirect()->route('admin.scrap-reasons.index')
-            ->with('success', __('Scrap reason created successfully.'));
+        return $this->saved($request, redirect()->route('admin.scrap-reasons.index'), __('Scrap reason created successfully.'));
     }
 
     /**
@@ -85,8 +87,7 @@ class ScrapReasonController extends Controller
 
         $scrapReason->update($validated);
 
-        return redirect()->route('admin.scrap-reasons.index')
-            ->with('success', __('Scrap reason updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.scrap-reasons.index'), __('Scrap reason updated successfully.'));
     }
 
     /**

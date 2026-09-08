@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
@@ -189,8 +190,9 @@ export default function WorkerShow() {
                             </div>
                             <div className="p-5 space-y-4">
                                 <div>
-                                    <label className="form-label">{__('Skill')} <span className="text-om-blocked">*</span></label>
+                                    <div className="form-label">{__('Skill')} <span className="text-om-blocked">*</span></div>
                                     <Dropdown
+                                        aria-label={__('Skill')}
                                         className="w-full"
                                         placeholder={__('— Select —')}
                                         options={skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.code})` }))}
@@ -199,8 +201,9 @@ export default function WorkerShow() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="form-label">{__('Cert level')} <span className="text-om-blocked">*</span></label>
+                                    <div className="form-label">{__('Cert level')} <span className="text-om-blocked">*</span></div>
                                     <Dropdown
+                                        aria-label={__('Cert level')}
                                         className="w-full"
                                         options={levels.map((lvl) => ({ value: String(lvl), label: capitalize(lvl) }))}
                                         value={form.cert_level == null ? '' : String(form.cert_level)}
@@ -209,16 +212,18 @@ export default function WorkerShow() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="form-label">{__('Certified from')}</label>
-                                        <DatePicker
+                                        <div className="form-label">{__('Certified from')}</div>
+                                        <AppDatePicker
+                                            aria-label={__('Certified from')}
                                             className="w-full"
                                             value={form.certified_from || null}
                                             onChange={(iso) => setForm({ ...form, certified_from: iso ?? '' })}
                                         />
                                     </div>
                                     <div>
-                                        <label className="form-label">{__('Certified until')}</label>
-                                        <DatePicker
+                                        <div className="form-label">{__('Certified until')}</div>
+                                        <AppDatePicker
+                                            aria-label={__('Certified until')}
                                             className="w-full"
                                             value={form.certified_until || null}
                                             onChange={(iso) => setForm({ ...form, certified_until: iso ?? '' })}
@@ -227,8 +232,9 @@ export default function WorkerShow() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="form-label">{__('Notes')}</label>
+                                    <div className="form-label">{__('Notes')}</div>
                                     <textarea
+                                        aria-label={__('Notes')}
                                         name="cert_notes"
                                         rows="2"
                                         className="form-input w-full"

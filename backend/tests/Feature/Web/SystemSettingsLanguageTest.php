@@ -81,6 +81,23 @@ class SystemSettingsLanguageTest extends TestCase
         $this->assertSame(config('app.available_locales'), $locales);
     }
 
+    public function test_the_picker_reflects_the_active_locale_not_only_the_system_default(): void
+    {
+        // System default is Polish; a session override (e.g. the login-screen
+        // language switcher) puts this request into English.
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        $props = $this->actingAs($this->admin)
+            ->withSession(['locale' => 'en'])
+            ->get('/settings/system')
+            ->assertOk()
+            ->getOriginalContent()->getData()['page']['props'];
+
+        // The picker must show the language the page is actually rendered in (en),
+        // not the stored system default (pl) — otherwise it contradicts the UI (#271).
+        $this->assertSame('en', $props['settings']['language']);
+    }
+
     public function test_changing_language_in_settings_updates_session_locale(): void
     {
         // The session override is what SetLocale reads first, so saving the

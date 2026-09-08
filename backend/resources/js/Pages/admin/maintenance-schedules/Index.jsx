@@ -1,11 +1,18 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import DueCountdown from '../../../components/DueCountdown';
 import { __ } from '../../../lib/i18n';
+import { maintenanceScheduleFields, maintenanceScheduleInitial } from './fields';
 
 export default function MaintenanceSchedulesIndex() {
-    const { toolNames = {}, lineNames = {}, workstationNames = {} } = usePage().props;
+    const { toolNames = {}, lineNames = {}, workstationNames = {},
+        // No defaults: these are Inertia::optional, and `ready` below tells the
+        // drawer they haven't arrived by their being undefined.
+        tools, lines, workstations, costSources, users, frequencies } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -38,7 +45,7 @@ export default function MaintenanceSchedulesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/maintenance-schedules/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -58,11 +65,22 @@ export default function MaintenanceSchedulesIndex() {
                 shape="maintenance_schedules"
                 title={__('Maintenance Schedules')}
                 createHref="/admin/maintenance-schedules/create"
+                onCreate={drawer.create}
                 createLabel={__('New Schedule')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No maintenance schedules yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/maintenance-schedules"
+                fields={maintenanceScheduleFields({ tools: tools ?? [], lines: lines ?? [], workstations: workstations ?? [], costSources: costSources ?? [], users: users ?? [], frequencies: frequencies ?? [] })}
+                initial={maintenanceScheduleInitial}
+                ensure={['tools', 'lines', 'workstations', 'costSources', 'users', 'frequencies']}
+                ready={tools !== undefined}
+                title={{ create: __('New Maintenance Schedule'), edit: __('Edit Maintenance Schedule') }}
             />
         </>
     );

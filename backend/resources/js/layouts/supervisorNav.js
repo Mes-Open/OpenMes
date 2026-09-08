@@ -55,13 +55,13 @@ export const SUPERVISOR_GROUPS = [
         href: '/supervisor/work-orders',
         match: [
             '/supervisor/work-orders', '/supervisor/customers',
-            '/supervisor/priority-rules', '/supervisor/csv-import',
+            '/supervisor/priority-rules', '/supervisor/import',
         ],
         children: [
             { label: 'All Orders', href: '/supervisor/work-orders', match: ['/supervisor/work-orders'], lucide: 'list' },
             { label: 'Customers', href: '/supervisor/customers', match: ['/supervisor/customers'], lucide: 'users' },
             { label: 'Priority Settings', href: '/supervisor/priority-rules', match: ['/supervisor/priority-rules'], lucide: 'sliders-horizontal' },
-            { label: 'CSV Import', href: '/supervisor/csv-import', match: ['/supervisor/csv-import'], lucide: 'file-up' },
+            { label: 'Import', href: '/supervisor/import', match: ['/supervisor/import'], lucide: 'file-up' },
         ],
     },
     {

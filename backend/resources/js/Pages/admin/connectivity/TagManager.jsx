@@ -4,6 +4,7 @@ import { Dropdown } from '@openmes/ui';
 import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
+import { nameControl } from '../../../lib/fieldName';
 
 /**
  * Shared tag → signal manager for Modbus / OPC UA connections.
@@ -244,8 +245,8 @@ function AddTagForm({ connectionId, workstations, basePath, showRegisterType, ad
 function MiniField({ label, error, children }) {
     return (
         <div>
-            <label className="block text-xs text-om-muted mb-0.5">{label}</label>
-            {children}
+            <div className="block text-xs text-om-muted mb-0.5">{label}</div>
+            {nameControl(children, label)}
             {error && <p className="mt-0.5 text-xs text-om-blocked">{error}</p>}
         </div>
     );

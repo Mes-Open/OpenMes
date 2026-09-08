@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Factory;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class FactoryController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of factories. Rows live-sync via the `factories`
      * shape; division counts come as a prop.
@@ -48,8 +51,7 @@ class FactoryController extends Controller
 
         Factory::create($validated);
 
-        return redirect()->route('admin.factories.index')
-            ->with('success', 'Factory created successfully.');
+        return $this->saved($request, redirect()->route('admin.factories.index'), 'Factory created successfully.');
     }
 
     /**
@@ -100,8 +102,7 @@ class FactoryController extends Controller
 
         $factory->update($validated);
 
-        return redirect()->route('admin.factories.index')
-            ->with('success', 'Factory updated successfully.');
+        return $this->saved($request, redirect()->route('admin.factories.index'), 'Factory updated successfully.');
     }
 
     /**

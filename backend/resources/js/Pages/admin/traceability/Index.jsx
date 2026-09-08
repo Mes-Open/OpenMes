@@ -33,7 +33,7 @@ export default function TraceabilityIndex() {
 
                 {/* Search */}
                 <form onSubmit={submit} className="bg-om-card rounded-om border border-om-line2 p-5">
-                    <label className="block text-sm font-medium text-om-muted mb-2">{__('Search')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-2">{__('Search')}</div>
                     <div className="flex gap-3">
                         <input
                             type="text"

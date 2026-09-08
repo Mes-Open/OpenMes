@@ -148,7 +148,11 @@ export default function AdminWorkOrderShow() {
                 />
             </PageTitle>
 
-            <div className="mx-auto w-full max-w-[1480px]">
+            {/* Full-bleed, like the lists and the line detail page: `main` is
+                unpadded and the content starts at its edge, so the heading lines
+                up with the breadcrumb above it. A centred max-width box indented
+                the page against the header bar instead. */}
+            <div className="w-full pb-10">
                 <Header
                     workOrder={workOrder}
                     status={status}
@@ -939,13 +943,13 @@ function ConsumeModal({ workOrder, alloc, onClose }) {
                     {__('Allocated: :qty', { qty: fmtQty(alloc.allocated_qty) })} {alloc.unit_of_measure}
                 </p>
                 <div className="mb-3">
-                    <label className={labelCls}>{__('Consumed quantity')}</label>
-                    <input type="number" step="0.0001" min="0" value={consumed}
+                    <div className={labelCls}>{__('Consumed quantity')}</div>
+                    <input aria-label={__('Consumed quantity')} type="number" step="0.0001" min="0" value={consumed}
                         onChange={(e) => setConsumed(e.target.value)} className={fieldCls} required />
                 </div>
                 <div className="mb-1">
-                    <label className={labelCls}>{__('Scrap quantity')}</label>
-                    <input type="number" step="0.0001" min="0" value={scrap}
+                    <div className={labelCls}>{__('Scrap quantity')}</div>
+                    <input aria-label={__('Scrap quantity')} type="number" step="0.0001" min="0" value={scrap}
                         onChange={(e) => setScrap(e.target.value)} className={fieldCls} />
                 </div>
                 <ModalActions onClose={onClose} submitLabel={__('Save')} disabled={processing} />
@@ -976,13 +980,13 @@ function ReturnModal({ workOrder, alloc, onClose }) {
                     {__('Returnable: :qty', { qty: fmtQty(returnable) })} {alloc.unit_of_measure}
                 </p>
                 <div className="mb-3">
-                    <label className={labelCls}>{__('Quantity to return')}</label>
-                    <input type="number" step="0.0001" min="0.0001" max={returnable} value={qty}
+                    <div className={labelCls}>{__('Quantity to return')}</div>
+                    <input aria-label={__('Quantity to return')} type="number" step="0.0001" min="0.0001" max={returnable} value={qty}
                         onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
                 </div>
                 <div className="mb-1">
-                    <label className={labelCls}>{__('Reason')}</label>
-                    <input type="text" maxLength={255} value={reason}
+                    <div className={labelCls}>{__('Reason')}</div>
+                    <input aria-label={__('Reason')} type="text" maxLength={255} value={reason}
                         onChange={(e) => setReason(e.target.value)} className={fieldCls} />
                 </div>
                 <ModalActions onClose={onClose} submitLabel={__('Return to stock')} disabled={processing} />
@@ -1015,8 +1019,8 @@ function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
                     {__('From')} <strong className="text-om-ink">{alloc.material_code}</strong>
                 </p>
                 <div className="mb-3">
-                    <label className={labelCls}>{__('Target class (material)')}</label>
-                    <select value={target} onChange={(e) => setTarget(e.target.value)} className={fieldCls} required>
+                    <div className={labelCls}>{__('Target class (material)')}</div>
+                    <select aria-label={__('Target class (material)')} value={target} onChange={(e) => setTarget(e.target.value)} className={fieldCls} required>
                         <option value="">{__('Select a material')}</option>
                         {targets.map((m) => (
                             <option key={m.id} value={m.id}>{m.code} · {m.name}</option>
@@ -1024,13 +1028,13 @@ function ReclassifyModal({ workOrder, alloc, materials, onClose }) {
                     </select>
                 </div>
                 <div className="mb-3">
-                    <label className={labelCls}>{__('Quantity')}</label>
-                    <input type="number" step="0.0001" min="0.0001" value={qty}
+                    <div className={labelCls}>{__('Quantity')}</div>
+                    <input aria-label={__('Quantity')} type="number" step="0.0001" min="0.0001" value={qty}
                         onChange={(e) => setQty(e.target.value)} className={fieldCls} required />
                 </div>
                 <div className="mb-1">
-                    <label className={labelCls}>{__('Reason')}</label>
-                    <input type="text" maxLength={255} value={reason}
+                    <div className={labelCls}>{__('Reason')}</div>
+                    <input aria-label={__('Reason')} type="text" maxLength={255} value={reason}
                         onChange={(e) => setReason(e.target.value)} className={fieldCls} />
                 </div>
                 <ModalActions onClose={onClose} submitLabel={__('Reclassify')} disabled={!target || processing} />

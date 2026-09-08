@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWarehouseRequest;
 use App\Http\Requests\Web\Admin\UpdateWarehouseRequest;
@@ -16,6 +17,8 @@ use Inertia\Inertia;
  */
 class WarehouseController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         return Inertia::render('admin/warehouses/Index', [
@@ -52,8 +55,7 @@ class WarehouseController extends Controller
             $warehouse->makeDefault();
         }
 
-        return redirect()->route('admin.warehouses.index')
-            ->with('success', __('Warehouse created successfully.'));
+        return $this->saved($request, redirect()->route('admin.warehouses.index'), __('Warehouse created successfully.'));
     }
 
     public function edit(Warehouse $warehouse)
@@ -79,8 +81,7 @@ class WarehouseController extends Controller
             $warehouse->update(['is_default' => false]);
         }
 
-        return redirect()->route('admin.warehouses.index')
-            ->with('success', __('Warehouse updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.warehouses.index'), __('Warehouse updated successfully.'));
     }
 
     /**

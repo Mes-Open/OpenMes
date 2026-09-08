@@ -83,3 +83,32 @@ export const TRIGGER_INITIAL = {
     is_blocking: false,
     is_active: true,
 };
+
+/** A stored id as a <select> value: the options carry strings, the record numbers. */
+const str = (v) => (v === null || v === undefined ? '' : String(v));
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function triggerInitial(record) {
+    if (!record) {
+        return { ...TRIGGER_INITIAL };
+    }
+
+    return {
+        name: record.name ?? '',
+        trigger_type: record.trigger_type,
+        quality_check_template_id: str(record.quality_check_template_id),
+        threshold_n: str(record.threshold_n),
+        downtime_min_minutes: str(record.downtime_min_minutes),
+        line_id: str(record.line_id),
+        workstation_id: str(record.workstation_id),
+        product_type_id: str(record.product_type_id),
+        is_blocking: !!record.is_blocking,
+        is_active: !!record.is_active,
+    };
+}

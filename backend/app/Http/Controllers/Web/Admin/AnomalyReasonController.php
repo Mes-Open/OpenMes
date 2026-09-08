@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\AnomalyReason;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class AnomalyReasonController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of anomaly reasons. Rows live-sync via the
      * `anomaly_reasons` shape; usage counts come as a prop.
@@ -49,8 +52,7 @@ class AnomalyReasonController extends Controller
 
         AnomalyReason::create($validated);
 
-        return redirect()->route('admin.anomaly-reasons.index')
-            ->with('success', 'Anomaly reason created successfully.');
+        return $this->saved($request, redirect()->route('admin.anomaly-reasons.index'), 'Anomaly reason created successfully.');
     }
 
     /**
@@ -80,8 +82,7 @@ class AnomalyReasonController extends Controller
 
         $anomalyReason->update($validated);
 
-        return redirect()->route('admin.anomaly-reasons.index')
-            ->with('success', 'Anomaly reason updated successfully.');
+        return $this->saved($request, redirect()->route('admin.anomaly-reasons.index'), 'Anomaly reason updated successfully.');
     }
 
     /**

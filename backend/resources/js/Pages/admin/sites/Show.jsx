@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Icon } from '@openmes/ui';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
@@ -189,9 +190,10 @@ export default function SiteShow() {
                         </h2>
                         <Link
                             href={`/admin/sites/${site.id}/areas/create`}
-                            className="text-sm text-om-accent hover:text-om-accent"
+                            className="inline-flex items-center gap-1 text-sm text-om-accent hover:text-om-accent"
                         >
-                            + Add Area
+                            <Icon name="plus" size={13} />
+                            {__('Add Area')}
                         </Link>
                     </div>
                     <AppDataTable

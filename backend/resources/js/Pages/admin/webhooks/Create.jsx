@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { webhookFields } from './fields';
+import { webhookFields, webhookInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WebhookCreate() {
@@ -15,7 +15,7 @@ export default function WebhookCreate() {
                 action="/admin/webhooks"
                 method="post"
                 fields={webhookFields(events)}
-                initial={{ name: '', url: '', events: [], secret: generatedSecret, is_active: true }}
+                initial={webhookInitial(null, { generatedSecret })}
                 submitLabel={__('Create')}
                 cancelHref="/admin/webhooks"
             />

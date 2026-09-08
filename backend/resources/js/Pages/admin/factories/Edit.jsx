@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { FACTORY_FIELDS } from './fields';
+import { FACTORY_FIELDS, factoryInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function FactoryEdit({ factory }) {
@@ -13,12 +13,7 @@ export default function FactoryEdit({ factory }) {
                 action={`/admin/factories/${factory.id}`}
                 method="put"
                 fields={FACTORY_FIELDS}
-                initial={{
-                    code: factory.code ?? '',
-                    name: factory.name ?? '',
-                    description: factory.description ?? '',
-                    is_active: !!factory.is_active,
-                }}
+                initial={factoryInitial(factory)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/factories"
             />

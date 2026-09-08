@@ -12,18 +12,23 @@ use Inertia\Inertia;
 
 class PersonnelClassController extends Controller
 {
+    use \App\Http\Controllers\Concerns\StaysOnList;
+
     /**
      * Display a listing of personnel classes.
      */
     public function index()
     {
-        $counts = PersonnelClass::withCount('workers')
-            ->get(['id'])
-            ->mapWithKeys(fn ($p) => [$p->id => $p->workers_count]);
-
         return Inertia::render('admin/personnel-classes/Index', [
-            'counts' => $counts,
-            'skillNames' => Skill::pluck('name', 'id'),
+            // Closures so the drawer's partial reload doesn't compute these
+            // just for Inertia to discard them.
+            'counts' => fn () => PersonnelClass::withCount('workers')
+                ->get(['id'])
+                ->mapWithKeys(fn ($p) => [$p->id => $p->workers_count]),
+            'skillNames' => fn () => Skill::pluck('name', 'id'),
+            // The drawer's option lists — fetched on first open, not per visit.
+            'skills' => Inertia::optional(fn () => Skill::orderBy('name')->get(['id', 'name'])),
+            'levels' => Inertia::optional(fn () => PersonnelClass::LEVELS),
         ]);
     }
 
@@ -32,30 +37,30 @@ class PersonnelClassController extends Controller
      */
     public function show(PersonnelClass $personnelClass)
     {
-        $workers        = $personnelClass->workers()->orderBy('name')->get();
+        $workers = $personnelClass->workers()->orderBy('name')->get();
         $requiredSkills = $personnelClass->requiredSkills();
-        $reqLevels      = $personnelClass->default_required_cert_level ?? [];
+        $reqLevels = $personnelClass->default_required_cert_level ?? [];
 
         return Inertia::render('admin/personnel-classes/Show', [
             'personnelClass' => [
-                'id'          => $personnelClass->id,
-                'code'        => $personnelClass->code,
-                'name'        => $personnelClass->name,
+                'id' => $personnelClass->id,
+                'code' => $personnelClass->code,
+                'name' => $personnelClass->name,
                 'description' => $personnelClass->description,
-                'is_active'   => $personnelClass->is_active,
-                'created_at'  => $personnelClass->created_at?->format('d M Y'),
-                'updated_at'  => $personnelClass->updated_at?->diffForHumans(),
+                'is_active' => $personnelClass->is_active,
+                'created_at' => $personnelClass->created_at?->format('d M Y'),
+                'updated_at' => $personnelClass->updated_at?->diffForHumans(),
             ],
             'workers' => $workers->map(fn ($w) => [
-                'id'        => $w->id,
-                'code'      => $w->code,
-                'name'      => $w->name,
+                'id' => $w->id,
+                'code' => $w->code,
+                'name' => $w->name,
                 'qualified' => $personnelClass->workerMeetsRequirements($w),
             ]),
             'requiredSkills' => $requiredSkills->map(fn ($s) => [
-                'id'        => $s->id,
-                'name'      => $s->name,
-                'code'      => $s->code,
+                'id' => $s->id,
+                'name' => $s->name,
+                'code' => $s->code,
                 'min_level' => $reqLevels[$s->id] ?? 'operator',
             ]),
         ]);
@@ -82,8 +87,7 @@ class PersonnelClassController extends Controller
 
         PersonnelClass::create($validated);
 
-        return redirect()->route('admin.personnel-classes.index')
-            ->with('success', __('Personnel class created successfully.'));
+        return $this->saved($request, redirect()->route('admin.personnel-classes.index'), __('Personnel class created successfully.'));
     }
 
     /**
@@ -110,8 +114,7 @@ class PersonnelClassController extends Controller
 
         $personnelClass->update($validated);
 
-        return redirect()->route('admin.personnel-classes.index')
-            ->with('success', __('Personnel class updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.personnel-classes.index'), __('Personnel class updated successfully.'));
     }
 
     /**
@@ -157,7 +160,7 @@ class PersonnelClassController extends Controller
 
     private function validatePayload(Request $request, ?PersonnelClass $personnelClass = null): array
     {
-        $tenantId         = $request->user()?->tenant_id;
+        $tenantId = $request->user()?->tenant_id;
         $personnelClassId = $personnelClass?->id;
 
         $rules = [
@@ -169,24 +172,24 @@ class PersonnelClassController extends Controller
                     ->where(fn ($q) => $q->where('tenant_id', $tenantId))
                     ->ignore($personnelClassId),
             ],
-            'name'                          => ['required', 'string', 'max:255'],
-            'description'                   => ['nullable', 'string', 'max:4000'],
-            'required_skill_ids'            => ['nullable', 'array'],
-            'required_skill_ids.*'          => ['integer', 'exists:skills,id'],
-            'default_required_cert_level'   => ['nullable', 'array'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:4000'],
+            'required_skill_ids' => ['nullable', 'array'],
+            'required_skill_ids.*' => ['integer', 'exists:skills,id'],
+            'default_required_cert_level' => ['nullable', 'array'],
             'default_required_cert_level.*' => [Rule::in(PersonnelClass::LEVELS)],
         ];
 
         $validated = $request->validate($rules);
 
         if (empty($validated['required_skill_ids'])) {
-            $validated['required_skill_ids']          = null;
+            $validated['required_skill_ids'] = null;
             $validated['default_required_cert_level'] = null;
         } else {
             // Drop level entries whose skill is not in the required list.
             $allowed = array_flip(array_map('intval', $validated['required_skill_ids']));
-            $levels  = $validated['default_required_cert_level'] ?? [];
-            $clean   = [];
+            $levels = $validated['default_required_cert_level'] ?? [];
+            $clean = [];
             foreach ($levels as $skillId => $level) {
                 if (isset($allowed[(int) $skillId])) {
                     $clean[(int) $skillId] = $level;

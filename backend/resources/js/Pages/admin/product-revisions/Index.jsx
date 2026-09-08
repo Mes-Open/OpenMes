@@ -1,10 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { LIFECYCLE_BADGE_STYLES, lifecycleLabel } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { LIFECYCLE_BADGE_STYLES, lifecycleLabel, productRevisionFields, productRevisionInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ProductRevisionsIndex() {
+    const drawer = useResourceDrawer();
+
     const { productTypes = [], processTemplates = [], counts = {} } = usePage().props;
 
     const typeById = Object.fromEntries(productTypes.map((p) => [String(p.id), p]));
@@ -49,7 +52,7 @@ export default function ProductRevisionsIndex() {
     const actions = (r) => {
         const items = [{ label: __('View'), href: `/admin/product-revisions/${r.id}` }];
         if (r.lifecycle_status === 'draft') {
-            items.push({ label: __('Edit'), href: `/admin/product-revisions/${r.id}/edit` });
+            items.push({ label: __('Edit'), onClick: () => drawer.edit(r) });
             items.push({
                 label: __('Release'),
                 onClick: () => {
@@ -88,11 +91,20 @@ export default function ProductRevisionsIndex() {
                 shape="product_revisions"
                 title={__('Product Revisions')}
                 createHref="/admin/product-revisions/create"
+                onCreate={drawer.create}
                 createLabel={__('New Revision')}
                 columns={columns}
                 orderBy="revision_code"
                 actions={actions}
                 emptyText={__('No product revisions yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/product-revisions"
+                fields={productRevisionFields(productTypes, processTemplates)}
+                initial={productRevisionInitial}
+                title={{ create: __('New Product Revision'), edit: __('Edit Product Revision') }}
             />
         </>
     );

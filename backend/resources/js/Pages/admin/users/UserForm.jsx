@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
 import { useState } from 'react';
+import { nameControl } from '../../../lib/fieldName';
 
 /**
  * Bespoke create/edit form for user accounts. Conditional on `account_type`:
@@ -39,8 +40,11 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             {/* Account type */}
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__("Account Type")}</label>
+                {/* A <label> naming a radiogroup names nothing — `for` can't point
+                    at a group. The caption is plain text and the group carries it. */}
+                <div className="block text-sm font-medium text-om-muted mb-1">{__("Account Type")}</div>
                 <RadioGroup
+                    label={__('Account Type')}
                     options={[
                         { value: 'user', label: __('Personal user') },
                         { value: 'workstation', label: __('Workstation') },
@@ -140,7 +144,7 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1–5)')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1–5)')}</div>
                         <div className="border border-om-line2 rounded divide-y">
                             {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">{__('No skills defined.')}</p>}
                             {skills.map((skill) => {
@@ -185,10 +189,10 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            {children}
+            </div>
+            {nameControl(children, label)}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

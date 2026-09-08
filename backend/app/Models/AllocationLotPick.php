@@ -23,6 +23,8 @@ class AllocationLotPick extends Model
     protected $fillable = [
         'material_allocation_id',
         'material_lot_id',
+        // The location this pick was deducted from, frozen at the first deduction.
+        'consumption_warehouse_id',
         'tenant_id',
         'picked_qty',
         'picking_strategy',
@@ -43,5 +45,11 @@ class AllocationLotPick extends Model
     public function lot(): BelongsTo
     {
         return $this->belongsTo(MaterialLot::class, 'material_lot_id');
+    }
+
+    /** The location this pick was consumed from, once anything has been deducted. */
+    public function consumptionWarehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'consumption_warehouse_id');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\CostSource;
 use App\Models\Line;
@@ -16,6 +17,8 @@ use Inertia\Inertia;
 
 class MaintenanceScheduleController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of maintenance schedules.
      */
@@ -25,6 +28,14 @@ class MaintenanceScheduleController extends Controller
             'toolNames' => Tool::pluck('name', 'id'),
             'lineNames' => Line::pluck('name', 'id'),
             'workstationNames' => Workstation::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'tools' => Inertia::optional(fn () => Tool::orderBy('name')->get(['id', 'name'])),
+            'lines' => Inertia::optional(fn () => Line::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            'workstations' => Inertia::optional(fn () => Workstation::orderBy('name')->get(['id', 'name'])),
+            'costSources' => Inertia::optional(fn () => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            'users' => Inertia::optional(fn () => User::orderBy('name')->get(['id', 'name'])),
+            'frequencies' => Inertia::optional(fn () => MaintenanceSchedule::FREQUENCIES),
         ]);
     }
 
@@ -57,8 +68,7 @@ class MaintenanceScheduleController extends Controller
 
         MaintenanceSchedule::create($validated);
 
-        return redirect()->route('admin.maintenance-schedules.index')
-            ->with('success', __('Maintenance schedule created successfully.'));
+        return $this->saved($request, redirect()->route('admin.maintenance-schedules.index'), __('Maintenance schedule created successfully.'));
     }
 
     /**
@@ -97,8 +107,7 @@ class MaintenanceScheduleController extends Controller
 
         $maintenanceSchedule->update($validated);
 
-        return redirect()->route('admin.maintenance-schedules.index')
-            ->with('success', __('Maintenance schedule updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.maintenance-schedules.index'), __('Maintenance schedule updated successfully.'));
     }
 
     /**

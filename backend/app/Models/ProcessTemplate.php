@@ -117,8 +117,30 @@ class ProcessTemplate extends Model
                 ];
             })->toArray(),
             'bom' => $this->bomItems->map(function ($item) {
+                // Product-type lines are sub-assembly references (no material).
+                if ($item->component_kind === 'product_type') {
+                    return [
+                        'component_kind' => 'product_type',
+                        'material_id' => null,
+                        'product_type_id' => $item->product_type_id,
+                        'material_code' => $item->productType?->code,
+                        'material_name' => $item->productType?->name,
+                        'material_type' => 'product_type',
+                        'tracking_type' => null,
+                        'unit_of_measure' => $item->productType?->unit_of_measure,
+                        'quantity_per_unit' => (float) $item->quantity_per_unit,
+                        'scrap_percentage' => (float) $item->scrap_percentage,
+                        'consumed_at' => $item->consumed_at,
+                        'step_number' => $item->templateStep?->step_number,
+                        'external_code' => null,
+                        'external_system' => null,
+                    ];
+                }
+
                 return [
+                    'component_kind' => 'material',
                     'material_id' => $item->material_id,
+                    'product_type_id' => null,
                     'material_code' => $item->material->code,
                     'material_name' => $item->material->name,
                     'material_type' => $item->material->materialType?->code,
@@ -133,6 +155,24 @@ class ProcessTemplate extends Model
                 ];
             })->toArray(),
         ];
+    }
+
+    /**
+     * How many non-finished work orders currently reference this template —
+     * either as their primary process (`process_snapshot.template_id`) or as one
+     * of their selected BOMs (`work_order_boms`). Used to warn an admin that
+     * editing the steps here won't touch those running orders (they keep their
+     * frozen snapshot) and isn't versioned.
+     */
+    public function activeWorkOrderCount(): int
+    {
+        return \App\Models\WorkOrder::query()
+            ->whereNotIn('status', \App\Models\WorkOrder::TERMINAL_STATUSES)
+            ->where(function ($q) {
+                $q->where('process_snapshot->template_id', $this->id)
+                    ->orWhereHas('bomTemplates', fn ($b) => $b->where('process_templates.id', $this->id));
+            })
+            ->count();
     }
 
     /**

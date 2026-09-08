@@ -38,10 +38,11 @@ export default function CorrectQuantity() {
 
                     <form onSubmit={submit}>
                         <div className="mb-5">
-                            <label className="block text-sm font-medium text-om-muted mb-1">
+                            <div className="block text-sm font-medium text-om-muted mb-1">
                                 {__("New Quantity")} <span className="text-om-blocked">*</span>
-                            </label>
+                            </div>
                             <input
+                                aria-label={__("New Quantity")}
                                 type="number" min="0" max="99999999" step="1" required autoFocus inputMode="numeric"
                                 value={form.data.quantity}
                                 onChange={(e) => form.setData('quantity', e.target.value)}

@@ -154,9 +154,18 @@ until the module is enabled — that is expected.
 
    Leave it on unless the ERP is going to create that paperwork itself. Generated
    documents are **drafts** — they move no stock until posted.
-5. **Check the negative-stock policy.** Settings → System → *block negative stock*.
+5. **Point each line at its stock location.** Admin → Lines → *Stock location*.
+   Consumption booked on a line is deducted from the location the material actually
+   came off: the **picked lot's** warehouse if the pick knows one, otherwise the
+   line's stock location, otherwise the default raw-material warehouse. Every
+   deduction writes a `stock_movements` row carrying that warehouse. A line left
+   without a stock location still works — it falls back to the default — and with the
+   Warehouses module off, consumption moves no location balance at all.
+6. **Check the negative-stock policy.** Settings → System → *block negative stock*.
    With it on, posting a release that would drive a material below zero is refused —
-   which is what you want once opening stock is loaded, and painful before that.
+   and so is **shop-floor consumption a location cannot cover** (step 5) — which is
+   what you want once opening stock is loaded, and painful before that. Load the
+   opening stock first, or leave the setting off until cutover is done.
 
 At this point the UI works and nothing is synced yet.
 
@@ -357,4 +366,6 @@ reversible without one.
 | Balances look halved or doubled | A per-material total was added to its own per-lot rows | Report the lot-less row as the total; lot rows are the breakdown |
 | Global stock disagrees with the warehouses | A balance was written by a path that skipped reconciliation | Reconciliation query in step 5, then re-run the stock import |
 | Posting refused: "would drive below zero" | `block negative stock` is on and opening stock is short | Load the opening stock, or clear the setting during cutover |
+| Consumption refused: "location does not hold enough" | `block negative stock` is on and that location's balance is short | Load its opening stock, move stock to it, or clear the setting during cutover |
+| Consumption deducted from the wrong store | The location is frozen on the allocation at its first deduction | Check the picked lot's warehouse and the line's stock location; later corrections credit back the store that gave the material up |
 | ERP sync keeps inflating stock | Treating the import as a delta | It is a snapshot — send the current quantity, not the change |

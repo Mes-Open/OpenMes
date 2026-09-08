@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
@@ -114,7 +115,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
             <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Date</label>
+                        <div className="block text-xs font-medium text-om-muted mb-1">Date</div>
                         {availableDates && availableDates.length > 0 ? (
                             <Dropdown
                                 value={form.date == null ? '' : String(form.date)}
@@ -123,7 +124,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                                 className="w-full"
                             />
                         ) : (
-                            <DatePicker
+                            <AppDatePicker
                                 value={form.date || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, date: iso ?? '' }))}
                                 className="w-full"
@@ -131,8 +132,9 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         )}
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Level</label>
+                        <div className="block text-xs font-medium text-om-muted mb-1">Level</div>
                         <Dropdown
+                            aria-label="Level"
                             value={form.level == null ? '' : String(form.level)}
                             onChange={(v) => setForm((f) => ({ ...f, level: v }))}
                             options={[
@@ -146,8 +148,9 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         />
                     </div>
                     <div className="sm:col-span-2">
-                        <label className="block text-xs font-medium text-om-muted mb-1">Search</label>
+                        <div className="block text-xs font-medium text-om-muted mb-1">Search</div>
                         <input
+                            aria-label="Search"
                             type="text"
                             value={form.search}
                             onChange={(e) => setForm((f) => ({ ...f, search: e.target.value }))}

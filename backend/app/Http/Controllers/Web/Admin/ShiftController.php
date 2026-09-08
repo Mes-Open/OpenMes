@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\Shift;
@@ -11,10 +12,16 @@ use Inertia\Inertia;
 
 class ShiftController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         return Inertia::render('admin/shifts/Index', [
             'lineNames' => Line::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'lines' => Inertia::optional(fn () => Line::where('is_active', true)->orderBy('name')->get(['id', 'name'])),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('shift')),
         ]);
     }
 
@@ -53,7 +60,7 @@ class ShiftController extends Controller
 
         Shift::create($validated);
 
-        return redirect()->route('admin.shifts.index')->with('success', __('Shift created.'));
+        return $this->saved($request, redirect()->route('admin.shifts.index'), __('Shift created.'));
     }
 
     public function edit(Shift $shift)
@@ -93,7 +100,7 @@ class ShiftController extends Controller
 
         $shift->update($validated);
 
-        return redirect()->route('admin.shifts.index')->with('success', __('Shift updated.'));
+        return $this->saved($request, redirect()->route('admin.shifts.index'), __('Shift updated.'));
     }
 
     public function destroy(Shift $shift)

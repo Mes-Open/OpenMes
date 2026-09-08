@@ -2,7 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { materialLotFields } from './fields';
+import { materialLotFields, materialLotInitial } from './fields';
 
 export default function MaterialLotCreate() {
     const { materials = [], sources = [], statuses = [] } = usePage().props;
@@ -14,21 +14,7 @@ export default function MaterialLotCreate() {
                 action="/admin/material-lots"
                 method="post"
                 fields={materialLotFields(materials, sources, statuses)}
-                initial={{
-                    lot_number: '',
-                    material_id: '',
-                    source_id: '',
-                    quantity_received: '',
-                    quantity_available: '',
-                    unit_of_measure: 'pcs',
-                    received_at: '',
-                    manufacturing_date: '',
-                    expiry_date: '',
-                    status: 'received',
-                    supplier_lot_no: '',
-                    supplier_reference: '',
-                    source_container_no: '',
-                }}
+                initial={materialLotInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/material-lots"
             />

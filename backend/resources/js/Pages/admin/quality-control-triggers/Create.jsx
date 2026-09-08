@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { triggerFields, TRIGGER_INITIAL } from './fields';
+import { triggerFields, triggerInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function QualityControlTriggerCreate() {
@@ -15,7 +15,7 @@ export default function QualityControlTriggerCreate() {
                 action="/admin/quality-control-triggers"
                 method="post"
                 fields={triggerFields({ templates, lines, workstations, productTypes })}
-                initial={TRIGGER_INITIAL}
+                initial={triggerInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/quality-control-triggers"
             />

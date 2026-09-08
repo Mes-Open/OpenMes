@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Skill;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class SkillController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of skills. Rows live-sync via the `skills` shape; only
      * the worker counts (cross-table) come as a prop.
@@ -45,8 +48,7 @@ class SkillController extends Controller
 
         Skill::create($validated);
 
-        return redirect()->route('admin.skills.index')
-            ->with('success', 'Skill created successfully.');
+        return $this->saved($request, redirect()->route('admin.skills.index'), 'Skill created successfully.');
     }
 
     /**
@@ -72,8 +74,7 @@ class SkillController extends Controller
 
         $skill->update($validated);
 
-        return redirect()->route('admin.skills.index')
-            ->with('success', 'Skill updated successfully.');
+        return $this->saved($request, redirect()->route('admin.skills.index'), 'Skill updated successfully.');
     }
 
     /**

@@ -96,7 +96,7 @@ export default function InspectionPlansIndex() {
                 shape="inspection_plans"
                 title={__('Inspection Plans')}
                 createHref="/admin/inspection-plans/create"
-                createLabel={`+ ${__('New Plan')}`}
+                createLabel={__('New Plan')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}

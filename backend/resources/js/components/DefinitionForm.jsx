@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
-import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
+import { Checkbox, Dropdown, Icon } from '@openmes/ui';
+import AppDatePicker from './AppDatePicker';
 import Tooltip from './Tooltip';
 import { __ } from '../lib/i18n';
 
@@ -86,11 +87,11 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 function TextField({ label, value, error, onChange, required, help, type = 'text' }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
+            </div>
             {type === 'date' ? (
-                <DatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
+                <AppDatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
             ) : (
                 <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
             )}
@@ -103,10 +104,11 @@ function TextField({ label, value, error, onChange, required, help, type = 'text
 function SelectField({ label, value, error, onChange, required, placeholder, options }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
+            </div>
             <Dropdown
+                aria-label={label}
                 className="w-full"
                 options={options.map((o) => ({ value: String(o.value), label: o.label }))}
                 value={value == null ? '' : String(value)}
@@ -129,9 +131,9 @@ function CheckboxField({ label, checked, onChange }) {
 function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {__('Options')} <span className="text-om-blocked">*</span>
-            </label>
+            </div>
             <div className="space-y-2">
                 {options.length === 0 && <p className="text-sm text-om-faint">{__('No options yet.')}</p>}
                 {options.map((o, i) => (
@@ -147,8 +149,9 @@ function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
                     </div>
                 ))}
             </div>
-            <button type="button" onClick={addOption} className="mt-2 text-sm text-om-accent hover:text-om-accent">
-                {__('+ Add option')}
+            <button type="button" onClick={addOption} className="mt-2 inline-flex items-center gap-1 text-sm text-om-accent hover:text-om-accent">
+                <Icon name="plus" size={13} />
+                {__('Add option')}
             </button>
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>

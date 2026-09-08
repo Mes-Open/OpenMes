@@ -34,7 +34,9 @@ class OnboardingController extends Controller
     public function modules()
     {
         return Inertia::render('onboarding/Modules', [
-            'step' => 1,
+            // step 0 = the preset screen precedes the wizard (no stepper); the
+            // wizard's own steps start at 1 (Line) after a preset is chosen.
+            'step' => 0,
             'modules' => ModuleRegistry::forForm(),
             'presets' => ModuleRegistry::PRESETS,
         ]);
@@ -58,7 +60,7 @@ class OnboardingController extends Controller
 
     public function step1()
     {
-        return Inertia::render('onboarding/Step1', ['step' => 2]);
+        return Inertia::render('onboarding/Step1', ['step' => 1]);
     }
 
     public function storeStep1(Request $request)
@@ -83,7 +85,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step2', ['step' => 3]);
+        return Inertia::render('onboarding/Step2', ['step' => 2]);
     }
 
     public function storeStep2(Request $request)
@@ -115,7 +117,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step3', ['step' => 4]);
+        return Inertia::render('onboarding/Step3', ['step' => 3]);
     }
 
     public function storeStep3(Request $request)
@@ -183,7 +185,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step4', ['step' => 5]);
+        return Inertia::render('onboarding/Step4', ['step' => 4]);
     }
 
     public function storeStep4(Request $request, WorkOrderService $workOrderService)
@@ -210,7 +212,7 @@ class OnboardingController extends Controller
         $this->markCompleted();
         $request->session()->forget('onboarding');
 
-        return Inertia::render('onboarding/Complete', ['step' => 6]);
+        return Inertia::render('onboarding/Complete', ['step' => 5]);
     }
 
     public function skip(Request $request)

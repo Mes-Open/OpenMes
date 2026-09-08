@@ -3,17 +3,20 @@ import { __ } from '../lib/i18n';
 
 /**
  * Wizard chrome for the onboarding flow.
- * Reproduces onboarding/layout.blade.php: centred card, logo, 5-step stepper
- * (Modules → Line → Product → Process → Work Order), skip link at bottom.
+ * Reproduces onboarding/layout.blade.php: centred card, logo, 4-step stepper
+ * (Line → Product → Process → Work Order), skip link at bottom.
  *
- * Reads `step` (1–6) from page props; 6 = Complete (all steps shown as done).
+ * Reads `step` from page props: 0 = the module-preset screen that PRECEDES the
+ * wizard (stepper hidden — it's an independent choice, not a wizard step); 1–4 =
+ * the wizard steps; 5 = Complete (all steps shown as done).
  *
  * Geist White restyle: light-only v1 — om-* tokens, hairline card, mono labels.
  */
 export default function OnboardingLayout({ children }) {
     const { step = 1, csrf_token } = usePage().props;
 
-    const steps = ['Modules', 'Line', 'Product', 'Process', 'Work Order'];
+    const steps = ['Line', 'Product', 'Process', 'Work Order'];
+    const showStepper = step >= 1;
 
     const skipWizard = (e) => {
         e.preventDefault();
@@ -30,7 +33,8 @@ export default function OnboardingLayout({ children }) {
                     <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">{__('Setup Wizard')}</p>
                 </div>
 
-                {/* Stepper */}
+                {/* Stepper — hidden on the preset screen, which precedes the wizard */}
+                {showStepper && (
                 <div className="flex items-center justify-center mb-8">
                     {steps.map((label, i) => {
                         const stepNum = i + 1;
@@ -74,6 +78,7 @@ export default function OnboardingLayout({ children }) {
                         );
                     })}
                 </div>
+                )}
 
                 {/* Content card */}
                 <div className="bg-om-card border border-om-line rounded-om shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)] p-8">{children}</div>

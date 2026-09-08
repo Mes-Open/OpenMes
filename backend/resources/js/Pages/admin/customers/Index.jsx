@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Modal } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import ResourceForm from '../../../components/ResourceForm';
-import { TIER_BADGE_STYLES, tierLabel, customerFields, CUSTOMER_INITIAL } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TIER_BADGE_STYLES, tierLabel, customerFields, customerInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomersIndex() {
     const { counts = {}, basePath } = usePage().props;
-    const [creating, setCreating] = useState(false);
-    const [formKey, setFormKey] = useState(0);
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -33,7 +31,9 @@ export default function CustomersIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), href: `${basePath}/${r.id}/edit` },
+        // The row is the record: `customers` syncs every column the form needs,
+        // so the drawer opens filled in without a round-trip.
+        { label: __('Edit'), onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             onClick: () => router.post(`${basePath}/${r.id}/toggle-active`, {}, { preserveScroll: true }),
@@ -56,7 +56,7 @@ export default function CustomersIndex() {
                 shape="customers"
                 title={__('Customers')}
                 createHref={`${basePath}/create`}
-                onCreate={() => setCreating(true)}
+                onCreate={drawer.create}
                 createLabel={__('New Customer')}
                 columns={columns}
                 orderBy="name"
@@ -64,42 +64,13 @@ export default function CustomersIndex() {
                 emptyText={__('No customers yet.')}
             />
 
-            <Modal
-                open={creating}
-                onClose={() => setCreating(false)}
-                title={__('New Customer')}
-                closeLabel={__('Close')}
-                className="max-w-[720px]"
-                // A misclick on the scrim shouldn't cost a half-filled customer.
-                keepMounted
-            >
-                {/* The same field config the create page renders, so a field added
-                    to `customerFields()` shows up in both. `stay: 1` makes the
-                    controller answer with back(), keeping this list's filters and
-                    paging while the new row live-syncs in. */}
-                {/* `keepMounted` holds the form's state, which is the point when
-                    you close by accident. Bumping the key remounts the form for the
-                    two cases that are not accidents — a finished create, and an
-                    explicit Cancel — so neither lingers into the next one. */}
-                <ResourceForm
-                    key={formKey}
-                    action={basePath}
-                    method="post"
-                    fields={customerFields()}
-                    initial={{ ...CUSTOMER_INITIAL, stay: 1 }}
-                    submitLabel={__('Create')}
-                    // Cancel is a deliberate discard; only the scrim click is the
-                    // accident `keepMounted` exists for.
-                    onCancel={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
-                    onSuccess={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
-                />
-            </Modal>
+            <ResourceFormDrawer
+                {...drawer.props}
+                action={basePath}
+                fields={customerFields()}
+                initial={customerInitial}
+                title={{ create: __('New Customer'), edit: __('Edit Customer') }}
+            />
         </>
     );
 }

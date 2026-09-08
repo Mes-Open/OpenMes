@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (enable/disable/uninstall logic + all __() translations untouched).
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, ConfirmDialog, StatusPill } from '@openmes/ui';
+import { Button, ConfirmDialog, Icon, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -31,7 +31,7 @@ export default function ModulesIndex() {
                         <p className="text-om-muted text-sm mt-0.5">{__('Enable and disable installed OpenMES extensions')}</p>
                     </div>
                     <Link href="/admin/modules/install">
-                        <Button variant="primary">{__('+ Install Module')}</Button>
+                        <Button variant="primary" leftIcon={<Icon name="plus" size={14} />}>{__('Install Module')}</Button>
                     </Link>
                 </div>
 

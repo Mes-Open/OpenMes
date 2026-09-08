@@ -6,15 +6,34 @@
  * — set `horizontal={false}` to stack. Controlled: `value` + `onChange(next)`
  * over `options` ({ value, label }[]). API is identical to the native twin
  * (index.native.tsx).
+ *
+ * The group is one tab stop with the arrows choosing inside it, per the radio
+ * pattern — not one stop per option, which is what plain buttons give you and
+ * what tells a reader nothing about the options belonging together. `label`
+ * names the group; without it a screen reader announces the options with no
+ * idea what they are answering.
  */
-export function RadioGroup({ options, value, onChange, horizontal = true, className = '', ...props }) {
+import { useRovingFocus } from '../lib/rovingFocus.web.js';
+
+export function RadioGroup({ options, value, onChange, horizontal = true, label, className = '', ...props }) {
+    const index = options.findIndex((o) => o.value === value);
+    const { containerProps, itemProps } = useRovingFocus(
+        options.length,
+        // Nothing selected yet: the first option holds the tab stop so the group
+        // is reachable at all, without claiming to be checked.
+        index < 0 ? 0 : index,
+        (i) => onChange?.(options[i].value),
+    );
+
     return (
         <div
+            {...containerProps}
             role="radiogroup"
+            aria-label={label}
             className={`flex ${horizontal ? 'flex-row items-center gap-[18px]' : 'flex-col items-start gap-[13px]'} ${className}`}
             {...props}
         >
-            {options.map((option) => {
+            {options.map((option, i) => {
                 const active = option.value === value;
                 return (
                     <button
@@ -22,8 +41,9 @@ export function RadioGroup({ options, value, onChange, horizontal = true, classN
                         type="button"
                         role="radio"
                         aria-checked={active}
+                        {...itemProps(i)}
                         onClick={() => onChange?.(option.value)}
-                        className="inline-flex items-center gap-[9px] cursor-pointer"
+                        className="inline-flex items-center gap-[9px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-om-accent"
                     >
                         <span
                             aria-hidden

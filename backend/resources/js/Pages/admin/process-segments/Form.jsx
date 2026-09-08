@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { nameControl } from '../../../lib/fieldName';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -68,7 +69,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
             </Field>
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">Required skills</label>
+                <div className="block text-sm font-medium text-om-muted mb-2">Required skills</div>
                 <div className="border border-om-line2 rounded-om-sm divide-y">
                     {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">No skills defined.</p>}
                     {skills.map((skill) => (
@@ -102,10 +103,10 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            {children}
+            </div>
+            {nameControl(children, label)}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
+import { nameControl } from '../../../lib/fieldName';
 
 const STATUS_BADGE = {
     DONE: 'bg-om-running-bg text-om-running',
@@ -252,14 +254,14 @@ export default function ReportsIndex() {
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
-                                <DatePicker
+                                <AppDatePicker
                                     value={form.from || null}
                                     onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
                                     className="w-44"
                                 />
                             </Field>
                             <Field label={__('To')}>
-                                <DatePicker
+                                <AppDatePicker
                                     value={form.to || null}
                                     onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
                                     className="w-44"
@@ -366,8 +368,8 @@ function SummaryCard({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
-            {children}
+            <div className="block text-xs font-medium text-om-muted mb-1">{label}</div>
+            {nameControl(children, label)}
         </div>
     );
 }

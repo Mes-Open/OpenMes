@@ -1,15 +1,18 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { TRACKING_LABELS } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { TRACKING_LABELS, materialFields, materialInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaterialsIndex() {
-    const { counts = {}, materialTypeNames = {} } = usePage().props;
+    const { counts = {}, materialTypeNames = {}, materialTypes, customFields } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text', link: true },
         { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => materialTypeNames[r.material_type_id] ?? '—', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
         { key: 'unit_of_measure', label: __('UoM'), className: 'text-om-muted' },
         { key: 'tracking_type', label: __('Tracking'), className: 'text-om-muted', render: (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—' },
@@ -19,7 +22,7 @@ export default function MaterialsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/materials/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -45,11 +48,23 @@ export default function MaterialsIndex() {
                 detailHref={(r) => `/admin/materials/${r.id}`}
                 title={__('Materials')}
                 createHref="/admin/materials/create"
+                onCreate={drawer.create}
                 createLabel={__('New Material')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No materials yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/materials"
+                fields={materialFields(materialTypes ?? [])}
+                initial={materialInitial}
+                customFields={customFields}
+                ensure={['materialTypes', 'customFields']}
+                ready={materialTypes !== undefined}
+                title={{ create: __('New Material'), edit: __('Edit Material') }}
             />
         </>
     );

@@ -30,18 +30,19 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-4xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Name <span className="text-om-blocked">*</span></label>
-                <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
+                <div className="block text-sm font-medium text-om-muted mb-1">Name <span className="text-om-blocked">*</span></div>
+                <input aria-label="Name" type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
                 {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Description</label>
-                <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
+                <div className="block text-sm font-medium text-om-muted mb-1">Description</div>
+                <textarea aria-label="Description" value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Scope <span className="text-om-blocked">*</span></label>
+                <div className="block text-sm font-medium text-om-muted mb-1">Scope <span className="text-om-blocked">*</span></div>
                 <RadioGroup
+                    label="Scope"
                     options={[
                         { value: 'material', label: 'Specific material' },
                         { value: 'material_type', label: 'Material type' },
@@ -54,8 +55,9 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
 
             {data.scope === 'material' && (
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Material <span className="text-om-blocked">*</span></label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">Material <span className="text-om-blocked">*</span></div>
                     <Dropdown
+                        aria-label="Material"
                         value={data.material_id == null ? '' : String(data.material_id)}
                         onChange={(v) => setData('material_id', v)}
                         options={materials.map((m) => ({ value: String(m.id), label: m.name }))}
@@ -67,8 +69,9 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
             )}
             {data.scope === 'material_type' && (
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Material Type <span className="text-om-blocked">*</span></label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">Material Type <span className="text-om-blocked">*</span></div>
                     <Dropdown
+                        aria-label="Material Type"
                         value={data.material_type_id == null ? '' : String(data.material_type_id)}
                         onChange={(v) => setData('material_type_id', v)}
                         options={materialTypes.map((t) => ({ value: String(t.id), label: t.name }))}
@@ -80,12 +83,12 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
             )}
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">Criteria <span className="text-om-blocked">*</span></label>
+                <div className="block text-sm font-medium text-om-muted mb-2">Criteria <span className="text-om-blocked">*</span></div>
                 <RepeatableRows
                     value={data.criteria}
                     onChange={(rows) => setData('criteria', rows)}
                     fields={CRITERIA_FIELDS}
-                    addLabel="+ Add criterion"
+                    addLabel="Add criterion"
                     newRow={() => ({ name: '', type: 'visual', required: true, unit: '', spec_min: '', spec_max: '' })}
                 />
                 {errors.criteria && <p className="mt-1 text-xs text-om-blocked">{errors.criteria}</p>}

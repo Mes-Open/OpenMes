@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { webhookFields } from './fields';
+import { webhookFields, webhookInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WebhookEdit() {
@@ -15,13 +15,7 @@ export default function WebhookEdit() {
                 action={`/admin/webhooks/${webhook.id}`}
                 method="put"
                 fields={webhookFields(events, { isEdit: true })}
-                initial={{
-                    name: webhook.name ?? '',
-                    url: webhook.url ?? '',
-                    events: webhook.events ?? [],
-                    secret: '',
-                    is_active: !!webhook.is_active,
-                }}
+                initial={webhookInitial(webhook)}
                 submitLabel={__('Save')}
                 cancelHref="/admin/webhooks"
             />

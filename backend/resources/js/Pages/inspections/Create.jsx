@@ -34,10 +34,11 @@ export default function InspectionsCreate() {
                 <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 space-y-5">
                     {/* Material */}
                     <div>
-                        <label className={LABEL_CLASS}>
+                        <div className={LABEL_CLASS}>
                             {__('Material')} <span className="text-om-accent">*</span>
-                        </label>
+                        </div>
                         <Dropdown
+                            aria-label={__('Material')}
                             value={data.material_id == null ? '' : String(data.material_id)}
                             onChange={(v) => setData('material_id', v)}
                             placeholder={__('-- choose --')}
@@ -87,8 +88,9 @@ export default function InspectionsCreate() {
 
                     {/* Inspection plan */}
                     <div>
-                        <label className={LABEL_CLASS}>{__('Inspection plan')}</label>
+                        <div className={LABEL_CLASS}>{__('Inspection plan')}</div>
                         <Dropdown
+                            aria-label={__('Inspection plan')}
                             value={data.inspection_plan_id == null ? '' : String(data.inspection_plan_id)}
                             onChange={(v) => setData('inspection_plan_id', v)}
                             placeholder={__('— no plan (ad-hoc) —')}

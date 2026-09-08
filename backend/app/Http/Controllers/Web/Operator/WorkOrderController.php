@@ -369,6 +369,12 @@ class WorkOrderController extends Controller
         // documents` on the client (Operator has it; see the seeder).
         $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments'));
+        // What this order cannot be built from, if anything. Shown before the
+        // operator starts rather than surfacing as a failed allocation — and a
+        // subassembly is named as itself, not as the parts it is made from.
+        $materialShortages = app(\App\Services\Material\MaterialAllocationService::class)
+            ->shortagesForWorkOrders(collect([$workOrder]))[$workOrder->id] ?? [];
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages'));
     }
 }

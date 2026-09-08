@@ -74,7 +74,7 @@
                         Used for every timestamp, report boundary and shift edge. Set the
                         timezone of the plant, not of the server — otherwise a day's report
                         covers different hours than the shift that was worked. You can change
-                        it later without reinstalling.
+                        it later in Settings &rarr; System, without reinstalling.
                     </p>
                 </div>
 

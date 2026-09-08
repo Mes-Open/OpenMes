@@ -18,3 +18,23 @@ export function areaFields(sites) {
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }
+
+/**
+ * A record (from the synced row, or the server prop on the standalone edit
+ * page) as form values — and with no record, an empty form.
+ *
+ * One definition, shared by Create.jsx, Edit.jsx and the list's drawer, so the
+ * three can't drift on what a blank field is or how a value is coerced. The
+ * selects want strings; `useForm` would otherwise hand a number to a
+ * <select> whose option values are strings and quietly show nothing selected.
+ */
+export function areaInitial(area) {
+    return {
+        site_id: area?.site_id != null ? String(area.site_id) : '',
+        code: area?.code ?? '',
+        name: area?.name ?? '',
+        description: area?.description ?? '',
+        is_active: area ? !!area.is_active : true,
+        custom_fields: area?.custom_fields ?? {},
+    };
+}

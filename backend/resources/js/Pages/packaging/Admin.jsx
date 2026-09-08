@@ -1,4 +1,5 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
+import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
 import AppDataTable from '../../components/AppDataTable';
@@ -28,68 +29,68 @@ function StatusBadge({ item }) {
     return <StatusPill status="pending" label={item.status} />;
 }
 
-const itemColumns = [
-    {
-        id: 'order_no',
-        accessorKey: 'order_no',
-        header: __('Order'),
-        cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>,
-    },
-    {
-        id: 'product',
-        accessorKey: 'product',
-        header: __('Product'),
-        cell: ({ row }) => <span className="text-om-ink">{row.original.product}</span>,
-    },
-    {
-        id: 'line',
-        accessorFn: (r) => r.line ?? '—',
-        header: __('Line'),
-        cell: ({ row }) => <span className="text-om-muted">{row.original.line ?? '—'}</span>,
-    },
-    {
-        id: 'eans',
-        accessorFn: (r) => (r.eans ?? []).join(' '),
-        header: __('EAN'),
-        enableSorting: false,
-        cell: ({ row }) => (
-            (row.original.eans ?? []).map((ean) => (
-                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1">
-                    {ean}
-                </span>
-            ))
-        ),
-    },
-    {
-        id: 'packed_qty',
-        accessorKey: 'packed_qty',
-        header: __('Packed'),
-        meta: { align: 'right' },
-        cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.packed_qty}</span>,
-    },
-    {
-        id: 'planned_qty',
-        accessorKey: 'planned_qty',
-        header: __('Plan'),
-        meta: { align: 'right' },
-        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
-    },
-    {
-        id: 'progress',
-        accessorKey: 'progress',
-        header: __('Progress'),
-        cell: ({ row }) => <ProgressBar pct={row.original.progress} done={row.original.done} />,
-    },
-    {
-        id: 'status',
-        accessorFn: (r) => (r.done ? __('Packed') : r.status === 'DONE' ? __('In Progress') : r.status),
-        header: __('Status'),
-        cell: ({ row }) => <StatusBadge item={row.original} />,
-    },
-];
-
 export default function Admin() {
     const { items = [], stats = {} } = usePage().props;
+
+    const itemColumns = useMemo(() => [
+        {
+            id: 'order_no',
+            accessorKey: 'order_no',
+            header: __('Order'),
+            cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>,
+        },
+        {
+            id: 'product',
+            accessorKey: 'product',
+            header: __('Product'),
+            cell: ({ row }) => <span className="text-om-ink">{row.original.product}</span>,
+        },
+        {
+            id: 'line',
+            accessorFn: (r) => r.line ?? '—',
+            header: __('Line'),
+            cell: ({ row }) => <span className="text-om-muted">{row.original.line ?? '—'}</span>,
+        },
+        {
+            id: 'eans',
+            accessorFn: (r) => (r.eans ?? []).join(' '),
+            header: __('EAN'),
+            enableSorting: false,
+            cell: ({ row }) => (
+                (row.original.eans ?? []).map((ean) => (
+                    <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1">
+                        {ean}
+                    </span>
+                ))
+            ),
+        },
+        {
+            id: 'packed_qty',
+            accessorKey: 'packed_qty',
+            header: __('Packed'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.packed_qty}</span>,
+        },
+        {
+            id: 'planned_qty',
+            accessorKey: 'planned_qty',
+            header: __('Plan'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
+        },
+        {
+            id: 'progress',
+            accessorKey: 'progress',
+            header: __('Progress'),
+            cell: ({ row }) => <ProgressBar pct={row.original.progress} done={row.original.done} />,
+        },
+        {
+            id: 'status',
+            accessorFn: (r) => (r.done ? __('Packed') : r.status === 'DONE' ? __('In Progress') : r.status),
+            header: __('Status'),
+            cell: ({ row }) => <StatusBadge item={row.original} />,
+        },
+    ], []);
 
     const totalPacked = stats.total_packed ?? 0;
     const plan = stats.plan ?? 0;

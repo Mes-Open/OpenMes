@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Tool;
 use App\Models\WorkstationType;
@@ -11,6 +12,8 @@ use Inertia\Inertia;
 
 class ToolController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of tools. Rows live-sync via the `tools` shape; the
      * workstation-type name map is passed for display.
@@ -19,6 +22,10 @@ class ToolController extends Controller
     {
         return Inertia::render('admin/tools/Index', [
             'workstationTypeNames' => WorkstationType::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'workstationTypes' => Inertia::optional(fn () => WorkstationType::active()->orderBy('name')->get(['id', 'name'])),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('tool')),
         ]);
     }
 
@@ -56,8 +63,7 @@ class ToolController extends Controller
 
         Tool::create($validated);
 
-        return redirect()->route('admin.tools.index')
-            ->with('success', 'Tool created successfully.');
+        return $this->saved($request, redirect()->route('admin.tools.index'), 'Tool created successfully.');
     }
 
     /**
@@ -98,8 +104,7 @@ class ToolController extends Controller
 
         $tool->update($validated);
 
-        return redirect()->route('admin.tools.index')
-            ->with('success', 'Tool updated successfully.');
+        return $this->saved($request, redirect()->route('admin.tools.index'), 'Tool updated successfully.');
     }
 
     /**

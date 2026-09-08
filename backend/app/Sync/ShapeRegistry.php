@@ -2,6 +2,7 @@
 
 namespace App\Sync;
 
+use App\Sync\Shapes\DataImportsRecentShape;
 use App\Sync\Shapes\IssuesOpenShape;
 use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
@@ -29,11 +30,18 @@ class ShapeRegistry
         'lines_active' => LinesActiveShape::class,
         'issue_types' => IssueTypesShape::class,
         'product_types' => ProductTypesShape::class,
+        // Unified importer (Admin → Import) history: the counters move while a
+        // queued job runs, so the list and the progress bar read them live.
+        'data_imports' => DataImportsRecentShape::class,
 
         // Simple admin lookup tables — inline config.
         'skills' => [
             'table' => 'skills',
             'columns' => ['id', 'code', 'name', 'description', 'created_at', 'updated_at'],
+        ],
+        'material_types' => [
+            'table' => 'material_types',
+            'columns' => ['id', 'code', 'name', 'created_at', 'updated_at'],
         ],
         'anomaly_reasons' => [
             'table' => 'anomaly_reasons',
@@ -216,15 +224,15 @@ class ShapeRegistry
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
             'table' => 'lines',
-            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'view_template_id', 'default_operator_view', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'warehouse_id', 'view_template_id', 'default_operator_view', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'maintenance_events' => [
             'table' => 'maintenance_events',
-            'columns' => ['id', 'title', 'event_type', 'status', 'tool_id', 'line_id', 'workstation_id', 'cost_source_id', 'assigned_to_id', 'scheduled_at', 'scheduled_end_at', 'actual_cost', 'currency', 'created_at', 'updated_at'],
+            'columns' => ['id', 'title', 'event_type', 'status', 'tool_id', 'line_id', 'workstation_id', 'cost_source_id', 'assigned_to_id', 'scheduled_at', 'scheduled_end_at', 'actual_cost', 'currency', 'description', 'created_at', 'updated_at'],
         ],
         'maintenance_schedules' => [
             'table' => 'maintenance_schedules',
-            'columns' => ['id', 'name', 'tool_id', 'line_id', 'workstation_id', 'event_type', 'assigned_to_id', 'cost_source_id', 'frequency', 'interval_value', 'preferred_time', 'lead_time_days', 'next_due_at', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'description', 'tool_id', 'line_id', 'workstation_id', 'event_type', 'assigned_to_id', 'cost_source_id', 'frequency', 'interval_value', 'preferred_time', 'lead_time_days', 'next_due_at', 'is_active', 'created_at', 'updated_at'],
         ],
         'material_lots' => [
             'table' => 'material_lots',

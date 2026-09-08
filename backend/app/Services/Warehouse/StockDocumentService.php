@@ -8,7 +8,6 @@ use App\Models\StockDocument;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Warehouse;
-use App\Models\WarehouseStock;
 use App\Services\Material\StockMovementService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +34,10 @@ class StockDocumentService
     /** How many times a generated document number is retried on a collision. */
     private const NUMBER_ATTEMPTS = 5;
 
-    public function __construct(private StockMovementService $stockMovements) {}
+    public function __construct(
+        private StockMovementService $stockMovements,
+        private WarehouseStockService $warehouseStock,
+    ) {}
 
     /**
      * Create a draft document with its lines.
@@ -236,19 +238,21 @@ class StockDocumentService
     {
         $signed = $document->direction() * (float) $line->quantity * ($reverse ? -1 : 1);
 
-        $this->adjustWarehouseStock($document, $line, $signed);
+        $material = $document->isMaterialDocument() && $line->material_id !== null
+            ? Material::find($line->material_id)
+            : null;
 
-        if (! $document->isMaterialDocument() || $line->material_id === null) {
-            return;
+        // Before anything moves: an issue the stock cannot cover is refused here, not
+        // rolled back after the balances have already been written.
+        if ($material) {
+            $this->guardNegativeStock($document, $material, $signed);
         }
 
-        $material = Material::find($line->material_id);
+        $this->adjustWarehouseStock($document, $line, $signed);
 
         if (! $material) {
             return;
         }
-
-        $this->guardNegativeStock($material, $signed);
 
         // materials.stock_quantity + the stock_movements ledger. The movement
         // type mirrors the direction so the ledger reads the same as a shop-floor
@@ -284,54 +288,23 @@ class StockDocumentService
             'product_type_id' => $isMaterial ? null : $line->product_type_id,
         ];
 
-        if ($isMaterial && $line->material_lot_id !== null) {
-            $this->incrementBalance(
-                [...$keys, 'material_lot_id' => $line->material_lot_id],
-                $signed,
-                $line->unit_of_measure,
-            );
-        }
-
-        $this->incrementBalance([...$keys, 'material_lot_id' => null], $signed, $line->unit_of_measure);
-    }
-
-    /** @param  array<string, int|null>  $keys */
-    private function incrementBalance(array $keys, float $signed, ?string $unit): void
-    {
-        $stock = WarehouseStock::query()
-            ->where($keys)
-            ->lockForUpdate()
-            ->first();
-
-        if (! $stock) {
-            // lockForUpdate() can only lock rows that exist, so two concurrent
-            // posts can both miss and then race to insert. The partial unique
-            // index decides the winner; the loser re-reads the row it lost to
-            // (now committed) instead of failing the whole posting.
-            try {
-                $stock = WarehouseStock::create([
-                    ...$keys,
-                    'quantity' => 0,
-                    'unit_of_measure' => $unit,
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                $stock = WarehouseStock::query()->where($keys)->lockForUpdate()->first();
+        try {
+            if ($isMaterial && $line->material_lot_id !== null) {
+                $this->warehouseStock->adjust(
+                    [...$keys, 'material_lot_id' => $line->material_lot_id],
+                    $signed,
+                    $line->unit_of_measure,
+                );
             }
-        }
 
-        if (! $stock) {
+            $this->warehouseStock->adjust([...$keys, 'material_lot_id' => null], $signed, $line->unit_of_measure);
+        } catch (\RuntimeException) {
+            // The shared service is used by non-HTTP callers too, so it reports a
+            // plain runtime failure; posting turns it back into a form error.
             throw ValidationException::withMessages([
                 'lines' => __('Could not read the stock balance to update. Try again.'),
             ]);
         }
-
-        $stock->quantity = round((float) $stock->quantity + $signed, 3);
-
-        if ($unit && ! $stock->unit_of_measure) {
-            $stock->unit_of_measure = $unit;
-        }
-
-        $stock->save();
     }
 
     /** Keep the lot's remaining quantity in step with what was issued/returned. */
@@ -361,12 +334,34 @@ class StockDocumentService
 
     /**
      * Honour the system-wide "block negative stock" setting, the same switch the
-     * material allocation path respects.
+     * material allocation and shop-floor consumption paths respect.
+     *
+     * Both views of the stock are checked, because either can be the short one: the
+     * plant may hold plenty of a material while the warehouse this document issues
+     * from holds none of it.
      */
-    private function guardNegativeStock(Material $material, float $signed): void
+    private function guardNegativeStock(StockDocument $document, Material $material, float $signed): void
     {
-        if ($signed >= 0 || ! $this->blockNegativeStockEnabled()) {
+        if ($signed >= 0 || ! $this->warehouseStock->blocksNegativeStock()) {
             return;
+        }
+
+        // Locked, not just read: the lock is held for the rest of this transaction, so
+        // the balance cannot be spent by a concurrent posting between the check here
+        // and the move that follows it.
+        $balance = $this->warehouseStock->lockOrCreate([
+            'warehouse_id' => $document->warehouse_id,
+            'material_id' => $material->id,
+        ]);
+
+        if ((float) $balance->quantity + $signed < 0) {
+            throw ValidationException::withMessages([
+                'lines' => __('Posting would drive :material below zero at :warehouse (:available available).', [
+                    'material' => $material->code,
+                    'warehouse' => $document->warehouse?->code ?? $document->warehouse_id,
+                    'available' => (float) $balance->quantity,
+                ]),
+            ]);
         }
 
         if ((float) $material->stock_quantity + $signed < 0) {
@@ -376,17 +371,6 @@ class StockDocumentService
                     'available' => (float) $material->stock_quantity,
                 ]),
             ]);
-        }
-    }
-
-    private function blockNegativeStockEnabled(): bool
-    {
-        try {
-            $row = DB::table('system_settings')->where('key', 'block_negative_stock')->value('value');
-
-            return (bool) json_decode($row ?? 'false', true);
-        } catch (\Throwable) {
-            return false;
         }
     }
 

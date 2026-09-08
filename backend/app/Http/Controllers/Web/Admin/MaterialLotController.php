@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\HoldMaterialLotRequest;
 use App\Models\Issue;
@@ -15,11 +16,18 @@ use Inertia\Inertia;
 
 class MaterialLotController extends Controller
 {
+    use StaysOnList;
+
     public function index(Request $request)
     {
         return Inertia::render('admin/material-lots/Index', [
             'materialNames' => Material::pluck('name', 'id'),
             'sourceNames' => MaterialSource::pluck('external_name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'materials' => Inertia::optional(fn () => Material::orderBy('name')->get(['id', 'name'])),
+            'sources' => Inertia::optional(fn () => MaterialSource::orderBy('external_name')->get(['id', 'external_name'])),
+            'statuses' => Inertia::optional(fn () => MaterialLot::STATUSES),
         ]);
     }
 
@@ -122,8 +130,7 @@ class MaterialLotController extends Controller
 
         MaterialLot::create($data);
 
-        return redirect()->route('admin.material-lots.index')
-            ->with('success', __('Material lot created.'));
+        return $this->saved($request, redirect()->route('admin.material-lots.index'), __('Material lot created.'));
     }
 
     public function edit(MaterialLot $materialLot)
@@ -155,8 +162,7 @@ class MaterialLotController extends Controller
         $data = $this->validateLot($request, $materialLot);
         $materialLot->update($data);
 
-        return redirect()->route('admin.material-lots.index')
-            ->with('success', __('Material lot updated.'));
+        return $this->saved($request, redirect()->route('admin.material-lots.index'), __('Material lot updated.'));
     }
 
     /**

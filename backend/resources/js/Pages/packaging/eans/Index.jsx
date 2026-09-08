@@ -159,8 +159,9 @@ export default function EansIndex() {
                     <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-4">{__('Add EAN code')}</h2>
                     <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Production work order')}</label>
+                            <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Production work order')}</div>
                             <Dropdown
+                                aria-label={__('Production work order')}
                                 value={form.data.work_order_id == null ? '' : String(form.data.work_order_id)}
                                 onChange={(v) => form.setData('work_order_id', v)}
                                 placeholder={__('— select work order —')}

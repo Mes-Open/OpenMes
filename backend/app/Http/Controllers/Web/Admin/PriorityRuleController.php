@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\ServesBothSections;
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\PriorityBandsRequest;
 use App\Http\Requests\Web\Admin\PriorityRuleRequest;
@@ -14,6 +15,7 @@ use Inertia\Inertia;
 class PriorityRuleController extends Controller
 {
     use ServesBothSections;
+    use StaysOnList;
 
     /**
      * Priority Settings page: the rules table live-syncs via the `priority_rules`
@@ -40,8 +42,7 @@ class PriorityRuleController extends Controller
         PriorityRule::create($data);
         $this->recalculate();
 
-        return redirect()->to($this->sectionRoute('priority-rules.index'))
-            ->with('success', __('Priority rule created successfully.'));
+        return $this->saved($request, redirect()->to($this->sectionRoute('priority-rules.index')), __('Priority rule created successfully.'));
     }
 
     public function edit(PriorityRule $priorityRule)
@@ -60,8 +61,7 @@ class PriorityRuleController extends Controller
         $priorityRule->update($this->normalize($request));
         $this->recalculate();
 
-        return redirect()->to($this->sectionRoute('priority-rules.index'))
-            ->with('success', __('Priority rule updated successfully.'));
+        return $this->saved($request, redirect()->to($this->sectionRoute('priority-rules.index')), __('Priority rule updated successfully.'));
     }
 
     public function destroy(PriorityRule $priorityRule)

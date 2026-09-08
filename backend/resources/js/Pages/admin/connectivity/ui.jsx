@@ -3,6 +3,7 @@
  * "All" overview). Extracted to avoid copy-pasting the status dot, stat card,
  * and form section/field helpers across every page.
  */
+import { nameControl } from '../../../lib/fieldName';
 
 export const STATUS_DOT = {
     green:  'bg-om-running',
@@ -41,10 +42,10 @@ export function Section({ title, children }) {
 export function Field({ label, required, error, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            {children}
+            </div>
+            {nameControl(children, label)}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

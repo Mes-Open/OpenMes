@@ -1,10 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { scrapCategoryOptions } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { scrapCategoryOptions, scrapReasonFields, scrapReasonInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ScrapReasonsIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
     const categoryLabels = Object.fromEntries(scrapCategoryOptions().map((c) => [c.value, c.label]));
 
@@ -17,7 +20,7 @@ export default function ScrapReasonsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), href: `/admin/scrap-reasons/${r.id}/edit` },
+        { label: __('Edit'), onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             onClick: () => router.post(`/admin/scrap-reasons/${r.id}/toggle-active`, {}, { preserveScroll: true }),
@@ -40,11 +43,20 @@ export default function ScrapReasonsIndex() {
                 shape="scrap_reasons"
                 title={__('Scrap Reasons')}
                 createHref="/admin/scrap-reasons/create"
+                onCreate={drawer.create}
                 createLabel={__('New Reason')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}
                 emptyText={__('No scrap reasons yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/scrap-reasons"
+                fields={scrapReasonFields()}
+                initial={scrapReasonInitial}
+                title={{ create: __('New Scrap Reason'), edit: __('Edit Scrap Reason') }}
             />
         </>
     );

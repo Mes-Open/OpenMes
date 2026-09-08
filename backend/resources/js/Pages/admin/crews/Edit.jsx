@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { crewFields } from './fields';
+import { crewFields, crewInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewEdit() {
@@ -15,15 +15,7 @@ export default function CrewEdit() {
                 action={`/admin/crews/${crew.id}`}
                 method="put"
                 fields={crewFields(divisions, users, lines)}
-                initial={{
-                    code: crew.code ?? '',
-                    name: crew.name ?? '',
-                    division_id: crew.division_id != null ? String(crew.division_id) : '',
-                    leader_id: crew.leader_id != null ? String(crew.leader_id) : '',
-                    description: crew.description ?? '',
-                    is_active: !!crew.is_active,
-                    line_ids: crew.line_ids ?? [],
-                }}
+                initial={crewInitial(crew)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/crews"
             />

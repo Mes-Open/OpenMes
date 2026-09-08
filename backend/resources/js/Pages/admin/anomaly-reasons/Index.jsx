@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { ANOMALY_REASON_FIELDS, anomalyReasonInitial } from './fields';
 
 export default function AnomalyReasonsIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -15,7 +19,7 @@ export default function AnomalyReasonsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/anomaly-reasons/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -40,11 +44,20 @@ export default function AnomalyReasonsIndex() {
                 shape="anomaly_reasons"
                 title={__('Anomaly Reasons')}
                 createHref="/admin/anomaly-reasons/create"
+                onCreate={drawer.create}
                 createLabel={__('New Reason')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No anomaly reasons yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/anomaly-reasons"
+                fields={ANOMALY_REASON_FIELDS}
+                initial={anomalyReasonInitial}
+                title={{ create: __('New Anomaly Reason'), edit: __('Edit Anomaly Reason') }}
             />
         </>
     );

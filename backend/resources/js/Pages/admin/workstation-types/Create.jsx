@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { WORKSTATION_TYPE_FIELDS } from './fields';
+import { WORKSTATION_TYPE_FIELDS, workstationTypeInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WorkstationTypeCreate() {
@@ -13,7 +13,7 @@ export default function WorkstationTypeCreate() {
                 action="/admin/workstation-types"
                 method="post"
                 fields={WORKSTATION_TYPE_FIELDS}
-                initial={{ code: '', name: '', description: '', is_active: true }}
+                initial={workstationTypeInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/workstation-types"
             />

@@ -109,7 +109,10 @@ class BomExplosionService
 
         $stack[] = (int) $template->getKey();
 
+        // Product-type BOM lines are simple component references, not materials —
+        // they don't explode into a material tree, so the material engine skips them.
         $items = $template->bomItems()
+            ->whereNotNull('material_id')
             ->with(['material.materialType', 'material.producingTemplate', 'templateStep'])
             ->orderBy('sort_order')
             ->get();

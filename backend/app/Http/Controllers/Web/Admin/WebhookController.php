@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WebhookRequest;
 use App\Jobs\DeliverWebhookJob;
@@ -13,10 +14,15 @@ use Inertia\Inertia;
 
 class WebhookController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         return Inertia::render('admin/webhooks/Index', [
             'events' => WebhookEventRegistry::forForm(),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'generatedSecret' => Inertia::optional(fn () => Str::random(40)),
         ]);
     }
 
@@ -36,8 +42,7 @@ class WebhookController extends Controller
 
         Webhook::create($data);
 
-        return redirect()->route('admin.webhooks.index')
-            ->with('success', __('Webhook created successfully.'));
+        return $this->saved($request, redirect()->route('admin.webhooks.index'), __('Webhook created successfully.'));
     }
 
     public function edit(Webhook $webhook)
@@ -65,8 +70,7 @@ class WebhookController extends Controller
 
         $webhook->update($data);
 
-        return redirect()->route('admin.webhooks.index')
-            ->with('success', __('Webhook updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.webhooks.index'), __('Webhook updated successfully.'));
     }
 
     public function destroy(Webhook $webhook)

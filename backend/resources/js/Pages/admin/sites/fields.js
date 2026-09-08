@@ -21,3 +21,29 @@ export function siteFields(companies) {
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function siteInitial(record) {
+    if (!record) {
+        return { company_id: '', code: '', name: '', description: '', address: '', city: '', country: '', timezone: '', is_active: true };
+    }
+
+    return {
+        company_id: record.company_id != null ? String(record.company_id) : '',
+        code: record.code ?? '',
+        name: record.name ?? '',
+        description: record.description ?? '',
+        address: record.address ?? '',
+        city: record.city ?? '',
+        country: record.country ?? '',
+        timezone: record.timezone ?? '',
+        is_active: !!record.is_active,
+        custom_fields: record.custom_fields ?? {},
+    };
+}

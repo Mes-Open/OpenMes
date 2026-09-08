@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CrewBreakWindowRequest;
 use App\Models\Crew;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class CrewBreakWindowController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of break windows. Rows live-sync via the
      * `crew_break_windows` shape; crew names come as a prop (the shape only
@@ -19,6 +22,9 @@ class CrewBreakWindowController extends Controller
     {
         return Inertia::render('admin/crew-break-windows/Index', [
             'crewNames' => Crew::orderBy('name')->pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'crews' => Inertia::optional(fn () => Crew::active()->orderBy('name')->get(['id', 'name'])),
         ]);
     }
 
@@ -33,8 +39,7 @@ class CrewBreakWindowController extends Controller
     {
         CrewBreakWindow::create($this->payload($request));
 
-        return redirect()->route('admin.crew-break-windows.index')
-            ->with('success', __('Break window created successfully.'));
+        return $this->saved($request, redirect()->route('admin.crew-break-windows.index'), __('Break window created successfully.'));
     }
 
     public function edit(CrewBreakWindow $crewBreakWindow)
@@ -57,8 +62,7 @@ class CrewBreakWindowController extends Controller
     {
         $crewBreakWindow->update($this->payload($request));
 
-        return redirect()->route('admin.crew-break-windows.index')
-            ->with('success', __('Break window updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.crew-break-windows.index'), __('Break window updated successfully.'));
     }
 
     public function destroy(CrewBreakWindow $crewBreakWindow)

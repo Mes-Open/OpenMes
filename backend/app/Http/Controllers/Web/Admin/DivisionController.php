@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDivisionRequest;
 use App\Http\Requests\UpdateDivisionRequest;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class DivisionController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of divisions.
      */
@@ -24,6 +27,9 @@ class DivisionController extends Controller
         return Inertia::render('admin/divisions/Index', [
             'counts' => $counts,
             'factoryNames' => $factoryNames,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'factories' => Inertia::optional(fn () => Factory::active()->orderBy('name')->get(['id', 'name'])),
         ]);
     }
 
@@ -49,8 +55,7 @@ class DivisionController extends Controller
 
         Division::create($validated);
 
-        return redirect()->route('admin.divisions.index')
-            ->with('success', 'Division created successfully.');
+        return $this->saved($request, redirect()->route('admin.divisions.index'), 'Division created successfully.');
     }
 
     /**
@@ -76,8 +81,7 @@ class DivisionController extends Controller
 
         $division->update($validated);
 
-        return redirect()->route('admin.divisions.index')
-            ->with('success', 'Division updated successfully.');
+        return $this->saved($request, redirect()->route('admin.divisions.index'), 'Division updated successfully.');
     }
 
     /**

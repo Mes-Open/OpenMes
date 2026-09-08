@@ -189,8 +189,9 @@ export default function ProductionAnomaliesIndex() {
                 <div className="card mb-4">
                     <form onSubmit={applyFilter} className="flex flex-wrap gap-3 items-end">
                         <div>
-                            <label className="form-label">{__('Work Order')}</label>
+                            <div className="form-label">{__('Work Order')}</div>
                             <Dropdown
+                                aria-label={__('Work Order')}
                                 className="w-full"
                                 options={[{ value: '', label: __('All work orders') }, ...workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))]}
                                 value={workOrderId == null ? '' : String(workOrderId)}
@@ -198,8 +199,9 @@ export default function ProductionAnomaliesIndex() {
                             />
                         </div>
                         <div>
-                            <label className="form-label">{__('Status')}</label>
+                            <div className="form-label">{__('Status')}</div>
                             <Dropdown
+                                aria-label={__('Status')}
                                 className="w-full"
                                 options={[
                                     { value: '', label: __('All statuses') },

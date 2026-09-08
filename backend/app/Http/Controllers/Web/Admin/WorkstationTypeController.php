@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\WorkstationType;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class WorkstationTypeController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of workstation types. Rows live-sync via the
      * `workstation_types` shape; workstation counts come as a prop.
@@ -48,8 +51,7 @@ class WorkstationTypeController extends Controller
 
         WorkstationType::create($validated);
 
-        return redirect()->route('admin.workstation-types.index')
-            ->with('success', 'Workstation type created successfully.');
+        return $this->saved($request, redirect()->route('admin.workstation-types.index'), 'Workstation type created successfully.');
     }
 
     /**
@@ -78,8 +80,7 @@ class WorkstationTypeController extends Controller
 
         $workstationType->update($validated);
 
-        return redirect()->route('admin.workstation-types.index')
-            ->with('success', 'Workstation type updated successfully.');
+        return $this->saved($request, redirect()->route('admin.workstation-types.index'), 'Workstation type updated successfully.');
     }
 
     /**

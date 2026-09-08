@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkerAbsenceRequest;
 use App\Models\Worker;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class WorkerAbsenceController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of absences. Rows live-sync via the `worker_absences`
      * shape; worker names come as a prop (the shape only carries worker_id).
@@ -18,6 +21,11 @@ class WorkerAbsenceController extends Controller
     {
         return Inertia::render('admin/worker-absences/Index', [
             'workerNames' => Worker::orderBy('name')->pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'workers' => Inertia::optional(fn () => Worker::active()->orderBy('name')->get(['id', 'name'])),
+            'types' => Inertia::optional(fn () => WorkerAbsence::TYPES),
+            'statuses' => Inertia::optional(fn () => WorkerAbsence::STATUSES),
         ]);
     }
 
@@ -34,8 +42,7 @@ class WorkerAbsenceController extends Controller
     {
         WorkerAbsence::create($this->payload($request));
 
-        return redirect()->route('admin.worker-absences.index')
-            ->with('success', __('Absence recorded successfully.'));
+        return $this->saved($request, redirect()->route('admin.worker-absences.index'), __('Absence recorded successfully.'));
     }
 
     public function edit(WorkerAbsence $workerAbsence)
@@ -63,8 +70,7 @@ class WorkerAbsenceController extends Controller
     {
         $workerAbsence->update($this->payload($request));
 
-        return redirect()->route('admin.worker-absences.index')
-            ->with('success', __('Absence updated successfully.'));
+        return $this->saved($request, redirect()->route('admin.worker-absences.index'), __('Absence updated successfully.'));
     }
 
     public function destroy(WorkerAbsence $workerAbsence)

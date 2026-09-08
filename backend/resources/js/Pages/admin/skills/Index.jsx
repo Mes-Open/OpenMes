@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { skillFields, skillInitial } from './fields';
 
 export default function SkillsIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -14,7 +18,7 @@ export default function SkillsIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/skills/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: __('Delete'),
             icon: 'delete',
@@ -34,11 +38,20 @@ export default function SkillsIndex() {
                 shape="skills"
                 title={__('Skills')}
                 createHref="/admin/skills/create"
+                onCreate={drawer.create}
                 createLabel={__('New Skill')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No skills yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/skills"
+                fields={skillFields()}
+                initial={skillInitial}
+                title={{ create: __('New Skill'), edit: __('Edit Skill') }}
             />
         </>
     );

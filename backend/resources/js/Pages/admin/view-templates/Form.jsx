@@ -29,23 +29,23 @@ export default function ViewTemplateForm({ form, submitLabel, onSubmit }) {
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></label>
-                <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></div>
+                <input aria-label={__('Name')} type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
                 {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__('Description')}</label>
-                <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Description')}</div>
+                <textarea aria-label={__('Description')} value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
                 {errors.description && <p className="mt-1 text-xs text-om-blocked">{errors.description}</p>}
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">{__('Columns')} <span className="text-om-blocked">*</span></label>
+                <div className="block text-sm font-medium text-om-muted mb-2">{__('Columns')} <span className="text-om-blocked">*</span></div>
                 <RepeatableRows
                     value={data.columns}
                     onChange={(rows) => setData('columns', rows)}
                     fields={translatedFields}
-                    addLabel={__('+ Add column')}
+                    addLabel={__('Add column')}
                     newRow={() => ({ label: '', key: '', source: 'field' })}
                 />
                 {errors.columns && <p className="mt-1 text-xs text-om-blocked">{errors.columns}</p>}

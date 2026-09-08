@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { absenceFields } from './fields';
+import { absenceFields, absenceInitial } from './fields';
 
 export default function WorkerAbsenceCreate() {
     const { workers = [], types = [], statuses = [] } = usePage().props;
@@ -14,17 +14,7 @@ export default function WorkerAbsenceCreate() {
                 action="/admin/worker-absences"
                 method="post"
                 fields={absenceFields(workers, types, statuses)}
-                initial={{
-                    worker_id: '',
-                    type: 'vacation',
-                    starts_on: '',
-                    ends_on: '',
-                    all_day: true,
-                    start_time: '',
-                    end_time: '',
-                    status: 'approved',
-                    reason: '',
-                }}
+                initial={absenceInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/worker-absences"
             />

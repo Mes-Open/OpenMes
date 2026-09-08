@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { productRevisionFields } from './fields';
+import { productRevisionFields, productRevisionInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ProductRevisionCreate({ productTypes = [], processTemplates = [] }) {
@@ -13,7 +13,7 @@ export default function ProductRevisionCreate({ productTypes = [], processTempla
                 action="/admin/product-revisions"
                 method="post"
                 fields={productRevisionFields(productTypes, processTemplates)}
-                initial={{ product_type_id: '', revision_code: '', description: '', process_template_id: '', change_reason: '', external_ref: '' }}
+                initial={productRevisionInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/product-revisions"
             />

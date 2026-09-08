@@ -11,6 +11,7 @@ use App\Models\WorkOrder;
 use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -61,6 +62,21 @@ class OnboardingWizardTest extends TestCase
             ->update(['value' => json_encode(true)]);
 
         $this->assertFalse(OnboardingController::shouldShowWizard());
+    }
+
+    public function test_preset_screen_precedes_the_wizard(): void
+    {
+        // The module-preset screen is an independent screen (step 0, no wizard
+        // stepper) shown before the wizard, whose own steps start at 1 (Line).
+        $this->actingAs($this->admin)->get(route('onboarding.modules'))
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->component('onboarding/Modules')
+                ->where('step', 0));
+
+        $this->actingAs($this->admin)->get(route('onboarding.step1'))
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->component('onboarding/Step1')
+                ->where('step', 1));
     }
 
     public function test_step1_creates_line(): void

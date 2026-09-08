@@ -28,3 +28,26 @@ export function toolFields(workstationTypes) {
 }
 
 export const TOOL_STATUS_LABELS = Object.fromEntries(STATUSES.map((s) => [s.value, s.label]));
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function toolInitial(record) {
+    if (!record) {
+        return { code: '', name: '', description: '', workstation_type_id: '', status: 'available', next_service_at: '' };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+        description: record.description ?? '',
+        workstation_type_id: record.workstation_type_id != null ? String(record.workstation_type_id) : '',
+        status: record.status ?? 'available',
+        next_service_at: (record.next_service_at ?? '').slice(0, 10),
+        custom_fields: record.custom_fields ?? {},
+    };
+}

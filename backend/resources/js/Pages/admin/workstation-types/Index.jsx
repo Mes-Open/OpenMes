@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { WORKSTATION_TYPE_FIELDS, workstationTypeInitial } from './fields';
 
 export default function WorkstationTypesIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -14,7 +18,7 @@ export default function WorkstationTypesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/workstation-types/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -39,11 +43,20 @@ export default function WorkstationTypesIndex() {
                 shape="workstation_types"
                 title={__('Workstation Types')}
                 createHref="/admin/workstation-types/create"
+                onCreate={drawer.create}
                 createLabel={__('New Type')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No workstation types yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/workstation-types"
+                fields={WORKSTATION_TYPE_FIELDS}
+                initial={workstationTypeInitial}
+                title={{ create: __('New Workstation Type'), edit: __('Edit Workstation Type') }}
             />
         </>
     );

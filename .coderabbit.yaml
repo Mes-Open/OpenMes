@@ -17,9 +17,17 @@ reviews:
   poem: false
   review_status: true
   auto_review:
-    enabled: true
+    # Gated on the CLA: auto-review is OFF by default, and a positive label match
+    # turns it on. The CLA workflow (.github/workflows/cla.yml) adds the
+    # `cla-signed` label once every commit author has signed the CLA (and removes
+    # it if an unsigned commit is pushed), so CodeRabbit only reviews after the
+    # CLA is satisfied — first sign, then review. (Per CodeRabbit: when `enabled`
+    # is false, a positive label match still triggers a review.)
+    enabled: false
     drafts: false
-    # The base branches CodeRabbit auto-reviews (regex). This is the key setting.
+    labels:
+      - cla-signed
+    # The base branches CodeRabbit auto-reviews (regex).
     base_branches:
       - develop
       - main

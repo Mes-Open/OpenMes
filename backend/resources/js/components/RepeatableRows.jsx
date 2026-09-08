@@ -1,4 +1,4 @@
-import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, Icon } from '@openmes/ui';
 import Tooltip from './Tooltip';
 
 /**
@@ -18,7 +18,7 @@ import Tooltip from './Tooltip';
 const INPUT_CLASS =
     'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-1.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
 
-export default function RepeatableRows({ value, onChange, fields, addLabel = '+ Add row', newRow }) {
+export default function RepeatableRows({ value, onChange, fields, addLabel = 'Add row', newRow }) {
     const rows = value ?? [];
 
     const makeRow = newRow ?? (() => Object.fromEntries(fields.map((f) => [f.name, f.type === 'select' ? (f.options?.[0]?.value ?? '') : ''])));
@@ -73,7 +73,7 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = '+ 
                     </Tooltip>
                 </div>
             ))}
-            <Button variant="ghost" onClick={add}>{addLabel}</Button>
+            <Button variant="ghost" leftIcon={<Icon name="plus" size={14} />} onClick={add}>{addLabel}</Button>
         </div>
     );
 }

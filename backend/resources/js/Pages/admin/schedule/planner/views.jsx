@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
-import { OrderCard, TwinChip, TierDot } from './OrderCard';
+import { OrderCard, TwinChip, TierDot, ShortageChip } from './OrderCard';
 import { DraggableOrder, useOrderDrop } from './dnd';
 import {
     weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, dayList, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
@@ -25,12 +25,13 @@ const MAINT_H = 17;
 const fmtDow = (d) => formatDate(parseDate(d), { weekday: 'short' });
 const fmtDayMon = (d) => formatDate(parseDate(d), { day: '2-digit', month: 'short' });
 
+// Maintenance tiles are a distinct yellow so they stand out from work orders.
 function MaintPill({ m }) {
     return (
-        <div className="truncate" style={{ border: '1px dashed var(--om-maint)', background: 'var(--om-maint-bg)', borderRadius: 6, padding: '3px 7px', display: 'flex', alignItems: 'center', gap: 5 }}
+        <div className="truncate" style={{ border: '1px solid #d97706', background: '#fde68a', borderRadius: 6, padding: '3px 7px', display: 'flex', alignItems: 'center', gap: 5 }}
             title={m.title + (m.scheduled_at_time ? ' · ' + m.scheduled_at_time : '')}>
-            <span style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--om-maint)', flexShrink: 0 }} />
-            <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-maint)' }}>{m.title}</span>
+            <span style={{ width: 5, height: 5, borderRadius: 999, background: '#d97706', flexShrink: 0 }} />
+            <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: '#78350f' }}>{m.title}</span>
         </div>
     );
 }
@@ -148,7 +149,10 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                         <TierDot wo={wo} />
                         <span className="whitespace-nowrap" style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
-                        {wo.is_overdue && <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
+                        <span className="ml-auto flex items-center gap-1">
+                            <ShortageChip wo={wo} compact />
+                            {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
+                        </span>
                     </div>
                     <span className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)' }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</span>
                 </div>

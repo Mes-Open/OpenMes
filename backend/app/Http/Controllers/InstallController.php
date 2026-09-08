@@ -114,10 +114,9 @@ class InstallController extends Controller
                 ->with('error', 'Preconfigured database is not reachable. Check the server logs for details.');
         }
 
-        // Idempotent: `migrate` skips applied migrations, both seeders upsert.
+        // Idempotent: `migrate` skips applied migrations, every seeder upserts.
         Artisan::call('migrate', ['--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+        Artisan::call('db:seed', ['--class' => 'DatabaseSeeder', '--force' => true]);
 
         // Joining an existing main database (e.g. desktop client pointed at a
         // central server's DB): accounts already exist, so there is nothing to
@@ -334,8 +333,10 @@ class InstallController extends Controller
             return back()->withErrors(['migration' => 'Migration failed: '.$e->getMessage()]);
         }
 
-        Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+        // The whole reference set, not just roles and issue types — a fresh
+        // install otherwise starts with no scrap or downtime reasons, no
+        // material types and no label templates.
+        Artisan::call('db:seed', ['--class' => 'DatabaseSeeder', '--force' => true]);
 
         // The plant timezone picked in step 1, now that there is a table to put it
         // in. This is the copy the application actually reads — on Docker the

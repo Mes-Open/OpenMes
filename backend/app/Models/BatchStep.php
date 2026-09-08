@@ -33,6 +33,7 @@ class BatchStep extends Model
         'name',
         'instruction',
         'requires_confirmation',
+        'passed_qty',
         'workstation_id',
         'workstation_type_id',
         'estimated_duration_minutes',
@@ -60,6 +61,7 @@ class BatchStep extends Model
     {
         return [
             'step_number' => 'integer',
+            'passed_qty' => 'integer',
             'estimated_duration_minutes' => 'integer',
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',

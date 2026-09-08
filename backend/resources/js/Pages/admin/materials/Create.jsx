@@ -2,7 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { materialFields } from './fields';
+import { materialFields, materialInitial } from './fields';
 
 export default function MaterialCreate() {
     const { materialTypes = [], customFields = [] } = usePage().props;
@@ -15,11 +15,7 @@ export default function MaterialCreate() {
                 method="post"
                 fields={materialFields(materialTypes)}
                 customFields={customFields}
-                initial={{
-                    code: '', name: '', material_type_id: '', unit_of_measure: 'pcs',
-                    tracking_type: 'none', default_scrap_percentage: '', description: '',
-                    external_code: '', external_system: '', is_active: true, custom_fields: {},
-                }}
+                initial={materialInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/materials"
             />

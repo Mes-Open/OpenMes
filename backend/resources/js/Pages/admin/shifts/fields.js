@@ -19,3 +19,27 @@ export function shiftFields(lines) {
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function shiftInitial(record) {
+    if (!record) {
+        return { code: '', name: '', line_id: '', start_time: '', end_time: '', sort_order: 0, is_active: true };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+        line_id: record.line_id != null ? String(record.line_id) : '',
+        start_time: (record.start_time ?? '').slice(0, 5),
+        end_time: (record.end_time ?? '').slice(0, 5),
+        sort_order: record.sort_order ?? 0,
+        is_active: !!record.is_active,
+        custom_fields: record.custom_fields ?? {},
+    };
+}

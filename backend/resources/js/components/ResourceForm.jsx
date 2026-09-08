@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useId, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox, DatePicker, Dropdown } from '@openmes/ui';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import AppDatePicker from './AppDatePicker';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
 import { __ } from '../lib/i18n';
@@ -32,6 +33,10 @@ import { __ } from '../lib/i18n';
  *   title       — optional page heading rendered between the back link and form
  *   customFields — optional admin-defined custom-field definitions (clientConfig);
  *                  rendered after the static fields, bound to data.custom_fields
+ *   bare        — drop the card chrome and the 2xl cap, for a form rendered
+ *                 inside a shell that already provides both (the list drawer).
+ *                 The action row then pins itself to the bottom of whatever is
+ *                 scrolling it, so Save stays in reach down a long form.
  */
 
 // Geist White input + label idiom (light-only v1 — dark: variants removed).
@@ -53,6 +58,7 @@ export default function ResourceForm({
     backLabel = 'Back',
     title,
     customFields,
+    bare = false,
 }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -108,7 +114,12 @@ export default function ResourceForm({
 
             {title && <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-6">{title}</h1>}
 
-            <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 max-w-2xl space-y-5">
+            <form
+                onSubmit={submit}
+                className={bare
+                    ? 'space-y-5'
+                    : 'bg-om-card border border-om-line rounded-om p-6 max-w-2xl space-y-5'}
+            >
                 {Object.keys(errors).length > 0 && (
                     <div className="bg-om-blocked-bg border border-om-blocked/20 rounded-om-sm p-3">
                         <p className="text-[12.5px] font-semibold text-om-blocked">{__('Please fix the following:')}</p>
@@ -128,7 +139,15 @@ export default function ResourceForm({
                     <CustomFields {...customFieldProps(form, customFieldDefs)} />
                 )}
 
-                <div className="flex items-center gap-3 pt-2">
+                {/* Bare means a drawer is scrolling this form, so the actions stick to
+                    the bottom of that scroller and bleed out to its padding edges —
+                    the same hairline-over-panel footer the Modal draws for itself
+                    when it is given one, without having to hand the submit button
+                    across the component boundary to get there. */}
+                <div className={bare
+                    ? 'sticky bottom-0 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
+                    : 'flex items-center gap-3 pt-2'}
+                >
                     <Button type="submit" variant="primary" loading={processing}>
                         {processing ? __('Saving…') : submitLabel}
                     </Button>
@@ -146,7 +165,7 @@ export default function ResourceForm({
                             onClick={onCancel}
                             className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                         >
-                            Cancel
+                            {__('Cancel')}
                         </button>
                     )}
                 </div>
@@ -158,6 +177,24 @@ export default function ResourceForm({
 function Field({ field, value, error, setData, data }) {
     const { name, label, type = 'text', required, placeholder, help, options, filterByField } = field;
     const set = (v) => setData(name, v);
+
+    // The caption used to be a bare <label> with no `htmlFor`, so it named
+    // nothing: every input in every admin create/edit form reached a screen
+    // reader as an unlabelled edit box, and the help text and validation error
+    // beside it were never read out with the field they belong to.
+    const uid = useId();
+    const inputId = `${uid}-input`;
+    const describedBy = [help && `${uid}-help`, error && `${uid}-error`].filter(Boolean).join(' ') || undefined;
+    /** Named through aria-* instead: `htmlFor` only reaches real form controls. */
+    const custom = type === 'select' || type === 'date';
+    const a11y = custom
+        ? { 'aria-label': __(label) }
+        : {
+            id: inputId,
+            'aria-describedby': describedBy,
+            'aria-invalid': error ? true : undefined,
+            'aria-required': required || undefined,
+        };
 
     // Dependent select: options carrying a `group` are scoped to the current
     // value of `filterByField`; options without a group (e.g. "— None —") always
@@ -194,8 +231,9 @@ function Field({ field, value, error, setData, data }) {
 
     return (
         <div>
-            <label className={LABEL_CLASS}>
-                {__(label)} {required && <span className="text-om-accent">*</span>}
+            <label htmlFor={custom ? undefined : inputId} className={LABEL_CLASS}>
+                {/* The asterisk is decoration; `aria-required` carries the fact. */}
+                {__(label)} {required && <span aria-hidden className="text-om-accent">*</span>}
             </label>
 
             {type === 'textarea' ? (
@@ -206,6 +244,7 @@ function Field({ field, value, error, setData, data }) {
                     rows={3}
                     placeholder={placeholder ? __(placeholder) : undefined}
                     className={INPUT_CLASS}
+                    {...a11y}
                 />
             ) : type === 'select' ? (
                 <Dropdown
@@ -214,13 +253,15 @@ function Field({ field, value, error, setData, data }) {
                     value={value == null ? '' : String(value)}
                     onChange={(v) => set(v)}
                     placeholder={placeholder ? __(placeholder) : `${__(label)}…`}
+                    {...a11y}
                 />
             ) : type === 'date' ? (
-                <DatePicker
+                <AppDatePicker
                     className="w-full"
                     value={value || null}
                     onChange={(iso) => set(iso ?? '')}
                     placeholder={placeholder ? __(placeholder) : __('Select date')}
+                    {...a11y}
                 />
             ) : type === 'color' ? (
                 <input
@@ -229,6 +270,7 @@ function Field({ field, value, error, setData, data }) {
                     value={value || '#3b82f6'}
                     onChange={(e) => set(e.target.value)}
                     className="h-9 w-16 rounded-om-sm border border-om-line bg-om-bg p-0.5"
+                    {...a11y}
                 />
             ) : (
                 <input
@@ -238,11 +280,12 @@ function Field({ field, value, error, setData, data }) {
                     onChange={(e) => set(e.target.value)}
                     placeholder={placeholder ? __(placeholder) : undefined}
                     className={INPUT_CLASS}
+                    {...a11y}
                 />
             )}
 
-            {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
-            {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
+            {help && <p id={`${uid}-help`} className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
+            {error && <p id={`${uid}-error`} role="alert" className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
         </div>
     );
 }
@@ -277,9 +320,9 @@ function ImageField({ field, value, error, setData, data }) {
 
     return (
         <div>
-            <label className={LABEL_CLASS}>
+            <div className={LABEL_CLASS}>
                 {__(label)} {required && <span className="text-om-accent">*</span>}
-            </label>
+            </div>
 
             <div className="flex items-start gap-3">
                 {shown ? (
@@ -360,9 +403,9 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
 
     return (
         <div>
-            <label id={`${name}-label`} className={LABEL_CLASS}>
+            <div id={`${name}-label`} className={LABEL_CLASS}>
                 {__(label)} {required && <span className="text-om-accent">*</span>}
-            </label>
+            </div>
             <div name={name} role="group" aria-labelledby={`${name}-label`} className="flex flex-wrap gap-2">
                 {visibleOptions.map((o) => {
                     const active = selected.includes(o.value);

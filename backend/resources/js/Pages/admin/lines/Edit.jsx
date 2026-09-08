@@ -2,10 +2,10 @@ import { Head, usePage } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { lineFields } from './fields';
+import { lineFields, lineInitial } from './fields';
 
 export default function LineEdit() {
-    const { line, areas = [] } = usePage().props;
+    const { line, areas = [], warehouses = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${line.name}`} />
@@ -13,15 +13,8 @@ export default function LineEdit() {
             <ResourceForm
                 action={`/admin/lines/${line.id}`}
                 method="put"
-                fields={lineFields(areas)}
-                initial={{
-                    code: line.code ?? '',
-                    name: line.name ?? '',
-                    area_id: line.area_id != null ? String(line.area_id) : '',
-                    description: line.description ?? '',
-                    is_active: !!line.is_active,
-                    custom_fields: line.custom_fields ?? {},
-                }}
+                fields={lineFields(areas, warehouses)}
+                initial={lineInitial(line)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/lines"
             />

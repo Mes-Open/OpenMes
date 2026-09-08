@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { siteFields } from './fields';
+import { siteFields, siteInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function SiteEdit() {
@@ -15,18 +15,7 @@ export default function SiteEdit() {
                 action={`/admin/sites/${site.id}`}
                 method="put"
                 fields={siteFields(companies)}
-                initial={{
-                    company_id: site.company_id != null ? String(site.company_id) : '',
-                    code: site.code ?? '',
-                    name: site.name ?? '',
-                    description: site.description ?? '',
-                    address: site.address ?? '',
-                    city: site.city ?? '',
-                    country: site.country ?? '',
-                    timezone: site.timezone ?? '',
-                    is_active: !!site.is_active,
-                    custom_fields: site.custom_fields ?? {},
-                }}
+                initial={siteInitial(site)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/sites"
             />

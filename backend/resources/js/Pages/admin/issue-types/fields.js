@@ -25,3 +25,24 @@ export const SEVERITY_LABELS = {
     HIGH: __('High'),
     CRITICAL: __('Critical'),
 };
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function issueTypeInitial(record) {
+    if (!record) {
+        return { code: '', name: '', severity: 'MEDIUM', is_blocking: false, is_active: true };
+    }
+
+    return {
+        code: record.code ?? '',
+        name: record.name ?? '',
+        severity: record.severity ?? 'MEDIUM',
+        is_blocking: !!record.is_blocking,
+        is_active: !!record.is_active,
+    };
+}

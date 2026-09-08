@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { areaFields } from './fields';
+import { areaFields, areaInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function AreaCreate() {
@@ -15,7 +15,7 @@ export default function AreaCreate() {
                 action="/admin/areas"
                 method="post"
                 fields={areaFields(sites)}
-                initial={{ site_id: '', code: '', name: '', description: '', is_active: true }}
+                initial={areaInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/areas"
             />

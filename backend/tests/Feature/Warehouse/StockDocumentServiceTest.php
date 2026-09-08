@@ -283,6 +283,50 @@ class StockDocumentServiceTest extends TestCase
         $this->assertTrue($document->fresh()->isDraft());
     }
 
+    /**
+     * The plant can hold plenty of a material while the store this document issues
+     * from holds none of it — either view being short has to stop the posting.
+     */
+    public function test_posting_is_blocked_when_the_warehouse_is_short_but_the_plant_is_not(): void
+    {
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'block_negative_stock'],
+            ['value' => json_encode(true)],
+        );
+
+        $warehouse = $this->rawWarehouse();
+        $material = Material::factory()->create(['code' => 'FLOUR-02', 'stock_quantity' => 1000]);
+
+        // Plenty in the plant, 5 in this store.
+        \App\Models\WarehouseStock::factory()->create([
+            'warehouse_id' => $warehouse->id,
+            'material_id' => $material->id,
+            'quantity' => 5,
+        ]);
+
+        $document = $this->service->createDraft([
+            'type' => StockDocument::TYPE_MATERIAL_ISSUE,
+            'warehouse_id' => $warehouse->id,
+            'lines' => [['material_id' => $material->id, 'quantity' => 50]],
+        ]);
+
+        try {
+            $this->service->post($document);
+            $this->fail('Posting below the warehouse balance should have been blocked.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('FLOUR-02', collect($e->errors())->flatten()->implode(' '));
+        }
+
+        // Nothing moved: not the location balance, not the plant-wide quantity.
+        $this->assertEquals(5.0, (float) \App\Models\WarehouseStock::where([
+            'warehouse_id' => $warehouse->id,
+            'material_id' => $material->id,
+            'material_lot_id' => null,
+        ])->value('quantity'));
+        $this->assertEquals(1000.0, (float) $material->fresh()->stock_quantity);
+        $this->assertTrue($document->fresh()->isDraft());
+    }
+
     public function test_document_numbers_are_sequential_per_type_and_year(): void
     {
         $this->rawWarehouse();

@@ -2,7 +2,23 @@ import { Link, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 
-export default function PalletForm({ action, method, initial, submitLabel }) {
+/**
+ * Blank/loaded form values — the one builder Create, Edit and the list drawer
+ * all share. The drawer call site adds `stay: 1` itself.
+ */
+export function palletInitial(r) {
+    return {
+        work_order_id: r?.work_order_id != null ? String(r.work_order_id) : '',
+        batch_id: r?.batch_id != null ? String(r.batch_id) : '',
+        qty: r?.qty ?? 0,
+        status: r?.status ?? 'open',
+        location: r?.location ?? '',
+        destination: r?.destination ?? '',
+        erp_reference: r?.erp_reference ?? '',
+    };
+}
+
+export default function PalletForm({ action, method, initial, submitLabel, bare = false, onSuccess, onCancel }) {
     const { workOrders = [], statuses = [] } = usePage().props;
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -12,16 +28,17 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        form.submit(method, action, { preserveScroll: true, ...(onSuccess ? { onSuccess } : {}) });
     };
 
     return (
-        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className={bare ? 'space-y-5' : 'bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5'}>
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">
+                <div className="block text-sm font-medium text-om-muted mb-1">
                     {__('Work order')} <span className="text-om-blocked">*</span>
-                </label>
+                </div>
                 <Dropdown
+                    aria-label={__('Work order')}
                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
                     onChange={(v) => { setData('work_order_id', v); setData('batch_id', ''); }}
                     placeholder={__('— Select work order —')}
@@ -33,8 +50,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             {batches.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Batch')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Batch')}</div>
                     <Dropdown
+                        aria-label={__('Batch')}
                         value={data.batch_id == null ? '' : String(data.batch_id)}
                         onChange={(v) => setData('batch_id', v)}
                         placeholder={__('— None —')}
@@ -47,8 +65,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Quantity')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Quantity')}</div>
                     <input
+                        aria-label={__('Quantity')}
                         type="number"
                         min={0}
                         value={data.qty ?? 0}
@@ -58,10 +77,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                     {errors.qty && <p className="mt-1 text-xs text-om-blocked">{errors.qty}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">
+                    <div className="block text-sm font-medium text-om-muted mb-1">
                         {__('Status')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <Dropdown
+                        aria-label={__('Status')}
                         value={data.status == null ? '' : String(data.status)}
                         onChange={(v) => setData('status', v)}
                         options={statuses.map((s) => ({ value: String(s.value), label: s.label }))}
@@ -98,9 +118,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 >
                     {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">
-                    {__('Cancel')}
-                </Link>
+                {onCancel ? (
+                    <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</button>
+                ) : (
+                    <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                )}
             </div>
         </form>
     );
@@ -109,8 +131,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 function TextField({ label, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">{label}</label>
+            <div className="block text-sm font-medium text-om-muted mb-1">{label}</div>
             <input
+                aria-label={label}
                 type="text"
                 value={value ?? ''}
                 onChange={(e) => onChange(e.target.value)}

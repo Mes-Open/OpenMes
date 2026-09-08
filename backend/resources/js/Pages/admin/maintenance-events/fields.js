@@ -1,3 +1,4 @@
+import { dateTimeLocal } from '../../../lib/syncedRow';
 import { __ } from '../../../lib/i18n';
 
 const opt = (none, arr) => [
@@ -40,3 +41,46 @@ export const EVENT_STATUS_STYLES = {
     done: 'bg-green-100 text-green-800',
     cancelled: 'bg-gray-200 text-gray-600',
 };
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function maintenanceEventInitial(record, { scheduled_at, scheduled_end_at } = {}) {
+    if (!record) {
+        return {
+            title: '',
+            event_type: 'planned',
+            tool_id: '',
+            line_id: '',
+            workstation_id: '',
+            cost_source_id: '',
+            assigned_to_id: '',
+            scheduled_at: '',
+            scheduled_end_at: '',
+            actual_cost: '',
+            currency: 'PLN',
+            description: '',
+        };
+    }
+
+    return {
+        title: record.title ?? '',
+        event_type: record.event_type ?? 'planned',
+        tool_id: record.tool_id != null ? String(record.tool_id) : '',
+        line_id: record.line_id != null ? String(record.line_id) : '',
+        workstation_id: record.workstation_id != null ? String(record.workstation_id) : '',
+        cost_source_id: record.cost_source_id != null ? String(record.cost_source_id) : '',
+        assigned_to_id: record.assigned_to_id != null ? String(record.assigned_to_id) : '',
+        // The edit page is handed these pre-formatted by the controller; a synced
+        // row carries the raw column, which a datetime-local input won't accept.
+        scheduled_at: scheduled_at ?? dateTimeLocal(record.scheduled_at),
+        scheduled_end_at: scheduled_end_at ?? dateTimeLocal(record.scheduled_end_at),
+        actual_cost: record.actual_cost ?? '',
+        currency: record.currency ?? '',
+        description: record.description ?? '',
+    };
+}

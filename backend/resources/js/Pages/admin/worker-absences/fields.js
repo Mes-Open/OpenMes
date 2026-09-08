@@ -45,3 +45,38 @@ export function absenceFields(workers = [], types = [], statuses = []) {
         { name: 'reason', label: 'Reason', type: 'textarea' },
     ];
 }
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function absenceInitial(record) {
+    if (!record) {
+        return {
+            worker_id: '',
+            type: 'vacation',
+            starts_on: '',
+            ends_on: '',
+            all_day: true,
+            start_time: '',
+            end_time: '',
+            status: 'approved',
+            reason: '',
+        };
+    }
+
+    return {
+        worker_id: record.worker_id ? String(record.worker_id) : '',
+        type: record.type ?? 'vacation',
+        starts_on: record.starts_on ?? '',
+        ends_on: record.ends_on ?? '',
+        all_day: !!record.all_day,
+        start_time: record.start_time ?? '',
+        end_time: record.end_time ?? '',
+        status: record.status ?? 'approved',
+        reason: record.reason ?? '',
+    };
+}

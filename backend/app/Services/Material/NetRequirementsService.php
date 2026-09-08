@@ -13,6 +13,13 @@ use Illuminate\Support\Collection;
  * component requirements, net them against on-hand stock and produce a shortage
  * list.
  *
+ * Netting runs level by level, not against a flattened leaf explosion. A
+ * manufactured subassembly is demand in its own right: its gross requirement is
+ * netted against its own stock first, and only the shortfall explodes into the
+ * level below. So packs already on the shelf appear as covered demand and pull
+ * no media, and a subassembly that runs out is reported by name — a flat leaf
+ * explosion could do neither.
+ *
  * Demand scope: only PENDING / ACCEPTED work orders — these are planned but not
  * yet started, so no materials have been allocated for them. Started orders
  * (IN_PROGRESS/BLOCKED) have already pulled their materials out of
@@ -24,6 +31,9 @@ class NetRequirementsService
 {
     /** Statuses whose un-started demand MRP plans for. */
     public const DEMAND_STATUSES = [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED];
+
+    /** @var array<int, list<array{material_id: int, required_per_unit: float}>> */
+    private array $componentCache = [];
 
     public function __construct(private readonly BomExplosionService $explosion) {}
 
@@ -45,52 +55,103 @@ class NetRequirementsService
             ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
             ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date']);
 
-        // BOM per product type, exploded through every subassembly level to the
-        // materials that actually have to be bought or drawn from stock.
-        $bomByProductType = $this->bomByProductType($workOrders->pluck('product_type_id')->unique()->filter());
+        $templates = $this->activeTemplateByProductType($workOrders->pluck('product_type_id')->unique()->filter());
 
-        // Accumulate gross requirement + the driving work orders, per material.
-        $gross = [];          // material_id => qty
+        // Level 1 demand: the direct components of each order's product. Nothing
+        // is exploded yet — a subassembly is demand in its own right first.
+        $pending = [];        // material_id => qty needed at this level
         $relatedWos = [];     // material_id => [order_no => true]
+
         foreach ($workOrders as $wo) {
-            $lines = $bomByProductType->get($wo->product_type_id, collect());
-            foreach ($lines as $line) {
-                // required_per_unit already carries the scrap compounded through
-                // every level of the explosion, so it only needs scaling here.
-                $required = round((float) $line['required_per_unit'] * (float) $wo->planned_qty, 4);
+            $template = $templates->get($wo->product_type_id);
+            if (! $template) {
+                continue;
+            }
+
+            foreach ($this->directComponents($template) as $line) {
+                $required = round($line['required_per_unit'] * (float) $wo->planned_qty, 4);
                 if ($required <= 0) {
                     continue;
                 }
                 $mid = $line['material_id'];
-                $gross[$mid] = ($gross[$mid] ?? 0) + $required;
+                $pending[$mid] = ($pending[$mid] ?? 0) + $required;
                 $relatedWos[$mid][$wo->order_no] = true;
             }
         }
 
-        if (empty($gross)) {
+        if (empty($pending)) {
             return $this->emptyReport($from, $to, $lineId, $workOrders->count());
         }
 
-        $materials = Material::whereIn('id', array_keys($gross))->get()->keyBy('id');
+        $rows = [];        // material_id => requirement row
+        $stockLeft = [];   // material_id => on-hand not yet claimed by a higher level
+        $level = 0;
 
-        $requirements = [];
-        foreach ($gross as $materialId => $grossQty) {
-            $material = $materials->get($materialId);
-            $onHand = (float) ($material?->stock_quantity ?? 0);
-            $net = round(max(0, $grossQty - $onHand), 4);
+        while ($pending !== [] && $level < BomExplosionService::MAX_DEPTH) {
+            $materials = Material::with('producingTemplate')
+                ->whereIn('id', array_keys($pending))
+                ->get()
+                ->keyBy('id');
 
-            $requirements[] = [
-                'material_id' => $materialId,
-                'code' => $material?->code,
-                'name' => $material?->name ?? __('Unknown'),
-                'unit_of_measure' => $material?->unit_of_measure,
-                'required_qty' => round($grossQty, 4),
-                'available_qty' => round($onHand, 4),
-                'net_qty' => $net,
-                'is_short' => $net > 0,
-                'related_work_orders' => array_keys($relatedWos[$materialId] ?? []),
-            ];
+            $next = [];
+
+            foreach ($pending as $materialId => $grossQty) {
+                $material = $materials->get($materialId);
+                $onHand = (float) ($material?->stock_quantity ?? 0);
+
+                // Stock is claimed once, by whichever level asks first — a
+                // material used both directly and inside a subassembly must not
+                // spend the same units twice.
+                $stockLeft[$materialId] ??= $onHand;
+                $fromStock = min($grossQty, max(0.0, $stockLeft[$materialId]));
+                $stockLeft[$materialId] -= $fromStock;
+                $net = round($grossQty - $fromStock, 4);
+
+                $rows[$materialId] ??= [
+                    'material_id' => $materialId,
+                    'code' => $material?->code,
+                    'name' => $material?->name ?? __('Unknown'),
+                    'unit_of_measure' => $material?->unit_of_measure,
+                    'required_qty' => 0.0,
+                    'available_qty' => round($onHand, 4),
+                    'net_qty' => 0.0,
+                    'is_short' => false,
+                    'is_manufactured' => (bool) ($material?->is_manufactured),
+                    'level' => $level,
+                    'related_work_orders' => [],
+                ];
+
+                $rows[$materialId]['required_qty'] = round($rows[$materialId]['required_qty'] + $grossQty, 4);
+                $rows[$materialId]['net_qty'] = round($rows[$materialId]['net_qty'] + $net, 4);
+                $rows[$materialId]['is_short'] = $rows[$materialId]['net_qty'] > 0;
+
+                // Only the shortfall has to be made, so only the shortfall
+                // explodes. Packs already on the shelf pull no media.
+                if ($net > 0 && $material?->isExplodable()) {
+                    foreach ($this->directComponents($material->producingTemplate) as $child) {
+                        $qty = round($child['required_per_unit'] * $net, 4);
+                        if ($qty <= 0) {
+                            continue;
+                        }
+                        $next[$child['material_id']] = ($next[$child['material_id']] ?? 0) + $qty;
+
+                        // The child inherits whatever orders drive its parent.
+                        foreach (array_keys($relatedWos[$materialId] ?? []) as $orderNo) {
+                            $relatedWos[$child['material_id']][$orderNo] = true;
+                        }
+                    }
+                }
+            }
+
+            $pending = $next;
+            $level++;
         }
+
+        foreach ($rows as $materialId => $row) {
+            $rows[$materialId]['related_work_orders'] = array_keys($relatedWos[$materialId] ?? []);
+        }
+
+        $requirements = array_values($rows);
 
         // Stable, useful ordering: biggest shortfall first, then by name.
         usort($requirements, function ($a, $b) {
@@ -114,53 +175,55 @@ class NetRequirementsService
     }
 
     /**
-     * Build a map of product_type_id => collection of leaf requirement lines
-     * (material_id, required_per_unit) from each type's active template,
-     * exploded through every subassembly level.
+     * The active template (highest version) per product type.
      *
-     * @return Collection<int, Collection<int, array<string, mixed>>>
+     * @return Collection<int, ProcessTemplate>
      */
-    private function bomByProductType(Collection $productTypeIds): Collection
+    private function activeTemplateByProductType(Collection $productTypeIds): Collection
     {
         if ($productTypeIds->isEmpty()) {
             return collect();
         }
 
-        // Active template id per product type (highest version, active).
-        $templateIds = ProcessTemplate::whereIn('product_type_id', $productTypeIds)
+        return ProcessTemplate::whereIn('product_type_id', $productTypeIds)
             ->where('is_active', true)
             ->orderBy('version', 'desc')
-            ->get(['id', 'product_type_id'])
+            ->get()
             ->groupBy('product_type_id')
-            ->map(fn ($rows) => $rows->first()->id);
+            ->map(fn ($rows) => $rows->first());
+    }
 
-        if ($templateIds->isEmpty()) {
-            return collect();
+    /**
+     * One template's own BOM lines — one level, not exploded. Quantity carries
+     * that line's scrap; deeper scrap is applied by the level that adds it.
+     *
+     * Product-type lines are plain component references with no material behind
+     * them, so the material engine skips them, exactly as the explosion does.
+     *
+     * @return list<array{material_id: int, required_per_unit: float}>
+     */
+    private function directComponents(ProcessTemplate $template): array
+    {
+        $templateId = (int) $template->getKey();
+
+        if (isset($this->componentCache[$templateId])) {
+            return $this->componentCache[$templateId];
         }
 
-        // Explode each template for a single unit: leaf quantities come back
-        // with scrap already compounded through every level, so the caller only
-        // scales by planned_qty. Subassemblies are resolved into what they are
-        // made of rather than counted as demand themselves — netting a
-        // manufactured item against its own stock is a separate MRP concern.
-        $templates = ProcessTemplate::whereIn('id', $templateIds->values())->get()->keyBy('id');
-        $productTypeByTemplate = $templateIds->flip();
+        $lines = $template->bomItems()
+            ->whereNotNull('material_id')
+            ->orderBy('sort_order')
+            ->get(['material_id', 'quantity_per_unit', 'scrap_percentage'])
+            ->map(fn ($item) => [
+                'material_id' => (int) $item->material_id,
+                'required_per_unit' => round(
+                    (float) $item->quantity_per_unit * (1 + ((float) $item->scrap_percentage / 100)),
+                    6
+                ),
+            ])
+            ->all();
 
-        return $templateIds->values()
-            ->mapWithKeys(function (int $templateId) use ($templates, $productTypeByTemplate) {
-                $template = $templates->get($templateId);
-
-                $lines = $template
-                    ? collect($this->explosion->leafRequirements($template, 1.0))
-                        ->map(fn (array $leaf) => [
-                            'material_id' => $leaf['material_id'],
-                            'required_per_unit' => (float) $leaf['required_qty'],
-                        ])
-                    : collect();
-
-                return [$productTypeByTemplate->get($templateId) => $lines];
-            })
-            ->filter(fn ($lines) => $lines->isNotEmpty());
+        return $this->componentCache[$templateId] = $lines;
     }
 
     private function emptyReport(Carbon $from, Carbon $to, ?int $lineId, int $woCount): array

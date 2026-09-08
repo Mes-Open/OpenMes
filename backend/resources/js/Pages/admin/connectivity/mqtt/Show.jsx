@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber, formatTime } from '../../../../lib/i18n';
 import useConfirm from '../../../../components/useConfirm';
+import { nameControl } from '../../../../lib/fieldName';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -15,6 +16,7 @@ const STATUS_DOT = {
 const ACTION_COLORS = {
     update_batch_step:     'bg-om-chip text-purple-700',
     update_work_order_qty: 'bg-om-chip text-om-accent',
+    count_step:            'bg-om-chip text-emerald-700',
     create_issue:          'bg-om-blocked-bg text-om-blocked',
     update_line_status:    'bg-om-downtime-bg text-orange-700',
     set_work_order_status: 'bg-om-chip text-indigo-700',
@@ -25,6 +27,7 @@ const ACTION_COLORS = {
 const ACTION_LABELS = {
     update_batch_step:     'Update Batch Step',
     update_work_order_qty: 'Update Work Order Qty',
+    count_step:            'Count at Station / Step',
     create_issue:          'Create Issue',
     update_line_status:    'Update Line Status',
     set_work_order_status: 'Set Work Order Status',
@@ -276,8 +279,9 @@ function EditTopicForm({ topic, connectionId, onClose }) {
         <div className="px-4 py-3 border-b border-om-line2 bg-om-chip/40">
             <form onSubmit={submit} className="flex gap-3 items-end flex-wrap">
                 <div className="flex-1 min-w-48">
-                    <label className="block text-xs font-medium text-om-muted mb-1">Pattern</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Pattern</div>
                     <input
+                        aria-label="Pattern"
                         type="text"
                         value={form.data.topic_pattern}
                         onChange={(e) => form.setData('topic_pattern', e.target.value)}
@@ -286,16 +290,18 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-om-muted mb-1">Format</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Format</div>
                     <Dropdown
+                        aria-label="Format"
                         value={form.data.payload_format}
                         onChange={(v) => form.setData('payload_format', v)}
                         options={['json', 'plain', 'csv', 'hex'].map((f) => ({ value: f, label: f.toUpperCase() }))}
                     />
                 </div>
                 <div className="flex-1 min-w-36">
-                    <label className="block text-xs font-medium text-om-muted mb-1">Description</label>
+                    <div className="block text-xs font-medium text-om-muted mb-1">Description</div>
                     <input
+                        aria-label="Description"
                         type="text"
                         value={form.data.description}
                         onChange={(e) => form.setData('description', e.target.value)}
@@ -392,6 +398,75 @@ function MappingRow({ mapping, topic, connectionId }) {
     );
 }
 
+/**
+ * Friendly editor for the `count_step` action's params — pick a line + step
+ * (station) instead of hand-writing JSON. Reads the available lines and the
+ * device's own line from the page props. Serialises back to the action_params
+ * JSON string the mapping form already submits.
+ */
+function CountStepFields({ value, onChange }) {
+    const { lines = [], workstations = [], connection } = usePage().props;
+    let p = {};
+    try { p = value ? JSON.parse(value) : {}; } catch { p = {}; }
+
+    const deviceLine = connection?.line_id != null ? lines.find((l) => l.id === connection.line_id)?.name : null;
+
+    const set = (patch) => {
+        const next = { ...p, ...patch };
+        Object.keys(next).forEach((k) => {
+            if (next[k] === '' || next[k] === null || next[k] === undefined) delete next[k];
+        });
+        onChange(JSON.stringify(next));
+    };
+
+    // Workstations belong to the effective line (the mapping's own, else the
+    // device's). Picking one clears the step number, and vice-versa — a mapping
+    // targets a station either by workstation or by step number, not both.
+    const effectiveLineId = p.line_id ?? connection?.line_id ?? null;
+    const lineWorkstations = workstations.filter((w) => w.line_id === effectiveLineId);
+
+    return (
+        <div className="grid grid-cols-2 gap-2 rounded border border-om-line2 bg-om-card p-2">
+            <MiniField label="Line">
+                <Dropdown
+                    value={p.line_id != null ? String(p.line_id) : ''}
+                    onChange={(v) => set({ line_id: v ? Number(v) : '', workstation_id: '' })}
+                    options={[
+                        { value: '', label: deviceLine ? `— Device line (${deviceLine}) —` : '— Select line —' },
+                        ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                    ]}
+                    className="w-full"
+                />
+            </MiniField>
+            <MiniField label="Station (workstation)">
+                <Dropdown
+                    value={p.workstation_id != null ? String(p.workstation_id) : ''}
+                    onChange={(v) => set({ workstation_id: v ? Number(v) : '', step_number: '' })}
+                    placeholder={lineWorkstations.length ? '— Select station —' : '— No stations on this line —'}
+                    options={[
+                        { value: '', label: '— Select station —' },
+                        ...lineWorkstations.map((w) => ({ value: String(w.id), label: w.name })),
+                    ]}
+                    className="w-full"
+                />
+            </MiniField>
+            <MiniField label="…or step number">
+                <input type="number" min="1" value={p.step_number ?? ''} onChange={(e) => set({ step_number: e.target.value ? Number(e.target.value) : '', workstation_id: '' })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
+            </MiniField>
+            <MiniField label="Increment per pulse">
+                <input type="number" min="1" value={p.increment ?? 1} onChange={(e) => set({ increment: e.target.value ? Number(e.target.value) : 1 })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
+            </MiniField>
+            <div className="col-span-2">
+                <Checkbox
+                    checked={!!p.also_count_work_order}
+                    onChange={(next) => set({ also_count_work_order: next })}
+                    label="Also count as finished goods (feeds the work order's produced qty)"
+                />
+            </div>
+        </div>
+    );
+}
+
 function EditMappingForm({ mapping, topic, connectionId, onClose }) {
     const form = useForm({
         field_path:     mapping.field_path ?? '',
@@ -432,9 +507,15 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                         <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                 </div>
-                <MiniField label="Action params (JSON)">
-                    <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
-                </MiniField>
+                {form.data.action_type === 'count_step' ? (
+                    <MiniField label="Counting">
+                        <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
+                    </MiniField>
+                ) : (
+                    <MiniField label="Action params (JSON)">
+                        <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
+                    </MiniField>
+                )}
                 <MiniField label="Description">
                     <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
@@ -475,9 +556,9 @@ function AddTopicForm({ connectionId }) {
                 <form onSubmit={submit} className="mt-4 space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="col-span-2">
-                            <label className="block text-xs font-medium text-om-muted mb-1">
+                            <div className="block text-xs font-medium text-om-muted mb-1">
                                 Topic pattern <span className="text-om-faint font-normal">(supports + and # wildcards)</span>
-                            </label>
+                            </div>
                             <input
                                 type="text"
                                 value={form.data.topic_pattern}
@@ -488,8 +569,9 @@ function AddTopicForm({ connectionId }) {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-om-muted mb-1">Payload format</label>
+                            <div className="block text-xs font-medium text-om-muted mb-1">Payload format</div>
                             <Dropdown
+                                aria-label="Payload format"
                                 value={form.data.payload_format}
                                 onChange={(v) => form.setData('payload_format', v)}
                                 options={[
@@ -503,8 +585,9 @@ function AddTopicForm({ connectionId }) {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">Description (optional)</label>
+                        <div className="block text-xs font-medium text-om-muted mb-1">Description (optional)</div>
                         <input
+                            aria-label="Description (optional)"
                             type="text"
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
@@ -565,9 +648,15 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                     <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
             </div>
-            <MiniField label='Action params (JSON) — e.g. {"order_no_path":"$.order_no"}'>
-                <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
-            </MiniField>
+            {form.data.action_type === 'count_step' ? (
+                <MiniField label="Counting — pick the line and station">
+                    <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
+                </MiniField>
+            ) : (
+                <MiniField label='Action params (JSON) — e.g. {"order_no_path":"$.order_no"}'>
+                    <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
+                </MiniField>
+            )}
             <MiniField label="Description">
                 <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder="e.g. Update produced qty from machine counter" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
@@ -582,8 +671,8 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
 function MiniField({ label, children }) {
     return (
         <div>
-            <label className="block text-xs text-om-muted mb-0.5">{label}</label>
-            {children}
+            <div className="block text-xs text-om-muted mb-0.5">{label}</div>
+            {nameControl(children, label)}
         </div>
     );
 }

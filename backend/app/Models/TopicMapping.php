@@ -16,6 +16,8 @@ class TopicMapping extends Model
 
     const ACTION_UPDATE_WORK_ORDER_QTY = 'update_work_order_qty';
 
+    const ACTION_COUNT_STEP = 'count_step';
+
     const ACTION_CREATE_ISSUE = 'create_issue';
 
     const ACTION_UPDATE_LINE_STATUS = 'update_line_status';
@@ -29,6 +31,7 @@ class TopicMapping extends Model
     const ACTION_LABELS = [
         self::ACTION_UPDATE_BATCH_STEP => 'Update Batch Step',
         self::ACTION_UPDATE_WORK_ORDER_QTY => 'Update Work Order Qty',
+        self::ACTION_COUNT_STEP => 'Count at Station / Step',
         self::ACTION_CREATE_ISSUE => 'Create Issue',
         self::ACTION_UPDATE_LINE_STATUS => 'Update Line Status',
         self::ACTION_SET_WORK_ORDER_STATUS => 'Set Work Order Status',

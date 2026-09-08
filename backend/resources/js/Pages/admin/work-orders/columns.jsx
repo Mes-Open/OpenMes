@@ -1,5 +1,6 @@
-import { Link } from '@inertiajs/react';
 import { SegmentedProgress, StatusBadge } from '@openmes/ui';
+
+import { DetailLink } from '../../../components/resourceColumns';
 
 import DueCountdown, { SETTLED_STATUSES } from '../../../components/DueCountdown';
 import { WO_STATUSES, woStatusBadge, woStatusLabel } from './fields';
@@ -29,13 +30,7 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
             // at to open the order. Double-clicking the row still works and the
             // ⋯ menu still lists Open — but neither is discoverable, and the
             // number looked like a link's twin without being one.
-            render: detailHref
-                ? (r) => (
-                    <Link href={detailHref(r)} className="hover:text-om-accent hover:underline">
-                        {r.order_no}
-                    </Link>
-                )
-                : undefined,
+            render: detailHref ? (r) => <DetailLink href={detailHref(r)}>{r.order_no}</DetailLink> : undefined,
         },
         ...(customerNames
             ? [{

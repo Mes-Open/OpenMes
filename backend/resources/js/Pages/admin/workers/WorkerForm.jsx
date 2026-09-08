@@ -3,6 +3,7 @@ import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import CustomFields from '../../../components/CustomFields';
 import { customFieldProps } from '../../../lib/customFieldForm';
+import { nameControl } from '../../../lib/fieldName';
 
 /**
  * Bespoke create/edit form for shop-floor workers.
@@ -100,7 +101,7 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
             />
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1-5)')}</label>
+                <div className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1-5)')}</div>
                 <div className="border border-om-line2 rounded divide-y">
                     {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">{__('No skills defined.')}</p>}
                     {skills.map((skill) => {
@@ -138,10 +139,10 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            {children}
+            </div>
+            {nameControl(children, label)}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

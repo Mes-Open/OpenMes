@@ -1,9 +1,13 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { COMPANY_FIELDS, companyInitial } from './fields';
 
 export default function CompaniesIndex() {
+    const drawer = useResourceDrawer();
+
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -13,7 +17,7 @@ export default function CompaniesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/companies/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -38,11 +42,20 @@ export default function CompaniesIndex() {
                 shape="companies"
                 title={__('Companies')}
                 createHref="/admin/companies/create"
+                onCreate={drawer.create}
                 createLabel={__('New Company')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No companies yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/companies"
+                fields={COMPANY_FIELDS}
+                initial={companyInitial}
+                title={{ create: __('New Company'), edit: __('Edit Company') }}
             />
         </>
     );

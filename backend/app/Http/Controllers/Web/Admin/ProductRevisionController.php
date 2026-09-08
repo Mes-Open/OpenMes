@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Enums\RevisionLifecycle;
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreProductRevisionRequest;
 use App\Http\Requests\Web\Admin\UpdateProductRevisionRequest;
@@ -13,6 +14,8 @@ use Inertia\Inertia;
 
 class ProductRevisionController extends Controller
 {
+    use StaysOnList;
+
     /**
      * List revisions. Rows live-sync via the `product_revisions` shape; product
      * type + template names and work-order counts come as props.
@@ -66,8 +69,7 @@ class ProductRevisionController extends Controller
 
         $revision = ProductRevision::create($validated);
 
-        return redirect()->route('admin.product-revisions.index')
-            ->with('success', __('Product revision :code created.', ['code' => $revision->revision_code]));
+        return $this->saved($request, redirect()->route('admin.product-revisions.index'), __('Product revision :code created.', ['code' => $revision->revision_code]));
     }
 
     public function edit(ProductRevision $productRevision)
@@ -91,8 +93,7 @@ class ProductRevisionController extends Controller
 
         $productRevision->update($request->validated());
 
-        return redirect()->route('admin.product-revisions.index')
-            ->with('success', __('Product revision :code updated.', ['code' => $productRevision->revision_code]));
+        return $this->saved($request, redirect()->route('admin.product-revisions.index'), __('Product revision :code updated.', ['code' => $productRevision->revision_code]));
     }
 
     public function destroy(ProductRevision $productRevision)

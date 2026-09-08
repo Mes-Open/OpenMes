@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.
         $this->app->singleton(\App\Support\TenantContext::class, fn () => new \App\Support\TenantContext);
+        $this->app->singleton(\App\Import\ImportRegistry::class, fn () => new \App\Import\ImportRegistry);
     }
 
     /**
@@ -59,6 +61,11 @@ class AppServiceProvider extends ServiceProvider
         // install the env route cannot be changed without editing compose files.
         // Absent setting = keep whatever APP_TIMEZONE resolved to.
         \App\Support\TimezoneRegistry::apply();
+
+        // A queue worker is long-lived too, so the boot-time apply() above would
+        // pin it to the zone that was configured when it started. Re-read before
+        // each job; web requests get the same treatment in ApplyPlantTimezone.
+        Queue::looping(fn () => \App\Support\TimezoneRegistry::refresh());
 
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();

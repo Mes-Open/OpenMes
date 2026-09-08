@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { wageGroupFields } from './fields';
+import { wageGroupFields, wageGroupInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WageGroupCreate() {
@@ -13,7 +13,7 @@ export default function WageGroupCreate() {
                 action="/admin/wage-groups"
                 method="post"
                 fields={wageGroupFields()}
-                initial={{ code: '', name: '', description: '', base_hourly_rate: '', currency: '', is_active: true }}
+                initial={wageGroupInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/wage-groups"
             />

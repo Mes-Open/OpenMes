@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\Site;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class AreaController extends Controller
 {
+    use StaysOnList;
+
     /**
      * List areas (optionally scoped to a single site).
      *
@@ -25,15 +28,17 @@ class AreaController extends Controller
         return Inertia::render('admin/areas/Index', [
             'counts' => $counts,
             'siteNames' => $siteNames,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'sites' => Inertia::optional(fn () => $this->siteOptions()),
+            'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('area')),
         ]);
     }
 
     public function create(?Site $site = null)
     {
-        $sites = \App\Models\Site::active()->orderBy('name')->get(['id', 'name']);
-
         return Inertia::render('admin/areas/Create', [
-            'sites' => $sites,
+            'sites' => $this->siteOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('area'),
         ]);
     }
@@ -56,13 +61,11 @@ class AreaController extends Controller
 
         Area::create($validated);
 
-        if ($site && $site->exists) {
-            return redirect()->route('admin.sites.show', $site)
-                ->with('success', 'Area created successfully.');
-        }
+        $onward = $site && $site->exists
+            ? redirect()->route('admin.sites.show', $site)
+            : redirect()->route('admin.areas.index');
 
-        return redirect()->route('admin.areas.index')
-            ->with('success', 'Area created successfully.');
+        return $this->saved($request, $onward, 'Area created successfully.');
     }
 
     public function show(Area $area)
@@ -91,11 +94,9 @@ class AreaController extends Controller
 
     public function edit(Area $area)
     {
-        $sites = \App\Models\Site::active()->orderBy('name')->get(['id', 'name']);
-
         return Inertia::render('admin/areas/Edit', [
             'area' => $area->only('id', 'site_id', 'code', 'name', 'description', 'is_active', 'custom_fields'),
-            'sites' => $sites,
+            'sites' => $this->siteOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('area'),
         ]);
     }
@@ -112,8 +113,7 @@ class AreaController extends Controller
 
         $area->update($validated);
 
-        return redirect()->route('admin.areas.index')
-            ->with('success', 'Area updated successfully.');
+        return $this->saved($request, redirect()->route('admin.areas.index'), 'Area updated successfully.');
     }
 
     public function destroy(Area $area)
@@ -137,6 +137,12 @@ class AreaController extends Controller
 
         return redirect()->route('admin.areas.index')
             ->with('success', "Area {$status} successfully.");
+    }
+
+    /** Site dropdown for the create/edit form, wherever it's rendered. */
+    private function siteOptions()
+    {
+        return Site::active()->orderBy('name')->get(['id', 'name']);
     }
 
     private function validatePayload(Request $request, ?Area $area = null): array

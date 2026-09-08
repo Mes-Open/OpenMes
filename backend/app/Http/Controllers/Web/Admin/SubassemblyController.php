@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use App\Models\Subassembly;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class SubassemblyController extends Controller
 {
+    use StaysOnList;
+
     /**
      * Display a listing of subassemblies.
      */
@@ -19,6 +22,9 @@ class SubassemblyController extends Controller
 
         return Inertia::render('admin/subassemblies/Index', [
             'productTypeNames' => $productTypeNames,
+            // Option lists for the list page's create/edit drawer. Optional, so the
+            // queries only run once someone opens it — most visits never do.
+            'productTypes' => Inertia::optional(fn () => ProductType::active()->orderBy('name')->get(['id', 'name'])),
         ]);
     }
 
@@ -71,8 +77,7 @@ class SubassemblyController extends Controller
 
         Subassembly::create($validated);
 
-        return redirect()->route('admin.subassemblies.index')
-            ->with('success', 'Subassembly created successfully.');
+        return $this->saved($request, redirect()->route('admin.subassemblies.index'), 'Subassembly created successfully.');
     }
 
     /**
@@ -105,8 +110,7 @@ class SubassemblyController extends Controller
 
         $subassembly->update($validated);
 
-        return redirect()->route('admin.subassemblies.index')
-            ->with('success', 'Subassembly updated successfully.');
+        return $this->saved($request, redirect()->route('admin.subassemblies.index'), 'Subassembly updated successfully.');
     }
 
     /**

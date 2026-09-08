@@ -55,10 +55,11 @@ function LineCard({ line }) {
                 <div className="border-t border-om-line2 pt-4 mb-4">
                     {line.workstations.length > 0 ? (
                         <>
-                            <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">
+                            <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">
                                 {__('Workstation')} <span className="text-om-faintest normal-case tracking-normal">{__('(optional)')}</span>
-                            </label>
+                            </div>
                             <Dropdown
+                                aria-label={__('Workstation')}
                                 value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
                                 onChange={(v) => form.setData('workstation_id', v)}
                                 options={[

@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { divisionFields } from './fields';
+import { divisionFields, divisionInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function DivisionEdit() {
@@ -15,13 +15,7 @@ export default function DivisionEdit() {
                 action={`/admin/divisions/${division.id}`}
                 method="put"
                 fields={divisionFields(factories)}
-                initial={{
-                    factory_id: division.factory_id != null ? String(division.factory_id) : '',
-                    code: division.code ?? '',
-                    name: division.name ?? '',
-                    description: division.description ?? '',
-                    is_active: !!division.is_active,
-                }}
+                initial={divisionInitial(division)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/divisions"
             />

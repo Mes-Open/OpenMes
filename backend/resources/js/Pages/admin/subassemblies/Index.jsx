@@ -1,10 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { __ } from '../../../lib/i18n';
+import { subassemblyFields, subassemblyInitial } from './fields';
 
 export default function SubassembliesIndex() {
-    const { productTypeNames = {}, counts = {} } = usePage().props;
+    const { productTypeNames = {}, counts = {}, productTypes } = usePage().props;
+
+    const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
@@ -15,7 +19,7 @@ export default function SubassembliesIndex() {
 
     const actions = (r) => [
         { label: __('View'), href: `/admin/subassemblies/${r.id}` },
-        { label: __('Edit'), icon: 'edit', href: `/admin/subassemblies/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -40,11 +44,22 @@ export default function SubassembliesIndex() {
                 shape="subassemblies"
                 title={__('Subassemblies')}
                 createHref="/admin/subassemblies/create"
+                onCreate={drawer.create}
                 createLabel={__('New Subassembly')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No subassemblies yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/subassemblies"
+                fields={subassemblyFields(productTypes ?? [])}
+                initial={subassemblyInitial}
+                ensure={['productTypes']}
+                ready={productTypes !== undefined}
+                title={{ create: __('New Subassembly'), edit: __('Edit Subassembly') }}
             />
         </>
     );

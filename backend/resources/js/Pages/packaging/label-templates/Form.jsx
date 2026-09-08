@@ -13,8 +13,9 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
 
     const sel = (label, name, map, error) => (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">{label} <span className="text-om-blocked">*</span></label>
+            <div className="block text-sm font-medium text-om-muted mb-1">{label} <span className="text-om-blocked">*</span></div>
             <Dropdown
+                aria-label={label}
                 options={Object.entries(map).map(([v, l]) => ({ value: String(v), label: l }))}
                 value={data[name] == null ? '' : String(data[name])}
                 onChange={(v) => setData(name, v)}
@@ -27,8 +28,8 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></label>
-                <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></div>
+                <input aria-label={__('Name')} type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
                 {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
 
@@ -37,7 +38,7 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
             {sel(__('Barcode Format'), 'barcode_format', barcodeFormats, errors.barcode_format)}
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">{__('Fields on label')}</label>
+                <div className="block text-sm font-medium text-om-muted mb-2">{__('Fields on label')}</div>
                 <div className="grid grid-cols-2 gap-2 border border-om-line2 rounded-om-sm p-3">
                     {Object.entries(availableFields).map(([key, label]) => (
                         <Checkbox

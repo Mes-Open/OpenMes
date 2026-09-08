@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Inertia\Inertia;
 
 class IssueTypeManagementController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         $counts = IssueType::withCount('issues')
@@ -39,8 +42,7 @@ class IssueTypeManagementController extends Controller
 
         IssueType::create($validated);
 
-        return redirect()->route('admin.issue-types.index')
-            ->with('success', "Issue type \"{$validated['name']}\" created.");
+        return $this->saved($request, redirect()->route('admin.issue-types.index'), "Issue type \"{$validated['name']}\" created.");
     }
 
     public function edit(IssueType $issueType)
@@ -65,8 +67,7 @@ class IssueTypeManagementController extends Controller
 
         $issueType->update($validated);
 
-        return redirect()->route('admin.issue-types.index')
-            ->with('success', "Issue type \"{$issueType->name}\" updated.");
+        return $this->saved($request, redirect()->route('admin.issue-types.index'), "Issue type \"{$issueType->name}\" updated.");
     }
 
     public function destroy(IssueType $issueType)

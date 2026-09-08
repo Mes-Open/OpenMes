@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { shiftFields } from './fields';
+import { shiftFields, shiftInitial } from './fields';
 
 export default function ShiftCreate() {
     const { lines = [] } = usePage().props;
@@ -13,7 +13,7 @@ export default function ShiftCreate() {
                 action="/admin/shifts"
                 method="post"
                 fields={shiftFields(lines)}
-                initial={{ code: '', name: '', line_id: '', start_time: '', end_time: '', sort_order: 0, is_active: true }}
+                initial={shiftInitial(null)}
                 submitLabel="Create"
                 cancelHref="/admin/shifts"
             />

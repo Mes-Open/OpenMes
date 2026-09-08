@@ -1,7 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { SEVERITY_LABELS } from './fields';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { SEVERITY_LABELS, ISSUE_TYPE_FIELDS, issueTypeInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 function severityBadgeClass(severity) {
@@ -15,6 +16,8 @@ function severityBadgeClass(severity) {
 }
 
 export default function IssueTypesIndex() {
+    const drawer = useResourceDrawer();
+
     const { counts = {} } = usePage().props;
 
     const columns = [
@@ -36,7 +39,7 @@ export default function IssueTypesIndex() {
     ];
 
     const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/issue-types/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
         {
             label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
@@ -61,11 +64,20 @@ export default function IssueTypesIndex() {
                 shape="issue_types_all"
                 title={__('Issue Types')}
                 createHref="/admin/issue-types/create"
+                onCreate={drawer.create}
                 createLabel={__('New Issue Type')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No issue types yet.')}
+            />
+
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/issue-types"
+                fields={ISSUE_TYPE_FIELDS}
+                initial={issueTypeInitial}
+                title={{ create: __('New Issue Type'), edit: __('Edit Issue Type') }}
             />
         </>
     );

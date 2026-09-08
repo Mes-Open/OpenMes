@@ -129,8 +129,9 @@ function ApplyModal({ changeRequest, onClose }) {
                 </p>
                 <form onSubmit={submit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Applies from')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Applies from')}</div>
                         <select
+                            aria-label={__('Applies from')}
                             value={effectiveFrom}
                             onChange={(e) => setEffectiveFrom(e.target.value)}
                             className="w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent"
@@ -141,10 +142,11 @@ function ApplyModal({ changeRequest, onClose }) {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
+                        <div className="block text-sm font-medium text-om-muted mb-1">
                             {__('Implementation notes')} <span className="text-om-faint font-normal">({__('optional')})</span>
-                        </label>
+                        </div>
                         <textarea
+                            aria-label={__('Implementation notes')}
                             rows={3}
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}

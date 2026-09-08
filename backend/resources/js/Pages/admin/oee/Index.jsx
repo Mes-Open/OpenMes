@@ -1,10 +1,12 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { DatePicker, Dropdown } from '@openmes/ui';
+import { Dropdown } from '@openmes/ui';
+import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import { useMemo, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber, __ } from '../../../lib/i18n';
 import OeeGauge from '../../../components/OeeGauge';
+import { nameControl } from '../../../lib/fieldName';
 
 const LINE_PALETTE = ['#2563eb', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#7c3aed'];
 
@@ -151,14 +153,14 @@ export default function OeeIndex() {
                         />
                     </Filter>
                     <Filter label="From">
-                        <DatePicker
+                        <AppDatePicker
                             value={dateFrom || null}
                             onChange={(iso) => apply({ date_from: iso ?? '' })}
                             className="w-44"
                         />
                     </Filter>
                     <Filter label="To">
-                        <DatePicker
+                        <AppDatePicker
                             value={dateTo || null}
                             onChange={(iso) => apply({ date_to: iso ?? '' })}
                             className="w-44"
@@ -317,8 +319,8 @@ OeeIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 function Filter({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
-            {children}
+            <div className="block text-xs font-medium text-om-muted mb-1">{label}</div>
+            {nameControl(children, label)}
         </div>
     );
 }

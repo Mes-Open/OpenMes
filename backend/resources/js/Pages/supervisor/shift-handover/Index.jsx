@@ -119,10 +119,11 @@ export default function ShiftHandoverIndex() {
                     </p>
                 </div>
                 <div>
-                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">
+                    <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">
                         {__('Line')}
-                    </label>
+                    </div>
                     <Dropdown
+                        aria-label={__('Line')}
                         value={selectedLineId == null ? '' : String(selectedLineId)}
                         onChange={(v) => onLineChange(v)}
                         options={[
@@ -185,8 +186,9 @@ export default function ShiftHandoverIndex() {
                 {/* Close shift */}
                 <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-5">
                     <h2 className="text-[14px] font-semibold text-om-ink mb-3">{__('Close shift')}</h2>
-                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Notes')}</label>
+                    <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Notes')}</div>
                     <textarea
+                        aria-label={__('Notes')}
                         value={form.data.notes}
                         onChange={(e) => form.setData('notes', e.target.value)}
                         rows={4}

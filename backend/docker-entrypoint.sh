@@ -59,10 +59,13 @@ if [ "$IS_PRIMARY" = "1" ]; then
     php artisan migrate --force
 
     # ── Seeders (idempotent) ─────────────────────────────────────────────────
+    # DatabaseSeeder, not a hand-picked subset: it already lists exactly the
+    # reference data a usable install needs, and every child upserts, so running
+    # it on each start is safe. Naming three of the eight here is what left a
+    # fresh install with no scrap reasons (the operator's "report scrap" picker
+    # was empty), no downtime reasons, no material types and no label templates.
     echo "[OpenMES] Running seeders..."
-    php artisan db:seed --class=RolesAndPermissionsSeeder --force
-    php artisan db:seed --class=IssueTypesSeeder --force
-    php artisan db:seed --class=LineStatusSeeder --force
+    php artisan db:seed --class=DatabaseSeeder --force
 
     # Reset the Spatie permission cache so the freshly-seeded roles/permissions
     # are authoritative. Without this an upgrade can keep serving a stale cached

@@ -43,8 +43,9 @@ export default function StopProductionModal({ workOrder, options, onClose }) {
 
                 <form onSubmit={submit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Stop type')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Stop type')}</div>
                         <select
+                            aria-label={__('Stop type')}
                             value={form.data.type}
                             onChange={(e) => form.setData('type', e.target.value)}
                             className="w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent"
@@ -57,8 +58,9 @@ export default function StopProductionModal({ workOrder, options, onClose }) {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Reason')}</label>
+                        <div className="block text-sm font-medium text-om-muted mb-1">{__('Reason')}</div>
                         <textarea
+                            aria-label={__('Reason')}
                             rows={3}
                             value={form.data.reason}
                             onChange={(e) => form.setData('reason', e.target.value)}
@@ -70,10 +72,11 @@ export default function StopProductionModal({ workOrder, options, onClose }) {
 
                     {openBatches.length > 0 && (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">
+                            <div className="block text-sm font-medium text-om-muted mb-1">
                                 {__('Affected batch')} <span className="text-om-faint font-normal">({__('optional')})</span>
-                            </label>
+                            </div>
                             <select
+                                aria-label={__('Affected batch')}
                                 value={form.data.batch_id}
                                 onChange={(e) => form.setData('batch_id', e.target.value)}
                                 className="w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent"
@@ -90,10 +93,11 @@ export default function StopProductionModal({ workOrder, options, onClose }) {
 
                     {(options.downtimeReasons ?? []).length > 0 && (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">
+                            <div className="block text-sm font-medium text-om-muted mb-1">
                                 {__('Downtime reason')} <span className="text-om-faint font-normal">({__('optional')})</span>
-                            </label>
+                            </div>
                             <select
+                                aria-label={__('Downtime reason')}
                                 value={form.data.downtime_reason_id}
                                 onChange={(e) => form.setData('downtime_reason_id', e.target.value)}
                                 className="w-full border border-om-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-om-accent"

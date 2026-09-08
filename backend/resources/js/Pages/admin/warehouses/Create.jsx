@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { warehouseFields } from './fields';
+import { warehouseFields, warehouseInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WarehouseCreate() {
@@ -13,15 +13,7 @@ export default function WarehouseCreate() {
                 action="/admin/warehouses"
                 method="post"
                 fields={warehouseFields()}
-                initial={{
-                    code: '',
-                    name: '',
-                    kind: 'mixed',
-                    description: '',
-                    erp_code: '',
-                    is_default: false,
-                    is_active: true,
-                }}
+                initial={warehouseInitial(null)}
                 submitLabel={__('Create')}
                 cancelHref="/admin/warehouses"
             />

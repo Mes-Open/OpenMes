@@ -41,9 +41,9 @@ export default function MovePallet() {
             <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 space-y-7">
                 {/* Operator — badge-style picker */}
                 <div>
-                    <label className="block text-sm font-semibold text-om-ink mb-2">
+                    <div className="block text-sm font-semibold text-om-ink mb-2">
                         {__('Operator')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     {operators.length === 0 ? (
                         <p className="text-[13px] text-om-muted">
                             {__('No logistics operators configured. Mark a worker as a logistics operator first.')}
@@ -75,10 +75,11 @@ export default function MovePallet() {
 
                 {/* Pallet */}
                 <div>
-                    <label className="block text-sm font-semibold text-om-ink mb-2">
+                    <div className="block text-sm font-semibold text-om-ink mb-2">
                         {__('Pallet')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <Dropdown
+                        aria-label={__('Pallet')}
                         className="w-full"
                         value={data.pallet_id == null ? '' : String(data.pallet_id)}
                         onChange={(v) => setData('pallet_id', v)}
@@ -100,10 +101,11 @@ export default function MovePallet() {
 
                 {/* New location */}
                 <div>
-                    <label className="block text-sm font-semibold text-om-ink mb-2">
+                    <div className="block text-sm font-semibold text-om-ink mb-2">
                         {__('New location')} <span className="text-om-blocked">*</span>
-                    </label>
+                    </div>
                     <input
+                        aria-label={__('New location')}
                         type="text"
                         name="to_location"
                         value={data.to_location}
@@ -124,8 +126,9 @@ export default function MovePallet() {
 
                 {/* Destination — optional re-route booked with this move */}
                 <div>
-                    <label className="block text-sm font-semibold text-om-ink mb-2">{__('New destination')}</label>
+                    <div className="block text-sm font-semibold text-om-ink mb-2">{__('New destination')}</div>
                     <input
+                        aria-label={__('New destination')}
                         type="text"
                         name="to_destination"
                         value={data.to_destination}
@@ -141,8 +144,9 @@ export default function MovePallet() {
 
                 {/* Notes (optional) */}
                 <div>
-                    <label className="block text-sm font-semibold text-om-ink mb-2">{__('Notes')}</label>
+                    <div className="block text-sm font-semibold text-om-ink mb-2">{__('Notes')}</div>
                     <textarea
+                        aria-label={__('Notes')}
                         name="notes"
                         rows={2}
                         value={data.notes}

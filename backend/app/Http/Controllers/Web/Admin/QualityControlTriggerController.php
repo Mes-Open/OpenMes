@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQualityControlTriggerRequest;
 use App\Http\Requests\UpdateQualityControlTriggerRequest;
@@ -14,6 +15,8 @@ use Inertia\Inertia;
 
 class QualityControlTriggerController extends Controller
 {
+    use StaysOnList;
+
     public function index()
     {
         return Inertia::render('admin/quality-control-triggers/Index', [
@@ -21,6 +24,13 @@ class QualityControlTriggerController extends Controller
             'lineNames' => Line::pluck('name', 'id'),
             'workstationNames' => Workstation::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
+            // Option lists for the list page's create/edit drawer — the same set
+            // the standalone form gets. Optional, so the queries only run once
+            // someone opens it; most visits to the list never do.
+            'templates' => Inertia::optional(fn () => QualityCheckTemplate::orderBy('name')->get(['id', 'name'])),
+            'lines' => Inertia::optional(fn () => Line::orderBy('name')->get(['id', 'name'])),
+            'workstations' => Inertia::optional(fn () => Workstation::orderBy('name')->get(['id', 'name'])),
+            'productTypes' => Inertia::optional(fn () => ProductType::orderBy('name')->get(['id', 'name'])),
         ]);
     }
 
@@ -33,8 +43,7 @@ class QualityControlTriggerController extends Controller
     {
         $trigger = QualityControlTrigger::create($request->validated());
 
-        return redirect()->route('admin.quality-control-triggers.index')
-            ->with('success', __('Quality control trigger ":name" created.', ['name' => $trigger->name]));
+        return $this->saved($request, redirect()->route('admin.quality-control-triggers.index'), __('Quality control trigger ":name" created.', ['name' => $trigger->name]));
     }
 
     public function edit(QualityControlTrigger $qualityControlTrigger)
@@ -51,8 +60,7 @@ class QualityControlTriggerController extends Controller
     {
         $qualityControlTrigger->update($request->validated());
 
-        return redirect()->route('admin.quality-control-triggers.index')
-            ->with('success', __('Quality control trigger ":name" updated.', ['name' => $qualityControlTrigger->name]));
+        return $this->saved($request, redirect()->route('admin.quality-control-triggers.index'), __('Quality control trigger ":name" updated.', ['name' => $qualityControlTrigger->name]));
     }
 
     public function destroy(QualityControlTrigger $qualityControlTrigger)

@@ -8,12 +8,20 @@
  * The header's month and year are tappable chips that swap the body for a
  * 3-column month or year grid, same as the web twin.
  *
+ * Accessibility mirrors the web twin as far as the platform allows: days are
+ * spoken as "Saturday, 22 August 2026" rather than their ISO string, paging the
+ * month is announced (nothing on screen has focus to carry it), and the popover
+ * is an accessibility-modal so the screen behind it is not swiped into. The
+ * grid/gridcell semantics and the roving tab stop have no native equivalent —
+ * there is no Tab key and no grid role — so they stop at the web twin.
+ *
  * Not ported from web: the `range` (from→to) mode. It exists to drive the
  * column-filter row of `DataTable`, which is web-only by design — there is no
  * native data table to filter. Add it here if a mobile screen ever needs one.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+    AccessibilityInfo,
     Modal,
     Pressable,
     StyleSheet,
@@ -47,9 +55,14 @@ function todayISO(): string {
 }
 const inRange = (iso: string, min?: string, max?: string) => (!min || iso >= min) && (!max || iso <= max);
 
-export function formatDateLong(iso?: string | null): string {
+/**
+ * `months` is the abbreviated set to spell the date with — English unless the
+ * caller passes its own, which is how the trigger stays in the same language as
+ * the calendar under it.
+ */
+export function formatDateLong(iso?: string | null, months: string[] = MONTHS_SHORT): string {
     const p = parseISO(iso);
-    return p ? `${p.d} ${MONTHS_SHORT[p.m]} ${p.y}` : '';
+    return p ? `${p.d} ${months[p.m]} ${p.y}` : '';
 }
 
 interface Cell {
@@ -78,10 +91,35 @@ export interface CalendarProps {
     min?: string;
     max?: string;
     hideToday?: boolean;
+    /** Copy — English defaults; the app passes translations, as on web. */
+    todayLabel?: string;
+    todayWord?: string;
+    prevMonthLabel?: string;
+    nextMonthLabel?: string;
+    monthLabels?: string[];
+    monthShortLabels?: string[];
+    weekdayLabels?: string[];
+    /** BCP-47 tag behind the spoken day names. Defaults to English. */
+    locale?: string;
     style?: StyleProp<ViewStyle>;
 }
 
-export function Calendar({ value, onChange, min, max, hideToday = false, style }: CalendarProps) {
+export function Calendar({
+    value,
+    onChange,
+    min,
+    max,
+    hideToday = false,
+    todayLabel = 'Today',
+    todayWord = 'today',
+    prevMonthLabel = 'Previous month',
+    nextMonthLabel = 'Next month',
+    monthLabels = MONTHS,
+    monthShortLabels = MONTHS_SHORT,
+    weekdayLabels = WEEKDAYS,
+    locale = 'en',
+    style,
+}: CalendarProps) {
     const selected = value || null;
     const initial = parseISO(selected) ?? parseISO(todayISO())!;
     const [view, setView] = useState({ y: initial.y, m: initial.m });
@@ -98,14 +136,34 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
     const today = todayISO();
     const todayShort = useMemo(() => {
         const t = parseISO(today)!;
-        return `${t.d} ${MONTHS_SHORT[t.m]}`;
-    }, [today]);
+        return `${t.d} ${monthShortLabels[t.m]}`;
+    }, [today, monthShortLabels]);
+    const todaySelectable = inRange(today, min, max);
 
-    const step = (delta: number) =>
-        setView((v) => {
-            const dt = new Date(v.y, v.m + delta, 1);
-            return { y: dt.getFullYear(), m: dt.getMonth() };
+    /** Spoken day names; the cells themselves are bare digits. */
+    const dayName = useMemo(() => {
+        const fmt = new Intl.DateTimeFormat(locale, {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
         });
+        return (iso: string) => {
+            const p = parseISO(iso);
+            return p ? fmt.format(new Date(p.y, p.m, p.d)) : iso;
+        };
+    }, [locale]);
+
+    /**
+     * Paging repaints the whole grid and nothing on screen holds focus to carry
+     * the change, so the new month is spoken outright.
+     */
+    const goTo = (y: number, m: number) => {
+        setView({ y, m });
+        AccessibilityInfo.announceForAccessibility(`${monthLabels[m]} ${y}`);
+    };
+
+    const step = (delta: number) => {
+        const dt = new Date(view.y, view.m + delta, 1);
+        goTo(dt.getFullYear(), dt.getMonth());
+    };
 
     /** Tapping the chip of the view you are in returns to the days grid. */
     const swap = (next: 'months' | 'years') => setMode((m) => (m === next ? 'days' : next));
@@ -115,29 +173,41 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
     return (
         <View style={[styles.calendar, style]}>
             <View style={styles.header}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => step(-1)} style={styles.navBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={prevMonthLabel} onPress={() => step(-1)} style={styles.navBtn}>
                     <Text style={styles.navGlyph}>‹</Text>
                 </Pressable>
                 <View style={styles.headChips}>
-                    <Pressable accessibilityRole="button" onPress={() => swap('months')} style={styles.headChip}>
-                        <Text style={styles.headChipText}>{MONTHS[view.m]} ▾</Text>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: mode === 'months' }}
+                        onPress={() => swap('months')}
+                        style={styles.headChip}
+                    >
+                        <Text style={styles.headChipText}>{monthLabels[view.m]} ▾</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" onPress={() => swap('years')} style={styles.headChip}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: mode === 'years' }}
+                        onPress={() => swap('years')}
+                        style={styles.headChip}
+                    >
                         <Text style={[styles.headChipText, styles.headChipMono]}>{view.y} ▾</Text>
                     </Pressable>
                 </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => step(1)} style={styles.navBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={nextMonthLabel} onPress={() => step(1)} style={styles.navBtn}>
                     <Text style={styles.navGlyph}>›</Text>
                 </Pressable>
             </View>
 
             {mode === 'months' && (
                 <View style={styles.pickGrid}>
-                    {MONTHS_SHORT.map((label, i) => (
+                    {monthShortLabels.map((label, i) => (
                         <Pressable
                             key={label}
                             accessibilityRole="button"
-                            onPress={() => { setView((v) => ({ ...v, m: i })); setMode('days'); }}
+                            accessibilityLabel={monthLabels[i]}
+                            accessibilityState={{ selected: i === view.m }}
+                            onPress={() => { goTo(view.y, i); setMode('days'); }}
                             style={[styles.pickCell, i === view.m && styles.pickCellOn]}
                         >
                             <Text style={[styles.pickText, i === view.m && styles.pickTextOn]}>{label}</Text>
@@ -152,7 +222,8 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
                         <Pressable
                             key={y}
                             accessibilityRole="button"
-                            onPress={() => { setView((v) => ({ ...v, y })); setMode('days'); }}
+                            accessibilityState={{ selected: y === view.y }}
+                            onPress={() => { goTo(y, view.m); setMode('days'); }}
                             style={[styles.pickCell, y === view.y && styles.pickCellOn]}
                         >
                             <Text style={[styles.pickText, styles.headChipMono, y === view.y && styles.pickTextOn]}>{y}</Text>
@@ -164,7 +235,7 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
             {mode === 'days' && (
             <>
             <View style={styles.weekRow}>
-                {WEEKDAYS.map((w) => (
+                {weekdayLabels.map((w) => (
                     <View key={w} style={styles.cell}>
                         <Text style={styles.weekday}>{w}</Text>
                     </View>
@@ -181,7 +252,7 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
                         <View key={c.key} style={styles.cell}>
                             <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel={iso}
+                                accessibilityLabel={dayName(iso)}
                                 accessibilityState={{ selected: isSelected, disabled }}
                                 disabled={disabled}
                                 onPress={() => onChange?.(iso)}
@@ -208,12 +279,17 @@ export function Calendar({ value, onChange, min, max, hideToday = false, style }
             )}
             {!hideToday && (
                 <View style={styles.footer}>
-                    <Pressable onPress={() => { if (inRange(today, min, max)) onChange?.(today); }}>
-                        <Text style={styles.todayBtn}>Today</Text>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !todaySelectable }}
+                        disabled={!todaySelectable}
+                        onPress={() => onChange?.(today)}
+                    >
+                        <Text style={[styles.todayBtn, !todaySelectable && styles.todayBtnDisabled]}>{todayLabel}</Text>
                     </Pressable>
                     <View style={styles.legend}>
                         <View style={styles.legendDot} />
-                        <Text style={styles.legendText}>{todayShort} = today</Text>
+                        <Text style={styles.legendText}>{todayShort} = {todayWord}</Text>
                     </View>
                 </View>
             )}
@@ -230,6 +306,10 @@ export interface DatePickerProps {
     max?: string;
     format?: (iso?: string | null) => string;
     disabled?: boolean;
+    /** The popover's accessible name. */
+    dialogLabel?: string;
+    /** Forwarded to Calendar (copy, month names, locale). */
+    calendarProps?: Partial<CalendarProps>;
     style?: StyleProp<ViewStyle>;
 }
 
@@ -240,18 +320,27 @@ export function DatePicker({
     placeholder = 'Select date',
     min,
     max,
-    format = formatDateLong,
+    format,
     disabled = false,
+    dialogLabel = 'Choose date',
+    calendarProps,
     style,
 }: DatePickerProps) {
     const [open, setOpen] = useState(false);
-    const display = value ? format(value) : '';
+    // The trigger spells the value with the same month names the panel uses, so
+    // a translated calendar can't sit under an English date.
+    const months = calendarProps?.monthShortLabels ?? MONTHS_SHORT;
+    const fmt = format ?? ((iso?: string | null) => formatDateLong(iso, months));
+    const display = value ? fmt(value) : '';
 
     return (
         <View style={style}>
             {label != null && <Text style={styles.fieldLabel}>{label}</Text>}
             <Pressable
                 accessibilityRole="button"
+                // The field label is a caption, not a form label, so it is folded
+                // into the name — "Due date, 13 Jul 2026" rather than the date alone.
+                accessibilityLabel={[label, display || placeholder].filter(Boolean).join(', ')}
                 accessibilityState={{ disabled, expanded: open }}
                 disabled={disabled}
                 onPress={() => setOpen(true)}
@@ -265,12 +354,19 @@ export function DatePicker({
             </Pressable>
             <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
                 <Pressable style={styles.scrim} onPress={() => setOpen(false)}>
-                    <Pressable style={styles.popover}>
+                    {/* accessibilityViewIsModal keeps VoiceOver/TalkBack inside the
+                        popover; without it the screen behind stays swipeable. */}
+                    <Pressable
+                        accessibilityViewIsModal
+                        accessibilityLabel={dialogLabel}
+                        style={styles.popover}
+                    >
                         <Calendar
                             value={value}
                             onChange={(iso) => { onChange?.(iso); if (iso) setOpen(false); }}
                             min={min}
                             max={max}
+                            {...calendarProps}
                         />
                     </Pressable>
                 </Pressable>
@@ -421,6 +517,9 @@ const styles = StyleSheet.create({
         fontSize: 12.5,
         fontFamily: fonts.sans.native.semibold,
         color: colors.accent,
+    },
+    todayBtnDisabled: {
+        color: colors.faintest,
     },
     legend: {
         flexDirection: 'row',

@@ -49,3 +49,25 @@ export function customerFields() {
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }
+
+/**
+ * A record as form values, and with no record an empty form.
+ *
+ * One definition shared by Create.jsx, Edit.jsx and the list's create/edit
+ * drawer, so the three can't drift on what a blank field is or how a stored
+ * value is coerced for the input that shows it.
+ */
+export function customerInitial(record) {
+    if (!record) {
+        return { ...CUSTOMER_INITIAL };
+    }
+
+    return {
+        name: record.name ?? '',
+        code: record.code ?? '',
+        tier: record.tier ?? 'bronze',
+        payment_score: record.payment_score ?? 0,
+        notes: record.notes ?? '',
+        is_active: !!record.is_active,
+    };
+}

@@ -22,6 +22,8 @@ export default function WorkOrdersIndex() {
     // selection. /admin/work-orders/create still renders the same form standalone.
     const [creating, setCreating] = useState(false);
     // Bumped after a successful create to remount the form — see the modal below.
+    // Closing without saving deliberately leaves it, so a half-filled order is
+    // still there when you come back.
     const [formKey, setFormKey] = useState(0);
     const { prompt, dialog: promptDialog } = usePrompt();
 
@@ -240,7 +242,11 @@ export default function WorkOrdersIndex() {
                 onClose={() => setCreating(false)}
                 title={__('New Work Order')}
                 closeLabel={__('Close')}
-                className="max-w-[720px]"
+                // A right-edge drawer rather than a centered card: the order form
+                // is long enough that a card would scroll inside the page's own
+                // scroll, and the drawer keeps the list visible beside it.
+                side="right"
+                width={560}
                 // A misclick on the scrim shouldn't cost a half-filled order.
                 keepMounted
             >
@@ -248,10 +254,10 @@ export default function WorkOrdersIndex() {
                     planner render, so a field added there appears here too.
                     `stay` makes the controller send us back to this list instead of
                     redirecting, keeping filters and paging intact. */}
-                {/* `keepMounted` holds the form's state, which is the point when
-                    you close by accident. Bumping the key remounts the form for the
-                    two cases that are not accidents — a finished create, and an
-                    explicit Cancel — so neither lingers into the next one. */}
+                {/* `keepMounted` holds the form's state, so closing the drawer —
+                    a stray click on the scrim, the ×, or Cancel — never costs what
+                    was typed. Only a finished create bumps the key, remounting the
+                    form empty so one order doesn't linger into the next. */}
                 <WorkOrderForm
                     key={formKey}
                     lines={lines}
@@ -261,13 +267,7 @@ export default function WorkOrdersIndex() {
                     productRevisions={productRevisions}
                     customFields={customFields}
                     stay
-                    // Cancel means "throw this away", so it resets like a success
-                    // does. `keepMounted` is there for the accidental dismissal —
-                    // a stray click on the scrim — not for a deliberate one.
-                    onCancel={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
+                    onCancel={() => setCreating(false)}
                     onSuccess={() => {
                         setCreating(false);
                         setFormKey((k) => k + 1);

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
+import { Dropdown, Icon } from '@openmes/ui';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
@@ -105,7 +105,7 @@ export default function CustomFieldsIndex() {
                         <h1 className="text-3xl font-bold text-om-ink">{__('Custom Fields')}</h1>
                         <p className="text-sm text-om-muted mt-1">{__('Admin-defined fields attached to records across the system.')}</p>
                     </div>
-                    <Link href="/admin/custom-fields/create" className="btn-touch btn-primary text-sm">{__('+ New Custom Field')}</Link>
+                    <Link href="/admin/custom-fields/create" className="btn-touch btn-primary text-sm inline-flex items-center gap-1.5"><Icon name="plus" size={14} />{__('New Custom Field')}</Link>
                 </div>
 
                 <div className="mb-4">

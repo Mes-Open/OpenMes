@@ -62,6 +62,42 @@ export function LoadBar({ pct, color, w = 90 }) {
     );
 }
 
+// The order cannot be built from stock as it stands. Scheduling around it is
+// the planner's decision, so this informs rather than blocks — but the missing
+// components are named, including subassemblies, which is the case that used to
+// be invisible until an operator tried to start.
+function shortageTitle(wo) {
+    const missing = wo.material_shortages || [];
+    if (!missing.length) return '';
+    const parts = missing.map((m) => {
+        const code = m.material_code || m.material_name || '?';
+        if (!m.material_exists) return `${code} — ${__('not in stock list')}`;
+        return `${code} −${fmtQty(m.missing_qty)} ${m.unit_of_measure || ''}`.trim();
+    });
+    return `${__('Not enough material')}: ${parts.join(', ')}`;
+}
+
+export function ShortageChip({ wo, compact = false }) {
+    if (!wo.has_material_shortage) return null;
+    const title = shortageTitle(wo);
+
+    if (compact) {
+        return (
+            <span title={title} aria-label={title}
+                style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-warn, #b45309)', borderRadius: 3, padding: '0 3px' }}>
+                {__('MAT')}
+            </span>
+        );
+    }
+
+    return (
+        <div title={title} className="truncate mt-0.5"
+            style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-warn, #b45309)' }}>
+            ⚠ {__('Not enough material')}
+        </div>
+    );
+}
+
 // ── OrderCard ─────────────────────────────────────────────────────────────────
 // variant: 'cell' (weekly) | 'day' (daily) | 'backlog' | 'overlay'
 export function OrderCard({ wo, variant = 'cell', selected = false, conflict = false, twinMeta = null, onClick, onUnassign, unassignTitle, dragProps = {} }) {
@@ -102,6 +138,7 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
                         </>
                     )}
                 </div>
+                <ShortageChip wo={wo} />
             </div>
         );
     }
@@ -119,6 +156,7 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
                 </div>
                 <div className="truncate" style={{ fontSize: 11, color: 'var(--om-muted)' }}>{wo.product_name || '—'}</div>
                 <div className="mt-0.5" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)' }}>{fmtQty(wo.planned_qty)} {__('pcs')} · {statusLabel(wo.status)}</div>
+                <ShortageChip wo={wo} />
             </div>
         );
     }
@@ -130,7 +168,10 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
             {onUnassign && <UnassignX onUnassign={onUnassign} wo={wo} />}
             <div className="flex items-center gap-1.5">
                 <span className="whitespace-nowrap" style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
-                {overdue && <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
+                <span className="ml-auto flex items-center gap-1">
+                    <ShortageChip wo={wo} compact />
+                    {overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
+                </span>
             </div>
             <div className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)', marginTop: 2 }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</div>
         </div>

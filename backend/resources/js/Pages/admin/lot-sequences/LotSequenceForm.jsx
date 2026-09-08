@@ -12,12 +12,30 @@ const RESET_PERIODS = [
 ];
 
 /**
+ * Blank/loaded form values — the one builder Create, Edit and the list drawer
+ * all share, so a new field can't be missed on one of them. The drawer call
+ * site adds `stay: 1` itself (the standalone pages redirect, so they must not).
+ */
+export function lotSequenceInitial(r) {
+    return {
+        name: r?.name ?? '',
+        product_type_id: r?.product_type_id != null ? String(r.product_type_id) : '',
+        pattern: r?.pattern ?? '',
+        prefix: r?.prefix ?? '',
+        suffix: r?.suffix ?? '',
+        pad_size: r?.pad_size ?? 4,
+        year_prefix: !!r?.year_prefix,
+        reset_period: r?.reset_period ?? 'none',
+    };
+}
+
+/**
  * Create/edit form for LOT sequences with two modes:
  *  - Pattern: token template ("test-[date]-[seq]-[hour]") with a clickable
  *    token palette and a debounced live preview from the server.
  *  - Simple (legacy): prefix / year prefix / suffix.
  */
-export default function LotSequenceForm({ action, method, initial, submitLabel }) {
+export default function LotSequenceForm({ action, method, initial, submitLabel, bare = false, onSuccess, onCancel }) {
     const { productTypes = [], patternTokens = [], csrf_token } = usePage().props;
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -92,16 +110,17 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        form.submit(method, action, { preserveScroll: true, ...(onSuccess ? { onSuccess } : {}) });
     };
 
     return (
-        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className={bare ? 'space-y-5' : 'bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5'}>
             <TextField label={__('Name')} required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</label>
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</div>
                 <Dropdown
+                    aria-label={__('Product Type')}
                     value={data.product_type_id == null ? '' : String(data.product_type_id)}
                     onChange={(v) => setData('product_type_id', v)}
                     options={[
@@ -135,10 +154,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
             {mode === 'pattern' ? (
                 <div className="space-y-3">
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
+                        <div className="block text-sm font-medium text-om-muted mb-1">
                             {__('Pattern')} <span className="text-om-blocked">*</span>
-                        </label>
+                        </div>
                         <input
+                            aria-label={__('Pattern')}
                             ref={patternInputRef}
                             type="text"
                             value={data.pattern ?? ''}
@@ -190,8 +210,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</div>
                     <input
+                        aria-label={__('Pad Size')}
                         type="number"
                         min={1}
                         max={10}
@@ -202,8 +223,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                     {errors.pad_size && <p className="mt-1 text-xs text-om-blocked">{errors.pad_size}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</label>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</div>
                     <Dropdown
+                        aria-label={__('Counter Reset')}
                         value={data.reset_period == null ? 'none' : String(data.reset_period)}
                         onChange={(v) => setData('reset_period', v)}
                         options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: __(o.label) }))}
@@ -217,9 +239,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {submitLabel}
                 </Button>
-                <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">
-                    {__('Cancel')}
-                </Link>
+                {onCancel ? (
+                    <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</button>
+                ) : (
+                    <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                )}
             </div>
         </form>
     );
@@ -228,10 +252,10 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 function TextField({ label, required, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-om-muted mb-1">
+            <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
-            </label>
-            <input type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+            </div>
+            <input aria-label={label} type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

@@ -1,0 +1,9 @@
+product_type_code,material_code,quantity_per_unit,scrap_percentage,sort_order,notes
+TSHIRT,MAT-INK-DTG-W,0.012,5,1,litres of white ink per shirt
+TSHIRT,MAT-INK-DTG-CMYK,0.008,5,2,litres of CMYK ink per shirt
+TSHIRT,MAT-PKG-POLY30,1,0,3,polybag
+POLO,MAT-THR-POLY,0.015,2,1,kg of embroidery thread
+POLO,MAT-PKG-POLY30,1,0,2,polybag
+LANYARD,MAT-LANYARD-TAPE,0.95,1,1,needs a process template for LANYARD first
+LANYARD,MAT-HOOK-METAL,1,0,2,
+MUG,MAT-GHOST,1,0,1,error row: material MAT-GHOST does not exist

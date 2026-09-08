@@ -12,12 +12,19 @@ use Inertia\Inertia;
 
 class PalletController extends Controller
 {
+    use \App\Http\Controllers\Concerns\StaysOnList;
+
     public function index()
     {
         return Inertia::render('admin/pallets/Index', [
-            'workOrderNumbers' => WorkOrder::pluck('order_no', 'id'),
-            'statusLabels' => PalletStatus::labels(),
-            'labelTemplates' => $this->activeLabelTemplates(),
+            // Closures so the drawer's partial reload (only=[workOrders,statuses])
+            // doesn't compute these just for Inertia to discard them.
+            'workOrderNumbers' => fn () => WorkOrder::pluck('order_no', 'id'),
+            'statusLabels' => fn () => PalletStatus::labels(),
+            'labelTemplates' => fn () => $this->activeLabelTemplates(),
+            // The drawer's option lists — fetched on first open, not per visit.
+            'workOrders' => Inertia::optional(fn () => $this->workOrderOptions()),
+            'statuses' => Inertia::optional(fn () => PalletStatus::options()),
         ]);
     }
 
@@ -33,8 +40,7 @@ class PalletController extends Controller
     {
         Pallet::create($request->payload());
 
-        return redirect()->route('admin.pallets.index')
-            ->with('success', __('Pallet created.'));
+        return $this->saved($request, redirect()->route('admin.pallets.index'), __('Pallet created.'));
     }
 
     public function edit(Pallet $pallet)
@@ -55,11 +61,15 @@ class PalletController extends Controller
             $pallet->update($request->payload());
         } catch (\DomainException $e) {
             // Quality ship-gate (#106) rejected the closed → shipped transition.
-            return redirect()->back()->withInput()->with('error', $e->getMessage());
+            // Answer as a validation error on the field that caused it: a flash
+            // 'error' rides a 2xx visit with an empty errors bag, which the edit
+            // drawer reads as success — it would close and discard the input.
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => $e->getMessage(),
+            ]);
         }
 
-        return redirect()->route('admin.pallets.index')
-            ->with('success', __('Pallet updated.'));
+        return $this->saved($request, redirect()->route('admin.pallets.index'), __('Pallet updated.'));
     }
 
     public function destroy(Pallet $pallet)

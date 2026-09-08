@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { areaFields } from './fields';
+import { areaFields, areaInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function AreaEdit() {
@@ -15,14 +15,7 @@ export default function AreaEdit() {
                 action={`/admin/areas/${area.id}`}
                 method="put"
                 fields={areaFields(sites)}
-                initial={{
-                    site_id: area.site_id != null ? String(area.site_id) : '',
-                    code: area.code ?? '',
-                    name: area.name ?? '',
-                    description: area.description ?? '',
-                    is_active: !!area.is_active,
-                    custom_fields: area.custom_fields ?? {},
-                }}
+                initial={areaInitial(area)}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/areas"
             />

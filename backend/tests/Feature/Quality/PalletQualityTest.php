@@ -115,7 +115,8 @@ class PalletQualityTest extends TestCase
                 'work_order_id' => $pallet->work_order_id,
                 'status' => PalletStatus::Shipped->value,
             ])
-            ->assertSessionHas('error');
+            ->assertRedirect('/admin/pallets')
+            ->assertSessionHasErrors(['status']);
 
         $this->assertSame(PalletStatus::Closed, $pallet->fresh()->status);
     }
@@ -130,7 +131,8 @@ class PalletQualityTest extends TestCase
                 'work_order_id' => $pallet->work_order_id,
                 'status' => PalletStatus::Shipped->value,
             ])
-            ->assertSessionHas('error');
+            ->assertRedirect('/admin/pallets')
+            ->assertSessionHasErrors(['status']);
 
         $this->assertSame(PalletStatus::Closed, $pallet->fresh()->status);
     }

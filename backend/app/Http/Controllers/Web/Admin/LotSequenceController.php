@@ -13,12 +13,15 @@ use Inertia\Inertia;
 
 class LotSequenceController extends Controller
 {
+    use \App\Http\Controllers\Concerns\StaysOnList;
+
     public function index()
     {
-        $productTypeNames = ProductType::pluck('name', 'id');
-
         return Inertia::render('admin/lot-sequences/Index', [
-            'productTypeNames' => $productTypeNames,
+            'productTypeNames' => fn () => ProductType::pluck('name', 'id'),
+            // The drawer's option lists — fetched on first open, not per visit.
+            'productTypes' => Inertia::optional(fn () => $this->activeProductTypes()),
+            'patternTokens' => Inertia::optional(fn () => LotPatternFormatter::TOKENS),
         ]);
     }
 
@@ -34,8 +37,7 @@ class LotSequenceController extends Controller
     {
         LotSequence::create($request->payload());
 
-        return redirect()->route('admin.lot-sequences.index')
-            ->with('success', 'LOT sequence created successfully.');
+        return $this->saved($request, redirect()->route('admin.lot-sequences.index'), __('LOT sequence created successfully.'));
     }
 
     public function edit(LotSequence $lotSequence)
@@ -54,8 +56,7 @@ class LotSequenceController extends Controller
     {
         $lotSequence->update($request->payload());
 
-        return redirect()->route('admin.lot-sequences.index')
-            ->with('success', 'LOT sequence updated successfully.');
+        return $this->saved($request, redirect()->route('admin.lot-sequences.index'), __('LOT sequence updated successfully.'));
     }
 
     public function destroy(LotSequence $lotSequence)

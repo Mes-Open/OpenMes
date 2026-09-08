@@ -51,14 +51,20 @@ class ProductImportService
                 return $this->error('code', __("Product ':code' already exists", ['code' => $code]));
             }
 
-            $attributes = [
-                'name' => trim((string) ($row['name'] ?? $code)),
-                'description' => $row['description'] ?? null,
-                'category' => $category,
-                'unit_of_measure' => $row['unit_of_measure'] ?? 'pcs',
-                'external_code' => $row['external_code'] ?? $code,
-                'external_system' => $row['external_system'] ?? $system,
-            ];
+            // Only what the row says. A file that maps two columns must not
+            // blank the other six on every existing product; the create path
+            // fills in the defaults below.
+            $attributes = [];
+
+            foreach (['name', 'description', 'category', 'unit_of_measure', 'external_code', 'external_system'] as $field) {
+                if (array_key_exists($field, $row) && $row[$field] !== null && $row[$field] !== '') {
+                    $attributes[$field] = is_string($row[$field]) ? trim($row[$field]) : $row[$field];
+                }
+            }
+
+            if (! isset($attributes['external_system']) && $system !== null) {
+                $attributes['external_system'] = $system;
+            }
 
             // A row that omits is_active leaves the current flag alone on update
             // and defaults to active on create.
@@ -74,6 +80,9 @@ class ProductImportService
 
             ProductType::create([
                 'code' => $code,
+                'name' => $code,
+                'unit_of_measure' => 'pcs',
+                'external_code' => $code,
                 'is_active' => true,
                 ...$attributes,
             ]);

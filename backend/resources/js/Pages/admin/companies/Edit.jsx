@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COMPANY_FIELDS } from './fields';
+import { COMPANY_FIELDS, companyInitial } from './fields';
 
 export default function CompanyEdit({ company }) {
     return (
@@ -12,16 +12,7 @@ export default function CompanyEdit({ company }) {
                 action={`/admin/companies/${company.id}`}
                 method="put"
                 fields={COMPANY_FIELDS}
-                initial={{
-                    code: company.code ?? '',
-                    name: company.name ?? '',
-                    tax_id: company.tax_id ?? '',
-                    type: company.type ?? 'supplier',
-                    email: company.email ?? '',
-                    phone: company.phone ?? '',
-                    address: company.address ?? '',
-                    is_active: !!company.is_active,
-                }}
+                initial={companyInitial(company)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/companies"
             />
