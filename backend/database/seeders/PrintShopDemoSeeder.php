@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Tier;
 use App\Models\Area;
 use App\Models\BomItem;
+use App\Models\Customer;
 use App\Models\InspectionPlan;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
@@ -44,7 +46,9 @@ class PrintShopDemoSeeder extends Seeder
         $productTypes = $this->seedProductTypes();
         $templates = $this->seedProcessTemplates($productTypes, $workstations, $lines);
         $this->seedUsers($lines);
+        $customers = $this->seedCustomers();
         $this->seedWorkOrders($productTypes, $lines);
+        $this->assignCustomers($customers);
         $this->seedMultiLinePlacements($lines);
         $this->seedShifts($lines);
         $materials = $this->seedMaterials($templates);
@@ -772,6 +776,79 @@ class PrintShopDemoSeeder extends Seeder
         }
 
         return $materials;
+    }
+
+    // ── Customers ────────────────────────────────────────────────────────────
+
+    /**
+     * Who the work is for.
+     *
+     * Nothing seeded these, so the Customers page was empty and every order
+     * showed a blank customer — which also left the priority scoring and the
+     * tier/payment-score columns with nothing to act on.
+     *
+     * Tiers and payment scores are spread deliberately: priority scoring reads
+     * both, so a board where everyone is Gold and pays on time would rank every
+     * order identically.
+     *
+     * @return array<int, Customer>
+     */
+    private function seedCustomers(): array
+    {
+        $defs = [
+            ['code' => 'CUST-NORDWEAR', 'name' => 'NordWear Retail Group',   'tier' => Tier::Vip,    'payment_score' => 96, 'notes' => 'Seasonal ranges, firm launch dates. Artwork always supplied print-ready.'],
+            ['code' => 'CUST-VOLTFC',   'name' => 'Volt FC',                 'tier' => Tier::Gold,   'payment_score' => 88, 'notes' => 'Match kit and supporter merchandise. Numbers and names supplied per order.'],
+            ['code' => 'CUST-BRIGHTAG', 'name' => 'Brightside Agency',       'tier' => Tier::Gold,   'payment_score' => 71, 'notes' => 'Event and conference merchandise. Briefs often change late.'],
+            ['code' => 'CUST-KAMBUILD', 'name' => 'Kaminski Build Sp. z o.o.', 'tier' => Tier::Silver, 'payment_score' => 64, 'notes' => 'Workwear polos and hi-vis. Repeat orders, same artwork.'],
+            ['code' => 'CUST-CAFELOOP', 'name' => 'Café Loop',               'tier' => Tier::Bronze, 'payment_score' => 52, 'notes' => 'Small batches of aprons, totes and mugs for two sites.'],
+            ['code' => 'CUST-UNIHACK',  'name' => 'University Hack Society', 'tier' => Tier::Bronze, 'payment_score' => 40, 'notes' => 'One-off hoodie runs. Pays on invoice, sometimes late.'],
+        ];
+
+        $customers = [];
+
+        foreach ($defs as $def) {
+            $customers[] = Customer::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'tier' => $def['tier'],
+                    'payment_score' => $def['payment_score'],
+                    'notes' => $def['notes'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        return $customers;
+    }
+
+    /**
+     * Put a customer behind every order.
+     *
+     * Assignment is by position rather than at random, so the same order keeps
+     * the same customer across re-seeds — the board would otherwise reshuffle
+     * who owns what on every run.
+     *
+     * @param  array<int, Customer>  $customers
+     */
+    private function assignCustomers(array $customers): void
+    {
+        if ($customers === []) {
+            return;
+        }
+
+        $orders = WorkOrder::orderBy('order_no')->get();
+
+        foreach ($orders->values() as $i => $order) {
+            $customer = $customers[$i % count($customers)];
+
+            $order->forceFill([
+                'customer_id' => $customer->id,
+                // Their own reference for the job, which is what the shop floor
+                // actually quotes back to them.
+                'customer_order_no' => sprintf('PO-%s-%04d', now()->year, 1000 + $i),
+            ])->saveQuietly();
+        }
     }
 
     // ── Multi-line orders ────────────────────────────────────────────────────

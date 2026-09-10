@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Tier;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BomItem;
+use App\Models\Customer;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Line;
@@ -66,6 +68,7 @@ class AirFilterDemoSeeder extends Seeder
         $this->seedShifts();
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
+        $this->assignCustomers($this->seedCustomers());
         $this->seedMultiLinePlacements($lines, $workOrders);
         $this->seedIssues($workOrders, $users);
         $this->seedMaintenance($lines, $workstations, $users);
@@ -492,6 +495,66 @@ class AirFilterDemoSeeder extends Seeder
                     ]
                 );
             }
+        }
+    }
+
+    /**
+     * Who the filters are built for.
+     *
+     * Nothing seeded these, so the Customers page was empty and every order
+     * showed a blank customer — which also left priority scoring, tiers and
+     * payment scores with nothing to act on.
+     *
+     * @return array<int, Customer>
+     */
+    private function seedCustomers(): array
+    {
+        $defs = [
+            ['code' => 'CUST-AIRVENT',  'name' => 'AirVent Systems AB',       'tier' => Tier::Vip,    'payment_score' => 94, 'notes' => 'HVAC OEM. Scheduled call-offs against a yearly frame contract.'],
+            ['code' => 'CUST-CLEANMED', 'name' => 'CleanMed Hospitals',       'tier' => Tier::Gold,   'payment_score' => 90, 'notes' => 'HEPA-13 for theatre and isolation suites. Certificates required with every lot.'],
+            ['code' => 'CUST-PHARMLAB', 'name' => 'PharmLab Cleanrooms',      'tier' => Tier::Gold,   'payment_score' => 76, 'notes' => 'Cleanroom retrofits. Delivery windows tied to shutdown dates.'],
+            ['code' => 'CUST-METALWX',  'name' => 'MetalWorx Foundry',        'tier' => Tier::Silver, 'payment_score' => 61, 'notes' => 'Carbon filters for the fume extraction plant. High replacement rate.'],
+            ['code' => 'CUST-BUDIMEX',  'name' => 'Budimex Facility Services', 'tier' => Tier::Silver, 'payment_score' => 58, 'notes' => 'Pre-filters for office block maintenance contracts.'],
+            ['code' => 'CUST-GREENH',   'name' => 'Greenhouse Growers Co-op', 'tier' => Tier::Bronze, 'payment_score' => 45, 'notes' => 'Seasonal orders, price sensitive, flexible on dates.'],
+        ];
+
+        $customers = [];
+
+        foreach ($defs as $def) {
+            $customers[] = Customer::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'tier' => $def['tier'],
+                    'payment_score' => $def['payment_score'],
+                    'notes' => $def['notes'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        return $customers;
+    }
+
+    /**
+     * Put a customer behind every order, by position rather than at random so
+     * the same order keeps the same customer across re-seeds.
+     *
+     * @param  array<int, Customer>  $customers
+     */
+    private function assignCustomers(array $customers): void
+    {
+        if ($customers === []) {
+            return;
+        }
+
+        foreach (WorkOrder::orderBy('order_no')->get()->values() as $i => $order) {
+            $customer = $customers[$i % count($customers)];
+
+            $order->forceFill([
+                'customer_id' => $customer->id,
+                'customer_order_no' => sprintf('PO-%s-%04d', now()->year, 2000 + $i),
+            ])->saveQuietly();
         }
     }
 
