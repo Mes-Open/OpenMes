@@ -126,3 +126,6 @@ tests/e2e/car-production-buildout.spec.ts
 docs/cla/contributors-audit.md
 docs/cla/ai-commits.md
 docs/cla/license-scan.md
+
+# Confidential trial materials — never commit or push, local-only notes/files
+project-confidential/
