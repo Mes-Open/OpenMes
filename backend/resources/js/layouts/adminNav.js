@@ -139,17 +139,6 @@ export const ADMIN_GROUPS = [
             '/admin/issues', '/admin/scrap-reasons', '/packaging/eans',
         ],
         children: [
-            // Process templates and their BOMs hang off a specific product type
-            // (/admin/product-types/{id}/process-templates/{id}/bom) — there is no
-            // standalone list to link, so the product type is the way in.
-            { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
-            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
-            // Fine-grained feature toggles: each renders under this (core) Production
-            // group but is gated by its own module so it can be switched off alone.
-            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
-            { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
-            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
             {
                 key: 'linesGroup',
                 label: 'Production Lines',
@@ -161,6 +150,17 @@ export const ADMIN_GROUPS = [
                     { label: 'View Templates', href: '/admin/view-templates', match: ['/admin/view-templates'], lucide: 'layout-template' },
                 ],
             },
+            // Process templates and their BOMs hang off a specific product type
+            // (/admin/product-types/{id}/process-templates/{id}/bom) — there is no
+            // standalone list to link, so the product type is the way in.
+            { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
+            // Fine-grained feature toggles: each renders under this (core) Production
+            // group but is gated by its own module so it can be switched off alone.
+            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
+            { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
+            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
         ],
