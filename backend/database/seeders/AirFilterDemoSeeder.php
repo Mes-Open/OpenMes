@@ -1106,6 +1106,16 @@ class AirFilterDemoSeeder extends Seeder
             [10, 'WO-186-013', 'L-02', 'CARBON',      180, 2, 'Carbon X2 — service parts.'],
             [11, 'WO-186-014', 'L-01', 'HEPA13_SLIM', 110, 3, 'Slim filters, retrofit phase 2.'],
             [13, 'WO-186-015', 'L-01', 'HEPA13_STD',  300, 5, 'Standard HEPA-13 — Filtex quarterly.'],
+            // Weeks three and four. Thinner than the near term, as a real order
+            // book is that far out, but enough that the board does not simply
+            // stop a fortnight in.
+            [16, 'WO-186-016', 'L-02', 'PREFILTER',   420, 2, 'G4 pre-filters — facility contract call-off.'],
+            [17, 'WO-186-017', 'L-03', 'HVAC',        90,  3, 'HVAC cassettes — Nordwind phase 2.'],
+            [19, 'WO-186-018', 'L-01', 'HEPA13_STD',  240, 3, 'Standard HEPA-13 — hospital framework.'],
+            [21, 'WO-186-019', 'L-02', 'CARBON',      160, 2, 'Carbon X2 — foundry extraction refill.'],
+            [23, 'WO-186-020', 'L-01', 'HEPA13_SLIM', 130, 3, 'Slim retrofit, final phase.'],
+            [25, 'WO-186-021', 'L-03', 'HVAC',        70,  4, 'HVAC cassette — cleanroom shutdown window.'],
+            [27, 'WO-186-022', 'L-01', 'HEPA13_STD',  280, 4, 'Standard HEPA-13 — export pallet, month end.'],
         ];
 
         foreach ($horizon as [$inDays, $orderNo, $line, $product, $qty, $priority, $description]) {

@@ -535,7 +535,11 @@ class PrintShopDemoSeeder extends Seeder
 
         // week offset => fill probability. The current week (0) is packed; the
         // neighbours taper so the board stays believable as you page around.
-        $weekFill = [-1 => 0.35, 0 => 0.85, 1 => 0.40, 2 => 0.25];
+        // Four weeks ahead, thinning out with distance the way a real order
+        // book does — near weeks are committed, far ones are still filling.
+        // Stopping at week 2 left the board empty barely a fortnight out, which
+        // is inside the horizon the planner is meant to help you see.
+        $weekFill = [-1 => 0.35, 0 => 0.85, 1 => 0.55, 2 => 0.40, 3 => 0.28, 4 => 0.18];
 
         $weekStart = now()->startOfWeek();
         $n = 100; // WO-2026-0100+, clear of the hand-authored WO-2026-001..010
