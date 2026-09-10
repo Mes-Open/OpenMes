@@ -55,7 +55,11 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN ./vendor/bin/rr get-binary --location /var/www/html \
     && chmod +x /var/www/html/rr
 
-# Install Node dependencies and build assets
+# Install Node dependencies and build assets.
+# --dns-result-order=ipv4first: some hosts/containers have no IPv6 route but
+# still resolve AAAA records; without this npm's fetch tries IPv6 first and
+# fails outright instead of falling back to IPv4.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 RUN npm ci && npm run build
 
 # Clean up node_modules + the build-only workspace sources to reduce image size
