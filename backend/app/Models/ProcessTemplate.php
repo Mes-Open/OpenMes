@@ -14,12 +14,21 @@ class ProcessTemplate extends Model
     use HasFactory, HasTenant;
     use SoftDeletesWithAudit;
 
+    /** Every batch's steps progress together (unchanged, default) — see BatchStep. */
+    const EXECUTION_MODE_BATCH = 'batch';
+
+    /** Individual serialized pieces progress independently — see UnitStep (#290). */
+    const EXECUTION_MODE_UNIT = 'unit';
+
+    const EXECUTION_MODES = [self::EXECUTION_MODE_BATCH, self::EXECUTION_MODE_UNIT];
+
     protected $fillable = [
         'product_type_id',
         'name',
         'version',
         'ideal_cycle_minutes',
         'is_active',
+        'execution_mode',
         'tenant_id',
     ];
 
@@ -97,6 +106,10 @@ class ProcessTemplate extends Model
             'template_id' => $this->id,
             'template_name' => $this->name,
             'template_version' => $this->version,
+            // Frozen onto the work order so a batch created from this snapshot
+            // stays in whichever mode it was released under, even if the
+            // template's execution_mode is edited later (#290).
+            'execution_mode' => $this->execution_mode,
             'steps' => $this->steps->map(function ($step) {
                 return [
                     'step_number' => $step->step_number,

@@ -5977,5 +5977,10 @@
     "Component kind": "Rodzaj komponentu",
     "BOM item updated.": "Zaktualizowano pozycję BOM.",
     "Material removed from BOM.": "Usunięto materiał z BOM.",
-    "Edit Step": "Edytuj krok"
+    "Edit Step": "Edytuj krok",
+    "This batch is not running in unit execution mode.": "Ta partia nie działa w trybie wykonania jednostkowego.",
+    "Unit step cannot be completed. Current status: :status": "Nie można zakończyć kroku jednostkowego. Bieżący status: :status",
+    "Unit step is already :status": "Krok jednostkowy ma już status :status",
+    "Work order is blocked by open issues.": "Zlecenie produkcyjne jest zablokowane przez otwarte zgłoszenia.",
+    "The previous step for this unit must be completed first.": "Poprzedni krok dla tej sztuki musi zostać najpierw zakończony."
 }

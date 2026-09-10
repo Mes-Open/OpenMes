@@ -291,6 +291,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'store']);
     Route::post('/serial-units/{serialUnit}/steps', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'recordStep']);
 
+    // Unit-level (serial) execution — Phase 1, API-only (#290): registers a
+    // piece against a Unit-mode batch and drives its per-unit step progression.
+    Route::post('/unit-steps/register', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'register']);
+    Route::post('/unit-steps/{unitStep}/start', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'start']);
+    Route::post('/unit-steps/{unitStep}/complete', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'complete']);
+
     // OEE & Downtimes — accessible by all authenticated users (operators need to report)
     Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
     Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);

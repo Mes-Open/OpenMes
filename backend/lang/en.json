@@ -5977,5 +5977,10 @@
     "Component kind": "Component kind",
     "BOM item updated.": "BOM item updated.",
     "Material removed from BOM.": "Material removed from BOM.",
-    "Edit Step": "Edit Step"
+    "Edit Step": "Edit Step",
+    "This batch is not running in unit execution mode.": "This batch is not running in unit execution mode.",
+    "Unit step cannot be completed. Current status: :status": "Unit step cannot be completed. Current status: :status",
+    "Unit step is already :status": "Unit step is already :status",
+    "Work order is blocked by open issues.": "Work order is blocked by open issues.",
+    "The previous step for this unit must be completed first.": "The previous step for this unit must be completed first."
 }
