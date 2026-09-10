@@ -7,6 +7,8 @@ use App\Models\Area;
 use App\Models\BomItem;
 use App\Models\Customer;
 use App\Models\InspectionPlan;
+use App\Models\Issue;
+use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceSchedule;
@@ -45,10 +47,11 @@ class PrintShopDemoSeeder extends Seeder
         $workstations = $this->seedWorkstations($lines);
         $productTypes = $this->seedProductTypes();
         $templates = $this->seedProcessTemplates($productTypes, $workstations, $lines);
-        $this->seedUsers($lines);
+        $users = $this->seedUsers($lines);
         $customers = $this->seedCustomers();
         $this->seedWorkOrders($productTypes, $lines);
         $this->assignCustomers($customers);
+        $this->seedIssues($lines, $users);
         $this->seedMultiLinePlacements($lines);
         $this->seedShifts($lines);
         $materials = $this->seedMaterials($templates);
@@ -776,6 +779,137 @@ class PrintShopDemoSeeder extends Seeder
         }
 
         return $materials;
+    }
+
+    // ── Reported issues ──────────────────────────────────────────────────────
+
+    /**
+     * Problems the shop floor actually reported.
+     *
+     * The seeder only created issue *types* — the dictionary an operator picks
+     * from — so the Reported Issues page came up empty and neither the planner
+     * nor the shift monitor had anything to show.
+     *
+     * Two things decide whether an issue is visible rather than merely present:
+     *
+     *  - The shift monitor pins an issue on its timeline when the issue's work
+     *    order is on that station's line AND reported_at falls inside the shift
+     *    window being viewed (ShiftMonitorService). So the times below are
+     *    placed inside real shifts, spread back across the fortnight of history
+     *    the monitor keeps, with two in the shift running now.
+     *  - The planner has no notion of issues at all; a problem reaches the board
+     *    only as a blocked order. A blocking issue type is what does that on the
+     *    shop floor (Web\Operator\IssueController), so the blocking ones here
+     *    put their order into BLOCKED the same way.
+     *
+     * @param  array<string, Line>  $lines
+     * @param  array<int, User>  $users
+     */
+    private function seedIssues(array $lines, array $users): void
+    {
+        $types = IssueType::pluck('id', 'code');
+        // Prefer the operators, but do not depend on roles existing: this
+        // seeder can run before RolesAndPermissionsSeeder, and filtering on a
+        // role nobody holds yet would silently report nothing at all.
+        $reporters = collect($users)->filter(fn (User $u) => $u->hasRole('Operator'))->values();
+
+        if ($reporters->isEmpty()) {
+            $reporters = collect($users)->values();
+        }
+
+        if ($types->isEmpty() || $reporters->isEmpty()) {
+            return;
+        }
+
+        // Only lines the shift monitor actually watches — an issue on a line
+        // with no monitored station would never draw a pin.
+        $onLine = function (string $lineCode) use ($lines): ?WorkOrder {
+            $line = $lines[$lineCode] ?? null;
+
+            return $line
+                ? WorkOrder::where('line_id', $line->id)->orderBy('order_no')->first()
+                : null;
+        };
+
+        // [line, type, title, description, status, hours ago, at this hour]
+        $defs = [
+            // Running now — these are the pins on the live shift.
+            ['DTG', 'PRINT_HEAD_FAILURE', 'Print head dropping cyan on the left third',
+                'Nozzle check shows a full bank out on cyan. Cleaning cycle ran twice with no change. Stopped the run rather than scrap shirts.',
+                Issue::STATUS_OPEN, 0.5],
+            ['HAFT', 'THREAD_BREAK', 'Upper thread snapping every few hundred stitches',
+                'Head 3 keeps breaking on the dense fill. Re-threaded and dropped tension a touch; watching it.',
+                Issue::STATUS_OPEN, 1.5],
+
+            // Earlier today and yesterday.
+            ['SITO', 'SCREEN_CLOGGED', 'Screen blocking on the fine detail',
+                'Small text filling in after about forty pulls. Flooded and wiped, holding for now but it will need re-washing.',
+                Issue::STATUS_ACKNOWLEDGED, 6],
+            ['DTG', 'PRINT_COLOR_MISMATCH', 'Navy printing closer to purple',
+                'Customer supplied RGB artwork. Converted to the shop profile and reprinted one for approval.',
+                Issue::STATUS_RESOLVED, 20],
+            ['HAFT', 'SIZE_MISMATCH', 'Logo sitting 15 mm low on the left chest',
+                'Hooping guide had slipped. Re-set the guide and checked the next five.',
+                Issue::STATUS_RESOLVED, 28],
+
+            // Older, worked through to closed — history when paging back.
+            ['SITO', 'INK_SHORTAGE', 'Out of plastisol black mid-run',
+                'Tin ran dry with sixty pieces to go. Held the order until the delivery came in the afternoon.',
+                Issue::STATUS_CLOSED, 3 * 24 + 4],
+            ['DTG', 'SUBSTRATE_DAMAGE', 'Scorch marks from the heat press',
+                'Press platen ran hot and marked four shirts. Re-calibrated the thermostat and replaced the garments.',
+                Issue::STATUS_CLOSED, 5 * 24 + 7],
+            ['HAFT', 'ARTWORK_ERROR', 'Digitised file has the wrong stitch order',
+                'Border stitched before the fill, so the fill pulled over it. Sent back to be re-digitised.',
+                Issue::STATUS_CLOSED, 8 * 24 + 3],
+            ['SITO', 'PRESS_TEMP_ERROR', 'Dryer running 20 degrees under set point',
+                'Cure test failed on the first three. Element replaced and the dryer re-profiled.',
+                Issue::STATUS_CLOSED, 11 * 24 + 5],
+            ['DTG', 'PRINT_SMEAR', 'Ink smearing on the shoulder seam',
+                'Platen height was set for a flat tee, not a raglan. Adjusted and reprinted the batch.',
+                Issue::STATUS_CLOSED, 13 * 24 + 6],
+        ];
+
+        foreach ($defs as $i => [$lineCode, $typeCode, $title, $description, $status, $hoursAgo]) {
+            $workOrder = $onLine($lineCode);
+            $typeId = $types[$typeCode] ?? null;
+
+            if (! $workOrder || ! $typeId) {
+                continue;
+            }
+
+            $reportedAt = now()->subHours((int) round($hoursAgo));
+            $reporter = $reporters[$i % $reporters->count()];
+
+            $issue = Issue::updateOrCreate(
+                ['work_order_id' => $workOrder->id, 'title' => $title],
+                [
+                    'issue_type_id' => $typeId,
+                    'description' => $description,
+                    'status' => $status,
+                    'reported_by_id' => $reporter->id,
+                    'reported_at' => $reportedAt,
+                    // Each stamp only exists once the issue has reached that
+                    // point, so a half-closed row cannot claim it was resolved.
+                    'acknowledged_at' => in_array($status, [Issue::STATUS_ACKNOWLEDGED, Issue::STATUS_RESOLVED, Issue::STATUS_CLOSED], true)
+                        ? $reportedAt->copy()->addMinutes(12) : null,
+                    'resolved_at' => in_array($status, [Issue::STATUS_RESOLVED, Issue::STATUS_CLOSED], true)
+                        ? $reportedAt->copy()->addMinutes(70) : null,
+                    'closed_at' => $status === Issue::STATUS_CLOSED
+                        ? $reportedAt->copy()->addMinutes(150) : null,
+                ]
+            );
+
+            // A blocking type stops the order on the shop floor, and a stopped
+            // order is the only way a problem reaches the planner board.
+            $blocking = IssueType::find($typeId)?->is_blocking;
+
+            if ($blocking && in_array($status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true)) {
+                $workOrder->forceFill(['status' => WorkOrder::STATUS_BLOCKED])->saveQuietly();
+            }
+
+            unset($issue);
+        }
     }
 
     // ── Customers ────────────────────────────────────────────────────────────
