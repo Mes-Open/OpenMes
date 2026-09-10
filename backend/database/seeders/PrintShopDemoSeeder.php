@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Area;
+use App\Models\BomItem;
 use App\Models\InspectionPlan;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
@@ -40,11 +41,12 @@ class PrintShopDemoSeeder extends Seeder
         $lines = $this->seedLines();
         $workstations = $this->seedWorkstations($lines);
         $productTypes = $this->seedProductTypes();
-        $this->seedProcessTemplates($productTypes, $workstations, $lines);
+        $templates = $this->seedProcessTemplates($productTypes, $workstations, $lines);
         $this->seedUsers($lines);
         $this->seedWorkOrders($productTypes, $lines);
         $this->seedShifts($lines);
-        $materials = $this->seedMaterials();
+        $materials = $this->seedMaterials($templates);
+        $this->seedBom($templates, $materials);
         $this->seedMaterialLots($materials);
         $site = $this->seedISA95Hierarchy($lines);
         $this->seedSkillsAndPersonnelClasses();
@@ -161,6 +163,12 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'JACKET',     'name' => 'Softshell Jacket',     'description' => 'Softshell or windbreaker jacket with print',           'unit_of_measure' => 'pcs'],
             ['code' => 'MUG',        'name' => 'Sublimation Mug',      'description' => 'Ceramic mug for sublimation printing (330 ml)',        'unit_of_measure' => 'pcs'],
             ['code' => 'PILLOW',     'name' => 'Printed Pillow Cover', 'description' => 'Pillow cover with sublimation print',                  'unit_of_measure' => 'pcs'],
+            // Sub-assemblies. Each is decorated in its own right before it
+            // reaches a garment, so each needs a product type to hang a routing
+            // on — that routing is what lets a BOM line for it explode further.
+            ['code' => 'SA_PATCH',    'name' => 'Embroidered Patch',    'description' => 'Felt patch embroidered and cut, ready to apply to a cap or a decoration kit', 'unit_of_measure' => 'pcs'],
+            ['code' => 'SA_DECOKIT',  'name' => 'Decoration Kit',       'description' => 'Patch plus contrast thread, kitted per hoodie so the embroidery station works from one pick', 'unit_of_measure' => 'pcs'],
+            ['code' => 'SA_TRANSFER', 'name' => 'Printed Transfer Sheet', 'description' => 'Sublimation sheet printed and trimmed, waiting to be pressed onto a tote or a pillow cover', 'unit_of_measure' => 'pcs'],
         ];
 
         $result = [];
@@ -174,9 +182,12 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Process templates ─────────────────────────────────────────────────────
 
-    private function seedProcessTemplates(array $pt, array $ws, array $lines): void
+    /** @return array<string, ProcessTemplate> */
+    private function seedProcessTemplates(array $pt, array $ws, array $lines): array
     {
-        $this->createTemplate($pt['TSHIRT'], 'T-Shirt — DTG Printing', [
+        $t = [];
+
+        $t['TSHIRT'] = $this->createTemplate($pt['TSHIRT'], 'T-Shirt — DTG Printing', [
             [1, 'Artwork verification',      'Check resolution (min 150 dpi), colour profile, no elements too close to edges.', 10, null],
             [2, 'Pre-wash and press',        'Pre-wash garment if label says "wash before print". Press flat with heat press.', 5, $ws['DTG-PRE-1'] ?? null],
             [3, 'Pretreating',               'Apply pretreat solution evenly over print area. Shake bottle well before use.', 10, $ws['DTG-PRE-1'] ?? null],
@@ -186,7 +197,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold neatly, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['HOODIE'], 'Hoodie — Machine Embroidery', [
+        $t['HOODIE'] = $this->createTemplate($pt['HOODIE'], 'Hoodie — Machine Embroidery', [
             [1, 'Embroidery file check',     'Open DST/PES file, verify thread colours, start/stop points and density.', 15, null],
             [2, 'Machine & thread setup',    'Thread machine per colour card. Mount correct stabiliser (tearaway / cutaway).', 10, $ws['HAFT-1'] ?? null],
             [3, 'Hooping',                   'Hoop the hoodie taut and flat — no wrinkles or puckers.', 8, $ws['HAFT-1'] ?? null],
@@ -196,7 +207,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold hoodie, poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['POLO'], 'Polo Shirt — Screen Printing', [
+        $t['POLO'] = $this->createTemplate($pt['POLO'], 'Polo Shirt — Screen Printing', [
             [1, 'Screen preparation',        'Expose screen from film positive. Check open areas after washing out.', 20, $ws['SITO-EXP-1'] ?? null],
             [2, 'Registration setup',        'Mount screen on press. Set registration using rulers and tape.', 10, $ws['SITO-1'] ?? null],
             [3, 'Test print',                'Pull one test print. Check coverage, registration and colour. Sign off before production.', 10, $ws['SITO-1'] ?? null],
@@ -206,7 +217,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold polo shirts, pack in dozens (12 pcs). Apply batch labels.', 8, $ws['PAK-2'] ?? null],
         ]);
 
-        $this->createTemplate($pt['CAP'], 'Baseball Cap — Embroidery', [
+        $t['CAP'] = $this->createTemplate($pt['CAP'], 'Baseball Cap — Embroidery', [
             [1, 'Embroidery file check',     'Verify file is adapted for cap embroidery (flat area, max 80 mm width).', 10, null],
             [2, 'Cap frame setup',           'Mount cap frame on machine. Stretch cap brim flat in frame.', 8, $ws['HAFT-2'] ?? null],
             [3, 'Embroidery run',            'Start machine. Monitor carefully — curved surface needs stable hooping.', 20, $ws['HAFT-2'] ?? null],
@@ -215,7 +226,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Place cap in poly bag, attach order label.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['TOTE'], 'Cotton Tote Bag — Heat Transfer', [
+        $t['TOTE'] = $this->createTemplate($pt['TOTE'], 'Cotton Tote Bag — Heat Transfer', [
             [1, 'Print transfer film',       'Print transfer on plotter or transfer printer. Allow to dry fully.', 10, null],
             [2, 'Heat press setup',          'Set temperature: 160 °C, time 15 sec, medium pressure. Pre-heat 5 min.', 5, $ws['TRANS-1'] ?? null],
             [3, 'Position transfer',         'Lay bag flat on press platen, centre transfer. Use ruler or template.', 5, $ws['TRANS-1'] ?? null],
@@ -224,7 +235,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Fold bag, place in poly bag with print facing out.', 3, $ws['PAK-2'] ?? null],
         ]);
 
-        $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
+        $t['MUG'] = $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
             [1, 'Print sublimation transfer', 'Print artwork mirrored on sublimation paper. Trim with 5 mm margin.', 10, null],
             [2, 'Wrap mug',                  'Wrap mug with transfer paper, secure with heat-resistant tape. No wrinkles.', 5, $ws['TRANS-SUB-1'] ?? null],
             [3, 'Sublimation in oven',       'Place in sublimation oven: 200 °C / 4 min. Do not open early.', 5, $ws['TRANS-SUB-1'] ?? null],
@@ -233,7 +244,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Place mug in box with protective padding to prevent breakage.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['SWEATSHIRT'], 'Crewneck Sweatshirt — DTG Printing', [
+        $t['SWEATSHIRT'] = $this->createTemplate($pt['SWEATSHIRT'], 'Crewneck Sweatshirt — DTG Printing', [
             [1, 'Artwork verification',      'Check resolution, colour profile, print dimensions (max A3).', 10, null],
             [2, 'Pretreating',               'Apply pretreat to sweatshirt. Heavier fabric — increase dose by 15%.', 12, $ws['DTG-PRE-1'] ?? null],
             [3, 'DTG printing',              'Load sweatshirt on platen, centre artwork. Use heavy-fabric print profile.', 18, $ws['DTG-2'] ?? null],
@@ -241,9 +252,31 @@ class PrintShopDemoSeeder extends Seeder
             [5, 'Quality control',           'Check coverage, no smearing, no gaps in print.', 5, null],
             [6, 'Packing',                   'Fold, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
+
+        // ── Sub-assembly routings ────────────────────────────────────────────
+        // Short jobs of their own. Without a routing a manufactured material is
+        // a dead end: the explosion sees the line and cannot descend past it.
+
+        $t['SA_PATCH'] = $this->createTemplate($pt['SA_PATCH'], 'Embroidered Patch — production v1', [
+            [1, 'Felt cutting',              'Cut patch blanks from the felt roll to the nominal diameter.', 4, $ws['HAFT-1'] ?? null],
+            [2, 'Patch embroidery',          'Run the patch design; check the border stitch closes cleanly all the way round.', 12, $ws['HAFT-1'] ?? null],
+            [3, 'Trim and heat-seal',        'Trim the excess backing and heat-seal the edge so it cannot fray.', 5, null],
+        ]);
+
+        $t['SA_DECOKIT'] = $this->createTemplate($pt['SA_DECOKIT'], 'Decoration Kit — kitting v1', [
+            [1, 'Patch check',               'Check the patch against the colour card and reject any with a broken border.', 3, null],
+            [2, 'Kitting',                   'Bag one patch with the contrast thread for the garment it belongs to.', 4, $ws['PAK-1'] ?? null],
+        ]);
+
+        $t['SA_TRANSFER'] = $this->createTemplate($pt['SA_TRANSFER'], 'Printed Transfer Sheet — production v1', [
+            [1, 'Sheet printing',            'Print the artwork onto sublimation paper; check the ink is not banding.', 8, $ws['TRN-PRINT-1'] ?? $ws['DTG-1'] ?? null],
+            [2, 'Trim to size',              'Trim the sheet to the press window and stack print-side up.', 4, null],
+        ]);
+
+        return $t;
     }
 
-    private function createTemplate(ProductType $productType, string $name, array $steps): void
+    private function createTemplate(ProductType $productType, string $name, array $steps): ProcessTemplate
     {
         $template = ProcessTemplate::updateOrCreate(
             ['product_type_id' => $productType->id, 'version' => 1],
@@ -251,8 +284,12 @@ class PrintShopDemoSeeder extends Seeder
         );
 
         foreach ($steps as [$stepNo, $stepName, $instruction, $duration, $workstation]) {
+            // Match live rows only. template_steps is soft-deletable and
+            // updateOrInsert() runs without the model's scope, so leaving
+            // deleted_at out would let a re-run resurrect (and overwrite) a step
+            // the user had deleted instead of inserting a fresh one.
             DB::table('template_steps')->updateOrInsert(
-                ['process_template_id' => $template->id, 'step_number' => $stepNo],
+                ['process_template_id' => $template->id, 'step_number' => $stepNo, 'deleted_at' => null],
                 [
                     'name' => $stepName,
                     'instruction' => $instruction,
@@ -262,6 +299,8 @@ class PrintShopDemoSeeder extends Seeder
                 ]
             );
         }
+
+        return $template;
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
@@ -630,7 +669,8 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Materials & Material Types ───────────────────────────────────────────
 
-    private function seedMaterials(): array
+    /** @param array<string, ProcessTemplate> $templates */
+    private function seedMaterials(array $templates): array
     {
         $types = [
             ['code' => 'INK',            'name' => 'Ink'],
@@ -657,6 +697,13 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'MAT-THR-POLY',     'name' => 'Polyester Embroidery Thread',       'description' => 'High-sheen polyester thread for machine embroidery', 'type' => 'THREAD',         'unit' => 'spool',  'tracking' => 'none',  'stock' => 80,   'min' => 20,  'supplier' => 'Madeira'],
             ['code' => 'MAT-TRN-SUB-A3',   'name' => 'Sublimation Transfer Paper A3',    'description' => 'A3 sublimation transfer paper, 100gsm',              'type' => 'TRANSFER_MEDIA', 'unit' => 'sheet',  'tracking' => 'batch', 'stock' => 1000, 'min' => 200, 'supplier' => 'Texprint'],
             ['code' => 'MAT-PKG-POLY30',   'name' => 'Poly Bag 30x40cm',                 'description' => 'Clear poly bag for garment packing, 30x40 cm',      'type' => 'PACKAGING',      'unit' => 'pcs',    'tracking' => 'none',  'stock' => 2000, 'min' => 500, 'supplier' => 'Generic'],
+            // Blanks and backing the sub-assemblies are built from.
+            ['code' => 'MAT-GAR-POLO-NV',  'name' => 'Piqué Polo Blank Navy',            'description' => 'Piqué cotton polo blank, navy, assorted sizes',      'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 300,  'min' => 60,  'supplier' => 'Gildan'],
+            ['code' => 'MAT-GAR-CAP-NV',   'name' => 'Baseball Cap Blank Navy',          'description' => 'Structured six-panel cap blank, navy',               'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 180,  'min' => 40,  'supplier' => 'Flexfit'],
+            ['code' => 'MAT-GAR-TOTE-NAT', 'name' => 'Cotton Tote Blank Natural',        'description' => 'Natural cotton tote blank, long handles',            'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 260,  'min' => 60,  'supplier' => 'Westford Mill'],
+            ['code' => 'MAT-GAR-PIL-NAT',  'name' => 'Pillow Cover Blank',               'description' => 'Polyester pillow cover blank for sublimation, 40x40', 'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 140,  'min' => 30,  'supplier' => 'Texprint'],
+            ['code' => 'MAT-FELT-PATCH',   'name' => 'Patch Felt Roll',                  'description' => 'Wool-blend felt for embroidered patch blanks',        'type' => 'TRANSFER_MEDIA', 'unit' => 'm2',     'tracking' => 'batch', 'stock' => 90,   'min' => 20,  'supplier' => 'Madeira'],
+            ['code' => 'MAT-STAB-CUT',     'name' => 'Cut-away Stabiliser',              'description' => 'Cut-away backing, 75gsm, for patch and garment embroidery', 'type' => 'TRANSFER_MEDIA', 'unit' => 'm2', 'tracking' => 'batch', 'stock' => 210, 'min' => 50, 'supplier' => 'Madeira'],
         ];
 
         $materials = [];
@@ -678,7 +725,152 @@ class PrintShopDemoSeeder extends Seeder
             $materials[$def['code']] = $mat;
         }
 
+        // The sub-assemblies. `is_manufactured` plus the routing that produces
+        // them is what lets a BOM line for one explode into the level below.
+        //
+        // Stock is uneven on purpose: the patch is held short, so a hoodie run
+        // has to be netted two levels down before the shortage appears.
+        $subAssemblies = [
+            ['code' => 'SA-PATCH',    'template' => 'SA_PATCH',    'name' => 'Embroidered Patch',      'stock' => 60],
+            ['code' => 'SA-DECOKIT',  'template' => 'SA_DECOKIT',  'name' => 'Decoration Kit',         'stock' => 45],
+            ['code' => 'SA-TRANSFER', 'template' => 'SA_TRANSFER', 'name' => 'Printed Transfer Sheet', 'stock' => 320],
+        ];
+
+        $semiFinished = MaterialType::updateOrCreate(
+            ['code' => 'SEMI_FINISHED'],
+            ['name' => 'Semi-finished']
+        );
+
+        foreach ($subAssemblies as $def) {
+            $template = $templates[$def['template']] ?? null;
+            if (! $template) {
+                continue;
+            }
+
+            $materials[$def['code']] = Material::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'material_type_id' => $semiFinished->id,
+                    'unit_of_measure' => 'pcs',
+                    'tracking_type' => 'batch',
+                    'is_manufactured' => true,
+                    'producing_process_template_id' => $template->id,
+                    'stock_quantity' => $def['stock'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
         return $materials;
+    }
+
+    // ── Bill of materials ────────────────────────────────────────────────────
+
+    /**
+     * What each product is built from, and what the sub-assemblies are built
+     * from in turn.
+     *
+     * Two things this is shaped to demonstrate. The hoodie runs three
+     * manufactured levels deep — kit, then patch, then felt and stabiliser — so
+     * a shortage can surface below the first manufactured line. And the patch
+     * feeds both the kit and the cap, while the transfer sheet feeds both the
+     * tote and the pillow, so netting has to sum two parents' demand before it
+     * decides how many to make.
+     *
+     * @param  array<string, ProcessTemplate>  $templates
+     * @param  array<string, Material>  $materials
+     */
+    private function seedBom(array $templates, array $materials): void
+    {
+        // [product => [[step number, material code, qty per unit, scrap %, consumed at], …]]
+        $defs = [
+            'TSHIRT' => [
+                [2, 'MAT-GAR-TSH-W',    1,     2, 'start'],
+                [4, 'MAT-INK-DTG-CMYK', 0.004, 3, 'during'],
+                [4, 'MAT-INK-DTG-W',    0.02,  4, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'SWEATSHIRT' => [
+                [2, 'MAT-GAR-HOOD-BK',  1,     2, 'start'],
+                [3, 'MAT-INK-DTG-CMYK', 0.006, 3, 'during'],
+                [6, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // Three levels start here: kit → patch → felt.
+            'HOODIE' => [
+                [3, 'MAT-GAR-HOOD-BK',  1,     2, 'start'],
+                [3, 'SA-DECOKIT',       1,     1, 'start'],
+                [4, 'MAT-STAB-CUT',     0.08,  5, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'POLO' => [
+                [3, 'MAT-GAR-POLO-NV',  1,     2, 'start'],
+                [4, 'MAT-INK-PLAST-BK', 0.012, 4, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // Takes the patch directly — the other parent of SA-PATCH.
+            'CAP' => [
+                [2, 'MAT-GAR-CAP-NV',   1,     2, 'start'],
+                [2, 'SA-PATCH',         1,     1, 'start'],
+                [5, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'TOTE' => [
+                [2, 'MAT-GAR-TOTE-NAT', 1,     2, 'start'],
+                [2, 'SA-TRANSFER',      1,     2, 'start'],
+                [5, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // ── Sub-assemblies ───────────────────────────────────────────────
+            'SA_PATCH' => [
+                [1, 'MAT-FELT-PATCH',   0.006, 6, 'start'],
+                [1, 'MAT-STAB-CUT',     0.008, 5, 'start'],
+                [2, 'MAT-THR-POLY',     0.03,  4, 'during'],
+            ],
+            'SA_DECOKIT' => [
+                [1, 'SA-PATCH',         1,     1, 'start'],
+                [2, 'MAT-THR-POLY',     0.01,  2, 'during'],
+            ],
+            'SA_TRANSFER' => [
+                [1, 'MAT-TRN-SUB-A3',   1,     4, 'start'],
+                [1, 'MAT-INK-DTG-CMYK', 0.002, 3, 'during'],
+            ],
+        ];
+
+        foreach ($defs as $productCode => $lines) {
+            $template = $templates[$productCode] ?? null;
+            if (! $template) {
+                continue;
+            }
+
+            $sortOrder = 0;
+
+            foreach ($lines as [$stepNumber, $code, $qty, $scrap, $consumedAt]) {
+                $material = $materials[$code] ?? null;
+                if (! $material) {
+                    continue;
+                }
+
+                // bom_items points at the step row, not its number.
+                $stepId = DB::table('template_steps')
+                    ->where('process_template_id', $template->id)
+                    ->where('step_number', $stepNumber)
+                    ->whereNull('deleted_at')
+                    ->value('id');
+
+                BomItem::updateOrCreate(
+                    [
+                        'process_template_id' => $template->id,
+                        'material_id' => $material->id,
+                    ],
+                    [
+                        'template_step_id' => $stepId,
+                        'quantity_per_unit' => $qty,
+                        'scrap_percentage' => $scrap,
+                        'consumed_at' => $consumedAt,
+                        'sort_order' => $sortOrder++,
+                    ]
+                );
+            }
+        }
     }
 
     // ── Material Lots ────────────────────────────────────────────────────────

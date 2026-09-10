@@ -5980,5 +5980,17 @@
     "Edit Step": "Edit Step",
     "Scheduler": "Scheduler",
     "All Production Lines": "All Production Lines",
-    "API Keys": "API Keys"
+    "API Keys": "API Keys",
+    "Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.": "Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.",
+    "Example company already loaded: :company. Reset the database to choose a different one.": "Example company already loaded: :company. Reset the database to choose a different one.",
+    "Sample data has already been loaded. Reset the database to load a different example company.": "Sample data has already been loaded. Reset the database to load a different example company.",
+    "Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.": "Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.",
+    "Choose which example company to load.": "Choose which example company to load.",
+    "That example company does not exist.": "That example company does not exist.",
+    "Air filter plant": "Air filter plant",
+    "Garment print shop": "Garment print shop",
+    "Manufacturing — filtration": "Manufacturing — filtration",
+    "Manufacturing — apparel decoration": "Manufacturing — apparel decoration",
+    "Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.": "Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.",
+    "DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans.": "DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans."
 }

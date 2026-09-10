@@ -170,6 +170,13 @@ class SettingsController extends Controller
             'appUrl' => config('app.url'),
             'modules' => \App\Support\ModuleRegistry::forForm(),
             'backups' => $backups,
+            // The example companies on offer, and which one (if any) is already
+            // installed — the picker is a one-time choice per database.
+            'demoDatasets' => \App\Support\DemoDatasetRegistry::forDisplay(),
+            'loadedDemoDataset' => json_decode(
+                DB::table('system_settings')->where('key', 'sample_data_loaded')->value('value') ?? 'null',
+                true,
+            ),
         ]);
     }
 
@@ -302,23 +309,26 @@ class SettingsController extends Controller
     /**
      * Load sample data (admin only).
      */
-    public function loadSampleData()
+    public function loadSampleData(\App\Http\Requests\LoadSampleDataRequest $request)
     {
-        // Guard against a second load: re-running the demo seeder against an
-        // already-populated database races on unique keys (the 409s seen in the
-        // field). Once loaded, tell the admin instead of re-seeding.
+        // One load per database. The datasets are alternative plants rather
+        // than layers, so seeding a second one on top would leave two sets of
+        // lines and products in the same install — and re-running one over
+        // itself races on unique keys (the 409s seen in the field).
         if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
             return redirect()->route('settings.system')
-                ->with('info', __('Sample data has already been loaded.'));
+                ->with('info', __('Sample data has already been loaded. Reset the database to load a different example company.'));
         }
 
+        // Guarded above, so the key is present whenever we get here.
+        $dataset = $request->validated()['dataset'];
+
         try {
-            // The umbrella seeder, not one branch of it. Pointing this at
-            // PrintShopDemoSeeder alone left the shift monitor empty after
-            // "load sample data": that seeder creates no workstation states,
-            // and the ones that do — shifts, maintenance, a live shift and a
-            // fortnight of history — hang off DemoDataSeeder.
-            Artisan::call('db:seed', ['--class' => 'DemoDataSeeder', '--force' => true]);
+            // Each dataset names its own seeders; the registry is the only
+            // place a class name comes from, so the request cannot pick one.
+            foreach (\App\Support\DemoDatasetRegistry::seedersFor($dataset) as $seeder) {
+                Artisan::call('db:seed', ['--class' => $seeder, '--force' => true]);
+            }
         } catch (\Throwable $e) {
             report($e);
 
@@ -328,11 +338,13 @@ class SettingsController extends Controller
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'sample_data_loaded'],
-            ['value' => json_encode(true), 'updated_at' => now()],
+            ['value' => json_encode($dataset), 'updated_at' => now()],
         );
 
-        return redirect()->route('settings.system')
-            ->with('success', __('Sample data loaded successfully. Lines, work orders, operators and product types have been created.'));
+        return redirect()->route('settings.system')->with('success', __(
+            'Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.',
+            ['company' => \App\Support\DemoDatasetRegistry::labelFor($dataset)],
+        ));
     }
 
     /**

@@ -128,17 +128,18 @@ class ShiftMonitorDemoSeederTest extends TestCase
         $this->assertSame($first, Batch::count(), 'A repeat run duplicated batches.');
     }
 
-    public function test_the_sample_data_button_seeds_the_monitor(): void
+    public function test_every_example_company_fills_the_monitor(): void
     {
-        // The bug users actually hit: the button ran a seeder that creates no
-        // workstation states, so the monitor stayed blank after "load sample
-        // data" even though the dataset for it existed.
-        $controller = file_get_contents(app_path('Http/Controllers/Web/SettingsController.php'));
-
-        $this->assertStringContainsString(
-            "'--class' => 'DemoDataSeeder'",
-            $controller,
-            'Load sample data must seed the whole demo bundle, not one branch of it.',
-        );
+        // The bug users actually hit: loading sample data ran a seeder that
+        // creates no workstation states, so the monitor stayed blank even
+        // though the dataset for it existed. Whichever company an admin picks,
+        // the bundle has to include the seeder that populates the monitor.
+        foreach (\App\Support\DemoDatasetRegistry::keys() as $key) {
+            $this->assertContains(
+                ShiftMonitorDemoSeeder::class,
+                \App\Support\DemoDatasetRegistry::seedersFor($key),
+                "The {$key} dataset would leave the shift monitor empty.",
+            );
+        }
     }
 }
