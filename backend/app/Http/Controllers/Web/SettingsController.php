@@ -313,7 +313,12 @@ class SettingsController extends Controller
         }
 
         try {
-            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+            // The umbrella seeder, not one branch of it. Pointing this at
+            // PrintShopDemoSeeder alone left the shift monitor empty after
+            // "load sample data": that seeder creates no workstation states,
+            // and the ones that do — shifts, maintenance, a live shift and a
+            // fortnight of history — hang off DemoDataSeeder.
+            Artisan::call('db:seed', ['--class' => 'DemoDataSeeder', '--force' => true]);
         } catch (\Throwable $e) {
             report($e);
 

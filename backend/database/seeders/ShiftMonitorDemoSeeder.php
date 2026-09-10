@@ -135,7 +135,14 @@ class ShiftMonitorDemoSeeder extends Seeder
     private function windows(Workstation $workstation): array
     {
         $now = Carbon::now();
-        $shifts = Shift::where('is_active', true)->orderBy('start_time')->get();
+        // Only the shifts this station actually works: its own line's, plus the
+        // ones that apply everywhere. Taking every active shift gave a station
+        // on line 1 the other four lines' rosters too — fifteen shifts a day
+        // instead of six, and a history five times longer than the plant's.
+        $shifts = Shift::where('is_active', true)
+            ->where(fn ($q) => $q->where('line_id', $workstation->line_id)->orWhereNull('line_id'))
+            ->orderBy('start_time')
+            ->get();
 
         // No shifts defined — fall back to the single synthetic window, which is
         // what the monitor itself falls back to.
@@ -404,7 +411,14 @@ class ShiftMonitorDemoSeeder extends Seeder
                 // Stations on the same line draw from the same work orders, and
                 // every shift in the history reuses them again, so the number
                 // has to be unique per station AND per shift — not just index.
-                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 1000 + $windowIndex * 10 + $i,
+                //
+                // The station bucket is 100000 wide because the window term has
+                // to fit inside it. At 1000 it did not: a fortnight of shifts
+                // overflowed past index 100, so station 3 window 121 and
+                // station 4 window 21 both produced 13210 and the seeder died
+                // on batches_work_order_id_batch_number_unique. Room now for
+                // 10000 windows of 10 batches each.
+                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 100000 + $windowIndex * 10 + $i,
                 'lot_number' => sprintf('LOT %s-%s%s%s', $lotDate, $shiftMark, $workstation->id, chr(65 + $i)),
                 'target_qty' => $target,
                 'produced_qty' => $produced,
