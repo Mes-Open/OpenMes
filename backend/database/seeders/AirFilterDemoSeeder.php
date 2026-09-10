@@ -19,6 +19,7 @@ use App\Models\Shift;
 use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,7 @@ class AirFilterDemoSeeder extends Seeder
         $this->seedShifts();
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
+        $this->seedMultiLinePlacements($lines, $workOrders);
         $this->seedIssues($workOrders, $users);
         $this->seedMaintenance($lines, $workstations, $users);
     }
@@ -487,6 +489,84 @@ class AirFilterDemoSeeder extends Seeder
                         'scrap_percentage' => $scrap,
                         'consumed_at' => $consumedAt,
                         'sort_order' => ++$sortOrder,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Orders that run on more than one line.
+     *
+     * The plant is laid out as a flow — sub-assembly feeds the filter line,
+     * housings feed it too, and everything ends at pack & ship — so an order
+     * genuinely occupies more than one line before it is finished. The planner
+     * draws this as a badge plus a connector down to the extra segment, and
+     * there was no example data behind that display at all.
+     *
+     * Segments are coarse (day + shift); the minute-level plan stays with the
+     * primary placement.
+     *
+     * @param  array<string, Line>  $lines
+     * @param  array<string, WorkOrder>  $workOrders
+     */
+    private function seedMultiLinePlacements(array $lines, array $workOrders): void
+    {
+        // from line => [[to line, shifts later], …], following the flow.
+        $handoffs = [
+            'L-03' => [['L-01', 1]],
+            'L-02' => [['L-01', 1], ['L-04', 2]],
+            'L-01' => [['L-04', 2]],
+        ];
+
+        $lineById = [];
+        foreach ($lines as $code => $line) {
+            $lineById[$line->id] = $code;
+        }
+
+        WorkOrderPlacement::whereIn('work_order_id', collect($workOrders)->pluck('id'))->delete();
+
+        $n = 0;
+
+        foreach ($workOrders as $order) {
+            // These orders are planned at shift level, so due_date is what they
+            // carry — planned_start_at is only set once someone pins a block to
+            // the minute in the planner.
+            $anchor = $order->planned_start_at ?? $order->due_date;
+            if (! $anchor) {
+                continue;
+            }
+
+            $fromCode = $lineById[$order->line_id] ?? null;
+            if (! $fromCode || ! isset($handoffs[$fromCode])) {
+                continue;
+            }
+
+            // Every third, so the board shows the case without every block
+            // sprouting a connector.
+            if ($n++ % 3 !== 0) {
+                continue;
+            }
+
+            $start = $anchor->copy();
+
+            foreach ($handoffs[$fromCode] as [$toCode, $shiftsLater]) {
+                $target = $lines[$toCode] ?? null;
+                if (! $target || $target->id === $order->line_id) {
+                    continue;
+                }
+
+                // shift_number is 1..3 within a day; roll into the next day
+                // rather than emitting a fourth shift no column matches.
+                $shift = (int) ceil($start->hour / 8) + $shiftsLater;
+                $dayOffset = intdiv($shift - 1, 3);
+                $shift = (($shift - 1) % 3) + 1;
+
+                WorkOrderPlacement::updateOrCreate(
+                    ['work_order_id' => $order->id, 'line_id' => $target->id],
+                    [
+                        'due_date' => $start->copy()->addDays($dayOffset)->startOfDay(),
+                        'shift_number' => $shift,
                     ]
                 );
             }

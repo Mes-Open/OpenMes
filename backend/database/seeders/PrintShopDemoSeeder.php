@@ -21,6 +21,7 @@ use App\Models\Site;
 use App\Models\Skill;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,7 @@ class PrintShopDemoSeeder extends Seeder
         $templates = $this->seedProcessTemplates($productTypes, $workstations, $lines);
         $this->seedUsers($lines);
         $this->seedWorkOrders($productTypes, $lines);
+        $this->seedMultiLinePlacements($lines);
         $this->seedShifts($lines);
         $materials = $this->seedMaterials($templates);
         $this->seedBom($templates, $materials);
@@ -361,6 +363,13 @@ class PrintShopDemoSeeder extends Seeder
 
     private function seedWorkOrders(array $pt, array $lines): void
     {
+        // Fixed seed: the generated half of this board picks lines, products,
+        // quantities and statuses at random, and without pinning the sequence a
+        // re-run reshuffles them. That made the demo unreproducible between
+        // seeds — and, because an order's line decides whether it hands off to
+        // another one, it also changed how many multi-line segments came out.
+        mt_srand(20260101);
+
         $orders = [
             [
                 'order_no' => 'WO-2026-001',
@@ -763,6 +772,92 @@ class PrintShopDemoSeeder extends Seeder
         }
 
         return $materials;
+    }
+
+    // ── Multi-line orders ────────────────────────────────────────────────────
+
+    /**
+     * Orders that run on more than one line.
+     *
+     * A decorated garment really does move between lines: printed on one,
+     * embroidered on another, packed on a third. The planner draws these as a
+     * badge on the primary block plus a connector down to the extra segment,
+     * and that whole display had no example data behind it — the only way to
+     * see it was to drag a block onto a second line by hand.
+     *
+     * Segments are coarse (day + shift); the minute-level plan stays with the
+     * primary placement, so this only sets due_date/shift_number.
+     *
+     * @param  array<string, Line>  $lines
+     */
+    private function seedMultiLinePlacements(array $lines): void
+    {
+        // Where work hands off, and how many shifts later the next line picks
+        // it up. Packing is downstream of everything, so it appears most.
+        $handoffs = [
+            'DTG' => [['HAFT', 1], ['PACKING', 2]],
+            'SITO' => [['PACKING', 2]],
+            'HAFT' => [['PACKING', 1]],
+            'TRANSFER' => [['HAFT', 1], ['PACKING', 2]],
+        ];
+
+        $lineById = [];
+        foreach ($lines as $code => $line) {
+            $lineById[$line->id] = $code;
+        }
+
+        // Only the generated orders (WO-2026-0100+), and only those with a
+        // planned start — a segment hanging off an unscheduled order would
+        // draw a connector to nothing.
+        $orders = WorkOrder::where('order_no', 'like', 'WO-2026-01%')
+            ->whereNotNull('planned_start_at')
+            ->orderBy('order_no')
+            ->get();
+
+        // Wipe every candidate's segments before laying any down. The order
+        // generator assigns lines at random, so a re-run both moves orders to
+        // different lines and picks a different subset — clearing only the
+        // orders selected this time would strand the previous run's segments
+        // and grow the set on every seed.
+        WorkOrderPlacement::whereIn('work_order_id', $orders->pluck('id'))->delete();
+
+        $n = 0;
+
+        foreach ($orders as $order) {
+            $fromCode = $lineById[$order->line_id] ?? null;
+            if (! $fromCode || ! isset($handoffs[$fromCode])) {
+                continue;
+            }
+
+            // Every fourth eligible order, so the board shows the case often
+            // enough to notice without every block sprouting a connector.
+            if ($n++ % 4 !== 0) {
+                continue;
+            }
+
+            $start = $order->planned_start_at->copy();
+
+            foreach ($handoffs[$fromCode] as [$toCode, $shiftsLater]) {
+                $target = $lines[$toCode] ?? null;
+                if (! $target || $target->id === $order->line_id) {
+                    continue;
+                }
+
+                // shift_number is 1..3 within a day; roll into the next day
+                // rather than emitting a fourth shift that no column matches.
+                $shift = (int) ceil($start->hour / 8) + $shiftsLater;
+                $dayOffset = intdiv($shift - 1, 3);
+                $shift = (($shift - 1) % 3) + 1;
+
+                WorkOrderPlacement::updateOrCreate(
+                    ['work_order_id' => $order->id, 'line_id' => $target->id],
+                    [
+                        'due_date' => $start->copy()->addDays($dayOffset)->startOfDay(),
+                        'shift_number' => $shift,
+                    ]
+                );
+            }
+        }
     }
 
     // ── Bill of materials ────────────────────────────────────────────────────
