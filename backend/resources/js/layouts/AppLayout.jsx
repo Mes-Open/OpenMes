@@ -17,14 +17,7 @@ import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 // here so module hooks render in the SPA (they used to render in the deleted
 // Blade sidebar). MenuRegistry's built-in group key `admin` maps to the React
 // dropdown key `adminGroup`.
-// Modules name the dropdown they want to appear in. `reports` and `schedule`
-// were renamed to `analytics`/`scheduler` when the sidebar was restructured, so
-// they stay aliased — a module built against the old names still lands.
-const MODULE_GROUP_ALIASES = {
-    admin: 'adminGroup',
-    reports: 'analytics',
-    schedule: 'scheduler',
-};
+const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
 
 // Module pages are legacy server-rendered (Blade), not Inertia components, so
 // their links must trigger a full navigation (`external`) — an Inertia <Link>
@@ -467,6 +460,9 @@ function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrai
 // on — e.g. Reports hidden but Advanced reports enabled. Groups whose children
 // have no explicit tab fall back to the header key alone.
 function groupVisible(group, showTab) {
+    // Groups that are not a feature module — Settings holds the current user's
+    // own profile, password and 2FA, which no enabled-module set should hide.
+    if (group.alwaysVisible) return true;
     if (showTab(group.tab ?? group.key)) return true;
     const anyChild = (nodes) => (nodes || []).some((n) =>
         n.children ? anyChild(n.children) : (n.tab && showTab(n.tab)));

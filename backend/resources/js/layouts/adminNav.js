@@ -78,7 +78,10 @@ export const ADMIN_LINKS = [
  */
 export const ADMIN_GROUPS = [
     {
-        key: 'scheduler',
+        // key doubles as the gating tab (AppLayout's groupVisible falls back to
+        // it), so it has to stay 'schedule' — the TabRegistry name. The label is
+        // free to differ.
+        key: 'schedule',
         label: 'Scheduler',
         icon: 'calendar',
         lucide: 'calendar-days',
@@ -161,6 +164,7 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'warehouses',
+        tab: 'warehouse',
         label: 'Warehouses',
         icon: 'cube',
         lucide: 'warehouse',
@@ -172,7 +176,8 @@ export const ADMIN_GROUPS = [
         ],
     },
     {
-        key: 'analytics',
+        // As above: gated as 'reports', shown as Analytics.
+        key: 'reports',
         label: 'Analytics',
         icon: 'chart',
         lucide: 'chart-column',
@@ -240,6 +245,9 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'settings',
+        // Not a feature module: profile, password and 2FA belong to whoever is
+        // logged in, so this one is not gated behind an enabled-module tab.
+        alwaysVisible: true,
         label: 'Settings',
         icon: 'settings',
         lucide: 'settings',
