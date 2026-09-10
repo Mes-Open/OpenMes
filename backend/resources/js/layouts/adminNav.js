@@ -224,17 +224,6 @@ export const ADMIN_GROUPS = [
         ],
     },
     {
-        key: 'webhooks',
-        label: 'Webhooks',
-        icon: 'webhook',
-        lucide: 'webhook',
-        href: '/admin/webhooks',
-        match: ['/admin/webhooks'],
-        children: [
-            { label: 'Endpoints', href: '/admin/webhooks', match: ['/admin/webhooks'], exact: true, lucide: 'webhook' },
-        ],
-    },
-    {
         key: 'adminGroup',
         tab: 'admin',
         label: 'Admin',
@@ -272,7 +261,7 @@ export const ADMIN_GROUPS = [
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
-        match: ['/settings', '/admin/custom-fields'],
+        match: ['/settings', '/admin/custom-fields', '/admin/webhooks'],
         children: [
             {
                 key: 'systemSettingsGroup',
@@ -291,6 +280,9 @@ export const ADMIN_GROUPS = [
                 ],
             },
             { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
+            // Outbound integration config, so it sits with the API keys rather
+            // than as a section of its own. Still gated by its own module.
+            { label: 'Webhooks', href: '/admin/webhooks', match: ['/admin/webhooks'], tab: 'webhooks', lucide: 'webhook' },
             { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
             { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
             { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
