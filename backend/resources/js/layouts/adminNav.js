@@ -105,8 +105,11 @@ export const ADMIN_GROUPS = [
             // The physical end of the same story: what a station is, and which
             // boxes are enrolled as one. They sit with the protocols rather than
             // in a separate Structure group.
-            { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], lucide: 'monitor-cog' },
-            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], lucide: 'monitor' },
+            // Listed here, but still owned by the structure module — that is what
+            // TabAccessMiddleware checks for these URLs. Without the tab they
+            // would show for anyone with Connectivity on and 404 on click.
+            { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], tab: 'structure', lucide: 'monitor-cog' },
+            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], tab: 'structure', lucide: 'monitor' },
         ],
     },
     {
@@ -188,7 +191,12 @@ export const ADMIN_GROUPS = [
             // install keeps only Work Order History.
             { label: 'Production Cost Report', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
             { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports', lucide: 'trash-2' },
-            { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], lucide: 'gauge' },
+            // Shown under Analytics but still gated by the module that owns the
+            // URL. TabAccessMiddleware maps /admin/oee to the maintenance tab,
+            // so without this the entry would be listed whenever Reports is on
+            // and 404 on click for anyone whose maintenance module is off — it
+            // used to be hidden for free by living inside the Maintenance group.
+            { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], tab: 'maintenance', lucide: 'gauge' },
         ],
     },
     {
