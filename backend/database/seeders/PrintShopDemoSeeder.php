@@ -23,6 +23,7 @@ use App\Models\ProductType;
 use App\Models\Shift;
 use App\Models\Site;
 use App\Models\Skill;
+use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPlacement;
@@ -61,7 +62,8 @@ class PrintShopDemoSeeder extends Seeder
         $this->seedSkillsAndPersonnelClasses();
         $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
-        $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
+        $tools = $this->seedTools();
+        $this->seedMaintenanceSchedulesAndEvents($lines, $workstations, $tools);
         $this->seedInspectionPlans($materials);
         $this->seedOeeRecords($lines);
     }
@@ -785,6 +787,71 @@ class PrintShopDemoSeeder extends Seeder
         return $materials;
     }
 
+    // ── Tools & equipment ────────────────────────────────────────────────────
+
+    /**
+     * The kit that wears out and has to be serviced.
+     *
+     * Nothing seeded a single tool, so the Tools page was empty and the
+     * maintenance schedules pointed at nothing — a weekly printhead clean with
+     * no printhead behind it. Everything here is consumable or serviceable kit
+     * a decorating shop actually keeps: heads and platens for the DTG line,
+     * screens and squeegees for screen print, hooks and hoops for embroidery,
+     * press platens for transfer.
+     *
+     * Statuses are spread across all four the model knows, and service dates
+     * straddle today, so the page shows kit that is due, overdue and fine.
+     *
+     * @return array<string, Tool>
+     */
+    private function seedTools(): array
+    {
+        $defs = [
+            // DTG line.
+            ['code' => 'TL-DTG-HEAD',  'name' => 'DTG printhead set (Epson F2100)', 'status' => Tool::STATUS_IN_USE,      'dueInDays' => 5,   'description' => 'Piezo printhead assembly. Weekly purge and wipe; replace on banding that survives two cleaning cycles.'],
+            ['code' => 'TL-DTG-PLATEN', 'name' => 'DTG platen set (S/M/L/sleeve)',  'status' => Tool::STATUS_IN_USE,      'dueInDays' => 26,  'description' => 'Quick-change platens. Check the adhesive coating and re-tape when garments start lifting.'],
+            ['code' => 'TL-DTG-CAP',   'name' => 'Capping station & wiper kit',     'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 12,  'description' => 'Seals the heads when parked. Replace the wiper blade monthly — a hardened blade scratches the nozzle plate.'],
+            ['code' => 'TL-PRE-NOZZLE', 'name' => 'Pretreat spray nozzle set',      'status' => Tool::STATUS_MAINTENANCE, 'dueInDays' => -2,  'description' => 'Blocked nozzle gives uneven pretreat and a patchy white base. Currently stripped down for a soak.'],
+            ['code' => 'TL-CURE-BELT', 'name' => 'Conveyor dryer belt',             'status' => Tool::STATUS_IN_USE,      'dueInDays' => 40,  'description' => 'PTFE belt for the curing oven. Watch the tracking; a drifting belt scorches sleeves against the guide.'],
+
+            // Screen printing.
+            ['code' => 'TL-SCREEN-160', 'name' => 'Screen frames 160 mesh (set of 6)', 'status' => Tool::STATUS_IN_USE,   'dueInDays' => 9,  'description' => 'Aluminium frames for general plastisol work. Re-tension when the mesh reads under 18 N/cm.'],
+            ['code' => 'TL-SCREEN-305', 'name' => 'Screen frames 305 mesh (set of 4)', 'status' => Tool::STATUS_AVAILABLE, 'dueInDays' => 31, 'description' => 'Fine mesh for halftones and detail. Reclaim carefully — ghost images ruin the next job.'],
+            ['code' => 'TL-SQUEEGEE',  'name' => 'Squeegee set (70/90 duro)',       'status' => Tool::STATUS_IN_USE,      'dueInDays' => 3,   'description' => 'Polyurethane blades. Sharpen on the grinder when the edge rounds off and deposit goes heavy.'],
+            ['code' => 'TL-EXPOSURE',  'name' => 'Exposure unit lamp',              'status' => Tool::STATUS_IN_USE,      'dueInDays' => 55,  'description' => 'Metal-halide lamp. Output falls with hours — re-test the step wedge each quarter.'],
+            ['code' => 'TL-RECLAIM',   'name' => 'Emulsion coating trough',         'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 20,  'description' => 'Scoop coater. Dress the edge if it nicks; a burr leaves a stripe down every screen.'],
+
+            // Embroidery.
+            ['code' => 'TL-EMB-HOOK',  'name' => 'Rotary hook & needle plate',      'status' => Tool::STATUS_IN_USE,      'dueInDays' => 14,  'description' => 'Timing and hook clearance drift with use — the usual cause of persistent thread breaks.'],
+            ['code' => 'TL-EMB-HOOPS', 'name' => 'Hoop set (9 cm - 30 cm)',         'status' => Tool::STATUS_IN_USE,      'dueInDays' => 48,  'description' => 'Wooden and magnetic hoops. Replace any that no longer grip — slippage shows as a shifted logo.'],
+            ['code' => 'TL-EMB-OLD',   'name' => 'Tajima hoop set (legacy 12-head)', 'status' => Tool::STATUS_RETIRED,    'dueInDays' => null, 'description' => 'Kept for the old machine that left in the spring. Not compatible with the Barudan heads.'],
+
+            // Transfer & packing.
+            ['code' => 'TL-PRESS-PLAT', 'name' => 'Heat press platen (40x50)',      'status' => Tool::STATUS_IN_USE,      'dueInDays' => 7,   'description' => 'Check the surface for cold spots with a temperature strip; uneven heat under-cures one corner.'],
+            ['code' => 'TL-SUB-RACK',  'name' => 'Sublimation oven rack',           'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 35,  'description' => 'Holds mugs through the cycle. Warped shelves give inconsistent contact and ghosting.'],
+            ['code' => 'TL-PACK-SCALE', 'name' => 'Packing scale & label printer',  'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 60,  'description' => 'Calibrate against a test weight; a drifting scale puts the wrong count on the carton label.'],
+        ];
+
+        $tools = [];
+
+        foreach ($defs as $def) {
+            $tools[$def['code']] = Tool::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'description' => $def['description'],
+                    'status' => $def['status'],
+                    // Retired kit has no next service; the rest straddle today.
+                    'next_service_at' => $def['dueInDays'] === null
+                        ? null
+                        : now()->addDays($def['dueInDays'])->toDateString(),
+                ]
+            );
+        }
+
+        return $tools;
+    }
+
     // ── Reported issues ──────────────────────────────────────────────────────
 
     /**
@@ -1362,13 +1429,15 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Maintenance Schedules & Events ───────────────────────────────────────
 
-    private function seedMaintenanceSchedulesAndEvents(array $lines, array $workstations): void
+    /** @param array<string, Tool> $tools */
+    private function seedMaintenanceSchedulesAndEvents(array $lines, array $workstations, array $tools = []): void
     {
         $schedules = [];
 
         $schedules['dtg_cleaning'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Weekly DTG Printhead Cleaning'],
             [
+                'tool_id' => $tools['TL-DTG-HEAD']?->id,
                 'description' => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
                 'line_id' => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
@@ -1384,6 +1453,7 @@ class PrintShopDemoSeeder extends Seeder
         $schedules['embroidery_calibration'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Monthly Embroidery Machine Calibration'],
             [
+                'tool_id' => $tools['TL-EMB-HOOK']?->id,
                 'description' => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
                 'line_id' => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
@@ -1399,6 +1469,7 @@ class PrintShopDemoSeeder extends Seeder
         $schedules['screen_press'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Bi-weekly Screen Press Maintenance'],
             [
+                'tool_id' => $tools['TL-SQUEEGEE']?->id,
                 'description' => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
                 'line_id' => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
