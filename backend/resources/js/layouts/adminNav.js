@@ -136,7 +136,7 @@ export const ADMIN_GROUPS = [
             '/admin/product-types', '/admin/product-revisions', '/admin/traceability',
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates',
-            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans',
+            '/admin/issue-types', '/admin/scrap-reasons', '/packaging/eans',
         ],
         children: [
             {
@@ -170,7 +170,6 @@ export const ADMIN_GROUPS = [
             // behind role:Admin only), so gating it behind quality would hide a
             // page that still opens.
             { label: 'Issue Types', href: '/admin/issue-types', match: ['/admin/issue-types'], lucide: 'list-checks' },
-            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
         ],
     },
@@ -193,7 +192,7 @@ export const ADMIN_GROUPS = [
         label: 'Analytics',
         icon: 'chart',
         lucide: 'chart-column',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee'],
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee', '/admin/issues'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports', lucide: 'history' },
             // Analytical reports gated by the Advanced reports module, so a Lightweight
@@ -206,6 +205,10 @@ export const ADMIN_GROUPS = [
             // and 404 on click for anyone whose maintenance module is off — it
             // used to be hidden for free by living inside the Maintenance group.
             { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], tab: 'maintenance', lucide: 'gauge' },
+            // What the shop floor actually reported, read as history rather
+            // than as a queue to work — the triage actions still live on the
+            // page itself.
+            { label: 'Reported Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
         ],
     },
     {
