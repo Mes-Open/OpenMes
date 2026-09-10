@@ -58,6 +58,11 @@ export const ICONS = {
  */
 export const ADMIN_LINKS = [
     { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
+    // A dropdown holding one item is just a link with an extra click, and the
+    // sidebar draws every group below every link — so as a group this could not
+    // sit above Alerts at all. `key` is what gates a top-level link, so it stays
+    // 'schedule': the TabRegistry name, not the label.
+    { key: 'schedule', label: 'Scheduler', href: '/admin/schedule', icon: 'calendar', lucide: 'calendar-days', match: ['/admin/schedule'] },
     { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
     // The admin's own mount of the shift monitor. Supervisors reach the same
     // screen at /supervisor/shift-monitor (supervisorNav.js) — each section
@@ -77,20 +82,6 @@ export const ADMIN_LINKS = [
  * whether the group auto-expands and highlights based on the current path.
  */
 export const ADMIN_GROUPS = [
-    {
-        // key doubles as the gating tab (AppLayout's groupVisible falls back to
-        // it), so it has to stay 'schedule' — the TabRegistry name. The label is
-        // free to differ.
-        key: 'schedule',
-        label: 'Scheduler',
-        icon: 'calendar',
-        lucide: 'calendar-days',
-        href: '/admin/schedule',
-        match: ['/admin/schedule'],
-        children: [
-            { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true, lucide: 'calendar-range' },
-        ],
-    },
     {
         key: 'connectivity',
         label: 'Connectivity',
