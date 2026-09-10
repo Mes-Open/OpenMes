@@ -57,15 +57,39 @@ class ShiftMonitorDemoSeeder extends Seeder
         'WS-PK-01' => 200,
     ];
 
+    /**
+     * Nameplate rate for a station the STATIONS list does not name, chosen from
+     * what it does. A support station runs at the pace of the line it serves,
+     * so the numbers only need to be plausible, not exact.
+     */
+    private const RATE_BY_TYPE = [
+        'printer' => 1200,
+        'press' => 900,
+        'embroidery' => 600,
+        'heat_press' => 400,
+        'sublimation' => 300,
+        'pretreat' => 1400,
+        'curing' => 1400,
+        'dryer' => 1400,
+        'exposure' => 200,
+        'packing' => 800,
+    ];
+
+    private const DEFAULT_RATE = 500;
+
     public function run(): void
     {
-        foreach (self::STATIONS as $code => $ratePerHour) {
-            $workstation = Workstation::where('code', $code)->first();
-            if (! $workstation) {
-                $this->command?->warn("Workstation {$code} not found — skipped.");
+        // Every active station, not a hand-listed few. The list used to name
+        // eight codes, so on the print shop only four of sixteen stations had
+        // anything at all — stepping through them in the monitor hit an empty
+        // screen three times out of four, which reads as broken rather than as
+        // a station nobody ran.
+        $workstations = Workstation::where('is_active', true)->orderBy('code')->get();
 
-                continue;
-            }
+        foreach ($workstations as $workstation) {
+            $ratePerHour = self::STATIONS[$workstation->code]
+                ?? self::RATE_BY_TYPE[$workstation->workstation_type]
+                ?? self::DEFAULT_RATE;
 
             $workstation->update(['ideal_rate_per_hour' => $ratePerHour]);
 

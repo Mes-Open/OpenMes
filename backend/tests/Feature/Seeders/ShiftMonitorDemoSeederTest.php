@@ -8,6 +8,7 @@ use App\Models\Workstation;
 use Database\Seeders\AirFilterDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -139,6 +140,40 @@ class ShiftMonitorDemoSeederTest extends TestCase
                 ShiftMonitorDemoSeeder::class,
                 \App\Support\DemoDatasetRegistry::seedersFor($key),
                 "The {$key} dataset would leave the shift monitor empty.",
+            );
+        }
+    }
+
+    public function test_every_station_has_history_not_just_a_hand_picked_few(): void
+    {
+        $this->seedPlant();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        $empty = Workstation::where('is_active', true)->get()
+            ->filter(fn (Workstation $w) => DB::table('workstation_states')->where('workstation_id', $w->id)->doesntExist())
+            ->pluck('code');
+
+        // The seeder used to name eight station codes, so most of a plant's
+        // stations had nothing at all: stepping through them in the monitor hit
+        // an empty screen, which reads as broken rather than as an idle station.
+        $this->assertSame([], $empty->all(), 'Stations with no history: '.$empty->implode(', '));
+    }
+
+    public function test_history_covers_at_least_four_days_on_every_station(): void
+    {
+        $this->seedPlant();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        foreach (Workstation::where('is_active', true)->get() as $station) {
+            $oldest = DB::table('workstation_states')
+                ->where('workstation_id', $station->id)
+                ->min('started_at');
+
+            $this->assertNotNull($oldest);
+            $this->assertGreaterThanOrEqual(
+                4,
+                (int) \Carbon\Carbon::parse($oldest)->diffInDays(now()),
+                "{$station->code} has less than four days of history to page back through.",
             );
         }
     }
