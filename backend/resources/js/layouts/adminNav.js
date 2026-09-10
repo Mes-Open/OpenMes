@@ -161,6 +161,15 @@ export const ADMIN_GROUPS = [
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
+            // What an operator picks from when reporting a problem, including
+            // whether that choice blocks the work order. The page has always
+            // existed with a full CRUD but was never listed in the React
+            // sidebar, so the only way in was to type the URL.
+            //
+            // No `tab`: unlike Issues, this route is not tab-governed (it sits
+            // behind role:Admin only), so gating it behind quality would hide a
+            // page that still opens.
+            { label: 'Issue Types', href: '/admin/issue-types', match: ['/admin/issue-types'], lucide: 'list-checks' },
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
         ],
