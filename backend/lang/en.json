@@ -5977,5 +5977,8 @@
     "Component kind": "Component kind",
     "BOM item updated.": "BOM item updated.",
     "Material removed from BOM.": "Material removed from BOM.",
-    "Edit Step": "Edit Step"
+    "Edit Step": "Edit Step",
+    "Scheduler": "Scheduler",
+    "All Production Lines": "All Production Lines",
+    "API Keys": "API Keys"
 }

@@ -59,18 +59,10 @@ export const ICONS = {
 export const ADMIN_LINKS = [
     { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
     { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
-    { key: 'schedule', label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
     // The admin's own mount of the shift monitor. Supervisors reach the same
     // screen at /supervisor/shift-monitor (supervisorNav.js) — each section
     // links its own URL, so what gates an entry's visibility (here, the
     // shift_monitor tab) also gates where it leads.
-    {
-        key: 'shift_monitor',
-        label: 'Line Overview',
-        href: '/admin/shift-overview',
-        lucide: 'layout-list',
-        match: ['/admin/shift-overview'],
-    },
     {
         key: 'shift_monitor',
         label: 'Shift Monitor',
@@ -78,8 +70,6 @@ export const ADMIN_LINKS = [
         lucide: 'activity',
         match: ['/admin/shift-monitor'],
     },
-    // Hidden for now — re-enable to restore the Employees tab in the sidebar.
-    // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', lucide: 'users', match: ['/admin/schedule/employees'] },
 ];
 
 /**
@@ -88,16 +78,32 @@ export const ADMIN_LINKS = [
  */
 export const ADMIN_GROUPS = [
     {
-        key: 'schedule',
-        label: 'Schedule',
+        key: 'scheduler',
+        label: 'Scheduler',
         icon: 'calendar',
         lucide: 'calendar-days',
         href: '/admin/schedule',
         match: ['/admin/schedule'],
         children: [
             { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true, lucide: 'calendar-range' },
-            { label: 'Capacity', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'], lucide: 'gauge' },
-            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'], tab: 'hr', lucide: 'user-round' },
+        ],
+    },
+    {
+        key: 'connectivity',
+        label: 'Connectivity',
+        icon: 'wifi',
+        lucide: 'wifi',
+        match: ['/admin/connectivity', '/admin/workstation-types', '/admin/workstation-devices'],
+        children: [
+            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, lucide: 'radio' },
+            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], lucide: 'antenna' },
+            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], lucide: 'cable' },
+            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], lucide: 'plug' },
+            // The physical end of the same story: what a station is, and which
+            // boxes are enrolled as one. They sit with the protocols rather than
+            // in a separate Structure group.
+            { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], lucide: 'monitor-cog' },
+            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], lucide: 'monitor' },
         ],
     },
     {
@@ -121,108 +127,63 @@ export const ADMIN_GROUPS = [
         icon: 'beaker',
         lucide: 'factory',
         match: [
-            '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-types', '/admin/material-lots',
-            '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
-            '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
-            '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
-            '/admin/issues', '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/product-types', '/admin/product-revisions', '/admin/traceability',
+            '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
+            '/admin/line-statuses', '/admin/view-templates',
+            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans',
         ],
         children: [
+            // Process templates and their BOMs hang off a specific product type
+            // (/admin/product-types/{id}/process-templates/{id}/bom) — there is no
+            // standalone list to link, so the product type is the way in.
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
             // Fine-grained feature toggles: each renders under this (core) Production
             // group but is gated by its own module so it can be switched off alone.
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
-            { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
-            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
-            // Warehousing (#212) — gated by its own module so an install without
-            // warehouses never sees it.
-            {
-                key: 'warehouseGroup',
-                label: 'Warehouses',
-                match: ['/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents'],
-                tab: 'warehouse',
-                children: [
-                    { label: 'All Warehouses', href: '/admin/warehouses', match: ['/admin/warehouses'], tab: 'warehouse', lucide: 'warehouse' },
-                    { label: 'Stock On Hand', href: '/admin/warehouse-stock', match: ['/admin/warehouse-stock'], tab: 'warehouse', lucide: 'package' },
-                    { label: 'Stock Documents', href: '/admin/stock-documents', match: ['/admin/stock-documents'], tab: 'warehouse', lucide: 'file-text' },
-                ],
-            },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
             {
                 key: 'linesGroup',
                 label: 'Production Lines',
                 lucide: 'factory',
-                match: ['/admin/lines', '/admin/line-statuses', '/admin/view-templates', '/admin/shifts'],
+                match: ['/admin/lines', '/admin/line-statuses', '/admin/view-templates'],
                 children: [
-                    { label: 'All Lines', href: '/admin/lines', match: ['/admin/lines'], lucide: 'list' },
+                    { label: 'All Production Lines', href: '/admin/lines', match: ['/admin/lines'], lucide: 'list' },
                     { label: 'Line Statuses', href: '/admin/line-statuses', match: ['/admin/line-statuses'], lucide: 'activity' },
                     { label: 'View Templates', href: '/admin/view-templates', match: ['/admin/view-templates'], lucide: 'layout-template' },
-                    { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'], lucide: 'clock' },
                 ],
             },
-            // Issues + reason codes gated by the Quality module; Companies stand alone.
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
-            { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'], tab: 'companies', lucide: 'briefcase' },
-            { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'], tab: 'quality', lucide: 'file-warning' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
         ],
     },
     {
-        key: 'reports',
-        label: 'Reports',
+        key: 'warehouses',
+        label: 'Warehouses',
+        icon: 'cube',
+        lucide: 'warehouse',
+        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots'],
+        children: [
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
+            { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
+            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
+        ],
+    },
+    {
+        key: 'analytics',
+        label: 'Analytics',
         icon: 'chart',
         lucide: 'chart-column',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements'],
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports', lucide: 'history' },
             // Analytical reports gated by the Advanced reports module, so a Lightweight
             // install keeps only Work Order History.
-            { label: 'Production Cost', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
+            { label: 'Production Cost Report', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
             { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports', lucide: 'trash-2' },
-            { label: 'Non-conformance', href: '/admin/non-conformance-reports', match: ['/admin/non-conformance-reports'], tab: 'advanced_reports', lucide: 'triangle-alert' },
-            { label: 'Net requirements', href: '/admin/net-requirements', match: ['/admin/net-requirements'], tab: 'advanced_reports', lucide: 'calculator' },
-        ],
-    },
-    {
-        key: 'structure',
-        label: 'Structure',
-        icon: 'office',
-        lucide: 'building-2',
-        match: [
-            '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
-            '/admin/workstation-types', '/admin/subassemblies', '/admin/workstation-devices',
-        ],
-        children: [
-            { label: 'Sites', href: '/admin/sites', match: ['/admin/sites'], lucide: 'map-pin' },
-            { label: 'Areas', href: '/admin/areas', match: ['/admin/areas'], lucide: 'map' },
-            { label: 'Factories', href: '/admin/factories', match: ['/admin/factories'], lucide: 'building' },
-            { label: 'Divisions', href: '/admin/divisions', match: ['/admin/divisions'], lucide: 'network' },
-            { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], lucide: 'monitor-cog' },
-            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], lucide: 'monitor' },
-            { label: 'Subassemblies', href: '/admin/subassemblies', match: ['/admin/subassemblies'], lucide: 'component' },
-        ],
-    },
-    {
-        key: 'hr',
-        label: 'HR',
-        icon: 'hr',
-        lucide: 'users-round',
-        match: [
-            '/admin/workers', '/admin/personnel-classes', '/admin/crews',
-            '/admin/skills', '/admin/wage-groups', '/admin/worker-absences',
-            '/admin/crew-break-windows',
-        ],
-        children: [
-            { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'], lucide: 'users' },
-            { label: 'Absences', href: '/admin/worker-absences', match: ['/admin/worker-absences'], lucide: 'calendar-off' },
-            { label: 'Personnel Classes', href: '/admin/personnel-classes', match: ['/admin/personnel-classes'], lucide: 'id-card' },
-            { label: 'Crews', href: '/admin/crews', match: ['/admin/crews'], lucide: 'users-round' },
-            { label: 'Break Windows', href: '/admin/crew-break-windows', match: ['/admin/crew-break-windows'], lucide: 'coffee' },
-            { label: 'Skills', href: '/admin/skills', match: ['/admin/skills'], lucide: 'award' },
-            { label: 'Wage Groups', href: '/admin/wage-groups', match: ['/admin/wage-groups'], lucide: 'wallet' },
+            { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], lucide: 'gauge' },
         ],
     },
     {
@@ -230,34 +191,11 @@ export const ADMIN_GROUPS = [
         label: 'Maintenance',
         icon: 'cog',
         lucide: 'wrench',
-        match: [
-            '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools',
-            '/admin/cost-sources', '/admin/production-anomalies', '/inspections',
-            '/admin/inspection-plans', '/admin/oee',
-        ],
+        match: ['/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools'],
         children: [
             { label: 'Maintenance Events', href: '/admin/maintenance-events', match: ['/admin/maintenance-events'], lucide: 'calendar-clock' },
             { label: 'Maintenance Schedules', href: '/admin/maintenance-schedules', match: ['/admin/maintenance-schedules'], lucide: 'calendar-check' },
             { label: 'Tools', href: '/admin/tools', match: ['/admin/tools'], lucide: 'wrench' },
-            { label: 'Cost Sources', href: '/admin/cost-sources', match: ['/admin/cost-sources'], lucide: 'receipt' },
-            { label: 'Anomalies', href: '/admin/production-anomalies', match: ['/admin/production-anomalies'], lucide: 'triangle-alert' },
-            { label: 'Inbound Inspections', href: '/inspections', match: ['/inspections'], lucide: 'clipboard-check' },
-            { label: 'Inspection Plans', href: '/admin/inspection-plans', match: ['/admin/inspection-plans'], lucide: 'list-checks' },
-            { label: 'OEE', href: '/admin/oee', match: ['/admin/oee'], lucide: 'gauge' },
-        ],
-    },
-    {
-        key: 'connectivity',
-        label: 'Connectivity',
-        icon: 'wifi',
-        lucide: 'wifi',
-        match: ['/admin/connectivity'],
-        children: [
-            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, lucide: 'radio' },
-            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], lucide: 'antenna' },
-            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], lucide: 'cable' },
-            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], lucide: 'plug' },
-            { label: 'Machine Monitor', href: '/admin/machine-monitor', match: ['/admin/machine-monitor'], lucide: 'activity' },
         ],
     },
     {
@@ -279,7 +217,7 @@ export const ADMIN_GROUPS = [
         lucide: 'shield',
         match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
         children: [
-            { label: 'Users', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
+            { label: 'Users & Accounts', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },
@@ -297,32 +235,39 @@ export const ADMIN_GROUPS = [
         href: '/admin/modules',
         match: ['/admin/modules'],
         children: [
-            { label: 'Installed', href: '/admin/modules', match: ['/admin/modules'], exact: true, lucide: 'blocks' },
-            { label: 'Install', href: '/admin/modules/install', match: ['/admin/modules/install'], lucide: 'download' },
-            // Disabled "coming soon" entry — parity with the Blade sidebar's Store item.
-            { label: 'Store', disabled: true, badge: 'soon', title: 'Coming soon', lucide: 'store' },
+            { label: 'Installed Modules', href: '/admin/modules', match: ['/admin/modules'], exact: true, lucide: 'blocks' },
         ],
     },
-    // Packaging — a built-in feature whose nav used to be fed via MenuRegistry
-    // (removed in the React migration). Hardcoded here like the other groups.
-    // Ported from the original AppServiceProvider packaging menu registration.
     {
-        key: 'packaging',
-        label: 'Packaging',
-        icon: 'packaging',
-        lucide: 'package',
-        href: '/packaging',
-        match: ['/packaging', '/admin/pallets', '/admin/pallet-movements', '/logistics', '/supervisor/shift-handover'],
+        key: 'settings',
+        label: 'Settings',
+        icon: 'settings',
+        lucide: 'settings',
+        href: '/settings',
+        match: ['/settings', '/admin/custom-fields'],
         children: [
-            { label: 'Scanning Station', href: '/packaging/station', match: ['/packaging/station'], lucide: 'scan-barcode' },
-            { label: 'Packaging Overview', href: '/packaging', match: ['/packaging'], exact: true, lucide: 'package' },
-            { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'], lucide: 'arrow-left-right' },
-            { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], lucide: 'container' },
-            { label: 'Pallet Logistics', href: '/logistics/pallets', match: ['/logistics/pallets'], lucide: 'truck' },
-            { label: 'Move Pallet', href: '/logistics/move-pallet', match: ['/logistics/move-pallet'], lucide: 'move' },
-            { label: 'Pallet Movements', href: '/admin/pallet-movements', match: ['/admin/pallet-movements'], lucide: 'list' },
-            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
-            { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
+            {
+                key: 'systemSettingsGroup',
+                label: 'System Settings',
+                lucide: 'sliders-horizontal',
+                match: ['/settings/system'],
+                // One page, six panels. The panel is chosen by ?tab=, so each entry
+                // deep-links straight into its own section (System.jsx reads it).
+                children: [
+                    { label: 'General', href: '/settings/system?tab=general', query: 'general', match: ['/settings/system'], lucide: 'settings' },
+                    { label: 'Production', href: '/settings/system?tab=production', query: 'production', match: ['/settings/system'], lucide: 'factory' },
+                    { label: 'Schedule', href: '/settings/system?tab=schedule', query: 'schedule', match: ['/settings/system'], lucide: 'calendar-days' },
+                    { label: 'Security', href: '/settings/system?tab=security', query: 'security', match: ['/settings/system'], lucide: 'shield' },
+                    { label: 'Modules', href: '/settings/system?tab=modules', query: 'modules', match: ['/settings/system'], lucide: 'blocks' },
+                    { label: 'Data', href: '/settings/system?tab=data', query: 'data', match: ['/settings/system'], lucide: 'database' },
+                ],
+            },
+            { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
+            { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
+            { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
+            { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
+            { label: 'Change Password', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },
+            { label: 'Two-Factor Authentication', href: '/settings/two-factor/enable', match: ['/settings/two-factor'], lucide: 'smartphone' },
         ],
     },
 ];

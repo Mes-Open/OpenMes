@@ -92,7 +92,11 @@ export default function System() {
     const toast = useToast();
     const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups } = usePage().props;
 
-    const [tab, setTab] = useState('general');
+    // The sidebar links each panel directly (/settings/system?tab=security), so
+    // the opening panel comes from the URL rather than always being General.
+    const TABS = ['general', 'production', 'schedule', 'security', 'modules', 'data'];
+    const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
+    const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
     const [resetConfirm, setResetConfirm] = useState(false);
     const [resetText, setResetText] = useState('');

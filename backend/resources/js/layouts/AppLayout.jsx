@@ -17,7 +17,14 @@ import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 // here so module hooks render in the SPA (they used to render in the deleted
 // Blade sidebar). MenuRegistry's built-in group key `admin` maps to the React
 // dropdown key `adminGroup`.
-const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
+// Modules name the dropdown they want to appear in. `reports` and `schedule`
+// were renamed to `analytics`/`scheduler` when the sidebar was restructured, so
+// they stay aliased — a module built against the old names still lands.
+const MODULE_GROUP_ALIASES = {
+    admin: 'adminGroup',
+    reports: 'analytics',
+    schedule: 'scheduler',
+};
 
 // Module pages are legacy server-rendered (Blade), not Inertia components, so
 // their links must trigger a full navigation (`external`) — an Inertia <Link>
@@ -953,7 +960,12 @@ function SubGroup({ group, path, showTab = () => true }) {
 }
 
 function ChildLink({ child, path, dot }) {
-    const active = isActive(path, child.match, child.exact);
+    // Entries that deep-link into one panel of a single page (Settings → System
+    // Settings → ?tab=…) share a pathname, so the path alone would light all of
+    // them up. `query` narrows the match to this entry's own tab.
+    const currentTab = new URLSearchParams((usePage().url || '').split('?')[1] || '').get('tab');
+    const active = isActive(path, child.match, child.exact)
+        && (!child.query || child.query === (currentTab || 'general'));
     const dotClass = dot === 'sm' ? 'w-1 h-1 opacity-50' : 'w-1.5 h-1.5 opacity-60';
 
     // Disabled "coming soon" entry (e.g. Modules → Store) — non-clickable span

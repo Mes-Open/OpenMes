@@ -5977,5 +5977,8 @@
     "Component kind": "Rodzaj komponentu",
     "BOM item updated.": "Zaktualizowano pozycję BOM.",
     "Material removed from BOM.": "Usunięto materiał z BOM.",
-    "Edit Step": "Edytuj krok"
+    "Edit Step": "Edytuj krok",
+    "Scheduler": "Harmonogramowanie",
+    "All Production Lines": "Wszystkie linie produkcyjne",
+    "API Keys": "Klucze API"
 }
