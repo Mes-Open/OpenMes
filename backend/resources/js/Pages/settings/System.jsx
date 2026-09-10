@@ -906,7 +906,7 @@ export default function System() {
                             // One dataset per database — they are alternative
                             // plants, not layers, so once one is in there is
                             // nothing sensible to choose.
-                            <InlineAlert variant="info">
+                            <InlineAlert severity="info" title={__('Sample Data')}>
                                 {__('Example company already loaded: :company. Reset the database to choose a different one.', {
                                     company: demoDatasets.find((d) => d.key === loadedDemoDataset)?.label ?? loadedDemoDataset,
                                 })}

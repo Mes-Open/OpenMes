@@ -833,13 +833,17 @@ class PrintShopDemoSeeder extends Seeder
 
         // [line, type, title, description, status, hours ago, at this hour]
         $defs = [
-            // Running now — these are the pins on the live shift.
+            // Running now. `null` hours means "inside whatever shift is open on
+            // that line right now" — a fixed offset only lands in the live
+            // window while a shift happens to be running, and outside those
+            // hours ShiftWindow falls back to a synthetic split the issue would
+            // sit outside of. The monitor would then draw no pin at all.
             ['DTG', 'PRINT_HEAD_FAILURE', 'Print head dropping cyan on the left third',
                 'Nozzle check shows a full bank out on cyan. Cleaning cycle ran twice with no change. Stopped the run rather than scrap shirts.',
-                Issue::STATUS_OPEN, 0.5],
+                Issue::STATUS_OPEN, null],
             ['HAFT', 'THREAD_BREAK', 'Upper thread snapping every few hundred stitches',
                 'Head 3 keeps breaking on the dense fill. Re-threaded and dropped tension a touch; watching it.',
-                Issue::STATUS_OPEN, 1.5],
+                Issue::STATUS_OPEN, null],
 
             // Earlier today and yesterday.
             ['SITO', 'SCREEN_CLOGGED', 'Screen blocking on the fine detail',
@@ -878,7 +882,13 @@ class PrintShopDemoSeeder extends Seeder
                 continue;
             }
 
-            $reportedAt = now()->subHours((int) round($hoursAgo));
+            // `now()` rather than a computed offset: whichever shift the
+            // monitor is showing, its window contains the present moment by
+            // definition, so a report stamped now is always inside it. Placing
+            // it relative to the window instead is a race — the shift can turn
+            // over between seeding and reading, and the issue lands in the one
+            // that just closed.
+            $reportedAt = $hoursAgo === null ? now() : now()->subHours((int) round($hoursAgo));
             $reporter = $reporters[$i % $reporters->count()];
 
             $issue = Issue::updateOrCreate(
