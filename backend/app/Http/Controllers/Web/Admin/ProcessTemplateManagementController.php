@@ -13,6 +13,7 @@ use App\Models\TemplateStep;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ProcessTemplateManagementController extends Controller
@@ -60,7 +61,11 @@ class ProcessTemplateManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'is_active' => 'boolean',
+            // Unit-level (serial) execution (#290) — 'batch' (default) keeps every
+            // piece progressing together; 'unit' lets pieces progress independently.
+            'execution_mode' => ['nullable', Rule::in(ProcessTemplate::EXECUTION_MODES)],
         ]);
+        $validated['execution_mode'] = $validated['execution_mode'] ?? ProcessTemplate::EXECUTION_MODE_BATCH;
 
         // Get the next version number
         $latestVersion = $productType->processTemplates()->max('version') ?? 0;
@@ -208,6 +213,7 @@ class ProcessTemplateManagementController extends Controller
                 'name' => $processTemplate->name,
                 'version' => $processTemplate->version,
                 'is_active' => (bool) $processTemplate->is_active,
+                'execution_mode' => $processTemplate->execution_mode,
             ],
         ]);
     }
@@ -225,7 +231,9 @@ class ProcessTemplateManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'is_active' => 'boolean',
+            'execution_mode' => ['nullable', Rule::in(ProcessTemplate::EXECUTION_MODES)],
         ]);
+        $validated['execution_mode'] = $validated['execution_mode'] ?? ProcessTemplate::EXECUTION_MODE_BATCH;
 
         $validated['is_active'] = $request->boolean('is_active');
 

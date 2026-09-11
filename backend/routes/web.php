@@ -702,6 +702,10 @@ Route::middleware('auth')->group(function () {
         Route::post('lot-sequences/preview', [AdminLotSequenceController::class, 'preview'])->name('lot-sequences.preview');
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
+        // Serial Sequences (#290) — parallel to LOT Sequences above.
+        Route::post('serial-sequences/preview', [\App\Http\Controllers\Web\Admin\SerialSequenceController::class, 'preview'])->name('serial-sequences.preview');
+        Route::resource('serial-sequences', \App\Http\Controllers\Web\Admin\SerialSequenceController::class)->except(['show']);
+
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
 

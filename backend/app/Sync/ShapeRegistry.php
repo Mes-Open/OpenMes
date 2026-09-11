@@ -181,6 +181,10 @@ class ShapeRegistry
             'table' => 'lot_sequences',
             'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
         ],
+        'serial_sequences' => [
+            'table' => 'serial_sequences',
+            'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
+        ],
         'pallets' => [
             'table' => 'pallets',
             'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'destination', 'arrived_at', 'erp_reference', 'created_at', 'updated_at'],

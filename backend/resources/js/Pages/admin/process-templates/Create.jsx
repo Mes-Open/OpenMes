@@ -9,6 +9,7 @@ export default function ProcessTemplatesCreate() {
     const form = useForm({
         name: '',
         is_active: true,
+        execution_mode: 'batch',
     });
 
     const { data, setData, errors, processing } = form;
@@ -67,6 +68,33 @@ export default function ProcessTemplatesCreate() {
                                 onChange={(next) => setData('is_active', next)}
                                 label={__("Active (template is ready for use in work orders)")}
                             />
+                        </div>
+
+                        <div className="mb-6">
+                            <div className="block text-sm font-medium text-om-muted mb-1">{__('Execution Mode')}</div>
+                            <div className="flex rounded-om-sm border border-om-line2 overflow-hidden w-fit text-sm">
+                                {[
+                                    ['batch', __('Batch Mode')],
+                                    ['unit', __('Unit Mode')],
+                                ].map(([m, label]) => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => setData('execution_mode', m)}
+                                        className={`px-4 py-1.5 font-medium ${
+                                            data.execution_mode === m ? 'bg-om-ink text-om-on-ink' : 'bg-om-card text-om-muted hover:bg-om-bg'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-sm text-om-muted mt-1">
+                                {data.execution_mode === 'unit'
+                                    ? __('Each piece progresses through steps independently — an operator registers a serial number per piece.')
+                                    : __('Every piece in a batch progresses through steps together (default).')}
+                            </p>
+                            {errors.execution_mode && <p className="text-om-blocked text-sm mt-1">{errors.execution_mode}</p>}
                         </div>
 
                         <div className="flex justify-end gap-3">

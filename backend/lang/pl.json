@@ -5992,5 +5992,19 @@
     "Auto-generate": "Generuj automatycznie",
     "Register Unit": "Zarejestruj sztukę",
     "No units registered yet.": "Nie zarejestrowano jeszcze żadnej sztuki.",
-    "done": "gotowe"
+    "done": "gotowe",
+    "Serial Sequences": "Sekwencje numerów seryjnych",
+    "New Serial Sequence": "Nowa sekwencja numerów seryjnych",
+    "Edit Serial Sequence": "Edytuj sekwencję numerów seryjnych",
+    "No serial sequences yet.": "Brak sekwencji numerów seryjnych.",
+    "Serial sequence created successfully.": "Sekwencja numerów seryjnych została utworzona.",
+    "Serial sequence updated successfully.": "Sekwencja numerów seryjnych została zaktualizowana.",
+    "Serial sequence deleted successfully.": "Sekwencja numerów seryjnych została usunięta.",
+    "Delete serial sequence \":name\"?": "Usunąć sekwencję numerów seryjnych \":name\"?",
+    "Execution Mode": "Tryb wykonania",
+    "Batch Mode": "Tryb partii",
+    "Unit Mode": "Tryb jednostkowy",
+    "Each piece progresses through steps independently — an operator registers a serial number per piece.": "Każda sztuka przechodzi przez kroki niezależnie — operator rejestruje numer seryjny dla każdej sztuki.",
+    "Every piece in a batch progresses through steps together (default).": "Wszystkie sztuki w partii przechodzą przez kroki razem (domyślnie).",
+    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Ta zmiana dotyczy tylko zleceń utworzonych po zapisaniu — zlecenie w trakcie realizacji zachowuje tryb, w którym zostało utworzone."
 }

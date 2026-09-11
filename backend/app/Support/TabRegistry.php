@@ -39,7 +39,7 @@ class TabRegistry
         // given it without the user/log pages the `admin` tab unlocks.
         'import' => ['label' => 'Import', 'prefixes' => ['/admin/import']],
         'production' => ['label' => 'Production', 'prefixes' => [
-            '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
+            '/admin/product-types', '/admin/lot-sequences', '/admin/serial-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
             // Note: Materials, Process Segments, Product Revisions and Companies
             // are gated by the Structure module; Issues, Anomaly Reasons and

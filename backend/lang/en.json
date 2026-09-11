@@ -5992,5 +5992,19 @@
     "Auto-generate": "Auto-generate",
     "Register Unit": "Register Unit",
     "No units registered yet.": "No units registered yet.",
-    "done": "done"
+    "done": "done",
+    "Serial Sequences": "Serial Sequences",
+    "New Serial Sequence": "New Serial Sequence",
+    "Edit Serial Sequence": "Edit Serial Sequence",
+    "No serial sequences yet.": "No serial sequences yet.",
+    "Serial sequence created successfully.": "Serial sequence created successfully.",
+    "Serial sequence updated successfully.": "Serial sequence updated successfully.",
+    "Serial sequence deleted successfully.": "Serial sequence deleted successfully.",
+    "Delete serial sequence \":name\"?": "Delete serial sequence \":name\"?",
+    "Execution Mode": "Execution Mode",
+    "Batch Mode": "Batch Mode",
+    "Unit Mode": "Unit Mode",
+    "Each piece progresses through steps independently — an operator registers a serial number per piece.": "Each piece progresses through steps independently — an operator registers a serial number per piece.",
+    "Every piece in a batch progresses through steps together (default).": "Every piece in a batch progresses through steps together (default).",
+    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under."
 }

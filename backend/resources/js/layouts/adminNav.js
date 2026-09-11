@@ -122,7 +122,7 @@ export const ADMIN_GROUPS = [
         lucide: 'factory',
         match: [
             '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-types', '/admin/material-lots',
-            '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
+            '/admin/traceability', '/admin/lot-sequences', '/admin/serial-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/warehouses', '/admin/warehouse-stock', '/admin/stock-documents',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
@@ -150,6 +150,7 @@ export const ADMIN_GROUPS = [
                 ],
             },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
+            { label: 'Serial Sequences', href: '/admin/serial-sequences', match: ['/admin/serial-sequences'], lucide: 'scan-line' },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
             {
                 key: 'linesGroup',
