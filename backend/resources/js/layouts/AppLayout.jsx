@@ -559,19 +559,6 @@ function Sidebar({
                     )}
                 </Link>
 
-                {/* Setup wizard (Admin only) — the "?" the demo shows in the header */}
-                {showLabels && isAdmin && (
-                    <Tooltip label={__('Setup Wizard')} placement="bottom">
-                        <Link
-                            href="/onboarding/step/1"
-                            prefetch
-                            aria-label={__('Setup Wizard')}
-                            className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
-                        >
-                            <UiIcon name="circle-help" size={20} />
-                        </Link>
-                    </Tooltip>
-                )}
                 <button
                     onClick={onCloseMobile}
                     className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0`}

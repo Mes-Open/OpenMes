@@ -109,8 +109,6 @@ Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\Chec
     Route::post('/environment', [InstallController::class, 'setupEnvironment'])->name('environment.setup');
     Route::get('/database', [InstallController::class, 'showDatabaseForm'])->name('database');
     Route::post('/database', [InstallController::class, 'setupDatabase'])->name('database.setup');
-    Route::get('/modules', [InstallController::class, 'showModulesForm'])->name('modules');
-    Route::post('/modules', [InstallController::class, 'selectModules'])->name('modules.select');
     Route::get('/admin', [InstallController::class, 'showAdminForm'])->name('admin');
     Route::post('/admin', [InstallController::class, 'createAdmin'])->name('admin.create');
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');
@@ -256,19 +254,12 @@ Route::middleware('auth')->group(function () {
     })->name('change-password');
 
     // Onboarding Wizard (Admin only)
+    // First run: one screen, one decision — install an example company or
+    // start empty. The five-step wizard it replaced asked which feature
+    // modules you wanted before you had seen any of them.
     Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\OnboardingController::class, 'index'])->name('index');
-        Route::get('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'modules'])->name('modules');
-        Route::post('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'storeModules']);
-        Route::get('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'step1'])->name('step1');
-        Route::post('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep1']);
-        Route::get('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'step2'])->name('step2');
-        Route::post('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep2']);
-        Route::get('/step/3', [\App\Http\Controllers\Web\OnboardingController::class, 'step3'])->name('step3');
-        Route::post('/step/3', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep3']);
-        Route::get('/step/4', [\App\Http\Controllers\Web\OnboardingController::class, 'step4'])->name('step4');
-        Route::post('/step/4', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep4']);
-        Route::get('/complete', [\App\Http\Controllers\Web\OnboardingController::class, 'complete'])->name('complete');
+        Route::post('/', [\App\Http\Controllers\Web\OnboardingController::class, 'store'])->name('store');
         Route::post('/skip', [\App\Http\Controllers\Web\OnboardingController::class, 'skip'])->name('skip');
     });
 
