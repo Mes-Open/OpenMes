@@ -237,6 +237,8 @@ class WorkOrderController extends Controller
             'batches.steps.outputValues.recordedBy',
             'batches.workstation',
             'batches.processConfirmations.confirmedBy',
+            // Unit-level (serial) execution (#290) — empty for a Batch-mode batch.
+            'batches.serialUnits.unitSteps',
             'batches.qualityChecks.samples',
             'batches.qualityChecks.checkedBy',
             'batches.packagingChecklist',

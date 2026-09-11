@@ -71,4 +71,10 @@ class SerialUnit extends Model
     {
         return $this->hasMany(UnitStepHistory::class)->orderBy('processed_at');
     }
+
+    /** This unit's per-step progression gate for a Unit-mode batch (#290). */
+    public function unitSteps(): HasMany
+    {
+        return $this->hasMany(UnitStep::class)->orderBy('step_number');
+    }
 }

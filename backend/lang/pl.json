@@ -5982,5 +5982,15 @@
     "Unit step cannot be completed. Current status: :status": "Nie można zakończyć kroku jednostkowego. Bieżący status: :status",
     "Unit step is already :status": "Krok jednostkowy ma już status :status",
     "Work order is blocked by open issues.": "Zlecenie produkcyjne jest zablokowane przez otwarte zgłoszenia.",
-    "The previous step for this unit must be completed first.": "Poprzedni krok dla tej sztuki musi zostać najpierw zakończony."
+    "The previous step for this unit must be completed first.": "Poprzedni krok dla tej sztuki musi zostać najpierw zakończony.",
+    "This batch does not belong to the selected line.": "Ta partia nie należy do wybranej linii.",
+    "Unit :serial registered.": "Zarejestrowano sztukę :serial.",
+    "Unit step started.": "Rozpoczęto krok jednostkowy.",
+    "Unit step completed.": "Zakończono krok jednostkowy.",
+    "Serial No": "Numer seryjny",
+    "Leave empty to auto-generate": "Pozostaw puste, aby wygenerować automatycznie",
+    "Auto-generate": "Generuj automatycznie",
+    "Register Unit": "Zarejestruj sztukę",
+    "No units registered yet.": "Nie zarejestrowano jeszcze żadnej sztuki.",
+    "done": "gotowe"
 }

@@ -5982,5 +5982,15 @@
     "Unit step cannot be completed. Current status: :status": "Unit step cannot be completed. Current status: :status",
     "Unit step is already :status": "Unit step is already :status",
     "Work order is blocked by open issues.": "Work order is blocked by open issues.",
-    "The previous step for this unit must be completed first.": "The previous step for this unit must be completed first."
+    "The previous step for this unit must be completed first.": "The previous step for this unit must be completed first.",
+    "This batch does not belong to the selected line.": "This batch does not belong to the selected line.",
+    "Unit :serial registered.": "Unit :serial registered.",
+    "Unit step started.": "Unit step started.",
+    "Unit step completed.": "Unit step completed.",
+    "Serial No": "Serial No",
+    "Leave empty to auto-generate": "Leave empty to auto-generate",
+    "Auto-generate": "Auto-generate",
+    "Register Unit": "Register Unit",
+    "No units registered yet.": "No units registered yet.",
+    "done": "done"
 }

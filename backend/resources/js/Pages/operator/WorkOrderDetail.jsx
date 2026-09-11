@@ -657,7 +657,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, executionMode = 'batch' }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -726,8 +726,13 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                         )}
                     </div>
 
-                    {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
+                    {/* Steps — Unit mode (#290) progresses each piece through steps
+                        independently instead of one status for the whole batch. */}
+                    {executionMode === 'unit' ? (
+                        <UnitStepList batch={batch} steps={batch.steps ?? []} />
+                    ) : (
+                        <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
+                    )}
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -1024,6 +1029,145 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     step={completeModal.step}
                     onClose={() => setCompleteModal(null)}
                 />
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Unit-level (serial) execution — Phase 2 operator UI (#290)
+// ---------------------------------------------------------------------------
+
+/** Small colored badge for one unit's progress through one step. */
+function unitStepDotCls(status) {
+    switch (status) {
+        case 'DONE':
+            return 'bg-om-running text-white';
+        case 'IN_PROGRESS':
+            return 'bg-om-accent text-white';
+        case 'READY':
+            return 'bg-om-downtime text-om-ink';
+        case 'SKIPPED':
+            return 'bg-om-faint text-white';
+        default:
+            return 'bg-om-line2 text-om-faint';
+    }
+}
+
+/**
+ * Unit-mode counterpart to BatchStepList: instead of one Start/Complete per
+ * step for the whole batch, each registered piece (SerialUnit) progresses
+ * through the same steps independently — piece 2 can start step 1 while
+ * piece 1 is already on step 2. `batch.serial_units[].unit_steps` is loaded
+ * by WorkOrderController::show() (batches.serialUnits.unitSteps).
+ */
+function UnitStepList({ batch, steps }) {
+    const [inflightId, setInflightId] = useState(null);
+    const [serialNo, setSerialNo] = useState('');
+    const [autoGen, setAutoGen] = useState(false);
+    const [registering, setRegistering] = useState(false);
+
+    const stepName = (num) => steps.find((s) => s.step_number === num)?.name ?? `${__('Step')} ${num}`;
+
+    const handleRegister = (e) => {
+        e.preventDefault();
+        setRegistering(true);
+        router.post(
+            '/operator/unit/register',
+            { batch_id: batch.id, serial_no: autoGen ? '' : serialNo },
+            {
+                preserveScroll: true,
+                onSuccess: () => setSerialNo(''),
+                onFinish: () => setRegistering(false),
+            }
+        );
+    };
+
+    const handleAction = (unitStep, action) => {
+        setInflightId(unitStep.id);
+        router.post(
+            `/operator/unit-step/${unitStep.id}/${action}`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightId(null) }
+        );
+    };
+
+    const units = batch.serial_units ?? [];
+
+    return (
+        <div>
+            <h4 className={`${sectionLabelCls} mb-2`}>{__('Units')}</h4>
+
+            {/* Register a new piece — same manual/auto-generate shape as the LOT
+                number field on Create Batch, but per-piece serial numbers. */}
+            <form onSubmit={handleRegister} className="flex items-end gap-3 mb-4 bg-om-panel border border-om-line2 p-3 rounded-om-sm">
+                <div className="flex-1">
+                    <label className={fieldLabelCls}>{__('Serial No')}</label>
+                    <input
+                        type="text"
+                        value={serialNo}
+                        onChange={(e) => setSerialNo(e.target.value)}
+                        disabled={autoGen}
+                        className={`${inputCls} font-mono`}
+                        placeholder={__('Leave empty to auto-generate')}
+                    />
+                </div>
+                <Checkbox checked={autoGen} onChange={setAutoGen} label={__('Auto-generate')} />
+                <Button type="submit" variant="accent" disabled={registering} className="px-5 py-3 text-[14px] whitespace-nowrap">
+                    {registering ? '…' : __('Register Unit')}
+                </Button>
+            </form>
+
+            {units.length === 0 ? (
+                <p className="text-sm text-om-faint">{__('No units registered yet.')}</p>
+            ) : (
+                <div className="space-y-2">
+                    {units.map((unit) => {
+                        const unitSteps = (unit.unit_steps ?? []).slice().sort((a, b) => a.step_number - b.step_number);
+                        const current = unitSteps.find((s) => s.status === 'IN_PROGRESS') || unitSteps.find((s) => s.status === 'READY');
+                        const doneCount = unitSteps.filter((s) => s.status === 'DONE' || s.status === 'SKIPPED').length;
+                        const isInflight = current && inflightId === current.id;
+
+                        return (
+                            <div key={unit.id} className="flex items-center gap-4 border border-om-line2 rounded-om-sm p-3">
+                                <span className="font-mono text-[13px] text-om-accent w-36 truncate" title={unit.serial_no}>
+                                    {unit.serial_no}
+                                </span>
+
+                                <div className="flex gap-1">
+                                    {unitSteps.map((us) => (
+                                        <span
+                                            key={us.id}
+                                            title={`${stepName(us.step_number)}: ${us.status}`}
+                                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono font-semibold ${unitStepDotCls(us.status)}`}
+                                        >
+                                            {us.step_number}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                <span className="font-mono text-[11px] text-om-faint flex-1">
+                                    {doneCount}/{unitSteps.length} {__('done')}
+                                </span>
+
+                                {current ? (
+                                    <Button
+                                        variant={current.status === 'READY' ? 'accent' : 'primary'}
+                                        disabled={isInflight}
+                                        onClick={() => handleAction(current, current.status === 'READY' ? 'start' : 'complete')}
+                                        className="px-5 py-2.5 text-[13px] whitespace-nowrap"
+                                    >
+                                        {isInflight
+                                            ? '…'
+                                            : `${current.status === 'READY' ? __('Start') : __('Complete')} · ${stepName(current.step_number)}`}
+                                    </Button>
+                                ) : (
+                                    <StatusPill status={pillStatus('DONE')} label={statusLabel('DONE')} />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             )}
         </div>
     );
@@ -2161,6 +2305,7 @@ export default function WorkOrderDetail() {
                                             stepMedia={stepMedia}
                                             stepChecklists={stepChecklists}
                                             stepOutputs={stepOutputs}
+                                            executionMode={workOrder.process_snapshot?.execution_mode ?? 'batch'}
                                         />
                                     ))}
                                 </div>

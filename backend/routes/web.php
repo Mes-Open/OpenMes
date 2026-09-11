@@ -58,10 +58,11 @@ use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
-// Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
+// Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
+use App\Http\Controllers\Web\Operator\UnitStepController as OperatorUnitStepController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
@@ -304,6 +305,12 @@ Route::middleware('auth')->group(function () {
         // Typed step outputs — operator records a value (incl. picture upload).
         Route::post('/batch-step/{batchStep}/outputs/{output}', [OperatorBatchController::class, 'recordOutput'])->name('batch-step.outputs.record');
         Route::get('/batch-step-output/{batchStepOutputValue}/file', [OperatorBatchController::class, 'showOutputFile'])->name('batch-step-output.file');
+
+        // Unit-level (serial) execution (#290) — Phase 2 operator UI, only
+        // relevant for a batch whose process template runs execution_mode 'unit'.
+        Route::post('/unit/register', [OperatorUnitStepController::class, 'register'])->name('unit.register');
+        Route::post('/unit-step/{unitStep}/start', [OperatorUnitStepController::class, 'start'])->name('unit-step.start');
+        Route::post('/unit-step/{unitStep}/complete', [OperatorUnitStepController::class, 'complete'])->name('unit-step.complete');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');

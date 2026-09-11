@@ -92,6 +92,12 @@ class Batch extends Model
         return $this->hasMany(BatchStep::class)->orderBy('step_number');
     }
 
+    /** Registered pieces for a Unit-mode batch (#290) — empty for a Batch-mode one. */
+    public function serialUnits(): HasMany
+    {
+        return $this->hasMany(SerialUnit::class);
+    }
+
     /**
      * Check if all steps are complete. Every step must be DONE or SKIPPED, and
      * each variant group must have one executed (DONE) step — a fully-skipped
