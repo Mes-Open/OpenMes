@@ -5993,5 +5993,8 @@
     "Manufacturing — apparel decoration": "Produkcja — zdobienie odzieży",
     "Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.": "Cztery linie produkujące filtry HEPA, węglowe i HVAC. Wielopoziomowy BOM z pięcioma półproduktami, więc braki materiałowe i zapotrzebowanie netto mają co rozwijać.",
     "DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans.": "Linie DTG, sitodruku, haftu i transferu zdobiące koszulki, bluzy i akcesoria. Dziesięć typów wyrobów, struktura ISA-95, brygady i plany kontroli.",
-    "Reported Issues": "Zgłoszone problemy"
+    "Reported Issues": "Zgłoszone problemy",
+    "Precision machine shop": "Zakład obróbki skrawaniem",
+    "Manufacturing — metalworking / CNC": "Produkcja — obróbka metali / CNC",
+    "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Cięcie, toczenie i frezowanie CNC, obróbka cieplna, szlifowanie i pomiary na CMM. Detale liczone w dziesiątkach na godzinę, długie cykle i trzypoziomowy BOM od gotowego wału po pręt."
 }

@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Database\Seeders\AirFilterDemoSeeder;
 use Database\Seeders\HrDemoSeeder;
+use Database\Seeders\MachineShopDemoSeeder;
 use Database\Seeders\OeeAndDowntimeDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
@@ -35,6 +36,15 @@ class DemoDatasetRegistry
                 AirFilterDemoSeeder::class,
                 HrDemoSeeder::class,
                 OeeAndDowntimeDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+        'machine_shop' => [
+            'label' => 'Precision machine shop',
+            'description' => 'Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.',
+            'industry' => 'Manufacturing — metalworking / CNC',
+            'seeders' => [
+                MachineShopDemoSeeder::class,
                 ShiftMonitorDemoSeeder::class,
             ],
         ],

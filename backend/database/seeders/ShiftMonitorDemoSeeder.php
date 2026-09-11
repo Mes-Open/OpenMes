@@ -73,6 +73,14 @@ class ShiftMonitorDemoSeeder extends Seeder
         'dryer' => 1400,
         'exposure' => 200,
         'packing' => 800,
+        // Metal removal: tens of parts an hour, and a furnace runs in batches.
+        'saw' => 60,
+        'deburr' => 90,
+        'lathe' => 25,
+        'mill' => 12,
+        'furnace' => 80,
+        'grinder' => 30,
+        'cmm' => 20,
     ];
 
     private const DEFAULT_RATE = 500;

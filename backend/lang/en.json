@@ -5993,5 +5993,8 @@
     "Manufacturing — apparel decoration": "Manufacturing — apparel decoration",
     "Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.": "Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.",
     "DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans.": "DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans.",
-    "Reported Issues": "Reported Issues"
+    "Reported Issues": "Reported Issues",
+    "Precision machine shop": "Precision machine shop",
+    "Manufacturing — metalworking / CNC": "Manufacturing — metalworking / CNC",
+    "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock."
 }
