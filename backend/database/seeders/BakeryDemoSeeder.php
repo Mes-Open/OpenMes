@@ -359,10 +359,10 @@ class BakeryDemoSeeder extends Seeder
         $users = [];
 
         $supervisor = User::updateOrCreate(
-            ['username' => 'grazyna.wojcik'],
+            ['username' => 'helen.marsh'],
             [
-                'name' => 'Grażyna Wójcik',
-                'email' => 'grazyna.wojcik@piekarnia.local',
+                'name' => 'Helen Marsh',
+                'email' => 'helen.marsh@goldensheaf.local',
                 'password' => Hash::make('Supervisor1!'),
                 'account_type' => 'user',
                 'force_password_change' => false,
@@ -375,10 +375,10 @@ class BakeryDemoSeeder extends Seeder
         $users[] = $supervisor;
 
         $operatorDefs = [
-            ['username' => 'janusz.mlynarz', 'name' => 'Janusz Młynarz', 'email' => 'janusz.mlynarz@piekarnia.local', 'lines' => ['DOUGH', 'PROOF']],
-            ['username' => 'kasia.piec',     'name' => 'Katarzyna Piec', 'email' => 'katarzyna.piec@piekarnia.local', 'lines' => ['BAKE']],
-            ['username' => 'adam.cukier',    'name' => 'Adam Cukier',    'email' => 'adam.cukier@piekarnia.local',    'lines' => ['PASTRY']],
-            ['username' => 'olga.pakuje',    'name' => 'Olga Pakuła',    'email' => 'olga.pakula@piekarnia.local',    'lines' => ['PACK', 'DISP']],
+            ['username' => 'tom.baker',   'name' => 'Tom Baker',    'email' => 'tom.baker@goldensheaf.local',   'lines' => ['DOUGH', 'PROOF']],
+            ['username' => 'ruth.oven',   'name' => 'Ruth Ovenden', 'email' => 'ruth.ovenden@goldensheaf.local', 'lines' => ['BAKE']],
+            ['username' => 'nina.frost',  'name' => 'Nina Frost',   'email' => 'nina.frost@goldensheaf.local',   'lines' => ['PASTRY']],
+            ['username' => 'greg.hale',   'name' => 'Greg Hale',    'email' => 'greg.hale@goldensheaf.local',    'lines' => ['PACK', 'DISP']],
         ];
 
         foreach ($operatorDefs as $def) {
@@ -408,12 +408,12 @@ class BakeryDemoSeeder extends Seeder
     private function seedCustomers(): array
     {
         $defs = [
-            ['code' => 'CUST-DELIKAT',  'name' => 'Delikatesy Centrum',   'tier' => Tier::Vip,    'payment_score' => 93, 'notes' => 'Twelve stores on the morning round. Standing order adjusted by phone before 20:00.'],
+            ['code' => 'CUST-FINEFARE', 'name' => 'FineFare Food Halls', 'tier' => Tier::Vip,    'payment_score' => 93, 'notes' => 'Twelve stores on the morning round. Standing order adjusted by phone before 20:00.'],
             ['code' => 'CUST-HOTELREG', 'name' => 'Hotel Regent',         'tier' => Tier::Gold,   'payment_score' => 87, 'notes' => 'Breakfast delivery by 05:30, no exceptions. Croissants and baguettes daily.'],
-            ['code' => 'CUST-SZKOLA',   'name' => 'Catering Szkolny',     'tier' => Tier::Gold,   'payment_score' => 72, 'notes' => 'School catering. Allergen declaration required with every delivery note.'],
-            ['code' => 'CUST-KAWIARNIA', 'name' => 'Kawiarnia Alt',       'tier' => Tier::Silver, 'payment_score' => 64, 'notes' => 'Small daily order of pastry and cheesecake. Orders late, pays on time.'],
-            ['code' => 'CUST-HURT',     'name' => 'Hurtownia Spożywcza',  'tier' => Tier::Silver, 'payment_score' => 55, 'notes' => 'Wholesale rolls in bulk. Price-driven, tolerant on delivery windows.'],
-            ['code' => 'CUST-SKLEP',    'name' => 'Sklep firmowy',        'tier' => Tier::Bronze, 'payment_score' => 48, 'notes' => 'Our own shop. Takes whatever the round does not, so the order moves daily.'],
+            ['code' => 'CUST-SCHOOLS',  'name' => 'County School Catering', 'tier' => Tier::Gold,   'payment_score' => 72, 'notes' => 'School catering. Allergen declaration required with every delivery note.'],
+            ['code' => 'CUST-CAFEALT',  'name' => 'Café Alt',            'tier' => Tier::Silver, 'payment_score' => 64, 'notes' => 'Small daily order of pastry and cheesecake. Orders late, pays on time.'],
+            ['code' => 'CUST-WHOLE',    'name' => 'Northgate Wholesale', 'tier' => Tier::Silver, 'payment_score' => 55, 'notes' => 'Wholesale rolls in bulk. Price-driven, tolerant on delivery windows.'],
+            ['code' => 'CUST-SHOP',     'name' => 'Bakery Shop (own)',   'tier' => Tier::Bronze, 'payment_score' => 48, 'notes' => 'Our own shop. Takes whatever the round does not, so the order moves daily.'],
         ];
 
         $customers = [];
@@ -445,7 +445,7 @@ class BakeryDemoSeeder extends Seeder
 
             $order->forceFill([
                 'customer_id' => $customer->id,
-                'customer_order_no' => sprintf('ZAM-%s-%04d', now()->year, 4000 + $i),
+                'customer_order_no' => sprintf('PO-%s-%04d', now()->year, 4000 + $i),
             ])->saveQuietly();
         }
     }
@@ -467,7 +467,7 @@ class BakeryDemoSeeder extends Seeder
                 'due_date' => now()->addDay()->setTime(5, 0),
                 'planned_start_at' => now()->setTime(23, 0),
                 'planned_end_at' => now()->addDay()->setTime(4, 0),
-                'description' => 'Kaiser rolls — Delikatesy Centrum morning round, twelve stores.',
+                'description' => 'Kaiser rolls — FineFare morning round, twelve stores.',
             ],
             [
                 'order_no' => 'WO-BK-0002',
@@ -777,16 +777,16 @@ class BakeryDemoSeeder extends Seeder
         $typeIds = MaterialType::pluck('id', 'code');
 
         $defs = [
-            ['code' => 'MAT-FLOUR-750',  'name' => 'Wheat flour type 750',     'type' => 'raw_material', 'unit' => 'kg',    'stock' => 2400, 'price' => 2.35, 'supplier' => 'Młyn Wisła'],
-            ['code' => 'MAT-FLOUR-RYE',  'name' => 'Rye flour type 720',       'type' => 'raw_material', 'unit' => 'kg',    'stock' => 860,  'price' => 2.80, 'supplier' => 'Młyn Wisła'],
-            ['code' => 'MAT-FLOUR-GRAH', 'name' => 'Graham flour type 1850',   'type' => 'raw_material', 'unit' => 'kg',    'stock' => 520,  'price' => 3.10, 'supplier' => 'Młyn Wisła'],
-            ['code' => 'MAT-YEAST',      'name' => 'Fresh yeast',              'type' => 'raw_material', 'unit' => 'kg',    'stock' => 48,   'price' => 9.60, 'supplier' => 'Lesaffre'],
-            ['code' => 'MAT-SALT',       'name' => 'Bakers salt',              'type' => 'raw_material', 'unit' => 'kg',    'stock' => 310,  'price' => 1.40, 'supplier' => 'Kłodawa'],
-            ['code' => 'MAT-BUTTER',     'name' => 'Butter 82%, sheet',        'type' => 'raw_material', 'unit' => 'kg',    'stock' => 180,  'price' => 32.50, 'supplier' => 'Mlekovita'],
-            ['code' => 'MAT-SUGAR',      'name' => 'Caster sugar',             'type' => 'raw_material', 'unit' => 'kg',    'stock' => 260,  'price' => 3.90, 'supplier' => 'Pfeifer & Langen'],
-            ['code' => 'MAT-EGG',        'name' => 'Pasteurised whole egg',    'type' => 'raw_material', 'unit' => 'litre', 'stock' => 140,  'price' => 11.20, 'supplier' => 'Ovopol'],
-            ['code' => 'MAT-CURD',       'name' => 'Curd cheese, cheesecake grade', 'type' => 'raw_material', 'unit' => 'kg', 'stock' => 95, 'price' => 14.80, 'supplier' => 'Mlekovita'],
-            ['code' => 'MAT-CREAM',      'name' => 'Cream 36%',                'type' => 'raw_material', 'unit' => 'litre', 'stock' => 70,   'price' => 16.40, 'supplier' => 'Mlekovita'],
+            ['code' => 'MAT-FLOUR-750',  'name' => 'Wheat flour type 750',     'type' => 'raw_material', 'unit' => 'kg',    'stock' => 2400, 'price' => 2.35, 'supplier' => 'Riverside Mills'],
+            ['code' => 'MAT-FLOUR-RYE',  'name' => 'Rye flour type 720',       'type' => 'raw_material', 'unit' => 'kg',    'stock' => 860,  'price' => 2.80, 'supplier' => 'Riverside Mills'],
+            ['code' => 'MAT-FLOUR-GRAH', 'name' => 'Graham flour type 1850',   'type' => 'raw_material', 'unit' => 'kg',    'stock' => 520,  'price' => 3.10, 'supplier' => 'Riverside Mills'],
+            ['code' => 'MAT-YEAST',      'name' => 'Fresh yeast',              'type' => 'raw_material', 'unit' => 'kg',    'stock' => 48,   'price' => 9.60, 'supplier' => 'Fermenta Yeast'],
+            ['code' => 'MAT-SALT',       'name' => 'Bakers salt',              'type' => 'raw_material', 'unit' => 'kg',    'stock' => 310,  'price' => 1.40, 'supplier' => 'Saltworks Ltd'],
+            ['code' => 'MAT-BUTTER',     'name' => 'Butter 82%, sheet',        'type' => 'raw_material', 'unit' => 'kg',    'stock' => 180,  'price' => 32.50, 'supplier' => 'Dalefarm Dairy'],
+            ['code' => 'MAT-SUGAR',      'name' => 'Caster sugar',             'type' => 'raw_material', 'unit' => 'kg',    'stock' => 260,  'price' => 3.90, 'supplier' => 'Westfield Sugar'],
+            ['code' => 'MAT-EGG',        'name' => 'Pasteurised whole egg',    'type' => 'raw_material', 'unit' => 'litre', 'stock' => 140,  'price' => 11.20, 'supplier' => 'Eggcel Foods'],
+            ['code' => 'MAT-CURD',       'name' => 'Curd cheese, cheesecake grade', 'type' => 'raw_material', 'unit' => 'kg', 'stock' => 95, 'price' => 14.80, 'supplier' => 'Dalefarm Dairy'],
+            ['code' => 'MAT-CREAM',      'name' => 'Cream 36%',                'type' => 'raw_material', 'unit' => 'litre', 'stock' => 70,   'price' => 16.40, 'supplier' => 'Dalefarm Dairy'],
             ['code' => 'MAT-SEEDS',      'name' => 'Seed mix (sesame, poppy, sunflower)', 'type' => 'raw_material', 'unit' => 'kg', 'stock' => 85, 'price' => 12.90, 'supplier' => 'Bakels'],
             ['code' => 'MAT-IMPROVER',   'name' => 'Bread improver',           'type' => 'auxiliary',    'unit' => 'kg',    'stock' => 42,   'price' => 18.50, 'supplier' => 'Bakels'],
 
@@ -1050,13 +1050,13 @@ class BakeryDemoSeeder extends Seeder
         // Food traceability is lot-driven: a recall has to reach every loaf
         // made from one sack of flour.
         $lots = [
-            ['lot' => 'MAKA-750-26014', 'material' => 'MAT-FLOUR-750',  'qty' => 1000, 'unit' => 'kg',    'supplier_lot' => 'MW-750-26014'],
-            ['lot' => 'MAKA-RYE-26011', 'material' => 'MAT-FLOUR-RYE',  'qty' => 400,  'unit' => 'kg',    'supplier_lot' => 'MW-720-26011'],
-            ['lot' => 'MAKA-GR-26009',  'material' => 'MAT-FLOUR-GRAH', 'qty' => 250,  'unit' => 'kg',    'supplier_lot' => 'MW-1850-26009'],
-            ['lot' => 'MASLO-26-0142',  'material' => 'MAT-BUTTER',     'qty' => 100,  'unit' => 'kg',    'supplier_lot' => 'MLK-B82-0142'],
-            ['lot' => 'TWAROG-26-0088', 'material' => 'MAT-CURD',       'qty' => 60,   'unit' => 'kg',    'supplier_lot' => 'MLK-TW-0088'],
-            ['lot' => 'JAJA-26-0231',   'material' => 'MAT-EGG',        'qty' => 80,   'unit' => 'litre', 'supplier_lot' => 'OVO-PW-0231'],
-            ['lot' => 'DROZ-26-0455',   'material' => 'MAT-YEAST',      'qty' => 25,   'unit' => 'kg',    'supplier_lot' => 'LSF-FR-0455'],
+            ['lot' => 'FLR-750-26014', 'material' => 'MAT-FLOUR-750',  'qty' => 1000, 'unit' => 'kg',    'supplier_lot' => 'RM-750-26014'],
+            ['lot' => 'FLR-RYE-26011', 'material' => 'MAT-FLOUR-RYE',  'qty' => 400,  'unit' => 'kg',    'supplier_lot' => 'RM-720-26011'],
+            ['lot' => 'FLR-GRA-26009',  'material' => 'MAT-FLOUR-GRAH', 'qty' => 250,  'unit' => 'kg',    'supplier_lot' => 'RM-1850-26009'],
+            ['lot' => 'BTR-26-0142',  'material' => 'MAT-BUTTER',     'qty' => 100,  'unit' => 'kg',    'supplier_lot' => 'DF-B82-0142'],
+            ['lot' => 'CRD-26-0088', 'material' => 'MAT-CURD',       'qty' => 60,   'unit' => 'kg',    'supplier_lot' => 'DF-CRD-0088'],
+            ['lot' => 'EGG-26-0231',   'material' => 'MAT-EGG',        'qty' => 80,   'unit' => 'litre', 'supplier_lot' => 'EF-PW-0231'],
+            ['lot' => 'YST-26-0455',   'material' => 'MAT-YEAST',      'qty' => 25,   'unit' => 'kg',    'supplier_lot' => 'FY-FR-0455'],
         ];
 
         foreach ($lots as $def) {
@@ -1184,12 +1184,12 @@ class BakeryDemoSeeder extends Seeder
         $site = Site::updateOrCreate(
             ['code' => 'PIEK-01'],
             [
-                'name' => 'Piekarnia Złoty Kłos',
+                'name' => 'Golden Sheaf Bakery',
                 'description' => 'Craft bakery: bread, rolls and cakes, baked overnight for the morning round',
-                'address' => 'ul. Piekarska 22',
-                'city' => 'Kraków',
-                'country' => 'PL',
-                'timezone' => 'Europe/Warsaw',
+                'address' => '22 Baker Street',
+                'city' => 'Leeds',
+                'country' => 'GB',
+                'timezone' => 'Europe/London',
                 'is_active' => true,
             ]
         );
