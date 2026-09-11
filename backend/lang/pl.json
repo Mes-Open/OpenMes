@@ -6003,5 +6003,8 @@
     "I understand the current database will be wiped and replaced": "Rozumiem, że obecna baza zostanie wyczyszczona i zastąpiona",
     "Replace Sample Data": "Zastąp dane przykładowe",
     "Sample data has already been loaded. Tick the confirmation to replace it with a different example company.": "Dane przykładowe zostały już załadowane. Zaznacz potwierdzenie, aby zastąpić je inną przykładową firmą.",
-    "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Nie można zastąpić danych przykładowych: ADMIN_USERNAME, ADMIN_EMAIL lub ADMIN_PASSWORD nie jest skonfigurowane."
+    "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Nie można zastąpić danych przykładowych: ADMIN_USERNAME, ADMIN_EMAIL lub ADMIN_PASSWORD nie jest skonfigurowane.",
+    "Panel furniture factory": "Fabryka mebli płytowych",
+    "Manufacturing — furniture": "Produkcja — meble",
+    "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.": "Szafy, komody, biurka i szafki kuchenne do samodzielnego montażu, z płyty laminowanej. Cały zakład stoi w kolejce za jedną piłą panelową, a BOM to łańcuch przekształceń — płyta, formatka, element oklejony, korpus — cztery poziomy produkcyjne w głąb."
 }

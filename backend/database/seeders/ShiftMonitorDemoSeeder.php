@@ -95,6 +95,25 @@ class ShiftMonitorDemoSeeder extends Seeder
         'decorating' => 200,
         'cooling' => 3000,
         'slicer' => 900,
+        // Panel furniture: a beam saw throws off parts in the hundreds, a case
+        // clamp builds one box at a time.
+        'panel_saw' => 400,
+        'nesting_router' => 90,
+        'part_labeling' => 900,
+        'edgebander' => 240,
+        'edgebander_double' => 480,
+        'postformer' => 120,
+        'cnc_boring' => 110,
+        'dowel_inserter' => 600,
+        'hinge_borer' => 300,
+        'membrane_press' => 60,
+        'uv_coater' => 150,
+        'profile_wrapper' => 180,
+        'drawer_assembly' => 90,
+        'case_clamp' => 30,
+        'kitting' => 120,
+        'flatpack_packing' => 60,
+        'palletising' => 200,
     ];
 
     private const DEFAULT_RATE = 500;

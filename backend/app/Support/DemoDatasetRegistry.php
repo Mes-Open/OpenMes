@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Database\Seeders\BakeryDemoSeeder;
 use Database\Seeders\MachineShopDemoSeeder;
+use Database\Seeders\PanelFurnitureDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 
@@ -41,6 +42,15 @@ class DemoDatasetRegistry
             'industry' => 'Manufacturing — metalworking / CNC',
             'seeders' => [
                 MachineShopDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+        'panel_furniture' => [
+            'label' => 'Panel furniture factory',
+            'description' => 'Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.',
+            'industry' => 'Manufacturing — furniture',
+            'seeders' => [
+                PanelFurnitureDemoSeeder::class,
                 ShiftMonitorDemoSeeder::class,
             ],
         ],

@@ -7,6 +7,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Example companies are now a choice, not a fixture.** Settings → Data offers a picker of
+  whole demo plants — each one its own lines, products, routings, bill of materials, orders,
+  customers, tooling, reported problems and shift history. Four are available: a garment print
+  shop, a precision machine shop, a craft bakery and a panel furniture factory. Picking a
+  different one replaces the current data, and the admin is signed back in afterwards.
+- **Panel furniture factory dataset** — flat-pack wardrobes, chests, desks and kitchen units.
+  The deepest bill of materials of the four: board becomes a blank, a blank becomes an edged
+  panel, edged panels become a carcase, and only then a product. The edged panel is drawn by
+  eight parents, so net requirements has to sum them before it knows what to build.
+
 ## [0.22.0] - 2026-09-08
 
 ### Added
