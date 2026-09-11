@@ -5982,8 +5982,6 @@
     "All Production Lines": "Wszystkie linie produkcyjne",
     "API Keys": "Klucze API",
     "Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.": "Wybierz przykładową firmę do zainstalowania: jej linie, stanowiska, wyroby, marszruty, rozpiski materiałowe, zlecenia i historię zmian.",
-    "Example company already loaded: :company. To choose a different one, use Reset System at the bottom of this page — it wipes the database and signs you out, then you pick again at the next login.": "Przykładowa firma jest już załadowana: :company. Aby wybrać inną, użyj Reset System na dole tej strony — czyści bazę i wylogowuje, a wybór pojawi się przy kolejnym logowaniu.",
-    "Sample data has already been loaded. Use Reset System in Settings → Data to start over with a different example company.": "Dane przykładowe zostały już załadowane. Użyj Reset System w Ustawienia → Dane, aby zacząć od nowa z inną przykładową firmą.",
     "Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.": "Dane przykładowe załadowane: :company. Utworzono linie, zlecenia, operatorów i typy wyrobów.",
     "Choose which example company to load.": "Wybierz, którą przykładową firmę załadować.",
     "That example company does not exist.": "Taka przykładowa firma nie istnieje.",
@@ -5999,5 +5997,11 @@
     "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Cięcie, toczenie i frezowanie CNC, obróbka cieplna, szlifowanie i pomiary na CMM. Detale liczone w dziesiątkach na godzinę, długie cykle i trzypoziomowy BOM od gotowego wału po pręt.",
     "Craft bakery": "Piekarnia rzemieślnicza",
     "Food production — bakery": "Produkcja spożywcza — piekarnictwo",
-    "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.": "Chleb, bułki i ciasta wypiekane w nocy na poranną trasę. Zmiana nocna jest główna, a łańcuch receptur biegnie od bochenka przez ciasto po zakwas, który piekarnia prowadzi sama."
+    "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.": "Chleb, bułki i ciasta wypiekane w nocy na poranną trasę. Zmiana nocna jest główna, a łańcuch receptur biegnie od bochenka przez ciasto po zakwas, który piekarnia prowadzi sama.",
+    "An example company is already installed": "Przykładowa firma jest już zainstalowana",
+    "Currently loaded: :company. Picking another replaces it — the database is wiped first, and anything you created on top of the demo goes with it.": "Aktualnie załadowana: :company. Wybór innej ją zastąpi — baza zostanie najpierw wyczyszczona, razem ze wszystkim, co dodałeś na wierzchu dema.",
+    "I understand the current database will be wiped and replaced": "Rozumiem, że obecna baza zostanie wyczyszczona i zastąpiona",
+    "Replace Sample Data": "Zastąp dane przykładowe",
+    "Sample data has already been loaded. Tick the confirmation to replace it with a different example company.": "Dane przykładowe zostały już załadowane. Zaznacz potwierdzenie, aby zastąpić je inną przykładową firmą.",
+    "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Nie można zastąpić danych przykładowych: ADMIN_USERNAME, ADMIN_EMAIL lub ADMIN_PASSWORD nie jest skonfigurowane."
 }

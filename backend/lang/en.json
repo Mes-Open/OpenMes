@@ -5982,8 +5982,6 @@
     "All Production Lines": "All Production Lines",
     "API Keys": "API Keys",
     "Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.": "Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.",
-    "Example company already loaded: :company. To choose a different one, use Reset System at the bottom of this page — it wipes the database and signs you out, then you pick again at the next login.": "Example company already loaded: :company. To choose a different one, use Reset System at the bottom of this page — it wipes the database and signs you out, then you pick again at the next login.",
-    "Sample data has already been loaded. Use Reset System in Settings → Data to start over with a different example company.": "Sample data has already been loaded. Use Reset System in Settings → Data to start over with a different example company.",
     "Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.": "Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.",
     "Choose which example company to load.": "Choose which example company to load.",
     "That example company does not exist.": "That example company does not exist.",
@@ -5999,5 +5997,11 @@
     "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.",
     "Craft bakery": "Craft bakery",
     "Food production — bakery": "Food production — bakery",
-    "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.": "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself."
+    "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.": "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.",
+    "An example company is already installed": "An example company is already installed",
+    "Currently loaded: :company. Picking another replaces it — the database is wiped first, and anything you created on top of the demo goes with it.": "Currently loaded: :company. Picking another replaces it — the database is wiped first, and anything you created on top of the demo goes with it.",
+    "I understand the current database will be wiped and replaced": "I understand the current database will be wiped and replaced",
+    "Replace Sample Data": "Replace Sample Data",
+    "Sample data has already been loaded. Tick the confirmation to replace it with a different example company.": "Sample data has already been loaded. Tick the confirmation to replace it with a different example company.",
+    "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured."
 }

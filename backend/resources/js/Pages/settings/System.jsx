@@ -902,18 +902,20 @@ export default function System() {
                             {__('Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.')}
                         </p>
 
-                        {loadedDemoDataset ? (
-                            // One dataset per database — they are alternative
-                            // plants, not layers, so once one is in there is
-                            // nothing sensible to choose.
-                            <InlineAlert severity="info" title={__('Sample Data')}>
-                                {__('Example company already loaded: :company. To choose a different one, use Reset System at the bottom of this page — it wipes the database and signs you out, then you pick again at the next login.', {
-                                    company: demoDatasets.find((d) => d.key === loadedDemoDataset)?.label ?? loadedDemoDataset,
-                                })}
-                            </InlineAlert>
-                        ) : (
+                        {loadedDemoDataset && (
+                            <div className="mb-4">
+                                <InlineAlert severity="warning" title={__('An example company is already installed')}>
+                                    {__('Currently loaded: :company. Picking another replaces it — the database is wiped first, and anything you created on top of the demo goes with it.', {
+                                        company: demoDatasets.find((d) => d.key === loadedDemoDataset)?.label ?? loadedDemoDataset,
+                                    })}
+                                </InlineAlert>
+                            </div>
+                        )}
+
+                        {(
                             <form method="POST" action="/settings/sample-data">
                                 <input type="hidden" name="_token" value={csrf_token} />
+                                {loadedDemoDataset && <input type="hidden" name="replace" value="1" />}
 
                                 <div className="grid gap-3 sm:grid-cols-2 mb-4">
                                     {demoDatasets.map((set) => (
@@ -945,10 +947,16 @@ export default function System() {
                                     <Checkbox
                                         checked={sampleConfirm}
                                         onChange={setSampleConfirm}
-                                        label={__('I understand this will add demo data to the system')}
+                                        label={loadedDemoDataset
+                                            ? __('I understand the current database will be wiped and replaced')
+                                            : __('I understand this will add demo data to the system')}
                                     />
-                                    <Button type="submit" variant="secondary" disabled={! sampleConfirm || ! dataset}>
-                                        {__('Load Sample Data')}
+                                    <Button
+                                        type="submit"
+                                        variant={loadedDemoDataset ? 'danger' : 'secondary'}
+                                        disabled={! sampleConfirm || ! dataset || dataset === loadedDemoDataset}
+                                    >
+                                        {loadedDemoDataset ? __('Replace Sample Data') : __('Load Sample Data')}
                                     </Button>
                                 </div>
                             </form>

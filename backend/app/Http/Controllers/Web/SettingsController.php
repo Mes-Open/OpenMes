@@ -311,19 +311,25 @@ class SettingsController extends Controller
      */
     public function loadSampleData(\App\Http\Requests\LoadSampleDataRequest $request)
     {
-        // One load per database. The datasets are alternative plants rather
-        // than layers, so seeding a second one on top would leave two sets of
-        // lines and products in the same install — and re-running one over
-        // itself races on unique keys (the 409s seen in the field).
-        if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
+        $alreadyLoaded = DB::table('system_settings')->where('key', 'sample_data_loaded')->exists();
+        $replace = (bool) ($request->validated()['replace'] ?? false);
+
+        // The datasets are alternative plants, not layers: seeding a second on
+        // top would leave two sets of lines and products in one install, and
+        // re-running one over itself races on unique keys. So a switch is a
+        // replacement — everything goes, then the chosen company is installed.
+        if ($alreadyLoaded && ! $replace) {
             return redirect()->route('settings.system')
-                ->with('info', __('Sample data has already been loaded. Use Reset System in Settings → Data to start over with a different example company.'));
+                ->with('info', __('Sample data has already been loaded. Tick the confirmation to replace it with a different example company.'));
         }
 
-        // Guarded above, so the key is present whenever we get here.
         $dataset = $request->validated()['dataset'];
 
         try {
+            if ($alreadyLoaded) {
+                $this->wipeForReplacement();
+            }
+
             // Each dataset names its own seeders; the registry is the only
             // place a class name comes from, so the request cannot pick one.
             foreach (\App\Support\DemoDatasetRegistry::seedersFor($dataset) as $seeder) {
@@ -345,6 +351,63 @@ class SettingsController extends Controller
             'Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.',
             ['company' => \App\Support\DemoDatasetRegistry::labelFor($dataset)],
         ));
+    }
+
+    /**
+     * Clear the database so a different example company can be installed.
+     *
+     * Deliberately the same wipe the Reset System button performs, because the
+     * seeded data cannot be told apart from anything added on top of it — they
+     * share the same tables. The admin is recreated from the configured
+     * credentials and signed straight back in, so switching companies does not
+     * also mean losing the session.
+     */
+    private function wipeForReplacement(): void
+    {
+        $username = config('openmmes.admin.username');
+        $email = config('openmmes.admin.email');
+        $password = config('openmmes.admin.password');
+
+        if (empty($username) || empty($email) || empty($password)) {
+            throw new \RuntimeException(__('Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.'));
+        }
+
+        // Octane keeps connections and query plans between requests, so the
+        // schema has to be dropped on a connection that is then thrown away.
+        //
+        // Never on an in-memory SQLite database, though: there the connection
+        // *is* the database, so purging it discards every table rather than
+        // refreshing a handle.
+        $inMemory = DB::connection()->getDriverName() === 'sqlite'
+            && DB::connection()->getDatabaseName() === ':memory:';
+
+        if (! $inMemory) {
+            DB::purge();
+            DB::reconnect();
+        }
+
+        Artisan::call('migrate:fresh', ['--force' => true]);
+        Artisan::call('db:seed', ['--force' => true]);
+
+        if (! $inMemory) {
+            DB::purge();
+            DB::reconnect();
+        }
+
+        $admin = \App\Models\User::create([
+            'name' => 'Administrator',
+            'username' => $username,
+            'email' => $email,
+            'password' => Hash::make($password),
+            'account_type' => 'user',
+            'force_password_change' => false,
+            'email_verified_at' => now(),
+        ]);
+        $admin->assignRole('Admin');
+
+        // Sessions are cookie-backed, so the wipe does not end this one — but
+        // the user row it points at is gone, so log the new admin in.
+        \Illuminate\Support\Facades\Auth::login($admin);
     }
 
     /**
