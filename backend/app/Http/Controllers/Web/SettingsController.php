@@ -317,7 +317,7 @@ class SettingsController extends Controller
         // itself races on unique keys (the 409s seen in the field).
         if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
             return redirect()->route('settings.system')
-                ->with('info', __('Sample data has already been loaded. Reset the database to load a different example company.'));
+                ->with('info', __('Sample data has already been loaded. Use Reset System in Settings → Data to start over with a different example company.'));
         }
 
         // Guarded above, so the key is present whenever we get here.

@@ -907,7 +907,7 @@ export default function System() {
                             // plants, not layers, so once one is in there is
                             // nothing sensible to choose.
                             <InlineAlert severity="info" title={__('Sample Data')}>
-                                {__('Example company already loaded: :company. Reset the database to choose a different one.', {
+                                {__('Example company already loaded: :company. To choose a different one, use Reset System at the bottom of this page — it wipes the database and signs you out, then you pick again at the next login.', {
                                     company: demoDatasets.find((d) => d.key === loadedDemoDataset)?.label ?? loadedDemoDataset,
                                 })}
                             </InlineAlert>
