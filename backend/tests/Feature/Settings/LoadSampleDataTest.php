@@ -43,16 +43,16 @@ class LoadSampleDataTest extends TestCase
 
         // The print shop's own products, not the other dataset's.
         $this->assertDatabaseHas('product_types', ['code' => 'TSHIRT']);
-        $this->assertDatabaseMissing('product_types', ['code' => 'HEPA13_STD']);
+        $this->assertDatabaseMissing('product_types', ['code' => 'SHAFT40']);
     }
 
     public function test_each_dataset_installs_its_own_plant(): void
     {
         $this->actingAs($this->admin())
-            ->post('/settings/sample-data', ['dataset' => 'air_filter'])
+            ->post('/settings/sample-data', ['dataset' => 'machine_shop'])
             ->assertSessionHas('success');
 
-        $this->assertDatabaseHas('product_types', ['code' => 'HEPA13_STD']);
+        $this->assertDatabaseHas('product_types', ['code' => 'SHAFT40']);
         $this->assertDatabaseMissing('product_types', ['code' => 'TSHIRT']);
     }
 
@@ -64,12 +64,12 @@ class LoadSampleDataTest extends TestCase
         $before = ProductType::count();
 
         $this->actingAs($admin)
-            ->post('/settings/sample-data', ['dataset' => 'air_filter'])
+            ->post('/settings/sample-data', ['dataset' => 'machine_shop'])
             ->assertSessionHas('info');
 
         // Nothing from the second plant leaked in.
         $this->assertSame($before, ProductType::count());
-        $this->assertDatabaseMissing('product_types', ['code' => 'HEPA13_STD']);
+        $this->assertDatabaseMissing('product_types', ['code' => 'SHAFT40']);
     }
 
     public function test_it_records_which_company_was_loaded(): void

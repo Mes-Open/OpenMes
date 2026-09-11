@@ -2,10 +2,7 @@
 
 namespace App\Support;
 
-use Database\Seeders\AirFilterDemoSeeder;
-use Database\Seeders\HrDemoSeeder;
 use Database\Seeders\MachineShopDemoSeeder;
-use Database\Seeders\OeeAndDowntimeDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 
@@ -28,17 +25,6 @@ class DemoDatasetRegistry
      * `seeders` run in order; each is idempotent on its own keys.
      */
     public const DATASETS = [
-        'air_filter' => [
-            'label' => 'Air filter plant',
-            'description' => 'Four lines building HEPA, carbon and HVAC filters. Multi-level BOM with five sub-assemblies, so material shortages and net requirements have something to explode.',
-            'industry' => 'Manufacturing — filtration',
-            'seeders' => [
-                AirFilterDemoSeeder::class,
-                HrDemoSeeder::class,
-                OeeAndDowntimeDemoSeeder::class,
-                ShiftMonitorDemoSeeder::class,
-            ],
-        ],
         'machine_shop' => [
             'label' => 'Precision machine shop',
             'description' => 'Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.',
