@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Database\Seeders\BakeryDemoSeeder;
 use Database\Seeders\MachineShopDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
@@ -25,6 +26,15 @@ class DemoDatasetRegistry
      * `seeders` run in order; each is idempotent on its own keys.
      */
     public const DATASETS = [
+        'bakery' => [
+            'label' => 'Craft bakery',
+            'description' => 'Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.',
+            'industry' => 'Food production — bakery',
+            'seeders' => [
+                BakeryDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
         'machine_shop' => [
             'label' => 'Precision machine shop',
             'description' => 'Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.',

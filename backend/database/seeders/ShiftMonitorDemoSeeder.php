@@ -81,6 +81,20 @@ class ShiftMonitorDemoSeeder extends Seeder
         'furnace' => 80,
         'grinder' => 30,
         'cmm' => 20,
+        // Bakery: rolls come off in thousands an hour, cakes in dozens.
+        'silo' => 5000,
+        'mixer' => 900,
+        'divider' => 3000,
+        'shaping' => 2400,
+        'proofer' => 3000,
+        'oven_deck' => 900,
+        'oven_rack' => 1200,
+        'oven_tunnel' => 3600,
+        'sheeter' => 800,
+        'depositor' => 600,
+        'decorating' => 200,
+        'cooling' => 3000,
+        'slicer' => 900,
     ];
 
     private const DEFAULT_RATE = 500;

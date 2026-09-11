@@ -4,6 +4,7 @@ namespace Tests\Feature\Seeders;
 
 use App\Models\WorkOrder;
 use Database\Seeders\AirFilterDemoSeeder;
+use Database\Seeders\BakeryDemoSeeder;
 use Database\Seeders\MachineShopDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,7 @@ class DemoHorizonTest extends TestCase
         return [
             'print shop' => [PrintShopDemoSeeder::class],
             'machine shop' => [MachineShopDemoSeeder::class],
+            'bakery' => [BakeryDemoSeeder::class],
             'air filter' => [AirFilterDemoSeeder::class],
         ];
     }

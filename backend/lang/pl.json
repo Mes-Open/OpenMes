@@ -5996,5 +5996,8 @@
     "Reported Issues": "Zgłoszone problemy",
     "Precision machine shop": "Zakład obróbki skrawaniem",
     "Manufacturing — metalworking / CNC": "Produkcja — obróbka metali / CNC",
-    "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Cięcie, toczenie i frezowanie CNC, obróbka cieplna, szlifowanie i pomiary na CMM. Detale liczone w dziesiątkach na godzinę, długie cykle i trzypoziomowy BOM od gotowego wału po pręt."
+    "Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.": "Cięcie, toczenie i frezowanie CNC, obróbka cieplna, szlifowanie i pomiary na CMM. Detale liczone w dziesiątkach na godzinę, długie cykle i trzypoziomowy BOM od gotowego wału po pręt.",
+    "Craft bakery": "Piekarnia rzemieślnicza",
+    "Food production — bakery": "Produkcja spożywcza — piekarnictwo",
+    "Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.": "Chleb, bułki i ciasta wypiekane w nocy na poranną trasę. Zmiana nocna jest główna, a łańcuch receptur biegnie od bochenka przez ciasto po zakwas, który piekarnia prowadzi sama."
 }

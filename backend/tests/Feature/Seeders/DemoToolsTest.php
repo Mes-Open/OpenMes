@@ -5,6 +5,7 @@ namespace Tests\Feature\Seeders;
 use App\Models\MaintenanceSchedule;
 use App\Models\Tool;
 use Database\Seeders\AirFilterDemoSeeder;
+use Database\Seeders\BakeryDemoSeeder;
 use Database\Seeders\MachineShopDemoSeeder;
 use Database\Seeders\PrintShopDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,7 @@ class DemoToolsTest extends TestCase
         return [
             'print shop' => [PrintShopDemoSeeder::class],
             'machine shop' => [MachineShopDemoSeeder::class],
+            'bakery' => [BakeryDemoSeeder::class],
             'air filter' => [AirFilterDemoSeeder::class],
         ];
     }
