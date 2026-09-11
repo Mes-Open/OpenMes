@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\RevisionLifecycle;
 use App\Enums\Tier;
 use App\Models\Area;
 use App\Models\BomItem;
@@ -20,6 +21,7 @@ use App\Models\OeeRecord;
 use App\Models\PersonnelClass;
 use App\Models\ProcessSegment;
 use App\Models\ProcessTemplate;
+use App\Models\ProductRevision;
 use App\Models\ProductType;
 use App\Models\Shift;
 use App\Models\Site;
@@ -80,6 +82,7 @@ class MachineShopDemoSeeder extends Seeder
         $this->seedShifts($lines);
         $materials = $this->seedMaterials($templates);
         $this->seedBom($templates, $materials);
+        $this->seedProductRevisions($productTypes, $templates, $users);
         $this->seedMaterialLots($materials);
         $this->seedIssues($lines, $users);
         $this->seedISA95Hierarchy($lines);
@@ -978,6 +981,99 @@ class MachineShopDemoSeeder extends Seeder
                     ]
                 );
             }
+        }
+    }
+
+    // ── Product revisions ────────────────────────────────────────────────────
+
+    /**
+     * Drawing revisions, and which one a part is currently built to.
+     *
+     * Nothing seeded these in any dataset, so the page came up empty. It
+     * belongs here more than anywhere: this shop's own routing tells the
+     * operator to check the revision against the order before cutting, because
+     * machining to a superseded drawing scraps the part and the bar it came
+     * from.
+     *
+     * Each part gets a released revision plus the history around it — an
+     * obsolete predecessor where the design moved on, and a draft where the
+     * next change is still being worked through. That is the sequence the
+     * lifecycle exists to represent, and one row per part would show none of it.
+     *
+     * @param  array<string, ProductType>  $pt
+     * @param  array<string, ProcessTemplate>  $templates
+     * @param  array<int, User>  $users
+     */
+    private function seedProductRevisions(array $pt, array $templates, array $users): void
+    {
+        $engineer = collect($users)->first();
+
+        // [product, code, status, description, change reason, released days ago]
+        $defs = [
+            // Superseded: tolerance opened up after the customer confirmed fit.
+            ['SHAFT40', 'A', RevisionLifecycle::Obsolete, 'Original release — bearing seats to h5',
+                'Superseded by rev B. h5 was tighter than the application needed and pushed grinding time up.', 420],
+            ['SHAFT40', 'B', RevisionLifecycle::Released, 'Bearing seats opened to h6, keyway to DIN 6885 A',
+                'Customer confirmed h6 is sufficient for the bearing fit. Cuts a grinding pass per part.', 95],
+            ['SHAFT40', 'C', RevisionLifecycle::Draft, 'Proposed: chamfer added at the keyway exit',
+                'Field reports of stress cracking at the keyway corner. Awaiting customer sign-off before release.', null],
+
+            ['PINION18', 'A', RevisionLifecycle::Obsolete, 'Original release — through-hardened',
+                'Superseded by rev B after premature tooth wear in service.', 610],
+            ['PINION18', 'B', RevisionLifecycle::Released, 'Case-hardened, 58-62 HRC, ground bore',
+                'Changed to case hardening so the tooth surface holds up while the core stays tough.', 210],
+
+            ['FLANGE150', 'A', RevisionLifecycle::Released, 'DN150 PN16 weld-neck, raised face',
+                'Initial release against the customer drawing, issue 3.', 300],
+
+            ['HOUSING', 'B', RevisionLifecycle::Released, 'Bores line-machined in one setup',
+                'Moved from two setups to one on the 5-axis. Centre distance now holds without hand-fitting.', 140],
+            ['HOUSING', 'C', RevisionLifecycle::Draft, 'Proposed: extra breather port on the top face',
+                'Requested by GearTec after a pressure build-up complaint. Not yet costed.', null],
+
+            ['MANIFOLD', 'A', RevisionLifecycle::Released, 'Ports to ISO 6149, 250 bar test',
+                'Initial release. Pressure test added to the routing at the customer\'s request.', 180],
+
+            ['BUSHING', 'A', RevisionLifecycle::Released, 'CuSn12, spiral oil groove',
+                'Initial release.', 500],
+
+            ['BASEPLATE', 'A', RevisionLifecycle::Released, 'S355, milled both faces, M12 pattern',
+                'Initial release.', 260],
+        ];
+
+        foreach ($defs as [$productCode, $code, $status, $description, $reason, $releasedAgo]) {
+            $productType = $pt[$productCode] ?? null;
+            if (! $productType) {
+                continue;
+            }
+
+            $releasedAt = $releasedAgo === null ? null : now()->subDays($releasedAgo);
+
+            ProductRevision::updateOrCreate(
+                ['product_type_id' => $productType->id, 'revision_code' => $code],
+                [
+                    'description' => $description,
+                    'change_reason' => $reason,
+                    'lifecycle_status' => $status,
+                    // A revision is built to a routing; the released one points
+                    // at the routing the shop is actually running.
+                    'process_template_id' => $status === RevisionLifecycle::Released
+                        ? ($templates[$productCode]?->id)
+                        : null,
+                    'external_ref' => sprintf('DRW-%s-%s', $productCode, $code),
+                    'effective_from' => $releasedAt,
+                    // An obsolete revision stopped being valid when its
+                    // successor was released.
+                    'effective_to' => $status === RevisionLifecycle::Obsolete
+                        ? now()->subDays(max(1, (int) $releasedAgo - 120))
+                        : null,
+                    'released_at' => $releasedAt,
+                    'obsolete_at' => $status === RevisionLifecycle::Obsolete
+                        ? now()->subDays(max(1, (int) $releasedAgo - 120))
+                        : null,
+                    'released_by_id' => $status === RevisionLifecycle::Draft ? null : $engineer?->id,
+                ]
+            );
         }
     }
 
