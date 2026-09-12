@@ -27,14 +27,14 @@ class TrashController extends Controller
 
         // Per-type counts feed the filter dropdown; only non-empty types listed.
         $counts = [];
-        foreach (SoftDeleteRegistry::MODELS as $type => $class) {
+        foreach (SoftDeleteRegistry::all() as $type => $class) {
             $count = $class::onlyTrashed()->count();
             if ($count > 0) {
                 $counts[$type] = $count;
             }
         }
 
-        $types = $selected ? [$selected => SoftDeleteRegistry::modelFor($selected)] : SoftDeleteRegistry::MODELS;
+        $types = $selected ? [$selected => SoftDeleteRegistry::modelFor($selected)] : SoftDeleteRegistry::all();
 
         $items = collect();
         foreach ($types as $type => $class) {

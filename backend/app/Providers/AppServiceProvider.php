@@ -27,6 +27,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
         $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
         $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
+        // Singletons, like the two registries above, and for the same Octane
+        // reason read the other way round: a module registers its listeners once
+        // in its provider's boot(), which under Octane runs once per worker and
+        // not once per request. A scoped binding would be flushed into a fresh
+        // empty registry on the second request and the module's contributions
+        // would silently vanish. Listeners are closures registered at boot, so
+        // nothing request-specific accumulates in here.
+        $this->app->singleton(\App\Extension\HookRegistry::class, fn () => new \App\Extension\HookRegistry);
+        $this->app->singleton(\App\Extension\FilterRegistry::class, fn () => new \App\Extension\FilterRegistry);
         // Request-scoped tenant for headless (API-key) contexts. Set per request
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.
@@ -157,15 +166,24 @@ class AppServiceProvider extends ServiceProvider
         // Sensitive models are excluded — ResourceChanged carries the full model
         // to third-party listeners, so we never hand out User (password hash) or
         // ApiKey (secret hash) rows.
-        $sensitive = [\App\Models\User::class, \App\Models\ApiKey::class];
-        $hookedModels = array_diff_key(
-            array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS)),
-            array_flip($sensitive),
-        );
+        //
+        // Resolved lazily rather than here: modules are loaded further down this
+        // same boot(), so a list built now would miss anything a module adds to
+        // the registry. By the time an Eloquent event fires every provider has
+        // booted. Memoised in the closure because this runs on every write.
+        $hookedModels = function (): array {
+            static $models = null;
+
+            return $models ??= array_diff_key(
+                array_flip(array_values(\App\Support\SoftDeleteRegistry::all())),
+                array_flip([\App\Models\User::class, \App\Models\ApiKey::class]),
+            );
+        };
         foreach (['created', 'updated', 'deleted'] as $verb) {
             Event::listen("eloquent.{$verb}: *", function (string $eventName, array $data) use ($hookedModels, $verb) {
                 $model = $data[0] ?? null;
-                if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hookedModels[$model::class])) {
+                $hooked = $hookedModels();
+                if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hooked[$model::class])) {
                     // A throwing module listener must never break the core write
                     // that triggered it (mirrors the best-effort webhook observers).
                     try {

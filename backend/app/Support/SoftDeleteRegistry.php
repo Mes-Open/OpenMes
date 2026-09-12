@@ -125,20 +125,35 @@ class SoftDeleteRegistry
     ];
 
     /** @return list<string> */
+    /**
+     * Every soft-deletable entity, including any an installed module registered.
+     *
+     * The constant stays the definition — migrations, seeders and the access
+     * matrix all read the same shape. This is the one seam through which an
+     * installed module can add to it; with no modules the array is returned
+     * untouched.
+     *
+     * @return array<string, mixed>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('softdeletes.models', self::MODELS);
+    }
+
     public static function tables(): array
     {
-        return array_keys(self::MODELS);
+        return array_keys(self::all());
     }
 
     /** @return class-string|null */
     public static function modelFor(string $type): ?string
     {
-        return self::MODELS[$type] ?? null;
+        return self::all()[$type] ?? null;
     }
 
     public static function isSoftDeletable(string $table): bool
     {
-        return array_key_exists($table, self::MODELS);
+        return array_key_exists($table, self::all());
     }
 
     /** Human-readable identifier of a trashed row for the Trash listing. */

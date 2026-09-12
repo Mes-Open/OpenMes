@@ -104,9 +104,24 @@ class TabRegistry
     ];
 
     /** @return array<int, string> */
+    /**
+     * Every tab, including any an installed module registered.
+     *
+     * The constant stays the definition — migrations, seeders and the access
+     * matrix all read the same shape. This is the one seam through which an
+     * installed module can add to it; with no modules the array is returned
+     * untouched.
+     *
+     * @return array<string, mixed>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('tabs.registry', self::TABS);
+    }
+
     public static function keys(): array
     {
-        return array_keys(self::TABS);
+        return array_keys(self::all());
     }
 
     /**
@@ -138,13 +153,13 @@ class TabRegistry
     /** tab key => label, for the matrix rows. @return array<string, string> */
     public static function labels(): array
     {
-        return array_map(fn ($t) => $t['label'], self::TABS);
+        return array_map(fn ($t) => $t['label'], self::all());
     }
 
     /** The primary landing path for a tab (its first prefix), or null. */
     public static function url(string $key): ?string
     {
-        return self::TABS[$key]['prefixes'][0] ?? null;
+        return self::all()[$key]['prefixes'][0] ?? null;
     }
 
     /** The Spatie permission name backing a tab. */
@@ -161,7 +176,7 @@ class TabRegistry
 
     public static function exists(string $key): bool
     {
-        return array_key_exists($key, self::TABS);
+        return array_key_exists($key, self::all());
     }
 
     /**
@@ -179,7 +194,7 @@ class TabRegistry
         $best = null;
         $bestLen = -1;
 
-        foreach (self::TABS as $key => $tab) {
+        foreach (self::all() as $key => $tab) {
             foreach ($tab['prefixes'] as $prefix) {
                 if (($path === $prefix || str_starts_with($path, $prefix.'/')) && strlen($prefix) > $bestLen) {
                     $best = $key;
@@ -203,7 +218,7 @@ class TabRegistry
             return null;
         }
 
-        foreach (self::TABS as $key => $tab) {
+        foreach (self::all() as $key => $tab) {
             if ($user->can(self::permission($key))) {
                 return $tab['prefixes'][0] ?? null;
             }
