@@ -18,6 +18,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   panel, edged panels become a carcase, and only then a product. The edged panel is drawn by
   eight parents, so net requirements has to sum them before it knows what to build.
 
+### Removed
+- **Area is no longer asked for on a production line.** The ISA-95 area dictionary left the
+  menu, so the line form was asking about something the user could no longer look up or
+  create. Nothing read the value — no report, no scheduling rule, no service — so the column
+  and the picker are gone from the list and both forms. Existing values stay in the database
+  untouched.
+
+### Fixed
+- **A line created from the list drawer can now be given its stock location.** The drawer
+  offered the area picker and not the warehouse one, so lines added without leaving the list
+  had nothing to consume material from until someone opened the full edit form.
+
 ## [0.22.0] - 2026-09-08
 
 ### Added

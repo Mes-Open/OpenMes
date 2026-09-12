@@ -6,14 +6,13 @@ import { __ } from '../../../lib/i18n';
 import { lineFields, lineInitial } from './fields';
 
 export default function LinesIndex() {
-    const { counts = {}, areaNames = {}, areas, customFields } = usePage().props;
+    const { counts = {}, warehouses, customFields } = usePage().props;
 
     const drawer = useResourceDrawer();
 
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text', link: true },
-        { key: 'area', label: __('Area'), className: 'text-om-muted', value: (r) => areaNames[r.area_id] ?? '—', render: (r) => areaNames[r.area_id] ?? '—' },
         { key: 'ws', label: __('Stations'), value: (r) => counts[r.id]?.workstations ?? 0, render: (r) => counts[r.id]?.workstations ?? 0 },
         { key: 'wo', label: __('Work Orders'), value: (r) => counts[r.id]?.work_orders ?? 0, render: (r) => counts[r.id]?.work_orders ?? 0 },
         { key: 'ops', label: __('Operators'), value: (r) => counts[r.id]?.operators ?? 0, render: (r) => counts[r.id]?.operators ?? 0 },
@@ -59,11 +58,11 @@ export default function LinesIndex() {
             <ResourceFormDrawer
                 {...drawer.props}
                 action="/admin/lines"
-                fields={lineFields(areas ?? [])}
+                fields={lineFields(warehouses ?? [])}
                 initial={lineInitial}
                 customFields={customFields}
-                ensure={['areas', 'customFields']}
-                ready={areas !== undefined}
+                ensure={['warehouses', 'customFields']}
+                ready={warehouses !== undefined}
                 title={{ create: __('New Production Line'), edit: __('Edit Production Line') }}
             />
         </>
