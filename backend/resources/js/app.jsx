@@ -1,16 +1,33 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { loadLocale, setTimezone } from './lib/i18n';
+import { resolvePage } from './lib/pageResolver';
 import './lib/echo'; // opens the single Reverb WebSocket
+
+// Pages come from two places: this app, and any module installed under the
+// repository's modules/ directory. Both globs are resolved by Vite at build
+// time; a glob that matches nothing yields {}, so a build with no modules
+// installed simply has an empty second map. The lookup itself lives in
+// lib/pageResolver.js, where it can be tested.
+const corePages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
+const modulePages = import.meta.glob('../../../modules/*/resources/js/Pages/**/*.jsx', { eager: true });
 
 createInertiaApp({
     resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
-        const page = pages[`./Pages/${name}.jsx`];
-        if (!page) {
-            throw new Error(`Inertia page not found: ${name} (expected resources/js/Pages/${name}.jsx)`);
+        const page = resolvePage(name, corePages, modulePages);
+        if (page) {
+            return page;
         }
-        return page;
+
+        // A route outliving its page — a module that isn't installed, or a stale
+        // link. This used to throw, which meant a white screen and the reason
+        // only in the console. Render something the user can act on instead.
+        console.warn(`Inertia page not found: ${name}`);
+
+        return import('./Pages/_MissingPage.jsx').then((module) => ({
+            ...module,
+            default: (props) => module.default({ ...props, __pageName: name }),
+        }));
     },
     async setup({ el, App, props }) {
         // Load the active locale's translation chunk before the first render so

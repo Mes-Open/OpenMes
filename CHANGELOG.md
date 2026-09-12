@@ -18,6 +18,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   panel, edged panels become a carcase, and only then a product. The edged panel is drawn by
   eight parents, so net requirements has to sum them before it knows what to build.
 
+- **Workers and Shifts are back in the menu.** Both pages still existed and still
+  worked, but nothing linked to them — and shift definitions feed OEE, downtime, scrap
+  and the shift monitor, so a system with no way to edit them silently ran on a fixed
+  06:00/18:00 split. Workers sits next to Users & Accounts, Shifts under Production.
+- **A module can now ship its own screens.** Pages are looked up in the app first and
+  then in any module installed under `modules/`, so a module is no longer limited to
+  server-rendered views. An installation with no modules behaves exactly as before.
+
+### Changed
+- **A page the build does not contain no longer white-screens.** Rendering an unknown
+  screen — a link that outlived its page, or a feature that is not installed — used to
+  throw, leaving a blank window with the reason only in the browser console. It now
+  shows a card that says the screen is unavailable.
+- **Release archives no longer carry locally installed modules.** Modules are by
+  definition not part of this repository, so a release built from it must not ship
+  them; the three bundled examples are unaffected.
+
 ### Removed
 - **Area is no longer asked for on a production line.** The ISA-95 area dictionary left the
   menu, so the line form was asking about something the user could no longer look up or

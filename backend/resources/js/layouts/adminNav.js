@@ -128,6 +128,7 @@ export const ADMIN_GROUPS = [
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates',
             '/admin/issue-types', '/admin/scrap-reasons', '/packaging/eans',
+            '/admin/shifts',
         ],
         children: [
             {
@@ -145,6 +146,10 @@ export const ADMIN_GROUPS = [
             // (/admin/product-types/{id}/process-templates/{id}/bom) — there is no
             // standalone list to link, so the product type is the way in.
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            // Shift definitions. OEE, downtime, scrap and the shift monitor all
+            // read their windows through Support\ShiftWindow, so a system with no
+            // way to define them falls back to a fixed 06:00/18:00 split.
+            { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'], lucide: 'clock' },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
             // Fine-grained feature toggles: each renders under this (core) Production
             // group but is gated by its own module so it can be switched off alone.
@@ -220,9 +225,14 @@ export const ADMIN_GROUPS = [
         label: 'Admin',
         icon: 'shield',
         lucide: 'shield',
-        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
+        match: ['/admin/users', '/admin/workers', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
         children: [
             { label: 'Users & Accounts', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
+            // Personnel records, as opposed to login accounts — the two are
+            // separate entities (`users.worker_id`) and the account page edits
+            // the worker behind it, so they belong next to each other. Gated by
+            // `hr`, not the group's `admin`, because that is what governs the URL.
+            { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'], tab: 'hr', lucide: 'contact' },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },

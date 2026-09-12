@@ -6006,5 +6006,8 @@
     "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Nie można zastąpić danych przykładowych: ADMIN_USERNAME, ADMIN_EMAIL lub ADMIN_PASSWORD nie jest skonfigurowane.",
     "Panel furniture factory": "Fabryka mebli płytowych",
     "Manufacturing — furniture": "Produkcja — meble",
-    "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.": "Szafy, komody, biurka i szafki kuchenne do samodzielnego montażu, z płyty laminowanej. Cały zakład stoi w kolejce za jedną piłą panelową, a BOM to łańcuch przekształceń — płyta, formatka, element oklejony, korpus — cztery poziomy produkcyjne w głąb."
+    "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.": "Szafy, komody, biurka i szafki kuchenne do samodzielnego montażu, z płyty laminowanej. Cały zakład stoi w kolejce za jedną piłą panelową, a BOM to łańcuch przekształceń — płyta, formatka, element oklejony, korpus — cztery poziomy produkcyjne w głąb.",
+    "Page unavailable": "Strona niedostępna",
+    "This screen is not part of the installed system. It usually means the feature it belongs to is not installed or has been turned off.": "Tego ekranu nie ma w zainstalowanym systemie. Zwykle znaczy to, że funkcja, do której należy, nie jest zainstalowana albo została wyłączona.",
+    "Back to the dashboard": "Wróć do pulpitu"
 }

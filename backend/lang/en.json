@@ -6006,5 +6006,8 @@
     "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.": "Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.",
     "Panel furniture factory": "Panel furniture factory",
     "Manufacturing — furniture": "Manufacturing — furniture",
-    "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.": "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep."
+    "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.": "Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.",
+    "Page unavailable": "Page unavailable",
+    "This screen is not part of the installed system. It usually means the feature it belongs to is not installed or has been turned off.": "This screen is not part of the installed system. It usually means the feature it belongs to is not installed or has been turned off.",
+    "Back to the dashboard": "Back to the dashboard"
 }
