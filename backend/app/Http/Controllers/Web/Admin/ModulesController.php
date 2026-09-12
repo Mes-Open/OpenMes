@@ -36,14 +36,35 @@ class ModulesController extends Controller
     public function enable(Request $request, string $name)
     {
         $modules = $this->manager->discover();
-        $module  = $modules->firstWhere('name', $name);
+        $module = $modules->firstWhere('name', $name);
 
-        if (!$module) {
+        if (! $module) {
             return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
         $this->manager->enable($name);
         $this->clearCache();
+
+        // A module that ships tables registers them with loadMigrationsFrom in
+        // its provider, which only runs once the module is enabled — so this is
+        // the first moment they can be applied. Without it the module's screens
+        // load and then fail on the first query.
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            $this->manager->runInstaller($name, 'install');
+        } catch (\Throwable $e) {
+            report($e);
+
+            // Leave it disabled rather than half-installed: an enabled module
+            // whose tables are missing breaks on every page it contributes to.
+            $this->manager->disable($name);
+            $this->clearCache();
+
+            return redirect()->route('admin.modules.index')->with('error', __(
+                'Module ":name" could not be installed: :msg',
+                ['name' => $module['display_name'], 'msg' => $e->getMessage()],
+            ));
+        }
 
         return redirect()->route('admin.modules.index')
             ->with('success', __('Module ":name" enabled. Restart the server if changes don\'t appear.', ['name' => $module['display_name']]));
@@ -52,9 +73,9 @@ class ModulesController extends Controller
     public function disable(Request $request, string $name)
     {
         $modules = $this->manager->discover();
-        $module  = $modules->firstWhere('name', $name);
+        $module = $modules->firstWhere('name', $name);
 
-        if (!$module) {
+        if (! $module) {
             return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
@@ -71,7 +92,7 @@ class ModulesController extends Controller
             'module_zip' => 'required|file|mimes:zip|max:20480',
         ]);
 
-        $file    = $request->file('module_zip');
+        $file = $request->file('module_zip');
         $zipPath = $file->store('module-uploads', 'local');
         $fullPath = storage_path("app/{$zipPath}");
 
@@ -92,9 +113,9 @@ class ModulesController extends Controller
     public function destroy(string $name)
     {
         $modules = $this->manager->discover();
-        $module  = $modules->firstWhere('name', $name);
+        $module = $modules->firstWhere('name', $name);
 
-        if (!$module) {
+        if (! $module) {
             return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
@@ -107,10 +128,15 @@ class ModulesController extends Controller
 
     protected function clearCache(): void
     {
-        try {
-            Artisan::call('config:clear');
-        } catch (\Exception) {
-            // Non-fatal
+        // Routes as well as config: a module registers its own routes with
+        // loadRoutesFrom, which Laravel skips entirely while a route cache is
+        // in place — so on a production install the module's pages would 404.
+        foreach (['config:clear', 'route:clear'] as $command) {
+            try {
+                Artisan::call($command);
+            } catch (\Exception) {
+                // Non-fatal
+            }
         }
     }
 }
