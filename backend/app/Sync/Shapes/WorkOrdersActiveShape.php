@@ -23,6 +23,8 @@ class WorkOrdersActiveShape extends Shape
     {
         return [
             'id',
+            'parent_work_order_id',
+            'root_work_order_id',
             'order_no',
             'customer_order_no',
             'customer_id',

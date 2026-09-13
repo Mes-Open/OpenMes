@@ -150,6 +150,9 @@ class StockDocumentService
     public function cancel(StockDocument $document, ?User $user = null, ?string $reason = null): StockDocument
     {
         return DB::transaction(function () use ($document, $user, $reason) {
+            if (\App\Models\ComponentStockReservation::where('stock_document_id', $document->id)->where('status', 'issued')->exists()) {
+                throw ValidationException::withMessages(['status' => __('Component stock already issued to production cannot be cancelled independently.')]);
+            }
             // Same reason as post(): the status decides whether stock is reversed,
             // so it must be read under the lock that guards the reversal.
             $locked = StockDocument::where('id', $document->getKey())->lockForUpdate()->first();

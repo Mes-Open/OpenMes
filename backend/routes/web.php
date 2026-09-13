@@ -386,6 +386,7 @@ Route::middleware('auth')->group(function () {
         // create/store and bulk before the {workOrder} routes so they aren't bound as an id.
         Route::post('/work-orders/bulk', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'bulk'])->name('work-orders.bulk');
         Route::get('/work-orders/create', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'create'])->name('work-orders.create');
+        Route::post('/work-orders/component-preview', [\App\Http\Controllers\Api\V1\WorkOrderComponentController::class, 'preview'])->name('work-orders.component-preview');
         Route::post('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'store'])->name('work-orders.store');
         Route::get('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'show'])->name('work-orders.show');
         Route::post('/work-orders/{workOrder}/accept', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'accept'])->name('work-orders.accept');
@@ -519,6 +520,7 @@ Route::middleware('auth')->group(function () {
         // Declared before the resource so /work-orders/bulk isn't swallowed by
         // the {work_order} wildcard.
         Route::post('/work-orders/bulk', [AdminWorkOrderController::class, 'bulk'])->name('work-orders.bulk');
+        Route::post('/work-orders/component-preview', [\App\Http\Controllers\Api\V1\WorkOrderComponentController::class, 'preview'])->name('work-orders.component-preview');
         Route::resource('work-orders', AdminWorkOrderController::class);
         Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
         Route::post('/work-orders/{workOrder}/accept', [AdminWorkOrderController::class, 'accept'])->name('work-orders.accept');

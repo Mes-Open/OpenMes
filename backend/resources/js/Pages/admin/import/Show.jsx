@@ -75,6 +75,7 @@ export default function ImportShow() {
         [__('Total'), Number(run.total_rows ?? 0), ''],
         [dryRun ? __('Would create') : __('Created'), Number(run.created_rows ?? 0), 'text-om-running'],
         [dryRun ? __('Would update') : __('Updated'), Number(run.updated_rows ?? 0), 'text-om-accent'],
+        ...(run.generated_component_jobs ? [[dryRun ? __('Would generate component jobs') : __('Component jobs generated'), Number(run.generated_component_jobs), 'text-om-accent']] : []),
         [__('Skipped'), Number(run.skipped_rows ?? 0), 'text-om-muted'],
         [__('Failed'), failed, failed > 0 ? 'text-om-blocked' : ''],
     ];

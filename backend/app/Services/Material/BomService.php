@@ -27,7 +27,7 @@ class BomService
     {
         $data['process_template_id'] = $template->id;
 
-        $this->guardAgainstCycle($template, $data['material_id'] ?? null);
+        $this->guardComponent($template, $data);
 
         if (! isset($data['scrap_percentage']) && isset($data['material_id'])) {
             $material = \App\Models\Material::find($data['material_id']);
@@ -47,10 +47,7 @@ class BomService
 
     public function updateItem(BomItem $item, array $data): BomItem
     {
-        // Swapping the material can introduce a loop just as adding one can.
-        if (array_key_exists('material_id', $data) && (int) $data['material_id'] !== (int) $item->material_id) {
-            $this->guardAgainstCycle($item->processTemplate, $data['material_id']);
-        }
+        $this->guardComponent($item->processTemplate, array_merge($item->getAttributes(), $data));
 
         // Preserve the existing value when a NOT NULL column's field is cleared,
         // rather than passing an explicit null (which trips the constraint).
@@ -77,6 +74,23 @@ class BomService
      *
      * @throws ValidationException
      */
+    private function guardComponent(ProcessTemplate $template, array $data): void
+    {
+        $materialId = $data['material_id'] ?? null;
+        $productId = $data['product_type_id'] ?? null;
+        if ((bool) $materialId === (bool) $productId) {
+            throw ValidationException::withMessages(['material_id' => __('Choose exactly one material or product component.')]);
+        }
+        $this->guardAgainstCycle($template, $materialId);
+        $componentTemplateId = $data['component_template_id'] ?? null;
+        if ($componentTemplateId && (! $productId || ! ProcessTemplate::whereKey($componentTemplateId)->where('product_type_id', $productId)->exists())) {
+            throw ValidationException::withMessages(['component_template_id' => __('Component process belongs to another product.')]);
+        }
+        if ($productId && $this->explosion->wouldCreateProductCycle($template, (int) $productId, $componentTemplateId ? (int) $componentTemplateId : null)) {
+            throw ValidationException::withMessages(['product_type_id' => __('This component would create a circular BOM reference.')]);
+        }
+    }
+
     private function guardAgainstCycle(ProcessTemplate $template, int|string|null $materialId): void
     {
         if ($materialId === null) {

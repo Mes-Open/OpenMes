@@ -120,6 +120,9 @@ class ProcessTemplate extends Model
                 // Product-type lines are sub-assembly references (no material).
                 if ($item->component_kind === 'product_type') {
                     return [
+                        'bom_item_id' => $item->id,
+                        'component_template_id' => $item->component_template_id,
+                        'extra_data' => $item->extra_data,
                         'component_kind' => 'product_type',
                         'material_id' => null,
                         'product_type_id' => $item->product_type_id,
@@ -138,6 +141,10 @@ class ProcessTemplate extends Model
                 }
 
                 return [
+                    'bom_item_id' => $item->id,
+                    'is_manufactured' => (bool) $item->material->is_manufactured,
+                    'producing_process_template_id' => $item->material->producing_process_template_id,
+                    'extra_data' => $item->extra_data,
                     'component_kind' => 'material',
                     'material_id' => $item->material_id,
                     'product_type_id' => null,

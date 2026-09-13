@@ -7,6 +7,8 @@ use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\Erp\Concerns\ReportsImportRows;
 use App\Services\ProcessTemplate\SnapshotService;
+use App\Services\WorkOrder\ComponentWorkOrderService;
+use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -91,6 +93,7 @@ class WorkOrderImportService
      */
     public function importErp(array $rows, string $strategy): array
     {
+        $componentJobs = 0;
         $imported = 0;
         $updated = 0;
         $skipped = 0;
@@ -101,9 +104,10 @@ class WorkOrderImportService
             $row['row_number'] = $rowNumber;
 
             try {
-                $result = $this->importRow($row, $strategy);
+                $result = DB::transaction(fn () => $this->importRow($row, $strategy));
 
                 if ($result['status'] === 'success') {
+                    $componentJobs += $result['component_jobs'] ?? 0;
                     ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;
                 } elseif ($result['status'] === 'skipped') {
                     $skipped++;
@@ -114,8 +118,10 @@ class WorkOrderImportService
                         'message' => $result['error'],
                     ];
                 }
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $errors[] = ['row' => $rowNumber, 'field' => array_key_first($e->errors()), 'message' => collect($e->errors())->flatten()->implode(' ')];
             } catch (\Throwable $e) {
-                $errors[] = ['row' => $rowNumber, 'field' => null, 'message' => $e->getMessage()];
+                $errors[] = ['row' => $rowNumber, 'field' => null, 'message' => __('Row could not be processed')];
 
                 Log::error('ERP work order import row failed', [
                     'row' => $rowNumber,
@@ -125,6 +131,7 @@ class WorkOrderImportService
         }
 
         return [
+            ...($componentJobs ? ['component_jobs' => $componentJobs] : []),
             'imported' => $imported,
             'updated' => $updated,
             'skipped' => $skipped,
@@ -147,6 +154,9 @@ class WorkOrderImportService
      */
     public function importFromFile(array $rows, array $options = []): array
     {
+        if (! empty($options['component_warehouse_id'])) {
+            $options['component_warehouse_ids'] = [(int) $options['component_warehouse_id']];
+        }
         $strategy = $options['strategy'] ?? 'update_or_create';
         $targetLineId = ! empty($options['target_line_id']) ? (int) $options['target_line_id'] : null;
         $targetLine = $targetLineId ? Line::find($targetLineId) : null;
@@ -161,7 +171,7 @@ class WorkOrderImportService
         $productTypes = ProductType::get(['id', 'code'])->keyBy('code');
         $templates = [];   // product type id => active template|null, resolved once
 
-        return $this->processRows($rows, function (array $row) use ($strategy, $targetLineId, $targetLine, $period, $lines, $productTypes, &$templates) {
+        return $this->processRows($rows, function (array $row) use ($strategy, $targetLineId, $targetLine, $period, $lines, $productTypes, &$templates, $options) {
             $orderNo = trim((string) ($row['order_no'] ?? ''));
 
             if ($orderNo === '') {
@@ -201,7 +211,7 @@ class WorkOrderImportService
                 $data['product_type_id'] = $productType->id;
             }
 
-            foreach (['priority' => 'int', 'due_date' => null, 'description' => null, 'customer_order_no' => null, 'unit_price' => 'float'] as $field => $cast) {
+            foreach (['priority' => 'int', 'due_date' => null, 'planned_start_at' => null, 'planned_end_at' => null, 'description' => null, 'customer_order_no' => null, 'unit_price' => 'float'] as $field => $cast) {
                 if (! array_key_exists($field, $row) || $row[$field] === null || $row[$field] === '') {
                     continue;
                 }
@@ -212,6 +222,8 @@ class WorkOrderImportService
                 };
             }
 
+            \Illuminate\Support\Facades\Validator::make($data, ['planned_start_at' => ['nullable', 'date'], 'planned_end_at' => ['nullable', 'date', 'after:planned_start_at']])->validate();
+
             $extra = $row['custom'] ?? [];
 
             if (! empty($row['product_name'])) {
@@ -220,7 +232,7 @@ class WorkOrderImportService
 
             $data = array_merge($data, $period);
 
-            $existing = WorkOrder::where('order_no', $orderNo)->first();
+            $existing = WorkOrder::where('order_no', $orderNo)->lockForUpdate()->first();
 
             if ($existing) {
                 if ($strategy === 'skip_existing') {
@@ -239,9 +251,13 @@ class WorkOrderImportService
                     $data['extra_data'] = array_merge($existing->extra_data ?? [], $extra);
                 }
 
-                $existing->update($data);
+                $previousVersion = $existing->component_plan['version'] ?? 0;
+                $existing = app(ComponentWorkOrderService::class)->update($existing, $data);
+                if (filter_var($options['generate_components'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    $existing = app(ComponentWorkOrderService::class)->generate($existing, $options);
+                }
 
-                return $this->updated();
+                return array_merge($this->updated(), ['component_jobs' => $this->componentJobCount($existing, $previousVersion)]);
             }
 
             $data['order_no'] = $orderNo;
@@ -266,9 +282,16 @@ class WorkOrderImportService
                 $data['process_snapshot'] = $this->snapshotService->createSnapshot($template);
             }
 
-            WorkOrder::create($data);
+            if (filter_var($options['generate_components'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $data = array_merge($data, \Illuminate\Support\Arr::only($options, ['use_component_stock', 'component_warehouse_ids']));
+                $data['generate_components'] = true;
+                $order = app(WorkOrderService::class)->createWorkOrder($data);
+                $order->update($period);
+            } else {
+                $order = WorkOrder::create($data);
+            }
 
-            return $this->created();
+            return array_merge($this->created(), ['component_jobs' => $this->componentJobCount($order)]);
         });
     }
 
@@ -308,7 +331,7 @@ class WorkOrderImportService
         }
 
         // Check if work order exists
-        $existing = WorkOrder::where('order_no', $row['order_no'])->first();
+        $existing = WorkOrder::where('order_no', $row['order_no'])->lockForUpdate()->first();
 
         if ($existing) {
             return $this->handleExisting($existing, $row, $strategy, $line, $productType);
@@ -356,8 +379,9 @@ class WorkOrderImportService
             return ['status' => 'skipped', 'message' => 'Work order already completed/cancelled'];
         }
 
-        DB::transaction(function () use ($existing, $row, $line, $productType) {
-            $existing->update(array_merge([
+        $jobs = DB::transaction(function () use ($existing, $row, $line, $productType) {
+            $previousVersion = $existing->component_plan['version'] ?? 0;
+            $existing = app(ComponentWorkOrderService::class)->update($existing, array_merge([
                 'line_id' => $line->id,
                 'product_type_id' => $productType->id,
                 'planned_qty' => $row['planned_qty'],
@@ -366,12 +390,18 @@ class WorkOrderImportService
                 'description' => $row['description'] ?? null,
             ], $this->optionalErpFields($row)));
 
+            if (filter_var($row['generate_components'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $existing = app(ComponentWorkOrderService::class)->generate($existing, $row);
+            }
+
             Log::info('Work order updated via CSV import', [
                 'order_no' => $existing->order_no,
             ]);
+
+            return $this->componentJobCount($existing, $previousVersion);
         });
 
-        return ['status' => 'success', 'action' => 'updated'];
+        return ['status' => 'success', 'action' => 'updated', 'component_jobs' => $jobs];
     }
 
     /**
@@ -379,7 +409,7 @@ class WorkOrderImportService
      */
     protected function createNew(array $row, Line $line, ProductType $productType): array
     {
-        DB::transaction(function () use ($row, $line, $productType) {
+        $jobs = DB::transaction(function () use ($row, $line, $productType) {
             // Get active process template for product type
             $processTemplate = $productType->processTemplates()
                 ->where('is_active', true)
@@ -392,7 +422,7 @@ class WorkOrderImportService
             // Generate process snapshot
             $snapshot = $this->snapshotService->createSnapshot($processTemplate);
 
-            WorkOrder::create(array_merge([
+            $data = array_merge([
                 'order_no' => $row['order_no'],
                 'line_id' => $line->id,
                 'product_type_id' => $productType->id,
@@ -403,14 +433,20 @@ class WorkOrderImportService
                 'priority' => $row['priority'] ?? 0,
                 'due_date' => $row['due_date'] ?? null,
                 'description' => $row['description'] ?? null,
-            ], $this->optionalErpFields($row)));
+            ], $this->optionalErpFields($row));
+
+            $order = filter_var($row['generate_components'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                ? app(WorkOrderService::class)->createWorkOrder(array_merge($data, \Illuminate\Support\Arr::only($row, ['use_component_stock', 'component_warehouse_ids', 'excluded_component_paths', 'planned_start_at', 'planned_end_at']), ['generate_components' => true]))
+                : WorkOrder::create($data);
 
             Log::info('Work order created via CSV import', [
                 'order_no' => $row['order_no'],
             ]);
+
+            return $this->componentJobCount($order);
         });
 
-        return ['status' => 'success', 'action' => 'created'];
+        return ['status' => 'success', 'action' => 'created', 'component_jobs' => $jobs];
     }
 
     /**
@@ -423,7 +459,7 @@ class WorkOrderImportService
      */
     protected function optionalErpFields(array $row): array
     {
-        $fields = [];
+        $fields = \Illuminate\Support\Arr::only($row, ['planned_start_at', 'planned_end_at']);
 
         if (array_key_exists('customer_order_no', $row) && $row['customer_order_no'] !== null) {
             $fields['customer_order_no'] = $row['customer_order_no'];
@@ -434,5 +470,14 @@ class WorkOrderImportService
         }
 
         return $fields;
+    }
+
+    private function componentJobCount(WorkOrder $order, int $previousVersion = 0): int
+    {
+        $version = $order->component_plan['version'] ?? 0;
+
+        return $version > $previousVersion
+            ? \App\Models\WorkOrderComponent::where('root_work_order_id', $order->id)->where('plan_version', $version)->whereNotNull('child_work_order_id')->count()
+            : 0;
     }
 }

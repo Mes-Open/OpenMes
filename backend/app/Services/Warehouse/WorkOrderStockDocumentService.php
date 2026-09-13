@@ -36,6 +36,9 @@ class WorkOrderStockDocumentService
         $created = [];
 
         foreach ([StockDocument::TYPE_MATERIAL_ISSUE, StockDocument::TYPE_PRODUCT_RECEIPT] as $type) {
+            if ($workOrder->parent_work_order_id && $type === StockDocument::TYPE_PRODUCT_RECEIPT) {
+                continue; // Dedicated component WIP is consumed by its parent, not saleable stock.
+            }
             if ($this->alreadyHas($workOrder, $type)) {
                 continue;
             }
@@ -87,6 +90,10 @@ class WorkOrderStockDocumentService
      */
     public function generateProductReceipt(WorkOrder $workOrder, ?float $quantity = null): ?StockDocument
     {
+        if ($workOrder->parent_work_order_id) {
+            return null;
+        }
+
         if (! Warehouse::resolveDefault(Warehouse::KIND_FINISHED_GOODS)) {
             return null;
         }
@@ -113,6 +120,7 @@ class WorkOrderStockDocumentService
     {
         return StockDocument::where('work_order_id', $workOrder->id)
             ->where('type', $type)
+            ->whereNotIn('id', \App\Models\ComponentStockReservation::whereNotNull('stock_document_id')->select('stock_document_id'))
             ->exists();
     }
 
@@ -172,6 +180,21 @@ class WorkOrderStockDocumentService
     {
         if ($quantity <= 0) {
             return [];
+        }
+
+        if ($workOrder->component_plan || $workOrder->root_work_order_id) {
+            $lines = [];
+            // Component execution snapshots retain only this job's purchased inputs.
+            foreach ($workOrder->process_snapshot['bom'] ?? [] as $item) {
+                if (empty($item['material_id'])) {
+                    continue;
+                }
+                $id = $item['material_id'];
+                $lines[$id] ??= ['material_id' => $id, 'unit_of_measure' => $item['unit_of_measure'] ?? null, 'quantity' => 0.0];
+                $lines[$id]['quantity'] += (float) $item['quantity_per_unit'] * $quantity * (1 + (float) ($item['scrap_percentage'] ?? 0) / 100);
+            }
+
+            return array_values($lines);
         }
 
         try {

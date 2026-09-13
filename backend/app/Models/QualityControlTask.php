@@ -46,6 +46,13 @@ class QualityControlTask extends Model
         'completed_by_id',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $check): void {
+            app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->refreshParentReadiness($check->workOrder);
+        });
+    }
+
     protected function casts(): array
     {
         return [

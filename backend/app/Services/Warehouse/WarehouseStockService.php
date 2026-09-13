@@ -29,6 +29,20 @@ class WarehouseStockService
     {
         $stock = $this->lockOrCreate($keys, $unit);
 
+        if ($signed < 0) {
+            $slots = WarehouseStock::where('warehouse_id', $stock->warehouse_id)
+                ->where('material_id', $stock->material_id)->where('product_type_id', $stock->product_type_id)
+                ->when($stock->material_lot_id, fn ($q) => $q->whereKey($stock->id))->pluck('id');
+            $reserved = (float) \App\Models\ComponentStockReservation::whereIn('warehouse_stock_id', $slots)->where('status', 'held')->sum('quantity');
+            if ($reserved > 0 && round((float) $stock->quantity + $signed, 3) < $reserved) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['quantity' => __('This stock is reserved for component production.')]);
+            }
+        }
+        // Ordinary receipts do not certify a component version/specification. Mixing
+        // an unidentified receipt into a certified balance makes that identity unknown.
+        if ($signed > 0 && $stock->component_specification) {
+            $stock->component_specification = null;
+        }
         $stock->quantity = round((float) $stock->quantity + $signed, 3);
 
         if ($unit && ! $stock->unit_of_measure) {

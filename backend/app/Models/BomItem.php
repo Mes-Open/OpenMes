@@ -17,6 +17,7 @@ class BomItem extends Model
         'template_step_id',
         'material_id',
         'product_type_id',
+        'component_template_id',
         'quantity_per_unit',
         'scrap_percentage',
         'consumed_at',

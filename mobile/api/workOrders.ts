@@ -41,6 +41,7 @@ export const deleteWorkOrder = (id: number): Promise<void> =>
   api.delete(`/api/v1/work-orders/${id}`).then(() => undefined);
 
 export interface CreateWorkOrderPayload {
+  generate_components?: boolean;
   order_no: string;
   line_id?: number;
   product_type_id?: number;

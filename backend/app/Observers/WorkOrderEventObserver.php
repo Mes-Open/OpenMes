@@ -22,6 +22,18 @@ class WorkOrderEventObserver
 {
     public function created(WorkOrder $workOrder): void
     {
+        $committed = clone $workOrder;
+        if (($workOrder->deferDomainEvents || $workOrder->component_plan || $workOrder->root_work_order_id)
+            && \Illuminate\Support\Facades\DB::transactionLevel() > 0) {
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => $this->emitCreated($committed));
+
+            return;
+        }
+        $this->emitCreated($committed);
+    }
+
+    private function emitCreated(WorkOrder $workOrder): void
+    {
         $this->fire(fn () => WorkOrderCreated::dispatch($workOrder));
 
         // A work order inserted already DONE (e.g. a historical CSV/ERP import) is
@@ -32,6 +44,18 @@ class WorkOrderEventObserver
     }
 
     public function updated(WorkOrder $workOrder): void
+    {
+        $committed = clone $workOrder;
+        if (($workOrder->deferDomainEvents || $workOrder->component_plan || $workOrder->root_work_order_id)
+            && \Illuminate\Support\Facades\DB::transactionLevel() > 0) {
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => $this->emitUpdated($committed));
+
+            return;
+        }
+        $this->emitUpdated($committed);
+    }
+
+    private function emitUpdated(WorkOrder $workOrder): void
     {
         $this->fire(fn () => WorkOrderUpdated::dispatch($workOrder, $workOrder->getChanges()));
 

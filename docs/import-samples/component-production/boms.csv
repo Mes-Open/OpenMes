@@ -1,0 +1,2 @@
+product_type_code,component_kind,component_code,quantity_per_unit,component_template_version,foam_grade,length_mm,width_mm,thickness_mm
+DEMO-SOFA,product_type,DEMO-FOAM-PART,4,1,VB 18/40,1985,100,10

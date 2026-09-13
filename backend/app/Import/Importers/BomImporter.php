@@ -37,7 +37,14 @@ class BomImporter extends AbstractEntityImporter
     {
         return [
             'product_type_code' => ['label' => __('Product type code'), 'required' => true, 'type' => 'text', 'description' => __('The finished product the recipe belongs to.'), 'aliases' => ['product', 'product code', 'product_code', 'parent', 'produkt', 'kod produktu', 'wyrób']],
-            'material_code' => ['label' => __('Material code'), 'required' => true, 'type' => 'text', 'description' => __('An existing material code.'), 'aliases' => ['material', 'component', 'component_code', 'component code', 'materiał', 'składnik', 'kod materiału']],
+            'material_code' => ['label' => __('Material code'), 'required' => false, 'type' => 'text', 'description' => __('An existing material code.'), 'aliases' => ['material', 'component', 'component_code', 'component code', 'materiał', 'składnik', 'kod materiału']],
+            'component_kind' => ['label' => __('Component kind'), 'required' => false, 'type' => 'text', 'description' => __('material or product_type; defaults to material.')],
+            'component_code' => ['label' => __('Component code'), 'required' => false, 'type' => 'text'],
+            'component_template_version' => ['label' => __('Component process version'), 'required' => false, 'type' => 'integer'],
+            'foam_grade' => ['label' => __('Foam grade'), 'required' => false, 'type' => 'text'],
+            'length_mm' => ['label' => __('Length (mm)'), 'required' => false, 'type' => 'number'],
+            'width_mm' => ['label' => __('Width (mm)'), 'required' => false, 'type' => 'number'],
+            'thickness_mm' => ['label' => __('Thickness (mm)'), 'required' => false, 'type' => 'number'],
             'quantity_per_unit' => ['label' => __('Quantity per unit'), 'required' => true, 'type' => 'number', 'description' => __('Consumption per one unit of the product.'), 'aliases' => ['quantity', 'qty', 'qty per unit', 'ilość', 'ilość na sztukę', 'norma']],
             'process_template_version' => ['label' => __('Process template version'), 'required' => false, 'type' => 'integer', 'description' => __('Defaults to the active template.'), 'aliases' => ['version', 'template version', 'wersja']],
             'scrap_percentage' => ['label' => __('Scrap %'), 'required' => false, 'type' => 'number', 'aliases' => ['scrap', 'odpad']],
@@ -99,11 +106,12 @@ class BomImporter extends AbstractEntityImporter
         $recipes = [];      // recipeKey => recipe row for the service
         $firstRow = [];     // recipeKey => 1-based index of the file row that opened it
         $errors = [];
+        $invalidRecipes = [];
 
         foreach (array_values($rows) as $index => $row) {
             $rowNumber = $index + 1;
             $product = trim((string) ($row['product_type_code'] ?? ''));
-            $material = trim((string) ($row['material_code'] ?? ''));
+            $material = trim((string) ($row['component_code'] ?? $row['material_code'] ?? ''));
 
             if ($product === '') {
                 $errors[] = ['row' => $rowNumber, 'field' => 'product_type_code', 'message' => __('Product code is required')];
@@ -111,7 +119,9 @@ class BomImporter extends AbstractEntityImporter
                 continue;
             }
 
+            $key = $product.'|'.($row['process_template_version'] ?? '');
             if ($material === '') {
+                $invalidRecipes[$key] = true;
                 $errors[] = ['row' => $rowNumber, 'field' => 'material_code', 'message' => __('Material code is required')];
 
                 continue;
@@ -131,6 +141,13 @@ class BomImporter extends AbstractEntityImporter
 
             $component = [
                 'material_code' => $material,
+                'component_code' => $material,
+                'component_kind' => $row['component_kind'] ?? 'material',
+                'component_template_version' => $row['component_template_version'] ?? null,
+                'foam_grade' => $row['foam_grade'] ?? null,
+                'length_mm' => $row['length_mm'] ?? null,
+                'width_mm' => $row['width_mm'] ?? null,
+                'thickness_mm' => $row['thickness_mm'] ?? null,
                 'quantity_per_unit' => $row['quantity_per_unit'] ?? 0,
                 'scrap_percentage' => $row['scrap_percentage'] ?? 0,
                 'notes' => $row['notes'] ?? null,
@@ -143,6 +160,7 @@ class BomImporter extends AbstractEntityImporter
             $recipes[$key]['components'][] = $component;
         }
 
+        $recipes = array_diff_key($recipes, $invalidRecipes);
         $keys = array_keys($recipes);
         $result = $this->service->import(array_values($recipes), $options['mode'] ?? 'replace');
 

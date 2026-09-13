@@ -151,6 +151,12 @@ class RowMapper
                 }
 
                 throw new RowMappingException($field, __("':value' is not yes/no", ['value' => $value]));
+            case 'datetime':
+                try {
+                    return Carbon::parse($value)->toIso8601String();
+                } catch (\Throwable) {
+                    throw new RowMappingException($field, __("':value' is not a date", ['value' => $value]));
+                }
             case 'date':
                 try {
                     return Carbon::parse($value)->toDateString();

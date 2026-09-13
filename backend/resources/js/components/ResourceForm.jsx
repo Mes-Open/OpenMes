@@ -50,6 +50,7 @@ export default function ResourceForm({
     fields,
     initial,
     submitLabel = 'Save',
+    canSubmit = () => true,
     cancelHref,
     onCancel,
     onSuccess,
@@ -59,6 +60,8 @@ export default function ResourceForm({
     title,
     customFields,
     bare = false,
+    renderBeforeActions,
+    renderAfterField,
 }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -83,6 +86,7 @@ export default function ResourceForm({
 
     const submit = (e) => {
         e.preventDefault();
+        if (!canSubmit(data)) return;
         submitForm(form, method, action, onSuccess ? { onSuccess } : {});
     };
 
@@ -132,12 +136,17 @@ export default function ResourceForm({
                 )}
 
                 {fields.map((f) => (
-                    <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} data={data} />
+                    <div key={f.name} className="space-y-3">
+                        <Field field={f} value={data[f.name]} error={errors[f.name]} setData={setData} data={data} />
+                        {renderAfterField?.(f.name, form)}
+                    </div>
                 ))}
 
                 {customFieldDefs.length > 0 && (
                     <CustomFields {...customFieldProps(form, customFieldDefs)} />
                 )}
+
+                {renderBeforeActions?.(form)}
 
                 {/* Bare means a drawer is scrolling this form, so the actions stick to
                     the bottom of that scroller and bleed out to its padding edges —
@@ -148,8 +157,8 @@ export default function ResourceForm({
                     ? 'sticky bottom-0 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
                     : 'flex items-center gap-3 pt-2'}
                 >
-                    <Button type="submit" variant="primary" loading={processing}>
-                        {processing ? __('Saving…') : submitLabel}
+                    <Button type="submit" variant="primary" disabled={!canSubmit(data)} loading={processing}>
+                        {processing ? __('Saving…') : __(submitLabel)}
                     </Button>
                     {cancelHref && (
                         <Link
@@ -379,7 +388,7 @@ function ImageField({ field, value, error, setData, data }) {
  * visible (because the driving field changed) is pruned so it isn't submitted.
  */
 function CheckboxGroupField({ field, value, error, setData, data }) {
-    const { name, label, required, help, options, filterByField } = field;
+    const { name, label, required, help, options, filterByField, showCheckboxes } = field;
     const selected = Array.isArray(value) ? value : [];
 
     const filterVal = filterByField ? data?.[filterByField] : undefined;
@@ -391,7 +400,8 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
         if (!filterByField) return;
         const allowed = new Set(visibleOptions.map((o) => o.value));
         const pruned = selected.filter((v) => allowed.has(v));
-        if (pruned.length !== selected.length) setData(name, pruned);
+        const next = pruned.length ? pruned : visibleOptions.filter((o) => o.defaultSelected).map((o) => o.value);
+        if (JSON.stringify(next) !== JSON.stringify(selected)) setData(name, next);
         // Prune only when the driving field changes; selected/options are derived from it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterVal]);
@@ -409,6 +419,11 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
             <div name={name} role="group" aria-labelledby={`${name}-label`} className="flex flex-wrap gap-2">
                 {visibleOptions.map((o) => {
                     const active = selected.includes(o.value);
+                    if (showCheckboxes) {
+                        return <div key={String(o.value)} className="rounded-om-sm border border-om-line bg-om-card px-3 py-2">
+                            <Checkbox checked={active} onChange={() => toggle(o.value)} label={__(o.label)} />
+                        </div>;
+                    }
                     return (
                         <button
                             type="button"

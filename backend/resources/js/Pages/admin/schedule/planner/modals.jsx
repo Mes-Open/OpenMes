@@ -323,7 +323,7 @@ export function AssignPopup({ target, ctx, schedules = [], onClose, onPick, onPi
 // form (the same component the create page uses), posting with `stay` so the
 // server sends us back here and the fresh order lands in the backlog.
 export function NewOrderModal({ ctx, onClose }) {
-    const { productTypes = [], customers = [], customFields = [] } = usePage().props;
+    const { productTypes = [], customers = [], customFields = [], bomTemplates = [], productRevisions = [] } = usePage().props;
     return (
         <Backdrop onClose={onClose}>
             <div style={{ width: 720, maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto', background: 'var(--om-bg)', border: '1px solid var(--om-line)', borderRadius: 14, boxShadow: '0 34px 80px -22px rgba(0,0,0,.5)', padding: '20px 22px' }}>
@@ -336,6 +336,8 @@ export function NewOrderModal({ ctx, onClose }) {
                     productTypes={productTypes}
                     customers={customers}
                     customFields={customFields}
+                    bomTemplates={bomTemplates}
+                    productRevisions={productRevisions}
                     stay
                     onCancel={onClose}
                     onSuccess={onClose}
@@ -405,7 +407,7 @@ export function Toasts({ toasts }) {
             {toasts.map((t) => {
                 const clr = t.kind === 'error' ? 'var(--om-blocked)' : t.kind === 'warning' ? 'var(--om-downtime)' : 'var(--om-running)';
                 return (
-                    <div key={t.id} className="flex items-center gap-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderLeft: `3px solid ${clr}`, borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
+                    <div key={t.id} role="status" className="flex items-center gap-3" style={{ maxWidth: 'min(560px, 90vw)', background: 'var(--om-card)', border: '1px solid var(--om-line)', borderLeft: `3px solid ${clr}`, borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
                         <span style={{ width: 9, height: 9, borderRadius: 999, background: clr }} />
                         <span style={{ fontSize: 13, color: 'var(--om-ink)' }}>{t.msg}</span>
                     </div>

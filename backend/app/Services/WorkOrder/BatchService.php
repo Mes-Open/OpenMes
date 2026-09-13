@@ -31,6 +31,16 @@ class BatchService
     public function startStep(BatchStep $step, User $user, array $picksByMaterial = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $picksByMaterial) {
+            $order = $step->batch->workOrder;
+            if ($order->component_plan || $order->root_work_order_id) {
+                // All starts in a hierarchy serialize against the same root.
+                \App\Models\WorkOrder::whereKey($order->root_work_order_id ?: $order->id)->lockForUpdate()->firstOrFail();
+                $step->unsetRelation('batch');
+                if (! app(ComponentWorkOrderService::class)->ready($step->batch->workOrder, $step->step_number)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['components' => __('Required components are not ready for assembly.')]);
+                }
+            }
+
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
 
@@ -47,6 +57,8 @@ class BatchService
 
             $batch = $step->batch;
             $wasPending = $batch->status === Batch::STATUS_PENDING;
+
+            app(ComponentStockService::class)->issue($batch->workOrder, $step->step_number, $user);
 
             // Start the step
             $step->update([
@@ -88,6 +100,20 @@ class BatchService
     public function completeStep(BatchStep $step, User $user, array $data = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $data) {
+            $order = $step->batch->workOrder;
+            if ($order->component_plan || $order->root_work_order_id) {
+                \App\Models\WorkOrder::whereKey($order->root_work_order_id ?: $order->id)->lockForUpdate()->firstOrFail();
+                $step->refresh();
+                $step->unsetRelation('batch');
+                if (! app(ComponentWorkOrderService::class)->ready($step->batch->workOrder, $step->step_number)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['components' => __('Required components are not ready for assembly.')]);
+                }
+                $output = (float) ($data['produced_qty'] ?? $step->batch->target_qty);
+                if (! is_finite($output) || $output < 0 || $output > (float) $step->batch->target_qty) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['produced_qty' => __('Good output must be between zero and the batch target.')]);
+                }
+            }
+
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
 

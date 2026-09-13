@@ -33,6 +33,8 @@ class ImportWorkOrdersRequest extends FormRequest
             'orders.*.order_no' => ['required', 'string', 'max:100'],
             'orders.*.line_code' => ['required', 'string', 'max:100'],
             'orders.*.product_type_code' => ['required', 'string', 'max:100'],
+            ...\App\Http\Requests\Concerns\ComponentStockRules::rules('orders.*.'),
+            'orders.*.generate_components' => ['nullable', 'boolean'],
             'orders.*.planned_qty' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
             'orders.*.customer_order_no' => ['nullable', 'string', 'max:100'],
             'orders.*.unit_price' => ['nullable', 'numeric', 'min:0', 'max:99999999'],

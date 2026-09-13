@@ -103,7 +103,9 @@ class ProcessDataImport implements ShouldQueue
                     }
                 }
 
-                $result = $canonical !== []
+                // BOM replacement must never receive a recipe with mapping failures removed.
+                // BOM imports are unchunked, so rejecting this chunk preserves every old recipe.
+                $result = $canonical !== [] && ! ($importer->key() === 'boms' && $chunkErrors !== [])
                     ? $this->runChunk($import, $importer, $canonical, $runOptions)
                     : ['imported' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => []];
 
@@ -121,6 +123,11 @@ class ProcessDataImport implements ShouldQueue
                     }
                 }
 
+                if (! empty($result['component_jobs'])) {
+                    $options = $import->options ?? [];
+                    $options['generated_component_jobs'] = ($options['generated_component_jobs'] ?? 0) + $result['component_jobs'];
+                    $import->options = $options;
+                }
                 $import->processed_rows += count($chunk);
                 $import->created_rows += $result['imported'];
                 $import->updated_rows += $result['updated'];

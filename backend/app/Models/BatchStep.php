@@ -287,6 +287,10 @@ class BatchStep extends Model
      */
     public function prerequisitesMet(): bool
     {
+        if (! app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->ready($this->batch->workOrder, $this->step_number)) {
+            return false;
+        }
+
         if (! config('openmmes.force_sequential_steps', true)) {
             return true;
         }

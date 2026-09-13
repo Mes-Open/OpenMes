@@ -50,6 +50,8 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
+        $workOrder->setAttribute('component_production', app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->summary($workOrder));
+
         // ISA-95 L4 standard production target (#52), computed from the snapshot.
         $workOrder->setAttribute('estimated_standard_production_minutes', $workOrder->estimatedStandardProductionMinutes());
 
@@ -70,6 +72,10 @@ class WorkOrderController extends Controller
             'customer_order_no' => 'nullable|string|max:100',
             'line_id' => 'nullable|exists:lines,id',
             'product_type_id' => 'nullable|exists:product_types,id',
+            'bom_template_ids' => ['nullable', 'array'],
+            'bom_template_ids.*' => ['integer', \Illuminate\Validation\Rule::exists('process_templates', 'id')->where('product_type_id', $request->input('product_type_id'))->whereNull('deleted_at')],
+            ...\App\Http\Requests\Concerns\ComponentStockRules::rules(''),
+            'generate_components' => 'nullable|boolean',
             'planned_qty' => 'required|numeric|min:0.01|max:99999999',
             'priority' => 'nullable|integer',
             'due_date' => 'nullable|date',

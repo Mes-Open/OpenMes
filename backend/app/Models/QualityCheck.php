@@ -24,6 +24,13 @@ class QualityCheck extends Model
         'tenant_id',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $check): void {
+            app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->refreshParentReadiness($check->batch?->workOrder);
+        });
+    }
+
     protected function casts(): array
     {
         return [

@@ -106,4 +106,33 @@ class ProcessDataImportTest extends TestCase
         $this->assertStringNotContainsString('martians', $import->error_log[0]['message'], 'internal detail stays in the log');
         Storage::disk('local')->assertMissing($import->file_path);
     }
+
+    public function test_bom_mapping_error_cannot_partially_replace_a_recipe(): void
+    {
+        $product = ProductType::factory()->create(['code' => 'SOFA']);
+        $template = \App\Models\ProcessTemplate::factory()->create(['product_type_id' => $product->id]);
+        $material = \App\Models\Material::factory()->create(['code' => 'FOAM']);
+        $item = \App\Models\BomItem::factory()->create(['process_template_id' => $template->id, 'material_id' => $material->id, 'quantity_per_unit' => 4]);
+        $run = $this->queued("product,material,qty\nSOFA,FOAM,99\nSOFA,FOAM,not-a-number\n", 'boms', ['product' => 'product_type_code', 'material' => 'material_code', 'qty' => 'quantity_per_unit']);
+        ProcessDataImport::dispatchSync($run->id);
+        $this->assertEquals(1, $run->fresh()->failed_rows);
+        $this->assertEquals(0, $run->fresh()->updated_rows);
+        $this->assertEquals(4, $item->fresh()->quantity_per_unit);
+    }
+
+    public function test_component_import_dry_run_and_real_run_report_generated_jobs(): void
+    {
+        $product = ProductType::factory()->create(['code' => 'SOFA']);
+        $root = \App\Models\ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $product->id]);
+        $part = ProductType::factory()->create();
+        \App\Models\ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $part->id]);
+        \App\Models\BomItem::create(['process_template_id' => $root->id, 'product_type_id' => $part->id, 'quantity_per_unit' => 4]);
+        foreach ([true, false] as $dryRun) {
+            $run = $this->queued("order,product,qty\nSOFA-IMPORT,SOFA,2\n", 'work_orders', ['order' => 'order_no', 'product' => 'product_type_code', 'qty' => 'quantity'], ['generate_components' => true], ['dry_run' => $dryRun]);
+            ProcessDataImport::dispatchSync($run->id);
+            $this->assertEquals(0, $run->fresh()->failed_rows);
+            $this->assertEquals(1, $run->fresh()->options['generated_component_jobs']);
+            $this->assertDatabaseCount('work_orders', $dryRun ? 0 : 2);
+        }
+    }
 }

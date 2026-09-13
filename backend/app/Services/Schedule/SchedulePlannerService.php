@@ -154,7 +154,8 @@ class SchedulePlannerService
             ->where(function ($q) {
                 $q->whereNull('line_id')
                     ->orWhere(function ($q2) {
-                        $q2->whereNull('due_date')->whereNull('week_number');
+                        $q2->whereNull('due_date')->whereNull('week_number')
+                            ->where(fn ($q3) => $q3->whereNull('planned_start_at')->orWhereNull('planned_end_at'));
                     });
             })
             ->orderBy('priority_score', 'desc')
@@ -397,7 +398,7 @@ class SchedulePlannerService
             ]);
             $this->logChange($workOrder, $snapshotBefore);
 
-            return ['conflict' => false];
+            return ['conflict' => false, 'warnings' => $this->componentWarnings($workOrder)];
         }
 
         // Allow null to clear span (legacy shift-level behaviour)
@@ -411,7 +412,7 @@ class SchedulePlannerService
         }
         $this->logChange($workOrder, $snapshotBefore);
 
-        return ['conflict' => false];
+        return ['conflict' => false, 'warnings' => $this->componentWarnings($workOrder)];
     }
 
     /** The last planner edits, newest first — the backlog rail's Changes tab. */
@@ -584,9 +585,24 @@ class SchedulePlannerService
      *
      * @return array<string>
      */
-    private function prepareBatchAndWarn(WorkOrder $workOrder): array
+    private function componentWarnings(WorkOrder $workOrder): array
     {
         $warnings = [];
+        foreach (app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->summary($workOrder) as $component) {
+            if ($component['covered_stock_qty'] < $component['stock_qty']) {
+                $warnings[] = __('Component :path: :message', ['path' => $component['specification']['material_code'], 'message' => __('Reserved component stock is no longer available.')]);
+            }
+            if ($component['child_work_order_id'] && $component['remaining_qty'] > 0 && $component['schedule_status'] !== 'on_time') {
+                $warnings[] = __($component['schedule_status'] === 'late' ? 'Component :code is scheduled after it is needed.' : 'Component :code has no confirmed production schedule.', ['code' => $component['specification']['material_code']]);
+            }
+        }
+
+        return $warnings;
+    }
+
+    private function prepareBatchAndWarn(WorkOrder $workOrder): array
+    {
+        $warnings = $this->componentWarnings($workOrder);
 
         try {
             // If line assigned and no process_snapshot yet — generate it from product type

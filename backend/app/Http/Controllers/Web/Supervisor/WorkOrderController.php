@@ -75,6 +75,8 @@ class WorkOrderController extends Controller
 
         try {
             $workOrder = $workOrderService->createWorkOrder($validated);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             report($e);
 
@@ -130,6 +132,9 @@ class WorkOrderController extends Controller
             'workOrder' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
+                'parent_work_order_id' => $workOrder->parent_work_order_id,
+                'root_work_order_id' => $workOrder->root_work_order_id,
+                'component_production' => app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->summary($workOrder),
                 'customer_order_no' => $workOrder->customer_order_no,
                 'status' => $workOrder->status,
                 'planned_qty' => $workOrder->planned_qty,
@@ -314,7 +319,7 @@ class WorkOrderController extends Controller
             'status' => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
         ]);
 
-        $workOrder->update($validated);
+        $workOrder = app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->update($workOrder, $validated);
 
         return redirect()->route('supervisor.work-orders.show', $workOrder)
             ->with('success', "Work order {$workOrder->order_no} updated.");

@@ -181,7 +181,7 @@ class WorkOrderService
             $processSnapshot = $this->attachEngineeringSnapshot($processSnapshot, $data);
 
             // Create work order
-            $workOrder = WorkOrder::create([
+            $workOrder = new WorkOrder([
                 'order_no' => $data['order_no'],
                 'customer_order_no' => $data['customer_order_no'] ?? null,
                 'customer_id' => $data['customer_id'] ?? null,
@@ -196,15 +196,24 @@ class WorkOrderService
                 'status' => WorkOrder::STATUS_PENDING,
                 'priority' => $data['priority'] ?? 0,
                 'due_date' => $data['due_date'] ?? null,
+                'planned_start_at' => $data['planned_start_at'] ?? null,
+                'planned_end_at' => $data['planned_end_at'] ?? null,
                 'description' => $data['description'] ?? null,
                 'extra_data' => $data['extra_data'] ?? null,
                 'custom_fields' => $data['custom_fields'] ?? null,
             ]);
 
+            $workOrder->deferDomainEvents = ! empty($data['generate_components']);
+            $workOrder->save();
+
             // Record which BOMs back the snapshot so the selection can be shown
             // and switched later. Nothing to record when the order has no template.
             if (! empty($processSnapshot['bom_template_ids'])) {
                 $this->syncBomSelection($workOrder, $processSnapshot['bom_template_ids']);
+            }
+
+            if (! empty($data['generate_components'])) {
+                $workOrder = app(ComponentWorkOrderService::class)->generate($workOrder, $data);
             }
 
             return $workOrder;
@@ -250,7 +259,7 @@ class WorkOrderService
      *
      * @param  array<string, mixed>  $data
      */
-    private function attachEngineeringSnapshot(?array $snapshot, array $data): ?array
+    public function attachEngineeringSnapshot(?array $snapshot, array $data): ?array
     {
         $owners = [];
         if (! empty($data['product_revision_id'])) {
@@ -386,6 +395,7 @@ class WorkOrderService
         // `during` items always reference an existing step).
         $stepNumbers = array_column($snapshot['steps'] ?? [], 'step_number');
         $snapshot['bom'] = $this->degradeOrphanDuringItems($merged, $stepNumbers);
+        $snapshot['source_bom'] = $snapshots->pluck('bom')->flatten(1)->values()->all();
         $snapshot['bom_template_ids'] = $templates->pluck('id')->values()->all();
         $snapshot['bom_templates'] = $templates->map(fn (ProcessTemplate $t) => [
             'id' => $t->id,
@@ -650,7 +660,7 @@ class WorkOrderService
             throw new \Exception('Cannot update completed work order');
         }
 
-        $workOrder->update([
+        app(ComponentWorkOrderService::class)->update($workOrder, [
             'customer_order_no' => array_key_exists('customer_order_no', $data)
                 ? $data['customer_order_no']
                 : $workOrder->customer_order_no,
@@ -675,11 +685,25 @@ class WorkOrderService
     public function createBatch(WorkOrder $workOrder, float $targetQty, ?int $workstationId = null, ?string $lotNumber = null): Batch
     {
         return DB::transaction(function () use ($workOrder, $targetQty, $workstationId, $lotNumber) {
+            if ($workOrder->component_plan || $workOrder->root_work_order_id) {
+                WorkOrder::whereKey($workOrder->root_work_order_id ?: $workOrder->id)->lockForUpdate()->firstOrFail();
+            }
             // Serialize against updateBomSelection() (see there): holding the
             // work-order row lock guarantees this batch is built from the committed
             // snapshot, never one that a concurrent BOM change is mid-rewrite.
             WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
             $workOrder->refresh();
+
+            if ($workOrder->component_plan || $workOrder->root_work_order_id) {
+                if (! is_finite($targetQty) || $targetQty <= 0 || in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES, true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['target_qty' => __('A positive batch quantity on an active order is required.')]);
+                }
+                $committed = $workOrder->batches()->where('status', '!=', Batch::STATUS_CANCELLED)->get()
+                    ->sum(fn (Batch $batch) => $batch->status === Batch::STATUS_DONE ? (float) $batch->produced_qty : (float) $batch->target_qty);
+                if ($committed + $targetQty > (float) $workOrder->planned_qty) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['target_qty' => __('Batch quantity exceeds the remaining component plan quantity.')]);
+                }
+            }
 
             // Calculate next batch number
             $lastBatch = $workOrder->batches()->reorder('batch_number', 'desc')->first();

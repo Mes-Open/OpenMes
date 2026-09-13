@@ -100,7 +100,36 @@ export interface ProductType {
   custom_fields?: CustomFieldValues | null;
 }
 
+export interface ComponentSpecification {
+  material_code?: string;
+  material_name?: string;
+  unit_of_measure?: string;
+  extra_data?: { foam_grade?: string; length_mm?: number; width_mm?: number; thickness_mm?: number };
+}
+
+export interface ComponentProductionRow {
+  id: number;
+  path: string;
+  child_work_order_id: number | null;
+  order_no: string | null;
+  specification: ComponentSpecification;
+  required_qty: number;
+  stock_qty: number;
+  covered_stock_qty: number;
+  needed_at: string | null;
+  planned_completion_at: string | null;
+  schedule_status: 'late' | 'unscheduled' | 'on_time';
+  good_qty: number;
+  scrap_qty: number;
+  remaining_qty: number;
+  ready: boolean | null;
+}
+
 export interface WorkOrder {
+  parent_work_order_id?: number | null;
+  root_work_order_id?: number | null;
+  component_production?: ComponentProductionRow[];
+  extra_data?: { component_specification?: ComponentSpecification };
   id: number;
   order_no: string;
   status: WorkOrderStatus;

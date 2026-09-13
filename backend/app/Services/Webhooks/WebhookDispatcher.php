@@ -55,7 +55,7 @@ class WebhookDispatcher
                     'status' => WebhookDelivery::STATUS_PENDING,
                 ]);
 
-                DeliverWebhookJob::dispatch($delivery->id);
+                DeliverWebhookJob::dispatch($delivery->id)->afterCommit();
             } catch (\Throwable $e) {
                 Log::warning('Failed to enqueue webhook delivery', [
                     'webhook_id' => $webhook->id,

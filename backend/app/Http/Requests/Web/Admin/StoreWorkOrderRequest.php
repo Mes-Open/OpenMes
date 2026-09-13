@@ -8,7 +8,17 @@ use Illuminate\Validation\Rule;
 
 class StoreWorkOrderRequest extends FormRequest
 {
-    use MergesCustomFieldRules;
+    use MergesCustomFieldRules { attributes as customFieldAttributes; }
+
+    public function messages(): array
+    {
+        return \App\Http\Requests\Concerns\ComponentStockRules::messages();
+    }
+
+    public function attributes(): array
+    {
+        return array_merge($this->customFieldAttributes(), \App\Http\Requests\Concerns\ComponentStockRules::attributes());
+    }
 
     public function authorize(): bool
     {
@@ -47,6 +57,8 @@ class StoreWorkOrderRequest extends FormRequest
                     ->where('product_type_id', $this->input('product_type_id'))
                     ->whereNull('deleted_at'),
             ],
+            ...\App\Http\Requests\Concerns\ComponentStockRules::rules(''),
+            'generate_components' => ['nullable', 'boolean'],
             'planned_qty' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
             'unit_price' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'counting_source' => ['nullable', Rule::in(\App\Models\WorkOrder::COUNTING_SOURCES)],

@@ -24,6 +24,7 @@ trait ReportsImportRows
      */
     protected function processRows(array $rows, callable $handler): array
     {
+        $componentJobs = 0;
         $imported = 0;
         $updated = 0;
         $skipped = 0;
@@ -44,6 +45,7 @@ trait ReportsImportRows
                 $result = DB::transaction(fn () => $handler($row));
 
                 if ($result['status'] === 'success') {
+                    $componentJobs += $result['component_jobs'] ?? 0;
                     ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;
                 } elseif ($result['status'] === 'skipped') {
                     $skipped++;
@@ -54,6 +56,8 @@ trait ReportsImportRows
                         'message' => $result['error'] ?? __('Unknown error'),
                     ];
                 }
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $errors[] = ['row' => $rowNumber, 'field' => array_key_first($e->errors()), 'message' => collect($e->errors())->flatten()->implode(' ')];
             } catch (\Throwable $e) {
                 // Never hand the exception text to the caller: a QueryException
                 // carries the SQL, table names and bound values, and an ERP API key
@@ -74,6 +78,7 @@ trait ReportsImportRows
         }
 
         return [
+            ...($componentJobs ? ['component_jobs' => $componentJobs] : []),
             'imported' => $imported,
             'updated' => $updated,
             'skipped' => $skipped,

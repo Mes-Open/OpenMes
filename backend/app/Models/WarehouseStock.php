@@ -26,6 +26,8 @@ class WarehouseStock extends Model
         'quantity',
         'unit_of_measure',
         'erp_synced_at',
+        'component_specification',
+        'component_status',
         'tenant_id',
     ];
 
@@ -33,6 +35,7 @@ class WarehouseStock extends Model
     {
         return [
             'quantity' => 'decimal:3',
+            'component_specification' => 'array',
             'erp_synced_at' => 'datetime',
         ];
     }

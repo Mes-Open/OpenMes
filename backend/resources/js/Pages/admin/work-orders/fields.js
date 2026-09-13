@@ -66,6 +66,13 @@ function bomLabel(t) {
 }
 
 export function woFields(lines, productTypes, { withStatus = false, customers = [], bomTemplates = [], bomLocked = false, productRevisions = [] } = {}) {
+    const defaultBoms = new Map();
+    for (const template of bomTemplates) {
+        const current = defaultBoms.get(template.product_type_id);
+        if (template.is_active && (!current || Number(template.version) > Number(current.version))) {
+            defaultBoms.set(template.product_type_id, template);
+        }
+    }
     const fields = [
         { name: 'order_no', label: __('Order No'), required: true },
         { name: 'customer_order_no', label: __('Customer Order No') },
@@ -105,14 +112,26 @@ export function woFields(lines, productTypes, { withStatus = false, customers = 
     if (bomTemplates.length && !bomLocked) {
         fields.push({
             name: 'bom_template_ids', label: __('Bills of Materials'), type: 'checkbox-group',
+            showCheckboxes: true,
             filterByField: 'product_type_id',
-            options: bomTemplates.map((t) => ({ value: t.id, label: bomLabel(t), group: t.product_type_id })),
+            options: bomTemplates.map((t) => ({ value: t.id, label: bomLabel(t), group: t.product_type_id,
+                defaultSelected: !withStatus && defaultBoms.get(t.product_type_id)?.id === t.id,
+            })),
             help: __('Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.'),
         });
     }
 
+    fields.push({ name: 'planned_qty', label: __('Planned Qty'), type: 'number', required: true });
+
+    if (!withStatus) {
+        fields.push({ name: 'planned_start_at', label: __('Planned start'), type: 'datetime' },
+            { name: 'planned_end_at', label: __('Planned end'), type: 'datetime' });
+        fields.push({ name: 'generate_components', label: __('Generate component work orders'), type: 'checkbox',
+            help: __('Create linked production orders for manufactured BOM components. Purchased inputs remain materials.'),
+        });
+    }
+
     fields.push(
-        { name: 'planned_qty', label: __('Planned Qty'), type: 'number', required: true },
         { name: 'unit_price', label: __('Unit Price'), type: 'number', help: __('Price per produced unit. Adds to the customer\'s revenue when the order completes.') },
         {
             name: 'counting_source', label: __('Counting Source'), type: 'select',

@@ -660,6 +660,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     });
 
     // Work Orders
+    Route::post('/work-orders/component-preview', [\App\Http\Controllers\Api\V1\WorkOrderComponentController::class, 'preview']);
     Route::apiResource('work-orders', WorkOrderController::class);
 
     // Work Order status transitions

@@ -86,6 +86,13 @@ class BomExplosionService
         );
     }
 
+    public function wouldCreateProductCycle(ProcessTemplate $template, int $productId, ?int $componentTemplateId = null): bool
+    {
+        $childId = $componentTemplateId ?? \App\Models\ProductType::find($productId)?->activeProcessTemplate()?->id;
+
+        return $childId !== null && $this->templateReaches($childId, (int) $template->id, []);
+    }
+
     /**
      * Would pointing $material at $templateId as its producing template close a
      * loop — that is, is $material already a component somewhere beneath it?
@@ -238,7 +245,7 @@ class BomExplosionService
     /** Producing templates of the manufactured materials this template consumes. */
     private function childTemplateIds(int $templateId): array
     {
-        return BomItem::where('bom_items.process_template_id', $templateId)
+        $materials = BomItem::where('bom_items.process_template_id', $templateId)
             ->join('materials', 'materials.id', '=', 'bom_items.material_id')
             ->whereNull('materials.deleted_at')
             ->where('materials.is_manufactured', true)
@@ -247,5 +254,10 @@ class BomExplosionService
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->all();
+        $products = BomItem::where('process_template_id', $templateId)->whereNotNull('product_type_id')->get()
+            ->map(fn ($item) => $item->component_template_id ?? $item->productType?->activeProcessTemplate()?->id)
+            ->filter()->all();
+
+        return array_values(array_unique(array_merge($materials, $products)));
     }
 }

@@ -21,7 +21,7 @@ class ProductionExportController extends Controller
 
     public function completions(ProductionExportRequest $request): JsonResponse
     {
-        $query = WorkOrder::query()
+        $query = WorkOrder::query()->whereNull('parent_work_order_id')
             ->with(['line:id,code,name', 'productType:id,code,name'])
             ->orderBy('id');
 
@@ -69,6 +69,8 @@ class ProductionExportController extends Controller
     private function present(WorkOrder $wo): array
     {
         return [
+            'parent_work_order_id' => $wo->parent_work_order_id,
+            'root_work_order_id' => $wo->root_work_order_id,
             'order_no' => $wo->order_no,
             'customer_order_no' => $wo->customer_order_no,
             'status' => $wo->status,

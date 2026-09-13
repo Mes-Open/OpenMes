@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Breadcrumbs, Button, Icon, ProgressBar, StatusBadge, StatusPill, Stepper, useToast } from '@openmes/ui';
 
 import AppLayout from '../../../layouts/AppLayout';
+import ComponentProduction from '../../../components/ComponentProduction';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import PageTitle from '../../../components/PageTitle';
 import useConfirm from '../../../components/useConfirm';
@@ -13,7 +14,7 @@ import ChangeRequestModal from './ChangeRequestModal';
 import { apiCall } from '../../../lib/http';
 import { woStatusBadge } from './fields';
 import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
-import { formatDate, formatNumber, timeAgo, elapsed, __ } from '../../../lib/i18n';
+import { formatDateTime, formatDate, formatNumber, timeAgo, elapsed, __ } from '../../../lib/i18n';
 
 /**
  * One work order, end to end (design ref: OpenMES Order Detail.dc.html).
@@ -186,6 +187,7 @@ export default function AdminWorkOrderShow() {
                     <div className="flex min-w-0 flex-col gap-4">
                         <Details workOrder={workOrder} isDuePast={isDuePast} isTerminal={isTerminal} />
                         <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields ?? {}} />
+                        <ComponentProduction workOrder={workOrder} />
                         <Batches workOrder={workOrder} />
                         <MaterialsReconciliation
                             workOrder={workOrder}
@@ -375,6 +377,9 @@ function Field({ label, mono = false, tone = 'text-om-ink', children, sub, class
 }
 
 function Details({ workOrder, isDuePast, isTerminal }) {
+    // Component specifications have a dedicated display in ComponentProduction.
+    const extraData = Object.entries(workOrder.extra_data ?? {})
+        .filter(([key]) => key !== 'component_specification');
     return (
         <Card title={__('Details')}>
             <div className="grid grid-cols-2 gap-x-6 gap-y-[18px] md:grid-cols-3">
@@ -401,6 +406,8 @@ function Details({ workOrder, isDuePast, isTerminal }) {
                         <span className="text-om-faint"> · {__('score')} {workOrder.priority_score}</span>
                     )}
                 </Field>
+                {workOrder.planned_start_at && <Field label={__('Planned start')} mono>{formatDateTime(workOrder.planned_start_at)}</Field>}
+                {workOrder.planned_end_at && <Field label={__('Planned end')} mono>{formatDateTime(workOrder.planned_end_at)}</Field>}
                 {workOrder.due_date && (
                     <Field
                         label={__('Due Date')}
@@ -419,16 +426,18 @@ function Details({ workOrder, isDuePast, isTerminal }) {
                         {workOrder.description}
                     </Field>
                 )}
-                {workOrder.extra_data && Object.keys(workOrder.extra_data).length > 0 && (
+                {extraData.length > 0 && (
                     <div className="col-span-2 md:col-span-3">
                         <div className="mb-[5px] font-mono text-[9px] tracking-[0.1em] text-om-faint uppercase">
                             {__('Extra Data')}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            {Object.entries(workOrder.extra_data).map(([k, v]) => (
+                            {extraData.map(([k, v]) => (
                                 <div key={k} className="rounded-om-sm bg-om-panel px-2 py-1">
                                     <span className="text-[11px] text-om-faint">{k}</span>
-                                    <p className="text-[13px] font-medium text-om-muted">{String(v)}</p>
+                                    <p className="whitespace-pre-wrap break-words text-[13px] font-medium text-om-muted">
+                                        {v == null ? '—' : typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)}
+                                    </p>
                                 </div>
                             ))}
                         </div>

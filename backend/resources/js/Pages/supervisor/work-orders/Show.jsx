@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, StatusPill, Stepper } from '@openmes/ui';
+import ComponentProduction from '../../../components/ComponentProduction';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
 import DueCountdown from '../../../components/DueCountdown';
@@ -432,6 +433,7 @@ export default function SupervisorWorkOrderShow() {
                             </div>
                         </div>
 
+                        <ComponentProduction workOrder={workOrder} basePath="/supervisor/work-orders" />
                         {/* Batches */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
                             <h2 className="text-[14px] font-semibold text-om-ink mb-4">

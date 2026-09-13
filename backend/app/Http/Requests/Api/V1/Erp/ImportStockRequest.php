@@ -30,6 +30,8 @@ class ImportStockRequest extends FormRequest
             'balances.*.warehouse_code' => ['nullable', 'string', 'max:100'],
             'balances.*.material_code' => ['nullable', 'string', 'max:50'],
             'balances.*.product_type_code' => ['nullable', 'string', 'max:50'],
+            'balances.*.component_specification' => ['nullable', 'array'],
+            'balances.*.component_status' => ['sometimes', 'in:released,quarantine,rejected'],
             'balances.*.quantity' => ['required', 'numeric', 'min:0', 'max:99999999'],
             'balances.*.unit_of_measure' => ['nullable', 'string', 'max:20'],
         ];

@@ -43,17 +43,20 @@ class NetRequirementsService
             ->whereNotNull('due_date')
             ->whereBetween('due_date', [$from, $to])
             ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
-            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date']);
+            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date', 'process_snapshot', 'root_work_order_id', 'component_plan']);
 
         // BOM per product type, exploded through every subassembly level to the
         // materials that actually have to be bought or drawn from stock.
-        $bomByProductType = $this->bomByProductType($workOrders->pluck('product_type_id')->unique()->filter());
+        $bomByProductType = $this->bomByProductType($workOrders->reject(fn ($wo) => $wo->component_plan || $wo->root_work_order_id)->pluck('product_type_id')->unique()->filter());
 
         // Accumulate gross requirement + the driving work orders, per material.
         $gross = [];          // material_id => qty
         $relatedWos = [];     // material_id => [order_no => true]
         foreach ($workOrders as $wo) {
-            $lines = $bomByProductType->get($wo->product_type_id, collect());
+            $lines = ($wo->component_plan || $wo->root_work_order_id)
+                ? collect($wo->process_snapshot['bom'] ?? [])->filter(fn ($row) => ! empty($row['material_id']))
+                    ->map(fn ($row) => ['material_id' => $row['material_id'], 'required_per_unit' => $row['quantity_per_unit'] * (1 + $row['scrap_percentage'] / 100)])
+                : $bomByProductType->get($wo->product_type_id, collect());
             foreach ($lines as $line) {
                 // required_per_unit already carries the scrap compounded through
                 // every level of the explosion, so it only needs scaling here.

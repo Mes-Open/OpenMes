@@ -13,6 +13,8 @@ use Inertia\Inertia;
 
 class SchedulePlannerController extends Controller
 {
+    use \App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
+
     public function __construct(private readonly SchedulePlannerService $planner) {}
 
     public function index(Request $request)
@@ -24,11 +26,9 @@ class SchedulePlannerController extends Controller
         ]);
 
         return Inertia::render('admin/schedule/Planner', [
-            ...$board,
             // For the "+ New order" modal (shares the create page's form).
-            'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'customers' => \App\Models\Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
-            'customFields' => app(\App\Services\CustomFieldService::class)->clientConfig('work_order'),
+            ...$this->createFormOptions(app(\App\Services\CustomFieldService::class)),
+            ...$board,
         ]);
     }
 
@@ -135,7 +135,8 @@ class SchedulePlannerController extends Controller
         if ($minuteLevel) {
             return response()->json([
                 'success' => true,
-                'message' => __('Work order span updated.'),
+                'message' => __('Work order span updated.').' '.implode('; ', $result['warnings'] ?? []),
+                'warnings' => $result['warnings'] ?? [],
                 'order' => [
                     'id' => $workOrder->id,
                     'order_no' => $workOrder->order_no,
@@ -147,7 +148,8 @@ class SchedulePlannerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => __('Work order span updated.'),
+            'message' => __('Work order span updated.').' '.implode('; ', $result['warnings'] ?? []),
+            'warnings' => $result['warnings'] ?? [],
             'order' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,

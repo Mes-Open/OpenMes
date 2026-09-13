@@ -2,7 +2,6 @@
 
 namespace App\Services\Erp;
 
-use App\Models\BomItem;
 use App\Models\Material;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
@@ -65,53 +64,72 @@ class BomImportService
             // unknown material is reported as a single failed row, never applied
             // half-way.
             $resolved = [];
-
             foreach ($components as $position => $component) {
-                $materialCode = trim((string) ($component['material_code'] ?? ''));
-                $material = Material::where('code', $materialCode)->first();
-
-                if (! $material) {
-                    return $this->error('components', __("Material ':code' not found", ['code' => $materialCode]));
+                if (! empty($component['material_code']) && ! empty($component['component_code']) && trim($component['material_code']) !== trim($component['component_code'])) {
+                    return $this->error('components', __('Conflicting component codes'));
                 }
-
+                $kind = $component['component_kind'] ?? 'material';
+                $code = trim((string) ($component['component_code'] ?? $component['material_code'] ?? ''));
+                if (! in_array($kind, ['material', 'product_type'], true)) {
+                    return $this->error('components', __('Invalid component kind'));
+                }
+                $entity = $kind === 'material' ? Material::where('code', $code)->first() : ProductType::where('code', $code)->first();
+                if (! $entity) {
+                    return $this->error('components', __("Component ':code' not found", ['code' => $code]));
+                }
                 $quantity = (float) ($component['quantity_per_unit'] ?? 0);
-
-                if ($quantity <= 0) {
-                    return $this->error('components', __("Quantity per unit for ':code' must be greater than 0", [
-                        'code' => $materialCode,
-                    ]));
+                $scrap = (float) ($component['scrap_percentage'] ?? 0);
+                if (! is_finite($quantity) || $quantity <= 0 || $quantity > 99999999 || $scrap < 0 || $scrap > 100) {
+                    return $this->error('components', __('Invalid component quantity or scrap percentage'));
                 }
-
-                if (isset($resolved[$material->id])) {
-                    return $this->error('components', __("Material ':code' is listed twice in one recipe", [
-                        'code' => $materialCode,
-                    ]));
+                $key = $kind.':'.$entity->id;
+                if (isset($resolved[$key])) {
+                    return $this->error('components', __("Component ':code' is listed twice in one recipe", ['code' => $code]));
                 }
-
-                $resolved[$material->id] = [
+                $componentTemplate = null;
+                if (! empty($component['component_template_version'])) {
+                    if ($kind !== 'product_type') {
+                        return $this->error('components', __('A component version requires a product component'));
+                    }
+                    $componentTemplate = $this->resolveTemplate($entity, $component['component_template_version']);
+                    if (! $componentTemplate) {
+                        return $this->error('components', __('Component process version not found'));
+                    }
+                }
+                $extra = $component['extra_data'] ?? [];
+                foreach (['foam_grade', 'length_mm', 'width_mm', 'thickness_mm'] as $field) {
+                    if (isset($component[$field]) && $component[$field] !== '') {
+                        if ($field !== 'foam_grade' && (! is_numeric($component[$field]) || (float) $component[$field] <= 0)) {
+                            return $this->error('components', __('Component dimensions must be positive millimetres'));
+                        }
+                        $extra[$field] = $component[$field];
+                    }
+                }
+                $resolved[$key] = [
+                    'material_id' => $kind === 'material' ? $entity->id : null,
+                    'product_type_id' => $kind === 'product_type' ? $entity->id : null,
+                    'component_template_id' => $componentTemplate?->id,
                     'quantity_per_unit' => $quantity,
-                    'scrap_percentage' => (float) ($component['scrap_percentage'] ?? 0),
+                    'scrap_percentage' => $scrap,
+                    'extra_data' => $extra,
                     'notes' => $component['notes'] ?? null,
                     'sort_order' => (int) ($component['sort_order'] ?? $position),
                 ];
             }
 
             $hadItems = $template->bomItems()->exists();
-
             DB::transaction(function () use ($template, $resolved, $mode) {
-                foreach ($resolved as $materialId => $attributes) {
-                    BomItem::updateOrCreate(
-                        ['process_template_id' => $template->id, 'material_id' => $materialId],
-                        $attributes,
-                    );
+                $kept = [];
+                foreach ($resolved as $attributes) {
+                    $existing = $template->bomItems()
+                        ->where('material_id', $attributes['material_id'])
+                        ->where('product_type_id', $attributes['product_type_id'])->first();
+                    $service = app(\App\Services\Material\BomService::class);
+                    $item = $existing ? $service->updateItem($existing, $attributes) : $service->addItem($template, $attributes);
+                    $kept[] = $item->id;
                 }
-
                 if ($mode === 'replace') {
-                    $template->bomItems()
-                        ->whereNotIn('material_id', array_keys($resolved))
-                        ->get()
-                        ->each
-                        ->delete();
+                    $template->bomItems()->whereNotIn('id', $kept)->get()->each->delete();
                 }
             });
 

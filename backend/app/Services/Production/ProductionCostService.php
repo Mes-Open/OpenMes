@@ -69,6 +69,12 @@ class ProductionCostService
         $additional = $this->additionalCost($workOrder);
 
         $total = round($materials['total'] + $labor['total'] + $additional['total'], 2);
+        $componentCost = 0.0;
+        if ($workOrder->component_plan || $workOrder->root_work_order_id) {
+            foreach ($workOrder->childWorkOrders()->get() as $child) {
+                $componentCost += $this->breakdown($child)['assembly_total_cost'];
+            }
+        }
         $producedQty = (float) $workOrder->produced_qty;
 
         $mixedCurrency = $materials['mixed_currency']
@@ -85,6 +91,8 @@ class ProductionCostService
             'labor' => $labor,
             'additional' => $additional,
             'total_cost' => $total,
+            'component_cost' => round($componentCost, 2),
+            'assembly_total_cost' => round($total + $componentCost, 2),
             'cost_per_unit' => $producedQty > 0 ? round($total / $producedQty, 4) : null,
         ];
     }
@@ -224,7 +232,7 @@ class ProductionCostService
 
         $exclude = array_flip($excludeIds);
 
-        $template = $workOrder->productType?->processTemplates->first();
+        $template = ($workOrder->component_plan || $workOrder->root_work_order_id) ? null : $workOrder->productType?->processTemplates->first();
 
         if ($template && $template->bomItems->isNotEmpty()) {
             return $template->bomItems

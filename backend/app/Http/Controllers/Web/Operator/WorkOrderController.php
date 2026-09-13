@@ -369,6 +369,8 @@ class WorkOrderController extends Controller
         // documents` on the client (Operator has it; see the seeder).
         $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
 
+        $workOrder->setAttribute('component_production', app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->summary($workOrder));
+
         return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments'));
     }
 }

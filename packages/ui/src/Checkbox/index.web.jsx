@@ -29,7 +29,7 @@ export function Checkbox({
             aria-checked={indeterminate ? 'mixed' : checked}
             disabled={disabled}
             onClick={() => onChange?.(!checked)}
-            className={`inline-flex items-center gap-[9px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+            className={`inline-flex align-middle items-center gap-[9px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             {...props}
         >
             <span

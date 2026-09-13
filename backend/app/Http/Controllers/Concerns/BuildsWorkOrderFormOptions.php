@@ -26,6 +26,7 @@ trait BuildsWorkOrderFormOptions
         return [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'componentWarehouses' => \App\Models\Warehouse::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'bomTemplates' => $this->bomTemplateOptions(),
             'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),

@@ -72,7 +72,7 @@ export default function Planner() {
     const toast = useCallback((msg, kind = 'success') => {
         const id = TOAST_SEQ++;
         setToasts((ts) => [...ts, { id, msg, kind }]);
-        setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 3200);
+        setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), kind === 'warning' ? 12000 : 3200);
     }, []);
 
     // ── Context handed to the views ────────────────────────────────────────────
@@ -89,7 +89,10 @@ export default function Planner() {
         try {
             const r = await apiCall(`/admin/schedule/${orderId}`, 'PUT', body);
             const json = await r.json();
-            if (json.success) return json;
+            if (json.success) {
+                if (json.warnings?.length) toast(json.warnings.join(' '), 'warning');
+                return json;
+            }
             toast(json.message ?? __('Error saving'), 'error');
             return null;
         } catch {
@@ -166,7 +169,7 @@ export default function Planner() {
                 return;
             }
             const json = await r.json();
-            if (json.success) { toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); refreshContent(); }
+            if (json.success) { if (json.warnings?.length) toast(json.warnings.join(' '), 'warning'); toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); refreshContent(); }
             else toast(json.message ?? __('Error saving'), 'error');
         } catch {
             toast(__('Connection error'), 'error');

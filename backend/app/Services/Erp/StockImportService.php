@@ -76,7 +76,7 @@ class StockImportService
                     'material_id' => $material->id,
                     'product_type_id' => null,
                     'material_lot_id' => null,
-                ], $quantity, $row['unit_of_measure'] ?? $material->unit_of_measure);
+                ], $quantity, $row['unit_of_measure'] ?? $material->unit_of_measure, \Illuminate\Support\Arr::only($row, ['component_specification', 'component_status']));
 
                 $touchedMaterials[$material->id] = $material->id;
 
@@ -97,7 +97,7 @@ class StockImportService
                 'material_id' => null,
                 'product_type_id' => $product->id,
                 'material_lot_id' => null,
-            ], $quantity, $row['unit_of_measure'] ?? $product->unit_of_measure);
+            ], $quantity, $row['unit_of_measure'] ?? $product->unit_of_measure, \Illuminate\Support\Arr::only($row, ['component_specification', 'component_status']));
 
             return $existed ? $this->updated() : $this->created();
         });
@@ -114,11 +114,12 @@ class StockImportService
      *
      * @param  array<string, int|null>  $keys
      */
-    private function writeBalance(int $warehouseId, array $keys, float $quantity, ?string $unit): bool
+    private function writeBalance(int $warehouseId, array $keys, float $quantity, ?string $unit, array $metadata = []): bool
     {
         $stock = WarehouseStock::updateOrCreate(
             ['warehouse_id' => $warehouseId, ...$keys],
             [
+                ...$metadata,
                 'quantity' => $quantity,
                 'unit_of_measure' => $unit,
                 'erp_synced_at' => now(),

@@ -39,7 +39,7 @@ export function WorkOrderDetailScreen() {
   const numericId = Number(id);
   const router = useRouter();
   const qc = useQueryClient();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const serverUrl = useSettingsStore((s) => s.serverUrl);
 
   const wo = useWorkOrder(numericId);
@@ -142,6 +142,37 @@ export function WorkOrderDetailScreen() {
                 ) : null}
               </View>
             </View>
+
+            {(data.component_production?.length || data.extra_data?.component_specification) ? (
+              <View style={styles.box}>
+                <Text style={styles.product}>{t('Component production')}</Text>
+                {data.extra_data?.component_specification && <Text style={{ color: colors.muted }}>
+                  {data.extra_data.component_specification.material_code} · {data.extra_data.component_specification.material_name}
+                </Text>}
+                {data.parent_work_order_id && <Pressable onPress={() => router.push(`/work-orders/${data.parent_work_order_id}`)}>
+                  <Text style={{ color: colors.accent }}>{t('Parent work order')}</Text>
+                </Pressable>}
+                {data.component_production?.map((part) => <Pressable key={part.id}
+                  disabled={!part.child_work_order_id}
+                  onPress={() => router.push(`/work-orders/${part.child_work_order_id}`)}
+                  style={{ paddingVertical: 10 }}>
+                  <Text style={{ color: colors.ink }}>{part.specification.material_code} · {part.specification.material_name}</Text>
+                  <Text style={{ color: colors.muted }}>{[
+                    part.specification.extra_data?.foam_grade,
+                    ...['length_mm', 'width_mm', 'thickness_mm'].map((key) => {
+                      const value = part.specification.extra_data?.[key as 'length_mm'];
+                      return value ? `${value} mm` : null;
+                    }),
+                  ].filter(Boolean).join(' · ')}</Text>
+                  <Mono size={11} color={colors.muted}>
+                    {part.child_work_order_id ? `${part.good_qty}/${part.required_qty} ${t('produced')} · ${part.scrap_qty} ${t('Scrap')} · ${part.remaining_qty} ${t('Remaining')}` : `${part.required_qty} ${part.specification.unit_of_measure ?? ''} · ${t(part.stock_qty > 0 ? 'From stock' : 'Material input')}`}
+                  </Mono>
+                  {part.stock_qty > 0 && <Text style={{ color: colors.muted }}>{t('From stock')}: {part.covered_stock_qty}/{part.stock_qty}</Text>}
+                  {part.needed_at && <Text style={{ color: colors.muted }}>{t('Needed at')}: {new Date(part.needed_at).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'long' })}</Text>}
+                  {part.schedule_status === 'late' && <Text style={{ color: colors.accent }}>{t('Component production is scheduled too late.')}</Text>}
+                </Pressable>)}
+              </View>
+            ) : null}
 
             {/* Progress */}
             {planned > 0 ? (

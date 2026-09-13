@@ -533,6 +533,7 @@ class DataImportController extends Controller
         ]);
 
         // Only a validation still has its upload; a real run deleted it.
+        $payload['generated_component_jobs'] = (int) ($import->options['generated_component_jobs'] ?? 0);
         $payload['token'] = $import->dry_run ? ($import->options['token'] ?? null) : null;
 
         $payload['started_at'] = $import->started_at?->toIso8601String();

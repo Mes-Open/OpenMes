@@ -1,10 +1,12 @@
+import ComponentPlanPreview from '../../../components/ComponentPlanPreview';
 import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from './fields';
 
 export const WO_FORM_INITIAL = {
     order_no: '', customer_order_no: '', customer_id: '', line_id: '', product_type_id: '',
     product_revision_id: '',
-    bom_template_ids: [],
+    bom_template_ids: [], generate_components: true, use_component_stock: false, component_warehouse_ids: [],
+    excluded_component_paths: [], component_preview_token: null, planned_start_at: '', planned_end_at: '',
     planned_qty: '', unit_price: '', counting_source: 'operator', priority: 0, due_date: '', description: '', custom_fields: {},
 };
 
@@ -25,6 +27,9 @@ export default function WorkOrderForm({ action = '/admin/work-orders', lines = [
             fields={woFields(lines, productTypes, { customers, bomTemplates, productRevisions })}
             customFields={customFields}
             initial={{ ...WO_FORM_INITIAL, ...(stay ? { stay: 1 } : {}), ...initial }}
+            renderAfterField={(name, { data, setData }) => name === 'generate_components'
+                ? <ComponentPlanPreview data={data} setData={setData} action={action} /> : null}
+            canSubmit={(data) => !data.generate_components || !data.use_component_stock || Boolean(data.component_preview_token)}
             submitLabel="Create"
             cancelHref={cancelHref}
             onCancel={onCancel}

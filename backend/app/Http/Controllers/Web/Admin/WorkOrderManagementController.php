@@ -80,6 +80,8 @@ class WorkOrderManagementController extends Controller
 
         try {
             $workOrder = $this->workOrderService->createWorkOrder($validated);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             report($e);
 
@@ -216,12 +218,17 @@ class WorkOrderManagementController extends Controller
             'workOrder' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
+                'parent_work_order_id' => $workOrder->parent_work_order_id,
+                'root_work_order_id' => $workOrder->root_work_order_id,
+                'component_production' => app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->summary($workOrder),
                 'snapshot_version' => $workOrder->snapshot_version,
                 'customer_order_no' => $workOrder->customer_order_no,
                 'customer_name' => $workOrder->customer?->name,
                 'customer_tier' => $workOrder->customer?->tier?->value,
                 'status' => $workOrder->status,
                 'planned_qty' => $workOrder->planned_qty,
+                'planned_start_at' => $workOrder->planned_start_at?->toIso8601String(),
+                'planned_end_at' => $workOrder->planned_end_at?->toIso8601String(),
                 'unit_price' => $workOrder->unit_price,
                 'produced_qty' => $workOrder->produced_qty,
                 'priority' => $workOrder->priority,
@@ -428,7 +435,7 @@ class WorkOrderManagementController extends Controller
                 // Current BOM selection (empty for legacy single-BOM orders).
                 'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
                 // BOMs are frozen once production starts - the form hides the picker.
-                'bom_locked' => $workOrder->batches()->exists(),
+                'bom_locked' => (bool) ($workOrder->component_plan || $workOrder->root_work_order_id || $workOrder->batches()->exists()),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
@@ -502,11 +509,13 @@ class WorkOrderManagementController extends Controller
         // Field edits and the BOM re-selection commit together (or not at all).
         try {
             DB::transaction(function () use ($workOrder, $validated, $requested) {
-                $workOrder->update($validated);
+                $workOrder = app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->update($workOrder, $validated);
                 if ($requested !== null) {
                     $this->workOrderService->updateBomSelection($workOrder, $requested);
                 }
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 

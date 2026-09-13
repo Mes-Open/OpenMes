@@ -23,8 +23,52 @@ class WorkOrder extends Model
      * priority rule exists, so manual priorities are preserved until scoring is
      * configured. Runs with persist=false because a save is already in flight.
      */
+    public bool $revisingComponentPlan = false;
+
+    public bool $deferDomainEvents = false;
+
     protected static function booted(): void
     {
+        static::updating(function (self $order): void {
+            if (! $order->revisingComponentPlan && ($order->getOriginal('component_plan') || $order->getOriginal('root_work_order_id'))
+                && $order->isDirty(['planned_qty', 'product_type_id', 'process_snapshot', 'parent_work_order_id', 'root_work_order_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'planned_qty' => __('Generated component quantities and processes are frozen. Create a replacement order to change the production structure.'),
+                ]);
+            }
+            if ($order->isDirty('status') && $order->status === self::STATUS_DONE
+                && ComponentStockReservation::whereIn('work_order_component_id', $order->components()->pluck('id'))->where('status', 'held')->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['status' => __('Start the consuming operation to issue reserved components before completing the order.')]);
+            }
+            if ($order->isDirty('status') && $order->status === self::STATUS_DONE
+                && ! app(\App\Services\WorkOrder\ComponentWorkOrderService::class)->ready($order)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['status' => __('Required components are not ready for assembly.')]);
+            }
+        });
+        static::deleting(function (self $order): void {
+            if ($order->component_plan || $order->root_work_order_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['work_order' => __('Cancel generated production orders to preserve component history.')]);
+            }
+        });
+        static::updated(function (self $order): void {
+            if ($order->wasChanged('planned_start_at')) {
+                app(\App\Services\WorkOrder\ComponentStockService::class)->syncDates($order);
+            }
+            if ($order->wasChanged('status') && in_array($order->status, [self::STATUS_CANCELLED, self::STATUS_REJECTED], true)) {
+                app(\App\Services\WorkOrder\ComponentStockService::class)->release($order, (bool) $order->component_plan);
+            }
+            if ($order->root_work_order_id && $order->wasChanged(['produced_qty', 'status'])) {
+                foreach ($order->parentWorkOrder?->batches ?? [] as $batch) {
+                    $batch->promoteReadySteps();
+                }
+            }
+            if ($order->component_plan && $order->wasChanged('status') && in_array($order->status, [self::STATUS_CANCELLED, self::STATUS_REJECTED], true)) {
+                // Preserve actuals; terminal children remain historical records.
+                self::where('root_work_order_id', $order->id)->whereNotIn('status', self::TERMINAL_STATUSES)
+                    ->get()->each(fn (self $child) => $child->update(['status' => self::STATUS_CANCELLED]));
+            }
+        });
+
         static::saving(function (self $workOrder): void {
             // Recompute only when a scoring-relevant field changed (or the row is
             // new); other saves — status transitions, produced_qty ticks — skip
@@ -42,7 +86,7 @@ class WorkOrder extends Model
         // transition into DONE (updated) and an order inserted already DONE
         // (created — e.g. a historical import). recordCompletion is idempotent.
         $accrue = function (self $workOrder): void {
-            if ($workOrder->status === self::STATUS_DONE && ! $workOrder->customer_totals_counted) {
+            if (! $workOrder->parent_work_order_id && $workOrder->status === self::STATUS_DONE && ! $workOrder->customer_totals_counted) {
                 app(\App\Services\Customer\CustomerMetricsService::class)->recordCompletion($workOrder);
             }
         };
@@ -129,6 +173,9 @@ class WorkOrder extends Model
     ];
 
     protected $fillable = [
+        'parent_work_order_id',
+        'root_work_order_id',
+        'component_plan',
         'order_no',
         'customer_order_no',
         'customer_id',
@@ -162,9 +209,56 @@ class WorkOrder extends Model
         'tenant_id',
     ];
 
+    public function save(array $options = [])
+    {
+        if ($this->exists && ($this->component_plan || $this->root_work_order_id)) {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($options) {
+                self::whereKey($this->root_work_order_id ?: $this->id)->lockForUpdate()->firstOrFail();
+
+                return parent::save($options);
+            });
+        }
+
+        return parent::save($options);
+    }
+
+    public function parentWorkOrder(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_work_order_id');
+    }
+
+    public function components(): HasMany
+    {
+        return $this->hasMany(WorkOrderComponent::class, 'parent_work_order_id');
+    }
+
+    public function childWorkOrders(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_work_order_id');
+    }
+
+    public function setPlannedStartAtAttribute($value): void
+    {
+        $this->setPlanningTime('planned_start_at', $value);
+    }
+
+    public function setPlannedEndAtAttribute($value): void
+    {
+        $this->setPlanningTime('planned_end_at', $value);
+    }
+
+    private function setPlanningTime(string $field, $value): void
+    {
+        // Integrations may send an offset; datetime-local forms use plant time.
+        // Store both as the same plant-local timestamp instead of dropping the offset.
+        $this->attributes[$field] = blank($value) ? null : \Illuminate\Support\Carbon::parse($value)
+            ->setTimezone(config('app.timezone'))->format($this->getDateFormat());
+    }
+
     protected function casts(): array
     {
         return [
+            'component_plan' => 'array',
             'process_snapshot' => 'array',
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',

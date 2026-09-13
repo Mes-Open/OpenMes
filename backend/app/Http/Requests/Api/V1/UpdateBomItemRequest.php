@@ -14,6 +14,7 @@ class UpdateBomItemRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'component_template_id' => ['nullable', 'exists:process_templates,id'],
             'template_step_id' => ['nullable', 'exists:template_steps,id'],
             'quantity_per_unit' => ['sometimes', 'numeric', 'gt:0'],
             'scrap_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],

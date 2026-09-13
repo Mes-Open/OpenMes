@@ -1,3 +1,4 @@
+import ComponentProduction from '../../components/ComponentProduction';
 import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Badge, Button, Checkbox, Dropdown, Icon, ProgressBar, StatusPill } from '@openmes/ui';
@@ -2035,6 +2036,7 @@ export default function WorkOrderDetail() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main content */}
                     <div className="lg:col-span-2 space-y-6">
+                        <ComponentProduction workOrder={workOrder} basePath={null} />
                         {/* Work Order Details card */}
                         <div className={cardCls}>
                             <h2 className={`${sectionLabelCls} mb-4`}>{__('WORK ORDER DETAILS')}</h2>

@@ -35,6 +35,8 @@ class WorkOrderImporter extends AbstractEntityImporter
             'product_type_code' => ['label' => __('Product type code'), 'required' => false, 'type' => 'text', 'description' => __('Must match an existing product type code.'), 'aliases' => ['product_type', 'product type', 'type code', 'type', 'kod produktu', 'indeks']],
             'priority' => ['label' => __('Priority'), 'required' => false, 'type' => 'integer', 'aliases' => ['prio', 'priorytet']],
             'due_date' => ['label' => __('Due date'), 'required' => false, 'type' => 'date', 'aliases' => ['due date', 'duedate', 'deadline', 'target date', 'delivery_date', 'termin']],
+            'planned_start_at' => ['label' => __('Planned start'), 'required' => false, 'type' => 'datetime', 'aliases' => ['production start', 'rozpoczęcie produkcji']],
+            'planned_end_at' => ['label' => __('Planned end'), 'required' => false, 'type' => 'datetime', 'aliases' => ['production end', 'zakończenie produkcji']],
             'description' => ['label' => __('Description'), 'required' => false, 'type' => 'text', 'aliases' => ['desc', 'notes', 'comment', 'remarks', 'opis', 'uwagi']],
             'customer_order_no' => ['label' => __('Customer order number'), 'required' => false, 'type' => 'text', 'aliases' => ['customer order', 'customer_order', 'po number', 'nr zamówienia', 'zamówienie']],
             'unit_price' => ['label' => __('Unit price'), 'required' => false, 'type' => 'number', 'aliases' => ['price', 'cena']],
@@ -60,6 +62,15 @@ class WorkOrderImporter extends AbstractEntityImporter
 
         $options = [
             $this->strategyOption($this->erpStrategyChoices()),
+            ['key' => 'generate_components', 'type' => 'select', 'label' => __('Generate component work orders'), 'default' => '0', 'choices' => [
+                ['value' => '0', 'label' => __('No')],
+                ['value' => '1', 'label' => __('Yes')],
+            ]],
+            ['key' => 'use_component_stock', 'type' => 'select', 'label' => __('Use available component stock'), 'default' => '0', 'choices' => [
+                ['value' => '0', 'label' => __('No')], ['value' => '1', 'label' => __('Yes')],
+            ]],
+            ['key' => 'component_warehouse_id', 'type' => 'select', 'label' => __('Component warehouse'), 'nullable' => true,
+                'choices' => \App\Models\Warehouse::where('is_active', true)->orderBy('name')->get()->map(fn ($w) => ['value' => (string) $w->id, 'label' => $w->code.' · '.$w->name])->all()],
             ['key' => 'target_line_id', 'type' => 'line', 'label' => __('Assign all rows to line'), 'nullable' => true, 'help' => __('Overrides any line code column in the file.')],
         ];
 
@@ -79,6 +90,9 @@ class WorkOrderImporter extends AbstractEntityImporter
     public function optionRules(): array
     {
         return [
+            'options.use_component_stock' => ['nullable', 'boolean'],
+            'options.component_warehouse_id' => ['nullable', 'required_if:options.use_component_stock,1', 'integer', \Illuminate\Validation\Rule::exists('warehouses', 'id')->where('is_active', true)->whereNull('deleted_at')],
+            'options.generate_components' => ['nullable', 'boolean'],
             'options.strategy' => ['nullable', 'in:update_or_create,skip_existing,error_on_duplicate'],
             'options.target_line_id' => ['nullable', 'integer', 'exists:lines,id'],
             'options.import_week' => ['nullable', 'integer', 'min:1', 'max:53'],
