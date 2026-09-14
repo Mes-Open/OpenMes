@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\AssignSerialRequest;
 use App\Http\Requests\Api\V1\CompleteUnitStepRequest;
 use App\Http\Requests\Api\V1\RegisterUnitRequest;
 use App\Http\Requests\Api\V1\StartUnitStepRequest;
 use App\Models\Batch;
+use App\Models\SerialUnit;
 use App\Models\UnitStep;
 use App\Services\Unit\UnitProgressionService;
 use Illuminate\Http\JsonResponse;
@@ -25,12 +27,31 @@ class UnitStepController extends Controller
         $batch = Batch::findOrFail($request->validated('batch_id'));
 
         try {
-            $unit = $this->progression->registerUnit($batch, $request->validated('serial_no'));
+            $unit = $this->progression->registerUnit(
+                $batch,
+                $request->validated('serial_no'),
+                $request->boolean('auto_generate'),
+            );
 
             return response()->json([
                 'data' => $unit->load('history'),
                 'unit_steps' => UnitStep::where('serial_unit_id', $unit->id)->orderBy('step_number')->get(),
             ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function assignSerial(AssignSerialRequest $request, SerialUnit $serialUnit): JsonResponse
+    {
+        try {
+            $unit = $this->progression->assignSerial(
+                $serialUnit,
+                $request->validated('serial_no'),
+                $request->boolean('auto_generate'),
+            );
+
+            return response()->json(['data' => $unit]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

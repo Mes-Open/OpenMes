@@ -1074,7 +1074,7 @@ function UnitStepList({ batch, steps }) {
         setRegistering(true);
         router.post(
             '/operator/unit/register',
-            { batch_id: batch.id, serial_no: autoGen ? '' : serialNo },
+            { batch_id: batch.id, serial_no: autoGen ? '' : serialNo, auto_generate: autoGen },
             {
                 preserveScroll: true,
                 onSuccess: () => setSerialNo(''),
@@ -1098,8 +1098,9 @@ function UnitStepList({ batch, steps }) {
         <div>
             <h4 className={`${sectionLabelCls} mb-2`}>{__('Units')}</h4>
 
-            {/* Register a new piece — same manual/auto-generate shape as the LOT
-                number field on Create Batch, but per-piece serial numbers. */}
+            {/* Register a new piece. Serial is optional here (#290) — a piece
+                can start work before its identity is known and get serialized
+                later, from the row below, whenever that becomes known. */}
             <form onSubmit={handleRegister} className="flex items-end gap-3 mb-4 bg-om-panel border border-om-line2 p-3 rounded-om-sm">
                 <div className="flex-1">
                     <label className={fieldLabelCls}>{__('Serial No')}</label>
@@ -1109,7 +1110,7 @@ function UnitStepList({ batch, steps }) {
                         onChange={(e) => setSerialNo(e.target.value)}
                         disabled={autoGen}
                         className={`${inputCls} font-mono`}
-                        placeholder={__('Leave empty to auto-generate')}
+                        placeholder={__('Leave empty to serialize later')}
                     />
                 </div>
                 <Checkbox checked={autoGen} onChange={setAutoGen} label={__('Auto-generate')} />
@@ -1130,9 +1131,13 @@ function UnitStepList({ batch, steps }) {
 
                         return (
                             <div key={unit.id} className="flex items-center gap-4 border border-om-line2 rounded-om-sm p-3">
-                                <span className="font-mono text-[13px] text-om-accent w-36 truncate" title={unit.serial_no}>
-                                    {unit.serial_no}
-                                </span>
+                                {unit.serial_no ? (
+                                    <span className="font-mono text-[13px] text-om-accent w-36 truncate" title={unit.serial_no}>
+                                        {unit.serial_no}
+                                    </span>
+                                ) : (
+                                    <UnserializedUnitBadge unit={unit} />
+                                )}
 
                                 <div className="flex gap-1">
                                     {unitSteps.map((us) => (
@@ -1170,6 +1175,62 @@ function UnitStepList({ batch, steps }) {
                 </div>
             )}
         </div>
+    );
+}
+
+/**
+ * Placeholder identity + inline assign-serial control for a piece registered
+ * without a serial number (#290) — the serial can be attached at any point in
+ * its pipeline, not just at registration.
+ */
+function UnserializedUnitBadge({ unit }) {
+    const [open, setOpen] = useState(false);
+    const [serialNo, setSerialNo] = useState('');
+    const [autoGen, setAutoGen] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    if (!open) {
+        return (
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="font-mono text-[13px] text-om-muted w-36 truncate text-left hover:text-om-accent"
+                title={__('Not yet serialized — click to assign')}
+            >
+                {__('Unit #:id (no serial)', { id: unit.id })}
+            </button>
+        );
+    }
+
+    const submit = (e) => {
+        e.preventDefault();
+        setSaving(true);
+        router.post(
+            `/operator/unit/${unit.id}/assign-serial`,
+            { serial_no: autoGen ? '' : serialNo, auto_generate: autoGen },
+            { preserveScroll: true, onFinish: () => setSaving(false), onSuccess: () => setOpen(false) }
+        );
+    };
+
+    return (
+        <form onSubmit={submit} className="flex items-center gap-1.5 w-36 shrink-0">
+            <input
+                type="text"
+                autoFocus
+                value={serialNo}
+                onChange={(e) => setSerialNo(e.target.value)}
+                disabled={autoGen}
+                placeholder={__('Serial No')}
+                className="form-input font-mono text-[12px] py-1 px-1.5 w-20"
+            />
+            <label className="flex items-center gap-1 text-[10px] text-om-faint whitespace-nowrap">
+                <input type="checkbox" checked={autoGen} onChange={(e) => setAutoGen(e.target.checked)} />
+                {__('Auto')}
+            </label>
+            <Button type="submit" variant="accent" disabled={saving} className="px-2 py-1 text-[11px] whitespace-nowrap">
+                {saving ? '…' : __('Assign')}
+            </Button>
+        </form>
     );
 }
 

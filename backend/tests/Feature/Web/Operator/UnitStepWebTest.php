@@ -180,4 +180,65 @@ class UnitStepWebTest extends TestCase
             ->where('workOrder.process_snapshot.execution_mode', 'unit')
             ->where('workOrder.batches.0.serial_units.0.serial_no', 'SN-001'));
     }
+
+    // ── Serialize later (#290 known-bugs item 3) ─────────────────────────────
+
+    public function test_register_without_serial_creates_an_unserialized_unit_that_can_start(): void
+    {
+        $batch = $this->makeUnitModeBatch();
+
+        $this->actingOperator($batch)
+            ->post('/operator/unit/register', ['batch_id' => $batch->id])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('serial_units', ['batch_id' => $batch->id, 'serial_no' => null]);
+        $first = UnitStep::where('batch_id', $batch->id)->where('step_number', 1)->firstOrFail();
+        $this->assertSame(UnitStep::STATUS_READY, $first->status);
+
+        $this->actingOperator($batch)
+            ->post("/operator/unit-step/{$first->id}/start")
+            ->assertSessionHas('success');
+        $this->assertSame(UnitStep::STATUS_IN_PROGRESS, $first->fresh()->status);
+    }
+
+    public function test_operator_can_assign_a_serial_after_a_step_is_done(): void
+    {
+        $batch = $this->makeUnitModeBatch();
+        $progression = app(\App\Services\Unit\UnitProgressionService::class);
+        $unit = $progression->registerUnit($batch);
+        $first = UnitStep::where('serial_unit_id', $unit->id)->where('step_number', 1)->first();
+        $progression->startUnitStep($first, $this->operator);
+        $progression->completeUnitStep($first->fresh(), $this->operator);
+
+        $this->actingOperator($batch)
+            ->post("/operator/unit/{$unit->id}/assign-serial", ['serial_no' => 'SN-LATE-001'])
+            ->assertSessionHas('success', __('Serial :serial assigned.', ['serial' => 'SN-LATE-001']));
+
+        $this->assertSame('SN-LATE-001', $unit->fresh()->serial_no);
+        // The step already done stays done — assigning a serial doesn't touch progression.
+        $this->assertSame(UnitStep::STATUS_DONE, $first->fresh()->status);
+    }
+
+    public function test_operator_from_different_line_cannot_assign_a_serial(): void
+    {
+        $batch = $this->makeUnitModeBatch();
+        $unit = app(\App\Services\Unit\UnitProgressionService::class)->registerUnit($batch);
+
+        $this->actingAs($this->operator)
+            ->withSession(['selected_line_id' => $batch->workOrder->line_id + 999])
+            ->post("/operator/unit/{$unit->id}/assign-serial", ['serial_no' => 'SN-001'])
+            ->assertSessionHas('error', __('This unit does not belong to the selected line.'));
+
+        $this->assertNull($unit->fresh()->serial_no);
+    }
+
+    public function test_guest_cannot_assign_a_serial(): void
+    {
+        $batch = $this->makeUnitModeBatch();
+        $unit = app(\App\Services\Unit\UnitProgressionService::class)->registerUnit($batch);
+
+        $this->post("/operator/unit/{$unit->id}/assign-serial", ['serial_no' => 'SN-001'])
+            ->assertRedirect(route('login'));
+    }
 }

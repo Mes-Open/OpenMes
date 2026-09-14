@@ -6006,5 +6006,15 @@
     "Unit Mode": "Unit Mode",
     "Each piece progresses through steps independently — an operator registers a serial number per piece.": "Each piece progresses through steps independently — an operator registers a serial number per piece.",
     "Every piece in a batch progresses through steps together (default).": "Every piece in a batch progresses through steps together (default).",
-    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under."
+    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.",
+    "Unit registered — assign a serial number when it becomes known.": "Unit registered — assign a serial number when it becomes known.",
+    "This unit does not belong to the selected line.": "This unit does not belong to the selected line.",
+    "Serial :serial assigned.": "Serial :serial assigned.",
+    "This unit already has a serial number.": "This unit already has a serial number.",
+    "Provide a serial number or choose auto-generate.": "Provide a serial number or choose auto-generate.",
+    "Serial number :serial is already in use.": "Serial number :serial is already in use.",
+    "Leave empty to serialize later": "Leave empty to serialize later",
+    "Not yet serialized — click to assign": "Not yet serialized — click to assign",
+    "Unit #:id (no serial)": "Unit #:id (no serial)",
+    "Auto": "Auto"
 }

@@ -6006,5 +6006,15 @@
     "Unit Mode": "Tryb jednostkowy",
     "Each piece progresses through steps independently — an operator registers a serial number per piece.": "Każda sztuka przechodzi przez kroki niezależnie — operator rejestruje numer seryjny dla każdej sztuki.",
     "Every piece in a batch progresses through steps together (default).": "Wszystkie sztuki w partii przechodzą przez kroki razem (domyślnie).",
-    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Ta zmiana dotyczy tylko zleceń utworzonych po zapisaniu — zlecenie w trakcie realizacji zachowuje tryb, w którym zostało utworzone."
+    "Changing this only affects work orders created after saving — an in-flight work order keeps the mode it was created under.": "Ta zmiana dotyczy tylko zleceń utworzonych po zapisaniu — zlecenie w trakcie realizacji zachowuje tryb, w którym zostało utworzone.",
+    "Unit registered — assign a serial number when it becomes known.": "Zarejestrowano sztukę — przypisz numer seryjny, gdy będzie znany.",
+    "This unit does not belong to the selected line.": "Ta sztuka nie należy do wybranej linii.",
+    "Serial :serial assigned.": "Przypisano numer seryjny :serial.",
+    "This unit already has a serial number.": "Ta sztuka ma już przypisany numer seryjny.",
+    "Provide a serial number or choose auto-generate.": "Podaj numer seryjny lub wybierz generowanie automatyczne.",
+    "Serial number :serial is already in use.": "Numer seryjny :serial jest już używany.",
+    "Leave empty to serialize later": "Pozostaw puste, aby nadać numer później",
+    "Not yet serialized — click to assign": "Jeszcze nie nadano numeru — kliknij, aby przypisać",
+    "Unit #:id (no serial)": "Sztuka #:id (brak numeru)",
+    "Auto": "Auto"
 }

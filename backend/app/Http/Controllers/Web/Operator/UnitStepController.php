@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\AssignSerialRequest;
 use App\Http\Requests\Operator\CompleteUnitStepRequest;
 use App\Http\Requests\Operator\RegisterUnitRequest;
 use App\Http\Requests\Operator\StartUnitStepRequest;
 use App\Models\Batch;
+use App\Models\SerialUnit;
 use App\Models\UnitStep;
 use App\Services\Unit\UnitProgressionService;
 use Illuminate\Http\Request;
@@ -30,9 +32,36 @@ class UnitStepController extends Controller
         }
 
         try {
-            $unit = $this->progression->registerUnit($batch, $request->validated('serial_no'));
+            $unit = $this->progression->registerUnit(
+                $batch,
+                $request->validated('serial_no'),
+                $request->boolean('auto_generate'),
+            );
 
-            return back()->with('success', __('Unit :serial registered.', ['serial' => $unit->serial_no]));
+            $message = $unit->serial_no
+                ? __('Unit :serial registered.', ['serial' => $unit->serial_no])
+                : __('Unit registered — assign a serial number when it becomes known.');
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function assignSerial(AssignSerialRequest $request, SerialUnit $serialUnit)
+    {
+        if (! $this->unitBelongsToSelectedLine($request, $serialUnit)) {
+            return back()->with('error', __('This unit does not belong to the selected line.'));
+        }
+
+        try {
+            $unit = $this->progression->assignSerial(
+                $serialUnit,
+                $request->validated('serial_no'),
+                $request->boolean('auto_generate'),
+            );
+
+            return back()->with('success', __('Serial :serial assigned.', ['serial' => $unit->serial_no]));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -82,5 +111,13 @@ class UnitStepController extends Controller
         $unitStep->loadMissing('batch.workOrder');
 
         return $lineId && $unitStep->batch?->workOrder?->line_id == $lineId;
+    }
+
+    private function unitBelongsToSelectedLine(Request $request, SerialUnit $unit): bool
+    {
+        $lineId = $request->session()->get('selected_line_id');
+        $unit->loadMissing('batch.workOrder');
+
+        return $lineId && $unit->batch?->workOrder?->line_id == $lineId;
     }
 }

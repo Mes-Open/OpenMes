@@ -296,6 +296,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/unit-steps/register', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'register']);
     Route::post('/unit-steps/{unitStep}/start', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'start']);
     Route::post('/unit-steps/{unitStep}/complete', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'complete']);
+    // Assign a serial to a piece registered without one (#290 known-bugs item 3).
+    Route::post('/serial-units/{serialUnit}/assign-serial', [\App\Http\Controllers\Api\V1\UnitStepController::class, 'assignSerial']);
 
     // OEE & Downtimes — accessible by all authenticated users (operators need to report)
     Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);

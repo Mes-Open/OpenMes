@@ -77,4 +77,15 @@ class SerialUnit extends Model
     {
         return $this->hasMany(UnitStep::class)->orderBy('step_number');
     }
+
+    /**
+     * A Unit-mode piece may start work before its serial is known (#290 —
+     * known-bugs item 3: the serial is sometimes only assigned a few steps
+     * in, not always available at registration). False until
+     * UnitProgressionService::assignSerial() fills serial_no in.
+     */
+    public function isSerialized(): bool
+    {
+        return $this->serial_no !== null;
+    }
 }

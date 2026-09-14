@@ -4,7 +4,7 @@ namespace App\Http\Requests\Operator;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RegisterUnitRequest extends FormRequest
+class AssignSerialRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,9 +14,6 @@ class RegisterUnitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'batch_id' => ['required', 'integer', 'exists:batches,id'],
-            // Both omitted registers the piece unserialized (#290) — a serial
-            // isn't always known up front; assign one later via assignSerial().
             'serial_no' => ['nullable', 'string', 'max:100'],
             'auto_generate' => ['nullable', 'boolean'],
         ];

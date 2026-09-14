@@ -309,6 +309,7 @@ Route::middleware('auth')->group(function () {
         // Unit-level (serial) execution (#290) — Phase 2 operator UI, only
         // relevant for a batch whose process template runs execution_mode 'unit'.
         Route::post('/unit/register', [OperatorUnitStepController::class, 'register'])->name('unit.register');
+        Route::post('/unit/{serialUnit}/assign-serial', [OperatorUnitStepController::class, 'assignSerial'])->name('unit.assign-serial');
         Route::post('/unit-step/{unitStep}/start', [OperatorUnitStepController::class, 'start'])->name('unit-step.start');
         Route::post('/unit-step/{unitStep}/complete', [OperatorUnitStepController::class, 'complete'])->name('unit-step.complete');
 

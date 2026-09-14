@@ -30,27 +30,56 @@ class UnitProgressionService
     /**
      * Register a physical piece against a Unit-mode batch and create its
      * unit_steps pipeline — one row per BatchStep in the batch, entering at
-     * step 1 (READY), the rest PENDING. Idempotent: re-registering an
-     * already-known serial returns the existing unit without re-creating its
-     * pipeline.
+     * step 1 (READY), the rest PENDING.
+     *
+     * A serial number is NOT required to register (#290 known-bugs item 3):
+     * on a real line it's sometimes only known a few steps in (a nameplate
+     * applied later, a scan at a downstream station), not always available
+     * up front. Three ways to call this:
+     *   - `$serialNo` given            → use it (idempotent: re-registering
+     *     an already-known serial returns the existing unit, pipeline intact).
+     *   - `$serialNo` null, `$autoGenerate` true → generate one now from the
+     *     product type's SerialSequence (the old default behavior).
+     *   - neither                      → register unserialized; the piece can
+     *     start and progress through steps immediately, and gets a serial
+     *     later via assignSerial().
      *
      * @throws \Exception
      */
-    public function registerUnit(Batch $batch, ?string $serialNo = null): SerialUnit
+    public function registerUnit(Batch $batch, ?string $serialNo = null, bool $autoGenerate = false): SerialUnit
     {
-        return DB::transaction(function () use ($batch, $serialNo) {
+        return DB::transaction(function () use ($batch, $serialNo, $autoGenerate) {
             $this->guardUnitMode($batch);
 
             $workOrder = $batch->workOrder;
-            $serialNo = $serialNo ?: $this->serialNumbers->generateSerial($workOrder->productType);
 
-            $unit = $this->serials->registerUnit($serialNo, [
-                'tenant_id' => $workOrder->tenant_id,
-                'work_order_id' => $workOrder->id,
-                'batch_id' => $batch->id,
-                'status' => SerialUnit::STATUS_IN_PRODUCTION,
-                'produced_at' => now(),
-            ]);
+            if ($serialNo) {
+                $unit = $this->serials->registerUnit($serialNo, [
+                    'tenant_id' => $workOrder->tenant_id,
+                    'work_order_id' => $workOrder->id,
+                    'batch_id' => $batch->id,
+                    'status' => SerialUnit::STATUS_IN_PRODUCTION,
+                    'produced_at' => now(),
+                ]);
+            } elseif ($autoGenerate) {
+                $unit = $this->serials->registerUnit($this->serialNumbers->generateSerial($workOrder->productType), [
+                    'tenant_id' => $workOrder->tenant_id,
+                    'work_order_id' => $workOrder->id,
+                    'batch_id' => $batch->id,
+                    'status' => SerialUnit::STATUS_IN_PRODUCTION,
+                    'produced_at' => now(),
+                ]);
+            } else {
+                // No natural key to firstOrCreate() against — always a new piece.
+                $unit = SerialUnit::create([
+                    'serial_no' => null,
+                    'tenant_id' => $workOrder->tenant_id,
+                    'work_order_id' => $workOrder->id,
+                    'batch_id' => $batch->id,
+                    'status' => SerialUnit::STATUS_IN_PRODUCTION,
+                    'produced_at' => now(),
+                ]);
+            }
 
             if (! UnitStep::where('serial_unit_id', $unit->id)->exists()) {
                 foreach ($batch->steps()->orderBy('step_number')->get() as $step) {
@@ -63,6 +92,42 @@ class UnitProgressionService
                     ]);
                 }
             }
+
+            return $unit->fresh();
+        });
+    }
+
+    /**
+     * Assign a serial number to a piece that was registered without one
+     * (#290 known-bugs item 3). Works at any point in its pipeline — nothing
+     * about step progression depends on serial_no, so a piece can be mid-way
+     * through its steps when this is called.
+     *
+     * @throws \Exception
+     */
+    public function assignSerial(SerialUnit $unit, ?string $serialNo = null, bool $autoGenerate = false): SerialUnit
+    {
+        return DB::transaction(function () use ($unit, $serialNo, $autoGenerate) {
+            if ($unit->isSerialized()) {
+                throw new \Exception(__('This unit already has a serial number.'));
+            }
+
+            if (! $serialNo) {
+                if (! $autoGenerate) {
+                    throw new \Exception(__('Provide a serial number or choose auto-generate.'));
+                }
+                $serialNo = $this->serialNumbers->generateSerial($unit->workOrder?->productType);
+            }
+
+            $taken = SerialUnit::where('serial_no', $serialNo)
+                ->where('tenant_id', $unit->tenant_id)
+                ->where('id', '!=', $unit->id)
+                ->exists();
+            if ($taken) {
+                throw new \Exception(__('Serial number :serial is already in use.', ['serial' => $serialNo]));
+            }
+
+            $unit->update(['serial_no' => $serialNo]);
 
             return $unit->fresh();
         });

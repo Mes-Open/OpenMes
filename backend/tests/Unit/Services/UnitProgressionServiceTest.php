@@ -62,21 +62,110 @@ class UnitProgressionServiceTest extends TestCase
         $this->assertEquals(UnitStep::STATUS_PENDING, $steps[2]->status);
     }
 
-    public function test_register_unit_without_serial_and_no_sequence_throws(): void
+    public function test_register_unit_with_auto_generate_and_no_sequence_throws(): void
     {
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No serial sequence configured');
 
-        $this->service->registerUnit($this->unitModeBatch);
+        $this->service->registerUnit($this->unitModeBatch, null, autoGenerate: true);
     }
 
     public function test_register_unit_auto_generates_from_configured_sequence(): void
     {
         SerialSequence::factory()->create(['prefix' => 'SN', 'pad_size' => 3]);
 
-        $unit = $this->service->registerUnit($this->unitModeBatch);
+        $unit = $this->service->registerUnit($this->unitModeBatch, null, autoGenerate: true);
 
         $this->assertStringStartsWith('SN-', $unit->serial_no);
+    }
+
+    // ── Serialize later (#290 known-bugs item 3) ─────────────────────────────
+
+    public function test_register_unit_without_serial_or_auto_generate_creates_unserialized_unit(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+
+        $this->assertNull($unit->serial_no);
+        $this->assertFalse($unit->isSerialized());
+    }
+
+    public function test_unserialized_unit_can_start_and_complete_steps(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+        $first = UnitStep::where('serial_unit_id', $unit->id)->where('step_number', 1)->first();
+
+        $this->service->startUnitStep($first, $this->user);
+        $this->service->completeUnitStep($first, $this->user);
+
+        $second = UnitStep::where('serial_unit_id', $unit->id)->where('step_number', 2)->first();
+        $this->assertEquals(UnitStep::STATUS_READY, $second->fresh()->status);
+        $this->assertNull($unit->fresh()->serial_no);
+    }
+
+    public function test_assign_serial_attaches_a_serial_to_an_unserialized_unit(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+
+        $updated = $this->service->assignSerial($unit, 'SN-LATE-001');
+
+        $this->assertEquals('SN-LATE-001', $updated->serial_no);
+        $this->assertTrue($updated->isSerialized());
+    }
+
+    public function test_assign_serial_works_after_a_few_steps_are_already_done(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+        $first = UnitStep::where('serial_unit_id', $unit->id)->where('step_number', 1)->first();
+        $this->service->startUnitStep($first, $this->user);
+        $this->service->completeUnitStep($first, $this->user);
+
+        $updated = $this->service->assignSerial($unit->fresh(), 'SN-MIDWAY-001');
+
+        $this->assertEquals('SN-MIDWAY-001', $updated->serial_no);
+        // The steps already done stay done — assigning a serial doesn't touch progression.
+        $this->assertEquals(UnitStep::STATUS_DONE, $first->fresh()->status);
+    }
+
+    public function test_assign_serial_via_auto_generate(): void
+    {
+        SerialSequence::factory()->create(['prefix' => 'SN', 'pad_size' => 3]);
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+
+        $updated = $this->service->assignSerial($unit, null, autoGenerate: true);
+
+        $this->assertStringStartsWith('SN-', $updated->serial_no);
+    }
+
+    public function test_assign_serial_twice_throws(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+        $this->service->assignSerial($unit, 'SN-ONCE-001');
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('already has a serial number');
+
+        $this->service->assignSerial($unit->fresh(), 'SN-TWICE-001');
+    }
+
+    public function test_assign_serial_without_serial_or_auto_generate_throws(): void
+    {
+        $unit = $this->service->registerUnit($this->unitModeBatch);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Provide a serial number or choose auto-generate');
+
+        $this->service->assignSerial($unit);
+    }
+
+    public function test_assign_serial_rejects_a_serial_already_in_use(): void
+    {
+        $existing = $this->service->registerUnit($this->unitModeBatch, 'SN-TAKEN-001');
+        $unassigned = $this->service->registerUnit($this->unitModeBatch);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('already in use');
+
+        $this->service->assignSerial($unassigned, $existing->serial_no);
     }
 
     public function test_register_unit_on_batch_mode_batch_throws(): void
