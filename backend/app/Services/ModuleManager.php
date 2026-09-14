@@ -252,6 +252,20 @@ class ModuleManager
      *
      * @param  string  $method  install | uninstall
      */
+    /**
+     * The module's own migrations directory, or null when it ships none.
+     *
+     * Needed because a module's migrations are registered by its service
+     * provider, which is only loaded at boot — so the process that *enables* a
+     * module cannot see them and has to be told where they are.
+     */
+    public function migrationsPath(string $name): ?string
+    {
+        $path = "{$this->modulesPath}/{$name}/database/migrations";
+
+        return is_dir($path) ? $path : null;
+    }
+
     public function runInstaller(string $name, string $method = 'install'): void
     {
         $installer = "Modules\\{$name}\\Installer";
