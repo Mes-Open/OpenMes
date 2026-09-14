@@ -12,6 +12,7 @@ use App\Models\WorkOrderShiftEntry;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Services\Machine\WorkstationStateMachine;
+use App\Services\Production\OperatorWorkstationSelection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -69,6 +70,27 @@ class WorkstationController extends Controller
 
         $workOrders = $query->get();
 
+        $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
+        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+        $qtyEditPolicy = json_decode($settingRows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none';
+        $qtyEditWindowMinutes = json_decode($settingRows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1;
+
+        // Selected workstation (shared with the Queue view). Only per_operation/hybrid
+        // route steps to workstations; per_line stays a whole-line view.
+        //
+        // Filters only on a workstation actually selected (query or session), never
+        // on a workstation account's assignment alone: this table is where quantities
+        // get entered, and it showed the whole line before the filter existed.
+        $selectedWorkstation = null;
+        if (in_array($trackingMode, ['per_operation', 'hybrid'])) {
+            $selection = app(OperatorWorkstationSelection::class);
+            $selectedWorkstation = $selection->resolve($request, (int) $lineId, fallBackToAccount: false);
+            if ($selectedWorkstation) {
+                $workOrders = $selection->workOrdersAt($workOrders, $selectedWorkstation, includeNotStarted: true)
+                    ->each->unsetRelation('batches');
+            }
+        }
+
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
 
         // Build all available columns: system fields + extra_data keys
@@ -85,11 +107,6 @@ class WorkstationController extends Controller
             ->get()
             ->groupBy(fn ($e) => $e->work_order_id.'_'.$e->shift_id);
 
-        $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
-        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
-        $qtyEditPolicy = json_decode($settingRows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none';
-        $qtyEditWindowMinutes = json_decode($settingRows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1;
-
         // Active label templates (by type) for the React label-print menu —
         // 1:1 with the old workstation Blade's "Print label" button.
         $labelTemplates = \App\Models\LabelTemplate::where('is_active', true)
@@ -98,14 +115,15 @@ class WorkstationController extends Controller
 
         // Machine states (#87): the line's workstations with their current state,
         // so operators can set waiting/cleaning/maintenance etc. from the panel.
-        $machineStates = $this->machineStatesForLine((int) $lineId);
+        // With a workstation selected, only its own state is shown.
+        $machineStates = $this->machineStatesForLine((int) $lineId, $selectedWorkstation?->id);
         $machineStateOptions = WorkstationState::STATES;
 
         return Inertia::render('operator/Workstation', compact(
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
             'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',
-            'machineStates', 'machineStateOptions'
+            'machineStates', 'machineStateOptions', 'selectedWorkstation'
         ));
     }
 
@@ -114,9 +132,12 @@ class WorkstationController extends Controller
      *
      * @return array<int, array{id: int, name: string, state: string|null}>
      */
-    private function machineStatesForLine(int $lineId): array
+    private function machineStatesForLine(int $lineId, ?int $onlyWorkstationId = null): array
     {
-        $workstations = Workstation::where('line_id', $lineId)->orderBy('name')->get(['id', 'name']);
+        $workstations = Workstation::where('line_id', $lineId)
+            ->when($onlyWorkstationId, fn ($q) => $q->whereKey($onlyWorkstationId))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $current = WorkstationState::whereIn('workstation_id', $workstations->pluck('id'))
             ->whereNull('ended_at')
@@ -199,12 +220,14 @@ class WorkstationController extends Controller
             ['label' => 'Due Date',    'key' => 'due_date',    'source' => 'field',        'default' => false],
         ];
 
-        // Extra data columns — auto-detected from work orders
+        // Extra data columns — auto-detected from work orders. A component order's
+        // `component_specification` is internal BOM identity (the product column
+        // already names the component), so it is not offered as a column.
         $extraKeys = collect();
         foreach ($workOrders as $wo) {
             if (is_array($wo->extra_data)) {
                 foreach (array_keys($wo->extra_data) as $key) {
-                    if (! $extraKeys->contains($key)) {
+                    if ($key !== 'component_specification' && ! $extraKeys->contains($key)) {
                         $extraKeys->push($key);
                     }
                 }

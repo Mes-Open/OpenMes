@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -130,6 +131,108 @@ class ModuleLifecycleTest extends TestCase
             [],
             json_decode(DB::table('system_settings')->where('key', 'modules_enabled')->value('value'), true),
         );
+    }
+
+    public function test_enabling_a_module_runs_the_migrations_it_ships(): void
+    {
+        // The bug: enable() called migrate() plainly, on the theory that
+        // enabling the module is the first moment its migrations can run. It is
+        // not. Migrations are registered by the module's service provider,
+        // providers are registered at boot, and this process booted with the
+        // module switched off — so migrate saw only the application's own paths
+        // and the module's tables were never created. Every screen the module
+        // contributes then died on its first query.
+        //
+        // Asserting the table exists, not that migrate was called: a call is
+        // exactly what the broken version also made.
+        $this->makeModuleFixture('MigratingFixture', withMigration: true);
+        file_put_contents(
+            base_path('modules/MigratingFixture/database/migrations/2026_01_01_000000_create_fixture_widgets_table.php'),
+            <<<'PHP'
+            <?php
+
+            use Illuminate\Database\Migrations\Migration;
+            use Illuminate\Database\Schema\Blueprint;
+            use Illuminate\Support\Facades\Schema;
+
+            return new class extends Migration
+            {
+                public function up(): void
+                {
+                    Schema::create('fixture_widgets', fn (Blueprint $t) => $t->id());
+                }
+
+                public function down(): void
+                {
+                    Schema::dropIfExists('fixture_widgets');
+                }
+            };
+            PHP
+        );
+
+        $this->assertFalse(Schema::hasTable('fixture_widgets'));
+
+        $this->actingAs($this->admin())->post(route('admin.modules.enable', 'MigratingFixture'));
+
+        $this->assertTrue(
+            Schema::hasTable('fixture_widgets'),
+            'Enabling the module did not create the table its own migration defines.',
+        );
+    }
+
+    public function test_the_migrations_a_module_ships_can_be_found_without_booting_it(): void
+    {
+        $manager = app(\App\Services\ModuleManager::class);
+
+        $this->makeModuleFixture('MigrationFixture', withMigration: true);
+
+        $this->assertSame(
+            base_path('modules/MigrationFixture/database/migrations'),
+            $manager->migrationsPath('MigrationFixture'),
+        );
+        $this->assertNull($manager->migrationsPath('ModuleThatShipsNoTables'));
+    }
+
+    /** A minimal but real module directory, removed again after the test. */
+    private function makeModuleFixture(string $name, bool $withMigration = false): string
+    {
+        $dir = base_path("modules/{$name}");
+        @mkdir($dir, 0775, true);
+        $this->fixtures[] = $dir;
+
+        file_put_contents($dir.'/module.json', json_encode([
+            'name' => $name,
+            'version' => '1.0.0',
+            'provider' => "Modules\\{$name}\\Providers\\{$name}ServiceProvider",
+        ]));
+
+        if ($withMigration) {
+            @mkdir($dir.'/database/migrations', 0775, true);
+        }
+
+        return $dir;
+    }
+
+    /** @var list<string> */
+    private array $fixtures = [];
+
+    protected function tearDown(): void
+    {
+        foreach (array_reverse($this->fixtures) as $path) {
+            is_dir($path) ? $this->deleteTree($path) : @unlink($path);
+        }
+
+        parent::tearDown();
+    }
+
+    private function deleteTree(string $dir): void
+    {
+        foreach (array_diff(scandir($dir) ?: [], ['.', '..']) as $entry) {
+            $path = "{$dir}/{$entry}";
+            is_dir($path) ? $this->deleteTree($path) : @unlink($path);
+        }
+
+        @rmdir($dir);
     }
 
     public function test_a_non_admin_cannot_turn_modules_on_or_off(): void

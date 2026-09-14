@@ -7,6 +7,49 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-09-14
+
+### Changed
+- **Admin → Modules → Install uses the shared drag-and-drop file picker** — the ZIP box only opened a
+  file chooser on click; it now takes a dropped file too (`FileDropZone`, as in the importer), posts
+  through Inertia so a rejected file shows its error under the drop zone, and shows upload progress.
+  The upload is validated by a Form Request (`InstallModuleRequest`) instead of inline.
+- **Operator Workstation view follows the selected workstation** — switching from Queue to
+  Workstation with a workstation picked (e.g. `?workstation=10`) now shows only the orders whose
+  current step runs there — plus not-yet-started orders whose first step is there, so they can be
+  started from that station — and only that workstation's machine state, with an "All workstations"
+  link back to the whole line. `per_line` tracking keeps the whole-line view, and a workstation
+  account's assignment alone doesn't filter it — only an actual selection does. The Queue view shows
+  those not-yet-started orders as their own "To start at …" cards below "Ready at …", and its
+  polling count includes them.
+
+### Fixed
+- Installing a module from a ZIP in Admin → Modules always failed with "Could not open ZIP file": the upload was stored on the `local` disk (`storage/app/private`) but the installer was handed a `storage/app/…` path, so the file was never found and each attempt leaked its archive.
+- **Enabling a module did not create the tables it ships**, so every screen it contributes answered
+  500 with "relation … does not exist" the moment it was opened. Enabling ran `migrate`, but a
+  module's migrations are registered by its service provider, providers are registered at boot, and
+  the process doing the enabling booted with the module switched off — so `migrate` only ever saw
+  the application's own paths. It is now pointed at the module's own directory explicitly. Together
+  with the ZIP fix above this makes Admin → Modules → Install usable end to end; before, an install
+  reported success and then failed on first use.
+- Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
+- Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
+- Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
+  the workstation remembered in the session).
+- **Live lists stopped updating after a create or delete until a browser refresh** — returning to
+  the same list (e.g. the redirect after adding a work order in `/admin/work-orders`) mounted a new
+  synced collection while the old one was still shutting down, and the old one's `echo.leave()`
+  unsubscribed the channel both shared. Collection channels are now reference-counted
+  (`lib/sharedChannels.js`): a channel is left only when its last user releases it, which also stops
+  an unmounting list from cutting off the app-wide `work_orders_active` / `issues_open` feeds.
+- **Phantom rows in live lists after a rolled-back write** — collection deltas were broadcast from
+  model events mid-transaction, so a write that failed later in the same transaction still pushed
+  its row into every open list, where it stayed until a refresh. Deltas are now sent after the
+  transaction commits and dropped on rollback.
+- Operator Workstation view: the machine-state picker uses the shared `Dropdown` instead of a
+  native `<select>`, and structured extra-data values render as readable text instead of
+  `[object Object]`.
+
 ## [0.23.0] - 2026-09-14
 
 ### Added

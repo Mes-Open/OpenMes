@@ -1,12 +1,18 @@
-import { useRef, useState } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import FileDropZone from '../../../components/import/FileDropZone';
 import { __ } from '../../../lib/i18n';
 
 export default function ModulesInstall() {
-    const { csrf_token } = usePage().props;
-    const fileRef = useRef(null);
-    const [filename, setFilename] = useState('');
+    // Posted through Inertia so a validation error lands under the drop zone
+    // and the controller's flash (installed / install failed) shows as usual.
+    const { data, setData, post, processing, errors, progress } = useForm({ module_zip: null });
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (!data.module_zip) return;
+        post('/admin/modules/upload', { forceFormData: true });
+    };
 
     return (
         <>
@@ -27,36 +33,24 @@ export default function ModulesInstall() {
                         {__('Upload ZIP file')}
                     </h2>
 
-                    <form method="POST" action="/admin/modules/upload" encType="multipart/form-data">
-                        <input type="hidden" name="_token" value={csrf_token} />
+                    <form onSubmit={submit} className="space-y-4">
+                        <FileDropZone
+                            file={data.module_zip}
+                            onChange={(file) => setData('module_zip', file)}
+                            accept=".zip"
+                            label={__('Choose a module ZIP file')}
+                            hint={__('Max 20 MB')}
+                            error={errors.module_zip}
+                        />
 
-                        <div
-                            className="border-2 border-dashed border-om-line hover:border-blue-400 rounded-om p-8 cursor-pointer text-center transition-colors mb-4"
-                            onClick={() => fileRef.current?.click()}
-                        >
-                            <svg className="mx-auto h-10 w-10 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            <p className="text-sm text-om-muted">
-                                {filename || __('Click to select a .zip file')}
-                            </p>
-                            <p className="text-xs text-om-faint mt-1">{__('Max 20 MB')}</p>
-                            <input
-                                type="file"
-                                name="module_zip"
-                                ref={fileRef}
-                                accept=".zip"
-                                className="hidden"
-                                onChange={(e) => setFilename(e.target.files?.[0]?.name ?? '')}
-                                required
-                            />
-                        </div>
+                        {processing && progress && (
+                            <p className="text-xs text-om-muted">{__('Uploading…')} {progress.percentage}%</p>
+                        )}
 
                         <button
                             type="submit"
-                            disabled={!filename}
-                            className={`btn-touch btn-accent${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={!data.module_zip || processing}
+                            className={`btn-touch btn-accent${!data.module_zip || processing ? ' opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {__('Install Module')}
                         </button>

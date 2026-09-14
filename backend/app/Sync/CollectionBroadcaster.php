@@ -4,6 +4,7 @@ namespace App\Sync;
 
 use App\Events\CollectionChanged;
 use App\Models;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Central write-path for Reverb sync: maps each synced collection to its model
@@ -186,6 +187,12 @@ class CollectionBroadcaster
      * failure break the originating write. Live sync is best-effort: if the
      * broadcaster (e.g. Reverb) is unreachable, the write must still succeed
      * and clients fall back to polling (useSyncedShape). Failures are logged.
+     *
+     * Sent only once the surrounding transaction commits (immediately when there
+     * is none). Model events fire mid-transaction, so a write that later rolls
+     * back — e.g. a work order whose component generation fails validation —
+     * would otherwise push a row that never existed into every open list, and
+     * nothing would ever take it back out.
      */
     private static function safeBroadcast(string $name, string $op, array $row, $tenant): void
     {
@@ -193,11 +200,15 @@ class CollectionBroadcaster
             return;
         }
 
-        try {
-            event(new CollectionChanged($name, $op, self::project($name, $row), $tenant));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        $event = new CollectionChanged($name, $op, self::project($name, $row), $tenant);
+
+        DB::afterCommit(function () use ($event) {
+            try {
+                event($event);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
     }
 
     public static function boot(): void

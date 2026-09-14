@@ -2,10 +2,11 @@ import { useRef, useState } from 'react';
 import { __ } from '../../lib/i18n';
 
 /**
- * Drag-and-drop file picker for the importer. Controlled: hands the chosen
- * File to `onChange`; the parent keeps it in its Inertia form.
+ * Drag-and-drop file picker (the importer, module upload). Controlled: hands the
+ * chosen File to `onChange`; the parent keeps it in its Inertia form. `label`
+ * names the zone for screen readers.
  */
-export default function FileDropZone({ file, onChange, accept = '.csv,.txt,.xlsx,.xls', hint, error }) {
+export default function FileDropZone({ file, onChange, accept = '.csv,.txt,.xlsx,.xls', hint, error, label }) {
     const [dragging, setDragging] = useState(false);
     const inputRef = useRef(null);
 
@@ -19,7 +20,7 @@ export default function FileDropZone({ file, onChange, accept = '.csv,.txt,.xlsx
             <div
                 role="button"
                 tabIndex={0}
-                aria-label={__('Choose a file to import')}
+                aria-label={label ?? __('Choose a file to import')}
                 onClick={() => inputRef.current?.click()}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}

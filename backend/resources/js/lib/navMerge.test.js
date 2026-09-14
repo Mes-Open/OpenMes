@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byOrder, DEFAULT_MODULE_ORDER, mergeChildren, mergeGroups } from './navMerge';
+import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups } from './navMerge';
 
 /**
  * Where a module's menu contributions land in the sidebar.
@@ -101,5 +101,35 @@ describe('byOrder', () => {
         const sorted = byOrder([{ key: 'a', order: 5 }, { key: 'b', order: 5 }]);
 
         expect(sorted.map((e) => e.key)).toEqual(['a', 'b']);
+    });
+});
+
+/**
+ * A group highlights (and auto-expands) when the page is under one of its
+ * `match` prefixes. Built-in groups list their own children by hand; links a
+ * module injects were never on that list, so the group stayed dark on exactly
+ * the pages the module added — while its core siblings lit it up.
+ */
+describe('groupMatch', () => {
+    it('adds the paths of injected children to the declared list', () => {
+        const match = groupMatch(
+            ['/admin/materials'],
+            [{ href: '/admin/warehouses', match: ['/admin/warehouses'] }, { href: '/admin/stock-documents' }],
+        );
+
+        expect(match).toEqual(['/admin/materials', '/admin/warehouses', '/admin/stock-documents']);
+    });
+
+    it('gives a module-only group a list built from its children', () => {
+        expect(groupMatch(undefined, [{ href: '/admin/sites' }, { href: '/admin/areas' }]))
+            .toEqual(['/admin/sites', '/admin/areas']);
+    });
+
+    it('does not repeat a path the group already lists', () => {
+        expect(groupMatch(['/admin/materials'], [{ href: '/admin/materials' }])).toEqual(['/admin/materials']);
+    });
+
+    it('leaves a group with nothing injected as declared', () => {
+        expect(groupMatch(['/admin/materials'], [])).toEqual(['/admin/materials']);
     });
 });

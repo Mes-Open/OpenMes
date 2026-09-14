@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\InstallModuleRequest;
 use App\Services\ModuleManager;
 use App\Services\OctaneReloader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ModulesController extends Controller
@@ -47,11 +49,22 @@ class ModulesController extends Controller
         $this->manager->enable($name);
         $this->clearCache();
 
-        // A module that ships tables registers them with loadMigrationsFrom in
-        // its provider, which only runs once the module is enabled — so this is
-        // the first moment they can be applied. Without it the module's screens
-        // load and then fail on the first query.
+        // Point migrate at the module's own directory rather than relying on
+        // the provider having registered it. The provider does call
+        // loadMigrationsFrom, but providers are registered at boot and this
+        // process booted with the module disabled — so a plain migrate() sees
+        // only the application's own paths, the module's tables are never
+        // created, and its screens load and then die on the first query with
+        // "relation does not exist".
         try {
+            $migrations = $this->manager->migrationsPath($name);
+
+            if ($migrations !== null) {
+                Artisan::call('migrate', ['--force' => true, '--path' => $migrations, '--realpath' => true]);
+            }
+
+            // The application's own pending migrations too — a module may ship
+            // columns that a core migration is waiting on.
             Artisan::call('migrate', ['--force' => true]);
             $this->manager->runInstaller($name, 'install');
         } catch (\Throwable $e) {
@@ -88,15 +101,14 @@ class ModulesController extends Controller
             ->with('success', __('Module ":name" disabled.', ['name' => $module['display_name']]));
     }
 
-    public function upload(Request $request)
+    public function upload(InstallModuleRequest $request)
     {
-        $request->validate([
-            'module_zip' => 'required|file|mimes:zip|max:20480',
-        ]);
-
-        $file = $request->file('module_zip');
-        $zipPath = $file->store('module-uploads', 'local');
-        $fullPath = storage_path("app/{$zipPath}");
+        $zipPath = $request->file('module_zip')->store('module-uploads', 'local');
+        // Ask the disk where it put the file. The `local` disk is rooted at
+        // storage/app/private (Laravel 11+), so a hand-built storage/app/… path
+        // pointed at a file that was never there — every upload failed with
+        // "Could not open ZIP file" and the stored zip was never cleaned up.
+        $fullPath = Storage::disk('local')->path($zipPath);
 
         try {
             $moduleName = $this->manager->installFromZip($fullPath);

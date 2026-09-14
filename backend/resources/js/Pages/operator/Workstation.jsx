@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { __ } from '../../lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -29,10 +29,26 @@ function statusLabel(status) {
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Imported extra_data can hold lists or nested objects — String() would print
+// "[object Object]", so flatten them to readable text.
+function formatExtraValue(val) {
+    if (val === undefined || val === null || val === '') return '';
+    if (Array.isArray(val)) return val.map(formatExtraValue).filter(Boolean).join(', ');
+    if (typeof val === 'object') {
+        return Object.entries(val)
+            .map(([k, v]) => {
+                const text = formatExtraValue(v);
+                return text ? `${k.replace(/_/g, ' ')}: ${text}` : '';
+            })
+            .filter(Boolean)
+            .join(' · ');
+    }
+    return String(val);
+}
+
 function getCellValue(wo, col) {
     if (col.source === 'extra_data') {
-        const val = wo.extra_data?.[col.key];
-        return val !== undefined && val !== null ? String(val) : '—';
+        return formatExtraValue(wo.extra_data?.[col.key]) || '—';
     }
     if (col.source === 'product_type') {
         return wo.product_type?.name ?? '—';
@@ -809,6 +825,7 @@ export default function Workstation() {
         labelTemplates = [],
         machineStates = [],
         machineStateOptions = [],
+        selectedWorkstation = null,
     } = usePage().props;
 
     const { visibleKeys, toggleColumn, resetColumns } = useVisibleColumns(allColumns, line?.id ?? 0);
@@ -841,6 +858,14 @@ export default function Workstation() {
         return '/operator/workstation' + (qs ? '?' + qs : '');
     };
 
+    // Clearing the workstation keeps the week and search filters in place.
+    const allWorkstationsUrl = () => {
+        const params = new URLSearchParams({ workstation: 'all' });
+        if (weekFilter && weekFilter !== 'all') params.set('week', weekFilter);
+        if (searchProp) params.set('search', searchProp);
+        return `/operator/workstation?${params}`;
+    };
+
     return (
         <>
             <Head title={`Workstation — ${line?.name ?? ''}`} />
@@ -855,7 +880,20 @@ export default function Workstation() {
                 <div className="mb-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
                         <div>
-                            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-om-ink">{line?.name}</h1>
+                            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-om-ink">
+                                {line?.name}
+                                {selectedWorkstation && (
+                                    <span className="font-mono text-[14px] text-om-accent font-medium ml-2">/ {selectedWorkstation.name}</span>
+                                )}
+                            </h1>
+                            {selectedWorkstation && (
+                                <Link
+                                    href={allWorkstationsUrl()}
+                                    className="text-sm text-om-muted hover:text-om-ink underline underline-offset-2"
+                                >
+                                    {__("All workstations")}
+                                </Link>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             {/* Mode toggle */}
@@ -1066,20 +1104,18 @@ function MachineStatePanel({ machines, options }) {
                     <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
                         <span className={`w-2 h-2 rounded-full ${MACHINE_STATE_DOT[m.state] ?? 'bg-slate-300'}`} />
                         <span className="text-sm font-medium text-om-ink">{m.name}</span>
-                        <select
-                            value={m.state ?? ''}
-                            onChange={(e) => setState(m.id, e.target.value)}
-                            className="form-input text-xs py-1"
-                            aria-label={`Set state for ${m.name}`}
-                        >
-                            {!m.state && <option value="" disabled>—</option>}
-                            {m.state && !options.includes(m.state) && (
-                                <option value={m.state}>{MACHINE_STATE_LABELS[m.state] ?? m.state}</option>
-                            )}
-                            {options.map((s) => (
-                                <option key={s} value={s}>{MACHINE_STATE_LABELS[s] ?? s}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            className="min-w-[140px]"
+                            value={m.state ?? undefined}
+                            placeholder="—"
+                            onChange={(state) => state !== m.state && setState(m.id, state)}
+                            aria-label={`${__('Machine state')}: ${m.name}`}
+                            options={[
+                                // A state outside the settable list (e.g. from a machine feed) stays visible.
+                                ...(m.state && !options.includes(m.state) ? [m.state] : []),
+                                ...options,
+                            ].map((s) => ({ value: s, label: MACHINE_STATE_LABELS[s] ? __(MACHINE_STATE_LABELS[s]) : s }))}
+                        />
                     </div>
                 ))}
             </div>
