@@ -42,8 +42,8 @@ class TabRegistry
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
             // Note: Materials, Process Segments, Product Revisions and Companies
-            // are gated by the Structure module; Issues, Anomaly Reasons and
-            // Scrap Reasons by Maintenance & Quality. They render under the
+            // are gated by the Structure module; Issues and Scrap Reasons by
+            // Maintenance & Quality. They render under the
             // Production nav group but live on those tabs so a Lightweight
             // install (Reports only) hides them.
         ]],
@@ -73,7 +73,7 @@ class TabRegistry
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
         // Issues + quality reason codes (render under the Production nav group).
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
-            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
@@ -89,13 +89,13 @@ class TabRegistry
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
-            '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
+            '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
         ]],
         // Its own tab rather than a corner of Maintenance: the shift monitor is
         // the screen a supervisor lives on, and they have no reason to reach the
         // rest of that area.
-        'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview']],
+        'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview', '/admin/shift-board']],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
@@ -104,9 +104,24 @@ class TabRegistry
     ];
 
     /** @return array<int, string> */
+    /**
+     * Every tab, including any an installed module registered.
+     *
+     * The constant stays the definition — migrations, seeders and the access
+     * matrix all read the same shape. This is the one seam through which an
+     * installed module can add to it; with no modules the array is returned
+     * untouched.
+     *
+     * @return array<string, mixed>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('tabs.registry', self::TABS);
+    }
+
     public static function keys(): array
     {
-        return array_keys(self::TABS);
+        return array_keys(self::all());
     }
 
     /**
@@ -138,13 +153,13 @@ class TabRegistry
     /** tab key => label, for the matrix rows. @return array<string, string> */
     public static function labels(): array
     {
-        return array_map(fn ($t) => $t['label'], self::TABS);
+        return array_map(fn ($t) => $t['label'], self::all());
     }
 
     /** The primary landing path for a tab (its first prefix), or null. */
     public static function url(string $key): ?string
     {
-        return self::TABS[$key]['prefixes'][0] ?? null;
+        return self::all()[$key]['prefixes'][0] ?? null;
     }
 
     /** The Spatie permission name backing a tab. */
@@ -161,7 +176,7 @@ class TabRegistry
 
     public static function exists(string $key): bool
     {
-        return array_key_exists($key, self::TABS);
+        return array_key_exists($key, self::all());
     }
 
     /**
@@ -179,7 +194,7 @@ class TabRegistry
         $best = null;
         $bestLen = -1;
 
-        foreach (self::TABS as $key => $tab) {
+        foreach (self::all() as $key => $tab) {
             foreach ($tab['prefixes'] as $prefix) {
                 if (($path === $prefix || str_starts_with($path, $prefix.'/')) && strlen($prefix) > $bestLen) {
                     $best = $key;
@@ -203,7 +218,7 @@ class TabRegistry
             return null;
         }
 
-        foreach (self::TABS as $key => $tab) {
+        foreach (self::all() as $key => $tab) {
             if ($user->can(self::permission($key))) {
                 return $tab['prefixes'][0] ?? null;
             }

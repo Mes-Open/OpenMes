@@ -57,15 +57,80 @@ class ShiftMonitorDemoSeeder extends Seeder
         'WS-PK-01' => 200,
     ];
 
+    /**
+     * Nameplate rate for a station the STATIONS list does not name, chosen from
+     * what it does. A support station runs at the pace of the line it serves,
+     * so the numbers only need to be plausible, not exact.
+     */
+    private const RATE_BY_TYPE = [
+        'printer' => 1200,
+        'press' => 900,
+        'embroidery' => 600,
+        'heat_press' => 400,
+        'sublimation' => 300,
+        'pretreat' => 1400,
+        'curing' => 1400,
+        'dryer' => 1400,
+        'exposure' => 200,
+        'packing' => 800,
+        // Metal removal: tens of parts an hour, and a furnace runs in batches.
+        'saw' => 60,
+        'deburr' => 90,
+        'lathe' => 25,
+        'mill' => 12,
+        'furnace' => 80,
+        'grinder' => 30,
+        'cmm' => 20,
+        // Bakery: rolls come off in thousands an hour, cakes in dozens.
+        'silo' => 5000,
+        'mixer' => 900,
+        'divider' => 3000,
+        'shaping' => 2400,
+        'proofer' => 3000,
+        'oven_deck' => 900,
+        'oven_rack' => 1200,
+        'oven_tunnel' => 3600,
+        'sheeter' => 800,
+        'depositor' => 600,
+        'decorating' => 200,
+        'cooling' => 3000,
+        'slicer' => 900,
+        // Panel furniture: a beam saw throws off parts in the hundreds, a case
+        // clamp builds one box at a time.
+        'panel_saw' => 400,
+        'nesting_router' => 90,
+        'part_labeling' => 900,
+        'edgebander' => 240,
+        'edgebander_double' => 480,
+        'postformer' => 120,
+        'cnc_boring' => 110,
+        'dowel_inserter' => 600,
+        'hinge_borer' => 300,
+        'membrane_press' => 60,
+        'uv_coater' => 150,
+        'profile_wrapper' => 180,
+        'drawer_assembly' => 90,
+        'case_clamp' => 30,
+        'kitting' => 120,
+        'flatpack_packing' => 60,
+        'palletising' => 200,
+    ];
+
+    private const DEFAULT_RATE = 500;
+
     public function run(): void
     {
-        foreach (self::STATIONS as $code => $ratePerHour) {
-            $workstation = Workstation::where('code', $code)->first();
-            if (! $workstation) {
-                $this->command?->warn("Workstation {$code} not found — skipped.");
+        // Every active station, not a hand-listed few. The list used to name
+        // eight codes, so on the print shop only four of sixteen stations had
+        // anything at all — stepping through them in the monitor hit an empty
+        // screen three times out of four, which reads as broken rather than as
+        // a station nobody ran.
+        $workstations = Workstation::where('is_active', true)->orderBy('code')->get();
 
-                continue;
-            }
+        foreach ($workstations as $workstation) {
+            $ratePerHour = self::STATIONS[$workstation->code]
+                ?? self::RATE_BY_TYPE[$workstation->workstation_type]
+                ?? self::DEFAULT_RATE;
 
             $workstation->update(['ideal_rate_per_hour' => $ratePerHour]);
 
@@ -135,7 +200,14 @@ class ShiftMonitorDemoSeeder extends Seeder
     private function windows(Workstation $workstation): array
     {
         $now = Carbon::now();
-        $shifts = Shift::where('is_active', true)->orderBy('start_time')->get();
+        // Only the shifts this station actually works: its own line's, plus the
+        // ones that apply everywhere. Taking every active shift gave a station
+        // on line 1 the other four lines' rosters too — fifteen shifts a day
+        // instead of six, and a history five times longer than the plant's.
+        $shifts = Shift::where('is_active', true)
+            ->where(fn ($q) => $q->where('line_id', $workstation->line_id)->orWhereNull('line_id'))
+            ->orderBy('start_time')
+            ->get();
 
         // No shifts defined — fall back to the single synthetic window, which is
         // what the monitor itself falls back to.
@@ -404,7 +476,14 @@ class ShiftMonitorDemoSeeder extends Seeder
                 // Stations on the same line draw from the same work orders, and
                 // every shift in the history reuses them again, so the number
                 // has to be unique per station AND per shift — not just index.
-                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 1000 + $windowIndex * 10 + $i,
+                //
+                // The station bucket is 100000 wide because the window term has
+                // to fit inside it. At 1000 it did not: a fortnight of shifts
+                // overflowed past index 100, so station 3 window 121 and
+                // station 4 window 21 both produced 13210 and the seeder died
+                // on batches_work_order_id_batch_number_unique. Room now for
+                // 10000 windows of 10 batches each.
+                'batch_number' => self::BATCH_NUMBER_BASE + $workstation->id * 100000 + $windowIndex * 10 + $i,
                 'lot_number' => sprintf('LOT %s-%s%s%s', $lotDate, $shiftMark, $workstation->id, chr(65 + $i)),
                 'target_qty' => $target,
                 'produced_qty' => $produced,

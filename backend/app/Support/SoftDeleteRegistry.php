@@ -19,12 +19,9 @@ class SoftDeleteRegistry
     /** type key (= table name) => model class */
     public const MODELS = [
         // Config / lookup
-        'anomaly_reasons' => Models\AnomalyReason::class,
+        'downtime_reasons' => Models\DowntimeReason::class,
         'scrap_reasons' => Models\ScrapReason::class,
         'cost_sources' => Models\CostSource::class,
-        'wage_groups' => Models\WageGroup::class,
-        'skills' => Models\Skill::class,
-        'personnel_classes' => Models\PersonnelClass::class,
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,
         'issue_types' => Models\IssueType::class,
@@ -45,16 +42,9 @@ class SoftDeleteRegistry
         // Structure
         'customers' => Models\Customer::class,
         'companies' => Models\Company::class,
-        'sites' => Models\Site::class,
-        'areas' => Models\Area::class,
-        'factories' => Models\Factory::class,
-        'divisions' => Models\Division::class,
-        'crews' => Models\Crew::class,
-        'crew_break_windows' => Models\CrewBreakWindow::class,
 
         // HR
         'workers' => Models\Worker::class,
-        'worker_absences' => Models\WorkerAbsence::class,
         'employee_activities' => Models\EmployeeActivity::class,
         'users' => Models\User::class,
 
@@ -102,7 +92,6 @@ class SoftDeleteRegistry
         'tools' => Models\Tool::class,
         'maintenance_events' => Models\MaintenanceEvent::class,
         'maintenance_schedules' => Models\MaintenanceSchedule::class,
-        'production_anomalies' => Models\ProductionAnomaly::class,
 
         // Connectivity
         'machine_connections' => Models\MachineConnection::class,
@@ -125,20 +114,35 @@ class SoftDeleteRegistry
     ];
 
     /** @return list<string> */
+    /**
+     * Every soft-deletable entity, including any an installed module registered.
+     *
+     * The constant stays the definition — migrations, seeders and the access
+     * matrix all read the same shape. This is the one seam through which an
+     * installed module can add to it; with no modules the array is returned
+     * untouched.
+     *
+     * @return array<string, mixed>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('softdeletes.models', self::MODELS);
+    }
+
     public static function tables(): array
     {
-        return array_keys(self::MODELS);
+        return array_keys(self::all());
     }
 
     /** @return class-string|null */
     public static function modelFor(string $type): ?string
     {
-        return self::MODELS[$type] ?? null;
+        return self::all()[$type] ?? null;
     }
 
     public static function isSoftDeletable(string $table): bool
     {
-        return array_key_exists($table, self::MODELS);
+        return array_key_exists($table, self::all());
     }
 
     /** Human-readable identifier of a trashed row for the Trash listing. */

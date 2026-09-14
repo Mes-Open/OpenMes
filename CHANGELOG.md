@@ -7,6 +7,96 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-09-14
+
+### Added
+- **Example companies are now a choice, not a fixture.** Settings → Data offers a picker of
+  whole demo plants — each one its own lines, products, routings, bill of materials, orders,
+  customers, tooling, reported problems and shift history. Four are available: a garment print
+  shop, a precision machine shop, a craft bakery and a panel furniture factory. Picking a
+  different one replaces the current data, and the admin is signed back in afterwards.
+- **Panel furniture factory dataset** — flat-pack wardrobes, chests, desks and kitchen units.
+  The deepest bill of materials of the four: board becomes a blank, a blank becomes an edged
+  panel, edged panels become a carcase, and only then a product. The edged panel is drawn by
+  eight parents, so net requirements has to sum them before it knows what to build.
+
+- **Workers and Shifts are back in the menu.** Both pages still existed and still
+  worked, but nothing linked to them — and shift definitions feed OEE, downtime, scrap
+  and the shift monitor, so a system with no way to edit them silently ran on a fixed
+  06:00/18:00 split. Workers sits next to Users & Accounts, Shifts under Production.
+- **A module can now ship its own screens.** Pages are looked up in the app first and
+  then in any module installed under `modules/`, so a module is no longer limited to
+  server-rendered views. An installation with no modules behaves exactly as before.
+- **A plant board for the shop floor** *(Production → Plant Board)* — every active
+  workstation in the building as one tile, flat, with no grouping by line: a scoreboard
+  rather than a structure tree, with the line printed on the tile where it matters once
+  you have spotted a red one. A tile carries the machine state, the cause of the stop it
+  is on and how long that stop has been running, the order and product, the assigned
+  operators, and availability, performance and quality read from the same minutes as the
+  OEE report. The clock measures downtime, not time-in-state, and counts from when the
+  stop really began rather than from the start of the shift — a stop in its fifth hour
+  would otherwise be announced as being in its second. A station nothing has ever been
+  heard from is drawn differently from an idle one, because a dead collector reading as a
+  quiet machine is what stops anyone investigating it. `?kiosk=1` strips the app chrome
+  for a wall display and `?lines=` narrows it to chosen lines; the board says so when it
+  has stopped refreshing, since a frozen board is indistinguishable from a calm plant.
+- **Downtime reasons can be managed** *(Production → Downtime Reasons)* — operators have
+  always picked from this dictionary, but nothing could edit it: there was no screen and
+  no route, so a plant was stuck with the seeded reasons unless somebody opened the
+  database, and the OEE figures they feed could never be adapted to how that shop
+  actually loses time. Reasons are soft-deleted, so a stop already recorded against one
+  keeps its history, and the unique index on the code is partial — a retired code can be
+  used again. The form states what each kind does to availability rather than listing the
+  options, because that field quietly moves every OEE figure it touches.
+- **Extension points a module attaches to.** Tabs, synced collections, broadcasts and
+  trash types now pass through a filter before they are read, the menu registry takes an
+  explicit order and a badge a module can tag its own entries with, and models can carry
+  relations that point at module tables. An installed module registers itself through
+  these instead of being listed in application files.
+
+### Changed
+- **A page the build does not contain no longer white-screens.** Rendering an unknown
+  screen — a link that outlived its page, or a feature that is not installed — used to
+  throw, leaving a blank window with the reason only in the browser console. It now
+  shows a card that says the screen is unavailable.
+- **Release archives no longer carry locally installed modules.** Modules are by
+  definition not part of this repository, so a release built from it must not ship
+  them; the three bundled examples are unaffected.
+- **Extended plant administration now ships as a module.** ISA-95 structure (sites, areas,
+  factories, divisions), workforce (crews, skills, wage groups, absences, personnel
+  classes), warehousing, packaging, quality plans and inbound inspections leave the
+  application and become installable. What stays is what a plant needs to run production
+  on its own. **An installation that uses any of those screens must install the module to
+  keep them** — the migrations adopt the existing tables rather than recreating them, so
+  the data is kept either way. Workers stay in the application: a plant still hires
+  people, so that one screen remains and the module fills out the rest of the HR menu.
+  Menu entries a module contributes are tagged so it is clear at a glance which screens
+  come from where.
+- **The OEE report's reason ranking is now a Pareto.** The bars already said which reason
+  was worst; the running cumulative share says how far down the list is worth the effort.
+
+### Removed
+- **Area is no longer asked for on a production line.** The ISA-95 area dictionary left the
+  menu, so the line form was asking about something the user could no longer look up or
+  create. Nothing read the value — no report, no scheduling rule, no service — so the column
+  and the picker are gone from the list and both forms. Existing values stay in the database
+  untouched.
+
+### Fixed
+- **A line created from the list drawer can now be given its stock location.** The drawer
+  offered the area picker and not the warehouse one, so lines added without leaving the list
+  had nothing to consume material from until someone opened the full edit form.
+- **Enabling or disabling a module takes effect on the running server.** Toggling one
+  wrote the setting and flashed success while changing nothing: the screens kept
+  answering and the menu entries stayed put until somebody restarted the server by hand.
+  Whether it appeared to work at all came down to whether the worker happened to be
+  recycled for an unrelated reason, which is why it looked intermittent rather than
+  broken. A reload that cannot happen is now logged rather than swallowed.
+- **Upgrading no longer aborts on installations that never had certain foreign keys.**
+  `migrate` died with `constraint "lines_area_id_foreign" ... does not exist`. The case
+  was meant to be handled, but the guard could not work where it sat, and on PostgreSQL a
+  failed statement aborts the surrounding transaction regardless of what catches it.
+
 ## [0.22.0] - 2026-09-08
 
 ### Added

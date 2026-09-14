@@ -45,6 +45,13 @@ export const SUPERVISOR_LINKS = [
         lucide: 'activity',
         match: ['/supervisor/shift-monitor'],
     },
+    {
+        key: 'supervisor-shift-board',
+        label: 'Plant Board',
+        href: '/supervisor/shift-board',
+        lucide: 'layout-grid',
+        match: ['/supervisor/shift-board'],
+    },
 ];
 
 export const SUPERVISOR_GROUPS = [

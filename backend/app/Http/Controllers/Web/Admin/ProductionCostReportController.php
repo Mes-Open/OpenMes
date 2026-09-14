@@ -118,7 +118,9 @@ class ProductionCostReportController extends Controller
             // costing a work order without recorded consumption stays N+1-free.
             'productType.processTemplates.bomItems.material',
             'materialAllocations.material:id,code,name,unit_price,price_currency',
-            'employeeActivities.worker.wageGroup',
+            // wageGroup is attached by an optional module; eager-loading it
+            // unconditionally is a 500 on an installation without it.
+            ...(\App\Models\Worker::hasModuleRelation('wageGroup') ? ['employeeActivities.worker.wageGroup'] : []),
             'additionalCosts',
         ];
     }

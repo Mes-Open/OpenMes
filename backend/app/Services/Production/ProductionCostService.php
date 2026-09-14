@@ -27,7 +27,7 @@ class ProductionCostService
 
     private ?float $defaultPayRate;
 
-    public function __construct()
+    public function __construct(private \App\Extension\Contracts\WorkforceProvider $workforce)
     {
         // Editable in Settings → System (stored in system_settings); the
         // config/env values are the fallback default.
@@ -293,9 +293,12 @@ class ProductionCostService
             return (float) $worker->pay_rate;
         }
 
-        $groupRate = $worker->wageGroup?->base_hourly_rate;
+        // Asked through the contract rather than read off the wage group, so an
+        // installation that does not record wage groups costs at the worker's
+        // own rate or the configured default instead of failing.
+        $groupRate = $this->workforce->hourlyRate($worker);
         if ($payType === 'hourly' && $groupRate !== null) {
-            return (float) $groupRate;
+            return $groupRate;
         }
 
         return $this->defaultPayRate ?? 0.0;

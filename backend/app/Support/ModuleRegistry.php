@@ -53,7 +53,7 @@ class ModuleRegistry
         ],
         'quality' => [
             'label' => 'Issues & reasons',
-            'description' => 'Issues and scrap / anomaly reason codes.',
+            'description' => 'Issues and scrap reason codes.',
         ],
         'structure' => [
             'label' => 'Company structure',
@@ -107,9 +107,24 @@ class ModuleRegistry
     ];
 
     /** @return array<int, string> */
+    /**
+     * Every optional module, including any an installed module registered.
+     *
+     * The constant stays the definition — migrations, seeders and the access
+     * matrix all read the same shape. This is the one seam through which an
+     * installed module can add to it; with no modules the array is returned
+     * untouched.
+     *
+     * @return array<string, mixed>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('modules.optional', self::OPTIONAL);
+    }
+
     public static function optionalKeys(): array
     {
-        return array_keys(self::OPTIONAL);
+        return array_keys(self::all());
     }
 
     /**
@@ -157,7 +172,7 @@ class ModuleRegistry
     /** Core (non-optional) areas are always enabled. */
     public static function isModuleEnabled(string $key): bool
     {
-        if (! array_key_exists($key, self::OPTIONAL)) {
+        if (! array_key_exists($key, self::all())) {
             return true;
         }
 
@@ -196,8 +211,8 @@ class ModuleRegistry
 
         return array_map(fn (string $k) => [
             'key' => $k,
-            'label' => self::OPTIONAL[$k]['label'],
-            'description' => self::OPTIONAL[$k]['description'],
+            'label' => self::all()[$k]['label'],
+            'description' => self::all()[$k]['description'],
             'enabled' => in_array($k, $enabled, true),
         ], self::optionalKeys());
     }

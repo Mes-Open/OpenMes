@@ -25,7 +25,6 @@ class DemoDataSeeder extends Seeder
     {
         $this->call([
             AirFilterDemoSeeder::class,
-            HrDemoSeeder::class,
             OeeAndDowntimeDemoSeeder::class,
             ShiftMonitorDemoSeeder::class,
         ]);

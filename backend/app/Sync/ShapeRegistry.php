@@ -35,17 +35,13 @@ class ShapeRegistry
         'data_imports' => DataImportsRecentShape::class,
 
         // Simple admin lookup tables — inline config.
-        'skills' => [
-            'table' => 'skills',
-            'columns' => ['id', 'code', 'name', 'description', 'created_at', 'updated_at'],
-        ],
         'material_types' => [
             'table' => 'material_types',
             'columns' => ['id', 'code', 'name', 'created_at', 'updated_at'],
         ],
-        'anomaly_reasons' => [
-            'table' => 'anomaly_reasons',
-            'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'created_at', 'updated_at'],
+        'downtime_reasons' => [
+            'table' => 'downtime_reasons',
+            'columns' => ['id', 'code', 'name', 'kind', 'is_active', 'created_at', 'updated_at'],
         ],
         'scrap_reasons' => [
             'table' => 'scrap_reasons',
@@ -71,38 +67,6 @@ class ShapeRegistry
             'table' => 'cost_sources',
             'columns' => ['id', 'code', 'name', 'description', 'unit_cost', 'unit', 'currency', 'is_active', 'created_at', 'updated_at'],
         ],
-        'wage_groups' => [
-            'table' => 'wage_groups',
-            'columns' => ['id', 'code', 'name', 'description', 'base_hourly_rate', 'currency', 'is_active', 'created_at', 'updated_at'],
-        ],
-        'worker_absences' => [
-            'table' => 'worker_absences',
-            'columns' => ['id', 'worker_id', 'type', 'starts_on', 'ends_on', 'all_day', 'start_time', 'end_time', 'status', 'reason', 'created_by_id', 'created_at', 'updated_at'],
-        ],
-        'crew_break_windows' => [
-            'table' => 'crew_break_windows',
-            'columns' => ['id', 'crew_id', 'name', 'start_time', 'end_time', 'days_of_week', 'is_active', 'created_at', 'updated_at'],
-        ],
-        'factories' => [
-            'table' => 'factories',
-            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],
-        ],
-        'divisions' => [
-            'table' => 'divisions',
-            'columns' => ['id', 'factory_id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],
-        ],
-        'areas' => [
-            'table' => 'areas',
-            'columns' => ['id', 'site_id', 'code', 'name', 'description', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
-        ],
-        'sites' => [
-            'table' => 'sites',
-            'columns' => ['id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
-        ],
-        'crews' => [
-            'table' => 'crews',
-            'columns' => ['id', 'code', 'name', 'leader_id', 'division_id', 'description', 'is_active', 'created_at', 'updated_at'],
-        ],
         'tools' => [
             'table' => 'tools',
             'columns' => ['id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'custom_fields', 'created_at', 'updated_at'],
@@ -112,10 +76,6 @@ class ShapeRegistry
             'table' => 'line_statuses',
             'columns' => ['id', 'name', 'color', 'sort_order', 'line_id', 'is_default', 'is_done_status', 'created_at', 'updated_at'],
             'where' => 'line_id IS NULL',
-        ],
-        'personnel_classes' => [
-            'table' => 'personnel_classes',
-            'columns' => ['id', 'code', 'name', 'description', 'required_skill_ids', 'default_required_cert_level', 'is_active', 'created_at', 'updated_at'],
         ],
         'workstation_types' => [
             'table' => 'workstation_types',
@@ -290,9 +250,26 @@ class ShapeRegistry
         ],
     ];
 
+    /**
+     * Every collection, including any an installed module registered.
+     *
+     * A module adds one from its provider's boot():
+     *   app(FilterRegistry::class)->addFilter('sync.shapes', fn ($s) => $s + [
+     *       'example_things' => ['table' => 'example_things', 'columns' => [...]],
+     *   ]);
+     *
+     * With no modules the array is returned untouched.
+     *
+     * @return array<string, class-string<Shape>|array<string, mixed>>
+     */
+    public function shapes(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('sync.shapes', $this->shapes);
+    }
+
     public function find(string $name): ?Shape
     {
-        $def = $this->shapes[$name] ?? null;
+        $def = $this->shapes()[$name] ?? null;
 
         if ($def === null) {
             return null;

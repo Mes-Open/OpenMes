@@ -38,7 +38,6 @@ class UpdateLineRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'area_id' => ['nullable', 'exists:areas,id'],
             // The stock location this line's consumption comes off.
             'warehouse_id' => $this->stockLocationRules(),
             'is_active' => ['boolean'],

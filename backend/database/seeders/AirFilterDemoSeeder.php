@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Tier;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BomItem;
+use App\Models\Customer;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Line;
@@ -19,6 +21,7 @@ use App\Models\Shift;
 use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -36,9 +39,12 @@ use Spatie\Permission\Models\Role;
  *    fortnight of scheduled work ahead so the planner's horizon is not empty
  *  - A running batch on WO-186-001 with steps 1-2 DONE, step 3 IN_PROGRESS
  *  - Operator-reported issues, one per lifecycle state (open → closed)
- *  - A two-level BOM: the HEPA-13 assembly consumes a manufactured pleat pack
- *    (sub-assembly) plus purchased parts; the pleat pack has its own routing
- *    and BOM, so exploding the top level reaches the raw media
+ *  - A multi-level BOM. Five sub-assemblies, each with its own routing, so an
+ *    explosion descends rather than stopping at the first manufactured line:
+ *      HEPA-13 Std → pleat pack → media
+ *      Carbon X2   → cartridge → mesh cage → mesh + seal   (three levels)
+ *      Carbon X2 and Pre-filter G4 both draw the same moulded shell, so
+ *      netting has to sum two parents' demand before deciding to make it
  *  - Received material lots, one per lot status (released, quarantine, rejected,
  *    consumed, expired)
  *
@@ -56,12 +62,14 @@ class AirFilterDemoSeeder extends Seeder
         $productTypes = $this->seedProductTypes();
         $templates = $this->seedProcessTemplates($productTypes, $workstations);
         $users = $this->seedUsers($lines);
-        $materials = $this->seedMaterials($templates['PLEATPACK13']);
+        $materials = $this->seedMaterials($templates);
         $this->seedBom($templates, $materials);
         $this->seedMaterialLots($materials);
         $this->seedShifts();
         $workOrders = $this->seedWorkOrders($lines, $productTypes, $templates);
         $this->seedActiveBatch($workOrders['WO-186-001'], $templates['HEPA13_STD'], $users['operator-mk']);
+        $this->assignCustomers($this->seedCustomers());
+        $this->seedMultiLinePlacements($lines, $workOrders);
         $this->seedIssues($workOrders, $users);
         $this->seedMaintenance($lines, $workstations, $users);
     }
@@ -224,7 +232,7 @@ class AirFilterDemoSeeder extends Seeder
      *
      * @return array<string, Material>
      */
-    private function seedMaterials(ProcessTemplate $pleatPackTemplate): array
+    private function seedMaterials(array $templates): array
     {
         // raw_material / semi_finished / packaging / auxiliary. Idempotent, and
         // the demo must not depend on that seeder having been run separately.
@@ -274,20 +282,40 @@ class AirFilterDemoSeeder extends Seeder
             );
         }
 
-        // The sub-assembly. `is_manufactured` + the producing template is what
-        // lets a BOM line for it be exploded into the level below.
-        $materials['PLEATPACK13'] = Material::updateOrCreate(
-            ['code' => 'PLEATPACK13'],
-            [
-                'name' => 'Pleat pack HEPA-13',
-                'material_type_id' => $typeIds['semi_finished'] ?? null,
-                'unit_of_measure' => 'pcs',
-                'tracking_type' => 'batch',
-                'is_manufactured' => true,
-                'producing_process_template_id' => $pleatPackTemplate->id,
-                'stock_quantity' => 260,
-            ]
-        );
+        // The sub-assemblies. `is_manufactured` + the producing template is what
+        // lets a BOM line for one be exploded into the level below, so each of
+        // these is a place the explosion can keep descending.
+        //
+        // Stock is deliberately uneven: MESHCAGE is held short so a carbon
+        // order has to be netted two levels down before the shortage shows up,
+        // which is the case the flat explosion used to miss.
+        $subAssemblies = [
+            ['code' => 'PLEATPACK13', 'name' => 'Pleat pack HEPA-13',     'stock_quantity' => 260],
+            ['code' => 'MOULDHOUS',   'name' => 'Moulded housing shell',  'stock_quantity' => 540],
+            ['code' => 'MESHCAGE',    'name' => 'Retaining mesh cage',    'stock_quantity' => 40],
+            ['code' => 'CARBONCART',  'name' => 'Carbon cartridge',       'stock_quantity' => 95],
+            ['code' => 'MEDIAPACK7',  'name' => 'F7 media pack',          'stock_quantity' => 180],
+        ];
+
+        foreach ($subAssemblies as $def) {
+            $template = $templates[$def['code']] ?? null;
+            if (! $template) {
+                continue;
+            }
+
+            $materials[$def['code']] = Material::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'material_type_id' => $typeIds['semi_finished'] ?? null,
+                    'unit_of_measure' => 'pcs',
+                    'tracking_type' => 'batch',
+                    'is_manufactured' => true,
+                    'producing_process_template_id' => $template->id,
+                    'stock_quantity' => $def['stock_quantity'],
+                ]
+            );
+        }
 
         return $materials;
     }
@@ -390,22 +418,24 @@ class AirFilterDemoSeeder extends Seeder
                 [5, 'CARTON-10',    0.1,  0, 'end'],
             ],
             'PREFILTER' => [
-                [1, 'RESIN-ABS',    0.42, 3, 'start'],
+                // Takes the moulded shell rather than the granulate: the
+                // moulding is its own job, and the shell is shared with Carbon.
+                [1, 'MOULDHOUS',    1,    1, 'start'],
                 [2, 'MEDIA-G4',     0.8,  4, 'start'],
                 // Coarse filters ship 20 to a box.
                 [4, 'CARTON-10',    0.05, 0, 'end'],
             ],
             'CARBON' => [
-                [1, 'RESIN-ABS',    0.85, 3, 'start'],
-                [2, 'CARBON-GRAN',  1.2,  2, 'during'],
-                [3, 'MESH-RET',     1,    1, 'during'],
-                [3, 'SEAL-EPDM',    0.9,  2, 'during'],
+                [1, 'MOULDHOUS',    1,    1, 'start'],
+                // Two manufactured levels sit under this one line: the cartridge
+                // is filled from a mesh cage, which is itself assembled.
+                [2, 'CARBONCART',   1,    2, 'during'],
                 [5, 'CARTON-10',    0.1,  0, 'end'],
             ],
             'HVAC' => [
                 [1, 'FRAME-CASS',   1,    0, 'start'],
                 [2, 'MEDIA-G4',     1.1,  4, 'start'],
-                [3, 'MEDIA-F7',     1.6,  5, 'during'],
+                [3, 'MEDIAPACK7',   1,    2, 'during'],
                 [4, 'SEAL-EPDM',    2.2,  2, 'during'],
                 [6, 'CARTON-CASS',  1,    0, 'end'],
             ],
@@ -413,6 +443,25 @@ class AirFilterDemoSeeder extends Seeder
             'PLEATPACK13' => [
                 [1, 'MEDIA-H13',    2.4,  5, 'start'],
                 [2, 'HOTMELT-01',   0.03, 2, 'during'],
+            ],
+            // Shared between the pre-filter and the carbon product, so netting
+            // has to add both parents' demand together before it decides
+            // whether the shell needs making.
+            'MOULDHOUS' => [
+                [1, 'RESIN-ABS',    0.62, 3, 'start'],
+            ],
+            // Bottom manufactured level of the carbon tree.
+            'MESHCAGE' => [
+                [1, 'MESH-RET',     1,    1, 'start'],
+                [2, 'SEAL-EPDM',    0.9,  2, 'during'],
+            ],
+            'CARBONCART' => [
+                [1, 'MESHCAGE',     1,    1, 'start'],
+                [2, 'CARBON-GRAN',  1.2,  2, 'during'],
+            ],
+            'MEDIAPACK7' => [
+                [1, 'MEDIA-F7',     1.6,  5, 'start'],
+                [2, 'HOTMELT-01',   0.02, 2, 'during'],
             ],
         ];
 
@@ -443,6 +492,144 @@ class AirFilterDemoSeeder extends Seeder
                         'scrap_percentage' => $scrap,
                         'consumed_at' => $consumedAt,
                         'sort_order' => ++$sortOrder,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Who the filters are built for.
+     *
+     * Nothing seeded these, so the Customers page was empty and every order
+     * showed a blank customer — which also left priority scoring, tiers and
+     * payment scores with nothing to act on.
+     *
+     * @return array<int, Customer>
+     */
+    private function seedCustomers(): array
+    {
+        $defs = [
+            ['code' => 'CUST-AIRVENT',  'name' => 'AirVent Systems AB',       'tier' => Tier::Vip,    'payment_score' => 94, 'notes' => 'HVAC OEM. Scheduled call-offs against a yearly frame contract.'],
+            ['code' => 'CUST-CLEANMED', 'name' => 'CleanMed Hospitals',       'tier' => Tier::Gold,   'payment_score' => 90, 'notes' => 'HEPA-13 for theatre and isolation suites. Certificates required with every lot.'],
+            ['code' => 'CUST-PHARMLAB', 'name' => 'PharmLab Cleanrooms',      'tier' => Tier::Gold,   'payment_score' => 76, 'notes' => 'Cleanroom retrofits. Delivery windows tied to shutdown dates.'],
+            ['code' => 'CUST-METALWX',  'name' => 'MetalWorx Foundry',        'tier' => Tier::Silver, 'payment_score' => 61, 'notes' => 'Carbon filters for the fume extraction plant. High replacement rate.'],
+            ['code' => 'CUST-BUDIMEX',  'name' => 'Budimex Facility Services', 'tier' => Tier::Silver, 'payment_score' => 58, 'notes' => 'Pre-filters for office block maintenance contracts.'],
+            ['code' => 'CUST-GREENH',   'name' => 'Greenhouse Growers Co-op', 'tier' => Tier::Bronze, 'payment_score' => 45, 'notes' => 'Seasonal orders, price sensitive, flexible on dates.'],
+        ];
+
+        $customers = [];
+
+        foreach ($defs as $def) {
+            $customers[] = Customer::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'tier' => $def['tier'],
+                    'payment_score' => $def['payment_score'],
+                    'notes' => $def['notes'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        return $customers;
+    }
+
+    /**
+     * Put a customer behind every order, by position rather than at random so
+     * the same order keeps the same customer across re-seeds.
+     *
+     * @param  array<int, Customer>  $customers
+     */
+    private function assignCustomers(array $customers): void
+    {
+        if ($customers === []) {
+            return;
+        }
+
+        foreach (WorkOrder::orderBy('order_no')->get()->values() as $i => $order) {
+            $customer = $customers[$i % count($customers)];
+
+            $order->forceFill([
+                'customer_id' => $customer->id,
+                'customer_order_no' => sprintf('PO-%s-%04d', now()->year, 2000 + $i),
+            ])->saveQuietly();
+        }
+    }
+
+    /**
+     * Orders that run on more than one line.
+     *
+     * The plant is laid out as a flow — sub-assembly feeds the filter line,
+     * housings feed it too, and everything ends at pack & ship — so an order
+     * genuinely occupies more than one line before it is finished. The planner
+     * draws this as a badge plus a connector down to the extra segment, and
+     * there was no example data behind that display at all.
+     *
+     * Segments are coarse (day + shift); the minute-level plan stays with the
+     * primary placement.
+     *
+     * @param  array<string, Line>  $lines
+     * @param  array<string, WorkOrder>  $workOrders
+     */
+    private function seedMultiLinePlacements(array $lines, array $workOrders): void
+    {
+        // from line => [[to line, shifts later], …], following the flow.
+        $handoffs = [
+            'L-03' => [['L-01', 1]],
+            'L-02' => [['L-01', 1], ['L-04', 2]],
+            'L-01' => [['L-04', 2]],
+        ];
+
+        $lineById = [];
+        foreach ($lines as $code => $line) {
+            $lineById[$line->id] = $code;
+        }
+
+        WorkOrderPlacement::whereIn('work_order_id', collect($workOrders)->pluck('id'))->delete();
+
+        $n = 0;
+
+        foreach ($workOrders as $order) {
+            // These orders are planned at shift level, so due_date is what they
+            // carry — planned_start_at is only set once someone pins a block to
+            // the minute in the planner.
+            $anchor = $order->planned_start_at ?? $order->due_date;
+            if (! $anchor) {
+                continue;
+            }
+
+            $fromCode = $lineById[$order->line_id] ?? null;
+            if (! $fromCode || ! isset($handoffs[$fromCode])) {
+                continue;
+            }
+
+            // Every third, so the board shows the case without every block
+            // sprouting a connector.
+            if ($n++ % 3 !== 0) {
+                continue;
+            }
+
+            $start = $anchor->copy();
+
+            foreach ($handoffs[$fromCode] as [$toCode, $shiftsLater]) {
+                $target = $lines[$toCode] ?? null;
+                if (! $target || $target->id === $order->line_id) {
+                    continue;
+                }
+
+                // shift_number is 1..3 within a day; roll into the next day
+                // rather than emitting a fourth shift no column matches.
+                $shift = (int) ceil($start->hour / 8) + $shiftsLater;
+                $dayOffset = intdiv($shift - 1, 3);
+                $shift = (($shift - 1) % 3) + 1;
+
+                WorkOrderPlacement::updateOrCreate(
+                    ['work_order_id' => $order->id, 'line_id' => $target->id],
+                    [
+                        'due_date' => $start->copy()->addDays($dayOffset)->startOfDay(),
+                        'shift_number' => $shift,
                     ]
                 );
             }
@@ -634,6 +821,13 @@ class AirFilterDemoSeeder extends Seeder
             // HEPA-13 assembly. It needs a product type because that is what a
             // process template is written against.
             ['code' => 'PLEATPACK13', 'name' => 'Pleat pack HEPA-13', 'description' => 'Folded and edge-sealed HEPA-13 media pack, ready to frame', 'unit_of_measure' => 'pcs'],
+            // The rest of the sub-assembly tree. MESHCAGE feeds CARBONCART,
+            // which feeds the Carbon X2 — three manufactured levels above the
+            // raw material, so exploding a carbon order has somewhere to go.
+            ['code' => 'MOULDHOUS',   'name' => 'Moulded housing shell', 'description' => 'Injection-moulded ABS shell, shared by the pre-filter and carbon products', 'unit_of_measure' => 'pcs'],
+            ['code' => 'MESHCAGE',    'name' => 'Retaining mesh cage',   'description' => 'Mesh disc and EPDM strip assembled into a cage that holds the carbon bed', 'unit_of_measure' => 'pcs'],
+            ['code' => 'CARBONCART',  'name' => 'Carbon cartridge',      'description' => 'Mesh cage filled and compacted with activated carbon, ready to drop into a shell', 'unit_of_measure' => 'pcs'],
+            ['code' => 'MEDIAPACK7',  'name' => 'F7 media pack',         'description' => 'Pleated and edge-sealed F7 media stage for the HVAC cassette', 'unit_of_measure' => 'pcs'],
         ];
 
         $result = [];
@@ -701,6 +895,22 @@ class AirFilterDemoSeeder extends Seeder
             'PLEATPACK13' => ['Pleat pack HEPA-13 — production v1', [
                 [1, 'Media pleating',       'Feed the media roll and fold to the HEPA-13 pitch. Check pleat height on the first five packs.', 6, 'WS-PA-01'],
                 [2, 'Edge sealing',         'Run a hot-melt bead down both open edges and press until set.', 4, 'WS-AB-01'],
+            ]],
+            'MOULDHOUS' => ['Moulded housing shell — production v1', [
+                [1, 'Moulding',             'Dry the granulate, run the shot and let the shell cool in the fixture.', 5, 'WS-FR-01'],
+                [2, 'Deflash & inspect',    'Trim the parting line and check the shell for sink marks before it goes to stock.', 3, 'WS-AB-01'],
+            ]],
+            'MESHCAGE' => ['Retaining mesh cage — production v1', [
+                [1, 'Cage forming',         'Roll the mesh disc into the cage former and spot-weld the seam.', 4, 'WS-SA-01'],
+                [2, 'Seal fitting',         'Fit the EPDM strip around the rim; check it seats evenly all the way round.', 3, 'WS-SA-01'],
+            ]],
+            'CARBONCART' => ['Carbon cartridge — production v1', [
+                [1, 'Carbon filling',       'Fill the cage to the fill line and vibrate to settle the bed.', 6, 'WS-SA-02'],
+                [2, 'Compaction & weigh',   'Compact the bed and weigh the cartridge; reject anything outside the tolerance band.', 4, 'WS-SA-02'],
+            ]],
+            'MEDIAPACK7' => ['F7 media pack — production v1', [
+                [1, 'Media pleating',       'Fold the F7 media to the cassette pitch.', 5, 'WS-PA-01'],
+                [2, 'Edge sealing',         'Seal both open edges and trim the pack to cassette width.', 3, 'WS-AB-01'],
             ]],
         ];
 
@@ -896,6 +1106,16 @@ class AirFilterDemoSeeder extends Seeder
             [10, 'WO-186-013', 'L-02', 'CARBON',      180, 2, 'Carbon X2 — service parts.'],
             [11, 'WO-186-014', 'L-01', 'HEPA13_SLIM', 110, 3, 'Slim filters, retrofit phase 2.'],
             [13, 'WO-186-015', 'L-01', 'HEPA13_STD',  300, 5, 'Standard HEPA-13 — Filtex quarterly.'],
+            // Weeks three and four. Thinner than the near term, as a real order
+            // book is that far out, but enough that the board does not simply
+            // stop a fortnight in.
+            [16, 'WO-186-016', 'L-02', 'PREFILTER',   420, 2, 'G4 pre-filters — facility contract call-off.'],
+            [17, 'WO-186-017', 'L-03', 'HVAC',        90,  3, 'HVAC cassettes — Nordwind phase 2.'],
+            [19, 'WO-186-018', 'L-01', 'HEPA13_STD',  240, 3, 'Standard HEPA-13 — hospital framework.'],
+            [21, 'WO-186-019', 'L-02', 'CARBON',      160, 2, 'Carbon X2 — foundry extraction refill.'],
+            [23, 'WO-186-020', 'L-01', 'HEPA13_SLIM', 130, 3, 'Slim retrofit, final phase.'],
+            [25, 'WO-186-021', 'L-03', 'HVAC',        70,  4, 'HVAC cassette — cleanroom shutdown window.'],
+            [27, 'WO-186-022', 'L-01', 'HEPA13_STD',  280, 4, 'Standard HEPA-13 — export pallet, month end.'],
         ];
 
         foreach ($horizon as [$inDays, $orderNo, $line, $product, $qty, $priority, $description]) {

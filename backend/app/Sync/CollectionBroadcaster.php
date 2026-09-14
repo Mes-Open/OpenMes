@@ -32,7 +32,7 @@ class CollectionBroadcaster
         $terminal = Models\WorkOrder::TERMINAL_STATUSES;
         $openIssue = [Models\Issue::STATUS_OPEN, Models\Issue::STATUS_ACKNOWLEDGED];
 
-        return [
+        $map = [
             // Filtered (shaped) collections — must drop rows that leave the set.
             'work_orders_active' => [Models\WorkOrder::class, fn ($m) => ! in_array($m->status, $terminal, true)],
             'work_orders_all' => [Models\WorkOrder::class, null],
@@ -47,20 +47,9 @@ class CollectionBroadcaster
 
             // Unfiltered lookup / admin tables.
             'product_types' => [Models\ProductType::class, null],
-            'skills' => [Models\Skill::class, null],
-            'anomaly_reasons' => [Models\AnomalyReason::class, null],
             'companies' => [Models\Company::class, null],
             'cost_sources' => [Models\CostSource::class, null],
-            'wage_groups' => [Models\WageGroup::class, null],
-            'worker_absences' => [Models\WorkerAbsence::class, null],
-            'crew_break_windows' => [Models\CrewBreakWindow::class, null],
-            'factories' => [Models\Factory::class, null],
-            'divisions' => [Models\Division::class, null],
-            'areas' => [Models\Area::class, null],
-            'sites' => [Models\Site::class, null],
-            'crews' => [Models\Crew::class, null],
             'tools' => [Models\Tool::class, null],
-            'personnel_classes' => [Models\PersonnelClass::class, null],
             'workstation_types' => [Models\WorkstationType::class, null],
             'subassemblies' => [Models\Subassembly::class, null],
             'shifts' => [Models\Shift::class, null],
@@ -86,6 +75,7 @@ class CollectionBroadcaster
             'priority_rules' => [Models\PriorityRule::class, null],
             'product_revisions' => [Models\ProductRevision::class, null],
             'quality_control_triggers' => [Models\QualityControlTrigger::class, null],
+            'downtime_reasons' => [Models\DowntimeReason::class, null],
             'scrap_reasons' => [Models\ScrapReason::class, null],
             'webhooks' => [Models\Webhook::class, null],
             'webhook_deliveries' => [Models\WebhookDelivery::class, null],
@@ -109,6 +99,12 @@ class CollectionBroadcaster
             'warehouse_stocks' => [Models\WarehouseStock::class, null],
             'stock_documents' => [Models\StockDocument::class, null],
         ];
+
+        // An installed module broadcasting its own collections adds them here,
+        // in the same shape. It pairs with the 'sync.shapes' filter on
+        // ShapeRegistry: that one decides what a client may load, this one
+        // decides what reaches it live. A module needs both.
+        return app(\App\Extension\FilterRegistry::class)->filter('sync.broadcasts', $map);
     }
 
     /**

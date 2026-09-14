@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\Crew;
+use App\Models\ScrapReason;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,26 +23,26 @@ class TrashApiTest extends TestCase
 
     public function test_admin_sees_soft_deleted_rows(): void
     {
-        $crew = Crew::factory()->create();
-        $crew->delete();
+        $reason = ScrapReason::factory()->create();
+        $reason->delete();
 
         $this->actingAs($this->admin, 'sanctum')
             ->getJson('/api/v1/trash')
             ->assertStatus(200)
             ->assertJsonStructure(['data' => ['items', 'counts', 'selected_type']])
-            ->assertJsonFragment(['type' => 'crews', 'id' => $crew->id]);
+            ->assertJsonFragment(['type' => 'scrap_reasons', 'id' => $reason->id]);
     }
 
     public function test_admin_can_restore(): void
     {
-        $crew = Crew::factory()->create();
-        $crew->delete();
+        $reason = ScrapReason::factory()->create();
+        $reason->delete();
 
         $this->actingAs($this->admin, 'sanctum')
-            ->postJson("/api/v1/trash/crews/{$crew->id}/restore")
+            ->postJson("/api/v1/trash/scrap_reasons/{$reason->id}/restore")
             ->assertStatus(200);
 
-        $this->assertDatabaseHas('crews', ['id' => $crew->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('scrap_reasons', ['id' => $reason->id, 'deleted_at' => null]);
     }
 
     public function test_guest_cannot_access(): void

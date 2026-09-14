@@ -7,12 +7,18 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Link Worker → Personnel Class (nullable for backward compatibility).
  */
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::table('workers', function (Blueprint $table) {
-            $table->foreignId('personnel_class_id')->nullable()->after('id')
-                ->constrained()->nullOnDelete();
+            // Constrained only when the table it points at exists. These lookups
+            // now ship as an optional module, so a community installation never
+            // creates them — the column stays, unconstrained, holding nothing.
+            $column = $table->foreignId('personnel_class_id')->nullable()->after('id');
+            if (Schema::hasTable('personnel_classes')) {
+                $column->constrained()->nullOnDelete();
+            }
             $table->index('personnel_class_id');
         });
     }

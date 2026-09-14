@@ -6,7 +6,6 @@ use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreLineRequest;
 use App\Http\Requests\Web\Admin\UpdateLineRequest;
-use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
 use App\Models\ProductType;
@@ -24,7 +23,7 @@ class LineManagementController extends Controller
 
     /**
      * Display a listing of production lines. Rows live-sync via the `lines_all`
-     * shape; area names + counts come as props. Advanced per-line config (view
+     * shape; per-line counts come as props. Advanced per-line config (view
      * templates, statuses, operators, product types) stays on the show page.
      */
     public function index()
@@ -37,10 +36,9 @@ class LineManagementController extends Controller
                 'work_orders' => $l->work_orders_count,
                 'operators' => $l->users_count,
             ]]),
-            'areaNames' => Area::pluck('name', 'id'),
             // Option lists for the list page's create/edit drawer. Optional, so the
             // queries only run once someone opens it — most visits never do.
-            'areas' => Inertia::optional(fn () => $this->areaOptions()),
+            'warehouses' => Inertia::optional(fn () => $this->warehouseOptions()),
             'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('line')),
         ]);
     }
@@ -51,7 +49,6 @@ class LineManagementController extends Controller
     public function create()
     {
         return Inertia::render('admin/lines/Create', [
-            'areas' => $this->areaOptions(),
             'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
@@ -70,13 +67,6 @@ class LineManagementController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name'])
             ->map(fn ($w) => ['id' => $w->id, 'name' => "{$w->name} ({$w->code})"]);
-    }
-
-    /** Areas as {id, name (with site)} options for the line form. */
-    private function areaOptions(): \Illuminate\Support\Collection
-    {
-        return Area::with('site:id,name')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'site_id'])
-            ->map(fn ($a) => ['id' => $a->id, 'name' => $a->site ? "{$a->name} ({$a->site->name})" : $a->name]);
     }
 
     /**
@@ -229,8 +219,7 @@ class LineManagementController extends Controller
     public function edit(Line $line)
     {
         return Inertia::render('admin/lines/Edit', [
-            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'warehouse_id', 'is_active', 'custom_fields'),
-            'areas' => $this->areaOptions(),
+            'line' => $line->only('id', 'code', 'name', 'description', 'warehouse_id', 'is_active', 'custom_fields'),
             'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);

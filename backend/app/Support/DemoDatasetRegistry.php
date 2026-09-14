@@ -1,0 +1,128 @@
+<?php
+
+namespace App\Support;
+
+use Database\Seeders\BakeryDemoSeeder;
+use Database\Seeders\MachineShopDemoSeeder;
+use Database\Seeders\PanelFurnitureDemoSeeder;
+use Database\Seeders\PrintShopDemoSeeder;
+use Database\Seeders\ShiftMonitorDemoSeeder;
+
+/**
+ * The example companies an admin can load from Settings → Data.
+ *
+ * Each entry is a whole plant: its own lines, products, routings, BOM, orders
+ * and shift history. They are alternatives, not layers — loading one is meant
+ * to leave the app looking like that business, so the picker only offers a
+ * choice while no demo data is present.
+ *
+ * The shift monitor seeder is shared: it knows both plants' station codes and
+ * skips whichever is not installed, so it runs last in either bundle.
+ */
+class DemoDatasetRegistry
+{
+    /**
+     * key => [label, description, industry, seeders].
+     *
+     * `seeders` run in order; each is idempotent on its own keys.
+     */
+    public const DATASETS = [
+        'bakery' => [
+            'label' => 'Craft bakery',
+            'description' => 'Bread, rolls and cakes baked overnight for the morning round. Night shift is the main one, and the recipe chain runs from loaf through dough to a levain the bakery keeps alive itself.',
+            'industry' => 'Food production — bakery',
+            'seeders' => [
+                BakeryDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+        'machine_shop' => [
+            'label' => 'Precision machine shop',
+            'description' => 'Sawing, CNC turning and milling, heat treatment, grinding and CMM inspection. Parts measured in tens per hour with long cycles, and a three-level BOM from finished shaft down to bar stock.',
+            'industry' => 'Manufacturing — metalworking / CNC',
+            'seeders' => [
+                MachineShopDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+        'panel_furniture' => [
+            'label' => 'Panel furniture factory',
+            'description' => 'Flat-pack wardrobes, chests, desks and kitchen units in melamine-faced board. The whole plant queues behind one beam saw, and the BOM is a chain of transformations — board to blank to edged panel to carcase — four manufactured levels deep.',
+            'industry' => 'Manufacturing — furniture',
+            'seeders' => [
+                PanelFurnitureDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+        'print_shop' => [
+            'label' => 'Garment print shop',
+            'description' => 'DTG, screen print, embroidery and transfer lines decorating t-shirts, hoodies and accessories. Ten product types, ISA-95 site structure, crews and inspection plans.',
+            'industry' => 'Manufacturing — apparel decoration',
+            'seeders' => [
+                PrintShopDemoSeeder::class,
+                ShiftMonitorDemoSeeder::class,
+            ],
+        ],
+    ];
+
+    /** @return array<int, string> */
+    /**
+     * Every example company, including any an installed module registered.
+     *
+     * A module adds one from its provider's boot():
+     *   app(FilterRegistry::class)->addFilter('demo.datasets', fn ($sets) => $sets + [
+     *       'example_plant' => ['label' => ..., 'seeders' => [...]],
+     *   ]);
+     *
+     * With no modules the array is returned untouched.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('demo.datasets', self::DATASETS);
+    }
+
+    public static function keys(): array
+    {
+        return array_keys(self::all());
+    }
+
+    public static function has(string $key): bool
+    {
+        return array_key_exists($key, self::all());
+    }
+
+    /**
+     * The seeder classes for a dataset, in run order.
+     *
+     * @return array<int, class-string>
+     */
+    public static function seedersFor(string $key): array
+    {
+        return self::all()[$key]['seeders'] ?? [];
+    }
+
+    public static function labelFor(string $key): ?string
+    {
+        return self::all()[$key]['label'] ?? null;
+    }
+
+    /**
+     * The shape the settings screen renders its picker from.
+     *
+     * @return array<int, array{key: string, label: string, description: string, industry: string}>
+     */
+    public static function forDisplay(): array
+    {
+        return array_map(
+            fn (string $key) => [
+                'key' => $key,
+                'label' => self::all()[$key]['label'],
+                'description' => self::all()[$key]['description'],
+                'industry' => self::all()[$key]['industry'],
+            ],
+            self::keys(),
+        );
+    }
+}

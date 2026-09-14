@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
-use App\Models\Skill;
+use App\Models\ScrapReason;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
@@ -48,16 +48,16 @@ class SoftDeleteTest extends TestCase
 
     public function test_delete_is_soft_and_records_the_deleting_user(): void
     {
-        $skill = Skill::factory()->create();
+        $reason = ScrapReason::factory()->create();
 
         $this->actingAs($this->admin);
-        $skill->delete();
+        $reason->delete();
 
         // Gone from default queries, still physically present with the audit info.
-        $this->assertNull(Skill::find($skill->id));
-        $this->assertDatabaseHas('skills', ['id' => $skill->id]);
+        $this->assertNull(ScrapReason::find($reason->id));
+        $this->assertDatabaseHas('scrap_reasons', ['id' => $reason->id]);
 
-        $trashed = Skill::withTrashed()->find($skill->id);
+        $trashed = ScrapReason::withTrashed()->find($reason->id);
         $this->assertNotNull($trashed->deleted_at);
         $this->assertSame($this->admin->id, $trashed->deleted_by_id);
     }
@@ -123,30 +123,30 @@ class SoftDeleteTest extends TestCase
 
     public function test_unique_validation_allows_reusing_a_soft_deleted_code(): void
     {
-        $skill = Skill::factory()->create(['code' => 'WELD']);
+        $reason = ScrapReason::factory()->create(['code' => 'WELD']);
 
         $this->actingAs($this->admin);
-        $skill->delete();
+        $reason->delete();
 
         // The same code must be accepted again — the trashed row doesn't block it.
         $this->actingAs($this->admin)
-            ->post(route('admin.skills.store'), ['code' => 'WELD', 'name' => 'Welding'])
+            ->post(route('admin.scrap-reasons.store'), ['code' => 'WELD', 'name' => 'Welding', 'category' => 'material'])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(1, Skill::where('code', 'WELD')->count());
+        $this->assertSame(1, ScrapReason::where('code', 'WELD')->count());
     }
 
     public function test_trash_page_lists_deleted_items_with_user(): void
     {
-        $skill = Skill::factory()->create(['name' => 'Soldering']);
+        $reason = ScrapReason::factory()->create(['name' => 'Soldering']);
         $this->actingAs($this->admin);
-        $skill->delete();
+        $reason->delete();
 
         $response = $this->actingAs($this->admin)->get(route('admin.trash.index'));
 
         $response->assertOk();
         $items = $response->original->getData()['page']['props']['items'];
-        $item = collect($items)->firstWhere('type', 'skills');
+        $item = collect($items)->firstWhere('type', 'scrap_reasons');
         $this->assertNotNull($item);
         $this->assertSame('Soldering', $item['label']);
         $this->assertSame($this->admin->name, $item['deleted_by']);
@@ -154,15 +154,15 @@ class SoftDeleteTest extends TestCase
 
     public function test_trash_restore_endpoint_restores_the_row(): void
     {
-        $skill = Skill::factory()->create();
+        $reason = ScrapReason::factory()->create();
         $this->actingAs($this->admin);
-        $skill->delete();
+        $reason->delete();
 
         $this->actingAs($this->admin)
-            ->post(route('admin.trash.restore', ['type' => 'skills', 'id' => $skill->id]))
+            ->post(route('admin.trash.restore', ['type' => 'scrap_reasons', 'id' => $reason->id]))
             ->assertRedirect();
 
-        $this->assertNotNull(Skill::find($skill->id));
+        $this->assertNotNull(ScrapReason::find($reason->id));
     }
 
     public function test_trash_page_redirects_guests(): void

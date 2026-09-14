@@ -2,12 +2,11 @@
 
 namespace App\Services\Schedule;
 
-use App\Models\Crew;
+use App\Extension\Contracts\WorkforceProvider;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\Shift;
 use App\Models\WorkOrder;
-use App\Services\Workforce\WorkerAvailabilityService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -31,7 +30,7 @@ use Illuminate\Support\Collection;
  */
 class CapacityService
 {
-    public function __construct(private WorkerAvailabilityService $availability) {}
+    public function __construct(private WorkforceProvider $availability) {}
 
     /**
      * Build the line-axis capacity grid for the given range and granularity.
@@ -119,14 +118,12 @@ class CapacityService
 
         $buckets = $this->buildBuckets($rangeStart, $rangeEnd, $granularity);
 
-        $crews = Crew::where('is_active', true)
-            ->with([
-                'workers' => fn ($q) => $q->where('is_active', true)->with('workstation'),
-                'breakWindows' => fn ($q) => $q->where('is_active', true),
-                'lines' => fn ($q) => $q->where('is_active', true),
-            ])
-            ->orderBy('name')
-            ->get();
+        // Crews are workforce administration, and not every installation records
+        // them. Asking the contract first keeps the model out of the picture
+        // entirely when there are none — but the rest of this method still runs,
+        // because demand on a line nobody staffs is exactly what the Unassigned
+        // row exists to show.
+        $crews = $this->availability->crewsForCapacity();
 
         $shiftIndex = $this->buildShiftIndex(Shift::where('is_active', true)->get());
 
@@ -463,7 +460,7 @@ class CapacityService
      *
      * @return array<int, int>
      */
-    private function crewLineIds(Crew $crew): array
+    private function crewLineIds(object $crew): array
     {
         if ($crew->relationLoaded('lines') && $crew->lines->isNotEmpty()) {
             return $crew->lines->pluck('id')->all();
@@ -618,7 +615,7 @@ class CapacityService
      *
      * @param  array<string, array<int>>  $absentByDay  per-day absent-worker cache (by reference)
      */
-    private function crewAvailableMinutes(Crew $crew, array $shiftIndex, array $bucket, Carbon $rangeStart, Carbon $rangeEnd, array &$absentByDay): int
+    private function crewAvailableMinutes(object $crew, array $shiftIndex, array $bucket, Carbon $rangeStart, Carbon $rangeEnd, array &$absentByDay): int
     {
         if ($crew->workers->isEmpty()) {
             return 0;
@@ -681,7 +678,7 @@ class CapacityService
      * so the empty-days semantics ("never applies") stay consistent with the
      * rest of the app rather than being re-implemented here.
      */
-    private function crewBreakMinutes(Crew $crew, Carbon $date): int
+    private function crewBreakMinutes(object $crew, Carbon $date): int
     {
         $total = 0;
         foreach ($crew->breakWindows as $window) {

@@ -24,6 +24,27 @@ export default function OeeShow() {
 
     const maxMinutes = Math.max(...downtimeByReason.map((d) => d.total_minutes ?? 0), 1);
 
+    // Running share of all downtime, biggest cause first — what turns a ranked
+    // bar chart into a Pareto. The bars say which reason is worst; only the
+    // cumulative figure answers the question actually being asked, which is how
+    // far down the list you have to go before the rest stops being worth the
+    // effort. The service already returns the rows sorted by minutes desc.
+    const paretoRows = useMemo(() => {
+        const total = downtimeByReason.reduce((sum, d) => sum + (d.total_minutes ?? 0), 0);
+        let running = 0;
+
+        return downtimeByReason.map((item) => {
+            running += item.total_minutes ?? 0;
+
+            return {
+                ...item,
+                // No total means no share to state — an empty period must not
+                // produce a column of NaN%.
+                cumulative: total > 0 ? Math.round((running / total) * 100) : null,
+            };
+        });
+    }, [downtimeByReason]);
+
     const columns = useMemo(() => [
         {
             id: 'record_date',
@@ -173,7 +194,7 @@ export default function OeeShow() {
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5">
                         <h2 className="text-lg font-bold text-om-ink mb-4">{__('Downtime by Reason')}</h2>
                         <div className="space-y-2">
-                            {downtimeByReason.map((item, i) => {
+                            {paretoRows.map((item, i) => {
                                 const bg = KIND_BG[item.kind_color] ?? 'bg-om-blocked';
                                 const badge = KIND_BADGE[item.kind_color] ?? 'bg-om-blocked-bg text-om-blocked';
                                 const pct = (item.total_minutes / maxMinutes) * 100;
@@ -189,6 +210,11 @@ export default function OeeShow() {
                                         <div className="w-28 text-right shrink-0">
                                             <span className="text-sm font-mono font-bold text-om-muted">{item.total_minutes}min</span>
                                             <span className="text-xs text-om-faint ml-1">({item.count}×)</span>
+                                        </div>
+                                        <div className="w-16 text-right shrink-0" title={__('Cumulative share of downtime')}>
+                                            <span className="text-xs font-mono text-om-faint">
+                                                {item.cumulative === null ? '—' : `${item.cumulative}%`}
+                                            </span>
                                         </div>
                                     </div>
                                 );

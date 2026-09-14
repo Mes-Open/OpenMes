@@ -5,10 +5,6 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWorkerRequest;
 use App\Http\Requests\UpdateWorkerRequest;
-use App\Models\Crew;
-use App\Models\PersonnelClass;
-use App\Models\Skill;
-use App\Models\WageGroup;
 use App\Models\Worker;
 use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
@@ -19,12 +15,17 @@ class WorkerController extends Controller
     /**
      * Display a listing of workers.
      */
+    private function workforce(): \App\Extension\Contracts\WorkforceProvider
+    {
+        return app(\App\Extension\Contracts\WorkforceProvider::class);
+    }
+
     public function index(Request $request)
     {
         return Inertia::render('admin/workers/Index', [
-            'crewNames' => Crew::pluck('name', 'id'),
-            'wageGroupNames' => WageGroup::pluck('name', 'id'),
-            'personnelClassNames' => PersonnelClass::pluck('name', 'id'),
+            'crewNames' => collect($this->workforce()->crewOptions())->pluck('name', 'id'),
+            'wageGroupNames' => collect($this->workforce()->wageGroupOptions())->pluck('name', 'id'),
+            'personnelClassNames' => collect($this->workforce()->personnelClassOptions())->pluck('name', 'id'),
         ]);
     }
 
@@ -33,13 +34,21 @@ class WorkerController extends Controller
      */
     public function show(Worker $worker, CustomFieldService $cf)
     {
-        $worker->load(['crew', 'wageGroup', 'personnelClass', 'skills']);
-        $skills = Skill::orderBy('name')->get();
+        // crew, wageGroup, personnelClass and skills are attached by an optional
+        // module. Loading them unconditionally is a fatal on an installation
+        // without it, so the page simply shows fewer sections instead.
+        $worker->load(array_values(array_filter(
+            ['crew', 'wageGroup', 'personnelClass', 'skills'],
+            fn (string $r) => \App\Models\Worker::hasModuleRelation($r),
+        )));
+        $skills = $this->workforce()->skillOptions();
 
         $today = now()->startOfDay()->toDateString();
         $soonCut = now()->copy()->addDays(30)->startOfDay()->toDateString();
 
-        $certifications = $worker->skills->map(function ($skill) use ($today, $soonCut) {
+        // Certifications hang off the module's skills table; without it the
+        // relation does not exist and the section is simply absent.
+        $certifications = ! $worker->relationLoaded('skills') ? collect() : $worker->skills->map(function ($skill) use ($today, $soonCut) {
             $until = $skill->pivot->certified_until;
             $status = 'valid';
             if ($until) {
@@ -64,20 +73,20 @@ class WorkerController extends Controller
 
         return Inertia::render('admin/workers/Show', [
             'worker' => [
-                'id'               => $worker->id,
-                'code'             => $worker->code,
-                'name'             => $worker->name,
-                'email'            => $worker->email,
-                'is_active'        => $worker->is_active,
-                'crew'             => $worker->crew ? ['name' => $worker->crew->name] : null,
-                'wageGroup'        => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
-                'personnelClass'   => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
-                'custom_fields'    => $worker->custom_fields,
+                'id' => $worker->id,
+                'code' => $worker->code,
+                'name' => $worker->name,
+                'email' => $worker->email,
+                'is_active' => $worker->is_active,
+                'crew' => $worker->crew ? ['name' => $worker->crew->name] : null,
+                'wageGroup' => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
+                'personnelClass' => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
+                'custom_fields' => $worker->custom_fields,
             ],
             'certifications' => $certifications,
-            'skills'         => $skills->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'code' => $s->code]),
-            'levels'         => PersonnelClass::LEVELS,
-            'customFields'   => $cf->clientConfig('worker'),
+            'skills' => $skills,
+            'levels' => $this->workforce()->certificationLevels(),
+            'customFields' => $cf->clientConfig('worker'),
         ]);
     }
 
@@ -87,11 +96,11 @@ class WorkerController extends Controller
     public function create(CustomFieldService $cf)
     {
         return Inertia::render('admin/workers/Create', [
-            'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
-            'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
-            'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
-            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
-            'customFields'     => $cf->clientConfig('worker'),
+            'crews' => $this->workforce()->crewOptions(),
+            'wageGroups' => $this->workforce()->wageGroupOptions(),
+            'personnelClasses' => $this->workforce()->personnelClassOptions(),
+            'skills' => $this->workforce()->skillOptions(),
+            'customFields' => $cf->clientConfig('worker'),
         ]);
     }
 
@@ -113,9 +122,13 @@ class WorkerController extends Controller
 
         $worker = Worker::create($validated);
 
-        $worker->skills()->sync(
-            collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-        );
+        // The skills pivot belongs to the optional workforce module; without it
+        // there is no relation to sync and nothing was submitted anyway.
+        if (Worker::hasModuleRelation('skills')) {
+            $worker->skills()->sync(
+                collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+            );
+        }
 
         return redirect()->route('admin.workers.index')
             ->with('success', 'Worker created successfully.');
@@ -138,22 +151,22 @@ class WorkerController extends Controller
                 'crew_id' => $worker->crew_id,
                 'wage_group_id' => $worker->wage_group_id,
                 'personnel_class_id' => $worker->personnel_class_id,
-                'pay_type'           => $worker->pay_type,
-                'pay_rate'           => $worker->pay_rate,
-                'pay_currency'       => $worker->pay_currency,
-                'is_active'          => $worker->is_active,
-                'is_logistics'       => $worker->is_logistics,
-                'custom_fields'      => $worker->custom_fields,
-                'skills'             => $worker->skills->map(fn ($s) => [
-                    'id'    => $s->id,
+                'pay_type' => $worker->pay_type,
+                'pay_rate' => $worker->pay_rate,
+                'pay_currency' => $worker->pay_currency,
+                'is_active' => $worker->is_active,
+                'is_logistics' => $worker->is_logistics,
+                'custom_fields' => $worker->custom_fields,
+                'skills' => $worker->skills->map(fn ($s) => [
+                    'id' => $s->id,
                     'level' => $s->pivot->level ?? 1,
                 ]),
             ],
-            'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
-            'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
-            'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
-            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
-            'customFields'     => $cf->clientConfig('worker'),
+            'crews' => $this->workforce()->crewOptions(),
+            'wageGroups' => $this->workforce()->wageGroupOptions(),
+            'personnelClasses' => $this->workforce()->personnelClassOptions(),
+            'skills' => $this->workforce()->skillOptions(),
+            'customFields' => $cf->clientConfig('worker'),
         ]);
     }
 
@@ -175,9 +188,11 @@ class WorkerController extends Controller
 
         // Preserve certification metadata: update the legacy proficiency level
         // without detaching existing rows (which would wipe cert_level etc.).
-        $worker->skills()->syncWithoutDetaching(
-            collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-        );
+        if (Worker::hasModuleRelation('skills')) {
+            $worker->skills()->syncWithoutDetaching(
+                collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+            );
+        }
 
         return redirect()->route('admin.workers.index')
             ->with('success', 'Worker updated successfully.');
@@ -188,7 +203,10 @@ class WorkerController extends Controller
      */
     public function destroy(Worker $worker)
     {
-        $worker->skills()->detach();
+        if (Worker::hasModuleRelation('skills')) {
+            $worker->skills()->detach();
+        }
+
         $worker->delete();
 
         return redirect()->route('admin.workers.index')
@@ -206,44 +224,5 @@ class WorkerController extends Controller
 
         return redirect()->route('admin.workers.index')
             ->with('success', "Worker {$status} successfully.");
-    }
-
-    /**
-     * Attach (or update) a certification on the worker's skill pivot.
-     *
-     * Idempotent — using syncWithoutDetaching, calling with the same skill_id
-     * refreshes the certification window rather than creating duplicates.
-     */
-    public function attachSkill(Request $request, Worker $worker)
-    {
-        $validated = $request->validate([
-            'skill_id' => 'required|exists:skills,id',
-            'cert_level' => 'required|in:trainee,operator,expert,trainer',
-            'certified_from' => 'nullable|date',
-            'certified_until' => 'nullable|date|after_or_equal:certified_from',
-            'cert_notes' => 'nullable|string|max:1000',
-        ]);
-
-        $worker->skills()->syncWithoutDetaching([
-            $validated['skill_id'] => [
-                'cert_level' => $validated['cert_level'],
-                'certified_from' => $validated['certified_from'] ?? now()->toDateString(),
-                'certified_until' => $validated['certified_until'] ?? null,
-                'certified_by_id' => $request->user()?->id,
-                'cert_notes' => $validated['cert_notes'] ?? null,
-            ],
-        ]);
-
-        return back()->with('success', __('Certification recorded.'));
-    }
-
-    /**
-     * Detach a certification from the worker.
-     */
-    public function detachSkill(Worker $worker, Skill $skill)
-    {
-        $worker->skills()->detach($skill->id);
-
-        return back()->with('success', __('Certification removed.'));
     }
 }
