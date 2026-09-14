@@ -22,11 +22,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   polling count includes them.
 
 ### Fixed
+- Installing a module from a ZIP in Admin → Modules always failed with "Could not open ZIP file": the upload was stored on the `local` disk (`storage/app/private`) but the installer was handed a `storage/app/…` path, so the file was never found and each attempt leaked its archive.
 - Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
 - Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
-- **Module ZIP upload never installed anything** — the controller opened the stored ZIP at
-  `storage/app/…`, but the `local` disk keeps files under `storage/app/private/…`, so every upload
-  failed with "Could not open ZIP file" and the ZIP was left on disk.
 - Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
   the workstation remembered in the session).
 - **Live lists stopped updating after a create or delete until a browser refresh** — returning to

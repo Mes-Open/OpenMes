@@ -11,11 +11,10 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * POST /admin/modules/upload (Admin → Modules → Install). ModuleManager is mocked:
- * installing for real would write into modules/ and reload workers. Its own ZIP
- * checks (manifest, paths, dangerous calls) are covered by the manager's tests;
- * this covers the upload: validation, handing the manager a readable file,
- * cleaning it up, and access.
+ * POST /admin/modules/upload — the upload guard (InstallModuleRequest) and cleanup
+ * when the installer rejects a ZIP. A real install end to end, and access for
+ * a non-admin, are covered by tests/Feature/ModuleUploadTest.php; here
+ * ModuleManager is mocked so nothing is ever written into modules/.
  */
 class ModuleUploadTest extends TestCase
 {
@@ -59,30 +58,6 @@ class ModuleUploadTest extends TestCase
         $zip->close();
 
         return new UploadedFile($path, $name, 'application/zip', null, true);
-    }
-
-    public function test_admin_upload_hands_the_manager_a_readable_zip_and_removes_it(): void
-    {
-        $seenPath = null;
-        $this->mock(ModuleManager::class, function ($mock) use (&$seenPath) {
-            $mock->shouldReceive('installFromZip')->once()->andReturnUsing(function (string $path) use (&$seenPath) {
-                $seenPath = $path;
-                // The regression: the controller built storage/app/… while the
-                // local disk stores under storage/app/private/….
-                $this->assertFileExists($path);
-                $this->assertTrue((new \ZipArchive)->open($path) === true, 'Manager was given a file it cannot open.');
-
-                return 'Acme';
-            });
-        });
-
-        $this->actingAs($this->admin)
-            ->post('/admin/modules/upload', ['module_zip' => $this->zipUpload()])
-            ->assertRedirect(route('admin.modules.index'))
-            ->assertSessionHas('success');
-
-        $this->assertNotNull($seenPath);
-        $this->assertFileDoesNotExist($seenPath);
     }
 
     public function test_a_rejected_zip_reports_the_reason_and_is_removed(): void
@@ -151,16 +126,5 @@ class ModuleUploadTest extends TestCase
 
         $this->post('/admin/modules/upload', ['module_zip' => $this->zipUpload()])
             ->assertRedirect('/login');
-    }
-
-    public function test_operator_cannot_upload_a_module(): void
-    {
-        $this->mock(ModuleManager::class, fn ($mock) => $mock->shouldNotReceive('installFromZip'));
-        $operator = User::factory()->create();
-        $operator->assignRole('Operator');
-
-        $this->actingAs($operator)
-            ->postJson('/admin/modules/upload', ['module_zip' => $this->zipUpload()])
-            ->assertStatus(403);
     }
 }

@@ -93,9 +93,10 @@ class ModulesController extends Controller
     public function upload(InstallModuleRequest $request)
     {
         $zipPath = $request->file('module_zip')->store('module-uploads', 'local');
-        // Resolve through the disk: its root is storage/app/private, so a
-        // hand-built storage_path("app/…") pointed at a file that doesn't exist —
-        // every upload failed with "Could not open ZIP file" and left the ZIP behind.
+        // Ask the disk where it put the file. The `local` disk is rooted at
+        // storage/app/private (Laravel 11+), so a hand-built storage/app/… path
+        // pointed at a file that was never there — every upload failed with
+        // "Could not open ZIP file" and the stored zip was never cleaned up.
         $fullPath = Storage::disk('local')->path($zipPath);
 
         try {
