@@ -8,6 +8,7 @@ use App\Services\OctaneReloader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ModulesController extends Controller
@@ -96,7 +97,11 @@ class ModulesController extends Controller
 
         $file = $request->file('module_zip');
         $zipPath = $file->store('module-uploads', 'local');
-        $fullPath = storage_path("app/{$zipPath}");
+        // Ask the disk where it put the file. The `local` disk is rooted at
+        // storage/app/private (Laravel 11+), so a hand-built storage/app/… path
+        // pointed at a file that was never there — every upload failed with
+        // "Could not open ZIP file" and the stored zip was never cleaned up.
+        $fullPath = Storage::disk('local')->path($zipPath);
 
         try {
             $moduleName = $this->manager->installFromZip($fullPath);
