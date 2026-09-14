@@ -5,6 +5,7 @@ namespace Tests\Feature\Web\Operator;
 use App\Models\Batch;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
+use App\Models\TemplateStepChecklistItem;
 use App\Models\UnitStep;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -240,5 +241,43 @@ class UnitStepWebTest extends TestCase
 
         $this->post("/operator/unit/{$unit->id}/assign-serial", ['serial_no' => 'SN-001'])
             ->assertRedirect(route('login'));
+    }
+
+    // ── Work instructions in Unit mode (#290 known-bugs item 4) ──────────────
+
+    /**
+     * The checklist-toggle endpoint isn't new — it's the same one Batch mode
+     * already uses (tests/Feature/StepRichInstructionsTest.php) — but this
+     * confirms it's genuinely reachable for a step belonging to a Unit-mode
+     * batch too, since Phase 2's UnitStepList never exercised it before.
+     */
+    public function test_operator_can_toggle_a_checklist_item_on_a_unit_mode_batchs_step(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()
+            ->withSteps(3)
+            ->create(['product_type_id' => $productType->id, 'execution_mode' => ProcessTemplate::EXECUTION_MODE_UNIT]);
+        $templateStep = $template->steps()->where('step_number', 1)->first();
+        $checklistItem = TemplateStepChecklistItem::factory()->create([
+            'process_template_id' => $template->id,
+            'template_step_id' => $templateStep->id,
+            'label' => 'Torque to 5Nm',
+        ]);
+
+        $workOrder = WorkOrder::factory()->create([
+            'product_type_id' => $productType->id,
+            'process_snapshot' => $template->toSnapshot(),
+        ]);
+        $batch = app(WorkOrderService::class)->createBatch($workOrder, 5);
+        $batchStep = $batch->steps()->where('step_number', 1)->first();
+
+        $this->actingOperator($batch)
+            ->post(route('operator.batch-step.checklist.toggle', [$batchStep, $checklistItem]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('batch_step_checklist_completions', [
+            'batch_step_id' => $batchStep->id,
+            'checklist_item_id' => $checklistItem->id,
+        ]);
     }
 }

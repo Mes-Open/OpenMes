@@ -729,7 +729,14 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                     {/* Steps — Unit mode (#290) progresses each piece through steps
                         independently instead of one status for the whole batch. */}
                     {executionMode === 'unit' ? (
-                        <UnitStepList batch={batch} steps={batch.steps ?? []} />
+                        <UnitStepList
+                            batch={batch}
+                            steps={batch.steps ?? []}
+                            stepPhotos={stepPhotos}
+                            stepMedia={stepMedia}
+                            stepChecklists={stepChecklists}
+                            stepOutputs={stepOutputs}
+                        />
                     ) : (
                         <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
                     )}
@@ -1061,7 +1068,7 @@ function unitStepDotCls(status) {
  * piece 1 is already on step 2. `batch.serial_units[].unit_steps` is loaded
  * by WorkOrderController::show() (batches.serialUnits.unitSteps).
  */
-function UnitStepList({ batch, steps }) {
+function UnitStepList({ batch, steps, stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
     const [inflightId, setInflightId] = useState(null);
     const [serialNo, setSerialNo] = useState('');
     const [autoGen, setAutoGen] = useState(false);
@@ -1093,9 +1100,37 @@ function UnitStepList({ batch, steps }) {
     };
 
     const units = batch.serial_units ?? [];
+    const hasReferenceContent = steps.some((s) => (
+        (stepPhotos[s.step_number]) ||
+        (stepMedia[s.step_number]?.length > 0) ||
+        (stepChecklists[s.step_number]?.length > 0) ||
+        (stepOutputs[s.step_number]?.length > 0) ||
+        (s.documents?.length > 0)
+    ));
 
     return (
         <div>
+            {/* Work instructions / checklist / outputs / documents — shared by
+                every piece on this batch, same as material consumption (#290
+                known-bugs item 4). Not gated by, and doesn't gate, any
+                individual unit's step progression below — these are informational
+                and batch-wide, not per-piece. */}
+            {hasReferenceContent && (
+                <div className="mb-4 space-y-2">
+                    <h4 className={`${sectionLabelCls} mb-2`}>{__('Work Instructions')}</h4>
+                    {steps.map((step) => (
+                        <UnitStepReferenceCard
+                            key={step.id}
+                            step={step}
+                            photo={stepPhotos[step.step_number]}
+                            media={stepMedia[step.step_number] || []}
+                            checklist={stepChecklists[step.step_number] || []}
+                            outputs={stepOutputs[step.step_number] || []}
+                        />
+                    ))}
+                </div>
+            )}
+
             <h4 className={`${sectionLabelCls} mb-2`}>{__('Units')}</h4>
 
             {/* Register a new piece. Serial is optional here (#290) — a piece
@@ -1172,6 +1207,130 @@ function UnitStepList({ batch, steps }) {
                             </div>
                         );
                     })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * One step's work instructions/checklist/outputs/documents, collapsed by
+ * default (#290 known-bugs item 4) — shared reference content for whichever
+ * piece an operator is currently working on, reusing the exact same
+ * StepInstructions/StepChecklist/StepOutputs/StepDocuments components Batch
+ * mode renders inline per step. Interaction posts to the same
+ * /operator/batch-step/... endpoints as Batch mode — these stay batch-wide
+ * (one checklist/output/document set per step, not per piece), same as
+ * material consumption already does in Unit mode.
+ */
+function UnitStepReferenceCard({ step, photo, media, checklist, outputs }) {
+    const [expanded, setExpanded] = useState(false);
+    const [zoom, setZoom] = useState(null);
+    const [inflightCheckId, setInflightCheckId] = useState(null);
+    const [inflightDocId, setInflightDocId] = useState(null);
+
+    const docs = step.documents || [];
+    const completions = step.checklist_completions || [];
+    const completedItemIds = new Set(completions.map((c) => c.checklist_item_id));
+    const outputValues = step.output_values || [];
+    const blockingDocs = docs.filter((d) => d.is_mandatory && d.requires_validation && !d.validated_at);
+
+    const handleToggleChecklist = (s, item) => {
+        setInflightCheckId(`${s.id}:${item.id}`);
+        router.post(
+            `/operator/batch-step/${s.id}/checklist/${item.id}/toggle`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightCheckId(null) }
+        );
+    };
+
+    const handleRecordOutput = (s, output, value) => {
+        setInflightCheckId(`out:${s.id}:${output.id}`);
+        router.post(
+            `/operator/batch-step/${s.id}/outputs/${output.id}`,
+            { value },
+            { preserveScroll: true, forceFormData: value instanceof File, onFinish: () => setInflightCheckId(null) }
+        );
+    };
+
+    const handleValidateDocument = (doc) => {
+        setInflightDocId(doc.id);
+        router.post(
+            `/operator/batch-step-document/${doc.id}/validate`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightDocId(null) }
+        );
+    };
+
+    return (
+        <div className="bg-om-panel border border-om-line2 rounded-om-sm">
+            <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="w-full flex items-center gap-3 p-3 text-left"
+            >
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
+                    {step.step_number}
+                </span>
+                {photo && (
+                    <img
+                        src={photo.url}
+                        alt={photo.caption || 'Step photo'}
+                        loading="lazy"
+                        className="w-8 h-8 object-cover rounded-om-sm border border-om-line bg-om-chip flex-shrink-0"
+                    />
+                )}
+                <span className="flex-1 text-sm font-medium text-om-ink">{step.name}</span>
+                <svg className={`w-5 h-5 text-om-faint transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            {expanded && (
+                <div className="px-3 pb-3">
+                    {media.length > 0 && <StepInstructions media={media} onZoom={setZoom} />}
+
+                    {checklist.length > 0 && (
+                        <StepChecklist
+                            step={step}
+                            items={checklist}
+                            completedItemIds={completedItemIds}
+                            completions={completions}
+                            canCheck
+                            inflightCheckId={inflightCheckId}
+                            onToggle={handleToggleChecklist}
+                        />
+                    )}
+
+                    {outputs.length > 0 && (
+                        <StepOutputs
+                            step={step}
+                            outputs={outputs}
+                            values={outputValues}
+                            canRecord
+                            inflightCheckId={inflightCheckId}
+                            onRecord={handleRecordOutput}
+                        />
+                    )}
+
+                    {docs.length > 0 && (
+                        <StepDocuments
+                            docs={docs}
+                            blocked={blockingDocs.length > 0}
+                            canValidate
+                            inflightDocId={inflightDocId}
+                            onValidate={handleValidateDocument}
+                        />
+                    )}
+                </div>
+            )}
+
+            {zoom && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setZoom(null)}>
+                    <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
+                        <img src={zoom.url} alt={zoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-om shadow-2xl" />
+                        {zoom.caption && <figcaption className="text-white/90 text-sm mt-3 text-center">{zoom.caption}</figcaption>}
+                    </figure>
                 </div>
             )}
         </div>
