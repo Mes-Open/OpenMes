@@ -34,6 +34,8 @@ import { buildColumnDefs, hasLiveColumn, LiveClockProvider, withDetailLinks } fr
  *   onCreate    — makes that button open an in-page create modal instead of
  *                 navigating; pass alongside `createHref` to keep the standalone
  *                 create route working for deep links
+ *   toolbarActions — extra controls rendered in the toolbar, left of the "new"
+ *                 button (a secondary action such as "Transfer stock")
  *   columns     — [{ key, label, render?(row), className?, align?, sortable?,
  *                    value?(row), filter?, options?, optionLabel?, allLabel?,
  *                    filterPlaceholder?, flex?, live?, sortAccessor?(row) }]
@@ -336,6 +338,8 @@ export default function ResourceTable({
     createHref,
     /** Called instead of navigating to `createHref` — for an in-page create modal. */
     onCreate,
+    /** Extra toolbar controls, rendered left of the create button. */
+    toolbarActions = null,
     /** row → detail URL. Double-clicking a row opens it; omit for lists with no detail page. */
     detailHref,
     createLabel = 'New',
@@ -457,10 +461,13 @@ export default function ResourceTable({
     // `onCreate` opens the page's own modal; `createHref` navigates to the full
     // create page. A page may pass both — the button then opens the modal, and the
     // route stays reachable/bookmarkable.
-    const createControl = (onCreate || createHref)
+    const createButton = (onCreate || createHref)
         ? (onCreate
             ? <Button variant="primary" className="py-[9px]!" leftIcon={<Icon name="plus" size={14} />} onClick={onCreate}>{__(createLabel)}</Button>
             : <Link href={createHref} className={CREATE_BTN_CLASS}><Icon name="plus" size={14} />{__(createLabel)}</Link>)
+        : null;
+    const createControl = (toolbarActions || createButton)
+        ? <div className="flex items-center gap-2">{toolbarActions}{createButton}</div>
         : null;
 
     return (
