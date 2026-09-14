@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\ModuleManager;
+use App\Services\OctaneReloader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Event;
 use Inertia\Inertia;
 
 class ModulesController extends Controller
@@ -67,7 +69,7 @@ class ModulesController extends Controller
         }
 
         return redirect()->route('admin.modules.index')
-            ->with('success', __('Module ":name" enabled. Restart the server if changes don\'t appear.', ['name' => $module['display_name']]));
+            ->with('success', __('Module ":name" enabled.', ['name' => $module['display_name']]));
     }
 
     public function disable(Request $request, string $name)
@@ -138,5 +140,52 @@ class ModulesController extends Controller
                 // Non-fatal
             }
         }
+
+        $this->reloadWorkers();
+    }
+
+    /**
+     * Make the change take effect on the running server.
+     *
+     * Under Octane the booted application lives in memory between requests, so
+     * clearing caches is not enough — the workers still hold the routes they
+     * loaded and the providers they registered at boot. Without this, disabling
+     * a module leaves every one of its pages serving normally until somebody
+     * restarts the server by hand, which for a paid module is not an
+     * inconvenience but a hole.
+     *
+     * Deferred until after the response: reloading mid-request can take down the
+     * worker that is still holding the redirect the admin is waiting for.
+     */
+    protected function reloadWorkers(): void
+    {
+        if (! class_exists(\Laravel\Octane\Octane::class)) {
+            return;
+        }
+
+        // Hooked to Octane's own end-of-request event, not app()->terminating():
+        // Octane serves each request from a sandbox container that is flushed
+        // before Laravel would reach those callbacks, so a terminating callback
+        // registered here never runs and the reload silently never happens.
+        //
+        // Waiting for the event also keeps the reload off the critical path —
+        // reloading mid-request can take down the worker still holding the
+        // redirect the admin is waiting for. RoadRunner reloads gracefully, so
+        // in-flight requests finish.
+        Event::listen(\Laravel\Octane\Events\RequestTerminated::class, function () {
+            $this->reloadNow();
+        });
+    }
+
+    /**
+     * Signal the Octane master process to cycle its workers.
+     *
+     * The work lives in OctaneReloader, resolved from the container so a test
+     * can swap it — see that class for why the reload cannot be done in-process
+     * from an HTTP worker.
+     */
+    protected function reloadNow(): void
+    {
+        app(OctaneReloader::class)->reload();
     }
 }
