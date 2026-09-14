@@ -6068,5 +6068,6 @@
     "Transfer stock": "Przesuń towar",
     "Item type": "Typ pozycji",
     "Ready at :station": "Gotowe na :station",
-    "To start at :station": "Do rozpoczęcia na :station"
+    "To start at :station": "Do rozpoczęcia na :station",
+    "Choose a module ZIP file": "Wybierz plik ZIP modułu"
 }

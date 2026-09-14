@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\InstallModuleRequest;
 use App\Services\ModuleManager;
 use App\Services\OctaneReloader;
 use Illuminate\Http\Request;
@@ -89,14 +90,9 @@ class ModulesController extends Controller
             ->with('success', __('Module ":name" disabled.', ['name' => $module['display_name']]));
     }
 
-    public function upload(Request $request)
+    public function upload(InstallModuleRequest $request)
     {
-        $request->validate([
-            'module_zip' => 'required|file|mimes:zip|max:20480',
-        ]);
-
-        $file = $request->file('module_zip');
-        $zipPath = $file->store('module-uploads', 'local');
+        $zipPath = $request->file('module_zip')->store('module-uploads', 'local');
         // Ask the disk where it put the file. The `local` disk is rooted at
         // storage/app/private (Laravel 11+), so a hand-built storage/app/… path
         // pointed at a file that was never there — every upload failed with

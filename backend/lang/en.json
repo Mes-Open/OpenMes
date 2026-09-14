@@ -6068,5 +6068,6 @@
     "Transfer stock": "Transfer stock",
     "Item type": "Item type",
     "Ready at :station": "Ready at :station",
-    "To start at :station": "To start at :station"
+    "To start at :station": "To start at :station",
+    "Choose a module ZIP file": "Choose a module ZIP file"
 }

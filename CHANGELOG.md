@@ -8,6 +8,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- **Admin → Modules → Install uses the shared drag-and-drop file picker** — the ZIP box only opened a
+  file chooser on click; it now takes a dropped file too (`FileDropZone`, as in the importer), posts
+  through Inertia so a rejected file shows its error under the drop zone, and shows upload progress.
+  The upload is validated by a Form Request (`InstallModuleRequest`) instead of inline.
 - **Operator Workstation view follows the selected workstation** — switching from Queue to
   Workstation with a workstation picked (e.g. `?workstation=10`) now shows only the orders whose
   current step runs there — plus not-yet-started orders whose first step is there, so they can be
