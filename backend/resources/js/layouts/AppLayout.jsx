@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
+import { byOrder, mergeChildren, mergeGroups } from '../lib/navMerge';
 import LiveAlertCount from '../components/LiveAlertCount';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
@@ -23,7 +24,18 @@ const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
 // their links must trigger a full navigation (`external`) — an Inertia <Link>
 // would fetch JSON for a non-Inertia route and fail.
 function moduleItemToChild(item) {
-    return { label: item.label, href: item.url, match: [item.url], external: true };
+    // `order` is carried through, not dropped: it is how a module says where in
+    // the dropdown its link belongs. `badge` likewise: it is how a module marks
+    // its own entries (edition, tier, whatever it calls itself) without core
+    // having to know the module by name.
+    return {
+        label: item.label,
+        href: item.url,
+        match: [item.url],
+        external: true,
+        order: item.order,
+        badge: item.badge,
+    };
 }
 
 /**
@@ -151,7 +163,8 @@ function navRoot(links) {
 }
 
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
-// dropdowns (by aliased key) and append any custom top-level dropdowns.
+// dropdowns (by aliased key) and place any custom top-level dropdowns at the
+// position the module asked for. See lib/navMerge.js for the scale.
 function mergeModuleNav(moduleNav) {
     const items = moduleNav?.items ?? {};
     const groups = moduleNav?.groups ?? [];
@@ -162,19 +175,34 @@ function mergeModuleNav(moduleNav) {
         injected[key] = (list ?? []).map(moduleItemToChild);
     }
 
-    const base = ADMIN_GROUPS.map((g) =>
-        injected[g.key]?.length ? { ...g, children: [...g.children, ...injected[g.key]] } : g,
-    );
+    const base = ADMIN_GROUPS.map((g) => {
+        const extra = injected[g.key];
+        if (! extra?.length) return g;
+
+        // A core group a module injected into gets the module's tag on its
+        // header too, so the marking is visible without expanding it. Derived
+        // from what was injected rather than declared, which keeps core free of
+        // any knowledge of which module is which.
+        return {
+            ...g,
+            badge: g.badge ?? extra.find((child) => child.badge)?.badge,
+            children: mergeChildren(g.children, extra),
+        };
+    });
 
     const custom = groups.map((g) => ({
         key: `module:${g.id}`,
         label: g.label,
         icon: 'cube',
         moduleGroup: true,
-        children: (g.items ?? []).map(moduleItemToChild),
+        order: g.order,
+        badge: g.badge,
+        children: byOrder((g.items ?? []).map(moduleItemToChild)),
     }));
 
-    return [...base, ...custom];
+    // Interleaved by order rather than appended, so a module can sit where it
+    // belongs instead of always trailing behind Settings.
+    return mergeGroups(base, custom);
 }
 
 /**
@@ -849,6 +877,16 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
 
 function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) {
     const groupActive = isActive(path, group.match);
+
+    // When every entry carries the same tag the header speaks for all of them,
+    // and repeating it per row is noise that also costs the width that wraps
+    // longer labels onto two lines. A *mixed* group is the opposite case: there
+    // the per-row tag is the only thing saying which entries are which, so it
+    // stays — marking Workers as part of a paid edition because it happens to
+    // sit under the same header would be a lie.
+    const wholeGroupTagged = Boolean(group.badge)
+        && group.children?.length > 0
+        && group.children.every((child) => child.children || child.badge);
     const [open, setOpen] = useState(groupActive);
 
     // The layout persists across SPA navigation, so auto-expand a group when you
@@ -891,6 +929,7 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                             {__(group.label)}
                         </span>
                     )}
+                    {showLabels && <NavBadge label={group.badge} />}
                     {showLabels && (
                         <UiIcon name={open ? 'chevron-up' : 'chevron-down'} size={16} className="shrink-0" />
                     )}
@@ -903,7 +942,7 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                         child.children ? (
                             <SubGroup key={child.key} group={child} path={path} showTab={showTab} />
                         ) : (
-                            <ChildLink key={child.href} child={child} path={path} />
+                            <ChildLink key={child.href} child={child} path={path} hideBadge={wholeGroupTagged} />
                         ),
                     )}
                 </div>
@@ -942,7 +981,31 @@ function SubGroup({ group, path, showTab = () => true }) {
     );
 }
 
-function ChildLink({ child, path, dot }) {
+/**
+ * Short tag pinned to the right of a nav entry — how a module marks the entries
+ * it contributed (its edition or tier). `ml-auto` is what pins it: the label
+ * takes the slack, so the tag sits flush right whatever the label's length.
+ *
+ * Core never names any module. The text comes from whatever the module passed to
+ * MenuRegistry, so it stays the module's word, translated like any other string.
+ */
+function NavBadge({ label, tone = 'muted' }) {
+    if (! label) return null;
+
+    return (
+        <span
+            className={`ml-auto shrink-0 font-mono text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                // On the active row the tinted chip sits on the inverted ink
+                // background, where a pale tint washes out — go solid instead.
+                tone === 'onInk' ? 'bg-om-accent text-white' : 'bg-om-accent-bg text-om-accent'
+            }`}
+        >
+            {__(label)}
+        </span>
+    );
+}
+
+function ChildLink({ child, path, dot, hideBadge = false }) {
     // Entries that deep-link into one panel of a single page (Settings → System
     // Settings → ?tab=…) share a pathname, so the path alone would light all of
     // them up. `query` narrows the match to this entry's own tab.
@@ -963,11 +1026,7 @@ function ChildLink({ child, path, dot }) {
                     ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
                     : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
-                {child.badge && (
-                    <span className="ml-auto font-mono text-[10px] bg-om-chip text-om-faint px-1.5 py-0.5 rounded">
-                        {__(child.badge)}
-                    </span>
-                )}
+                <NavBadge label={hideBadge ? null : child.badge} />
             </span>
         );
     }
@@ -983,6 +1042,9 @@ function ChildLink({ child, path, dot }) {
                     ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
                     : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
                 {__(child.label)}
+                {/* On the active row the chip sits on the inverted background,
+                    where the muted palette would be unreadable. */}
+                <NavBadge label={hideBadge ? null : child.badge} tone={active ? 'onInk' : 'muted'} />
             </a>
         );
     }
@@ -993,6 +1055,7 @@ function ChildLink({ child, path, dot }) {
                 ? <UiIcon name={child.lucide} size={15} className="shrink-0" />
                 : <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />}
             {__(child.label)}
+            <NavBadge label={hideBadge ? null : child.badge} tone={active ? 'onInk' : 'muted'} />
         </Link>
     );
 }

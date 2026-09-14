@@ -10,7 +10,7 @@ import './lib/echo'; // opens the single Reverb WebSocket
 // installed simply has an empty second map. The lookup itself lives in
 // lib/pageResolver.js, where it can be tested.
 const corePages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
-const modulePages = import.meta.glob('../../../modules/*/resources/js/Pages/**/*.jsx', { eager: true });
+const modulePages = import.meta.glob('../../modules/*/resources/js/Pages/**/*.jsx', { eager: true });
 
 createInertiaApp({
     resolve: (name) => {

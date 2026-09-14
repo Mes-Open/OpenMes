@@ -1,11 +1,24 @@
 #!/bin/bash
-# Block ALL commits to modules/ directory
-if git diff --cached --name-only | grep "^modules/" > /dev/null 2>&1; then
+# Block ALL commits of module code.
+#
+# Both locations: the repository root, and backend/modules — which is what PHP
+# resolves as base_path('modules'), where ModuleManager looks, and what the dev
+# overlay bind-mounts. The three bundled examples are tracked source and are
+# allowed through; everything else under there belongs to its own repository.
+STAGED_MODULES=$(git diff --cached --name-only \
+    | grep -E "^(modules/|backend/modules/)" \
+    | grep -vE "^backend/modules/(README\.md|\.gitkeep|ExampleHooks/|ExampleShowcase/|OrderPinger/)" \
+    | grep -vE "^modules/README\.md$")
+
+if [ -n "$STAGED_MODULES" ]; then
     echo ""
-    echo "BLOCKED: Committing to modules/ is not allowed."
+    echo "BLOCKED: Committing module code is not allowed."
     echo ""
     echo "All modules are managed in separate repositories."
-    echo "Use: git reset HEAD modules/"
+    echo "Staged:"
+    echo "$STAGED_MODULES" | sed 's/^/  /'
+    echo ""
+    echo "Use: git reset HEAD modules/ backend/modules/"
     echo ""
     exit 1
 fi

@@ -36,6 +36,18 @@ class AppServiceProvider extends ServiceProvider
         // nothing request-specific accumulates in here.
         $this->app->singleton(\App\Extension\HookRegistry::class, fn () => new \App\Extension\HookRegistry);
         $this->app->singleton(\App\Extension\FilterRegistry::class, fn () => new \App\Extension\FilterRegistry);
+
+        // Questions about people — absence, breaks, pay basis — go through a
+        // contract so scheduling and costing do not query workforce tables
+        // directly. Bound to the implementation that reads them; an installation
+        // that records none of this can bind the null one instead, and every
+        // caller keeps working because "nothing recorded" and "empty table" give
+        // the same answers. bind(), not singleton(): a module rebinding this in
+        // its own provider must win, and nothing here holds state.
+        $this->app->bind(
+            \App\Extension\Contracts\WorkforceProvider::class,
+            \App\Extension\Contracts\Null\NullWorkforceProvider::class,
+        );
         // Request-scoped tenant for headless (API-key) contexts. Set per request
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.

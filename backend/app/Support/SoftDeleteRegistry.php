@@ -19,12 +19,9 @@ class SoftDeleteRegistry
     /** type key (= table name) => model class */
     public const MODELS = [
         // Config / lookup
-        'anomaly_reasons' => Models\AnomalyReason::class,
+        'downtime_reasons' => Models\DowntimeReason::class,
         'scrap_reasons' => Models\ScrapReason::class,
         'cost_sources' => Models\CostSource::class,
-        'wage_groups' => Models\WageGroup::class,
-        'skills' => Models\Skill::class,
-        'personnel_classes' => Models\PersonnelClass::class,
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,
         'issue_types' => Models\IssueType::class,
@@ -45,16 +42,9 @@ class SoftDeleteRegistry
         // Structure
         'customers' => Models\Customer::class,
         'companies' => Models\Company::class,
-        'sites' => Models\Site::class,
-        'areas' => Models\Area::class,
-        'factories' => Models\Factory::class,
-        'divisions' => Models\Division::class,
-        'crews' => Models\Crew::class,
-        'crew_break_windows' => Models\CrewBreakWindow::class,
 
         // HR
         'workers' => Models\Worker::class,
-        'worker_absences' => Models\WorkerAbsence::class,
         'employee_activities' => Models\EmployeeActivity::class,
         'users' => Models\User::class,
 
@@ -102,7 +92,6 @@ class SoftDeleteRegistry
         'tools' => Models\Tool::class,
         'maintenance_events' => Models\MaintenanceEvent::class,
         'maintenance_schedules' => Models\MaintenanceSchedule::class,
-        'production_anomalies' => Models\ProductionAnomaly::class,
 
         // Connectivity
         'machine_connections' => Models\MachineConnection::class,

@@ -42,8 +42,8 @@ class TabRegistry
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
             // Note: Materials, Process Segments, Product Revisions and Companies
-            // are gated by the Structure module; Issues, Anomaly Reasons and
-            // Scrap Reasons by Maintenance & Quality. They render under the
+            // are gated by the Structure module; Issues and Scrap Reasons by
+            // Maintenance & Quality. They render under the
             // Production nav group but live on those tabs so a Lightweight
             // install (Reports only) hides them.
         ]],
@@ -73,7 +73,7 @@ class TabRegistry
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
         // Issues + quality reason codes (render under the Production nav group).
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
-            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
@@ -89,13 +89,13 @@ class TabRegistry
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
-            '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
+            '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
         ]],
         // Its own tab rather than a corner of Maintenance: the shift monitor is
         // the screen a supervisor lives on, and they have no reason to reach the
         // rest of that area.
-        'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview']],
+        'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview', '/admin/shift-board']],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],

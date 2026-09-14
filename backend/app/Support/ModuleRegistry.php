@@ -53,7 +53,7 @@ class ModuleRegistry
         ],
         'quality' => [
             'label' => 'Issues & reasons',
-            'description' => 'Issues and scrap / anomaly reason codes.',
+            'description' => 'Issues and scrap reason codes.',
         ],
         'structure' => [
             'label' => 'Company structure',

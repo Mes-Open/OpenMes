@@ -19,7 +19,7 @@ describe('resolvePage', () => {
         './Pages/Dashboard.jsx': CorePage,
     };
     const modulePages = {
-        '../../../modules/Example/resources/js/Pages/admin/widgets/Index.jsx': ModulePage,
+        '../../modules/Example/resources/js/Pages/admin/widgets/Index.jsx': ModulePage,
     };
 
     it('finds a page shipped by the app', () => {
@@ -42,7 +42,7 @@ describe('resolvePage', () => {
 
     it('lets core win, so a module cannot shadow a core screen', () => {
         const shadowing = {
-            '../../../modules/Evil/resources/js/Pages/admin/lines/Index.jsx': ModulePage,
+            '../../modules/Evil/resources/js/Pages/admin/lines/Index.jsx': ModulePage,
         };
 
         expect(resolvePage('admin/lines/Index', corePages, shadowing)).toBe(CorePage);

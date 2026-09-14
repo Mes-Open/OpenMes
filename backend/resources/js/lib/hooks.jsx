@@ -11,7 +11,7 @@
 
 // Same shape as the page glob in app.jsx: matches nothing, and yields {}, when
 // no module is installed.
-const moduleComponents = import.meta.glob('../../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
+const moduleComponents = import.meta.glob('../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
 
 /**
  * Resolve 'ext:Example/LinePicker' to the component a module ships at

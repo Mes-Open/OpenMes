@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
@@ -35,6 +36,14 @@ export default defineConfig({
         // node_modules walk would miss backend/node_modules. dedupe pins these
         // to the app root.
         dedupe: ['react', 'react-dom', '@tanstack/react-table', 'lucide-react', '@dnd-kit/react'],
+        alias: {
+            // A module's pages live under modules/<Name>/resources/js and sit at
+            // a different depth from this app's own pages, so a relative import
+            // of a shared layout or component would be a different '../../..'
+            // chain for every file. They import '@core/…' instead, which is the
+            // same from anywhere and does not break when a page is moved.
+            '@core': fileURLToPath(new URL('./resources/js', import.meta.url)),
+        },
     },
     optimizeDeps: {
         exclude: ['@openmes/ui'],
