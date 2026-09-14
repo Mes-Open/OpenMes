@@ -6038,5 +6038,7 @@
     "Qual.": "Qual.",
     "Full screen": "Full screen",
     "Board is not updating": "Board is not updating",
-    "Cumulative share of downtime": "Cumulative share of downtime"
+    "Cumulative share of downtime": "Cumulative share of downtime",
+    "Ready at :station": "Ready at :station",
+    "To start at :station": "To start at :station"
 }

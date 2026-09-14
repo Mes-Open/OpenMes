@@ -1,5 +1,9 @@
 import { createCollection } from '@tanstack/react-db';
 import { echo } from './echo';
+import { createSharedChannels } from './sharedChannels';
+
+// Collections for the same shape share one channel (see sharedChannels.js).
+const channels = createSharedChannels(echo);
 
 /**
  * A read-only TanStack DB collection synced over Reverb. Used directly by
@@ -22,30 +26,31 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
         sync: {
             sync: ({ begin, write, commit, markReady }) => {
                 let alive = true;
-                let channelName = null;
+                let release = null;
                 const keys = new Set();
 
-                const subscribe = (ch) => {
-                    channelName = ch;
-                    const channel = echo.private(ch);
-                    channel.listen('.changed', (e) => {
-                        if (!alive || !e?.row) return;
-                        const key = getKey(e.row);
-                        begin();
-                        if (e.op === 'delete') {
-                            if (keys.has(key)) {
-                                write({ type: 'delete', value: e.row });
-                                keys.delete(key);
-                            }
-                        } else {
-                            write({ type: keys.has(key) ? 'update' : 'insert', value: e.row });
-                            keys.add(key);
+                const onChanged = (e) => {
+                    if (!alive || !e?.row) return;
+                    const key = getKey(e.row);
+                    begin();
+                    if (e.op === 'delete') {
+                        if (keys.has(key)) {
+                            write({ type: 'delete', value: e.row });
+                            keys.delete(key);
                         }
-                        commit();
-                    });
+                    } else {
+                        write({ type: keys.has(key) ? 'update' : 'insert', value: e.row });
+                        keys.add(key);
+                    }
+                    commit();
+                };
+
+                const subscribe = (ch) => {
                     // Re-fetch once subscribed (and on every reconnect) so writes
-                    // that landed before subscription aren't lost.
-                    channel.subscribed(() => { if (alive) load(); });
+                    // that landed before subscription aren't lost. Joining a channel
+                    // another collection already holds fires no new subscription —
+                    // the initial load() below covers that case.
+                    release = channels.join(ch, '.changed', onChanged, () => { if (alive) load(); });
                 };
 
                 const apply = (rows) => {
@@ -73,7 +78,7 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
                         if (!res.ok) throw new Error(`snapshot ${name}: HTTP ${res.status}`);
                         const { rows, channel } = await res.json();
                         if (!alive) return;
-                        if (!channelName && channel) subscribe(channel);
+                        if (!release && channel) subscribe(channel);
                         apply(rows);
                     } catch (e) {
                         // Leave whatever we have; don't hang the UI. Surface the
@@ -89,7 +94,7 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
 
                 return () => {
                     alive = false;
-                    if (channelName) echo.leave(channelName);
+                    release?.();
                 };
             },
         },

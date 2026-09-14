@@ -6038,5 +6038,7 @@
     "Qual.": "Jak.",
     "Full screen": "Pełny ekran",
     "Board is not updating": "Tablica się nie odświeża",
-    "Cumulative share of downtime": "Narastający udział w przestojach"
+    "Cumulative share of downtime": "Narastający udział w przestojach",
+    "Ready at :station": "Gotowe na :station",
+    "To start at :station": "Do rozpoczęcia na :station"
 }
