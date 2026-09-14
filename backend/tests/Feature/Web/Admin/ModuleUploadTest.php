@@ -46,7 +46,11 @@ class ModuleUploadTest extends TestCase
     /** A real ZIP on disk — `mimes:zip` inspects the content, not the name. */
     private function zipUpload(string $name = 'acme.zip'): UploadedFile
     {
-        $path = tempnam(sys_get_temp_dir(), 'module').'.zip';
+        // tempnam() creates the file; move it to the .zip name rather than leave
+        // the original behind.
+        $created = tempnam(sys_get_temp_dir(), 'module');
+        $path = $created.'.zip';
+        rename($created, $path);
         $this->tempFiles[] = $path;
 
         $zip = new \ZipArchive;
