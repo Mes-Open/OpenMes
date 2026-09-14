@@ -10,6 +10,7 @@ use App\Models\TemplateStepChecklistItem;
 use App\Models\TemplateStepMedia;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
+use App\Services\Production\OperatorWorkstationSelection;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,21 +64,10 @@ class WorkOrderController extends Controller
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
         $routingEnabled = json_decode($settingRows['workstation_routing_enabled']->value ?? 'false', true) ?? false;
 
-        // Workstation filter: from query param, session, or workstation account.
-        // Workstation accounts default to their own assigned workstation.
-        $selectedWorkstationId = $request->query('workstation')
-            ?? $request->session()->get('selected_workstation_id')
-            ?? (auth()->user()->account_type === 'workstation' ? auth()->user()->workstation_id : null);
-        if ($request->has('workstation')) {
-            $request->session()->put('selected_workstation_id', $selectedWorkstationId);
-        }
-        // A workstation may belong to another line when routing spans lines, so
-        // only constrain to the current line when routing is disabled.
-        $selectedWorkstation = $selectedWorkstationId
-            ? ($routingEnabled
-                ? Workstation::find($selectedWorkstationId)
-                : Workstation::where('id', $selectedWorkstationId)->where('line_id', $lineId)->first())
-            : null;
+        // Workstation filter: query param, session, or a workstation account's own.
+        // Only constrained to the current line when routing is disabled.
+        $selection = app(OperatorWorkstationSelection::class);
+        $selectedWorkstation = $selection->resolve($request, (int) $lineId, allowOtherLines: $routingEnabled);
 
         $lineStatuses = LineStatus::forLine($lineId)->get();
 
@@ -86,7 +76,9 @@ class WorkOrderController extends Controller
         $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
 
         // In per_operation/hybrid mode with selected workstation: filter to WOs with current step on this workstation
+        // plus not-yet-started orders whose routing begins there (shown separately).
         $workstationQueue = collect();
+        $workstationNotStarted = collect();
         if (in_array($trackingMode, ['per_operation', 'hybrid']) && $selectedWorkstation) {
             // When routing is enabled, scan all active work orders (steps may route
             // across lines, e.g. a shared packing station); otherwise stay on this line.
@@ -96,16 +88,8 @@ class WorkOrderController extends Controller
                     ->get()
                 : $activeWorkOrders;
 
-            $workstationQueue = $queueSource->filter(function ($wo) use ($selectedWorkstation) {
-                foreach ($wo->batches as $batch) {
-                    $currentStep = $batch->currentStep();
-                    if ($currentStep && (int) $currentStep->workstation_id === (int) $selectedWorkstation->id) {
-                        return true;
-                    }
-                }
-
-                return false;
-            })->values();
+            $workstationQueue = $selection->workOrdersAt($queueSource, $selectedWorkstation);
+            $workstationNotStarted = $selection->notStartedAt($queueSource, $selectedWorkstation);
         }
 
         // Load available workstations for this line (for the workstation filter dropdown)
@@ -125,7 +109,7 @@ class WorkOrderController extends Controller
         return Inertia::render('operator/Queue', compact(
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
-            'trackingMode', 'workstationQueue', 'lineWorkstations',
+            'trackingMode', 'workstationQueue', 'workstationNotStarted', 'lineWorkstations',
             'downtimeReasons', 'activeDowntime'
         ));
     }
@@ -188,22 +172,15 @@ class WorkOrderController extends Controller
         $wsId = $request->session()->get('selected_workstation_id');
         $settingRows = DB::table('system_settings')->get()->keyBy('key');
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+        $workstation = $wsId ? Workstation::find($wsId) : null;
 
-        if ($wsId && in_array($trackingMode, ['per_operation', 'hybrid'])) {
-            $workstationCount = WorkOrder::where('line_id', $lineId)
-                ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-                ->with('batches.steps')
-                ->get()
-                ->filter(function ($wo) use ($wsId) {
-                    foreach ($wo->batches as $batch) {
-                        $step = $batch->currentStep();
-                        if ($step && $step->workstation_id == $wsId) {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                })->count();
+        // Same rule as the queue view: ready at the workstation or starting there.
+        if ($workstation && in_array($trackingMode, ['per_operation', 'hybrid'])) {
+            $workstationCount = app(OperatorWorkstationSelection::class)->workOrdersAt(
+                WorkOrder::where('line_id', $lineId)->whereIn('status', WorkOrder::ACTIVE_STATUSES)->get(),
+                $workstation,
+                includeNotStarted: true,
+            )->count();
         }
 
         return response()->json([
