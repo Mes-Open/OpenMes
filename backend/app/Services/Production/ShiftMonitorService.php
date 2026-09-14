@@ -9,6 +9,7 @@ use App\Models\Issue;
 use App\Models\MachineEvent;
 use App\Models\ProductionDowntime;
 use App\Models\QualityCheck;
+use App\Models\Worker;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Support\ShiftWindow;
@@ -93,6 +94,139 @@ class ShiftMonitorService
             'analysis' => $this->analysis($totals, $oee),
             'clock' => ['iso' => $now->toIso8601String()],
         ];
+    }
+
+    /**
+     * Every station in the plant as one tile each — the board that hangs on
+     * the shop floor.
+     *
+     * Answers a narrower question than `fleet()`: not "explain this machine's
+     * shift" and not even "which of my machines is in trouble", but "what is
+     * stopped, and why, right now". So it drops the timeline (the single
+     * heaviest part of a row, and unreadable at tile size) and carries instead
+     * the two facts a supervisor crosses the floor to find out — the cause of
+     * the open stop and how long it has been running.
+     *
+     * The three OEE components come along because they are already computed for
+     * the same minutes; recomputing them anywhere else would let the board and
+     * the OEE report disagree.
+     *
+     * Same query budget as `fleet()` regardless of station count — a plant is
+     * tens of tiles, not the six of one line, so a per-station query here would
+     * be tens of round trips on every push.
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array<string, mixed>>
+     */
+    public function board(Collection $workstations, ShiftWindow $window): array
+    {
+        $now = Carbon::now();
+        $asOf = $now->greaterThan($window->end) ? $window->end->copy() : $now;
+        $ids = $workstations->pluck('id');
+
+        $statesByStation = WorkstationState::whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $countersByStation = MachineEvent::whereIn('workstation_id', $ids)
+            ->where('event_type', MachineEvent::TYPE_COUNTER)
+            ->where('event_timestamp', '>=', $window->start)
+            ->where('event_timestamp', '<', $window->end)
+            ->toBase()
+            ->get(['workstation_id', 'event_timestamp', 'payload'])
+            ->groupBy('workstation_id');
+
+        $downtimesByStation = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        // The state a station is in *now*, read unclipped. The slice rows are
+        // clipped to the shift so their minutes are attributable to it, which
+        // makes them the wrong source for "since when": a stop that began
+        // before the shift would read as starting at the shift boundary and the
+        // tile would under-report a long stop as a short one.
+        $openStates = WorkstationState::whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->get()
+            ->keyBy('workstation_id');
+
+        $openStops = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->get()
+            ->keyBy('workstation_id');
+
+        $batches = Batch::with('workOrder.productType')
+            ->whereIn('workstation_id', $ids)
+            ->where('status', Batch::STATUS_IN_PROGRESS)
+            ->get()
+            ->keyBy('workstation_id');
+
+        // Who to look for when a tile goes red. Assignment is standing, not
+        // per shift — the board says who the station belongs to, which is the
+        // question a supervisor is actually asking. Plants that never fill the
+        // worker list simply get tiles without a name.
+        $operators = Worker::whereIn('workstation_id', $ids)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'workstation_id'])
+            ->groupBy('workstation_id');
+
+        return $workstations->map(function (Workstation $workstation) use (
+            $statesByStation, $countersByStation, $downtimesByStation,
+            $openStates, $openStops, $batches, $operators, $window, $asOf
+        ) {
+            $slices = $this->sliceRows($statesByStation->get($workstation->id) ?? collect(), $window);
+            $counters = $this->counterMinutesFrom($countersByStation->get($workstation->id) ?? collect(), $window);
+            $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
+
+            $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
+            $segments = $this->buildSegments($slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+            $totals = $this->totals($segments, $counters, $window, $asOf);
+            $oee = $this->oee($totals, $idealPerMin);
+
+            $state = $this->currentState($slices, $asOf);
+            $stop = $openStops->get($workstation->id);
+            $batch = $batches->get($workstation->id);
+
+            return [
+                'id' => $workstation->id,
+                'code' => $workstation->code,
+                'name' => $workstation->name,
+                'lineName' => $workstation->line?->name,
+                // Null, not 'IDLE': a station nothing has ever been heard from
+                // is a different fact than one reporting that it is idle, and
+                // the board colours them differently on purpose.
+                'state' => $state,
+                // What the tile counts up from. The open stop wins over the
+                // state row: a stop can outlive the state that opened it when a
+                // collector reports a new state without anyone closing the stop.
+                'since' => ($stop?->started_at ?? $openStates->get($workstation->id)?->started_at)?->toIso8601String(),
+                'reason' => $stop
+                    ? [
+                        'name' => $stop->reason?->name,
+                        'needsReason' => (bool) $stop->needs_reason,
+                        'countsAsLoss' => $stop->reason?->kind?->countsAsAvailabilityLoss(),
+                    ]
+                    : null,
+                'order' => $batch?->workOrder
+                    ? [
+                        'number' => $batch->workOrder->order_no,
+                        'product' => $batch->workOrder->productType?->name,
+                    ]
+                    : null,
+                'operators' => ($operators->get($workstation->id) ?? collect())->pluck('name')->all(),
+                'availability' => $oee['availability'],
+                'performance' => $oee['performance'],
+                'quality' => $oee['quality'],
+                'oee' => $oee['oee'],
+            ];
+        })->values()->all();
     }
 
     /**
