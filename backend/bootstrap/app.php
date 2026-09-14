@@ -71,6 +71,20 @@ $app = Application::configure(basePath: dirname(__DIR__))
             return redirect()->route('login')->withErrors(['session' => 'Your session has expired. Please log in again.']);
         });
 
+        // A body over PHP's post_max_size never reaches validation — PHP drops it
+        // and ValidatePostSize throws before any Form Request can say "file too
+        // large". Turn that into a flash on the page the user submitted from
+        // (JSON clients keep the 413) instead of a bare error screen.
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, \Illuminate\Http\Request $request) {
+            $limit = ini_get('post_max_size') ?: '';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => __('The uploaded data is too large (limit :limit).', ['limit' => $limit])], 413);
+            }
+
+            return back()->with('error', __('The uploaded data is too large (limit :limit).', ['limit' => $limit]));
+        });
+
         // A DELETE for an admin record that's already gone — soft-deleted in
         // another tab, a stale list, a double submit — should not dump a bare 404.
         // The delete's intent is already satisfied, so bounce back to the list with
