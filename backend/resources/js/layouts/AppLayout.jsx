@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
-import { byOrder, mergeChildren, mergeGroups } from '../lib/navMerge';
+import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
 import LiveAlertCount from '../components/LiveAlertCount';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
@@ -183,22 +183,30 @@ function mergeModuleNav(moduleNav) {
         // header too, so the marking is visible without expanding it. Derived
         // from what was injected rather than declared, which keeps core free of
         // any knowledge of which module is which.
+        // The injected links join the group's match list too, or the group
+        // would stay dark and shut on the module's own pages.
         return {
             ...g,
             badge: g.badge ?? extra.find((child) => child.badge)?.badge,
+            match: groupMatch(g.match, extra),
             children: mergeChildren(g.children, extra),
         };
     });
 
-    const custom = groups.map((g) => ({
-        key: `module:${g.id}`,
-        label: g.label,
-        icon: 'cube',
-        moduleGroup: true,
-        order: g.order,
-        badge: g.badge,
-        children: byOrder((g.items ?? []).map(moduleItemToChild)),
-    }));
+    const custom = groups.map((g) => {
+        const children = byOrder((g.items ?? []).map(moduleItemToChild));
+
+        return {
+            key: `module:${g.id}`,
+            label: g.label,
+            icon: 'cube',
+            moduleGroup: true,
+            order: g.order,
+            badge: g.badge,
+            match: groupMatch([], children),
+            children,
+        };
+    });
 
     // Interleaved by order rather than appended, so a module can sit where it
     // belongs instead of always trailing behind Settings.
