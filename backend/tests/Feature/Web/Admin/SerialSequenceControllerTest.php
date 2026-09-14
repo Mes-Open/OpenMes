@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Events\CollectionChanged;
 use App\Models\ProductType;
 use App\Models\SerialSequence;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -117,6 +119,32 @@ class SerialSequenceControllerTest extends TestCase
         $this->assertDatabaseHas('serial_sequences', ['id' => $sequence->id, 'name' => 'New Name']);
     }
 
+    /**
+     * The exact transition reported as still broken after the broadcast fix:
+     * an EXISTING simple/prefix-mode row switched to Pattern mode. The React
+     * form's tab switch doesn't clear `prefix` when moving to Pattern mode
+     * (only leaving Pattern clears `pattern`), so the real request still
+     * carries the row's old prefix value alongside the newly typed pattern —
+     * reproduced here exactly as the browser would send it.
+     */
+    public function test_admin_can_switch_an_existing_simple_sequence_to_pattern_mode(): void
+    {
+        $sequence = SerialSequence::factory()->create(['prefix' => 'SN', 'pattern' => null]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.serial-sequences.update', $sequence), [
+            'name' => $sequence->name,
+            'pattern' => 'SN-[date]-[seq]',
+            'prefix' => $sequence->prefix, // stale leftover, not cleared by the tab switch
+            'pad_size' => 4,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('serial_sequences', [
+            'id' => $sequence->id,
+            'pattern' => 'SN-[date]-[seq]',
+        ]);
+    }
+
     public function test_update_with_stay_redirects_back_instead_of_to_index(): void
     {
         $sequence = SerialSequence::factory()->create();
@@ -162,5 +190,33 @@ class SerialSequenceControllerTest extends TestCase
     public function test_guest_cannot_manage_serial_sequences(): void
     {
         $this->get(route('admin.serial-sequences.index'))->assertRedirect(route('login'));
+    }
+
+    /**
+     * Regression for known-bugs item 1: the DB layer always persisted `pattern`
+     * correctly, but serial_sequences was never registered in
+     * CollectionBroadcaster::map() — only in ShapeRegistry (the read path) — so
+     * no CollectionChanged delta ever fired on save. The browser's live-synced
+     * table row (and the drawer reopened from it) stayed on stale pre-save data
+     * forever, which is what actually looked like "pattern mode doesn't stick".
+     */
+    public function test_creating_a_sequence_broadcasts_a_collection_change_with_the_pattern(): void
+    {
+        $captured = [];
+        Event::listen(CollectionChanged::class, function (CollectionChanged $e) use (&$captured) {
+            $captured[] = $e;
+        });
+
+        $this->actingAs($this->admin)->post(route('admin.serial-sequences.store'), [
+            'name' => 'Broadcast Probe',
+            'pattern' => 'BP-[date]-[seq]',
+        ]);
+
+        $events = collect($captured)->filter(fn ($e) => $e->collection === 'serial_sequences');
+        $this->assertGreaterThan(0, $events->count(), 'Expected a CollectionChanged broadcast for serial_sequences.');
+        $this->assertTrue(
+            $events->contains(fn ($e) => ($e->row['pattern'] ?? null) === 'BP-[date]-[seq]'),
+            'Expected the broadcast row to carry the saved pattern.'
+        );
     }
 }

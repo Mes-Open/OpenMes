@@ -71,6 +71,7 @@ class CollectionBroadcaster
             'material_types' => [Models\MaterialType::class, null],
             'material_lots' => [Models\MaterialLot::class, null],
             'lot_sequences' => [Models\LotSequence::class, null],
+            'serial_sequences' => [Models\SerialSequence::class, null],
             'pallets' => [Models\Pallet::class, null],
             'pallet_movements' => [Models\PalletMovement::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
