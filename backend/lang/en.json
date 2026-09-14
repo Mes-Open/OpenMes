@@ -6040,5 +6040,6 @@
     "Board is not updating": "Board is not updating",
     "Cumulative share of downtime": "Cumulative share of downtime",
     "Ready at :station": "Ready at :station",
-    "To start at :station": "To start at :station"
+    "To start at :station": "To start at :station",
+    "Choose a module ZIP file": "Choose a module ZIP file"
 }

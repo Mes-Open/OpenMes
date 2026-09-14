@@ -8,6 +8,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- **Admin → Modules → Install uses the shared drag-and-drop file picker** — the ZIP box only opened a
+  file chooser on click; it now takes a dropped file too (`FileDropZone`, as in the importer), posts
+  through Inertia so a rejected file shows its error under the drop zone, and shows upload progress.
+  The upload is validated by a Form Request (`InstallModuleRequest`) instead of inline.
 - **Operator Workstation view follows the selected workstation** — switching from Queue to
   Workstation with a workstation picked (e.g. `?workstation=10`) now shows only the orders whose
   current step runs there — plus not-yet-started orders whose first step is there, so they can be
@@ -18,6 +22,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   polling count includes them.
 
 ### Fixed
+- **Module ZIP upload never installed anything** — the controller opened the stored ZIP at
+  `storage/app/…`, but the `local` disk keeps files under `storage/app/private/…`, so every upload
+  failed with "Could not open ZIP file" and the ZIP was left on disk.
 - Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
   the workstation remembered in the session).
 - **Live lists stopped updating after a create or delete until a browser refresh** — returning to

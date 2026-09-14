@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\InstallModuleRequest;
 use App\Services\ModuleManager;
 use App\Services\OctaneReloader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ModulesController extends Controller
@@ -88,15 +90,13 @@ class ModulesController extends Controller
             ->with('success', __('Module ":name" disabled.', ['name' => $module['display_name']]));
     }
 
-    public function upload(Request $request)
+    public function upload(InstallModuleRequest $request)
     {
-        $request->validate([
-            'module_zip' => 'required|file|mimes:zip|max:20480',
-        ]);
-
-        $file = $request->file('module_zip');
-        $zipPath = $file->store('module-uploads', 'local');
-        $fullPath = storage_path("app/{$zipPath}");
+        $zipPath = $request->file('module_zip')->store('module-uploads', 'local');
+        // Resolve through the disk: its root is storage/app/private, so a
+        // hand-built storage_path("app/…") pointed at a file that doesn't exist —
+        // every upload failed with "Could not open ZIP file" and left the ZIP behind.
+        $fullPath = Storage::disk('local')->path($zipPath);
 
         try {
             $moduleName = $this->manager->installFromZip($fullPath);
