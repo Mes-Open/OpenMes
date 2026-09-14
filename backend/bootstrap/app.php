@@ -76,13 +76,28 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // large". Turn that into a flash on the page the user submitted from
         // (JSON clients keep the 413) instead of a bare error screen.
         $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, \Illuminate\Http\Request $request) {
-            $limit = ini_get('post_max_size') ?: '';
+            $message = __('The uploaded data is too large (limit :limit).', ['limit' => ini_get('post_max_size') ?: '']);
 
             if ($request->expectsJson()) {
-                return response()->json(['message' => __('The uploaded data is too large (limit :limit).', ['limit' => $limit])], 413);
+                return response()->json(['message' => $message], 413);
             }
 
-            return back()->with('error', __('The uploaded data is too large (limit :limit).', ['limit' => $limit]));
+            // ValidatePostSize is global middleware: it throws before the `web`
+            // group runs, so no session is attached to this request and nothing
+            // later will save a flash. Run the two pieces of the web group the
+            // flash depends on ourselves — decrypt the cookies so the user's OWN
+            // session is resumed (not a fresh one that would log them out), then
+            // StartSession, which saves the flash when its inner callback returns.
+            $redirect = fn () => back()->with('error', $message);
+
+            if ($request->hasSession() && $request->session()->isStarted()) {
+                return $redirect();
+            }
+
+            return app(\Illuminate\Cookie\Middleware\EncryptCookies::class)->handle(
+                $request,
+                fn ($request) => app(\Illuminate\Session\Middleware\StartSession::class)->handle($request, $redirect),
+            );
         });
 
         // A DELETE for an admin record that's already gone — soft-deleted in
