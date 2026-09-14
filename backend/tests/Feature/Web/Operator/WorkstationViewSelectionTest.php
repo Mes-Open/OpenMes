@@ -268,6 +268,42 @@ class WorkstationViewSelectionTest extends TestCase
             ->assertJson(['active' => 4, 'workstation' => 2]);
     }
 
+    public function test_queue_check_follows_cross_line_routing_like_the_queue(): void
+    {
+        // A shared station on another line, with an order on that line waiting there.
+        $packing = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
+        $this->workOrderAt($packing)->update(['line_id' => $packing->line_id]);
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'workstation_routing_enabled'],
+            ['value' => json_encode(true)]
+        );
+
+        $session = ['selected_line_id' => $this->line->id, 'selected_workstation_id' => $packing->id];
+
+        $this->actingAs($this->operator)
+            ->withSession($session)
+            ->get('/operator/queue')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('workstationQueue', 1));
+
+        $this->withSession($session)
+            ->getJson('/operator/queue/check')
+            ->assertOk()
+            ->assertJson(['workstation' => 1]);
+    }
+
+    public function test_queue_check_ignores_another_lines_workstation_without_routing(): void
+    {
+        $foreign = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
+        $this->workOrderAt($foreign)->update(['line_id' => $foreign->line_id]);
+
+        $this->actingAs($this->operator)
+            ->withSession(['selected_line_id' => $this->line->id, 'selected_workstation_id' => $foreign->id])
+            ->getJson('/operator/queue/check')
+            ->assertOk()
+            ->assertJson(['workstation' => 0]);
+    }
+
     public function test_guest_cannot_poll_the_queue_check(): void
     {
         $this->get('/operator/queue/check')->assertRedirect('/login');

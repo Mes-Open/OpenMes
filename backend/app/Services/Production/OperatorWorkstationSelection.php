@@ -50,7 +50,7 @@ class OperatorWorkstationSelection
      */
     public function workOrdersAt(Collection $workOrders, Workstation $workstation, bool $includeNotStarted = false): Collection
     {
-        $workOrders->loadMissing('batches');
+        $workOrders->loadMissing('batches.steps');
 
         return $workOrders->filter(fn (WorkOrder $wo) => $this->hasBatchAt($wo, $workstation)
             || ($includeNotStarted && $this->isNotStartedAt($wo, $workstation))
@@ -66,7 +66,7 @@ class OperatorWorkstationSelection
      */
     public function notStartedAt(Collection $workOrders, Workstation $workstation): Collection
     {
-        $workOrders->loadMissing('batches');
+        $workOrders->loadMissing('batches.steps');
 
         return $workOrders->filter(fn (WorkOrder $wo) => $this->isNotStartedAt($wo, $workstation))->values();
     }

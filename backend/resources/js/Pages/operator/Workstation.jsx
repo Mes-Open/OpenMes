@@ -858,6 +858,14 @@ export default function Workstation() {
         return '/operator/workstation' + (qs ? '?' + qs : '');
     };
 
+    // Clearing the workstation keeps the week and search filters in place.
+    const allWorkstationsUrl = () => {
+        const params = new URLSearchParams({ workstation: 'all' });
+        if (weekFilter && weekFilter !== 'all') params.set('week', weekFilter);
+        if (searchProp) params.set('search', searchProp);
+        return `/operator/workstation?${params}`;
+    };
+
     return (
         <>
             <Head title={`Workstation — ${line?.name ?? ''}`} />
@@ -880,7 +888,7 @@ export default function Workstation() {
                             </h1>
                             {selectedWorkstation && (
                                 <Link
-                                    href="/operator/workstation?workstation=all"
+                                    href={allWorkstationsUrl()}
                                     className="text-sm text-om-muted hover:text-om-ink underline underline-offset-2"
                                 >
                                     {__("All workstations")}

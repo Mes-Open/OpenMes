@@ -169,18 +169,22 @@ class WorkOrderController extends Controller
             ->count();
 
         $workstationCount = 0;
-        $wsId = $request->session()->get('selected_workstation_id');
         $settingRows = DB::table('system_settings')->get()->keyBy('key');
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
-        $workstation = $wsId ? Workstation::find($wsId) : null;
+        $routingEnabled = json_decode($settingRows['workstation_routing_enabled']->value ?? 'false', true) ?? false;
 
-        // Same rule as the queue view: ready at the workstation or starting there.
+        // Same selection and order source as queue(): with routing enabled the
+        // workstation may sit on another line and steps route across lines.
+        $selection = app(OperatorWorkstationSelection::class);
+        $workstation = $selection->resolve($request, (int) $lineId, allowOtherLines: $routingEnabled);
+
         if ($workstation && in_array($trackingMode, ['per_operation', 'hybrid'])) {
-            $workstationCount = app(OperatorWorkstationSelection::class)->workOrdersAt(
-                WorkOrder::where('line_id', $lineId)->whereIn('status', WorkOrder::ACTIVE_STATUSES)->get(),
-                $workstation,
-                includeNotStarted: true,
-            )->count();
+            $source = WorkOrder::whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                ->when(! $routingEnabled, fn ($query) => $query->where('line_id', $lineId))
+                ->get();
+
+            // Ready at the workstation or starting there — the queue's two lists.
+            $workstationCount = $selection->workOrdersAt($source, $workstation, includeNotStarted: true)->count();
         }
 
         return response()->json([

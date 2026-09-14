@@ -916,8 +916,17 @@ export default function Queue() {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {workstationNotStarted.map((wo) => {
-                                const firstStep = [...(wo.process_snapshot?.steps ?? [])]
-                                    .sort((a, b) => a.step_number - b.step_number)[0] ?? null;
+                                // When the first step has alternatives (a variant group), show the
+                                // one at this workstation — that's why the order is listed here.
+                                const steps = [...(wo.process_snapshot?.steps ?? [])]
+                                    .sort((a, b) => a.step_number - b.step_number);
+                                const firstCandidate = steps[0] ?? null;
+                                const firstStep = firstCandidate?.variant_group == null
+                                    ? firstCandidate
+                                    : steps.find((step) =>
+                                        step.variant_group === firstCandidate.variant_group &&
+                                        String(step.workstation_id) === String(selectedWorkstation.id),
+                                    ) ?? firstCandidate;
 
                                 return (
                                     <Link key={wo.id}
