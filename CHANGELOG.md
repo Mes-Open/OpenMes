@@ -18,6 +18,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   polling count includes them.
 
 ### Fixed
+- Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
+- Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
 - Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
   the workstation remembered in the session).
 - **Live lists stopped updating after a create or delete until a browser refresh** — returning to

@@ -86,3 +86,23 @@ export function mergeGroups(builtIn, fromModules) {
         ...fromModules.map((g) => ({ ...g, order: g.order ?? DEFAULT_MODULE_ORDER })),
     ]);
 }
+
+/**
+ * A group's `match` list — the paths that highlight and auto-expand it —
+ * extended with the paths of the children it was just given.
+ *
+ * A built-in group lists its own children's paths in `match` by hand; a link
+ * a module injects is not on that list, so the group stayed dark (and shut)
+ * on the module's own pages while the core pages next to them lit it up. A
+ * module's own group has no list at all. Either way the answer is the same:
+ * whatever the group's children link to, the group matches.
+ *
+ * @param {string[]|undefined} match      the group's declared prefixes
+ * @param {Array<{href?: string, match?: string[]}>} children
+ * @returns {string[]}
+ */
+export function groupMatch(match, children) {
+    const fromChildren = (children ?? []).flatMap((child) => child.match ?? (child.href ? [child.href] : []));
+
+    return [...new Set([...(match ?? []), ...fromChildren])];
+}
