@@ -663,6 +663,7 @@ export default function Queue() {
         doneStatusIds = [],
         trackingMode = 'per_operation',
         workstationQueue = [],
+        workstationNotStarted = [],
         lineWorkstations = [],
         downtimeReasons = [],
         activeDowntime = null,
@@ -715,7 +716,7 @@ export default function Queue() {
             <Head title={__("Work Order Queue")} />
 
             {/* Live sync */}
-            <LineSync lineId={line.id} reloadOnly={['activeWorkOrders', 'completedWorkOrders', 'workstationQueue']} />
+            <LineSync lineId={line.id} reloadOnly={['activeWorkOrders', 'completedWorkOrders', 'workstationQueue', 'workstationNotStarted']} />
 
             <div className="max-w-7xl mx-auto">
 
@@ -819,7 +820,7 @@ export default function Queue() {
                         <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__("Workstation filter")}:</span>
 
                         <button type="button"
-                                onClick={() => router.get('/operator/queue', {}, { preserveState: false })}
+                                onClick={() => router.get('/operator/queue', { workstation: 'all' }, { preserveState: false })}
                                 className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
                                     !selectedWorkstation ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                 }`}>
@@ -906,7 +907,54 @@ export default function Queue() {
                     </div>
                 )}
 
-                {showWorkstationQueue && workstationQueue.length === 0 && (
+                {/* ── Not yet started, routing begins at this workstation ── */}
+                {showWorkstationQueue && workstationNotStarted.length > 0 && (
+                    <div className="mb-6">
+                        <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
+                            {__("To start at :station", { station: selectedWorkstation.name })}
+                            <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({workstationNotStarted.length})</span>
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {workstationNotStarted.map((wo) => {
+                                // When the first step has alternatives (a variant group), show the
+                                // one at this workstation — that's why the order is listed here.
+                                const steps = [...(wo.process_snapshot?.steps ?? [])]
+                                    .sort((a, b) => a.step_number - b.step_number);
+                                const firstCandidate = steps[0] ?? null;
+                                const firstStep = firstCandidate?.variant_group == null
+                                    ? firstCandidate
+                                    : steps.find((step) =>
+                                        step.variant_group === firstCandidate.variant_group &&
+                                        String(step.workstation_id) === String(selectedWorkstation.id),
+                                    ) ?? firstCandidate;
+
+                                return (
+                                    <Link key={wo.id}
+                                          href={`/operator/work-order/${wo.id}`}
+                                          className="block p-4 rounded-om border border-om-line bg-om-card border-l-[3px] border-l-om-line hover:bg-om-panel transition-colors">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="font-mono text-[13px] font-semibold text-om-ink">{wo.order_no}</span>
+                                            <StatusPill status="pending" label={__('Not Started')} />
+                                        </div>
+                                        <div className="text-sm font-medium text-om-ink">
+                                            {wo.product_type?.name ?? '-'}
+                                        </div>
+                                        {firstStep && (
+                                            <div className="mt-2 text-xs text-om-muted font-medium">
+                                                {__("Step")} {firstStep.step_number}: {firstStep.name}
+                                            </div>
+                                        )}
+                                        <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-om-faint">
+                                            {__("Qty")}: {wo.planned_qty}
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {showWorkstationQueue && workstationQueue.length === 0 && workstationNotStarted.length === 0 && (
                     <div className="mb-6 p-6 rounded-om border border-om-line bg-om-card text-center">
                         <p className="text-sm text-om-muted">
                             {__("No work orders currently waiting at")} <strong className="text-om-ink">{selectedWorkstation.name}</strong>

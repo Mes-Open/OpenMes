@@ -174,9 +174,22 @@ class Batch extends Model
 
     /**
      * Get the current (in progress or next ready/pending) step.
+     *
+     * Uses the loaded `steps` relation when present, so a list checking many
+     * batches (the operator queue / workstation filter) doesn't query per batch.
      */
     public function currentStep()
     {
+        if ($this->relationLoaded('steps')) {
+            // Same answer as the queries below. The relation is ordered by
+            // step_number, and that ordering is applied before the READY-first
+            // CASE, so step_number decides between a READY and a PENDING step.
+            $steps = $this->steps->sortBy('step_number');
+
+            return $steps->firstWhere('status', BatchStep::STATUS_IN_PROGRESS)
+                ?? $steps->first(fn ($step) => in_array($step->status, [BatchStep::STATUS_READY, BatchStep::STATUS_PENDING], true));
+        }
+
         // First check for in-progress step
         $inProgress = $this->steps()
             ->where('status', BatchStep::STATUS_IN_PROGRESS)

@@ -7,10 +7,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Fixed
+### Changed
+- **Operator Workstation view follows the selected workstation** — switching from Queue to
+  Workstation with a workstation picked (e.g. `?workstation=10`) now shows only the orders whose
+  current step runs there — plus not-yet-started orders whose first step is there, so they can be
+  started from that station — and only that workstation's machine state, with an "All workstations"
+  link back to the whole line. `per_line` tracking keeps the whole-line view, and a workstation
+  account's assignment alone doesn't filter it — only an actual selection does. The Queue view shows
+  those not-yet-started orders as their own "To start at …" cards below "Ready at …", and its
+  polling count includes them.
 
+### Fixed
 - Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
 - Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
+- Operator Queue: the "All" workstation chip now actually clears the selection (it fell back to
+  the workstation remembered in the session).
+- **Live lists stopped updating after a create or delete until a browser refresh** — returning to
+  the same list (e.g. the redirect after adding a work order in `/admin/work-orders`) mounted a new
+  synced collection while the old one was still shutting down, and the old one's `echo.leave()`
+  unsubscribed the channel both shared. Collection channels are now reference-counted
+  (`lib/sharedChannels.js`): a channel is left only when its last user releases it, which also stops
+  an unmounting list from cutting off the app-wide `work_orders_active` / `issues_open` feeds.
+- **Phantom rows in live lists after a rolled-back write** — collection deltas were broadcast from
+  model events mid-transaction, so a write that failed later in the same transaction still pushed
+  its row into every open list, where it stayed until a refresh. Deltas are now sent after the
+  transaction commits and dropped on rollback.
+- Operator Workstation view: the machine-state picker uses the shared `Dropdown` instead of a
+  native `<select>`, and structured extra-data values render as readable text instead of
+  `[object Object]`.
 
 ## [0.23.0] - 2026-09-14
 

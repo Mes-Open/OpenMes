@@ -6066,5 +6066,7 @@
     "To warehouse": "To warehouse",
     "Transfer Lines": "Transfer Lines",
     "Transfer stock": "Transfer stock",
-    "Item type": "Item type"
+    "Item type": "Item type",
+    "Ready at :station": "Ready at :station",
+    "To start at :station": "To start at :station"
 }
