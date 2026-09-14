@@ -44,7 +44,10 @@ class LineController extends Controller
         // (Stations / Work Orders / Operators / Area columns).
         $lines = $query
             ->withCount(['workstations', 'workOrders', 'users'])
-            ->with('area:id,name')
+            // Area and division are shipped by an optional module, so they are
+            // loaded only when something has defined those relations. Eager
+            // loading them unconditionally is a 500 on an installation without it.
+            ->when(Line::hasModuleRelation('area'), fn ($q) => $q->with('area:id,name'))
             ->orderBy('name')
             ->get();
 
@@ -58,7 +61,7 @@ class LineController extends Controller
         $this->authorize('view', $line);
 
         $line->loadCount(['workstations', 'workOrders', 'users']);
-        $line->load(['workstations', 'users.roles', 'productTypes', 'division']);
+        $line->load(array_filter(['workstations', 'users.roles', 'productTypes', Line::hasModuleRelation('division') ? 'division' : null]));
 
         return response()->json(['data' => $line]);
     }
@@ -74,7 +77,7 @@ class LineController extends Controller
 
         return response()->json([
             'message' => 'Line created successfully',
-            'data' => $line->fresh(['workstations', 'division']),
+            'data' => $line->fresh(array_filter(['workstations', Line::hasModuleRelation('division') ? 'division' : null])),
         ], 201);
     }
 
@@ -86,7 +89,7 @@ class LineController extends Controller
 
         return response()->json([
             'message' => 'Line updated successfully',
-            'data' => $line->fresh(['workstations', 'division']),
+            'data' => $line->fresh(array_filter(['workstations', Line::hasModuleRelation('division') ? 'division' : null])),
         ]);
     }
 

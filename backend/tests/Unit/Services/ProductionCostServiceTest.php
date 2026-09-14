@@ -6,7 +6,6 @@ use App\Models\AdditionalCost;
 use App\Models\EmployeeActivity;
 use App\Models\Material;
 use App\Models\MaterialAllocation;
-use App\Models\WageGroup;
 use App\Models\Worker;
 use App\Models\WorkOrder;
 use App\Services\Production\ProductionCostService;
@@ -23,7 +22,7 @@ class ProductionCostServiceTest extends TestCase
     {
         parent::setUp();
         config(['openmmes.default_currency' => 'PLN', 'openmmes.standard_weekly_hours' => 40]);
-        $this->svc = new ProductionCostService;
+        $this->svc = app(ProductionCostService::class);
     }
 
     private function workOrder(float $producedQty = 100): WorkOrder
@@ -116,18 +115,6 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(['actual', 'bom'], $sources);
     }
 
-    public function test_wage_group_rate_not_applied_to_non_hourly_mode(): void
-    {
-        $wo = $this->workOrder(100);
-        $group = WageGroup::create(['code' => 'WG2', 'name' => 'Std', 'base_hourly_rate' => 30, 'currency' => 'PLN']);
-        // Piece-rate worker with no per-worker rate: the hourly wage-group rate
-        // must NOT be used as a piece rate, and no default is configured.
-        $worker = Worker::factory()->create(['pay_type' => 'piece_rate', 'wage_group_id' => $group->id]);
-        $this->workActivity($wo, $worker, 2);
-
-        $this->assertSame(0.0, $this->svc->laborCost($wo)['total']);
-    }
-
     public function test_labor_cost_hourly(): void
     {
         $wo = $this->workOrder();
@@ -195,20 +182,10 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(0.0, $this->svc->laborCost($wo)['total']);
     }
 
-    public function test_labor_falls_back_to_wage_group_rate_as_hourly(): void
-    {
-        $wo = $this->workOrder();
-        $group = WageGroup::create(['code' => 'WG1', 'name' => 'Std', 'base_hourly_rate' => 30, 'currency' => 'PLN']);
-        $worker = Worker::factory()->create(['wage_group_id' => $group->id]); // no per-worker pay fields
-        $this->workActivity($wo, $worker, 2);
-
-        $this->assertSame(60.0, $this->svc->laborCost($wo)['total']);
-    }
-
     public function test_labor_uses_default_pay_type_when_worker_has_none(): void
     {
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'default_pay_type'], ['value' => json_encode('piece_rate')]);
-        $svc = new ProductionCostService;
+        $svc = app(ProductionCostService::class);
 
         $wo = $this->workOrder(50);
         // Worker has a rate but no pay_type → falls back to the default (piece_rate).
@@ -223,7 +200,7 @@ class ProductionCostServiceTest extends TestCase
     public function test_labor_falls_back_to_global_default_pay_rate(): void
     {
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'default_pay_rate'], ['value' => json_encode(30)]);
-        $svc = new ProductionCostService;
+        $svc = app(ProductionCostService::class);
 
         $wo = $this->workOrder();
         $worker = Worker::factory()->create(); // no per-worker rate, no wage group → hourly default
@@ -263,7 +240,7 @@ class ProductionCostServiceTest extends TestCase
     {
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'standard_weekly_hours'], ['value' => json_encode(20)]);
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'default_currency'], ['value' => json_encode('EUR')]);
-        $svc = new ProductionCostService; // reads settings in constructor
+        $svc = app(ProductionCostService::class); // reads settings in constructor
 
         $wo = $this->workOrder();
         $worker = Worker::factory()->paidWeekly(1600)->create(); // 1600 / 20 = 80/h

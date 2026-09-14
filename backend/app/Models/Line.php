@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\HasModuleRelations;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Support\Collection;
 
 class Line extends Model
 {
-    use HasCustomFields, HasFactory, HasTenant;
+    use HasCustomFields, HasFactory, HasModuleRelations, HasTenant;
     use SoftDeletesWithAudit;
 
     protected $fillable = [
@@ -38,26 +39,10 @@ class Line extends Model
         ];
     }
 
-    /**
-     * Get the division this line belongs to.
-     */
-    public function division(): BelongsTo
-    {
-        return $this->belongsTo(Division::class);
-    }
-
     /** The stock location this line's consumption comes off. */
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
-    }
-
-    /**
-     * Get the ISA-95 area this line belongs to.
-     */
-    public function area(): BelongsTo
-    {
-        return $this->belongsTo(Area::class);
     }
 
     /**
@@ -82,14 +67,6 @@ class Line extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'line_user');
-    }
-
-    /**
-     * Crews explicitly assigned to staff this line.
-     */
-    public function crews(): BelongsToMany
-    {
-        return $this->belongsToMany(Crew::class, 'crew_line');
     }
 
     /**

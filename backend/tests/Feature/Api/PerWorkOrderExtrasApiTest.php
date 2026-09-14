@@ -3,10 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AdditionalCost;
-use App\Models\AnomalyReason;
 use App\Models\Attachment;
 use App\Models\CostSource;
-use App\Models\ProductionAnomaly;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,10 +17,15 @@ class PerWorkOrderExtrasApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $supervisor;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $supervisorToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -40,121 +43,19 @@ class PerWorkOrderExtrasApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
-
-    // ── Production Anomalies ──────────────────────────────────────────────
-
-    public function test_operator_can_record_anomaly(): void
+    private function authAdmin()
     {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'SCRAP', 'name' => 'Scrap', 'is_active' => true]);
-
-        $r = $this->authOperator()->postJson("/api/v1/work-orders/{$wo->id}/production-anomalies", [
-            'anomaly_reason_id' => $reason->id,
-            'planned_qty' => 100,
-            'actual_qty' => 95,
-            'comment' => 'Material defect',
-        ]);
-        $r->assertStatus(201)
-            ->assertJsonPath('data.created_by_id', $this->operator->id);
-        // Deviation auto-computed: (95-100)/100*100 = -5.00
-        $this->assertEquals('-5.00', $r->json('data.deviation_pct'));
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
     }
 
-    public function test_anomaly_filter_by_work_order(): void
+    private function authSupervisor()
     {
-        $wo1 = WorkOrder::factory()->create();
-        $wo2 = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        ProductionAnomaly::create([
-            'work_order_id' => $wo1->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-        ProductionAnomaly::create([
-            'work_order_id' => $wo2->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 5, 'actual_qty' => 5, 'status' => 'draft',
-            'product_name' => 'Y',
-        ]);
-
-        $r = $this->authAdmin()->getJson("/api/v1/production-anomalies?work_order_id={$wo1->id}");
-        $this->assertCount(1, $r->json('data'));
+        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
     }
 
-    public function test_operator_can_update_own_draft(): void
+    private function authOperator()
     {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        $a = ProductionAnomaly::create([
-            'work_order_id' => $wo->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-
-        $this->authOperator()->patchJson("/api/v1/production-anomalies/{$a->id}", [
-            'comment' => 'updated',
-        ])->assertStatus(200);
-    }
-
-    public function test_operator_cannot_edit_others_anomaly(): void
-    {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        $a = ProductionAnomaly::create([
-            'work_order_id' => $wo->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->admin->id, // not operator
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-        $this->authOperator()->patchJson("/api/v1/production-anomalies/{$a->id}", [
-            'comment' => 'hijack',
-        ])->assertStatus(403);
-    }
-
-    public function test_supervisor_can_process_anomaly(): void
-    {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        $a = ProductionAnomaly::create([
-            'work_order_id' => $wo->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-        $this->authSupervisor()->postJson("/api/v1/production-anomalies/{$a->id}/process")
-            ->assertStatus(200);
-        $this->assertEquals('processed', $a->fresh()->status);
-    }
-
-    public function test_supervisor_cannot_delete_anomaly(): void
-    {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        $a = ProductionAnomaly::create([
-            'work_order_id' => $wo->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-        $this->authSupervisor()->deleteJson("/api/v1/production-anomalies/{$a->id}")->assertStatus(403);
-    }
-
-    public function test_admin_can_delete_anomaly(): void
-    {
-        $wo = WorkOrder::factory()->create();
-        $reason = AnomalyReason::create(['code' => 'X', 'name' => 'X', 'is_active' => true]);
-        $a = ProductionAnomaly::create([
-            'work_order_id' => $wo->id, 'anomaly_reason_id' => $reason->id,
-            'created_by_id' => $this->operator->id,
-            'planned_qty' => 10, 'actual_qty' => 9, 'status' => 'draft',
-            'product_name' => 'X',
-        ]);
-        $this->authAdmin()->deleteJson("/api/v1/production-anomalies/{$a->id}")->assertStatus(200);
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
     }
 
     // ── Additional Costs ──────────────────────────────────────────────────

@@ -75,6 +75,16 @@ export const ADMIN_LINKS = [
         lucide: 'activity',
         match: ['/admin/shift-monitor'],
     },
+    // The plant board. Same `key` — it is the same tab grant, so an admin who
+    // can watch a shift can watch the floor — but its own href, which is what
+    // React keys these by.
+    {
+        key: 'shift_monitor',
+        label: 'Plant Board',
+        href: '/admin/shift-board',
+        lucide: 'layout-grid',
+        match: ['/admin/shift-board'],
+    },
 ];
 
 /**
@@ -84,6 +94,7 @@ export const ADMIN_LINKS = [
 export const ADMIN_GROUPS = [
     {
         key: 'connectivity',
+        order: 10,
         label: 'Connectivity',
         icon: 'wifi',
         lucide: 'wifi',
@@ -94,20 +105,17 @@ export const ADMIN_GROUPS = [
             { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], lucide: 'cable' },
             { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], lucide: 'plug' },
             // The physical end of the same story: what a station is, and which
-            // boxes are enrolled as one. They sit with the protocols rather than
-            // in a separate Structure group.
-            // Listed here, but still owned by the structure module — that is what
-            // TabAccessMiddleware checks for these URLs. Without the tab they
-            // would show for anyone with Connectivity on and 404 on click.
+            // boxes are enrolled as one. Gated by the structure module, which is
+            // what TabAccessMiddleware checks for these URLs — without the tab
+            // they would show for anyone with Connectivity on and 404 on click.
             { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], tab: 'structure', lucide: 'monitor-cog' },
             { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], tab: 'structure', lucide: 'monitor' },
         ],
     },
     {
         key: 'orders',
+        order: 20,
         label: 'Orders',
-        // `lucide` supersedes the path-based `icon` where present — same glyph the
-        // page's own breadcrumb uses, so the sidebar and header agree.
         icon: 'clipboard',
         lucide: 'clipboard-list',
         href: '/admin/work-orders',
@@ -120,17 +128,26 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'production',
+        order: 30,
         label: 'Production',
         icon: 'beaker',
         lucide: 'factory',
         match: [
             '/admin/product-types', '/admin/product-revisions', '/admin/traceability',
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
-            '/admin/line-statuses', '/admin/view-templates',
-            '/admin/issue-types', '/admin/scrap-reasons', '/packaging/eans',
-            '/admin/shifts',
+            '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
+            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans',
         ],
         children: [
+            // Process templates, their BOMs and engineering documents all hang
+            // off a specific product type — there is no standalone list to link,
+            // so the product type is the way in to all three.
+            { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
+            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
+            { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
+            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
             {
                 key: 'linesGroup',
                 label: 'Production Lines',
@@ -142,39 +159,42 @@ export const ADMIN_GROUPS = [
                     { label: 'View Templates', href: '/admin/view-templates', match: ['/admin/view-templates'], lucide: 'layout-template' },
                 ],
             },
-            // Process templates and their BOMs hang off a specific product type
-            // (/admin/product-types/{id}/process-templates/{id}/bom) — there is no
-            // standalone list to link, so the product type is the way in.
-            { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
             // Shift definitions. OEE, downtime, scrap and the shift monitor all
             // read their windows through Support\ShiftWindow, so a system with no
             // way to define them falls back to a fixed 06:00/18:00 split.
             { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'], lucide: 'clock' },
-            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
-            // Fine-grained feature toggles: each renders under this (core) Production
-            // group but is gated by its own module so it can be switched off alone.
-            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
-            { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
-            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
-            // What an operator picks from when reporting a problem, including
-            // whether that choice blocks the work order. The page has always
-            // existed with a full CRUD but was never listed in the React
-            // sidebar, so the only way in was to type the URL.
-            //
-            // No `tab`: unlike Issues, this route is not tab-governed (it sits
-            // behind role:Admin only), so gating it behind quality would hide a
-            // page that still opens.
-            { label: 'Issue Types', href: '/admin/issue-types', match: ['/admin/issue-types'], lucide: 'list-checks' },
+            // What the shop floor reported, and what an operator picks from when
+            // reporting it. Both governed by the quality tab, not Production.
+            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
+            // What an operator picks from when a machine stops. Feeds OEE
+            // availability, so it sits with the other shop-floor dictionaries.
+            { label: 'Downtime Reasons', href: '/admin/downtime-reasons', match: ['/admin/downtime-reasons'], tab: 'quality', lucide: 'octagon-pause' },
+        ],
+    },
+    {
+        // Personnel records. The optional workforce module fills this out with
+        // crews, absences, skills and wage groups; on its own core knows only
+        // who works here.
+        key: 'hr',
+        order: 35,
+        label: 'HR',
+        icon: 'hr',
+        lucide: 'users-round',
+        match: ['/admin/workers'],
+        children: [
+            { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'], lucide: 'contact' },
         ],
     },
     {
         key: 'warehouses',
+        order: 40,
         tab: 'warehouse',
         label: 'Warehouses',
         icon: 'cube',
         lucide: 'warehouse',
+        // The stock screens themselves ship as a module; what stays here is
+        // the material catalogue, which production needs on its own.
         match: ['/admin/materials', '/admin/material-types', '/admin/material-lots'],
         children: [
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
@@ -183,32 +203,24 @@ export const ADMIN_GROUPS = [
         ],
     },
     {
-        // As above: gated as 'reports', shown as Analytics.
         key: 'reports',
+        order: 50,
         label: 'Analytics',
         icon: 'chart',
         lucide: 'chart-column',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee', '/admin/issues'],
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports', lucide: 'history' },
-            // Analytical reports gated by the Advanced reports module, so a Lightweight
-            // install keeps only Work Order History.
             { label: 'Production Cost Report', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
             { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports', lucide: 'trash-2' },
-            // Shown under Analytics but still gated by the module that owns the
-            // URL. TabAccessMiddleware maps /admin/oee to the maintenance tab,
-            // so without this the entry would be listed whenever Reports is on
-            // and 404 on click for anyone whose maintenance module is off — it
-            // used to be hidden for free by living inside the Maintenance group.
+            // Reads the same shift windows as the monitor, but it is the
+            // maintenance module that owns the tab governing this URL.
             { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], tab: 'maintenance', lucide: 'gauge' },
-            // What the shop floor actually reported, read as history rather
-            // than as a queue to work — the triage actions still live on the
-            // page itself.
-            { label: 'Reported Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
         ],
     },
     {
         key: 'maintenance',
+        order: 70,
         label: 'Maintenance',
         icon: 'cog',
         lucide: 'wrench',
@@ -220,19 +232,26 @@ export const ADMIN_GROUPS = [
         ],
     },
     {
+        key: 'webhooks',
+        order: 90,
+        label: 'Webhooks',
+        icon: 'webhook',
+        lucide: 'webhook',
+        match: ['/admin/webhooks'],
+        children: [
+            { label: 'Endpoints', href: '/admin/webhooks', match: ['/admin/webhooks'], lucide: 'webhook' },
+        ],
+    },
+    {
         key: 'adminGroup',
+        order: 100,
         tab: 'admin',
         label: 'Admin',
         icon: 'shield',
         lucide: 'shield',
-        match: ['/admin/users', '/admin/workers', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
+        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
         children: [
             { label: 'Users & Accounts', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
-            // Personnel records, as opposed to login accounts — the two are
-            // separate entities (`users.worker_id`) and the account page edits
-            // the worker behind it, so they belong next to each other. Gated by
-            // `hr`, not the group's `admin`, because that is what governs the URL.
-            { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'], tab: 'hr', lucide: 'contact' },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },
@@ -243,9 +262,10 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'modulesGroup',
+        order: 110,
         tab: 'modules',
         label: 'Modules',
-        icon: 'cube',
+        icon: 'packaging',
         lucide: 'blocks',
         href: '/admin/modules',
         match: ['/admin/modules'],
@@ -255,6 +275,7 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'settings',
+        order: 120,
         // Not a feature module: profile, password and 2FA belong to whoever is
         // logged in, so this one is not gated behind an enabled-module tab.
         alwaysVisible: true,
@@ -262,7 +283,7 @@ export const ADMIN_GROUPS = [
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
-        match: ['/settings', '/admin/custom-fields', '/admin/webhooks'],
+        match: ['/settings', '/admin/custom-fields'],
         children: [
             {
                 key: 'systemSettingsGroup',
@@ -281,9 +302,6 @@ export const ADMIN_GROUPS = [
                 ],
             },
             { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
-            // Outbound integration config, so it sits with the API keys rather
-            // than as a section of its own. Still gated by its own module.
-            { label: 'Webhooks', href: '/admin/webhooks', match: ['/admin/webhooks'], tab: 'webhooks', lucide: 'webhook' },
             { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
             { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
             { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },

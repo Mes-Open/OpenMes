@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Enums\Tier;
-use App\Models\Area;
 use App\Models\BomItem;
 use App\Models\Customer;
 use App\Models\InspectionPlan;
@@ -16,13 +15,10 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\OeeRecord;
-use App\Models\PersonnelClass;
 use App\Models\ProcessSegment;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\Shift;
-use App\Models\Site;
-use App\Models\Skill;
 use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -31,7 +27,6 @@ use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -58,9 +53,6 @@ class PrintShopDemoSeeder extends Seeder
         $materials = $this->seedMaterials($templates);
         $this->seedBom($templates, $materials);
         $this->seedMaterialLots($materials);
-        $site = $this->seedISA95Hierarchy($lines);
-        $this->seedSkillsAndPersonnelClasses();
-        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
         $tools = $this->seedTools();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations, $tools);
@@ -499,6 +491,77 @@ class PrintShopDemoSeeder extends Seeder
                 'due_date' => now()->addDays(14),
                 'description' => 'Promo tote bags — no line assigned, backlog',
             ],
+
+            // ── Not scheduled yet ────────────────────────────────────────────
+            // The planner's backlog: accepted work with nothing decided about
+            // when it runs. Every shop has some — the order is real, but it is
+            // waiting on something before a date can be promised. Without these
+            // the planner opens with an empty backlog panel, which is the one
+            // state a real plant never sees.
+            [
+                'order_no' => 'WO-2026-050',
+                'line_id' => $lines['DTG']->id,
+                'product_type_id' => $pt['HOODIE']->id,
+                'planned_qty' => 120,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Hoodies — artwork still with the customer, no proof approved yet.',
+            ],
+            [
+                'order_no' => 'WO-2026-051',
+                'line_id' => $lines['SITO']->id,
+                'product_type_id' => $pt['TSHIRT']->id,
+                'planned_qty' => 400,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 4,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Festival tees — quantity firm, print date waits on the stock delivery.',
+            ],
+            [
+                'order_no' => 'WO-2026-052',
+                'line_id' => $lines['HAFT']->id,
+                'product_type_id' => $pt['POLO']->id,
+                'planned_qty' => 75,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Embroidered polos — logo digitising not finished.',
+            ],
+            [
+                'order_no' => 'WO-2026-053',
+                'line_id' => $lines['TRANSFER']->id,
+                'product_type_id' => $pt['TOTE']->id,
+                'planned_qty' => 250,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Tote bags — customer asked to hold until they confirm the colourway.',
+            ],
         ];
 
         foreach ($orders as $orderData) {
@@ -656,38 +719,6 @@ class PrintShopDemoSeeder extends Seeder
     }
 
     // ── Crews ────────────────────────────────────────────────────────────────
-
-    private function seedCrews(array $lines, array $workstations): void
-    {
-        $defs = [
-            ['code' => 'CREW-A', 'name' => 'Day Shift A', 'lines' => ['DTG', 'SITO'], 'workstations' => ['DTG-1', 'DTG-2', 'SITO-1']],
-            ['code' => 'CREW-B', 'name' => 'Day Shift B', 'lines' => ['HAFT', 'TRANSFER'], 'workstations' => ['HAFT-1', 'HAFT-2', 'TRANS-1']],
-            ['code' => 'CREW-PACK', 'name' => 'Packing Crew', 'lines' => ['PACKING'], 'workstations' => ['PAK-1', 'PAK-2']],
-        ];
-
-        foreach ($defs as $def) {
-            $crew = \App\Models\Crew::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'is_active' => true]
-            );
-
-            // Explicit crew → line assignment (drives the capacity crew axis).
-            $crew->lines()->sync(collect($def['lines'])->map(fn ($code) => $lines[$code]->id)->all());
-
-            // A few operators per crew, stationed on the crew's lines.
-            foreach ($def['workstations'] as $i => $wsCode) {
-                \App\Models\Worker::updateOrCreate(
-                    ['code' => $def['code'].'-W'.($i + 1)],
-                    [
-                        'name' => $def['name'].' Operator '.($i + 1),
-                        'crew_id' => $crew->id,
-                        'workstation_id' => $workstations[$wsCode]->id,
-                        'is_active' => true,
-                    ]
-                );
-            }
-        }
-    }
 
     // ── Materials & Material Types ───────────────────────────────────────────
 
@@ -1290,113 +1321,7 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── ISA-95 Hierarchy ─────────────────────────────────────────────────────
 
-    private function seedISA95Hierarchy(array $lines): Site
-    {
-        $site = Site::updateOrCreate(
-            ['code' => 'PS-HQ'],
-            [
-                'name' => 'PrintShop HQ',
-                'description' => 'Main production facility for garment printing and decoration',
-                'address' => 'ul. Drukarska 15',
-                'city' => 'Warsaw',
-                'country' => 'PL',
-                'timezone' => 'Europe/Warsaw',
-                'is_active' => true,
-            ]
-        );
-
-        $areaDefs = [
-            ['code' => 'HALL-A', 'name' => 'Production Hall A', 'description' => 'Main production hall — all printing and embroidery lines'],
-            ['code' => 'WH-1',   'name' => 'Warehouse',         'description' => 'Raw materials and finished goods warehouse'],
-            ['code' => 'SHIP-1', 'name' => 'Shipping',          'description' => 'Shipping and dispatch area'],
-        ];
-
-        $areas = [];
-        foreach ($areaDefs as $def) {
-            $areas[$def['code']] = Area::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'site_id' => $site->id,
-                    'description' => $def['description'],
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        // Link lines to areas (if column exists)
-        if (Schema::hasColumn('lines', 'area_id')) {
-            $lineAreaMap = [
-                'DTG' => 'HALL-A',
-                'SITO' => 'HALL-A',
-                'HAFT' => 'HALL-A',
-                'TRANSFER' => 'HALL-A',
-                'PACKING' => 'SHIP-1',
-            ];
-
-            foreach ($lineAreaMap as $lineCode => $areaCode) {
-                if (isset($lines[$lineCode], $areas[$areaCode])) {
-                    $lines[$lineCode]->update(['area_id' => $areas[$areaCode]->id]);
-                }
-            }
-        }
-
-        return $site;
-    }
-
     // ── Skills & Personnel Classes ───────────────────────────────────────────
-
-    private function seedSkillsAndPersonnelClasses(): void
-    {
-        $skillDefs = [
-            ['code' => 'DTG_OPERATION',    'name' => 'DTG Operation',    'description' => 'Operating DTG digital printers including pretreatment and curing'],
-            ['code' => 'SCREEN_PRINTING',  'name' => 'Screen Printing',  'description' => 'Screen preparation, registration, and manual/semi-auto printing'],
-            ['code' => 'EMBROIDERY',       'name' => 'Embroidery',       'description' => 'Machine embroidery operation, hooping, thread management'],
-            ['code' => 'HEAT_TRANSFER',    'name' => 'Heat Transfer',    'description' => 'Heat press and sublimation operations'],
-            ['code' => 'QUALITY_CONTROL',  'name' => 'Quality Control',  'description' => 'Visual and instrumental quality inspection of printed goods'],
-        ];
-
-        $skills = [];
-        foreach ($skillDefs as $def) {
-            $skills[$def['code']] = Skill::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'description' => $def['description']]
-            );
-        }
-
-        $classDefs = [
-            [
-                'code' => 'PRINT_OPERATOR',
-                'name' => 'Print Operator',
-                'description' => 'Operates DTG and screen printing equipment',
-                'required_skill_ids' => [$skills['DTG_OPERATION']->id, $skills['SCREEN_PRINTING']->id],
-            ],
-            [
-                'code' => 'EMBROIDERY_SPECIALIST',
-                'name' => 'Embroidery Specialist',
-                'description' => 'Specialist in machine embroidery operations',
-                'required_skill_ids' => [$skills['EMBROIDERY']->id],
-            ],
-            [
-                'code' => 'QC_INSPECTOR',
-                'name' => 'QC Inspector',
-                'description' => 'Quality control inspector for all product types',
-                'required_skill_ids' => [$skills['QUALITY_CONTROL']->id],
-            ],
-        ];
-
-        foreach ($classDefs as $def) {
-            PersonnelClass::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'description' => $def['description'],
-                    'required_skill_ids' => $def['required_skill_ids'],
-                    'is_active' => true,
-                ]
-            );
-        }
-    }
 
     // ── Process Segments ─────────────────────────────────────────────────────
 

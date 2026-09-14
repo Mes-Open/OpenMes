@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\AnomalyReason;
 use App\Models\Company;
 use App\Models\CostSource;
 use App\Models\Shift;
@@ -16,8 +15,11 @@ class OpsSupportApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -32,8 +34,15 @@ class OpsSupportApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     // ── Companies ─────────────────────────────────────────────────────────
 
@@ -86,24 +95,6 @@ class OpsSupportApiTest extends TestCase
         $this->authAdmin()->postJson('/api/v1/cost-sources', [
             'code' => 'DUP', 'name' => 'Y',
         ])->assertStatus(422);
-    }
-
-    // ── Anomaly reasons ────────────────────────────────────────────────────
-
-    public function test_admin_can_create_anomaly_reason(): void
-    {
-        $r = $this->authAdmin()->postJson('/api/v1/anomaly-reasons', [
-            'code' => 'SCRAP', 'name' => 'Scrap', 'category' => 'quality',
-        ]);
-        $r->assertStatus(201);
-    }
-
-    public function test_anomaly_reason_filter_by_category(): void
-    {
-        AnomalyReason::create(['code' => 'A', 'name' => 'A', 'category' => 'quality', 'is_active' => true]);
-        AnomalyReason::create(['code' => 'B', 'name' => 'B', 'category' => 'process', 'is_active' => true]);
-        $r = $this->authAdmin()->getJson('/api/v1/anomaly-reasons?category=quality');
-        $this->assertCount(1, $r->json('data'));
     }
 
     // ── Subassemblies ──────────────────────────────────────────────────────

@@ -381,6 +381,14 @@ class SettingsController extends Controller
         $inMemory = DB::connection()->getDriverName() === 'sqlite'
             && DB::connection()->getDatabaseName() === ':memory:';
 
+        // Which modules are installed is not sample data — it is how this
+        // installation is put together. migrate:fresh drops the settings table
+        // along with everything else, so without carrying these across, loading
+        // an example company quietly uninstalls every module the user added.
+        $installation = DB::table('system_settings')
+            ->whereIn('key', ['modules_enabled', 'enabled_modules'])
+            ->pluck('value', 'key');
+
         if (! $inMemory) {
             DB::purge();
             DB::reconnect();
@@ -388,6 +396,13 @@ class SettingsController extends Controller
 
         Artisan::call('migrate:fresh', ['--force' => true]);
         Artisan::call('db:seed', ['--force' => true]);
+
+        foreach ($installation as $key => $value) {
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => $key],
+                ['value' => $value, 'updated_at' => now()],
+            );
+        }
 
         if (! $inMemory) {
             DB::purge();

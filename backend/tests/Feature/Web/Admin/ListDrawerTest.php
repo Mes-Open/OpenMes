@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Web\Admin;
 
-use App\Models\Division;
-use App\Models\Factory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Inertia;
@@ -61,52 +59,11 @@ class ListDrawerTest extends TestCase
             ->assertRedirect(route('admin.scrap-reasons.index'));
     }
 
-    public function test_division_drawer_update_stays_on_the_list(): void
-    {
-        $factory = Factory::create(['code' => 'F-DRW', 'name' => 'Drawer Factory', 'is_active' => true]);
-        $division = Division::create([
-            'factory_id' => $factory->id, 'code' => 'D-DRW', 'name' => 'Before', 'is_active' => true,
-        ]);
-
-        $this->actingAs($this->admin)
-            ->from(route('admin.divisions.index'))
-            ->put(route('admin.divisions.update', $division), [
-                'factory_id' => $factory->id, 'code' => $division->code, 'name' => 'After', 'stay' => 1,
-            ])
-            ->assertRedirect(route('admin.divisions.index'))
-            ->assertSessionHasNoErrors();
-
-        $this->assertDatabaseHas('divisions', ['id' => $division->id, 'name' => 'After']);
-    }
-
-    /**
-     * A crew's lines are a pivot, so they can't ride on the synced row the way
-     * every other field does. An update that doesn't carry them must leave them
-     * alone — reading an absent key as an empty array would detach every line
-     * the crew has, which is what drives labour demand on the capacity view.
-     */
-    public function test_update_without_line_ids_leaves_the_crews_lines_alone(): void
-    {
-        $crew = \App\Models\Crew::create(['code' => 'C-DRW', 'name' => 'Before', 'is_active' => true]);
-        $line = \App\Models\Line::factory()->create();
-        $crew->lines()->sync([$line->id]);
-
-        $this->actingAs($this->admin)
-            ->from(route('admin.crews.index'))
-            ->put(route('admin.crews.update', $crew), ['code' => 'C-DRW', 'name' => 'After', 'stay' => 1])
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame([$line->id], $crew->fresh()->lines()->pluck('lines.id')->all());
-    }
-
     /** @return array<int, array{0: string, 1: array<int, string>}> */
     public static function optionalPropLists(): array
     {
         return [
-            'divisions' => ['admin.divisions.index', ['factories']],
             'shifts' => ['admin.shifts.index', ['lines', 'customFields']],
-            'areas' => ['admin.areas.index', ['sites', 'customFields']],
-            'sites' => ['admin.sites.index', ['companies', 'customFields']],
             'tools' => ['admin.tools.index', ['workstationTypes', 'customFields']],
         ];
     }

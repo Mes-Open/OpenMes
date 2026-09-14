@@ -2,10 +2,19 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
+        // Sites and areas ship as an optional module now. On an installation
+        // without it there is nothing to back-fill, and nothing to back-fill it
+        // into — the lines simply keep a null area.
+        if (! Schema::hasTable('sites') || ! Schema::hasTable('areas')) {
+            return;
+        }
+
         $tenantIds = DB::table('lines')
             ->select('tenant_id')
             ->distinct()
@@ -36,34 +45,34 @@ return new class extends Migration {
                 : str_pad((string) $tenantId, 4, '0', STR_PAD_LEFT);
 
             // Sites.code is globally unique — disambiguate per tenant.
-            $siteCode = 'SITE-' . $siteSuffix;
+            $siteCode = 'SITE-'.$siteSuffix;
             $i = 1;
             while (DB::table('sites')->where('code', $siteCode)->exists()) {
-                $siteCode = 'SITE-' . $siteSuffix . '-' . $i++;
+                $siteCode = 'SITE-'.$siteSuffix.'-'.$i++;
             }
 
             $now = now();
 
             $siteId = DB::table('sites')->insertGetId([
-                'name'        => 'Default Site',
-                'code'        => $siteCode,
-                'company_id'  => $companyId,
+                'name' => 'Default Site',
+                'code' => $siteCode,
+                'company_id' => $companyId,
                 'description' => 'Auto-created during ISA-95 hierarchy migration.',
-                'is_active'   => true,
-                'tenant_id'   => $tenantId,
-                'created_at'  => $now,
-                'updated_at'  => $now,
+                'is_active' => true,
+                'tenant_id' => $tenantId,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
 
             $areaId = DB::table('areas')->insertGetId([
-                'name'        => 'Default Area',
-                'code'        => 'AREA-DEFAULT',
-                'site_id'     => $siteId,
+                'name' => 'Default Area',
+                'code' => 'AREA-DEFAULT',
+                'site_id' => $siteId,
                 'description' => 'Auto-created during ISA-95 hierarchy migration.',
-                'is_active'   => true,
-                'tenant_id'   => $tenantId,
-                'created_at'  => $now,
-                'updated_at'  => $now,
+                'is_active' => true,
+                'tenant_id' => $tenantId,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
 
             DB::table('lines')

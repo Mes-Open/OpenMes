@@ -249,4 +249,27 @@ class LoadSampleDataTest extends TestCase
             }
         }
     }
+
+    public function test_replacing_the_example_company_keeps_installed_modules(): void
+    {
+        // Which modules are installed is how this installation is put together,
+        // not sample data. The replace path runs migrate:fresh, which drops the
+        // settings table along with everything else — so without carrying these
+        // across, loading an example company quietly uninstalls every module the
+        // user added, and their screens disappear with no explanation.
+        $admin = $this->admin();
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'modules_enabled'],
+            ['value' => json_encode(['SomeInstalledModule']), 'updated_at' => now()],
+        );
+
+        $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1']);
+
+        $this->assertSame(
+            ['SomeInstalledModule'],
+            json_decode(DB::table('system_settings')->where('key', 'modules_enabled')->value('value'), true),
+            'Loading an example company uninstalled the modules.',
+        );
+    }
 }

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -93,19 +92,6 @@ class ProcessSegment extends Model
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
-
-    /**
-     * Eager helper for working with required_skill_ids JSON.
-     */
-    public function requiredSkills(): Collection
-    {
-        $ids = $this->required_skill_ids ?? [];
-        if (empty($ids)) {
-            return Skill::query()->whereRaw('1 = 0')->get();
-        }
-
-        return Skill::query()->whereIn('id', $ids)->get();
-    }
 
     // ── Scopes ─────────────────────────────────────────────────────────────
 

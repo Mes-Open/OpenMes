@@ -4,9 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\RevisionLifecycle;
 use App\Enums\Tier;
-use App\Models\Area;
 use App\Models\BomItem;
-use App\Models\Crew;
 use App\Models\Customer;
 use App\Models\InspectionPlan;
 use App\Models\Issue;
@@ -18,24 +16,19 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\OeeRecord;
-use App\Models\PersonnelClass;
 use App\Models\ProcessSegment;
 use App\Models\ProcessTemplate;
 use App\Models\ProductRevision;
 use App\Models\ProductType;
 use App\Models\Shift;
-use App\Models\Site;
-use App\Models\Skill;
 use App\Models\Tool;
 use App\Models\User;
-use App\Models\Worker;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -82,9 +75,6 @@ class BakeryDemoSeeder extends Seeder
         $this->seedProductRevisions($productTypes, $templates, $users);
         $this->seedMaterialLots($materials);
         $this->seedIssues($lines, $users);
-        $this->seedISA95Hierarchy($lines);
-        $this->seedSkillsAndPersonnelClasses();
-        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
         $tools = $this->seedTools();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations, $tools);
@@ -553,6 +543,77 @@ class BakeryDemoSeeder extends Seeder
                 'planned_end_at' => now()->subDay()->setTime(4, 0),
                 'completed_at' => now()->subDay()->setTime(3, 40),
                 'description' => 'Kaiser rolls — yesterday\'s round, delivered complete.',
+            ],
+
+            // ── Not scheduled yet ────────────────────────────────────────────
+            // The planner's backlog: accepted work with nothing decided about
+            // when it runs. Every shop has some — the order is real, but it is
+            // waiting on something before a date can be promised. Without these
+            // the planner opens with an empty backlog panel, which is the one
+            // state a real plant never sees.
+            [
+                'order_no' => 'WO-BK-0050',
+                'line_id' => $lines['BAKE']->id,
+                'product_type_id' => $pt['BREAD_RYE']->id,
+                'planned_qty' => 300,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Rye loaves — new wholesale account, first delivery day not agreed.',
+            ],
+            [
+                'order_no' => 'WO-BK-0051',
+                'line_id' => $lines['PASTRY']->id,
+                'product_type_id' => $pt['CROISSANT']->id,
+                'planned_qty' => 600,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 4,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Croissants — event order, the caterer has not confirmed the date.',
+            ],
+            [
+                'order_no' => 'WO-BK-0052',
+                'line_id' => $lines['BAKE']->id,
+                'product_type_id' => $pt['ROLL_KAISER']->id,
+                'planned_qty' => 900,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Kaiser rolls — extra volume offered to a customer, awaiting their answer.',
+            ],
+            [
+                'order_no' => 'WO-BK-0053',
+                'line_id' => $lines['PASTRY']->id,
+                'product_type_id' => $pt['CAKE_CHEESE']->id,
+                'planned_qty' => 80,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Cheesecakes — seasonal run, held until the fruit supplier quotes.',
             ],
         ];
 
@@ -1179,159 +1240,9 @@ class BakeryDemoSeeder extends Seeder
 
     // ── ISA-95 hierarchy ─────────────────────────────────────────────────────
 
-    private function seedISA95Hierarchy(array $lines): Site
-    {
-        $site = Site::updateOrCreate(
-            ['code' => 'PIEK-01'],
-            [
-                'name' => 'Golden Sheaf Bakery',
-                'description' => 'Craft bakery: bread, rolls and cakes, baked overnight for the morning round',
-                'address' => '22 Baker Street',
-                'city' => 'Leeds',
-                'country' => 'GB',
-                'timezone' => 'Europe/London',
-                'is_active' => true,
-            ]
-        );
-
-        $areaDefs = [
-            ['code' => 'HALL-BAKE', 'name' => 'Bakehouse',       'description' => 'Mixing, proofing and ovens'],
-            ['code' => 'PASTRY-RM', 'name' => 'Pastry Room',     'description' => 'Separate room for laminated dough and cakes, allergen-controlled'],
-            ['code' => 'COOL-RM',   'name' => 'Cooling & Packing', 'description' => 'Cooling spiral, slicing and bagging'],
-            ['code' => 'STORE-DRY', 'name' => 'Dry Store',       'description' => 'Flour silo, sugar and packaging'],
-            ['code' => 'STORE-COLD', 'name' => 'Cold Store',     'description' => 'Butter, dairy and egg, temperature logged'],
-        ];
-
-        $areas = [];
-        foreach ($areaDefs as $def) {
-            $areas[$def['code']] = Area::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'site_id' => $site->id,
-                    'description' => $def['description'],
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        if (Schema::hasColumn('lines', 'area_id')) {
-            $map = [
-                'DOUGH' => 'HALL-BAKE',
-                'PROOF' => 'HALL-BAKE',
-                'BAKE' => 'HALL-BAKE',
-                'PASTRY' => 'PASTRY-RM',
-                'PACK' => 'COOL-RM',
-                'DISP' => 'COOL-RM',
-            ];
-
-            foreach ($map as $lineCode => $areaCode) {
-                if (isset($lines[$lineCode], $areas[$areaCode])) {
-                    $lines[$lineCode]->update(['area_id' => $areas[$areaCode]->id]);
-                }
-            }
-        }
-
-        return $site;
-    }
-
     // ── Skills & personnel classes ───────────────────────────────────────────
 
-    private function seedSkillsAndPersonnelClasses(): void
-    {
-        $skillDefs = [
-            ['code' => 'DOUGH_CRAFT',  'name' => 'Dough Craft',        'description' => 'Judging dough by hand — hydration, development and bulk readiness'],
-            ['code' => 'SOURDOUGH',    'name' => 'Sourdough Handling', 'description' => 'Keeping a levain alive, reading its activity and timing the build'],
-            ['code' => 'OVEN_WORK',    'name' => 'Oven Work',          'description' => 'Loading, steaming and judging the bake by colour and sound'],
-            ['code' => 'LAMINATION',   'name' => 'Lamination',         'description' => 'Butter blocks, turns and temperature control for laminated pastry'],
-            ['code' => 'DECORATING',   'name' => 'Cake Decorating',    'description' => 'Finishing, glazing and portioning of cakes'],
-            ['code' => 'FOOD_SAFETY',  'name' => 'Food Safety (HACCP)', 'description' => 'Allergen control, traceability and critical control points'],
-        ];
-
-        $skills = [];
-        foreach ($skillDefs as $def) {
-            $skills[$def['code']] = Skill::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'description' => $def['description']]
-            );
-        }
-
-        $classDefs = [
-            [
-                'code' => 'BAKER',
-                'name' => 'Baker',
-                'description' => 'Mixes, shapes and bakes bread through the night shift',
-                'required_skill_ids' => [$skills['DOUGH_CRAFT']->id, $skills['OVEN_WORK']->id, $skills['FOOD_SAFETY']->id],
-            ],
-            [
-                'code' => 'SOURDOUGH_BAKER',
-                'name' => 'Sourdough Baker',
-                'description' => 'Keeps the levain and runs the naturally leavened breads',
-                'required_skill_ids' => [$skills['SOURDOUGH']->id, $skills['DOUGH_CRAFT']->id],
-            ],
-            [
-                'code' => 'PASTRY_CHEF',
-                'name' => 'Pastry Chef',
-                'description' => 'Laminated pastry and cake work in the pastry room',
-                'required_skill_ids' => [$skills['LAMINATION']->id, $skills['DECORATING']->id, $skills['FOOD_SAFETY']->id],
-            ],
-            [
-                'code' => 'PACKER',
-                'name' => 'Packer',
-                'description' => 'Cooling, slicing, bagging and crate loading for the round',
-                'required_skill_ids' => [$skills['FOOD_SAFETY']->id],
-            ],
-        ];
-
-        foreach ($classDefs as $def) {
-            PersonnelClass::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'description' => $def['description'],
-                    'required_skill_ids' => $def['required_skill_ids'],
-                    'is_active' => true,
-                ]
-            );
-        }
-    }
-
     // ── Crews ────────────────────────────────────────────────────────────────
-
-    private function seedCrews(array $lines, array $workstations): void
-    {
-        $defs = [
-            ['code' => 'CREW-NIGHT',  'name' => 'Night Bakers',   'lines' => ['DOUGH', 'PROOF'], 'workstations' => ['MIX-01', 'DIV-01', 'PROOF-01']],
-            ['code' => 'CREW-OVEN',   'name' => 'Oven Crew',      'lines' => ['BAKE'],           'workstations' => ['OVEN-01', 'OVEN-02', 'OVEN-03']],
-            ['code' => 'CREW-PASTRY', 'name' => 'Pastry Crew',    'lines' => ['PASTRY'],         'workstations' => ['LAM-01', 'CREAM-01', 'DECOR-01']],
-            ['code' => 'CREW-PACK',   'name' => 'Packing & Round', 'lines' => ['PACK', 'DISP'],  'workstations' => ['SLICE-01', 'PACK-01', 'DISP-01']],
-        ];
-
-        foreach ($defs as $def) {
-            $crew = Crew::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'is_active' => true]
-            );
-
-            $crew->lines()->sync(collect($def['lines'])->map(fn ($code) => $lines[$code]->id)->all());
-
-            foreach ($def['workstations'] as $i => $wsCode) {
-                if (! isset($workstations[$wsCode])) {
-                    continue;
-                }
-
-                Worker::updateOrCreate(
-                    ['code' => $def['code'].'-W'.($i + 1)],
-                    [
-                        'name' => $def['name'].' Operator '.($i + 1),
-                        'crew_id' => $crew->id,
-                        'workstation_id' => $workstations[$wsCode]->id,
-                        'is_active' => true,
-                    ]
-                );
-            }
-        }
-    }
 
     // ── Process segments ─────────────────────────────────────────────────────
 

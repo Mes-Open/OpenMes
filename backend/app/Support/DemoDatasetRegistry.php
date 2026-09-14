@@ -66,14 +66,31 @@ class DemoDatasetRegistry
     ];
 
     /** @return array<int, string> */
+    /**
+     * Every example company, including any an installed module registered.
+     *
+     * A module adds one from its provider's boot():
+     *   app(FilterRegistry::class)->addFilter('demo.datasets', fn ($sets) => $sets + [
+     *       'example_plant' => ['label' => ..., 'seeders' => [...]],
+     *   ]);
+     *
+     * With no modules the array is returned untouched.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function all(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('demo.datasets', self::DATASETS);
+    }
+
     public static function keys(): array
     {
-        return array_keys(self::DATASETS);
+        return array_keys(self::all());
     }
 
     public static function has(string $key): bool
     {
-        return array_key_exists($key, self::DATASETS);
+        return array_key_exists($key, self::all());
     }
 
     /**
@@ -83,12 +100,12 @@ class DemoDatasetRegistry
      */
     public static function seedersFor(string $key): array
     {
-        return self::DATASETS[$key]['seeders'] ?? [];
+        return self::all()[$key]['seeders'] ?? [];
     }
 
     public static function labelFor(string $key): ?string
     {
-        return self::DATASETS[$key]['label'] ?? null;
+        return self::all()[$key]['label'] ?? null;
     }
 
     /**
@@ -101,9 +118,9 @@ class DemoDatasetRegistry
         return array_map(
             fn (string $key) => [
                 'key' => $key,
-                'label' => self::DATASETS[$key]['label'],
-                'description' => self::DATASETS[$key]['description'],
-                'industry' => self::DATASETS[$key]['industry'],
+                'label' => self::all()[$key]['label'],
+                'description' => self::all()[$key]['description'],
+                'industry' => self::all()[$key]['industry'],
             ],
             self::keys(),
         );

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\RevisionLifecycle;
 use App\Enums\Tier;
-use App\Models\Area;
 use App\Models\BomItem;
 use App\Models\Crew;
 use App\Models\Customer;
@@ -18,24 +17,19 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\OeeRecord;
-use App\Models\PersonnelClass;
 use App\Models\ProcessSegment;
 use App\Models\ProcessTemplate;
 use App\Models\ProductRevision;
 use App\Models\ProductType;
 use App\Models\Shift;
-use App\Models\Site;
-use App\Models\Skill;
 use App\Models\Tool;
 use App\Models\User;
-use App\Models\Worker;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -83,9 +77,6 @@ class PanelFurnitureDemoSeeder extends Seeder
         $this->seedProductRevisions($productTypes, $templates, $users);
         $this->seedMaterialLots($materials);
         $this->seedIssues($lines, $users);
-        $this->seedISA95Hierarchy($lines);
-        $this->seedSkillsAndPersonnelClasses();
-        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
         $tools = $this->seedTools();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations, $tools);
@@ -576,6 +567,77 @@ class PanelFurnitureDemoSeeder extends Seeder
                 'planned_end_at' => now()->subDays(3)->setTime(14, 0),
                 'completed_at' => now()->subDays(3)->setTime(13, 20),
                 'description' => 'Wardrobes — previous batch, delivered complete.',
+            ],
+
+            // ── Not scheduled yet ────────────────────────────────────────────
+            // The planner's backlog: accepted work with nothing decided about
+            // when it runs. Every shop has some — the order is real, but it is
+            // waiting on something before a date can be promised. Without these
+            // the planner opens with an empty backlog panel, which is the one
+            // state a real plant never sees.
+            [
+                'order_no' => 'WO-PN-0050',
+                'line_id' => $lines['CUT']->id,
+                'product_type_id' => $pt['BOOK_5S']->id,
+                'planned_qty' => 90,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Bookcases — retail replenishment, no delivery week agreed yet.',
+            ],
+            [
+                'order_no' => 'WO-PN-0051',
+                'line_id' => $lines['DRILL']->id,
+                'product_type_id' => $pt['KIT_WALL_800']->id,
+                'planned_qty' => 140,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 4,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Wall units — contract order, site is not ready to take them.',
+            ],
+            [
+                'order_no' => 'WO-PN-0052',
+                'line_id' => $lines['ASSY']->id,
+                'product_type_id' => $pt['DESK_1600']->id,
+                'planned_qty' => 35,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Desks — office fit-out, phasing still being worked out with the client.',
+            ],
+            [
+                'order_no' => 'WO-PN-0053',
+                'line_id' => $lines['CUT']->id,
+                'product_type_id' => $pt['TVUNIT_1400']->id,
+                'planned_qty' => 50,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'TV units — new decor, held until the board supplier confirms the run.',
             ],
         ];
 
@@ -1301,142 +1363,9 @@ class PanelFurnitureDemoSeeder extends Seeder
 
     // ── ISA-95 hierarchy ─────────────────────────────────────────────────────
 
-    private function seedISA95Hierarchy(array $lines): Site
-    {
-        $site = Site::updateOrCreate(
-            ['code' => 'PANEL-01'],
-            [
-                'name' => 'Ashcroft Panel Works',
-                'description' => 'Flat-pack carcase furniture: wardrobes, chests, desks and kitchen units in melamine-faced board',
-                'address' => 'Unit 7, Calverton Industrial Park',
-                'city' => 'Mansfield',
-                'country' => 'GB',
-                'timezone' => 'Europe/London',
-                'is_active' => true,
-            ]
-        );
-
-        $areaDefs = [
-            ['code' => 'BOARD-STORE', 'name' => 'Board Store',            'description' => 'Flat-stacked sheet stock, humidity-controlled — board is bought by the pack and moved by vacuum lifter'],
-            ['code' => 'MACH-HALL',   'name' => 'Machining Hall',         'description' => 'Beam saws, nesting router, edgebanders and CNC boring'],
-            ['code' => 'FINISH-RM',   'name' => 'Fronts & Finishing Room', 'description' => 'Membrane press, UV coater and profile wrapping — kept separate, dust is the enemy here'],
-            ['code' => 'ASSY-HALL',   'name' => 'Assembly & Packing Hall', 'description' => 'Drawer cells, case clamp, fittings kitting and carton packing'],
-            ['code' => 'FG-WH',       'name' => 'Finished Goods Warehouse', 'description' => 'Pallet build and loading bays for the trade counter and the carriers'],
-        ];
-
-        $areas = [];
-        foreach ($areaDefs as $def) {
-            $areas[$def['code']] = Area::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'site_id' => $site->id,
-                    'description' => $def['description'],
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        if (Schema::hasColumn('lines', 'area_id')) {
-            $map = [
-                'CUT' => 'MACH-HALL',
-                'EDGE' => 'MACH-HALL',
-                'DRILL' => 'MACH-HALL',
-                'SURF' => 'FINISH-RM',
-                'ASSY' => 'ASSY-HALL',
-                'PACK' => 'ASSY-HALL',
-                'DISP' => 'FG-WH',
-            ];
-
-            foreach ($map as $lineCode => $areaCode) {
-                if (isset($lines[$lineCode], $areas[$areaCode])) {
-                    $lines[$lineCode]->update(['area_id' => $areas[$areaCode]->id]);
-                }
-            }
-        }
-
-        return $site;
-    }
-
     // ── Skills & personnel classes ───────────────────────────────────────────
 
-    private function seedSkillsAndPersonnelClasses(): void
-    {
-        $skillDefs = [
-            ['code' => 'CUT_OPT',      'name' => 'Cutting Optimisation', 'description' => 'Reading and adjusting cutting plans for yield, grain direction and decor batch'],
-            ['code' => 'EDGE_SETUP',   'name' => 'Edgebander Setting',   'description' => 'Pre-mill, trim and scraper setting, glue pot temperature and adhesion checks'],
-            ['code' => 'CNC_SETUP',    'name' => 'CNC Setting',          'description' => 'Loading programs, setting datums and proving a boring pattern before a batch'],
-            ['code' => 'GLOSS_HANDLE', 'name' => 'Gloss Handling',       'description' => 'Membrane pressing, lacquering and the handling discipline gloss fronts need'],
-            ['code' => 'FITTING_KIT',  'name' => 'Fittings & Kitting',   'description' => 'Hardware knowledge and disciplined counting of fixing packs'],
-            ['code' => 'PANEL_QC',     'name' => 'Panel Quality Inspection', 'description' => 'Squareness, size, edge adhesion and surface grading against the decor standard'],
-        ];
-
-        $skills = [];
-        foreach ($skillDefs as $def) {
-            $skills[$def['code']] = Skill::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'description' => $def['description']]
-            );
-        }
-
-        $classDefs = [
-            ['code' => 'SAW_OPERATOR', 'name' => 'Saw Operator',      'description' => 'Runs the beam saws and the nesting router from the cutting plan', 'required_skill_ids' => [$skills['CUT_OPT']->id, $skills['PANEL_QC']->id]],
-            ['code' => 'EDGE_SETTER',  'name' => 'Edgebander Setter', 'description' => 'Sets and runs the banding line, owns edge quality',               'required_skill_ids' => [$skills['EDGE_SETUP']->id, $skills['PANEL_QC']->id]],
-            ['code' => 'CNC_SETTER',   'name' => 'CNC Setter',        'description' => 'Programs and proves the boring machines',                         'required_skill_ids' => [$skills['CNC_SETUP']->id, $skills['PANEL_QC']->id]],
-            ['code' => 'FINISHER',     'name' => 'Finisher',          'description' => 'Membrane press, UV coating and profile wrapping of fronts',        'required_skill_ids' => [$skills['GLOSS_HANDLE']->id, $skills['PANEL_QC']->id]],
-            ['code' => 'ASSEMBLER',    'name' => 'Assembler / Packer', 'description' => 'Drawer boxes, carcase clamping, kitting and cartoning',           'required_skill_ids' => [$skills['FITTING_KIT']->id]],
-        ];
-
-        foreach ($classDefs as $def) {
-            PersonnelClass::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'description' => $def['description'],
-                    'required_skill_ids' => $def['required_skill_ids'],
-                    'is_active' => true,
-                ]
-            );
-        }
-    }
-
     // ── Crews ────────────────────────────────────────────────────────────────
-
-    private function seedCrews(array $lines, array $workstations): void
-    {
-        $defs = [
-            ['code' => 'CREW-CUT',    'name' => 'Cutting Crew',       'lines' => ['CUT'],                  'workstations' => ['SAW-BEAM-01', 'SAW-BEAM-02', 'NEST-01']],
-            ['code' => 'CREW-EDGE',   'name' => 'Banding Crew',       'lines' => ['EDGE'],                 'workstations' => ['EDGE-01', 'EDGE-03', 'SOFT-01']],
-            ['code' => 'CREW-CNC',    'name' => 'CNC Crew',           'lines' => ['DRILL'],                'workstations' => ['CNC-BORE-01', 'CNC-BORE-02', 'DOWEL-01']],
-            ['code' => 'CREW-FRONTS', 'name' => 'Fronts Crew',        'lines' => ['SURF'],                 'workstations' => ['MEMB-01', 'COAT-01', 'WRAP-01']],
-            ['code' => 'CREW-ASSY',   'name' => 'Assembly & Packing', 'lines' => ['ASSY', 'PACK', 'DISP'], 'workstations' => ['DRAWER-01', 'CASE-01', 'PACK-01']],
-        ];
-
-        foreach ($defs as $def) {
-            $crew = Crew::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'is_active' => true]
-            );
-
-            $crew->lines()->sync(collect($def['lines'])->map(fn ($code) => $lines[$code]->id)->all());
-
-            foreach ($def['workstations'] as $i => $wsCode) {
-                if (! isset($workstations[$wsCode])) {
-                    continue;
-                }
-
-                Worker::updateOrCreate(
-                    ['code' => $def['code'].'-W'.($i + 1)],
-                    [
-                        'name' => $def['name'].' Operator '.($i + 1),
-                        'crew_id' => $crew->id,
-                        'workstation_id' => $workstations[$wsCode]->id,
-                        'is_active' => true,
-                    ]
-                );
-            }
-        }
-    }
 
     // ── Process segments ─────────────────────────────────────────────────────
 

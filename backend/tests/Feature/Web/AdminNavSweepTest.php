@@ -28,20 +28,17 @@ class AdminNavSweepTest extends TestCase
             '/admin/product-types', '/admin/product-types/create', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts', '/admin/issues',
-            '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/companies', '/admin/scrap-reasons',
         ],
         'reports' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports'],
         'structure' => [
-            '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
         ],
         'hr' => [
-            '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
-            '/admin/crew-break-windows', '/admin/skills', '/admin/wage-groups',
         ],
         'maintenance' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
-            '/admin/production-anomalies', '/admin/inspection-plans', '/admin/oee',
+            '/admin/oee',
         ],
         'connectivity' => ['/admin/connectivity', '/admin/machine-monitor'],
         'admin' => ['/admin/users', '/admin/logs/activity', '/admin/logs/system', '/admin/audit-logs', '/admin/trash', '/admin/custom-fields'],
@@ -86,6 +83,12 @@ class AdminNavSweepTest extends TestCase
         // is refused, except the dashboard: holding a tab gives them somewhere
         // to land, so the panel's home redirects there instead of dead-ending.
         foreach (self::PAGES as $tab => $pages) {
+            // A tab whose every screen now ships as a module has nothing left
+            // in core to refuse.
+            if ($pages === []) {
+                continue;
+            }
+
             if ($tab === 'orders') {
                 $this->actingAs($supervisor)->get($pages[0])->assertOk();
 
@@ -103,12 +106,11 @@ class AdminNavSweepTest extends TestCase
             $this->actingAs($supervisor)->get($pages[0])->assertForbidden();
         }
 
-        // Grant the HR tab → HR pages also open up.
+        // Granting a tab does not grant the others: Users & Accounts sits on
+        // the admin tab, which this supervisor was never given.
         Role::findByName('Supervisor', 'web')->givePermissionTo(TabRegistry::permission('hr'));
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->actingAs($supervisor)->get('/admin/workers')->assertOk();
-        $this->actingAs($supervisor)->get('/admin/crews')->assertOk();
-        $this->actingAs($supervisor)->get('/admin/users')->assertForbidden(); // not granted
+        $this->actingAs($supervisor)->get('/admin/users')->assertForbidden();
     }
 }
