@@ -76,8 +76,11 @@ services:
     # Single-element list so the whole script reaches `sh -c` as one argument.
     command: ["npm ci && npm run watch"]
     volumes:
-      # Source the watcher needs to see.
+      # Source the watcher needs to see. modules/ too: app.jsx globs
+      # modules/*/resources/js/Pages, so without this mount every module page
+      # is missing from the bundle and its routes render _MissingPage.
       - ./backend/resources:/var/www/html/resources
+      - ./backend/modules:/var/www/html/modules:ro
       - ./backend/lang:/var/www/html/lang:ro
       - ./backend/vite.config.js:/var/www/html/vite.config.js:ro
       - ./backend/package.json:/var/www/html/package.json:ro

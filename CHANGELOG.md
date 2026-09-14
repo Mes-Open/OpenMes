@@ -22,6 +22,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   polling count includes them.
 
 ### Fixed
+- Sidebar: a group stayed unhighlighted (and collapsed) on pages a module added to it, and a module's own group never highlighted at all — only core pages lit their group up. Module links now extend the group's match list, so the breadcrumb trail finds them too.
+- Uploads over PHP's 32 MB `post_max_size` (e.g. a backup archive for restore, which the app accepts up to 500 MB) crashed with a bare `PostTooLargeException` page. The Docker image now allows 512 MB and an oversized body is reported as a flash error (413 for JSON clients) instead.
 - **Module ZIP upload never installed anything** — the controller opened the stored ZIP at
   `storage/app/…`, but the `local` disk keeps files under `storage/app/private/…`, so every upload
   failed with "Could not open ZIP file" and the ZIP was left on disk.
