@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-09-14
+
 ### Changed
 - **Admin → Modules → Install uses the shared drag-and-drop file picker** — the ZIP box only opened a
   file chooser on click; it now takes a dropped file too (`FileDropZone`, as in the importer), posts
