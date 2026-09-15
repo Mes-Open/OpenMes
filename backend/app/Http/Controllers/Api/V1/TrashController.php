@@ -26,14 +26,14 @@ class TrashController extends Controller
         }
 
         $counts = [];
-        foreach (SoftDeleteRegistry::MODELS as $type => $class) {
+        foreach (SoftDeleteRegistry::all() as $type => $class) {
             $count = $class::onlyTrashed()->count();
             if ($count > 0) {
                 $counts[$type] = $count;
             }
         }
 
-        $types = $selected ? [$selected => SoftDeleteRegistry::modelFor($selected)] : SoftDeleteRegistry::MODELS;
+        $types = $selected ? [$selected => SoftDeleteRegistry::modelFor($selected)] : SoftDeleteRegistry::all();
 
         $items = collect();
         foreach ($types as $type => $class) {

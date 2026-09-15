@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\V1\AdditionalCostController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
-use App\Http\Controllers\Api\V1\AnomalyReasonController;
 use App\Http\Controllers\Api\V1\ApiKeyController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuditLogController;
@@ -14,11 +13,8 @@ use App\Http\Controllers\Api\V1\BomItemController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ConnectivityController;
 use App\Http\Controllers\Api\V1\CostSourceController;
-use App\Http\Controllers\Api\V1\CrewBreakWindowController;
-use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
-use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
@@ -26,7 +22,6 @@ use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
 use App\Http\Controllers\Api\V1\Erp\StockSyncController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
-use App\Http\Controllers\Api\V1\FactoryController;
 use App\Http\Controllers\Api\V1\InspectionController;
 use App\Http\Controllers\Api\V1\InspectionPlanController;
 use App\Http\Controllers\Api\V1\IntegrationConfigController;
@@ -47,7 +42,6 @@ use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\PalletController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
-use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\QualityControlTaskController;
@@ -59,15 +53,11 @@ use App\Http\Controllers\Api\V1\ScrapEntryController;
 use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\ShiftHandoverController;
-use App\Http\Controllers\Api\V1\SkillController;
 use App\Http\Controllers\Api\V1\SubassemblyController;
 use App\Http\Controllers\Api\V1\SystemController;
 use App\Http\Controllers\Api\V1\SystemLogController;
 use App\Http\Controllers\Api\V1\ToolController;
 use App\Http\Controllers\Api\V1\UserController;
-use App\Http\Controllers\Api\V1\WageGroupController;
-use App\Http\Controllers\Api\V1\WorkerAbsenceController;
-use App\Http\Controllers\Api\V1\WorkerController;
 use App\Http\Controllers\Api\V1\WorkOrderChangeRequestController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkOrderStopController;
@@ -186,21 +176,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/workstation-types/{workstation_type}', [WorkstationTypeController::class, 'show']);
 
     // HR — read for any authenticated user
-    Route::get('/skills', [SkillController::class, 'index']);
-    Route::get('/skills/{skill}', [SkillController::class, 'show']);
-    Route::get('/wage-groups', [WageGroupController::class, 'index']);
-    Route::get('/wage-groups/{wage_group}', [WageGroupController::class, 'show']);
-    Route::get('/crews', [CrewController::class, 'index']);
-    Route::get('/crews/{crew}', [CrewController::class, 'show']);
-    Route::get('/crews/{crew}/workers', [CrewController::class, 'workers']);
-    Route::get('/workers', [WorkerController::class, 'index']);
-    Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 
     // Employee activities — tachograph-style day/team/month timelines
     Route::get('/employee-activities/types', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'types']);
     Route::get('/employee-activities/team-day', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'teamDay']);
-    Route::get('/workers/{worker}/day-plan', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'dayPlan']);
-    Route::get('/workers/{worker}/month-plan', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'monthPlan']);
     Route::get('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'index']);
     Route::get('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'show']);
     Route::post('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'store']);
@@ -211,32 +190,19 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::delete('/employee-activity-custom-types/{employeeActivityCustomType}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'destroyCustomType']);
 
     // ISA-95 Personnel Classes — read for any authenticated user
-    Route::get('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'index']);
-    Route::get('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'show']);
 
     // Org structure — read for any authenticated user
-    Route::get('/factories', [FactoryController::class, 'index']);
-    Route::get('/factories/{factory}', [FactoryController::class, 'show']);
-    Route::get('/factories/{factory}/divisions', [DivisionController::class, 'index']);
-    Route::get('/divisions', [DivisionController::class, 'all']);
-    Route::get('/divisions/{division}', [DivisionController::class, 'show']);
     Route::get('/line-statuses', [LineStatusController::class, 'globalIndex']);
     Route::get('/lines/{line}/statuses', [LineStatusController::class, 'index']);
 
     // ISA-95 equipment hierarchy — sites & areas. Read for any authenticated
     // user; mutations gated by Site/Area policies (admin in practice).
-    Route::apiResource('sites', \App\Http\Controllers\Api\V1\SiteController::class)
-        ->only(['index', 'show', 'store', 'update', 'destroy']);
-    Route::apiResource('areas', \App\Http\Controllers\Api\V1\AreaController::class)
-        ->only(['index', 'show', 'store', 'update', 'destroy']);
 
     // Ops support — read for any auth user
     Route::get('/companies', [CompanyController::class, 'index']);
     Route::get('/companies/{company}', [CompanyController::class, 'show']);
     Route::get('/cost-sources', [CostSourceController::class, 'index']);
     Route::get('/cost-sources/{cost_source}', [CostSourceController::class, 'show']);
-    Route::get('/anomaly-reasons', [AnomalyReasonController::class, 'index']);
-    Route::get('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'show']);
     Route::get('/scrap-reasons', [ScrapReasonController::class, 'index']);
     Route::get('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'show']);
     Route::get('/subassemblies', [SubassemblyController::class, 'index']);
@@ -326,14 +292,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // applied below for store/update/destroy/generate-now.
     Route::get('/maintenance-schedules', [MaintenanceScheduleController::class, 'index']);
     Route::get('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'show']);
-
-    // Production Anomalies (operators can create + edit own draft; admins/supers manage)
-    Route::get('/production-anomalies', [ProductionAnomalyController::class, 'index']);
-    Route::get('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'show']);
-    Route::post('/work-orders/{workOrder}/production-anomalies', [ProductionAnomalyController::class, 'store']);
-    Route::patch('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'update']);
-    Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy']);
-    Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process']);
 
     // Scrap entries (operators can record against a work order; admins/supers manage)
     Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
@@ -433,16 +391,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/quality-control-triggers/{qualityControlTrigger}/toggle-active', [QualityControlTriggerController::class, 'toggleActive']);
         Route::delete('/quality-control-triggers/{qualityControlTrigger}', [QualityControlTriggerController::class, 'destroy']);
 
-        // Worker absences (HR) — REST twin of web Admin\WorkerAbsenceController.
-        Route::get('/worker-absences', [WorkerAbsenceController::class, 'index']);
-        Route::post('/worker-absences', [WorkerAbsenceController::class, 'store']);
-        Route::delete('/worker-absences/{workerAbsence}', [WorkerAbsenceController::class, 'destroy']);
-
-        // Crew break windows (HR) — REST twin of web Admin\CrewBreakWindowController.
-        Route::get('/crew-break-windows', [CrewBreakWindowController::class, 'index']);
-        Route::post('/crew-break-windows', [CrewBreakWindowController::class, 'store']);
-        Route::delete('/crew-break-windows/{crewBreakWindow}', [CrewBreakWindowController::class, 'destroy']);
-
         Route::get('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'index']);
         Route::get('/webhook-event-types', [\App\Http\Controllers\Api\V1\WebhookController::class, 'eventTypes']);
         Route::post('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'store']);
@@ -489,9 +437,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::delete('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'destroy']);
 
         // ISA-95 Personnel Classes — admin mutations
-        Route::post('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'store']);
-        Route::patch('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'update']);
-        Route::delete('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'destroy']);
 
         // Template Steps
         Route::post('/process-templates/{process_template}/steps', [ProcessTemplateController::class, 'addStep']);
@@ -506,39 +451,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/workstation-types/{workstation_type}/toggle-active', [WorkstationTypeController::class, 'toggleActive']);
 
         // Skills
-        Route::post('/skills', [SkillController::class, 'store']);
-        Route::patch('/skills/{skill}', [SkillController::class, 'update']);
-        Route::delete('/skills/{skill}', [SkillController::class, 'destroy']);
 
         // Wage Groups
-        Route::post('/wage-groups', [WageGroupController::class, 'store']);
-        Route::patch('/wage-groups/{wage_group}', [WageGroupController::class, 'update']);
-        Route::delete('/wage-groups/{wage_group}', [WageGroupController::class, 'destroy']);
-        Route::post('/wage-groups/{wage_group}/toggle-active', [WageGroupController::class, 'toggleActive']);
 
         // Crews
-        Route::post('/crews', [CrewController::class, 'store']);
-        Route::patch('/crews/{crew}', [CrewController::class, 'update']);
-        Route::delete('/crews/{crew}', [CrewController::class, 'destroy']);
-        Route::post('/crews/{crew}/toggle-active', [CrewController::class, 'toggleActive']);
 
         // Workers
-        Route::post('/workers', [WorkerController::class, 'store']);
-        Route::patch('/workers/{worker}', [WorkerController::class, 'update']);
-        Route::delete('/workers/{worker}', [WorkerController::class, 'destroy']);
-        Route::post('/workers/{worker}/skills', [WorkerController::class, 'syncSkills']);
 
         // Factories
-        Route::post('/factories', [FactoryController::class, 'store']);
-        Route::patch('/factories/{factory}', [FactoryController::class, 'update']);
-        Route::delete('/factories/{factory}', [FactoryController::class, 'destroy']);
-        Route::post('/factories/{factory}/toggle-active', [FactoryController::class, 'toggleActive']);
 
         // Divisions
-        Route::post('/factories/{factory}/divisions', [DivisionController::class, 'store']);
-        Route::patch('/divisions/{division}', [DivisionController::class, 'update']);
-        Route::delete('/divisions/{division}', [DivisionController::class, 'destroy']);
-        Route::post('/divisions/{division}/toggle-active', [DivisionController::class, 'toggleActive']);
 
         // Line Statuses
         Route::post('/lines/{line}/statuses', [LineStatusController::class, 'store']);
@@ -557,11 +479,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/cost-sources/{cost_source}', [CostSourceController::class, 'update']);
         Route::delete('/cost-sources/{cost_source}', [CostSourceController::class, 'destroy']);
         Route::post('/cost-sources/{cost_source}/toggle-active', [CostSourceController::class, 'toggleActive']);
-
-        // Anomaly reasons
-        Route::post('/anomaly-reasons', [AnomalyReasonController::class, 'store']);
-        Route::patch('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'update']);
-        Route::delete('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'destroy']);
 
         // Scrap reasons
         Route::post('/scrap-reasons', [ScrapReasonController::class, 'store']);

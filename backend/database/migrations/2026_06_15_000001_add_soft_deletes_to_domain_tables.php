@@ -38,6 +38,16 @@ return new class extends Migration
     public function up(): void
     {
         foreach (self::TABLES as $table) {
+            // A table on this list may not exist: some of these entities now
+            // ship as an optional module, and an installation without it never
+            // created them. Skipping is correct here, but note it leaves the
+            // work undone rather than done elsewhere: a module's create
+            // migrations do NOT bring these columns with them, so the module
+            // carries a migration of its own that adds them afterwards.
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
             Schema::table($table, function (Blueprint $t) {
                 $t->softDeletes();
                 $t->foreignId('deleted_by_id')->nullable()
@@ -50,6 +60,10 @@ return new class extends Migration
     public function down(): void
     {
         foreach (self::TABLES as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
             Schema::table($table, function (Blueprint $t) {
                 $t->dropConstrainedForeignId('deleted_by_id');
                 $t->dropSoftDeletes();

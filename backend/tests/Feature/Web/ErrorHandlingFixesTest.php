@@ -80,9 +80,12 @@ class ErrorHandlingFixesTest extends TestCase
 
     public function test_sample_data_loads_once_and_sets_flag(): void
     {
-        Artisan::shouldReceive('call')->once()->andReturn(0);
+        // The print shop bundle is two seeders: the plant, then the shift
+        // monitor that fills it. Loading is now a choice between example
+        // companies, so the request has to name one.
+        Artisan::shouldReceive('call')->twice()->andReturn(0);
 
-        $this->actingAs($this->admin)->post('/settings/sample-data')
+        $this->actingAs($this->admin)->post('/settings/sample-data', ['dataset' => 'print_shop'])
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -93,7 +96,7 @@ class ErrorHandlingFixesTest extends TestCase
     {
         Artisan::shouldReceive('call')->once()->andThrow(new \RuntimeException('seed boom'));
 
-        $this->actingAs($this->admin)->post('/settings/sample-data')
+        $this->actingAs($this->admin)->post('/settings/sample-data', ['dataset' => 'print_shop'])
             ->assertRedirect()
             ->assertSessionHas('error');
 

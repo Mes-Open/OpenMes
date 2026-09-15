@@ -78,7 +78,7 @@ class InstallController extends Controller
         }
 
         if (session('install_step_1_completed')) {
-            return redirect()->route('install.modules');
+            return redirect()->route('install.admin');
         }
 
         if (session('install_database_configured')) {
@@ -114,10 +114,9 @@ class InstallController extends Controller
                 ->with('error', 'Preconfigured database is not reachable. Check the server logs for details.');
         }
 
-        // Idempotent: `migrate` skips applied migrations, both seeders upsert.
+        // Idempotent: `migrate` skips applied migrations, every seeder upserts.
         Artisan::call('migrate', ['--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+        Artisan::call('db:seed', ['--class' => 'DatabaseSeeder', '--force' => true]);
 
         // Joining an existing main database (e.g. desktop client pointed at a
         // central server's DB): accounts already exist, so there is nothing to
@@ -334,8 +333,10 @@ class InstallController extends Controller
             return back()->withErrors(['migration' => 'Migration failed: '.$e->getMessage()]);
         }
 
-        Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
-        Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+        // The whole reference set, not just roles and issue types — a fresh
+        // install otherwise starts with no scrap or downtime reasons, no
+        // material types and no label templates.
+        Artisan::call('db:seed', ['--class' => 'DatabaseSeeder', '--force' => true]);
 
         // The plant timezone picked in step 1, now that there is a table to put it
         // in. This is the copy the application actually reads — on Docker the
@@ -354,51 +355,6 @@ class InstallController extends Controller
             'install_database_configured' => true,
             'install_database_config' => array_merge($validated, ['db_driver' => $driver]),
         ]);
-
-        return redirect()->route('install.modules');
-    }
-
-    /**
-     * Step 2.5: Module selection — pick the optional feature areas to enable
-     * (#144). Defaults to everything enabled.
-     */
-    public function showModulesForm()
-    {
-        if ($this->isInstalled()) {
-            return redirect('/');
-        }
-
-        if (! session('install_step_1_completed')) {
-            return redirect()->route('install.database')
-                ->with('error', 'Please complete database configuration first.');
-        }
-
-        $selected = session('install_selected_modules', \App\Support\ModuleRegistry::optionalKeys());
-
-        $modules = array_map(fn (array $m) => [
-            ...$m,
-            'enabled' => in_array($m['key'], $selected, true),
-        ], \App\Support\ModuleRegistry::forForm());
-
-        return view('install.modules', ['modules' => $modules]);
-    }
-
-    /**
-     * Step 2.5: Persist the module selection to the install session.
-     */
-    public function selectModules(Request $request)
-    {
-        if (! session('install_step_1_completed')) {
-            return redirect()->route('install.database')
-                ->with('error', 'Please complete database configuration first.');
-        }
-
-        $validated = $request->validate([
-            'modules' => 'nullable|array',
-            'modules.*' => ['string', \Illuminate\Validation\Rule::in(\App\Support\ModuleRegistry::optionalKeys())],
-        ]);
-
-        session(['install_selected_modules' => array_values($validated['modules'] ?? [])]);
 
         return redirect()->route('install.admin');
     }
@@ -512,15 +468,11 @@ class InstallController extends Controller
         $adminRole = Role::where('name', 'Admin')->first();
         $admin->assignRole($adminRole);
 
-        // Persist the chosen optional feature modules (#144). When the step was
-        // skipped, default to all enabled.
-        \App\Support\ModuleRegistry::save(
-            session('install_selected_modules', \App\Support\ModuleRegistry::optionalKeys()),
-        );
-
-        if ($request->boolean('seed_demo_data')) {
-            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
-        }
+        // Every optional feature area is on after an install. Choosing between
+        // them used to be a step here, which asked the question before anyone
+        // had seen the product; it belongs in Settings → System → Modules,
+        // where it can be answered once the shop knows what it uses.
+        \App\Support\ModuleRegistry::save(\App\Support\ModuleRegistry::optionalKeys());
 
         file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
 
@@ -529,7 +481,6 @@ class InstallController extends Controller
             'install_database_configured',
             'install_database_config',
             'install_admin_config',
-            'install_selected_modules',
         ]);
 
         // Preset installs are configured entirely through real environment

@@ -7,6 +7,7 @@ use App\Services\MenuRegistry;
 use App\Services\WidgetRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\RequiresNoModules;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
 class ModuleMenuHooksTest extends TestCase
 {
     use RefreshDatabase;
+    use RequiresNoModules;
 
     private User $admin;
 
@@ -48,14 +50,23 @@ class ModuleMenuHooksTest extends TestCase
                 ->where('moduleNav.items.admin.0.label', 'My Module Page')
                 ->where('moduleNav.items.admin.0.url', '/module/mine')
                 // Custom top-level dropdown declared by the module.
-                ->where('moduleNav.groups.0.id', 'mymod')
-                ->where('moduleNav.groups.0.label', 'My Module')
-                ->where('moduleNav.groups.0.items.0.label', 'Overview')
-                ->where('moduleNav.groups.0.items.0.url', '/module/mine/overview'));
+                // Located by id, not by index: any installed module registers
+                // groups of its own, so position 0 is not this test's to claim.
+                ->has('moduleNav.groups', fn (AssertableInertia $groups) => $groups->etc())
+                ->where('moduleNav.groups', fn ($groups) => collect($groups)
+                    ->firstWhere('id', 'mymod') !== null)
+                ->where('moduleNav.groups', fn ($groups) => collect($groups)
+                    ->firstWhere('id', 'mymod')['label'] === 'My Module')
+                ->where('moduleNav.groups', fn ($groups) => collect(collect($groups)
+                    ->firstWhere('id', 'mymod')['items'])->contains(
+                        fn ($i) => $i['label'] === 'Overview' && $i['url'] === '/module/mine/overview',
+                    )));
     }
 
     public function test_module_nav_is_present_and_empty_when_no_module_registers_anything(): void
     {
+        $this->skipIfAnyModuleIsInstalled();
+
         // No hooks registered — the prop must still exist (empty), never crash.
         $this->actingAs($this->admin)
             ->get('/admin/work-orders')

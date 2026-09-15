@@ -10,6 +10,7 @@ use App\Models\Material;
 use App\Models\MaterialAllocation;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -71,7 +72,129 @@ class MaterialAllocationService
 
     public function previewForBatch(Batch $batch): array
     {
-        $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
+        return $this->previewBom(
+            $batch->workOrder->process_snapshot['bom'] ?? [],
+            (float) $batch->target_qty,
+        );
+    }
+
+    /**
+     * The same component check one level up: can this work order's planned
+     * quantity be covered at all?
+     *
+     * Asked while the order is still only scheduled — before any batch exists —
+     * so the planner and the order screen can flag a shortage rather than
+     * letting it surface when an operator tries to start.
+     *
+     * A subassembly is a BOM line like any other here: the snapshot is read as
+     * written, so "not enough pleat packs" is reported as such rather than
+     * being resolved into the media it would be made from.
+     */
+    public function previewForWorkOrder(WorkOrder $workOrder): array
+    {
+        return $this->previewBom(
+            $workOrder->process_snapshot['bom'] ?? [],
+            (float) $workOrder->planned_qty,
+        );
+    }
+
+    /**
+     * Which of these work orders current stock cannot cover, and by what.
+     *
+     * Every material across every snapshot is loaded in one pass, so a planner
+     * board can be flagged without a query per tile. Each order is measured on
+     * its own against on-hand — orders are not netted against each other, so
+     * this answers "could this one run today", not "can the whole week".
+     *
+     * @param  Collection<int, WorkOrder>  $workOrders
+     * @return array<int, list<array<string, mixed>>> short lines keyed by work
+     *                                                order id; covered orders are absent
+     */
+    public function shortagesForWorkOrders(Collection $workOrders): array
+    {
+        $boms = [];
+        $ids = [];
+        $codes = [];
+
+        foreach ($workOrders as $workOrder) {
+            $bom = $workOrder->process_snapshot['bom'] ?? [];
+            if (empty($bom)) {
+                continue;
+            }
+
+            $boms[$workOrder->id] = $bom;
+
+            foreach ($bom as $bomItem) {
+                if (! empty($bomItem['material_id'])) {
+                    $ids[] = $bomItem['material_id'];
+                } elseif (! empty($bomItem['material_code'])) {
+                    $codes[] = $bomItem['material_code'];
+                }
+            }
+        }
+
+        if ($boms === []) {
+            return [];
+        }
+
+        $byId = $ids !== []
+            ? Material::whereIn('id', array_unique($ids))->get()->keyBy('id')
+            : collect();
+        $byCode = $codes !== []
+            ? Material::whereIn('code', array_unique($codes))->get()->keyBy('code')
+            : collect();
+
+        $out = [];
+
+        foreach ($workOrders as $workOrder) {
+            $bom = $boms[$workOrder->id] ?? null;
+            if (! $bom) {
+                continue;
+            }
+
+            $short = [];
+
+            foreach ($bom as $bomItem) {
+                $material = ! empty($bomItem['material_id'])
+                    ? $byId->get($bomItem['material_id'])
+                    : null;
+                if (! $material && ! empty($bomItem['material_code'])) {
+                    $material = $byCode->get($bomItem['material_code']);
+                }
+
+                // A BOM line naming a material that no longer exists cannot be
+                // covered either — worth flagging rather than skipping.
+                $required = $this->calculateRequiredQty($bomItem, (float) $workOrder->planned_qty);
+                $available = (float) ($material?->available_quantity ?? 0);
+
+                if ($material && $available >= $required) {
+                    continue;
+                }
+
+                $short[] = [
+                    'material_code' => $bomItem['material_code'] ?? $material?->code,
+                    'material_name' => $bomItem['material_name'] ?? $material?->name,
+                    'unit_of_measure' => $bomItem['unit_of_measure'] ?? $material?->unit_of_measure,
+                    'required_qty' => round($required, 4),
+                    'available_qty' => round($available, 4),
+                    'missing_qty' => round(max(0, $required - $available), 4),
+                    'material_exists' => $material !== null,
+                ];
+            }
+
+            if ($short !== []) {
+                $out[$workOrder->id] = $short;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $bom
+     */
+    private function previewBom(array $bom, float $quantity): array
+    {
         $preview = [];
 
         // Bulk load materials referenced by the BOM to avoid N+1. The
@@ -103,7 +226,7 @@ class MaterialAllocationService
             if (! $material && ! empty($bomItem['material_code'])) {
                 $material = $materialsByCode->get($bomItem['material_code']);
             }
-            $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
+            $requiredQty = $this->calculateRequiredQty($bomItem, $quantity);
             $available = $material?->available_quantity ?? 0;
 
             $preview[] = [

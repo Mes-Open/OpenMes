@@ -2,8 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\Area;
+use App\Enums\Tier;
+use App\Models\BomItem;
+use App\Models\Customer;
 use App\Models\InspectionPlan;
+use App\Models\Issue;
+use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceSchedule;
@@ -11,20 +15,18 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\OeeRecord;
-use App\Models\PersonnelClass;
 use App\Models\ProcessSegment;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\Shift;
-use App\Models\Site;
-use App\Models\Skill;
+use App\Models\Tool;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderPlacement;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -40,17 +42,20 @@ class PrintShopDemoSeeder extends Seeder
         $lines = $this->seedLines();
         $workstations = $this->seedWorkstations($lines);
         $productTypes = $this->seedProductTypes();
-        $this->seedProcessTemplates($productTypes, $workstations, $lines);
-        $this->seedUsers($lines);
+        $templates = $this->seedProcessTemplates($productTypes, $workstations, $lines);
+        $users = $this->seedUsers($lines);
+        $customers = $this->seedCustomers();
         $this->seedWorkOrders($productTypes, $lines);
+        $this->assignCustomers($customers);
+        $this->seedIssues($lines, $users);
+        $this->seedMultiLinePlacements($lines);
         $this->seedShifts($lines);
-        $materials = $this->seedMaterials();
+        $materials = $this->seedMaterials($templates);
+        $this->seedBom($templates, $materials);
         $this->seedMaterialLots($materials);
-        $site = $this->seedISA95Hierarchy($lines);
-        $this->seedSkillsAndPersonnelClasses();
-        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
-        $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
+        $tools = $this->seedTools();
+        $this->seedMaintenanceSchedulesAndEvents($lines, $workstations, $tools);
         $this->seedInspectionPlans($materials);
         $this->seedOeeRecords($lines);
     }
@@ -161,6 +166,12 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'JACKET',     'name' => 'Softshell Jacket',     'description' => 'Softshell or windbreaker jacket with print',           'unit_of_measure' => 'pcs'],
             ['code' => 'MUG',        'name' => 'Sublimation Mug',      'description' => 'Ceramic mug for sublimation printing (330 ml)',        'unit_of_measure' => 'pcs'],
             ['code' => 'PILLOW',     'name' => 'Printed Pillow Cover', 'description' => 'Pillow cover with sublimation print',                  'unit_of_measure' => 'pcs'],
+            // Sub-assemblies. Each is decorated in its own right before it
+            // reaches a garment, so each needs a product type to hang a routing
+            // on — that routing is what lets a BOM line for it explode further.
+            ['code' => 'SA_PATCH',    'name' => 'Embroidered Patch',    'description' => 'Felt patch embroidered and cut, ready to apply to a cap or a decoration kit', 'unit_of_measure' => 'pcs'],
+            ['code' => 'SA_DECOKIT',  'name' => 'Decoration Kit',       'description' => 'Patch plus contrast thread, kitted per hoodie so the embroidery station works from one pick', 'unit_of_measure' => 'pcs'],
+            ['code' => 'SA_TRANSFER', 'name' => 'Printed Transfer Sheet', 'description' => 'Sublimation sheet printed and trimmed, waiting to be pressed onto a tote or a pillow cover', 'unit_of_measure' => 'pcs'],
         ];
 
         $result = [];
@@ -174,9 +185,12 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Process templates ─────────────────────────────────────────────────────
 
-    private function seedProcessTemplates(array $pt, array $ws, array $lines): void
+    /** @return array<string, ProcessTemplate> */
+    private function seedProcessTemplates(array $pt, array $ws, array $lines): array
     {
-        $this->createTemplate($pt['TSHIRT'], 'T-Shirt — DTG Printing', [
+        $t = [];
+
+        $t['TSHIRT'] = $this->createTemplate($pt['TSHIRT'], 'T-Shirt — DTG Printing', [
             [1, 'Artwork verification',      'Check resolution (min 150 dpi), colour profile, no elements too close to edges.', 10, null],
             [2, 'Pre-wash and press',        'Pre-wash garment if label says "wash before print". Press flat with heat press.', 5, $ws['DTG-PRE-1'] ?? null],
             [3, 'Pretreating',               'Apply pretreat solution evenly over print area. Shake bottle well before use.', 10, $ws['DTG-PRE-1'] ?? null],
@@ -186,7 +200,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold neatly, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['HOODIE'], 'Hoodie — Machine Embroidery', [
+        $t['HOODIE'] = $this->createTemplate($pt['HOODIE'], 'Hoodie — Machine Embroidery', [
             [1, 'Embroidery file check',     'Open DST/PES file, verify thread colours, start/stop points and density.', 15, null],
             [2, 'Machine & thread setup',    'Thread machine per colour card. Mount correct stabiliser (tearaway / cutaway).', 10, $ws['HAFT-1'] ?? null],
             [3, 'Hooping',                   'Hoop the hoodie taut and flat — no wrinkles or puckers.', 8, $ws['HAFT-1'] ?? null],
@@ -196,7 +210,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold hoodie, poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['POLO'], 'Polo Shirt — Screen Printing', [
+        $t['POLO'] = $this->createTemplate($pt['POLO'], 'Polo Shirt — Screen Printing', [
             [1, 'Screen preparation',        'Expose screen from film positive. Check open areas after washing out.', 20, $ws['SITO-EXP-1'] ?? null],
             [2, 'Registration setup',        'Mount screen on press. Set registration using rulers and tape.', 10, $ws['SITO-1'] ?? null],
             [3, 'Test print',                'Pull one test print. Check coverage, registration and colour. Sign off before production.', 10, $ws['SITO-1'] ?? null],
@@ -206,7 +220,7 @@ class PrintShopDemoSeeder extends Seeder
             [7, 'Packing',                   'Fold polo shirts, pack in dozens (12 pcs). Apply batch labels.', 8, $ws['PAK-2'] ?? null],
         ]);
 
-        $this->createTemplate($pt['CAP'], 'Baseball Cap — Embroidery', [
+        $t['CAP'] = $this->createTemplate($pt['CAP'], 'Baseball Cap — Embroidery', [
             [1, 'Embroidery file check',     'Verify file is adapted for cap embroidery (flat area, max 80 mm width).', 10, null],
             [2, 'Cap frame setup',           'Mount cap frame on machine. Stretch cap brim flat in frame.', 8, $ws['HAFT-2'] ?? null],
             [3, 'Embroidery run',            'Start machine. Monitor carefully — curved surface needs stable hooping.', 20, $ws['HAFT-2'] ?? null],
@@ -215,7 +229,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Place cap in poly bag, attach order label.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['TOTE'], 'Cotton Tote Bag — Heat Transfer', [
+        $t['TOTE'] = $this->createTemplate($pt['TOTE'], 'Cotton Tote Bag — Heat Transfer', [
             [1, 'Print transfer film',       'Print transfer on plotter or transfer printer. Allow to dry fully.', 10, null],
             [2, 'Heat press setup',          'Set temperature: 160 °C, time 15 sec, medium pressure. Pre-heat 5 min.', 5, $ws['TRANS-1'] ?? null],
             [3, 'Position transfer',         'Lay bag flat on press platen, centre transfer. Use ruler or template.', 5, $ws['TRANS-1'] ?? null],
@@ -224,7 +238,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Fold bag, place in poly bag with print facing out.', 3, $ws['PAK-2'] ?? null],
         ]);
 
-        $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
+        $t['MUG'] = $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
             [1, 'Print sublimation transfer', 'Print artwork mirrored on sublimation paper. Trim with 5 mm margin.', 10, null],
             [2, 'Wrap mug',                  'Wrap mug with transfer paper, secure with heat-resistant tape. No wrinkles.', 5, $ws['TRANS-SUB-1'] ?? null],
             [3, 'Sublimation in oven',       'Place in sublimation oven: 200 °C / 4 min. Do not open early.', 5, $ws['TRANS-SUB-1'] ?? null],
@@ -233,7 +247,7 @@ class PrintShopDemoSeeder extends Seeder
             [6, 'Packing',                   'Place mug in box with protective padding to prevent breakage.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        $this->createTemplate($pt['SWEATSHIRT'], 'Crewneck Sweatshirt — DTG Printing', [
+        $t['SWEATSHIRT'] = $this->createTemplate($pt['SWEATSHIRT'], 'Crewneck Sweatshirt — DTG Printing', [
             [1, 'Artwork verification',      'Check resolution, colour profile, print dimensions (max A3).', 10, null],
             [2, 'Pretreating',               'Apply pretreat to sweatshirt. Heavier fabric — increase dose by 15%.', 12, $ws['DTG-PRE-1'] ?? null],
             [3, 'DTG printing',              'Load sweatshirt on platen, centre artwork. Use heavy-fabric print profile.', 18, $ws['DTG-2'] ?? null],
@@ -241,9 +255,31 @@ class PrintShopDemoSeeder extends Seeder
             [5, 'Quality control',           'Check coverage, no smearing, no gaps in print.', 5, null],
             [6, 'Packing',                   'Fold, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
+
+        // ── Sub-assembly routings ────────────────────────────────────────────
+        // Short jobs of their own. Without a routing a manufactured material is
+        // a dead end: the explosion sees the line and cannot descend past it.
+
+        $t['SA_PATCH'] = $this->createTemplate($pt['SA_PATCH'], 'Embroidered Patch — production v1', [
+            [1, 'Felt cutting',              'Cut patch blanks from the felt roll to the nominal diameter.', 4, $ws['HAFT-1'] ?? null],
+            [2, 'Patch embroidery',          'Run the patch design; check the border stitch closes cleanly all the way round.', 12, $ws['HAFT-1'] ?? null],
+            [3, 'Trim and heat-seal',        'Trim the excess backing and heat-seal the edge so it cannot fray.', 5, null],
+        ]);
+
+        $t['SA_DECOKIT'] = $this->createTemplate($pt['SA_DECOKIT'], 'Decoration Kit — kitting v1', [
+            [1, 'Patch check',               'Check the patch against the colour card and reject any with a broken border.', 3, null],
+            [2, 'Kitting',                   'Bag one patch with the contrast thread for the garment it belongs to.', 4, $ws['PAK-1'] ?? null],
+        ]);
+
+        $t['SA_TRANSFER'] = $this->createTemplate($pt['SA_TRANSFER'], 'Printed Transfer Sheet — production v1', [
+            [1, 'Sheet printing',            'Print the artwork onto sublimation paper; check the ink is not banding.', 8, $ws['TRN-PRINT-1'] ?? $ws['DTG-1'] ?? null],
+            [2, 'Trim to size',              'Trim the sheet to the press window and stack print-side up.', 4, null],
+        ]);
+
+        return $t;
     }
 
-    private function createTemplate(ProductType $productType, string $name, array $steps): void
+    private function createTemplate(ProductType $productType, string $name, array $steps): ProcessTemplate
     {
         $template = ProcessTemplate::updateOrCreate(
             ['product_type_id' => $productType->id, 'version' => 1],
@@ -251,8 +287,12 @@ class PrintShopDemoSeeder extends Seeder
         );
 
         foreach ($steps as [$stepNo, $stepName, $instruction, $duration, $workstation]) {
+            // Match live rows only. template_steps is soft-deletable and
+            // updateOrInsert() runs without the model's scope, so leaving
+            // deleted_at out would let a re-run resurrect (and overwrite) a step
+            // the user had deleted instead of inserting a fresh one.
             DB::table('template_steps')->updateOrInsert(
-                ['process_template_id' => $template->id, 'step_number' => $stepNo],
+                ['process_template_id' => $template->id, 'step_number' => $stepNo, 'deleted_at' => null],
                 [
                     'name' => $stepName,
                     'instruction' => $instruction,
@@ -262,6 +302,8 @@ class PrintShopDemoSeeder extends Seeder
                 ]
             );
         }
+
+        return $template;
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
@@ -322,6 +364,13 @@ class PrintShopDemoSeeder extends Seeder
 
     private function seedWorkOrders(array $pt, array $lines): void
     {
+        // Fixed seed: the generated half of this board picks lines, products,
+        // quantities and statuses at random, and without pinning the sequence a
+        // re-run reshuffles them. That made the demo unreproducible between
+        // seeds — and, because an order's line decides whether it hands off to
+        // another one, it also changed how many multi-line segments came out.
+        mt_srand(20260101);
+
         $orders = [
             [
                 'order_no' => 'WO-2026-001',
@@ -442,6 +491,77 @@ class PrintShopDemoSeeder extends Seeder
                 'due_date' => now()->addDays(14),
                 'description' => 'Promo tote bags — no line assigned, backlog',
             ],
+
+            // ── Not scheduled yet ────────────────────────────────────────────
+            // The planner's backlog: accepted work with nothing decided about
+            // when it runs. Every shop has some — the order is real, but it is
+            // waiting on something before a date can be promised. Without these
+            // the planner opens with an empty backlog panel, which is the one
+            // state a real plant never sees.
+            [
+                'order_no' => 'WO-2026-050',
+                'line_id' => $lines['DTG']->id,
+                'product_type_id' => $pt['HOODIE']->id,
+                'planned_qty' => 120,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Hoodies — artwork still with the customer, no proof approved yet.',
+            ],
+            [
+                'order_no' => 'WO-2026-051',
+                'line_id' => $lines['SITO']->id,
+                'product_type_id' => $pt['TSHIRT']->id,
+                'planned_qty' => 400,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 4,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Festival tees — quantity firm, print date waits on the stock delivery.',
+            ],
+            [
+                'order_no' => 'WO-2026-052',
+                'line_id' => $lines['HAFT']->id,
+                'product_type_id' => $pt['POLO']->id,
+                'planned_qty' => 75,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Embroidered polos — logo digitising not finished.',
+            ],
+            [
+                'order_no' => 'WO-2026-053',
+                'line_id' => $lines['TRANSFER']->id,
+                'product_type_id' => $pt['TOTE']->id,
+                'planned_qty' => 250,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 3,
+                // Nulled explicitly, not just omitted: a re-run must be able to
+                // put an order back into the backlog, and updateOrCreate only
+                // clears a column that is named.
+                'due_date' => null,
+                'week_number' => null,
+                'planned_start_at' => null,
+                'planned_end_at' => null,
+                'description' => 'Tote bags — customer asked to hold until they confirm the colourway.',
+            ],
         ];
 
         foreach ($orders as $orderData) {
@@ -480,7 +600,11 @@ class PrintShopDemoSeeder extends Seeder
 
         // week offset => fill probability. The current week (0) is packed; the
         // neighbours taper so the board stays believable as you page around.
-        $weekFill = [-1 => 0.35, 0 => 0.85, 1 => 0.40, 2 => 0.25];
+        // Four weeks ahead, thinning out with distance the way a real order
+        // book does — near weeks are committed, far ones are still filling.
+        // Stopping at week 2 left the board empty barely a fortnight out, which
+        // is inside the horizon the planner is meant to help you see.
+        $weekFill = [-1 => 0.35, 0 => 0.85, 1 => 0.55, 2 => 0.40, 3 => 0.28, 4 => 0.18];
 
         $weekStart = now()->startOfWeek();
         $n = 100; // WO-2026-0100+, clear of the hand-authored WO-2026-001..010
@@ -596,41 +720,10 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Crews ────────────────────────────────────────────────────────────────
 
-    private function seedCrews(array $lines, array $workstations): void
-    {
-        $defs = [
-            ['code' => 'CREW-A', 'name' => 'Day Shift A', 'lines' => ['DTG', 'SITO'], 'workstations' => ['DTG-1', 'DTG-2', 'SITO-1']],
-            ['code' => 'CREW-B', 'name' => 'Day Shift B', 'lines' => ['HAFT', 'TRANSFER'], 'workstations' => ['HAFT-1', 'HAFT-2', 'TRANS-1']],
-            ['code' => 'CREW-PACK', 'name' => 'Packing Crew', 'lines' => ['PACKING'], 'workstations' => ['PAK-1', 'PAK-2']],
-        ];
-
-        foreach ($defs as $def) {
-            $crew = \App\Models\Crew::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'is_active' => true]
-            );
-
-            // Explicit crew → line assignment (drives the capacity crew axis).
-            $crew->lines()->sync(collect($def['lines'])->map(fn ($code) => $lines[$code]->id)->all());
-
-            // A few operators per crew, stationed on the crew's lines.
-            foreach ($def['workstations'] as $i => $wsCode) {
-                \App\Models\Worker::updateOrCreate(
-                    ['code' => $def['code'].'-W'.($i + 1)],
-                    [
-                        'name' => $def['name'].' Operator '.($i + 1),
-                        'crew_id' => $crew->id,
-                        'workstation_id' => $workstations[$wsCode]->id,
-                        'is_active' => true,
-                    ]
-                );
-            }
-        }
-    }
-
     // ── Materials & Material Types ───────────────────────────────────────────
 
-    private function seedMaterials(): array
+    /** @param array<string, ProcessTemplate> $templates */
+    private function seedMaterials(array $templates): array
     {
         $types = [
             ['code' => 'INK',            'name' => 'Ink'],
@@ -657,6 +750,13 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'MAT-THR-POLY',     'name' => 'Polyester Embroidery Thread',       'description' => 'High-sheen polyester thread for machine embroidery', 'type' => 'THREAD',         'unit' => 'spool',  'tracking' => 'none',  'stock' => 80,   'min' => 20,  'supplier' => 'Madeira'],
             ['code' => 'MAT-TRN-SUB-A3',   'name' => 'Sublimation Transfer Paper A3',    'description' => 'A3 sublimation transfer paper, 100gsm',              'type' => 'TRANSFER_MEDIA', 'unit' => 'sheet',  'tracking' => 'batch', 'stock' => 1000, 'min' => 200, 'supplier' => 'Texprint'],
             ['code' => 'MAT-PKG-POLY30',   'name' => 'Poly Bag 30x40cm',                 'description' => 'Clear poly bag for garment packing, 30x40 cm',      'type' => 'PACKAGING',      'unit' => 'pcs',    'tracking' => 'none',  'stock' => 2000, 'min' => 500, 'supplier' => 'Generic'],
+            // Blanks and backing the sub-assemblies are built from.
+            ['code' => 'MAT-GAR-POLO-NV',  'name' => 'Piqué Polo Blank Navy',            'description' => 'Piqué cotton polo blank, navy, assorted sizes',      'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 300,  'min' => 60,  'supplier' => 'Gildan'],
+            ['code' => 'MAT-GAR-CAP-NV',   'name' => 'Baseball Cap Blank Navy',          'description' => 'Structured six-panel cap blank, navy',               'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 180,  'min' => 40,  'supplier' => 'Flexfit'],
+            ['code' => 'MAT-GAR-TOTE-NAT', 'name' => 'Cotton Tote Blank Natural',        'description' => 'Natural cotton tote blank, long handles',            'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 260,  'min' => 60,  'supplier' => 'Westford Mill'],
+            ['code' => 'MAT-GAR-PIL-NAT',  'name' => 'Pillow Cover Blank',               'description' => 'Polyester pillow cover blank for sublimation, 40x40', 'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 140,  'min' => 30,  'supplier' => 'Texprint'],
+            ['code' => 'MAT-FELT-PATCH',   'name' => 'Patch Felt Roll',                  'description' => 'Wool-blend felt for embroidered patch blanks',        'type' => 'TRANSFER_MEDIA', 'unit' => 'm2',     'tracking' => 'batch', 'stock' => 90,   'min' => 20,  'supplier' => 'Madeira'],
+            ['code' => 'MAT-STAB-CUT',     'name' => 'Cut-away Stabiliser',              'description' => 'Cut-away backing, 75gsm, for patch and garment embroidery', 'type' => 'TRANSFER_MEDIA', 'unit' => 'm2', 'tracking' => 'batch', 'stock' => 210, 'min' => 50, 'supplier' => 'Madeira'],
         ];
 
         $materials = [];
@@ -678,7 +778,517 @@ class PrintShopDemoSeeder extends Seeder
             $materials[$def['code']] = $mat;
         }
 
+        // The sub-assemblies. `is_manufactured` plus the routing that produces
+        // them is what lets a BOM line for one explode into the level below.
+        //
+        // Stock is uneven on purpose: the patch is held short, so a hoodie run
+        // has to be netted two levels down before the shortage appears.
+        $subAssemblies = [
+            ['code' => 'SA-PATCH',    'template' => 'SA_PATCH',    'name' => 'Embroidered Patch',      'stock' => 60],
+            ['code' => 'SA-DECOKIT',  'template' => 'SA_DECOKIT',  'name' => 'Decoration Kit',         'stock' => 45],
+            ['code' => 'SA-TRANSFER', 'template' => 'SA_TRANSFER', 'name' => 'Printed Transfer Sheet', 'stock' => 320],
+        ];
+
+        $semiFinished = MaterialType::updateOrCreate(
+            ['code' => 'SEMI_FINISHED'],
+            ['name' => 'Semi-finished']
+        );
+
+        foreach ($subAssemblies as $def) {
+            $template = $templates[$def['template']] ?? null;
+            if (! $template) {
+                continue;
+            }
+
+            $materials[$def['code']] = Material::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'material_type_id' => $semiFinished->id,
+                    'unit_of_measure' => 'pcs',
+                    'tracking_type' => 'batch',
+                    'is_manufactured' => true,
+                    'producing_process_template_id' => $template->id,
+                    'stock_quantity' => $def['stock'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
         return $materials;
+    }
+
+    // ── Tools & equipment ────────────────────────────────────────────────────
+
+    /**
+     * The kit that wears out and has to be serviced.
+     *
+     * Nothing seeded a single tool, so the Tools page was empty and the
+     * maintenance schedules pointed at nothing — a weekly printhead clean with
+     * no printhead behind it. Everything here is consumable or serviceable kit
+     * a decorating shop actually keeps: heads and platens for the DTG line,
+     * screens and squeegees for screen print, hooks and hoops for embroidery,
+     * press platens for transfer.
+     *
+     * Statuses are spread across all four the model knows, and service dates
+     * straddle today, so the page shows kit that is due, overdue and fine.
+     *
+     * @return array<string, Tool>
+     */
+    private function seedTools(): array
+    {
+        $defs = [
+            // DTG line.
+            ['code' => 'TL-DTG-HEAD',  'name' => 'DTG printhead set (Epson F2100)', 'status' => Tool::STATUS_IN_USE,      'dueInDays' => 5,   'description' => 'Piezo printhead assembly. Weekly purge and wipe; replace on banding that survives two cleaning cycles.'],
+            ['code' => 'TL-DTG-PLATEN', 'name' => 'DTG platen set (S/M/L/sleeve)',  'status' => Tool::STATUS_IN_USE,      'dueInDays' => 26,  'description' => 'Quick-change platens. Check the adhesive coating and re-tape when garments start lifting.'],
+            ['code' => 'TL-DTG-CAP',   'name' => 'Capping station & wiper kit',     'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 12,  'description' => 'Seals the heads when parked. Replace the wiper blade monthly — a hardened blade scratches the nozzle plate.'],
+            ['code' => 'TL-PRE-NOZZLE', 'name' => 'Pretreat spray nozzle set',      'status' => Tool::STATUS_MAINTENANCE, 'dueInDays' => -2,  'description' => 'Blocked nozzle gives uneven pretreat and a patchy white base. Currently stripped down for a soak.'],
+            ['code' => 'TL-CURE-BELT', 'name' => 'Conveyor dryer belt',             'status' => Tool::STATUS_IN_USE,      'dueInDays' => 40,  'description' => 'PTFE belt for the curing oven. Watch the tracking; a drifting belt scorches sleeves against the guide.'],
+
+            // Screen printing.
+            ['code' => 'TL-SCREEN-160', 'name' => 'Screen frames 160 mesh (set of 6)', 'status' => Tool::STATUS_IN_USE,   'dueInDays' => 9,  'description' => 'Aluminium frames for general plastisol work. Re-tension when the mesh reads under 18 N/cm.'],
+            ['code' => 'TL-SCREEN-305', 'name' => 'Screen frames 305 mesh (set of 4)', 'status' => Tool::STATUS_AVAILABLE, 'dueInDays' => 31, 'description' => 'Fine mesh for halftones and detail. Reclaim carefully — ghost images ruin the next job.'],
+            ['code' => 'TL-SQUEEGEE',  'name' => 'Squeegee set (70/90 duro)',       'status' => Tool::STATUS_IN_USE,      'dueInDays' => 3,   'description' => 'Polyurethane blades. Sharpen on the grinder when the edge rounds off and deposit goes heavy.'],
+            ['code' => 'TL-EXPOSURE',  'name' => 'Exposure unit lamp',              'status' => Tool::STATUS_IN_USE,      'dueInDays' => 55,  'description' => 'Metal-halide lamp. Output falls with hours — re-test the step wedge each quarter.'],
+            ['code' => 'TL-RECLAIM',   'name' => 'Emulsion coating trough',         'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 20,  'description' => 'Scoop coater. Dress the edge if it nicks; a burr leaves a stripe down every screen.'],
+
+            // Embroidery.
+            ['code' => 'TL-EMB-HOOK',  'name' => 'Rotary hook & needle plate',      'status' => Tool::STATUS_IN_USE,      'dueInDays' => 14,  'description' => 'Timing and hook clearance drift with use — the usual cause of persistent thread breaks.'],
+            ['code' => 'TL-EMB-HOOPS', 'name' => 'Hoop set (9 cm - 30 cm)',         'status' => Tool::STATUS_IN_USE,      'dueInDays' => 48,  'description' => 'Wooden and magnetic hoops. Replace any that no longer grip — slippage shows as a shifted logo.'],
+            ['code' => 'TL-EMB-OLD',   'name' => 'Tajima hoop set (legacy 12-head)', 'status' => Tool::STATUS_RETIRED,    'dueInDays' => null, 'description' => 'Kept for the old machine that left in the spring. Not compatible with the Barudan heads.'],
+
+            // Transfer & packing.
+            ['code' => 'TL-PRESS-PLAT', 'name' => 'Heat press platen (40x50)',      'status' => Tool::STATUS_IN_USE,      'dueInDays' => 7,   'description' => 'Check the surface for cold spots with a temperature strip; uneven heat under-cures one corner.'],
+            ['code' => 'TL-SUB-RACK',  'name' => 'Sublimation oven rack',           'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 35,  'description' => 'Holds mugs through the cycle. Warped shelves give inconsistent contact and ghosting.'],
+            ['code' => 'TL-PACK-SCALE', 'name' => 'Packing scale & label printer',  'status' => Tool::STATUS_AVAILABLE,   'dueInDays' => 60,  'description' => 'Calibrate against a test weight; a drifting scale puts the wrong count on the carton label.'],
+        ];
+
+        $tools = [];
+
+        foreach ($defs as $def) {
+            $tools[$def['code']] = Tool::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'description' => $def['description'],
+                    'status' => $def['status'],
+                    // Retired kit has no next service; the rest straddle today.
+                    'next_service_at' => $def['dueInDays'] === null
+                        ? null
+                        : now()->addDays($def['dueInDays'])->toDateString(),
+                ]
+            );
+        }
+
+        return $tools;
+    }
+
+    // ── Reported issues ──────────────────────────────────────────────────────
+
+    /**
+     * Problems the shop floor actually reported.
+     *
+     * The seeder only created issue *types* — the dictionary an operator picks
+     * from — so the Reported Issues page came up empty and neither the planner
+     * nor the shift monitor had anything to show.
+     *
+     * Two things decide whether an issue is visible rather than merely present:
+     *
+     *  - The shift monitor pins an issue on its timeline when the issue's work
+     *    order is on that station's line AND reported_at falls inside the shift
+     *    window being viewed (ShiftMonitorService). So the times below are
+     *    placed inside real shifts, spread back across the fortnight of history
+     *    the monitor keeps, with two in the shift running now.
+     *  - The planner has no notion of issues at all; a problem reaches the board
+     *    only as a blocked order. A blocking issue type is what does that on the
+     *    shop floor (Web\Operator\IssueController), so the blocking ones here
+     *    put their order into BLOCKED the same way.
+     *
+     * @param  array<string, Line>  $lines
+     * @param  array<int, User>  $users
+     */
+    private function seedIssues(array $lines, array $users): void
+    {
+        $types = IssueType::pluck('id', 'code');
+        // Prefer the operators, but do not depend on roles existing: this
+        // seeder can run before RolesAndPermissionsSeeder, and filtering on a
+        // role nobody holds yet would silently report nothing at all.
+        $reporters = collect($users)->filter(fn (User $u) => $u->hasRole('Operator'))->values();
+
+        if ($reporters->isEmpty()) {
+            $reporters = collect($users)->values();
+        }
+
+        if ($types->isEmpty() || $reporters->isEmpty()) {
+            return;
+        }
+
+        // Only lines the shift monitor actually watches — an issue on a line
+        // with no monitored station would never draw a pin.
+        $onLine = function (string $lineCode) use ($lines): ?WorkOrder {
+            $line = $lines[$lineCode] ?? null;
+
+            return $line
+                ? WorkOrder::where('line_id', $line->id)->orderBy('order_no')->first()
+                : null;
+        };
+
+        // [line, type, title, description, status, hours ago, at this hour]
+        $defs = [
+            // Running now. `null` hours means "inside whatever shift is open on
+            // that line right now" — a fixed offset only lands in the live
+            // window while a shift happens to be running, and outside those
+            // hours ShiftWindow falls back to a synthetic split the issue would
+            // sit outside of. The monitor would then draw no pin at all.
+            ['DTG', 'PRINT_HEAD_FAILURE', 'Print head dropping cyan on the left third',
+                'Nozzle check shows a full bank out on cyan. Cleaning cycle ran twice with no change. Stopped the run rather than scrap shirts.',
+                Issue::STATUS_OPEN, null],
+            ['HAFT', 'THREAD_BREAK', 'Upper thread snapping every few hundred stitches',
+                'Head 3 keeps breaking on the dense fill. Re-threaded and dropped tension a touch; watching it.',
+                Issue::STATUS_OPEN, null],
+
+            // Earlier today and yesterday.
+            ['SITO', 'SCREEN_CLOGGED', 'Screen blocking on the fine detail',
+                'Small text filling in after about forty pulls. Flooded and wiped, holding for now but it will need re-washing.',
+                Issue::STATUS_ACKNOWLEDGED, 6],
+            ['DTG', 'PRINT_COLOR_MISMATCH', 'Navy printing closer to purple',
+                'Customer supplied RGB artwork. Converted to the shop profile and reprinted one for approval.',
+                Issue::STATUS_RESOLVED, 20],
+            ['HAFT', 'SIZE_MISMATCH', 'Logo sitting 15 mm low on the left chest',
+                'Hooping guide had slipped. Re-set the guide and checked the next five.',
+                Issue::STATUS_RESOLVED, 28],
+
+            // Older, worked through to closed — history when paging back.
+            ['SITO', 'INK_SHORTAGE', 'Out of plastisol black mid-run',
+                'Tin ran dry with sixty pieces to go. Held the order until the delivery came in the afternoon.',
+                Issue::STATUS_CLOSED, 3 * 24 + 4],
+            ['DTG', 'SUBSTRATE_DAMAGE', 'Scorch marks from the heat press',
+                'Press platen ran hot and marked four shirts. Re-calibrated the thermostat and replaced the garments.',
+                Issue::STATUS_CLOSED, 5 * 24 + 7],
+            ['HAFT', 'ARTWORK_ERROR', 'Digitised file has the wrong stitch order',
+                'Border stitched before the fill, so the fill pulled over it. Sent back to be re-digitised.',
+                Issue::STATUS_CLOSED, 8 * 24 + 3],
+            ['SITO', 'PRESS_TEMP_ERROR', 'Dryer running 20 degrees under set point',
+                'Cure test failed on the first three. Element replaced and the dryer re-profiled.',
+                Issue::STATUS_CLOSED, 11 * 24 + 5],
+            ['DTG', 'PRINT_SMEAR', 'Ink smearing on the shoulder seam',
+                'Platen height was set for a flat tee, not a raglan. Adjusted and reprinted the batch.',
+                Issue::STATUS_CLOSED, 13 * 24 + 6],
+        ];
+
+        foreach ($defs as $i => [$lineCode, $typeCode, $title, $description, $status, $hoursAgo]) {
+            $workOrder = $onLine($lineCode);
+            $typeId = $types[$typeCode] ?? null;
+
+            if (! $workOrder || ! $typeId) {
+                continue;
+            }
+
+            // `now()` rather than a computed offset: whichever shift the
+            // monitor is showing, its window contains the present moment by
+            // definition, so a report stamped now is always inside it. Placing
+            // it relative to the window instead is a race — the shift can turn
+            // over between seeding and reading, and the issue lands in the one
+            // that just closed.
+            $reportedAt = $hoursAgo === null ? now() : now()->subHours((int) round($hoursAgo));
+            $reporter = $reporters[$i % $reporters->count()];
+
+            $issue = Issue::updateOrCreate(
+                ['work_order_id' => $workOrder->id, 'title' => $title],
+                [
+                    'issue_type_id' => $typeId,
+                    'description' => $description,
+                    'status' => $status,
+                    'reported_by_id' => $reporter->id,
+                    'reported_at' => $reportedAt,
+                    // Each stamp only exists once the issue has reached that
+                    // point, so a half-closed row cannot claim it was resolved.
+                    'acknowledged_at' => in_array($status, [Issue::STATUS_ACKNOWLEDGED, Issue::STATUS_RESOLVED, Issue::STATUS_CLOSED], true)
+                        ? $reportedAt->copy()->addMinutes(12) : null,
+                    'resolved_at' => in_array($status, [Issue::STATUS_RESOLVED, Issue::STATUS_CLOSED], true)
+                        ? $reportedAt->copy()->addMinutes(70) : null,
+                    'closed_at' => $status === Issue::STATUS_CLOSED
+                        ? $reportedAt->copy()->addMinutes(150) : null,
+                ]
+            );
+
+            // A blocking type stops the order on the shop floor, and a stopped
+            // order is the only way a problem reaches the planner board.
+            $blocking = IssueType::find($typeId)?->is_blocking;
+
+            if ($blocking && in_array($status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true)) {
+                $workOrder->forceFill(['status' => WorkOrder::STATUS_BLOCKED])->saveQuietly();
+            }
+
+            unset($issue);
+        }
+    }
+
+    // ── Customers ────────────────────────────────────────────────────────────
+
+    /**
+     * Who the work is for.
+     *
+     * Nothing seeded these, so the Customers page was empty and every order
+     * showed a blank customer — which also left the priority scoring and the
+     * tier/payment-score columns with nothing to act on.
+     *
+     * Tiers and payment scores are spread deliberately: priority scoring reads
+     * both, so a board where everyone is Gold and pays on time would rank every
+     * order identically.
+     *
+     * @return array<int, Customer>
+     */
+    private function seedCustomers(): array
+    {
+        $defs = [
+            ['code' => 'CUST-NORDWEAR', 'name' => 'NordWear Retail Group',   'tier' => Tier::Vip,    'payment_score' => 96, 'notes' => 'Seasonal ranges, firm launch dates. Artwork always supplied print-ready.'],
+            ['code' => 'CUST-VOLTFC',   'name' => 'Volt FC',                 'tier' => Tier::Gold,   'payment_score' => 88, 'notes' => 'Match kit and supporter merchandise. Numbers and names supplied per order.'],
+            ['code' => 'CUST-BRIGHTAG', 'name' => 'Brightside Agency',       'tier' => Tier::Gold,   'payment_score' => 71, 'notes' => 'Event and conference merchandise. Briefs often change late.'],
+            ['code' => 'CUST-KAMBUILD', 'name' => 'Kaminski Build Sp. z o.o.', 'tier' => Tier::Silver, 'payment_score' => 64, 'notes' => 'Workwear polos and hi-vis. Repeat orders, same artwork.'],
+            ['code' => 'CUST-CAFELOOP', 'name' => 'Café Loop',               'tier' => Tier::Bronze, 'payment_score' => 52, 'notes' => 'Small batches of aprons, totes and mugs for two sites.'],
+            ['code' => 'CUST-UNIHACK',  'name' => 'University Hack Society', 'tier' => Tier::Bronze, 'payment_score' => 40, 'notes' => 'One-off hoodie runs. Pays on invoice, sometimes late.'],
+        ];
+
+        $customers = [];
+
+        foreach ($defs as $def) {
+            $customers[] = Customer::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'tier' => $def['tier'],
+                    'payment_score' => $def['payment_score'],
+                    'notes' => $def['notes'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        return $customers;
+    }
+
+    /**
+     * Put a customer behind every order.
+     *
+     * Assignment is by position rather than at random, so the same order keeps
+     * the same customer across re-seeds — the board would otherwise reshuffle
+     * who owns what on every run.
+     *
+     * @param  array<int, Customer>  $customers
+     */
+    private function assignCustomers(array $customers): void
+    {
+        if ($customers === []) {
+            return;
+        }
+
+        $orders = WorkOrder::orderBy('order_no')->get();
+
+        foreach ($orders->values() as $i => $order) {
+            $customer = $customers[$i % count($customers)];
+
+            $order->forceFill([
+                'customer_id' => $customer->id,
+                // Their own reference for the job, which is what the shop floor
+                // actually quotes back to them.
+                'customer_order_no' => sprintf('PO-%s-%04d', now()->year, 1000 + $i),
+            ])->saveQuietly();
+        }
+    }
+
+    // ── Multi-line orders ────────────────────────────────────────────────────
+
+    /**
+     * Orders that run on more than one line.
+     *
+     * A decorated garment really does move between lines: printed on one,
+     * embroidered on another, packed on a third. The planner draws these as a
+     * badge on the primary block plus a connector down to the extra segment,
+     * and that whole display had no example data behind it — the only way to
+     * see it was to drag a block onto a second line by hand.
+     *
+     * Segments are coarse (day + shift); the minute-level plan stays with the
+     * primary placement, so this only sets due_date/shift_number.
+     *
+     * @param  array<string, Line>  $lines
+     */
+    private function seedMultiLinePlacements(array $lines): void
+    {
+        // Where work hands off, and how many shifts later the next line picks
+        // it up. Packing is downstream of everything, so it appears most.
+        $handoffs = [
+            'DTG' => [['HAFT', 1], ['PACKING', 2]],
+            'SITO' => [['PACKING', 2]],
+            'HAFT' => [['PACKING', 1]],
+            'TRANSFER' => [['HAFT', 1], ['PACKING', 2]],
+        ];
+
+        $lineById = [];
+        foreach ($lines as $code => $line) {
+            $lineById[$line->id] = $code;
+        }
+
+        // Only the generated orders (WO-2026-0100+), and only those with a
+        // planned start — a segment hanging off an unscheduled order would
+        // draw a connector to nothing.
+        $orders = WorkOrder::where('order_no', 'like', 'WO-2026-01%')
+            ->whereNotNull('planned_start_at')
+            ->orderBy('order_no')
+            ->get();
+
+        // Wipe every candidate's segments before laying any down. The order
+        // generator assigns lines at random, so a re-run both moves orders to
+        // different lines and picks a different subset — clearing only the
+        // orders selected this time would strand the previous run's segments
+        // and grow the set on every seed.
+        WorkOrderPlacement::whereIn('work_order_id', $orders->pluck('id'))->delete();
+
+        $n = 0;
+
+        foreach ($orders as $order) {
+            $fromCode = $lineById[$order->line_id] ?? null;
+            if (! $fromCode || ! isset($handoffs[$fromCode])) {
+                continue;
+            }
+
+            // Every fourth eligible order, so the board shows the case often
+            // enough to notice without every block sprouting a connector.
+            if ($n++ % 4 !== 0) {
+                continue;
+            }
+
+            $start = $order->planned_start_at->copy();
+
+            foreach ($handoffs[$fromCode] as [$toCode, $shiftsLater]) {
+                $target = $lines[$toCode] ?? null;
+                if (! $target || $target->id === $order->line_id) {
+                    continue;
+                }
+
+                // shift_number is 1..3 within a day; roll into the next day
+                // rather than emitting a fourth shift that no column matches.
+                $shift = (int) ceil($start->hour / 8) + $shiftsLater;
+                $dayOffset = intdiv($shift - 1, 3);
+                $shift = (($shift - 1) % 3) + 1;
+
+                WorkOrderPlacement::updateOrCreate(
+                    ['work_order_id' => $order->id, 'line_id' => $target->id],
+                    [
+                        'due_date' => $start->copy()->addDays($dayOffset)->startOfDay(),
+                        'shift_number' => $shift,
+                    ]
+                );
+            }
+        }
+    }
+
+    // ── Bill of materials ────────────────────────────────────────────────────
+
+    /**
+     * What each product is built from, and what the sub-assemblies are built
+     * from in turn.
+     *
+     * Two things this is shaped to demonstrate. The hoodie runs three
+     * manufactured levels deep — kit, then patch, then felt and stabiliser — so
+     * a shortage can surface below the first manufactured line. And the patch
+     * feeds both the kit and the cap, while the transfer sheet feeds both the
+     * tote and the pillow, so netting has to sum two parents' demand before it
+     * decides how many to make.
+     *
+     * @param  array<string, ProcessTemplate>  $templates
+     * @param  array<string, Material>  $materials
+     */
+    private function seedBom(array $templates, array $materials): void
+    {
+        // [product => [[step number, material code, qty per unit, scrap %, consumed at], …]]
+        $defs = [
+            'TSHIRT' => [
+                [2, 'MAT-GAR-TSH-W',    1,     2, 'start'],
+                [4, 'MAT-INK-DTG-CMYK', 0.004, 3, 'during'],
+                [4, 'MAT-INK-DTG-W',    0.02,  4, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'SWEATSHIRT' => [
+                [2, 'MAT-GAR-HOOD-BK',  1,     2, 'start'],
+                [3, 'MAT-INK-DTG-CMYK', 0.006, 3, 'during'],
+                [6, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // Three levels start here: kit → patch → felt.
+            'HOODIE' => [
+                [3, 'MAT-GAR-HOOD-BK',  1,     2, 'start'],
+                [3, 'SA-DECOKIT',       1,     1, 'start'],
+                [4, 'MAT-STAB-CUT',     0.08,  5, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'POLO' => [
+                [3, 'MAT-GAR-POLO-NV',  1,     2, 'start'],
+                [4, 'MAT-INK-PLAST-BK', 0.012, 4, 'during'],
+                [7, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // Takes the patch directly — the other parent of SA-PATCH.
+            'CAP' => [
+                [2, 'MAT-GAR-CAP-NV',   1,     2, 'start'],
+                [2, 'SA-PATCH',         1,     1, 'start'],
+                [5, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            'TOTE' => [
+                [2, 'MAT-GAR-TOTE-NAT', 1,     2, 'start'],
+                [2, 'SA-TRANSFER',      1,     2, 'start'],
+                [5, 'MAT-PKG-POLY30',   1,     0, 'end'],
+            ],
+            // ── Sub-assemblies ───────────────────────────────────────────────
+            'SA_PATCH' => [
+                [1, 'MAT-FELT-PATCH',   0.006, 6, 'start'],
+                [1, 'MAT-STAB-CUT',     0.008, 5, 'start'],
+                [2, 'MAT-THR-POLY',     0.03,  4, 'during'],
+            ],
+            'SA_DECOKIT' => [
+                [1, 'SA-PATCH',         1,     1, 'start'],
+                [2, 'MAT-THR-POLY',     0.01,  2, 'during'],
+            ],
+            'SA_TRANSFER' => [
+                [1, 'MAT-TRN-SUB-A3',   1,     4, 'start'],
+                [1, 'MAT-INK-DTG-CMYK', 0.002, 3, 'during'],
+            ],
+        ];
+
+        foreach ($defs as $productCode => $lines) {
+            $template = $templates[$productCode] ?? null;
+            if (! $template) {
+                continue;
+            }
+
+            $sortOrder = 0;
+
+            foreach ($lines as [$stepNumber, $code, $qty, $scrap, $consumedAt]) {
+                $material = $materials[$code] ?? null;
+                if (! $material) {
+                    continue;
+                }
+
+                // bom_items points at the step row, not its number.
+                $stepId = DB::table('template_steps')
+                    ->where('process_template_id', $template->id)
+                    ->where('step_number', $stepNumber)
+                    ->whereNull('deleted_at')
+                    ->value('id');
+
+                BomItem::updateOrCreate(
+                    [
+                        'process_template_id' => $template->id,
+                        'material_id' => $material->id,
+                    ],
+                    [
+                        'template_step_id' => $stepId,
+                        'quantity_per_unit' => $qty,
+                        'scrap_percentage' => $scrap,
+                        'consumed_at' => $consumedAt,
+                        'sort_order' => $sortOrder++,
+                    ]
+                );
+            }
+        }
     }
 
     // ── Material Lots ────────────────────────────────────────────────────────
@@ -711,113 +1321,7 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── ISA-95 Hierarchy ─────────────────────────────────────────────────────
 
-    private function seedISA95Hierarchy(array $lines): Site
-    {
-        $site = Site::updateOrCreate(
-            ['code' => 'PS-HQ'],
-            [
-                'name' => 'PrintShop HQ',
-                'description' => 'Main production facility for garment printing and decoration',
-                'address' => 'ul. Drukarska 15',
-                'city' => 'Warsaw',
-                'country' => 'PL',
-                'timezone' => 'Europe/Warsaw',
-                'is_active' => true,
-            ]
-        );
-
-        $areaDefs = [
-            ['code' => 'HALL-A', 'name' => 'Production Hall A', 'description' => 'Main production hall — all printing and embroidery lines'],
-            ['code' => 'WH-1',   'name' => 'Warehouse',         'description' => 'Raw materials and finished goods warehouse'],
-            ['code' => 'SHIP-1', 'name' => 'Shipping',          'description' => 'Shipping and dispatch area'],
-        ];
-
-        $areas = [];
-        foreach ($areaDefs as $def) {
-            $areas[$def['code']] = Area::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'site_id' => $site->id,
-                    'description' => $def['description'],
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        // Link lines to areas (if column exists)
-        if (Schema::hasColumn('lines', 'area_id')) {
-            $lineAreaMap = [
-                'DTG' => 'HALL-A',
-                'SITO' => 'HALL-A',
-                'HAFT' => 'HALL-A',
-                'TRANSFER' => 'HALL-A',
-                'PACKING' => 'SHIP-1',
-            ];
-
-            foreach ($lineAreaMap as $lineCode => $areaCode) {
-                if (isset($lines[$lineCode], $areas[$areaCode])) {
-                    $lines[$lineCode]->update(['area_id' => $areas[$areaCode]->id]);
-                }
-            }
-        }
-
-        return $site;
-    }
-
     // ── Skills & Personnel Classes ───────────────────────────────────────────
-
-    private function seedSkillsAndPersonnelClasses(): void
-    {
-        $skillDefs = [
-            ['code' => 'DTG_OPERATION',    'name' => 'DTG Operation',    'description' => 'Operating DTG digital printers including pretreatment and curing'],
-            ['code' => 'SCREEN_PRINTING',  'name' => 'Screen Printing',  'description' => 'Screen preparation, registration, and manual/semi-auto printing'],
-            ['code' => 'EMBROIDERY',       'name' => 'Embroidery',       'description' => 'Machine embroidery operation, hooping, thread management'],
-            ['code' => 'HEAT_TRANSFER',    'name' => 'Heat Transfer',    'description' => 'Heat press and sublimation operations'],
-            ['code' => 'QUALITY_CONTROL',  'name' => 'Quality Control',  'description' => 'Visual and instrumental quality inspection of printed goods'],
-        ];
-
-        $skills = [];
-        foreach ($skillDefs as $def) {
-            $skills[$def['code']] = Skill::updateOrCreate(
-                ['code' => $def['code']],
-                ['name' => $def['name'], 'description' => $def['description']]
-            );
-        }
-
-        $classDefs = [
-            [
-                'code' => 'PRINT_OPERATOR',
-                'name' => 'Print Operator',
-                'description' => 'Operates DTG and screen printing equipment',
-                'required_skill_ids' => [$skills['DTG_OPERATION']->id, $skills['SCREEN_PRINTING']->id],
-            ],
-            [
-                'code' => 'EMBROIDERY_SPECIALIST',
-                'name' => 'Embroidery Specialist',
-                'description' => 'Specialist in machine embroidery operations',
-                'required_skill_ids' => [$skills['EMBROIDERY']->id],
-            ],
-            [
-                'code' => 'QC_INSPECTOR',
-                'name' => 'QC Inspector',
-                'description' => 'Quality control inspector for all product types',
-                'required_skill_ids' => [$skills['QUALITY_CONTROL']->id],
-            ],
-        ];
-
-        foreach ($classDefs as $def) {
-            PersonnelClass::updateOrCreate(
-                ['code' => $def['code']],
-                [
-                    'name' => $def['name'],
-                    'description' => $def['description'],
-                    'required_skill_ids' => $def['required_skill_ids'],
-                    'is_active' => true,
-                ]
-            );
-        }
-    }
 
     // ── Process Segments ─────────────────────────────────────────────────────
 
@@ -850,13 +1354,15 @@ class PrintShopDemoSeeder extends Seeder
 
     // ── Maintenance Schedules & Events ───────────────────────────────────────
 
-    private function seedMaintenanceSchedulesAndEvents(array $lines, array $workstations): void
+    /** @param array<string, Tool> $tools */
+    private function seedMaintenanceSchedulesAndEvents(array $lines, array $workstations, array $tools = []): void
     {
         $schedules = [];
 
         $schedules['dtg_cleaning'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Weekly DTG Printhead Cleaning'],
             [
+                'tool_id' => $tools['TL-DTG-HEAD']?->id,
                 'description' => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
                 'line_id' => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
@@ -872,6 +1378,7 @@ class PrintShopDemoSeeder extends Seeder
         $schedules['embroidery_calibration'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Monthly Embroidery Machine Calibration'],
             [
+                'tool_id' => $tools['TL-EMB-HOOK']?->id,
                 'description' => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
                 'line_id' => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
@@ -887,6 +1394,7 @@ class PrintShopDemoSeeder extends Seeder
         $schedules['screen_press'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Bi-weekly Screen Press Maintenance'],
             [
+                'tool_id' => $tools['TL-SQUEEGEE']?->id,
                 'description' => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
                 'line_id' => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,

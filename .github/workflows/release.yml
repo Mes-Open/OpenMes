@@ -133,8 +133,20 @@ jobs:
           cp .env.example "${DIST}/" 2>/dev/null || true
           cp README.md "${DIST}/" 2>/dev/null || true
 
-          # Copy backend (with vendor and built assets, without dev files)
+          # Copy backend (with vendor and built assets, without dev files).
+          #
+          # modules/ holds locally installed modules, which are by definition not
+          # part of this repository (see modules/README.md) and must never ride
+          # along in a release built from it. The three bundled examples are
+          # tracked source and stay — the include rules come first because rsync
+          # takes the first matching rule.
           rsync -a backend/ "${DIST}/backend/" \
+            --include='modules/' \
+            --include='modules/README.md' \
+            --include='modules/ExampleHooks/***' \
+            --include='modules/ExampleShowcase/***' \
+            --include='modules/OrderPinger/***' \
+            --exclude='modules/*' \
             --exclude='.env' \
             --exclude='node_modules' \
             --exclude='tests' \

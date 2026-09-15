@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox, Dropdown, Switch, Tabs } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
 import { useToast } from '@openmes/ui';
@@ -90,10 +90,17 @@ function TimezonePicker({ groups, value, onChange }) {
 
 export default function System() {
     const toast = useToast();
-    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups } = usePage().props;
+    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
+        demoDatasets = [], loadedDemoDataset = null } = usePage().props;
 
-    const [tab, setTab] = useState('general');
+    // The sidebar links each panel directly (/settings/system?tab=security), so
+    // the opening panel comes from the URL rather than always being General.
+    const TABS = ['general', 'production', 'schedule', 'security', 'modules', 'data'];
+    const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
+    const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
+    // Which example company the admin picked; defaults to the first on offer.
+    const [dataset, setDataset] = useState(demoDatasets[0]?.key ?? null);
     const [resetConfirm, setResetConfirm] = useState(false);
     const [resetText, setResetText] = useState('');
     
@@ -892,21 +899,68 @@ export default function System() {
                     <div className="bg-om-downtime-bg border border-om-line rounded-om p-6">
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Sample Data')}</h2>
                         <p className={`${HELP_CLASS} mb-4`}>
-                            {__('Load a pre-built demo dataset: lines, workstations, products, templates and work orders. Safe to run multiple times.')}
+                            {__('Pick an example company to install: its lines, workstations, products, routings, bill of materials, orders and shift history.')}
                         </p>
-                        <form method="POST" action="/settings/sample-data">
-                            <input type="hidden" name="_token" value={csrf_token} />
-                            <div className="flex items-center gap-4">
-                                <Checkbox
-                                    checked={sampleConfirm}
-                                    onChange={setSampleConfirm}
-                                    label={__('I understand this will add demo data to the system')}
-                                />
-                                <Button type="submit" variant="secondary" disabled={!sampleConfirm}>
-                                    {__('Load Sample Data')}
-                                </Button>
+
+                        {loadedDemoDataset && (
+                            <div className="mb-4">
+                                <InlineAlert severity="warning" title={__('An example company is already installed')}>
+                                    {__('Currently loaded: :company. Picking another replaces it — the database is wiped first, and anything you created on top of the demo goes with it.', {
+                                        company: demoDatasets.find((d) => d.key === loadedDemoDataset)?.label ?? loadedDemoDataset,
+                                    })}
+                                </InlineAlert>
                             </div>
-                        </form>
+                        )}
+
+                        {(
+                            <form method="POST" action="/settings/sample-data">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                {loadedDemoDataset && <input type="hidden" name="replace" value="1" />}
+
+                                <div className="grid gap-3 sm:grid-cols-2 mb-4">
+                                    {demoDatasets.map((set) => (
+                                        <label
+                                            key={set.key}
+                                            className={`flex gap-3 p-4 rounded-om border cursor-pointer transition-colors
+                                                        ${dataset === set.key
+                                                            ? 'border-om-accent bg-om-chip'
+                                                            : 'border-om-line hover:bg-om-chip'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="dataset"
+                                                value={set.key}
+                                                checked={dataset === set.key}
+                                                onChange={() => setDataset(set.key)}
+                                                className="mt-1 shrink-0"
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block text-[13px] font-medium text-om-ink">{__(set.label)}</span>
+                                                <span className="block text-[11px] uppercase tracking-wide text-om-faint mt-0.5">{__(set.industry)}</span>
+                                                <span className={`${HELP_CLASS} block mt-1.5`}>{__(set.description)}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <Checkbox
+                                        checked={sampleConfirm}
+                                        onChange={setSampleConfirm}
+                                        label={loadedDemoDataset
+                                            ? __('I understand the current database will be wiped and replaced')
+                                            : __('I understand this will add demo data to the system')}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        variant={loadedDemoDataset ? 'danger' : 'secondary'}
+                                        disabled={! sampleConfirm || ! dataset || dataset === loadedDemoDataset}
+                                    >
+                                        {loadedDemoDataset ? __('Replace Sample Data') : __('Load Sample Data')}
+                                    </Button>
+                                </div>
+                            </form>
+                        )}
                     </div>
 
                     {/* Export */}

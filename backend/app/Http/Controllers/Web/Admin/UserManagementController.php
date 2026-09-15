@@ -3,15 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Crew;
-use App\Models\Skill;
 use App\Models\User;
-use App\Models\WageGroup;
 use App\Models\Worker;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
@@ -41,6 +39,27 @@ class UserManagementController extends Controller
         return Inertia::render('admin/users/Create', $this->formData());
     }
 
+    private function workforce(): \App\Extension\Contracts\WorkforceProvider
+    {
+        return app(\App\Extension\Contracts\WorkforceProvider::class);
+    }
+
+    /**
+     * Ids from an option list, for validating against exactly what was offered.
+     *
+     * Deliberately not `exists:crews,id`: that rule queries a table this
+     * installation may not have, and it would also accept a value the form
+     * never offered. An empty list rejects everything, which is the correct
+     * answer when nothing records crews.
+     *
+     * @param  list<array{id: int, name: string}>  $options
+     * @return list<int>
+     */
+    private function idsOf(array $options): array
+    {
+        return array_column($options, 'id');
+    }
+
     /** Shared option lists for the create/edit forms. */
     private function formData(): array
     {
@@ -48,9 +67,13 @@ class UserManagementController extends Controller
             'roles' => Role::orderBy('name')->pluck('name'),
             'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(['id', 'name', 'line_id'])
                 ->map(fn ($w) => ['id' => $w->id, 'name' => $w->line ? "{$w->name} ({$w->line->name})" : $w->name]),
-            'crews' => Crew::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'wageGroups' => WageGroup::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+            // Crews, wage groups and skills are workforce administration, which
+            // not every installation records. Asked through the contract rather
+            // than queried here, so a system without them simply offers no such
+            // pickers instead of failing on missing tables.
+            'crews' => $this->workforce()->crewOptions(),
+            'wageGroups' => $this->workforce()->wageGroupOptions(),
+            'skills' => $this->workforce()->skillOptions(),
         ];
     }
 
@@ -69,10 +92,10 @@ class UserManagementController extends Controller
             'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
             'worker_code' => 'nullable|string|max:50|unique:workers,code',
             'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => 'nullable|exists:crews,id',
-            'worker_wage_group_id' => 'nullable|exists:wage_groups,id',
+            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
+            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
             'skills' => 'nullable|array',
-            'skills.*.id' => 'required|exists:skills,id',
+            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
             'skills.*.level' => 'nullable|integer|min:1|max:5',
         ], [
             'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
@@ -161,10 +184,10 @@ class UserManagementController extends Controller
             'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
             'worker_code' => 'nullable|string|max:50|unique:workers,code,'.($user->worker_id ?? 'NULL'),
             'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => 'nullable|exists:crews,id',
-            'worker_wage_group_id' => 'nullable|exists:wage_groups,id',
+            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
+            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
             'skills' => 'nullable|array',
-            'skills.*.id' => 'required|exists:skills,id',
+            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
             'skills.*.level' => 'nullable|integer|min:1|max:5',
         ], [
             'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',

@@ -4,7 +4,7 @@
 import { useState, useRef } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
-import { TwinChip } from './OrderCard';
+import { TwinChip, ShortageChip } from './OrderCard';
 import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
 } from './helpers';
@@ -70,6 +70,7 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
                         <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap' }}>{wo.order_no}</span>
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
+                        <span className="ml-auto"><ShortageChip wo={wo} compact /></span>
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtMin(cur.start)}–{fmtMin(cur.end)} · {dur}</span>
                 </div>
