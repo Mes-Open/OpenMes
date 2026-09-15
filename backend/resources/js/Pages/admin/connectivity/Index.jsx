@@ -69,7 +69,7 @@ export default function ConnectivityIndex() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {connections.map((conn) => {
-                            const base = `/admin/connectivity/${conn.protocol}`;
+                            const base = ['mqtt', 'modbus', 'opcua'].includes(conn.protocol) ? `/admin/connectivity/${conn.protocol}` : null;
                             const count = conn.protocol === 'mqtt' ? conn.topics_count : conn.tags_count;
                             const countLabel = conn.protocol === 'mqtt'
                                 ? (count === 1 ? __('topic') : __('topics'))
@@ -111,7 +111,7 @@ export default function ConnectivityIndex() {
                                     )}
 
                                     <div className="flex gap-2 pt-1 border-t border-om-line2 mt-auto">
-                                        <Link
+                                        {base && <><Link
                                             href={`${base}/${conn.id}`}
                                             className="flex-1 text-center text-xs px-3 py-1.5 bg-om-chip text-om-accent rounded-md hover:bg-om-chip transition-colors font-medium"
                                         >
@@ -122,7 +122,8 @@ export default function ConnectivityIndex() {
                                             className="flex-1 text-center text-xs px-3 py-1.5 bg-om-panel text-om-muted rounded-md hover:bg-om-chip transition-colors font-medium"
                                         >
                                             {__('Edit')}
-                                        </Link>
+                                        </Link></>}
+                                        {!base && (conn.counter_ids ?? []).map(id => <Link key={id} href={`/admin/connectivity/counters?counter=${id}`} className="flex-1 text-center text-xs px-3 py-1.5 border border-om-line text-om-ink rounded-md hover:bg-om-chip font-medium">{__('Open counter')} #{id}</Link>)}
                                         {conn.protocol === 'mqtt' && (
                                             <button
                                                 type="button"

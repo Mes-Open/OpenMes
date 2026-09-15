@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Link REST demo connections to their own counters instead of nonexistent protocol detail and edit pages.
+
 - Use shared UI dropdowns throughout machine counter configuration and reading review, the shared reading-history table, and styled header, filter and pagination buttons.
 - Preserve legacy machine counting after upgrades: MQTT, Modbus and OPC UA channels opt into
   explicit counting individually. Opening a counter does not change its behaviour. Add an

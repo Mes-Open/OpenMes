@@ -40,6 +40,22 @@ class LegacyMachineCountingTest extends TestCase
         return [$order, $step, $tag];
     }
 
+    public function test_connectivity_overview_exposes_the_rest_connections_own_counters(): void
+    {
+        [, , $tag] = $this->setupMachine('rest');
+        $counter = app(MachineCounterService::class)->forSource($tag);
+        [, , $otherTag] = $this->setupMachine('rest');
+        app(MachineCounterService::class)->forSource($otherTag);
+        Role::findOrCreate('Admin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+        $response = $this->actingAs($admin)->get('/admin/connectivity')->assertOk();
+        $connections = $response->getOriginalContent()->getData()['page']['props']['connections'];
+        $connection = collect($connections)->firstWhere('id', $tag->machine_connection_id);
+        $this->assertSame([$counter->id], collect($connection['counter_ids'])->all());
+        $this->get('/admin/connectivity/counters?counter='.$counter->id)->assertOk();
+    }
+
     public function test_existing_modbus_and_opcua_counts_need_no_configuration_or_event_metadata(): void
     {
         foreach (['modbus', 'opcua'] as $protocol) {
