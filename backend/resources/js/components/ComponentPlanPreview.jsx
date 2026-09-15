@@ -17,8 +17,8 @@ export default function ComponentPlanPreview({ data, setData, action }) {
 
     useEffect(() => {
         if (!enabled || !ready) return;
-        setData?.('component_preview_token', null);
         let cancelled = false;
+        queueMicrotask(() => { if (!cancelled) setData?.('component_preview_token', null); });
         // Wait for typing/product-dependent BOM selection to settle. Ignore stale responses.
         const timer = setTimeout(async () => {
             const [product_type_id, bom_template_ids, planned_qty, use_component_stock, component_warehouse_ids, planned_start_at] = JSON.parse(key);
@@ -36,7 +36,13 @@ export default function ComponentPlanPreview({ data, setData, action }) {
         return () => { cancelled = true; clearTimeout(timer); };
     }, [key, enabled, ready, action]);
 
-    useEffect(() => { setData?.('excluded_component_paths', []); }, [data.product_type_id, JSON.stringify(data.bom_template_ids)]);
+    useEffect(() => {
+        let cancelled = false;
+        // Run after useForm has synchronized its ref; otherwise this child effect
+        // can restore the previous BOM selection on every preview reset.
+        queueMicrotask(() => { if (!cancelled) setData?.('excluded_component_paths', []); });
+        return () => { cancelled = true; };
+    }, [data.product_type_id, JSON.stringify(data.bom_template_ids)]);
 
     if (!enabled) return null;
     const current = result?.key === key ? result : null;

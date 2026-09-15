@@ -217,7 +217,11 @@ function Field({ field, value, error, setData, data }) {
         if (type !== 'select' || !filterByField) return;
         if (value == null || value === '') return;
         const stillValid = (scopedOptions ?? []).some((o) => String(o.value) === String(value));
-        if (!stillValid) set('');
+        if (!stillValid) {
+            let cancelled = false;
+            queueMicrotask(() => { if (!cancelled) set(''); });
+            return () => { cancelled = true; };
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterVal]);
 
@@ -401,7 +405,13 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
         const allowed = new Set(visibleOptions.map((o) => o.value));
         const pruned = selected.filter((v) => allowed.has(v));
         const next = pruned.length ? pruned : visibleOptions.filter((o) => o.defaultSelected).map((o) => o.value);
-        if (JSON.stringify(next) !== JSON.stringify(selected)) setData(name, next);
+        if (JSON.stringify(next) !== JSON.stringify(selected)) {
+            // Inertia synchronizes its data ref in a parent effect. Child effects
+            // must wait for that synchronization before applying dependent values.
+            let cancelled = false;
+            queueMicrotask(() => { if (!cancelled) setData(name, next); });
+            return () => { cancelled = true; };
+        }
         // Prune only when the driving field changes; selected/options are derived from it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterVal]);
