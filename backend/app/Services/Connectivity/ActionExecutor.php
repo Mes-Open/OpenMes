@@ -129,12 +129,16 @@ class ActionExecutor
 
     private function updateWorkOrderQty(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
     {
-        return $this->countReading($mapping, $data, $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue);
+        return $this->counters->withChannel($mapping, fn ($counter) => $counter->configured_at
+            ? $this->countReading($mapping, $data, $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue)
+            : app(\App\Services\Machine\LegacyMachineCounting::class)->updateWorkOrderQty($params, $data, $fieldValue));
     }
 
     private function countStep(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
     {
-        return $this->countReading($mapping, $data, $this->resolveParam($params, 'increment_path', $data) ?? ($params['increment'] ?? 1));
+        return $this->counters->withChannel($mapping, fn ($counter) => $counter->configured_at
+            ? $this->countReading($mapping, $data, $this->resolveParam($params, 'increment_path', $data) ?? ($params['increment'] ?? 1))
+            : app(\App\Services\Machine\LegacyMachineCounting::class)->countStep($mapping, $params, $data, $fieldValue));
     }
 
     private function countReading(TopicMapping $mapping, array $data, mixed $value): array

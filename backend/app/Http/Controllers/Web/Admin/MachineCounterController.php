@@ -60,6 +60,13 @@ class MachineCounterController extends Controller
         return back()->with('success', __('Counter configuration saved.'));
     }
 
+    public function useLegacy(MachineCounterRequest $request, int $counter)
+    {
+        $this->counters->useLegacy($this->counter($counter), $request->validated('note'), $request->user()->id);
+
+        return back()->with('success', __('Legacy counting enabled.'));
+    }
+
     public function rebaseline(MachineCounterRequest $request, int $counter)
     {
         $this->counters->rebaseline($this->counter($counter), $request->validated('note'), $request->user()->id);
@@ -78,7 +85,13 @@ class MachineCounterController extends Controller
     {
         abort_unless($this->counter($counter)->is_simulated, 404);
         $data = $request->validated();
-        $this->counters->ingest($this->counter($counter), $data['value'], isset($data['timestamp']) ? Carbon::parse($data['timestamp']) : now(), $data['event_id'] ?? null);
+        $channel = $this->counter($counter);
+        $at = isset($data['timestamp']) ? Carbon::parse($data['timestamp']) : now();
+        if ($channel->tag) {
+            app(\App\Services\Machine\MachineSignalIngestor::class)->ingest($channel->tag, $data['value'], $at, $data['event_id'] ?? null);
+        } else {
+            $this->counters->ingest($channel, $data['value'], $at, $data['event_id'] ?? null);
+        }
 
         return back()->with('success', __('Test reading recorded.'));
     }

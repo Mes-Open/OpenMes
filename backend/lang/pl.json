@@ -6217,5 +6217,18 @@
     "Use an exact MQTT topic for a production counter; wildcard topics can mix machines.": "Dla licznika produkcji użyj dokładnego tematu MQTT; symbole wieloznaczne mogą mieszać odczyty różnych maszyn.",
     "This step already has a good-count channel. Unassign it before connecting another source.": "Ten krok ma już kanał dobrych sztuk. Usuń jego przypisanie przed podłączeniem innego źródła.",
     "All readings": "Wszystkie odczyty",
-    "Awaiting review": "Do weryfikacji"
+    "Awaiting review": "Do weryfikacji",
+    "Explicit counting required": "Wymagane jawne zliczanie",
+    "Legacy counting enabled": "Włączono dotychczasowe zliczanie",
+    "Legacy counting enabled.": "Włączono dotychczasowe zliczanie.",
+    "Enable explicit counting": "Włącz jawne zliczanie",
+    "Return to legacy counting": "Przywróć dotychczasowe zliczanie",
+    "Explicit counting is enabled for this channel.": "Dla tego kanału włączono jawne zliczanie.",
+    "Legacy counting is active. Opening this page does not change machine behaviour. Enable explicit counting when this channel is ready.": "Aktywne jest dotychczasowe zliczanie. Otwarcie tej strony nie zmienia działania maszyny. Włącz jawne zliczanie, gdy ten kanał będzie gotowy.",
+    "Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.": "Istniejące kanały zachowują dotychczasowe zliczanie do czasu włączenia jawnego zliczania. W trybie jawnym przypisz kanał do jednego kroku partii i sprawdź jakość zliczanych sztuk.",
+    "Switch to whole-batch flow before returning a channel to legacy counting.": "Przełącz przepływ na całe partie przed przywróceniem dotychczasowego zliczania kanału.",
+    "Migrate these machine channels to explicit counting before enabling transfer flow: :sources": "Przed włączeniem przepływu transferowego przełącz te kanały maszynowe na jawne zliczanie: :sources",
+    "Migrate legacy machine channels before recording transfer production.": "Przed rejestrowaniem produkcji transferowej przełącz dotychczasowe kanały maszynowe na jawne zliczanie.",
+    "Resolve these machine counting requirements before enabling transfer flow: :sources": "Przed włączeniem przepływu transferowego rozwiąż te wymagania zliczania maszynowego: :sources",
+    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Zakończ lub uzgodnij zlecenie maszynowe #:id przed przełączeniem jego produkcji na rejestr kroków."
 }

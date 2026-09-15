@@ -62,13 +62,13 @@ class MqttStepCountingTest extends TestCase
         $this->assertEquals(0, $otherStep->fresh()->passed_qty);
     }
 
-    public function test_unconfigured_channel_retains_readings_without_guessing(): void
+    public function test_opening_an_unconfigured_channel_preserves_legacy_mqtt_counting(): void
     {
         [$mapping, $step, , $counter] = $this->setupMapping(false);
         $result = app(ActionExecutor::class)->executeSingle($mapping, ['event_id' => 'a', 'timestamp' => now()->toISOString()]);
-        $this->assertStringContainsString('unconfigured', $result['message']);
-        $this->assertEquals(0, $step->fresh()->passed_qty);
-        $this->assertEquals(1, $counter->readings()->count());
+        $this->assertSame('ok', $result['status']);
+        $this->assertEquals(1, $step->fresh()->passed_qty);
+        $this->assertNull($counter->fresh()->configured_at);
     }
 
     public function test_pulse_without_identity_cannot_count(): void

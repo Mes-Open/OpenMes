@@ -367,6 +367,10 @@ class BatchStep extends Model
     public function productionBlocker(): ?string
     {
         $order = $this->batch->workOrder;
+        if (ProductionFlow::isTransfer() && $order->isMachineCounted()
+            && app(\App\Services\Machine\MachineCountingCompatibility::class)->legacySources($order->line_id)) {
+            return __('Migrate legacy machine channels before recording transfer production.');
+        }
         if (in_array($this->batch->status, [Batch::STATUS_CANCELLED, Batch::STATUS_DONE], true)
             || in_array($order->status, [...WorkOrder::TERMINAL_STATUSES, WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_CHANGE_HOLD], true)) {
             return __('Production is stopped for this work order.');

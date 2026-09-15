@@ -13,7 +13,7 @@ and role boundaries, reconciliation, migration rollback and operator live update
 
 ## Findings corrected
 
-- Removed newest-order/newest-batch guessing from machine counting. Channels require explicit
+- Removed newest-order/newest-batch guessing from explicit machine counting. Channels require explicit
   workstation and step assignment; payload hints cannot redirect production.
 - Replaced cache baselines and order-total subtraction with persistent source state, timestamp
   checks and event-ID deduplication. A reset does not produce guessed output.
@@ -48,8 +48,8 @@ focused run as a clean full-suite pass.
 
 ## Release conditions
 
-Do not treat the commit alone as approval to deploy. Existing publishers need the explicit
-assignment and timestamp/event-ID contract described in
+Existing publishers retain legacy whole-batch counting by default. Migrating a channel to
+explicit counting requires the assignment and timestamp/event-ID contract described in
 [the deployment guide](production-flow-deployment.md). Rehearse migration and peak ingestion
 rate on a production-sized copy; database tests establish correctness, not an ingestion
 capacity or retention budget. Counter evidence is retained and can grow with polling volume.
@@ -57,3 +57,21 @@ Resolve or separately account for the known full-workspace test failures before 
 
 Use [the browser guide](machine-counter-browser-tests.md) to repeat the functional checks.
 No production deployment or push is part of this session.
+
+## Compatibility follow-up
+
+- Preserved pre-existing tag, MQTT absolute and MQTT pulse behaviour until each channel explicitly
+  opts in; opening/registering a channel alone does not alter counting.
+- Added an audited return to legacy mode, permitted in whole-batch flow.
+- Applied transfer compatibility validation to both web and API settings, with runtime guards
+  for legacy writes and protection against losing existing order output during a flow switch.
+- Verified legacy Modbus/OPC UA readings without event metadata, old MQTT absolute/wildcard
+  payloads, independent channel migration, settings validation and rollback authorization.
+- Visible native Playwright walkthrough covered legacy mode surviving reload, transfer rejection
+  naming the incompatible source, explicit activation and baseline/duplicate behaviour, and
+  successful transfer activation after migration. The original development flow setting was restored.
+- Final compatibility regression suite: **214 tests, 699 assertions** on both SQLite and
+  isolated PostgreSQL 17; **134 frontend tests** passed. Settings persistence assertions now
+  decode saved JSON instead of using PostgreSQL's unsupported JSON equality operator.
+- PHP formatting, translation key parity and whitespace checks passed. These are focused
+  regression results; the previously reported full-workspace failures remain outside this claim.

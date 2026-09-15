@@ -81,3 +81,25 @@ quantity caps, quality handling and a 390-pixel mobile viewport. These local evi
 are intentionally excluded from the application commit.
 
 See [deployment requirements](production-flow-deployment.md) before enabling machine writes.
+
+## Check upgrade compatibility
+
+Use a separate CLI-created demo for this check. Flow is a global setting: do this only on the
+isolated development instance, and restore its original value afterward.
+
+1. In **Settings → System → Production**, select **Whole batch** and save.
+2. Open the demo counter, expand **Return to legacy counting**, enter a reason and submit.
+3. Reload the page. It must still say **Legacy counting is active** and offer **Enable explicit
+   counting**. Opening the page has not migrated the source.
+4. Try enabling **Transfer** in system settings. Saving must fail with the incompatible tag ID.
+5. Return to the counter, choose its workstation and **Demo batch 1**, enter a reason and click
+   **Enable explicit counting**. Send **1000 → 1003 → 1003**: good output must be **0 → 3 → 3**.
+6. Enable Transfer again. With compatible channels and matching order/step totals, saving succeeds.
+7. Attempt **Return to legacy counting** while Transfer is active: the form must reject it.
+
+Legacy MQTT payloads and Modbus/OPC UA readings without new event metadata are covered by backend
+integration tests. For real installations, keep existing publishers unchanged until their own
+channel is migrated. If a whole-batch machine order already has output that is not represented
+in its steps, finish or reconcile it before enabling Transfer; the settings gate reports it.
+
+Compatibility recording: `docs/review-evidence/counting-compatibility/compatibility.webm`.

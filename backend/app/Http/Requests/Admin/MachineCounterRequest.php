@@ -19,7 +19,7 @@ class MachineCounterRequest extends FormRequest
             'configure' => ['mode' => ['required', Rule::in(['cumulative', 'increment', 'pulse'])],
                 'kind' => ['required', Rule::in(['good', 'reject', 'total'])], 'workstation_id' => ['required', 'integer'],
                 'batch_step_id' => ['nullable', 'integer'], 'note' => ['required', 'string', 'max:1000']],
-            'rebaseline' => ['note' => ['required', 'string', 'max:1000']],
+            'rebaseline', 'useLegacy' => ['note' => ['required', 'string', 'max:1000']],
             'review' => ['decision' => ['required', Rule::in(['apply', 'dismiss'])],
                 'batch_step_id' => ['required_if:decision,apply', 'nullable', 'integer'], 'note' => ['required', 'string', 'max:1000']],
             'simulate' => ['value' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],

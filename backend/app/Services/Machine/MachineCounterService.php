@@ -38,6 +38,35 @@ class MachineCounterService
         );
     }
 
+    /** Serialize switching behaviour with in-flight readings. Opening a channel does not opt in. */
+    public function withChannel(MachineTag|TopicMapping $source, callable $callback): mixed
+    {
+        $counter = $this->forSource($source);
+
+        return DB::transaction(function () use ($counter, $callback) {
+            return $callback(MachineCounter::whereKey($counter->id)->lockForUpdate()->firstOrFail());
+        }, 3);
+    }
+
+    public function useLegacy(MachineCounter $counter, string $note, int $userId): void
+    {
+        DB::transaction(function () use ($counter, $note, $userId) {
+            $counter = MachineCounter::whereKey($counter->id)->lockForUpdate()->firstOrFail();
+            if (! $counter->configured_at) {
+                return;
+            }
+            if (ProductionFlow::isTransfer()) {
+                $this->fail('Switch to whole-batch flow before returning a channel to legacy counting.');
+            }
+            $counter->update(['configured_at' => null, 'batch_step_id' => null, 'last_raw' => null, 'last_read_at' => null, 'reset_required' => false]);
+            if ($counter->machine_tag_id) {
+                \Illuminate\Support\Facades\Cache::forget("machine_tag_last:{$counter->machine_tag_id}");
+            }
+            $counter->readings()->create(['status' => 'legacy_enabled', 'observed_at' => now(), 'reviewed_by_id' => $userId,
+                'reviewed_at' => now(), 'review_note' => $note]);
+        });
+    }
+
     public function configure(MachineCounter $counter, array $data, int $userId): void
     {
         DB::transaction(function () use ($counter, $data, $userId) {

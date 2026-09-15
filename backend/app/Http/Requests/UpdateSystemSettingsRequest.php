@@ -23,6 +23,19 @@ class UpdateSystemSettingsRequest extends FormRequest
         return $this->user()?->hasRole('Admin') ?? false;
     }
 
+    public function after(): array
+    {
+        return [function (\Illuminate\Validation\Validator $validator) {
+            if ($this->input('production_flow_mode') !== 'transfer') {
+                return;
+            }
+            $sources = app(\App\Services\Machine\MachineCountingCompatibility::class)->transferBlockers();
+            if ($sources) {
+                $validator->errors()->add('production_flow_mode', __('Resolve these machine counting requirements before enabling transfer flow: :sources', ['sources' => implode(', ', $sources)]));
+            }
+        }];
+    }
+
     /**
      * @return array<string, mixed>
      */

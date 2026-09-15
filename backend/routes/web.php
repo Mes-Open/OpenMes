@@ -847,6 +847,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [$controller, 'index'])->name('connectivity.counters.index');
             Route::post('/', [$controller, 'register']);
             Route::put('/{counter}', [$controller, 'configure']);
+            Route::post('/{counter}/legacy', [$controller, 'useLegacy']);
             Route::post('/{counter}/rebaseline', [$controller, 'rebaseline']);
             Route::post('/{counter}/readings/{reading}/review', [$controller, 'review']);
             Route::post('/{counter}/simulate', [$controller, 'simulate']);

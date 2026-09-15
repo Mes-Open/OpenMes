@@ -74,7 +74,14 @@ class MachineSignalIngestor
         if ($modbusSnapshot !== null) {
             $snapshot['modbus'] = $modbusSnapshot;
         }
-        $this->counters->ingest($this->counters->forSource($tag), $value, $at, $eventId, $snapshot);
+        $this->counters->withChannel($tag, function ($counter) use ($tag, $value, $at, $eventId, $snapshot) {
+            if (! $counter->configured_at) {
+                app(LegacyMachineCounting::class)->ingest($counter, $tag, $value, $at);
+
+                return;
+            }
+            $this->counters->ingest($counter, $value, $at, $eventId, $snapshot);
+        });
     }
 
     private function handleTelemetry(MachineTag $tag, ?Workstation $ws, mixed $value, Carbon $at): void

@@ -73,12 +73,13 @@ class MachineCountToProducedQtyTest extends TestCase
         return [$workOrder, $workstation, $tag->fresh()];
     }
 
-    public function test_unconfigured_source_does_not_guess_the_active_order(): void
+    public function test_unconfigured_source_keeps_legacy_counting_for_whole_batch_orders(): void
     {
         [$workOrder, , $tag] = $this->scenario(WorkOrder::COUNTING_OPERATOR);
         $workOrder->update(['counting_source' => WorkOrder::COUNTING_MACHINE]);
-        app(MachineSignalIngestor::class)->ingest($tag, 10, now());
-        $this->assertEquals(0, $workOrder->fresh()->produced_qty);
+        app(MachineSignalIngestor::class)->ingest($tag, 10);
+        app(MachineSignalIngestor::class)->ingest($tag, 13);
+        $this->assertEquals(3, $workOrder->fresh()->produced_qty);
     }
 
     public function test_machine_counted_order_gains_produced_qty_from_a_good_count_delta(): void

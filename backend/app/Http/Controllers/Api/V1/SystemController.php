@@ -51,24 +51,8 @@ class SystemController extends Controller
         ]]);
     }
 
-    public function updateSetting(Request $request, string $key): JsonResponse
+    public function updateSetting(\App\Http\Requests\Api\V1\UpdateSystemSettingRequest $request, string $key): JsonResponse
     {
-        if (! $request->user()->hasRole('Admin')) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-        $validated = $request->validate(['value' => ['present']]);
-
-        $knownSettings = [
-            'production_period' => 'in:none,weekly,monthly',
-            'allow_overproduction' => 'boolean',
-            'force_sequential_steps' => 'boolean',
-            'production_flow_mode' => 'in:whole_batch,transfer',
-            'pin_login_enabled' => 'boolean',
-        ];
-        if (isset($knownSettings[$key])) {
-            $request->validate(['value' => ['required', $knownSettings[$key]]]);
-        }
-
         $row = DB::table('system_settings')->where('key', $key)->first();
         if (! $row) {
             return response()->json(['message' => 'Setting not found'], 404);

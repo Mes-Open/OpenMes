@@ -6217,5 +6217,18 @@
     "Use an exact MQTT topic for a production counter; wildcard topics can mix machines.": "Use an exact MQTT topic for a production counter; wildcard topics can mix machines.",
     "This step already has a good-count channel. Unassign it before connecting another source.": "This step already has a good-count channel. Unassign it before connecting another source.",
     "All readings": "All readings",
-    "Awaiting review": "Awaiting review"
+    "Awaiting review": "Awaiting review",
+    "Explicit counting required": "Explicit counting required",
+    "Legacy counting enabled": "Legacy counting enabled",
+    "Legacy counting enabled.": "Legacy counting enabled.",
+    "Enable explicit counting": "Enable explicit counting",
+    "Return to legacy counting": "Return to legacy counting",
+    "Explicit counting is enabled for this channel.": "Explicit counting is enabled for this channel.",
+    "Legacy counting is active. Opening this page does not change machine behaviour. Enable explicit counting when this channel is ready.": "Legacy counting is active. Opening this page does not change machine behaviour. Enable explicit counting when this channel is ready.",
+    "Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.": "Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.",
+    "Switch to whole-batch flow before returning a channel to legacy counting.": "Switch to whole-batch flow before returning a channel to legacy counting.",
+    "Migrate these machine channels to explicit counting before enabling transfer flow: :sources": "Migrate these machine channels to explicit counting before enabling transfer flow: :sources",
+    "Migrate legacy machine channels before recording transfer production.": "Migrate legacy machine channels before recording transfer production.",
+    "Resolve these machine counting requirements before enabling transfer flow: :sources": "Resolve these machine counting requirements before enabling transfer flow: :sources",
+    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Finish or reconcile machine order #:id before switching its output to the step ledger."
 }

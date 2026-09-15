@@ -68,4 +68,9 @@ class TopicMapping extends Model
     {
         return self::ACTION_LABELS[$this->action_type] ?? $this->action_type;
     }
+
+    public function counter(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(MachineCounter::class);
+    }
 }

@@ -38,20 +38,39 @@ and reconcile production recorded since that backup before resuming. Restoration
 not preserve post-backup production. Do not bypass the rollback guard or assume deploying an
 older application against this schema has been validated.
 
-## Machine counter rollout — required before resuming signals
+## Backward-compatible upgrades and optional channel migration
 
 The additional migration is `2026_09_15_120000_create_machine_counters.php`. It introduces
-durable channel state and retained reading/reconciliation history. It deliberately does not
-infer assignments from existing running orders. **Existing machine counters will stop applying
-production until their channels are configured.** Review this change with the person maintaining
-your gateways and MQTT publishers before deployment.
+durable channel state and retained reading/reconciliation history. **Existing machine integrations
+keep their legacy behaviour after an upgrade.** Opening a source in Machine counters does not
+opt it in. No new timestamps, event IDs or assignments are required for legacy whole-batch
+counting. Previously configured explicit channels remain explicit.
+
+Enable **explicit counting** for one channel at a time when ready. MQTT, Modbus and OPC UA all
+support the explicit pipeline. Its assignment, timestamp and event-ID requirements below apply
+only after that channel opts in. Legacy counting keeps its previous reset/routing assumptions;
+those reliability improvements are part of the explicit mode.
+
+Production flow is currently **system-wide**, not per order or per channel. Migrate channels
+while whole-batch flow remains enabled. The web and API settings endpoints refuse transfer
+flow when open machine-counted work has incompatible legacy channels or its existing output
+does not match the step ledger. Finish/reconcile that work first. Runtime guards also prevent
+legacy sources from writing a transfer ledger if settings are changed outside those endpoints.
+Manual-only orders do not require machine-channel migration.
+
+Pause acquisition around a channel switch. To opt in, choose its configuration, enter a reason
+and click **Enable explicit counting**. To opt out, use **Return to legacy counting** with a
+reason while in whole-batch flow. Both transitions retain audit history. Returning a tag to
+legacy mode clears its old cache baseline; its next reading establishes the legacy baseline
+without replaying the interval spent in explicit mode.
 
 1. In **Connectivity → Machine counters**, open each good/reject/cycle tag or production MQTT
    mapping. Select its mode and quality meaning explicitly.
 2. Set its workstation and the exact batch step. Multiple batches can run at a workstation;
    a channel targets only its explicitly assigned step. Only one good-count channel may be
    assigned to a step. Unassign that channel before replacing it with another source.
-3. For MQTT, use an **exact topic**, without `+` or `#`. Existing `line_id`, `step_number`,
+3. In explicit mode, use an **exact MQTT topic**, without `+` or `#`. Legacy wildcard topics
+   continue working until migrated. Existing `line_id`, `step_number`,
    `order_no`, `order_id` and `also_count_work_order` counting hints no longer choose the target.
    The final effective step owns finished output; intermediate counts never add order output.
 4. Supply acquisition timestamps on **all** count readings. Gateways use `ts`; MQTT defaults
@@ -66,7 +85,7 @@ your gateways and MQTT publishers before deployment.
 6. Send the first cumulative reading as a baseline. Verify the next known increment against the
    physical machine and the intended step. The baseline is independent of existing order
    output; 50,000 then 50,003 means 3 new pieces, even if order output was already nonzero.
-7. Resume production only after checking assignment, quality meaning and timestamp/event-ID
+7. Resume the migrated channel only after checking assignment, quality meaning and timestamp/event-ID
    delivery. Batch changes require explicit reassignment. Stop or establish a known boundary
    at the machine when changing batches: output between reassignment and the next cumulative
    baseline is intentionally not inferred. Reconcile that transition using physical evidence.
@@ -84,7 +103,9 @@ complete them through that workflow so quantity, blocking and completion rules r
 
 ## Machine concurrency and recovery
 
-A channel row lock serializes its baseline, assignment and event-ID lookup. Production then
+In explicit mode, a channel row lock serializes its baseline, assignment and event-ID lookup.
+That same lock serializes both modes with configuration changes, so an in-flight legacy
+reading cannot race an opt-in and also be processed by the explicit path. Production then
 locks the order and step in the same order used by the ledger. The baseline change, accepted
 production and reading history commit together. Cache flushes and worker restarts do not
 lose baselines or duplicate-detection history.

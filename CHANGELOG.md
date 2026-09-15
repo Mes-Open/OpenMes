@@ -8,8 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- Preserve legacy machine counting after upgrades: MQTT, Modbus and OPC UA channels opt into
+  explicit counting individually. Opening a counter does not change its behaviour. Add an
+  audited return to legacy mode and transfer compatibility checks in web/API settings, including
+  protection against losing existing machine-order totals when switching to step-ledger output.
 - Persist raw machine baselines independently of order output. Counter resets and late readings
-  no longer invent production; MQTT and gateway counters require explicit step assignments.
+  no longer invent production; explicit MQTT and gateway counters use saved step assignments.
 - Preflight step-ledger schema rollback before any changes: refuse downgrades that would discard
   scrap, fractional/out-of-range counters, or unclassified reasons (including deleted audit rows).
   Compatible data still supports rollback and re-upgrade; used ledgers require roll-forward or

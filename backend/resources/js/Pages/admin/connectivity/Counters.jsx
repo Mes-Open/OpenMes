@@ -7,7 +7,7 @@ const base = '/admin/connectivity/counters';
 const input = 'border border-om-line2 rounded px-3 py-2 bg-om-surface text-om-ink w-full';
 const button = 'rounded bg-om-accent text-white px-4 py-2 disabled:opacity-50';
 const statuses = {
-    configured: 'Configured', baseline: 'Baseline established', applied: 'Applied', unchanged: 'Unchanged',
+    legacy_incompatible: 'Explicit counting required', legacy_enabled: 'Legacy counting enabled', configured: 'Configured', baseline: 'Baseline established', applied: 'Applied', unchanged: 'Unchanged',
     unconfigured: 'Configuration required', unassigned: 'Unassigned', blocked: 'Step blocked', partial: 'Partially applied',
     reset_required: 'Reset review required', source_changed: 'Source changed', out_of_order: 'Out-of-order reading',
     future_reading: 'Future reading', event_id_required: 'Event ID required', timestamp_required: 'Timestamp required',
@@ -32,7 +32,14 @@ function Configuration({ counter, workstations, steps }) {
         </div>
         <p className="text-sm text-om-muted">{__('After a configuration change, the next cumulative reading establishes the baseline. Earlier readings are never replayed automatically.')}</p>
         <Field label="Reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
-        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__('Save counter configuration')}</button>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__(counter.configured_at ? 'Save counter configuration' : 'Enable explicit counting')}</button>
+    </form>;
+}
+function LegacySwitch({ counter }) {
+    const form = useForm({ note: '' });
+    return <form aria-label={__('Return to legacy counting')} className="space-y-2" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/legacy`, { preserveScroll: true }); }}>
+        <Field label="Reason"><input className={input} required value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__('Return to legacy counting')}</button>
     </form>;
 }
 function Baseline({ counter }) {
@@ -75,7 +82,7 @@ export default function Counters() {
     const assigned = steps.find(s => s.id === counter?.batch_step_id);
     return <><Head title={__('Machine counters')} /><div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex flex-wrap justify-between gap-2"><h1 className="text-2xl font-semibold">{__('Machine counters')}</h1><Link href="/admin/connectivity">{__('Machine Connectivity')}</Link><button onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</button></div>
-        <p className="text-om-muted">{__('Assign each counting channel to one batch step. Only confirmed good output advances production; total and reject counts remain available for quality review.')}</p>
+        <p className="text-om-muted">{__('Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.')}</p>
         <form aria-label={__('Register counter')} className="flex flex-wrap items-end gap-3" onSubmit={e => { e.preventDefault(); register.post(base); }}>
             <Field label="Machine source"><select className={input} required value={`${register.data.source_type}:${register.data.source_id}`} onChange={e => { const [source_type, source_id] = e.target.value.split(':'); register.setData({ source_type, source_id }); }}><option value="tag:">{__('Select source')}</option>{sources.map(s => <option key={`${s.type}:${s.id}`} value={`${s.type}:${s.id}`}>{s.label} ({s.type} #{s.id})</option>)}</select></Field>
             <button className={button} disabled={register.processing}>{__('Open counter')}</button><Errors errors={register.errors} />
@@ -86,9 +93,11 @@ export default function Counters() {
                 <h2 className="font-semibold">{counter.label} — {counter.connection?.name}</h2>
                 <div className="flex flex-wrap gap-6 text-sm"><span>{__('Last raw count')}: <strong data-testid="last-raw">{counter.last_raw ?? '—'}</strong></span><span>{__('Assigned batch step')}: {assigned?.label ?? counter.batch_step_id ?? __('Unassigned')}</span><span>{__('Good')}: <strong data-testid="step-good">{assigned?.passed_qty ?? '—'}</strong></span></div>
                 {counter.reset_required && <p role="alert" className="text-red-600 font-semibold">{__('Reset review required')}</p>}
+                <p className="text-sm text-om-muted">{__(counter.configured_at ? 'Explicit counting is enabled for this channel.' : 'Legacy counting is active. Opening this page does not change machine behaviour. Enable explicit counting when this channel is ready.')}</p>
                 <Configuration key={`${counter.id}:${counter.updated_at}`} {...{ counter, workstations, steps }} />
             </section>
-            {counter.mode === 'cumulative' && <section className="rounded border border-om-line2 p-4"><Baseline key={counter.id} counter={counter} /></section>}
+            {counter.configured_at && counter.mode === 'cumulative' && <section className="rounded border border-om-line2 p-4"><Baseline key={counter.id} counter={counter} /></section>}
+            {counter.configured_at && <details className="rounded border border-om-line2 p-4"><summary>{__('Return to legacy counting')}</summary><LegacySwitch counter={counter} /></details>}
             {canSimulate && <section className="rounded border border-om-line2 p-4"><Simulator key={counter.id} counter={counter} /></section>}
             {review && <Review key={review.id} {...{ counter, reading: review, steps }} close={() => setReview(null)} />}
             <section className="space-y-3"><h2 className="font-semibold">{__('Reading history')}</h2><div className="flex gap-4"><Link href={`${base}?counter=${counter.id}`}>{__('All readings')}</Link><Link href={`${base}?counter=${counter.id}&review=1`}>{__('Awaiting review')}</Link></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['ID', 'Time', 'Raw count', 'Delta', 'Applied quantity', 'Status', 'Batch step', 'Review'].map(h => <th key={h} className="p-2 text-left">{__(h)}</th>)}</tr></thead><tbody>{readings?.data.map(r => <tr key={r.id} className="border-t border-om-line2" data-reading-id={r.id}><td className="p-2">{r.id}</td><td className="p-2 whitespace-nowrap">{new Date(r.observed_at).toLocaleString()}<div className="text-om-muted">{r.event_id}</div></td><td className="p-2">{r.raw_value ?? '—'}</td><td className="p-2">{r.delta}</td><td className="p-2">{r.applied_qty}</td><td className="p-2">{__(statuses[r.status] ?? r.status)}</td><td className="p-2">{r.batch_step_id ?? '—'}</td><td className="p-2">{r.review_note ?? (!r.reviewed_at && ['unassigned', 'blocked', 'partial', 'quality_unknown'].includes(r.status) && <button className="text-om-accent underline" onClick={() => setReview(r)}>{__('Review')}</button>)}</td></tr>)}</tbody></table></div>
