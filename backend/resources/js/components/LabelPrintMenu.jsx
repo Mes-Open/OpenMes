@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from '@inertiajs/react';
+import { useAnchoredPopover } from '@openmes/ui/src/lib/anchorPopover';
 import { __ } from '../lib/i18n';
 
 /**
@@ -22,16 +24,27 @@ const KIND_TO_TYPE = {
 
 export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label' }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef(null);
+    // Portaled to <body> at fixed coordinates: rendered inline, the menu was
+    // clipped by the scrolling table it sits in (the workstation view's rows).
+    const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 260, estWidth: 256 });
     const wantType = KIND_TO_TYPE[kind];
     const applicable = templates.filter((t) => t.type === wantType);
 
     useEffect(() => {
         if (!open) return undefined;
-        const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-        document.addEventListener('mousedown', onClick);
-        return () => document.removeEventListener('mousedown', onClick);
-    }, [open]);
+        // The menu no longer lives inside the trigger's subtree — check both.
+        const onPointer = (e) => {
+            if (anchorRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onPointer);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onPointer);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open, anchorRef, popRef]);
 
     if (!id) return null;
 
@@ -55,10 +68,13 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
     const url = (tid, fmt) => `/packaging/labels/${kind}/${id}/${fmt}?template=${tid}`;
 
     return (
-        <div className="relative inline-block" ref={ref}>
+        <div className="inline-block">
             <button
+                ref={anchorRef}
                 type="button"
-                onClick={() => setOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
             >
                 {printIcon}
@@ -67,8 +83,14 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
-            {open && (
-                <div className="absolute right-0 mt-1 w-64 bg-om-card rounded-om-sm shadow-lg border border-om-line2 z-50">
+            {open && style && createPortal(
+                <div
+                    ref={popRef}
+                    style={style}
+                    // A row behind it may open something on click (the workstation table does).
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-64 bg-om-card rounded-om-sm shadow-lg border border-om-line2"
+                >
                     <div className="p-2">
                         <p className="px-2 py-1 text-xs text-om-muted uppercase tracking-wide">{__('Choose template')}</p>
                         {applicable.map((t) => (
@@ -89,7 +111,8 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
                             </div>
                         ))}
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );
