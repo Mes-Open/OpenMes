@@ -41,6 +41,33 @@ class ShiftMonitorDemoSeederTest extends TestCase
         $this->assertGreaterThan(0, \DB::table('workstation_states')->count());
     }
 
+    public function test_downtimes_are_stamped_with_a_tenant(): void
+    {
+        // Signed in, because that is how the seeder actually runs: the
+        // onboarding wizard installs the example company as the visitor who
+        // just registered, and HasTenant reads the tenant off that user.
+        $user = \App\Models\User::factory()->create([
+            'tenant_id' => \App\Models\Tenant::factory()->create()->id,
+        ]);
+        $this->actingAs($user);
+
+        $this->seedPlant();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        // HasTenant stamps tenant_id on the `creating` event, and the seeder
+        // runs inside Model::withoutEvents() to keep a few hundred Reverb
+        // nudges from firing. Downtimes were therefore written with a null
+        // tenant, which puts them outside TenantScope: invisible on the
+        // reports, and untouched by the seeder's own cleanup, so they piled up
+        // run after run.
+        $this->assertGreaterThan(0, DB::table('production_downtimes')->count());
+        $this->assertSame(
+            0,
+            DB::table('production_downtimes')->whereNull('tenant_id')->count(),
+            'A downtime with no tenant falls outside every tenant-scoped query.',
+        );
+    }
+
     public function test_a_station_only_works_its_own_lines_shifts(): void
     {
         $this->seedPlant();
