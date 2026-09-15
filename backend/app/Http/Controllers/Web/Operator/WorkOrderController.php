@@ -92,11 +92,12 @@ class WorkOrderController extends Controller
             $workstationNotStarted = $selection->notStartedAt($queueSource, $selectedWorkstation);
         }
 
-        // Load available workstations for this line (for the workstation filter dropdown)
-        $lineWorkstations = \App\Models\Workstation::where('line_id', $lineId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        // The line's workstations for the filter chips, in routing order (the
+        // process template's step order), not alphabetically.
+        $lineWorkstations = $selection->inRoutingOrder(
+            \App\Models\Workstation::where('line_id', $lineId)->where('is_active', true)->get(),
+            (int) $lineId,
+        );
 
         // Downtime reporter data (React replacement for the Livewire DowntimeReporter).
         $downtimeReasons = \App\Models\DowntimeReason::active()->orderBy('name')->get(['id', 'name']);

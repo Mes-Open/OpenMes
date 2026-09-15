@@ -304,6 +304,39 @@ class WorkstationViewSelectionTest extends TestCase
             ->assertJson(['workstation' => 0]);
     }
 
+    public function test_queue_chips_follow_the_process_template_not_the_alphabet(): void
+    {
+        // Named so that alphabetical (and plain string) order would be wrong.
+        $flash = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'FA-11 Flash']);
+        $roller = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'FA-2 Roller']);
+        $box = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'PACK-5 Box']);
+        $spareB = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'Z-10 Spare']);
+        $spareA = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'Z-9 Spare']);
+
+        // Routing: Roller → Flash → Pretest → Exposure → Box.
+        $product = \App\Models\ProductType::factory()->create();
+        $this->line->productTypes()->attach($product);
+        $template = \App\Models\ProcessTemplate::factory()->create(['product_type_id' => $product->id, 'is_active' => true, 'version' => 2]);
+        foreach ([$roller, $flash, $this->pretest, $this->exposure, $box] as $i => $ws) {
+            \App\Models\TemplateStep::factory()->create(['process_template_id' => $template->id, 'step_number' => $i + 1, 'workstation_id' => $ws->id]);
+        }
+        // An older, inactive version with the reverse order must not count.
+        $old = \App\Models\ProcessTemplate::factory()->create(['product_type_id' => $product->id, 'is_active' => false, 'version' => 1]);
+        \App\Models\TemplateStep::factory()->create(['process_template_id' => $old->id, 'step_number' => 1, 'workstation_id' => $box->id]);
+
+        $this->actingAs($this->operator)
+            ->withSession(['selected_line_id' => $this->line->id])
+            ->get('/operator/queue')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('lineWorkstations', fn ($chips) => collect($chips)->pluck('name')->all() === [
+                    'FA-2 Roller', 'FA-11 Flash', 'FT-1 Pretest', 'FT-2 Exposure', 'PACK-5 Box',
+                    // Not in the routing: after it, natural name order.
+                    'Z-9 Spare', 'Z-10 Spare',
+                ])
+            );
+    }
+
     public function test_guest_cannot_poll_the_queue_check(): void
     {
         $this->get('/operator/queue/check')->assertRedirect('/login');

@@ -3,6 +3,8 @@
 namespace App\Services\Production;
 
 use App\Models\Batch;
+use App\Models\Line;
+use App\Models\ProcessTemplate;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use Illuminate\Database\Eloquent\Collection;
@@ -114,5 +116,44 @@ class OperatorWorkstationSelection
             : $steps->where('variant_group', $group);
 
         return $firstSteps->contains(fn ($s) => (int) ($s['workstation_id'] ?? 0) === (int) $workstation->id);
+    }
+
+    /**
+     * A line's workstations in the order work flows through them — the order the
+     * queue's workstation chips are shown in. Position is the earliest step that
+     * uses the workstation in the active process template of any product made on
+     * the line (assigned to it, or ordered on it). Workstations no template uses
+     * follow, and ties sort by name naturally (FA-2 before FA-11).
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return Collection<int, Workstation>
+     */
+    public function inRoutingOrder(Collection $workstations, int $lineId): Collection
+    {
+        $productTypeIds = Line::find($lineId)?->productTypes()->pluck('product_types.id')
+            ->merge(WorkOrder::where('line_id', $lineId)->whereNotNull('product_type_id')->distinct()->pluck('product_type_id'))
+            ->unique()
+            ->values() ?? collect();
+
+        $position = [];
+        if ($productTypeIds->isNotEmpty()) {
+            ProcessTemplate::whereIn('product_type_id', $productTypeIds)
+                ->where('is_active', true)
+                ->with(['steps' => fn ($q) => $q->whereNotNull('workstation_id')->select(['id', 'process_template_id', 'step_number', 'workstation_id'])])
+                ->orderByDesc('version')
+                ->get()
+                ->unique('product_type_id') // latest active version per product type
+                ->each(function (ProcessTemplate $template) use (&$position) {
+                    foreach ($template->steps as $step) {
+                        $id = (int) $step->workstation_id;
+                        $position[$id] = min($position[$id] ?? PHP_INT_MAX, (int) $step->step_number);
+                    }
+                });
+        }
+
+        return $workstations->sort(function (Workstation $a, Workstation $b) use ($position) {
+            return ($position[$a->id] ?? PHP_INT_MAX) <=> ($position[$b->id] ?? PHP_INT_MAX)
+                ?: strnatcasecmp((string) $a->name, (string) $b->name);
+        })->values();
     }
 }
