@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { cloneElement, useState } from 'react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -25,14 +26,14 @@ function Configuration({ counter, workstations, steps }) {
     const options = steps.filter(s => s.workstation_id === Number(form.data.workstation_id));
     return <form aria-label={__('Counter configuration')} className="space-y-3" onSubmit={e => { e.preventDefault(); form.put(`${base}/${counter.id}`, { preserveScroll: true }); }}>
         <div className="grid md:grid-cols-2 gap-3">
-            <Field label="Counter mode"><select className={input} value={form.data.mode} onChange={e => form.setData('mode', e.target.value)}><option value="cumulative">{__('Cumulative')}</option><option value="increment">{__('Increment')}</option><option value="pulse">{__('Pulse')}</option></select></Field>
-            <Field label="Count quality"><select className={input} value={form.data.kind} onChange={e => form.setData('kind', e.target.value)}><option value="good">{__('Good')}</option><option value="reject">{__('Reject')}</option><option value="total">{__('Total (quality unknown)')}</option></select></Field>
-            <Field label="Workstation"><select className={input} required value={form.data.workstation_id} onChange={e => form.setData({ ...form.data, workstation_id: e.target.value, batch_step_id: '' })}><option value="">{__('Select workstation')}</option>{workstations.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-            <Field label="Assigned batch step"><select className={input} value={form.data.batch_step_id} onChange={e => form.setData('batch_step_id', e.target.value)}><option value="">{__('Unassigned')}</option>{options.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></Field>
+            <Field label="Counter mode"><Dropdown className="w-full" value={form.data.mode} onChange={value => form.setData('mode', value)} options={['cumulative', 'increment', 'pulse'].map((value, i) => ({ value, label: __(['Cumulative', 'Increment', 'Pulse'][i]) }))} /></Field>
+            <Field label="Count quality"><Dropdown className="w-full" value={form.data.kind} onChange={value => form.setData('kind', value)} options={['good', 'reject', 'total'].map((value, i) => ({ value, label: __(['Good', 'Reject', 'Total (quality unknown)'][i]) }))} /></Field>
+            <Field label="Workstation"><Dropdown className="w-full" value={String(form.data.workstation_id)} onChange={value => form.setData({ ...form.data, workstation_id: value, batch_step_id: '' })} placeholder={__('Select workstation')} options={workstations.map(w => ({ value: String(w.id), label: w.name }))} /></Field>
+            <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} options={[{ value: '', label: __('Unassigned') }, ...options.map(s => ({ value: String(s.id), label: s.label }))]} /></Field>
         </div>
         <p className="text-sm text-om-muted">{__('After a configuration change, the next cumulative reading establishes the baseline. Earlier readings are never replayed automatically.')}</p>
         <Field label="Reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
-        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__(counter.configured_at ? 'Save counter configuration' : 'Enable explicit counting')}</button>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing || !form.data.workstation_id}>{__(counter.configured_at ? 'Save counter configuration' : 'Enable explicit counting')}</button>
     </form>;
 }
 function LegacySwitch({ counter }) {
@@ -68,10 +69,10 @@ function Review({ counter, reading, steps, close }) {
     const canApply = reading.payload?.kind === 'good' && Number(reading.delta) > Number(reading.applied_qty);
     return <form aria-label={__('Review reading')} className="p-4 border border-om-line2 space-y-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/readings/${reading.id}/review`, { preserveScroll: true, onSuccess: close }); }}>
         <h3 className="font-semibold">{__('Review reading')} #{reading.id}</h3>
-        <Field label="Decision"><select className={input} value={form.data.decision} onChange={e => form.setData('decision', e.target.value)}><option value="dismiss">{__('Dismiss with reason')}</option>{canApply && <option value="apply">{__('Apply remaining good quantity')}</option>}</select></Field>
-        {form.data.decision === 'apply' && <Field label="Assigned batch step"><select required className={input} value={form.data.batch_step_id} onChange={e => form.setData('batch_step_id', e.target.value)}><option value="">{__('Select step')}</option>{steps.filter(s => s.workstation_id === counter.workstation_id).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></Field>}
+        <Field label="Decision"><Dropdown className="w-full" value={form.data.decision} onChange={value => form.setData('decision', value)} options={[{ value: 'dismiss', label: __('Dismiss with reason') }, ...(canApply ? [{ value: 'apply', label: __('Apply remaining good quantity') }] : [])]} /></Field>
+        {form.data.decision === 'apply' && <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} placeholder={__('Select step')} options={steps.filter(s => s.workstation_id === counter.workstation_id).map(s => ({ value: String(s.id), label: s.label }))} /></Field>}
         <Field label="Review reason"><input required maxLength={1000} className={input} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
-        <Errors errors={form.errors} /><div className="flex gap-3"><button className={button} disabled={form.processing}>{__('Save review')}</button><button type="button" onClick={close}>{__('Cancel')}</button></div>
+        <Errors errors={form.errors} /><div className="flex gap-3"><button className={button} disabled={form.processing || (form.data.decision === 'apply' && !form.data.batch_step_id)}>{__('Save review')}</button><button type="button" onClick={close}>{__('Cancel')}</button></div>
     </form>;
 }
 export default function Counters() {
@@ -84,8 +85,8 @@ export default function Counters() {
         <div className="flex flex-wrap justify-between gap-2"><h1 className="text-2xl font-semibold">{__('Machine counters')}</h1><Link href="/admin/connectivity">{__('Machine Connectivity')}</Link><button onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</button></div>
         <p className="text-om-muted">{__('Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.')}</p>
         <form aria-label={__('Register counter')} className="flex flex-wrap items-end gap-3" onSubmit={e => { e.preventDefault(); register.post(base); }}>
-            <Field label="Machine source"><select className={input} required value={`${register.data.source_type}:${register.data.source_id}`} onChange={e => { const [source_type, source_id] = e.target.value.split(':'); register.setData({ source_type, source_id }); }}><option value="tag:">{__('Select source')}</option>{sources.map(s => <option key={`${s.type}:${s.id}`} value={`${s.type}:${s.id}`}>{s.label} ({s.type} #{s.id})</option>)}</select></Field>
-            <button className={button} disabled={register.processing}>{__('Open counter')}</button><Errors errors={register.errors} />
+            <Field label="Machine source"><Dropdown className="w-full min-w-64" value={register.data.source_id ? `${register.data.source_type}:${register.data.source_id}` : ''} placeholder={__('Select source')} onChange={value => { const [source_type, source_id] = value.split(':'); register.setData({ source_type, source_id }); }} options={sources.map(s => ({ value: `${s.type}:${s.id}`, label: `${s.label} (${s.type} #${s.id})` }))} /></Field>
+            <button className={button} disabled={register.processing || !register.data.source_id}>{__('Open counter')}</button><Errors errors={register.errors} />
         </form>
         <nav className="flex flex-wrap gap-2">{counters.map(c => <Link key={c.id} href={`${base}?counter=${c.id}`} onClick={() => setReview(null)} className={`px-3 py-2 rounded border ${c.id === selectedId ? 'border-om-accent text-om-accent' : 'border-om-line2'}`}>{c.label} #{c.id}</Link>)}</nav>
         {counter && <>

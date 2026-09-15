@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+
+- Use shared UI dropdowns throughout machine counter configuration and reading review.
 - Preserve legacy machine counting after upgrades: MQTT, Modbus and OPC UA channels opt into
   explicit counting individually. Opening a counter does not change its behaviour. Add an
   audited return to legacy mode and transfer compatibility checks in web/API settings, including
