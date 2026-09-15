@@ -50,6 +50,8 @@ class WorkOrderController extends Controller
             ->orderBy('due_date', 'asc')
             ->get();
 
+        $activeWorkOrders->each(fn (WorkOrder $order) => $order->setAttribute('uses_step_ledger', $order->usesStepLedger()));
+
         $completedWorkOrders = WorkOrder::where('line_id', $lineId)
             ->where('status', WorkOrder::STATUS_DONE)
             ->with(['productType', 'batches', 'lineStatus'])
@@ -140,6 +142,9 @@ class WorkOrderController extends Controller
             if ($workflowMode === 'board_status') {
                 $newStatus = LineStatus::find($validated['line_status_id']);
                 if ($newStatus && $newStatus->is_done_status) {
+                    if ($workOrder->usesStepLedger()) {
+                        return back()->with('error', __('Record production on the work order steps.'));
+                    }
                     $updates['status'] = WorkOrder::STATUS_DONE;
                     $updates['completed_at'] = now();
                     if (isset($validated['produced_qty'])) {
@@ -210,6 +215,7 @@ class WorkOrderController extends Controller
         $workOrder->load([
             'line',
             'productType',
+            'batches.steps.workstation',
             'batches.steps.startedBy',
             'batches.steps.completedBy',
             'batches.steps.confirmedBy',
@@ -356,6 +362,38 @@ class WorkOrderController extends Controller
         $materialShortages = app(\App\Services\Material\MaterialAllocationService::class)
             ->shortagesForWorkOrders(collect([$workOrder]))[$workOrder->id] ?? [];
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages'));
+        $workOrder->scrapEntries->each(fn ($entry) => $entry->setAttribute('can_classify', $request->user()->can('update', $entry)));
+
+        // Quantity ledger per step (what arrived, what is still waiting) so the
+        // page can show and gate the quick quantity log; the flow mode tells it
+        // whether finishing a step needs the ledger to be empty first.
+        $flowMode = \App\Support\ProductionFlow::mode();
+        foreach ($workOrder->batches as $batch) {
+            $productionBlocker = null;
+            if ($flowMode === \App\Support\ProductionFlow::TRANSFER && ($firstStep = $batch->steps->first())) {
+                $firstStep->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations()));
+                $productionBlocker = $firstStep->productionBlocker();
+                $firstStep->unsetRelation('batch');
+            }
+            foreach ($batch->steps as $step) {
+                // Point the step at the already-loaded batch (and its steps) so the
+                // ledger doesn't lazy-load the batch and re-query its steps per step,
+                // then drop that relation again so it isn't serialized into the props.
+                $step->setRelation('batch', $batch->withoutRelations()->setRelation('steps', $batch->steps));
+                $step->setAttribute('production_blocker', $productionBlocker);
+                $step->setAttribute('incoming_qty', $step->incomingQty());
+                $step->setAttribute('available_qty', $step->availableQty());
+                $step->setAttribute('completion_blocker', $step->status === \App\Models\BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null);
+                $step->unsetRelation('batch');
+            }
+        }
+
+        // The station the operator picked in the queue (or their workstation
+        // account): the page folds the other stations' steps away behind it.
+        $selectedWorkstation = app(\App\Services\Production\OperatorWorkstationSelection::class)
+            ->resolve($request, (int) $workOrder->line_id, allowOtherLines: true);
+        $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation'));
     }
 }

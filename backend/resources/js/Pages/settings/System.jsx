@@ -132,6 +132,7 @@ export default function System() {
         schedule_show_weekends: settings.schedule_show_weekends ?? true,
         realtime_mode: settings.realtime_mode ?? 'polling',
         production_tracking_mode: settings.production_tracking_mode ?? 'per_operation',
+        production_flow_mode: settings.production_flow_mode ?? 'whole_batch',
         cors_allowed_origins: settings.cors_allowed_origins ?? '',
         cors_allowed_methods: settings.cors_allowed_methods ?? 'GET, POST',
         cors_max_age: settings.cors_max_age ?? 0,
@@ -581,6 +582,28 @@ export default function System() {
                                 ))}
                             </div>
                             {errors.production_tracking_mode && <p className={ERROR_CLASS}>{errors.production_tracking_mode}</p>}
+                        </div>
+
+                        {/* Production Flow (whole batch vs transfer between stations) */}
+                        <div className={CARD_CLASS}>
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Flow')}</h2>
+                            <p className={`${HELP_CLASS} mb-4`}>{__('How pieces move between the steps of a batch.')}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {[
+                                    { value: 'whole_batch', label: __('Whole batch'), desc: __('A station opens only after the previous one has finished the whole batch. Finishing a step passes everything not scrapped.') },
+                                    { value: 'transfer', label: __('Transfer'), desc: __('Pieces move on as soon as they are logged as good, so stations work at the same time. A step finishes once nothing is left waiting.') },
+                                ].map((opt) => (
+                                    <SelectCard
+                                        key={opt.value}
+                                        value={opt.value}
+                                        current={data.production_flow_mode}
+                                        onChange={(v) => setData('production_flow_mode', v)}
+                                        label={opt.label}
+                                        desc={opt.desc}
+                                    />
+                                ))}
+                            </div>
+                            {errors.production_flow_mode && <p className={ERROR_CLASS}>{errors.production_flow_mode}</p>}
                         </div>
 
                         {/* Production Quantity Corrections */}

@@ -39,6 +39,8 @@ export default function ConnectivityIndex() {
                     </div>
                 </div>
 
+                <Link href="/admin/connectivity/counters" className="text-om-accent underline">{__('Machine counters')}</Link>
+
                 {/* Protocol tabs */}
                 <div className="flex gap-2 border-b border-om-line2">
                     <span className="px-4 py-2 text-sm font-medium border-b-2 border-om-accent text-om-accent">

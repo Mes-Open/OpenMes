@@ -161,15 +161,31 @@ class Batch extends Model
      */
     public function promoteReadySteps(): void
     {
-        $this->steps()
-            ->where('status', BatchStep::STATUS_PENDING)
-            ->orderBy('step_number')
-            ->get()
-            ->each(function (BatchStep $step) {
+        // Evaluate every step against one snapshot of the batch's steps instead
+        // of letting each prerequisite check lazy-load the batch and re-query its
+        // steps. Promoting to READY never changes another step's prerequisites
+        // (they depend on DONE/SKIPPED and passed quantities), so the snapshot
+        // stays valid for the whole loop. A relation-free copy of the batch keeps
+        // the snapshot off this instance, which callers keep using afterwards.
+        $steps = $this->steps()->get();
+        $batch = $this->withoutRelations()->setRelation('steps', $steps);
+
+        $steps->where('status', BatchStep::STATUS_PENDING)
+            ->each(function (BatchStep $step) use ($batch) {
+                $step->setRelation('batch', $batch);
                 if ($step->prerequisitesMet()) {
                     $step->update(['status' => BatchStep::STATUS_READY]);
                 }
             });
+    }
+
+    /** The last step that is not SKIPPED — the one whose output is the batch's output. */
+    public function lastEffectiveStep(): ?BatchStep
+    {
+        return $this->steps()
+            ->where('status', '!=', BatchStep::STATUS_SKIPPED)
+            ->reorder('step_number', 'desc')
+            ->first();
     }
 
     /**

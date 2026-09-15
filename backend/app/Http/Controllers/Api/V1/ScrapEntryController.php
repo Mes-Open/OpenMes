@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\UpdateScrapEntryRequest;
 use App\Models\ScrapEntry;
 use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ScrapEntryController extends Controller
 {
@@ -91,6 +94,9 @@ class ScrapEntryController extends Controller
             'notes' => ['nullable', 'string'],
             'reported_at' => ['nullable', 'date'],
         ]);
+        if ($workOrder->usesStepLedger()) {
+            throw ValidationException::withMessages(['quantity' => __('Record scrap on the work order steps.')]);
+        }
         $data['work_order_id'] = $workOrder->id;
         $data['reported_by'] = $request->user()->id;
         $data['reported_at'] = $data['reported_at'] ?? now();
@@ -103,27 +109,39 @@ class ScrapEntryController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, ScrapEntry $scrapEntry): JsonResponse
+    public function update(UpdateScrapEntryRequest $request, ScrapEntry $scrapEntry): JsonResponse
     {
-        $this->authorize('update', $scrapEntry);
         $this->assertTenantVisible($scrapEntry);
-        $data = $request->validate([
-            'scrap_reason_id' => ['sometimes', 'integer', Rule::exists('scrap_reasons', 'id')->where('is_active', true)],
-            'quantity' => ['sometimes', 'numeric', 'min:0.01', 'max:99999999'],
-            'batch_step_id' => ['sometimes', 'nullable', 'integer', 'exists:batch_steps,id'],
-            'shift_id' => ['sometimes', 'nullable', 'integer', 'exists:shifts,id'],
-            'notes' => ['sometimes', 'nullable', 'string'],
-        ]);
-        $scrapEntry->update($data);
+        $data = $request->validated();
+        $entry = DB::transaction(function () use ($scrapEntry, $data) {
+            $entry = ScrapEntry::whereKey($scrapEntry->id)->lockForUpdate()->firstOrFail();
+            // A step output is a production fact. Reclassification is safe;
+            // rewriting/removing it could invalidate already processed pieces.
+            if ($entry->batch_step_id || ! empty($data['batch_step_id'])) {
+                if ((array_key_exists('quantity', $data) && (float) $data['quantity'] !== (float) $entry->quantity)
+                    || (array_key_exists('batch_step_id', $data) && (int) $data['batch_step_id'] !== (int) $entry->batch_step_id)) {
+                    throw ValidationException::withMessages(['quantity' => __('Step scrap quantities cannot be changed. You can update the reason or notes.')]);
+                }
+            }
+            $entry->update($data);
 
-        return response()->json(['message' => 'Scrap entry updated', 'data' => $scrapEntry->fresh(['scrapReason'])]);
+            return $entry;
+        });
+
+        return response()->json(['message' => 'Scrap entry updated', 'data' => $entry->fresh(['scrapReason'])]);
     }
 
     public function destroy(ScrapEntry $scrapEntry): JsonResponse
     {
         $this->authorize('delete', $scrapEntry);
         $this->assertTenantVisible($scrapEntry);
-        $scrapEntry->delete();
+        DB::transaction(function () use ($scrapEntry) {
+            $entry = ScrapEntry::whereKey($scrapEntry->id)->lockForUpdate()->firstOrFail();
+            if ($entry->batch_step_id) {
+                throw ValidationException::withMessages(['quantity' => __('Step scrap quantities cannot be changed. You can update the reason or notes.')]);
+            }
+            $entry->delete();
+        });
 
         return response()->json(['message' => 'Scrap entry deleted']);
     }

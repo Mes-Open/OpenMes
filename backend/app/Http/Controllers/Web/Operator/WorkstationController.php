@@ -69,6 +69,7 @@ class WorkstationController extends Controller
         }
 
         $workOrders = $query->get();
+        $workOrders->each(fn (WorkOrder $order) => $order->setAttribute('uses_step_ledger', $order->usesStepLedger()));
 
         $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
@@ -270,6 +271,10 @@ class WorkstationController extends Controller
      */
     public function complete(Request $request, WorkOrder $workOrder)
     {
+        if ($workOrder->usesStepLedger()) {
+            return back()->withErrors(['produced_qty' => __('Record production on the work order steps.')]);
+        }
+
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
@@ -317,6 +322,10 @@ class WorkstationController extends Controller
      */
     public function shiftEntry(Request $request, WorkOrder $workOrder)
     {
+        if ($workOrder->usesStepLedger()) {
+            return back()->withErrors(['quantity' => __('Record production on the work order steps.')]);
+        }
+
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {

@@ -2,77 +2,39 @@
 
 namespace App\Services\WorkOrder;
 
-use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\WorkOrder;
-use App\Models\Workstation;
+use Illuminate\Support\Facades\DB;
 
-/**
- * The single authoritative path for applying machine-reported production counts
- * to a work order's produced_qty. Both the protocol-agnostic signal pipeline
- * (MachineSignalIngestor) and the legacy MQTT topic-mapping path (ActionExecutor)
- * funnel through here, so the counting_source guard and the auto-start /
- * auto-complete side effects live in exactly one place — no double-count, no
- * divergent status logic.
- */
+/** Applies explicit good-output deltas; raw machine readings belong to MachineCounterService. */
 class MachineProductionService
 {
-    /**
-     * Resolve the work order a machine at this workstation is currently producing:
-     * the batch step in progress at the workstation → its batch → work order.
-     * Falls back to an active batch assigned to the workstation. Returns null
-     * when nothing is running there (the count is still logged upstream).
-     */
-    public function resolveActiveWorkOrder(Workstation $workstation): ?WorkOrder
+    /** Direct output increments are reserved for whole-batch orders. Raw readings use MachineCounterService. */
+    public function recordGoodCount(WorkOrder $workOrder, float $delta, ?BatchStep $step = null): bool
     {
-        $step = BatchStep::where('workstation_id', $workstation->id)
-            ->where('status', BatchStep::STATUS_IN_PROGRESS)
-            ->orderByDesc('started_at')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($workOrder = $step?->batch?->workOrder) {
-            return $workOrder;
-        }
-
-        $batch = Batch::forWorkstation($workstation->id)
-            ->where('status', Batch::STATUS_IN_PROGRESS)
-            ->orderByDesc('id')
-            ->first();
-
-        return $batch?->workOrder;
-    }
-
-    /**
-     * Add a positive good-count delta to produced_qty, honouring counting_source.
-     * Returns true when the count was applied, false when it was ignored (order
-     * is operator-counted, terminal, or the delta is non-positive).
-     */
-    public function recordGoodCount(WorkOrder $workOrder, float $delta): bool
-    {
-        if ($delta <= 0 || ! $workOrder->isMachineCounted()) {
+        if (! is_finite($delta) || $delta <= 0) {
             return false;
         }
 
-        $this->setProducedQty($workOrder, (float) $workOrder->produced_qty + $delta);
+        return DB::transaction(function () use ($workOrder, $delta, $step) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            if (! $current->isMachineCounted() || in_array($current->status, WorkOrder::TERMINAL_STATUSES, true)) {
+                return false;
+            }
+            if ($current->usesStepLedger()) {
+                return $step && $step->batch?->work_order_id === $current->id
+                    && app(BatchService::class)->recordMachinePass($step, $delta) > 0;
+            }
+            $this->setProducedQty($current, (float) $current->produced_qty + $delta);
 
-        return true;
+            return true;
+        });
     }
 
-    /**
-     * Set produced_qty to an absolute machine-reported value, honouring
-     * counting_source. Used by the legacy MQTT path when a mapping reports the
-     * cumulative total rather than a delta.
-     */
+    /** A source-free absolute value cannot safely be converted to production. */
     public function recordAbsoluteCount(WorkOrder $workOrder, float $value): bool
     {
-        if (! $workOrder->isMachineCounted()) {
-            return false;
-        }
-
-        $this->setProducedQty($workOrder, $value);
-
-        return true;
+        return false;
     }
 
     /**

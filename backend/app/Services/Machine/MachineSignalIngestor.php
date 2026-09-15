@@ -5,9 +5,7 @@ namespace App\Services\Machine;
 use App\Models\MachineEvent;
 use App\Models\MachineTag;
 use App\Models\Workstation;
-use App\Services\WorkOrder\MachineProductionService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -27,20 +25,21 @@ class MachineSignalIngestor
 {
     public function __construct(
         private readonly WorkstationStateMachine $stateMachine,
-        private readonly MachineProductionService $production,
+        private readonly MachineCounterService $counters,
     ) {}
 
-    public function ingest(MachineTag $tag, mixed $rawValue, ?Carbon $at = null): void
+    public function ingest(MachineTag $tag, mixed $rawValue, ?Carbon $at = null, ?string $eventId = null, ?array $modbusSnapshot = null): void
     {
+        $observedAt = $at;
         $at ??= now();
         $value = $tag->applyTransform($rawValue);
         $workstation = $tag->workstation;
 
         match ($tag->signal_type) {
             MachineTag::SIGNAL_STATE => $this->handleState($tag, $workstation, (string) $value, $at),
-            MachineTag::SIGNAL_GOOD_COUNT => $this->handleCounter($tag, $workstation, $value, 'good', $at),
-            MachineTag::SIGNAL_REJECT_COUNT => $this->handleCounter($tag, $workstation, $value, 'reject', $at),
-            MachineTag::SIGNAL_CYCLE_COMPLETE => $this->handleCounter($tag, $workstation, $value, 'good', $at),
+            MachineTag::SIGNAL_GOOD_COUNT => $this->handleCounter($tag, $workstation, $value, $observedAt, $eventId, $modbusSnapshot),
+            MachineTag::SIGNAL_REJECT_COUNT => $this->handleCounter($tag, $workstation, $value, $observedAt, $eventId, $modbusSnapshot),
+            MachineTag::SIGNAL_CYCLE_COMPLETE => $this->handleCounter($tag, $workstation, $value, $observedAt, $eventId, $modbusSnapshot),
             MachineTag::SIGNAL_TELEMETRY => $this->handleTelemetry($tag, $workstation, $value, $at),
             MachineTag::SIGNAL_ALARM => $this->handleAlarm($tag, $workstation, $value, $at),
             default => null,
@@ -69,45 +68,13 @@ class MachineSignalIngestor
         ], $current?->state, $state);
     }
 
-    /**
-     * Counters are cumulative on the machine; we store the last reading per tag
-     * and emit the delta. Counter resets (new < last) are treated as the new
-     * value to avoid negative spikes.
-     */
-    private function handleCounter(MachineTag $tag, ?Workstation $ws, mixed $value, string $kind, Carbon $at): void
+    private function handleCounter(MachineTag $tag, ?Workstation $ws, mixed $value, ?Carbon $at, ?string $eventId, ?array $modbusSnapshot): void
     {
-        if (! $ws || ! is_numeric($value)) {
-            return;
+        $snapshot = $this->counters->sourceSnapshot($tag);
+        if ($modbusSnapshot !== null) {
+            $snapshot['modbus'] = $modbusSnapshot;
         }
-
-        $value = (float) $value;
-        $cacheKey = "machine_tag_last:{$tag->id}";
-        $last = Cache::get($cacheKey);
-        Cache::put($cacheKey, $value, now()->addDay());
-
-        $delta = ($last === null || $value < $last) ? ($last === null ? 0 : $value) : ($value - $last);
-        if ($delta <= 0) {
-            return;
-        }
-
-        $this->record($ws, $tag, MachineEvent::TYPE_COUNTER, $at, [
-            'kind' => $kind,
-            'value' => $value,
-            'delta' => $delta,
-        ]);
-
-        // Close the loop to work order progress: a good-count delta drives
-        // produced_qty on the order currently running at this workstation, but
-        // only when that order is machine-counted (the service enforces this).
-        // Reject counts stay in the event log for now (scrap wiring is a
-        // follow-up). No active machine-counted order → the event above is the
-        // full record, exactly as before.
-        if ($kind === 'good') {
-            $workOrder = $this->production->resolveActiveWorkOrder($ws);
-            if ($workOrder) {
-                $this->production->recordGoodCount($workOrder, $delta);
-            }
-        }
+        $this->counters->ingest($this->counters->forSource($tag), $value, $at, $eventId, $snapshot);
     }
 
     private function handleTelemetry(MachineTag $tag, ?Workstation $ws, mixed $value, Carbon $at): void
