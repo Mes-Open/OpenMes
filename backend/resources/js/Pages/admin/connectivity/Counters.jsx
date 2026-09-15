@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { cloneElement, useState } from 'react';
-import { Dropdown } from '@openmes/ui';
+import { cloneElement, useMemo, useState } from 'react';
+import { Button, Dropdown } from '@openmes/ui';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -75,6 +76,37 @@ function Review({ counter, reading, steps, close }) {
         <Errors errors={form.errors} /><div className="flex gap-3"><button className={button} disabled={form.processing || (form.data.decision === 'apply' && !form.data.batch_step_id)}>{__('Save review')}</button><button type="button" onClick={close}>{__('Cancel')}</button></div>
     </form>;
 }
+function ReadingHistory({ counter, readings, onReview }) {
+    const { url } = usePage();
+    const awaitingReview = new URL(url, window.location.origin).searchParams.get('review') === '1';
+    const columns = useMemo(() => [
+        { accessorKey: 'id', header: __('ID') },
+        { accessorKey: 'observed_at', header: __('Time'), cell: ({ row }) => <div className="whitespace-nowrap">{new Date(row.original.observed_at).toLocaleString()}<div className="text-om-muted">{row.original.event_id}</div></div> },
+        { accessorKey: 'raw_value', header: __('Raw count'), cell: ({ getValue }) => getValue() ?? '—' },
+        { accessorKey: 'delta', header: __('Delta') },
+        { accessorKey: 'applied_qty', header: __('Applied quantity') },
+        { accessorKey: 'status', header: __('Status'), cell: ({ getValue }) => __(statuses[getValue()] ?? getValue()) },
+        { accessorKey: 'batch_step_id', header: __('Batch step'), cell: ({ getValue }) => getValue() ?? '—' },
+        { id: 'review', header: __('Review'), cell: ({ row }) => {
+            const reading = row.original;
+            return reading.review_note ?? (!reading.reviewed_at && ['unassigned', 'blocked', 'partial', 'quality_unknown'].includes(reading.status)
+                ? <Button size="sm" variant="outline" onClick={() => onReview(reading)}>{__('Review')}</Button> : null);
+        } },
+    ].map(column => ({ ...column, enableSorting: false })), [onReview]);
+    const visit = target => router.visit(target, { preserveScroll: true });
+    return <section className="space-y-3">
+        <h2 className="font-semibold">{__('Reading history')}</h2>
+        <div className="flex flex-wrap gap-2">
+            <Button variant={awaitingReview ? 'outline' : 'secondary'} aria-pressed={!awaitingReview} onClick={() => visit(`${base}?counter=${counter.id}`)}>{__('All readings')}</Button>
+            <Button variant={awaitingReview ? 'secondary' : 'outline'} aria-pressed={awaitingReview} onClick={() => visit(`${base}?counter=${counter.id}&review=1`)}>{__('Awaiting review')}</Button>
+        </div>
+        <AppDataTable data={readings?.data ?? []} columns={columns} getRowId={row => String(row.id)} searchable={false} columnToggle={false} paginated={false} bodyMaxHeight={null} />
+        {(readings?.prev_page_url || readings?.next_page_url) && <div className="flex gap-2">
+            <Button variant="outline" disabled={!readings.prev_page_url} onClick={() => visit(readings.prev_page_url)}>{__('Previous')}</Button>
+            <Button variant="outline" disabled={!readings.next_page_url} onClick={() => visit(readings.next_page_url)}>{__('Next')}</Button>
+        </div>}
+    </section>;
+}
 export default function Counters() {
     const { counters, selectedId, sources, workstations, steps, readings, canSimulate } = usePage().props;
     const counter = counters.find(c => c.id === selectedId);
@@ -82,7 +114,13 @@ export default function Counters() {
     const [review, setReview] = useState(null);
     const assigned = steps.find(s => s.id === counter?.batch_step_id);
     return <><Head title={__('Machine counters')} /><div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-wrap justify-between gap-2"><h1 className="text-2xl font-semibold">{__('Machine counters')}</h1><Link href="/admin/connectivity">{__('Machine Connectivity')}</Link><button onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold">{__('Machine counters')}</h1>
+            <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => router.visit('/admin/connectivity')}>{__('Machine Connectivity')}</Button>
+                <Button variant="outline" onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</Button>
+            </div>
+        </div>
         <p className="text-om-muted">{__('Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.')}</p>
         <form aria-label={__('Register counter')} className="flex flex-wrap items-end gap-3" onSubmit={e => { e.preventDefault(); register.post(base); }}>
             <Field label="Machine source"><Dropdown className="w-full min-w-64" value={register.data.source_id ? `${register.data.source_type}:${register.data.source_id}` : ''} placeholder={__('Select source')} onChange={value => { const [source_type, source_id] = value.split(':'); register.setData({ source_type, source_id }); }} options={sources.map(s => ({ value: `${s.type}:${s.id}`, label: `${s.label} (${s.type} #${s.id})` }))} /></Field>
@@ -101,9 +139,7 @@ export default function Counters() {
             {counter.configured_at && <details className="rounded border border-om-line2 p-4"><summary>{__('Return to legacy counting')}</summary><LegacySwitch counter={counter} /></details>}
             {canSimulate && <section className="rounded border border-om-line2 p-4"><Simulator key={counter.id} counter={counter} /></section>}
             {review && <Review key={review.id} {...{ counter, reading: review, steps }} close={() => setReview(null)} />}
-            <section className="space-y-3"><h2 className="font-semibold">{__('Reading history')}</h2><div className="flex gap-4"><Link href={`${base}?counter=${counter.id}`}>{__('All readings')}</Link><Link href={`${base}?counter=${counter.id}&review=1`}>{__('Awaiting review')}</Link></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['ID', 'Time', 'Raw count', 'Delta', 'Applied quantity', 'Status', 'Batch step', 'Review'].map(h => <th key={h} className="p-2 text-left">{__(h)}</th>)}</tr></thead><tbody>{readings?.data.map(r => <tr key={r.id} className="border-t border-om-line2" data-reading-id={r.id}><td className="p-2">{r.id}</td><td className="p-2 whitespace-nowrap">{new Date(r.observed_at).toLocaleString()}<div className="text-om-muted">{r.event_id}</div></td><td className="p-2">{r.raw_value ?? '—'}</td><td className="p-2">{r.delta}</td><td className="p-2">{r.applied_qty}</td><td className="p-2">{__(statuses[r.status] ?? r.status)}</td><td className="p-2">{r.batch_step_id ?? '—'}</td><td className="p-2">{r.review_note ?? (!r.reviewed_at && ['unassigned', 'blocked', 'partial', 'quality_unknown'].includes(r.status) && <button className="text-om-accent underline" onClick={() => setReview(r)}>{__('Review')}</button>)}</td></tr>)}</tbody></table></div>
-                <div className="flex gap-4">{readings?.prev_page_url && <Link href={readings.prev_page_url}>{__('Previous')}</Link>}{readings?.next_page_url && <Link href={readings.next_page_url}>{__('Next')}</Link>}</div>
-            </section>
+            <ReadingHistory counter={counter} readings={readings} onReview={setReview} />
         </>}
     </div></>;
 }
