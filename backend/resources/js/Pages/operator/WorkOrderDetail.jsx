@@ -838,6 +838,7 @@ function QuantityLogForm({ step, throughStation = false, inflight, error, onSubm
                 {__('Scrap')}
                 <input type="number" min="0" step="0.01" max={available} value={scrap} onChange={(e) => setScrap(e.target.value)} className={inputCls} aria-label={__('Scrap')} />
             </label>
+            <Button type="button" variant="accent" disabled={available < 1 || inflight} onClick={() => onSubmit({ good_qty: 1, scrap_qty: 0, through_station: throughStation }, () => {})} aria-label={__('Add one good piece')}>+1</Button>
             <Button type="submit" variant={throughStation ? 'accent' : 'primary'} disabled={!valid || inflight} className="px-5 py-2.5 text-[14px] whitespace-nowrap">
                 {inflight ? '…' : throughStation ? __('Log through station') : __('Log')}
             </Button>
@@ -854,7 +855,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     // Station scoping: with a station selected in the queue, its own steps stay
     // open and every other station's run of steps folds into one summary row.
     const groups = groupStepsByStation(steps ?? []);
-    const stationScoped = !!selectedWorkstation && groups.some((g) => g.workstationId === selectedWorkstation.id);
+    const stationScoped = !!selectedWorkstation;
     const [showAll, setShowAll] = useState(false);
     const [openGroups, setOpenGroups] = useState({});
 
@@ -993,8 +994,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     return (
                         <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
                         <div className="flex flex-wrap items-center gap-3 p-3">
-                            <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
-                                {step.step_number}
+                            <span className="min-w-7 px-1 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
+                                {step.step_number}/{steps.length}
                             </span>
                             {photo && (
                                 <Tooltip label={photo.caption || 'Step photo'}>
@@ -1165,7 +1166,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                 )}
             </div>
             <div className="space-y-3">
-                {groups.map((group, gi) => {
+                {groups.filter(group => !stationScoped || showAll || group.workstationId === selectedWorkstation.id).map((group, gi) => {
                     const mine = stationScoped && group.workstationId === selectedWorkstation.id;
                     const expanded = !stationScoped || mine || showAll || !!openGroups[gi];
                     const first = group.steps[0];
@@ -1173,7 +1174,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const done = group.steps.filter((st) => st.status === 'DONE' || st.status === 'SKIPPED').length;
                     const running = group.steps.some((st) => st.status === 'IN_PROGRESS');
                     const stationName = group.workstation?.name ?? __('No station');
-                    const rangeLabel = group.steps.length > 1 ? __('Steps :from–:to', { from: first.step_number, to: last.step_number }) : __('Step :n', { n: first.step_number });
+                    const rangeLabel = group.steps.map(s => `${s.step_number}/${steps.length}`).join(', ');
+                    const next = steps.find(s => s.step_number > last.step_number && s.status !== 'SKIPPED');
                     // Station-level log (N:1): the station's first open step is running and holds pieces.
                     const stationLogStep = transfer && mine && group.steps.length > 1
                         ? group.steps.find((st) => st.status !== 'DONE' && st.status !== 'SKIPPED')
@@ -1218,6 +1220,9 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 </div>
                             )}
                             {expanded && <div className="space-y-2">{group.steps.map(renderStep)}</div>}
+                            {mine && <p className="px-2 pt-2 text-sm text-om-muted">{next
+                                ? __('Next: :station · Line: :line', { station: next.workstation?.name ?? next.name, line: next.workstation?.line?.name ?? '—' })
+                                : __('Final step — finished output')}</p>}
                         </div>
                     );
                 })}

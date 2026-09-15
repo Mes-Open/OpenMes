@@ -651,6 +651,29 @@ function StatusBadge({ status }) {
 
 // ─── row ─────────────────────────────────────────────────────────────────────
 
+function QuickStepCount({ order }) {
+    const targets = order.quick_count_targets ?? [];
+    const [selected, setSelected] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const target = targets.length === 1 ? targets[0] : targets.find(t => String(t.id) === selected);
+    const add = () => {
+        if (!target || busy) return;
+        setBusy(true);
+        setError('');
+        router.post(`/operator/batch-step/${target.id}/quantity`, { good_qty: 1, scrap_qty: 0 }, {
+            preserveScroll: true,
+            onError: errors => setError(Object.values(errors).join(' ')),
+            onFinish: () => setBusy(false),
+        });
+    };
+    return <div className="flex flex-col gap-1">
+        {targets.length > 1 && <Dropdown aria-label={__('Assigned batch step')} value={selected} placeholder={__('Select step')} options={targets.map(t => ({ value: String(t.id), label: t.label }))} onChange={setSelected} />}
+        <Button variant="accent" disabled={!target || busy} onClick={add} aria-label={__('Add one good piece')}>+1</Button>
+        {error && <p role="alert" className="text-sm text-om-blocked">{error}</p>}
+    </div>;
+}
+
 function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, onStart, onComplete, onInfo, onReport, labelTemplates = [] }) {
     const isDone = wo.status === 'DONE';
     const isActive = wo.status === 'IN_PROGRESS';
@@ -746,6 +769,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             {/* Actions */}
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
+                    {wo.uses_step_ledger && <QuickStepCount order={wo} />}
                     {wo.uses_step_ledger && (
                         <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent">
                             {__('Record output')}

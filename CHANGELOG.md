@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Restore step-aware +1 counting and show station-scoped routing with overall step numbers and the next destination.
+
 - Disable operator step start while upstream prerequisites are unmet and show start failures beside the affected step.
 
 - Link REST demo connections to their own counters instead of nonexistent protocol detail and edit pages.

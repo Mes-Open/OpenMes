@@ -82,6 +82,31 @@ class WorkstationViewSelectionTest extends TestCase
             ->get('/operator/workstation'.$query);
     }
 
+    public function test_quick_count_targets_require_available_manual_work_at_the_selected_station(): void
+    {
+        \App\Support\ProductionFlow::set(\App\Support\ProductionFlow::TRANSFER);
+        $this->atExposure->update(['counting_source' => 'operator']);
+        $batch = $this->atExposure->batches()->first();
+        $batch->update(['status' => Batch::STATUS_IN_PROGRESS]);
+        $batch->steps()->where('step_number', 1)->update(['passed_qty' => 4]);
+        $step = $batch->steps()->where('step_number', 2)->first();
+        $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'passed_qty' => 0, 'scrap_qty' => 0]);
+        $this->workstationView('?workstation='.$this->exposure->id)
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('workOrders', 1)->has('workOrders.0.quick_count_targets', 1)
+            ->where('workOrders.0.quick_count_targets.0.id', $step->id));
+        $this->actingAs($this->operator)->post('/operator/batch-step/'.$step->id.'/quantity', ['good_qty' => 1, 'scrap_qty' => 0])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(1, $step->fresh()->passed_qty);
+        $step->update(['passed_qty' => 4]);
+        $this->workstationView('?workstation='.$this->exposure->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('workOrders.0.quick_count_targets', 0));
+        $step->update(['passed_qty' => 0]);
+        $this->atExposure->update(['counting_source' => 'machine']);
+        $this->workstationView('?workstation='.$this->exposure->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('workOrders.0.quick_count_targets', 0));
+    }
+
     public function test_without_a_selection_the_whole_line_is_shown(): void
     {
         $this->workstationView()

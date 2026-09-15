@@ -45,7 +45,7 @@ class WorkOrderController extends Controller
         // Get active and completed work orders for this line
         $activeWorkOrders = WorkOrder::where('line_id', $lineId)
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->with(['productType', 'batches.steps.workstation', 'lineStatus'])
+            ->with(['productType', 'batches.steps.workstation.line', 'lineStatus'])
             ->orderBy('priority', 'desc')
             ->orderBy('due_date', 'asc')
             ->get();
@@ -215,7 +215,7 @@ class WorkOrderController extends Controller
         $workOrder->load([
             'line',
             'productType',
-            'batches.steps.workstation',
+            'batches.steps.workstation.line',
             'batches.steps.startedBy',
             'batches.steps.completedBy',
             'batches.steps.confirmedBy',

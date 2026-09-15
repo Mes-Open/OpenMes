@@ -92,6 +92,28 @@ class WorkstationController extends Controller
             }
         }
 
+        $workOrders->loadMissing('batches.steps');
+        foreach ($workOrders as $order) {
+            $targets = collect();
+            if ($order->usesStepLedger() && $order->counting_source !== 'machine') {
+                foreach ($order->batches as $batch) {
+                    $batch->setRelation('workOrder', $order);
+                    foreach ($batch->steps as $step) {
+                        $step->setRelation('batch', $batch);
+                        if ($step->status === \App\Models\BatchStep::STATUS_IN_PROGRESS
+                            && (! $selectedWorkstation || $step->workstation_id === $selectedWorkstation->id)
+                            && ! $step->productionBlocker() && $step->availableQty() >= 1) {
+                            $targets->push(['id' => $step->id, 'label' => '#'.$batch->batch_number.' / '.$step->step_number.' / '.$step->name]);
+                        }
+                        $step->unsetRelation('batch');
+                    }
+                    $batch->unsetRelation('workOrder');
+                }
+            }
+            $order->setAttribute('quick_count_targets', $targets);
+            $order->unsetRelation('batches');
+        }
+
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
 
         // Build all available columns: system fields + extra_data keys
