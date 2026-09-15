@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Disable operator step start while upstream prerequisites are unmet and show start failures beside the affected step.
+
 - Link REST demo connections to their own counters instead of nonexistent protocol detail and edit pages.
 
 - Use shared UI dropdowns throughout machine counter configuration and reading review, the shared reading-history table, and styled header, filter and pagination buttons.

@@ -6230,5 +6230,6 @@
     "Migrate these machine channels to explicit counting before enabling transfer flow: :sources": "Przed włączeniem przepływu transferowego przełącz te kanały maszynowe na jawne zliczanie: :sources",
     "Migrate legacy machine channels before recording transfer production.": "Przed rejestrowaniem produkcji transferowej przełącz dotychczasowe kanały maszynowe na jawne zliczanie.",
     "Resolve these machine counting requirements before enabling transfer flow: :sources": "Przed włączeniem przepływu transferowego rozwiąż te wymagania zliczania maszynowego: :sources",
-    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Zakończ lub uzgodnij zlecenie maszynowe #:id przed przełączeniem jego produkcji na rejestr kroków."
+    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Zakończ lub uzgodnij zlecenie maszynowe #:id przed przełączeniem jego produkcji na rejestr kroków.",
+    "Waiting for the previous step": "Oczekiwanie na poprzedni krok"
 }

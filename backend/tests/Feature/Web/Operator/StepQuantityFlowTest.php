@@ -340,6 +340,9 @@ class StepQuantityFlowTest extends TestCase
         $this->assertStringContainsString('7 pieces are still waiting', $steps[1]['completion_blocker']);
         $this->assertSame('Mixer', $steps[1]['workstation']['name']);
         $this->assertEquals(3, $steps[2]['incoming_qty']);
+        $this->assertTrue($steps[1]['prerequisites_met']);
+        $this->assertTrue($steps[2]['prerequisites_met']);
+        $this->assertFalse($steps[3]['prerequisites_met']);
         $this->assertNull($steps[2]['completion_blocker']);
         $this->assertArrayNotHasKey('batch', $steps[1]);
     }

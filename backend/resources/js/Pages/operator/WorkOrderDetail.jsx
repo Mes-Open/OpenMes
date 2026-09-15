@@ -862,6 +862,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     // comes back as a `good_qty` error shown under the form that sent it.
     const [logTarget, setLogTarget] = useState(null);
     const [logErrors, setLogErrors] = useState({});
+    const [startErrors, setStartErrors] = useState({});
     const handleLogQuantity = (step, payload, onDone) => {
         setLogErrors({});
         setLogTarget(`${step.id}:${payload.through_station ? 'station' : 'step'}`);
@@ -939,6 +940,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     // picking. With lots to pick, open the WO-time picking modal seeded with the
     // system's proposal; otherwise start the step directly (unchanged behavior).
     const handleStart = async (step) => {
+        setStartErrors({});
         setInflightStepId(step.id);
         try {
             const res = await fetch(`/operator/batch-step/${step.id}/pick-preview`, {
@@ -960,7 +962,12 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         router.post(
             `/operator/batch-step/${step.id}/start`,
             {},
-            { preserveScroll: true, onFinish: () => setInflightStepId(null) }
+            {
+                preserveScroll: true,
+                onError: errors => setStartErrors({ [step.id]: Object.values(errors).join(' ') }),
+                onSuccess: page => { if (page.props.flash?.error) setStartErrors({ [step.id]: page.props.flash.error }); },
+                onFinish: () => setInflightStepId(null),
+            }
         );
     };
 
@@ -1042,14 +1049,16 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                             {(step.status === 'PENDING' || step.status === 'READY') && (
                                 <Button
                                     variant="accent"
-                                    disabled={isInflight || !!productionBlocker}
+                                    disabled={isInflight || !!productionBlocker || step.prerequisites_met === false}
                                     title={productionBlocker || undefined}
                                     onClick={() => handleStart(step)}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : __('Start')}
+                                    {isInflight ? '…' : step.prerequisites_met === false ? __('Waiting for the previous step') : __('Start')}
                                 </Button>
                             )}
+                            {startErrors[step.id] && <p role="alert" className="w-full text-sm text-om-blocked">{startErrors[step.id]}</p>}
+                            {productionBlocker && ['PENDING', 'READY'].includes(step.status) && <p role="status" className="w-full text-sm text-om-muted">{productionBlocker}</p>}
                             {step.status === 'IN_PROGRESS' && (
                                 <Button
                                     variant="primary"
@@ -1589,6 +1598,7 @@ const EPSILON = 0.0001;
 
 function LotPickModal({ step, materials, onClose }) {
     const [submitting, setSubmitting] = useState(false);
+    const [startError, setStartError] = useState('');
     // picks: { [materialId]: [{ material_lot_id, picked_qty: string }] }
     const [picks, setPicks] = useState(() =>
         Object.fromEntries(
@@ -1647,6 +1657,7 @@ function LotPickModal({ step, materials, onClose }) {
     const submit = (e) => {
         e.preventDefault();
         if (!allValid) return;
+        setStartError('');
         setSubmitting(true);
         const payload = {
             picks: materials.map((m) => ({
@@ -1659,7 +1670,11 @@ function LotPickModal({ step, materials, onClose }) {
         };
         router.post(`/operator/batch-step/${step.id}/start`, payload, {
             preserveScroll: true,
-            onSuccess: onClose,
+            onError: errors => setStartError(Object.values(errors).join(' ')),
+            onSuccess: page => {
+                if (page.props.flash?.error) setStartError(page.props.flash.error);
+                else onClose();
+            },
             onFinish: () => setSubmitting(false),
         });
     };
@@ -1668,6 +1683,7 @@ function LotPickModal({ step, materials, onClose }) {
         <ModalShell title={__("Pick material lots")} subtitle={step.name} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="max-h-[60vh] space-y-5 overflow-y-auto px-[18px] py-4">
+                    {startError && <p role="alert" className="text-sm text-om-blocked">{startError}</p>}
                     {materials.map((m) => {
                         const lines = picks[m.material_id] ?? [];
                         const allocated = lines.reduce((s, ln) => s + (Number(ln.picked_qty) || 0), 0);

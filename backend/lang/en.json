@@ -6230,5 +6230,6 @@
     "Migrate these machine channels to explicit counting before enabling transfer flow: :sources": "Migrate these machine channels to explicit counting before enabling transfer flow: :sources",
     "Migrate legacy machine channels before recording transfer production.": "Migrate legacy machine channels before recording transfer production.",
     "Resolve these machine counting requirements before enabling transfer flow: :sources": "Resolve these machine counting requirements before enabling transfer flow: :sources",
-    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Finish or reconcile machine order #:id before switching its output to the step ledger."
+    "Finish or reconcile machine order #:id before switching its output to the step ledger.": "Finish or reconcile machine order #:id before switching its output to the step ledger.",
+    "Waiting for the previous step": "Waiting for the previous step"
 }

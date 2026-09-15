@@ -381,6 +381,7 @@ class WorkOrderController extends Controller
                 // then drop that relation again so it isn't serialized into the props.
                 $step->setRelation('batch', $batch->withoutRelations()->setRelation('steps', $batch->steps));
                 $step->setAttribute('production_blocker', $productionBlocker);
+                $step->setAttribute('prerequisites_met', $step->prerequisitesMet());
                 $step->setAttribute('incoming_qty', $step->incomingQty());
                 $step->setAttribute('available_qty', $step->availableQty());
                 $step->setAttribute('completion_blocker', $step->status === \App\Models\BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null);
