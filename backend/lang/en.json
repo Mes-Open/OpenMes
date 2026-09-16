@@ -6303,5 +6303,6 @@
     "Plan the production start": "Plan the production start",
     "Before scheduling production, confirm the plant timezone in Settings → General. Planned starts use that timezone, not the browser timezone.": "Before scheduling production, confirm the plant timezone in Settings → General. Planned starts use that timezone, not the browser timezone.",
     "Manual receipt": "Manual receipt",
-    "This receipt updates total stock only. It does not receive stock into a lot or warehouse location.": "This receipt updates total stock only. It does not receive stock into a lot or warehouse location."
+    "This receipt updates total stock only. It does not receive stock into a lot or warehouse location.": "This receipt updates total stock only. It does not receive stock into a lot or warehouse location.",
+    "Workstation state": "Workstation state"
 }

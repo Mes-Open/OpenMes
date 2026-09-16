@@ -6303,5 +6303,6 @@
     "Plan the production start": "Zaplanuj start produkcji",
     "Before scheduling production, confirm the plant timezone in Settings → General. Planned starts use that timezone, not the browser timezone.": "Przed planowaniem produkcji sprawdź strefę czasową zakładu w Ustawienia → Ogólne. Planowany start jest wyrażony w tej strefie, a nie w strefie przeglądarki.",
     "Manual receipt": "Przyjęcie ręczne",
-    "This receipt updates total stock only. It does not receive stock into a lot or warehouse location.": "To przyjęcie zwiększa tylko ogólny stan materiału. Nie księguje przyjęcia do partii ani lokalizacji magazynowej."
+    "This receipt updates total stock only. It does not receive stock into a lot or warehouse location.": "To przyjęcie zwiększa tylko ogólny stan materiału. Nie księguje przyjęcia do partii ani lokalizacji magazynowej.",
+    "Workstation state": "Stan stanowiska"
 }

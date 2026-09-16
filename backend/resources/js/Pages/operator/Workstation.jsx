@@ -905,7 +905,7 @@ export default function Workstation() {
 
             <div className="max-w-full mx-auto px-2 sm:px-4">
                 {machineStates.length > 0 && (
-                    <MachineStatePanel machines={machineStates} options={machineStateOptions} />
+                    <MachineStatePanel machines={machineStates} options={machineStateOptions} label={workOrders.some(order => ['machine', 'both'].includes(order.counting_source)) ? __('Machine state') : __('Workstation state')} />
                 )}
                 {/* Header */}
                 <div className="mb-4">
@@ -1122,14 +1122,14 @@ const MACHINE_STATE_DOT = {
     WAITING: 'bg-yellow-400', CLEANING: 'bg-purple-400', MAINTENANCE: 'bg-orange-400',
 };
 
-function MachineStatePanel({ machines, options }) {
+function MachineStatePanel({ machines, options, label }) {
     const setState = (workstationId, state) => {
         router.post(`/operator/workstation/machine-state/${workstationId}`, { state }, { preserveScroll: true });
     };
 
     return (
         <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{__('Machine state')}</p>
+            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{label}</p>
             <div className="flex flex-wrap gap-3">
                 {machines.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
@@ -1140,7 +1140,7 @@ function MachineStatePanel({ machines, options }) {
                             value={m.state ?? undefined}
                             placeholder="—"
                             onChange={(state) => state !== m.state && setState(m.id, state)}
-                            aria-label={`${__('Machine state')}: ${m.name}`}
+                            aria-label={`${label}: ${m.name}`}
                             options={[
                                 // A state outside the settable list (e.g. from a machine feed) stays visible.
                                 ...(m.state && !options.includes(m.state) ? [m.state] : []),
