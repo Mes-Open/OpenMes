@@ -79,7 +79,9 @@ class WorkstationManagementController extends Controller
             abort(404);
         }
 
-        $workers = Worker::active()->orderBy('name')->with(['workstation', 'crew'])->get();
+        $workers = Worker::active()->orderBy('name')->with('workstation')
+            ->when(Worker::hasModuleRelation('crew'), fn ($query) => $query->with('crew'))
+            ->get();
 
         return Inertia::render('admin/workstations/Edit', [
             'line'        => $line->only('id', 'name', 'code'),
@@ -91,7 +93,7 @@ class WorkstationManagementController extends Controller
                 'code'             => $w->code,
                 'workstation_id'   => $w->workstation_id,
                 'workstation_name' => $w->workstation?->name,
-                'crew_name' => $w->crew?->name,
+                'crew_name' => Worker::hasModuleRelation('crew') ? $w->crew?->name : null,
             ])->values(),
         ]);
     }

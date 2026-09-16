@@ -39,6 +39,11 @@ class UserManagementController extends Controller
         return Inertia::render('admin/users/Create', $this->formData());
     }
 
+    public function show(User $user)
+    {
+        return redirect()->route('admin.users.edit', $user);
+    }
+
     private function workforce(): \App\Extension\Contracts\WorkforceProvider
     {
         return app(\App\Extension\Contracts\WorkforceProvider::class);
@@ -101,41 +106,45 @@ class UserManagementController extends Controller
             'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'username' => $validated['username'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'account_type' => $validated['account_type'],
-            'workstation_id' => $validated['workstation_id'] ?? null,
-            'force_password_change' => $request->boolean('force_password_change'),
-        ]);
-
-        if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
-            $user->assignRole($validated['role']);
-        } elseif ($validated['account_type'] === 'workstation') {
-            $user->assignRole('Operator');
-        }
-
-        // Create worker profile when code is provided and account is personal
-        if (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
-            $worker = Worker::create([
-                'code' => $validated['worker_code'],
+        DB::transaction(function () use ($request, $validated) {
+            $user = User::create([
                 'name' => $validated['name'],
+                'username' => $validated['username'],
                 'email' => $validated['email'],
-                'phone' => $validated['worker_phone'] ?? null,
-                'crew_id' => $validated['worker_crew_id'] ?? null,
-                'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
-                'is_active' => true,
+                'password' => Hash::make($validated['password']),
+                'account_type' => $validated['account_type'],
+                'workstation_id' => $validated['workstation_id'] ?? null,
+                'force_password_change' => $request->boolean('force_password_change'),
             ]);
 
-            $worker->skills()->sync(
-                collect($request->input('skills', []))
-                    ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-            );
+            if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
+                $user->assignRole($validated['role']);
+            } elseif ($validated['account_type'] === 'workstation') {
+                $user->assignRole('Operator');
+            }
 
-            $user->update(['worker_id' => $worker->id]);
-        }
+            // Create worker profile when code is provided and account is personal
+            if (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+                $worker = Worker::create([
+                    'code' => $validated['worker_code'],
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['worker_phone'] ?? null,
+                    'crew_id' => $validated['worker_crew_id'] ?? null,
+                    'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
+                    'is_active' => true,
+                ]);
+
+                if (Worker::hasModuleRelation('skills')) {
+                    $worker->skills()->sync(
+                        collect($request->input('skills', []))
+                            ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                    );
+                }
+
+                $user->update(['worker_id' => $worker->id]);
+            }
+        });
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Account created successfully.');
@@ -146,7 +155,7 @@ class UserManagementController extends Controller
      */
     public function edit(User $user)
     {
-        $user->load('worker.skills');
+        $user->load(Worker::hasModuleRelation('skills') ? 'worker.skills' : 'worker');
 
         return Inertia::render('admin/users/Edit', array_merge($this->formData(), [
             'user' => [
@@ -163,7 +172,9 @@ class UserManagementController extends Controller
                     'phone' => $user->worker->phone,
                     'crew_id' => $user->worker->crew_id,
                     'wage_group_id' => $user->worker->wage_group_id,
-                    'skills' => $user->worker->skills->map(fn ($s) => ['id' => $s->id, 'level' => $s->pivot->level ?? 1]),
+                    'skills' => Worker::hasModuleRelation('skills')
+                        ? $user->worker->skills->map(fn ($s) => ['id' => $s->id, 'level' => $s->pivot->level ?? 1])
+                        : [],
                 ] : null,
             ],
         ]));
@@ -234,10 +245,12 @@ class UserManagementController extends Controller
                     $user->update(['worker_id' => $worker->id]);
                 }
 
-                $worker->skills()->sync(
-                    collect($request->input('skills', []))
-                        ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-                );
+                if (Worker::hasModuleRelation('skills')) {
+                    $worker->skills()->sync(
+                        collect($request->input('skills', []))
+                            ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                    );
+                }
             }
         });
 
