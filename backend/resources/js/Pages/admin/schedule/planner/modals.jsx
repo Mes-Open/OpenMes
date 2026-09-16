@@ -2,7 +2,7 @@
 // toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { Dropdown, Icon } from '@openmes/ui';
+import { Button, Dropdown, Icon } from '@openmes/ui';
 import AppDatePicker from '../../../../components/AppDatePicker';
 import AppDateTimePicker from '../../../../components/AppDateTimePicker';
 import { __ } from '../../../../lib/i18n';
@@ -65,7 +65,7 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
         <Backdrop onClose={onClose}>
             <div style={{ width: 460, maxWidth: '92vw', background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--om-line2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: '#fde68a', border: '1px solid #d97706' }} />
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-om-sm bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"><Icon name="wrench" size={18} /></span>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--om-ink)' }}>{__('Add maintenance')}</h3>
                 </div>
                 <div style={{ padding: '16px 20px', display: 'grid', gap: 12 }}>
@@ -97,10 +97,10 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
                                 className="w-full" />
                         </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 12 }}>
-                        <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="col-span-2">
                             <div style={lblStyle}>{__('Date')}</div>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+                            <AppDatePicker value={date || null} onChange={(value) => setDate(value || '')} className="w-full" />
                         </div>
                         <div>
                             <div style={lblStyle}>{__('Time')}</div>
@@ -113,11 +113,11 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
                     </div>
                 </div>
                 <div style={{ padding: '14px 20px', borderTop: '1px solid var(--om-line2)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                    <button type="button" onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 9, padding: '9px 16px' }}>{__('Cancel')}</button>
-                    <button type="button" onClick={submit} disabled={busy}
-                        style={{ fontSize: 13, fontWeight: 700, color: '#78350f', background: '#fde68a', border: '1px solid #d97706', borderRadius: 9, padding: '9px 18px', opacity: busy ? 0.6 : 1 }}>
+                    <Button variant="outline" onClick={onClose}>{__('Cancel')}</Button>
+                    <Button onClick={submit} disabled={busy}>
+                        <Icon name="calendar-plus" size={16} />
                         {busy ? __('Adding…') : __('Add to planner')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Backdrop>
