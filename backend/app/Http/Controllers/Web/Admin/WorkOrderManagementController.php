@@ -90,7 +90,7 @@ class WorkOrderManagementController extends Controller
         // The planner's New-order modal posts `stay` so the user keeps their
         // page (the new order lands there via the refreshed props).
         if ($request->boolean('stay')) {
-            return back()->with('success', "Work order {$workOrder->order_no} created.");
+            return back()->with('success', __('Work order :code created.', ['code' => $workOrder->order_no]));
         }
 
         return redirect()->route('admin.work-orders.index')
@@ -525,7 +525,7 @@ class WorkOrderManagementController extends Controller
         }
 
         return ($request->boolean('stay') ? redirect()->back() : redirect()->route('admin.work-orders.index'))
-            ->with('success', "Work order {$workOrder->order_no} updated.");
+            ->with('success', __('Work order :order updated.', ['order' => $workOrder->order_no]));
     }
 
     public function destroy(WorkOrder $workOrder)
@@ -546,7 +546,7 @@ class WorkOrderManagementController extends Controller
         $workOrder->delete();
 
         return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$no} deleted.");
+            ->with('success', __('Work order :order deleted.', ['order' => $no]));
     }
 
     /** Apply one transition to one order, or bounce back with its refusal message. */
@@ -607,7 +607,7 @@ class WorkOrderManagementController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
 
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
+        return redirect()->back()->with('success', __('Work order :order resumed.', ['order' => $workOrder->order_no]));
     }
 
     public function reopen(WorkOrder $workOrder)
@@ -631,6 +631,6 @@ class WorkOrderManagementController extends Controller
             'completed_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} completed with {$validated['produced_qty']} produced.");
+        return redirect()->back()->with('success', __('Work order :order completed with :quantity produced.', ['order' => $workOrder->order_no, 'quantity' => $validated['produced_qty']]));
     }
 }

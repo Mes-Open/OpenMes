@@ -234,12 +234,13 @@ class AdminWorkOrderWebTest extends TestCase
             ->assertJsonPath('props.editForm.workOrder.planned_qty', '100.00')
             ->assertJsonStructure(['props' => ['editForm' => ['lines', 'productTypes', 'customers', 'bomTemplates', 'productRevisions', 'customFields']]]);
 
-        $this->from($url)->put($url, [
+        $this->withSession(['locale' => 'pl'])->from($url)->put($url, [
             'order_no' => $wo->order_no,
             'planned_qty' => 125,
             'status' => WorkOrder::STATUS_PENDING,
             'stay' => 1,
-        ])->assertSessionHasNoErrors()->assertRedirect($url);
+        ])->assertSessionHasNoErrors()->assertRedirect($url)
+            ->assertSessionHas('success', "Zaktualizowano zlecenie {$wo->order_no}.");
 
         $this->assertEquals(125, $wo->fresh()->planned_qty);
     }

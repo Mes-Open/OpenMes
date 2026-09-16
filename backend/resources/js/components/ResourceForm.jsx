@@ -146,7 +146,7 @@ export default function ResourceForm({
                     when it is given one, without having to hand the submit button
                     across the component boundary to get there. */}
                 <div className={bare
-                    ? 'sticky bottom-0 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
+                    ? 'sticky -bottom-4 z-10 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
                     : 'flex items-center gap-3 pt-2'}
                 >
                     <Button type="submit" variant="primary" loading={processing}>
