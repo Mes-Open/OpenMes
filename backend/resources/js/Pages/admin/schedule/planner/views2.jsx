@@ -27,16 +27,19 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     // Suppress the click the browser fires after a real drag — it must not
     // open the edit sheet.
     const draggedRef = useRef(false);
+    const pendingRef = useRef(false);
     const cur = drag || { start: item.start, end: item.end };
     const s = statusOf(wo.status);
 
     function begin(mode, e) {
-        if (readOnly) return;
+        if (readOnly || pendingRef.current) return;
         e.preventDefault(); e.stopPropagation();
         const track = e.currentTarget.closest('[data-track]');
         const ppm = (track ? track.getBoundingClientRect().width : 700) / 1440;
         const startX = e.clientX, oS = item.start, oE = item.end;
         draggedRef.current = false;
+        ctx.draggingRef.current = true;
+        let latest = null;
         const snap = (m) => Math.round(m / slotMinutes) * slotMinutes;
         function move(ev) {
             if (Math.abs(ev.clientX - startX) > 4) draggedRef.current = true;
@@ -45,13 +48,35 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
             if (mode === 'move') { ns = snap(oS + d); ne = ns + (oE - oS); if (ns < 0) { ne -= ns; ns = 0; } if (ne > 1440) { ns -= (ne - 1440); ne = 1440; } }
             else if (mode === 'l') { ns = snap(oS + d); ns = Math.max(0, Math.min(ne - slotMinutes, ns)); }
             else { ne = snap(oE + d); ne = Math.min(1440, Math.max(ns + slotMinutes, ne)); }
-            setDrag({ start: ns, end: ne });
+            latest = { start: ns, end: ne };
+            setDrag(latest);
         }
-        function up() {
+        async function up() {
+            cleanup();
+            pendingRef.current = true;
+            try {
+                // Keep the preview until the persisted board arrives, not just
+                // until the write completes. Otherwise the old props flash.
+                if (latest && (latest.start !== item.start || latest.end !== item.end)) {
+                    await ctx.onHourlyChange(wo, latest.start, latest.end);
+                }
+            } finally {
+                pendingRef.current = false;
+                ctx.draggingRef.current = false;
+                setDrag(null);
+            }
+        }
+        function cancel() {
+            cleanup();
+            ctx.draggingRef.current = false;
+            setDrag(null);
+        }
+        function cleanup() {
             window.removeEventListener('pointermove', move);
             window.removeEventListener('pointerup', up);
-            setDrag((d) => { if (d && (d.start !== item.start || d.end !== item.end)) ctx.onHourlyChange(wo, d.start, d.end); return null; });
+            window.removeEventListener('pointercancel', cancel);
         }
+        window.addEventListener('pointercancel', cancel);
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
     }

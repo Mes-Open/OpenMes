@@ -35,3 +35,18 @@ describe('planned start and deadline', () => {
         expect(onMonthlyDay(multi, '2026-09-19')).toBe(true);
     });
 });
+
+describe('midnight boundary', () => {
+    const midnight = { ...order, planned_start_at: '2026-09-18T16:00:00+02:00', planned_end_at: '2026-09-19T00:00:00+02:00' };
+    it('keeps a block ending at midnight draggable on its starting day', () => {
+        expect(hourlyLanes([midnight], 1, '2026-09-18').items[0]).toMatchObject({ start: 960, end: 1440, spansOutside: false });
+    });
+    it('does not draw an empty continuation on the following day', () => {
+        expect(hourlyLanes([midnight], 1, '2026-09-19').items).toHaveLength(0);
+    });
+    it('still protects real cross-day intervals', () => {
+        const longer = { ...midnight, planned_end_at: '2026-09-19T01:00:00+02:00' };
+        expect(hourlyLanes([longer], 1, '2026-09-18').items[0].spansOutside).toBe(true);
+        expect(hourlyLanes([longer], 1, '2026-09-19').items[0]).toMatchObject({ start: 0, end: 60, spansOutside: true });
+    });
+});

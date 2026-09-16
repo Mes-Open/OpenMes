@@ -363,6 +363,10 @@ export function hourlyLanes(
   lineId: number,
   dateStr: string,
 ): { items: HourlyItem[]; totalLanes: number } {
+  const nextDay = parseDate(dateStr)!;
+  nextDay.setDate(nextDay.getDate() + 1);
+  const dayEnd = `${fmtKey(nextDay)}T00:00:00`;
+  const dayStart = `${dateStr}T00:00:00`;
   const items: HourlyItem[] = orders
     // One bar per segment on this line. Extra segments are read-only coarse
     // placeholders here — the minute plan lives on the primary.
@@ -373,7 +377,8 @@ export function hourlyLanes(
     )
     .filter(({ proj }) => {
       if (proj.planned_start_at && proj.planned_end_at) {
-        return proj.planned_start_at.slice(0, 10) <= dateStr && dateStr <= proj.planned_end_at.slice(0, 10);
+        // End is exclusive: midnight belongs to the preceding interval.
+        return proj.planned_start_at.slice(0, 19) < dayEnd && proj.planned_end_at.slice(0, 19) > dayStart;
       }
       // Legacy: a due-date-only order on this day shows as a placeholder block
       // so it stays visible and can be dragged to get real times.
@@ -399,7 +404,7 @@ export function hourlyLanes(
         placementKey: key,
         start: startsBefore ? 0 : minuteOfDay(proj.planned_start_at),
         end: endsAfter ? 1440 : minuteOfDay(proj.planned_end_at),
-        spansOutside: startsBefore || endsAfter,
+        spansOutside: startsBefore || proj.planned_end_at.slice(0, 19) > dayEnd,
         placeholder: false,
         lane: 0,
         conflict: false,

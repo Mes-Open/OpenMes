@@ -56,7 +56,9 @@ export default function Planner() {
     const setView = (k) => nav({ view_mode: k, line_id: lineId, start_date: startDate });
     const setLineFilter = (v) => nav({ view_mode: viewMode, line_id: v, start_date: startDate });
 
-    const refreshContent = useCallback(() => { router.reload({ preserveScroll: true }); }, []);
+    const refreshContent = useCallback(() => new Promise((resolve) => {
+        router.reload({ preserveScroll: true, onFinish: resolve });
+    }), []);
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [saving, setSaving] = useState(false);
@@ -157,7 +159,7 @@ export default function Planner() {
     // Hourly move/resize commit → resize endpoint (handles minute conflicts).
     const onHourlyChange = useCallback(async (wo, startMin, endMin, force = false) => {
         const day = data.range.start;
-        const iso = (m) => `${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
+        const iso = (m) => m === 1440 ? `${dayList(day, 2, true)[1].date}T00:00:00` : `${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
         const body = { planned_start_at: iso(startMin), planned_end_at: iso(endMin) };
         if (force) body.force_conflict = true;
         setSaving(true);
@@ -168,7 +170,7 @@ export default function Planner() {
                 return;
             }
             const json = await r.json();
-            if (json.success) { toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); refreshContent(); }
+            if (json.success) { toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); await refreshContent(); }
             else toast(json.message ?? __('Error saving'), 'error');
         } catch {
             toast(__('Connection error'), 'error');
@@ -237,7 +239,7 @@ export default function Planner() {
                 planned_end_at: '',
             };
         }
-        saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); } });
+        return saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); return refreshContent(); } });
     }, [shifts, config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
 
     // Diagonal edge-stretch: the order continues on another line — the
@@ -249,7 +251,7 @@ export default function Planner() {
         const a = cell(startCol); const b = cell(endCol);
         if (!a.date || !b.date) return;
         const spanned = endCol > startCol;
-        saveOrder(wo.id, {
+        return saveOrder(wo.id, {
             extra_placements: placementsPayload(wo, {
                 add: {
                     line_id: lineId, due_date: a.date, shift_number: a.shift,
@@ -260,13 +262,14 @@ export default function Planner() {
             if (r) {
                 const code = allLines.find((l) => l.id === lineId)?.code ?? '';
                 toast(`${wo.order_no} ⇄ ${code}`);
-                refreshContent();
+                return refreshContent();
             }
         });
     }, [shifts, config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
 
     const ctx = {
         data, config, days,
+        draggingRef,
         onSelectDay: (date) => nav({ start_date: date, view_mode: 'daily', line_id: lineId }),
         onSelectOrder: setSelected, selectedId: selected?.id, onHourlyChange,
         onDropOrder: dropToCell,

@@ -65,6 +65,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     // click on the block after a drag (pointer capture retargets the release
     // here), and that click must not open the edit sheet.
     const draggedRef = useRef(false);
+    const pendingRef = useRef(false);
     const s = statusOf(wo.status);
     // While moving, the block stays put (dimmed) and only the ghost follows the
     // cursor (in any direction). While resizing, the block itself follows.
@@ -72,6 +73,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const pos = (drag && !moving) ? drag : { startCol: item.startCol, endCol: item.endCol };
 
     function begin(mode, e) {
+        if (pendingRef.current) return;
         e.preventDefault(); e.stopPropagation();
         // Keep receiving pointer events even if the cursor leaves the block
         // (fast vertical drags would otherwise drop events over other rows).
@@ -80,6 +82,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
         const ppc = (row ? row.getBoundingClientRect().width : 700) / N;
         const startX = e.clientX, startY = e.clientY, oS = item.startCol, oE = item.endCol;
         draggedRef.current = false;
+        ctx.draggingRef.current = true;
+        let latest = null;
         const rows = [...document.querySelectorAll('[data-weekrow]')].map((el) => {
             const r = el.getBoundingClientRect();
             return { lineId: +el.getAttribute('data-line'), top: r.top, bottom: r.bottom };
@@ -103,7 +107,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                     const ext = mode === 'r'
                         ? { startCol: oE + 1, endCol: Math.min(N - 1, Math.max(oE + 1, oE + dCol)) }
                         : { startCol: Math.max(0, Math.min(oS - 1, oS + dCol)), endCol: oS - 1 };
-                    setDrag({ startCol: oS, endCol: oE, lineId: ln, mode, ext });
+                    latest = { startCol: oS, endCol: oE, lineId: ln, mode, ext };
+                    setDrag(latest);
                     setPreview({ lineId: ln, startCol: ext.startCol, endCol: ext.endCol });
                     return;
                 }
@@ -112,22 +117,38 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                 if (mode === 'l') ns = Math.max(0, Math.min(oE, oS + dCol));
                 else ne = Math.min(N - 1, Math.max(oS, oE + dCol));
             }
-            setDrag({ startCol: ns, endCol: ne, lineId: ln, mode });
+            latest = { startCol: ns, endCol: ne, lineId: ln, mode };
+            setDrag(latest);
             if (mode === 'move') setPreview({ lineId: ln, startCol: ns, endCol: ne });
         }
-        function up() {
+        async function up() {
+            cleanup();
+            pendingRef.current = true;
+            try {
+                if (latest?.ext && latest.lineId !== rowLineId) {
+                    await ctx.onDiagonalExtend(wo, latest.lineId, latest.ext.startCol, latest.ext.endCol);
+                } else if (latest && (latest.startCol !== item.startCol || latest.endCol !== item.endCol || latest.lineId !== rowLineId)) {
+                    await ctx.onSpanChange(wo, latest.startCol, latest.endCol, latest.lineId !== rowLineId ? latest.lineId : undefined, placementKey);
+                }
+            } finally {
+                pendingRef.current = false;
+                ctx.draggingRef.current = false;
+                setPreview(null);
+                setDrag(null);
+            }
+        }
+        function cancel() {
+            cleanup();
+            ctx.draggingRef.current = false;
+            setPreview(null);
+            setDrag(null);
+        }
+        function cleanup() {
             window.removeEventListener('pointermove', move);
             window.removeEventListener('pointerup', up);
-            setPreview(null);
-            setDrag((d) => {
-                if (d && d.ext && d.lineId !== rowLineId) {
-                    ctx.onDiagonalExtend(wo, d.lineId, d.ext.startCol, d.ext.endCol);
-                } else if (d && (d.startCol !== item.startCol || d.endCol !== item.endCol || (d.lineId && d.lineId !== rowLineId))) {
-                    ctx.onSpanChange(wo, d.startCol, d.endCol, d.lineId !== rowLineId ? d.lineId : undefined, placementKey);
-                }
-                return null;
-            });
+            window.removeEventListener('pointercancel', cancel);
         }
+        window.addEventListener('pointercancel', cancel);
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
     }
