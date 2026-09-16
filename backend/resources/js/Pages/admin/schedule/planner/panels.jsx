@@ -2,7 +2,7 @@
 // Schedule design.
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Dropdown, Icon } from '@openmes/ui';
+import { Button, Dropdown, Icon, SegmentedControl } from '@openmes/ui';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { apiGet, apiCall } from '../../../../lib/http';
@@ -20,8 +20,9 @@ const LEGEND = [
 function NavBtn({ children, onClick, title }) {
     return (
         <Tooltip label={title}>
-            <span onClick={onClick} role="button" aria-label={title}
-                style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--om-line)', background: 'var(--om-card)', color: 'var(--om-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, cursor: 'pointer' }}>{children}</span>
+            <Button variant="outline" size="sm" onClick={onClick} aria-label={title} className="p-2">
+                {children}
+            </Button>
         </Tooltip>
     );
 }
@@ -33,34 +34,33 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
     const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
     const hrEnabled = accessibleTabs.includes('hr');
     const tabs = [['weekly', __('Weekly')], ['daily', __('Daily')], ['hourly', __('Hourly')], ['monthly', __('Monthly')]];
-    const seg = (active) => ({ fontSize: 12, fontWeight: 500, padding: '6px 12px', borderRadius: 6, cursor: 'pointer', ...(active ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) });
+
 
     return (
         <div className="flex items-center gap-3 flex-wrap mb-4">
             <div className="flex items-center gap-0.5">
-                <NavBtn onClick={onPrev} title={__('Previous')}>‹</NavBtn>
+                <NavBtn onClick={onPrev} title={__('Previous')}><Icon name="chevron-left" size={16} /></NavBtn>
                 <span style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 500, color: 'var(--om-ink)', padding: '0 12px', minWidth: 168, textAlign: 'center' }}>{rangeLabel}</span>
-                <NavBtn onClick={onNext} title={__('Next')}>›</NavBtn>
+                <NavBtn onClick={onNext} title={__('Next')}><Icon name="chevron-right" size={16} /></NavBtn>
             </div>
-            <span onClick={onToday} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--om-accent)', background: 'var(--om-accent-bg)', borderRadius: 8, padding: '7px 13px', cursor: 'pointer' }}>{__('Today')}</span>
-            <span style={{ width: 1, height: 22, background: 'var(--om-line2)' }} />
-            <div className="flex gap-0.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 9, padding: 3 }}>
-                {tabs.map(([k, label]) => <span key={k} onClick={() => setView(k)} style={seg(view === k)}>{label}</span>)}
-            </div>
-            <span style={{ width: 1, height: 22, background: 'var(--om-line2)' }} />
+            <Button variant="outline" size="sm" onClick={onToday} leftIcon={<Icon name="calendar-days" size={14} />}>{__('Today')}</Button>
+            <SegmentedControl label={__('Production Planner')} className="w-full sm:w-[350px]" value={view} onChange={setView}
+                options={tabs.map(([value, label]) => ({ value, label }))} />
             <Dropdown
                 className="min-w-[150px]"
                 value={lineFilter == null ? '' : String(lineFilter)}
                 onChange={(v) => setLineFilter(v)}
                 options={[{ value: '', label: __('All lines') }, ...data.allLines.map((l) => ({ value: String(l.id), label: `${l.code} · ${l.name}` }))]}
             />
-            <span style={{ width: 1, height: 22, background: 'var(--om-line2)' }} />
-            <Link href="/admin/schedule/capacity" style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 500, color: 'var(--om-accent)', padding: '6px 8px' }}>{__('Capacity')} →</Link>
+            <Link href="/admin/schedule/capacity" className="inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold hover:bg-om-chip">
+                <Icon name="chart-no-axes-combined" size={14} />{__('Capacity')}
+            </Link>
             {hrEnabled && (
-                <Link href={`/admin/schedule/employees?date=${data.range.startDate}`} style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 500, color: 'var(--om-muted)', padding: '6px 8px' }}>{__('Employees')}</Link>
+                <Link href={`/admin/schedule/employees?date=${data.range.startDate}`} className="inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold hover:bg-om-chip">
+                    <Icon name="users" size={14} />{__('Employees')}
+                </Link>
             )}
-            <div style={{ flex: 1 }} />
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-wrap items-center gap-3 pt-1">
                 {LEGEND.map(([label, clr]) => (
                     <span key={label} className="flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--om-muted)' }}>
                         <span style={{ width: 9, height: 9, borderRadius: 3, background: clr }} />{__(label)}
@@ -183,25 +183,21 @@ export function BacklogRail({ ctx }) {
     const filters = [['all', 'All'], ['Urgent', 'Urgent'], ['High', 'High'], ['Medium', 'Med']];
 
     return (
-        <div className="flex flex-col shrink-0" style={{ width: 340, maxHeight: 'calc(100vh - 120px)', borderLeft: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
+        <div className="flex w-full xl:w-[320px] flex-col shrink-0 border-t xl:border-t-0 xl:border-l border-om-line" style={{ maxHeight: 'calc(100vh - 120px)', background: 'var(--om-panel)' }}>
             <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--om-line2)' }}>
-                <div className="flex items-center gap-1 mb-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 9, padding: 3 }}>
-                    {[['backlog', `${__('Backlog')} · ${data.backlog.length}`], ['changes', __('Changes')]].map(([k, label]) => (
-                        <span key={k} onClick={() => setTab(k)} className="flex-1 text-center"
-                            style={{ fontSize: 12, fontWeight: 600, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', ...(tab === k ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) }}>{label}</span>
-                    ))}
-                </div>
+                <SegmentedControl label={__('Backlog')} className="mb-3" value={tab} onChange={setTab}
+                    options={[{ value: 'backlog', label: `${__('Backlog')} · ${data.backlog.length}` }, { value: 'changes', label: __('Changes') }]} />
                 {tab === 'backlog' && (
                     <>
                         <div className="flex items-center gap-2 mb-2.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: '8px 11px' }}>
-                            <span style={{ width: 12, height: 12, borderRadius: 999, border: '2px solid var(--om-faint)', flexShrink: 0 }} />
-                            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={__('Search backlog')}
+                            <Icon name="search" size={15} className="shrink-0 text-om-faint" />
+                            <input aria-label={__('Search backlog')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={__('Search backlog')}
                                 className="flex-1 min-w-0 outline-none" style={{ border: 'none', background: 'transparent', fontSize: 12.5, color: 'var(--om-ink)' }} />
                         </div>
                         <div className="flex gap-1.5">
                             {filters.map(([k, label]) => (
-                                <span key={k} onClick={() => setPf(k)} className="flex-1 text-center"
-                                    style={{ fontSize: 11, fontWeight: 500, padding: 6, borderRadius: 7, cursor: 'pointer', ...(pf === k ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }) }}>{__(label)}</span>
+                                <button type="button" aria-pressed={pf === k} key={k} onClick={() => setPf(k)} className="flex-1 text-center"
+                                    style={{ fontSize: 11, fontWeight: 500, padding: 6, borderRadius: 7, cursor: 'pointer', ...(pf === k ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }) }}>{__(label)}</button>
                             ))}
                         </div>
                         {/* customer tier filter (ported from develop) */}
@@ -247,9 +243,9 @@ export function BacklogRail({ ctx }) {
             </div>
             )}
             <div className="flex gap-1.5" style={{ padding: '10px 14px', borderTop: '1px solid var(--om-line2)' }}>
-                <button type="button" onClick={() => setShowNew(true)} className="flex-1 inline-flex items-center justify-center gap-1" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--om-ink)', color: 'var(--om-on-ink)' }}><Icon name="plus" size={13} />{__('New order')}</button>
+                <Button size="sm" onClick={() => setShowNew(true)} className="flex-1" leftIcon={<Icon name="plus" size={14} />}>{__('New order')}</Button>
                 {canImport && (
-                    <Link href="/admin/import/work-orders" className="flex-1 text-center" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}>{__('Import CSV')}</Link>
+                    <Link href="/admin/import/work-orders" className="flex-1 inline-flex items-center justify-center gap-2 hover:bg-om-chip" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}><Icon name="upload" size={14} />{__('Import CSV')}</Link>
                 )}
             </div>
             {showNew && <NewOrderModal ctx={ctx} onClose={() => setShowNew(false)} />}
