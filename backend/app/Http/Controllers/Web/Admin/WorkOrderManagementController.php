@@ -200,6 +200,7 @@ class WorkOrderManagementController extends Controller
             ->first();
 
         return Inertia::render('admin/work-orders/Show', [
+            'editForm' => Inertia::optional(fn () => $this->editFormProps($workOrder, $customFields)),
             'stops' => $stops,
             'changeRequests' => $changeRequests,
             'changeControl' => [
@@ -421,7 +422,12 @@ class WorkOrderManagementController extends Controller
 
     public function edit(WorkOrder $workOrder, CustomFieldService $customFields)
     {
-        return Inertia::render('admin/work-orders/Edit', [
+        return Inertia::render('admin/work-orders/Edit', $this->editFormProps($workOrder, $customFields));
+    }
+
+    private function editFormProps(WorkOrder $workOrder, CustomFieldService $customFields): array
+    {
+        return [
             'workOrder' => [
                 ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'counting_source', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
@@ -437,7 +443,7 @@ class WorkOrderManagementController extends Controller
             'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
-        ]);
+        ];
     }
 
     public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder, CustomFieldService $cf)
@@ -518,7 +524,7 @@ class WorkOrderManagementController extends Controller
                 ->with('error', 'Failed to update work order. Please check your input and try again.');
         }
 
-        return redirect()->route('admin.work-orders.index')
+        return ($request->boolean('stay') ? redirect()->back() : redirect()->route('admin.work-orders.index'))
             ->with('success', "Work order {$workOrder->order_no} updated.");
     }
 
