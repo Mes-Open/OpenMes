@@ -11,6 +11,11 @@ const TYPE_COLORS = {
     packaging:     'bg-om-chip text-om-ink',
 };
 
+function trackingLabel(value) {
+    const labels = { none: 'None', batch: 'Batch', serial: 'Serial' };
+    return value == null ? '—' : __(labels[value] ?? value);
+}
+
 function typeColorClass(code) {
     return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
@@ -340,7 +345,8 @@ export default function ProcessTemplatesBom() {
         {
             key: 'tracking_type',
             label: 'Tracking',
-            render: (row) => <span className="text-sm text-om-muted capitalize">{row.tracking_type}</span>,
+            value: (row) => trackingLabel(row.tracking_type),
+            render: (row) => <span className="text-sm text-om-muted">{trackingLabel(row.tracking_type)}</span>,
         },
     ], []);
 
