@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Icon } from '@openmes/ui';
+import { Icon, IconButton } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { ActiveBadge } from '../../../components/ResourceTable';
 import Tooltip from '../../../components/Tooltip';
@@ -25,22 +25,20 @@ export default function WorkstationsIndex() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
             <Head title={__('Workstations — :name', { name: line.name })} />
 
             <div className="mb-6">
                 <Link
                     href={`/admin/lines/${line.id}`}
-                    className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4 text-sm"
+                    className="inline-flex items-center gap-2 mb-4 rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-[12px] font-medium text-om-ink hover:bg-om-chip"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <Icon name="arrow-left" size={16} />
                     {__('Back to :name', { name: line.name })}
                 </Link>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">{__('Workstations')}</h1>
+                        <h1 className="text-[28px] font-semibold tracking-tight text-om-ink">{__('Workstations')}</h1>
                         <p className="text-sm text-om-muted mt-1">{line.name}</p>
                     </div>
                     <Link
@@ -54,10 +52,8 @@ export default function WorkstationsIndex() {
             </div>
 
             {workstations.length === 0 ? (
-                <div className="bg-om-card rounded-om-sm shadow-sm text-center py-12">
-                    <svg className="mx-auto h-16 w-16 text-om-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
+                <div className="bg-om-card rounded-om border border-om-line text-center px-5 py-12">
+                    <Icon name="monitor" size={40} className="mx-auto text-om-faint mb-4" />
                     <p className="text-lg font-medium text-om-muted">{__('No workstations yet')}</p>
                     <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first workstation for this line.')}</p>
                     <Link
@@ -69,16 +65,16 @@ export default function WorkstationsIndex() {
                     </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {workstations.map((ws) => (
-                        <div key={ws.id} className="bg-om-card rounded-om-sm shadow-sm p-5 hover:shadow-md transition-shadow">
+                        <div key={ws.id} className="bg-om-card rounded-om border border-om-line p-5">
                             <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-lg font-bold text-om-ink">{ws.name}</h3>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                        <h3 className="text-[15px] font-semibold text-om-ink break-words">{ws.name}</h3>
                                         <ActiveBadge active={ws.is_active} />
                                     </div>
-                                    <p className="text-sm text-om-muted font-mono">{ws.code}</p>
+                                    <p className="text-[11px] text-om-faint font-mono">{ws.code}</p>
                                     {ws.workstation_type && (
                                         <p className="text-xs text-om-muted mt-1">{__('Type: :type', { type: ws.workstation_type })}</p>
                                     )}
@@ -87,57 +83,50 @@ export default function WorkstationsIndex() {
 
                             <div className="mb-4 p-3 bg-om-panel rounded-om-sm grid grid-cols-2 gap-3">
                                 <div className="text-center">
-                                    <p className="text-2xl font-bold text-om-ink">{ws.template_steps_count}</p>
-                                    <p className="text-xs text-om-muted">{__('Template Steps')}</p>
+                                    <p className="font-mono text-[22px] text-om-ink">{ws.template_steps_count}</p>
+                                    <p className="flex items-center justify-center gap-1.5 text-xs text-om-muted"><Icon name="workflow" size={13} />{__('Template Steps')}</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-2xl font-bold text-om-accent">{ws.workers_count}</p>
-                                    <p className="text-xs text-om-muted">{__('Workers')}</p>
+                                    <p className="font-mono text-[22px] text-om-ink">{ws.workers_count}</p>
+                                    <p className="flex items-center justify-center gap-1.5 text-xs text-om-muted"><Icon name="users" size={13} />{__('Workers')}</p>
                                 </div>
                             </div>
 
                             <div className="flex gap-2 pt-4 border-t border-om-line2">
                                 <Link
                                     href={`/admin/lines/${line.id}/workstations/${ws.id}/edit`}
-                                    className="flex-1 text-center text-sm px-3 py-2 border border-om-line rounded-om-sm text-om-muted hover:bg-om-bg font-medium"
+                                    className="flex-1 inline-flex items-center justify-center gap-2 text-[12px] px-3 py-2 border border-om-line rounded-om-sm text-om-muted hover:bg-om-bg font-medium"
                                 >
+                                    <Icon name="pencil" size={14} />
                                     {__('Edit')}
                                 </Link>
                                 <Tooltip label={ws.is_active ? __('Deactivate') : __('Activate')}>
-                                    <button
+                                    <IconButton
                                         onClick={() => handleToggle(ws)}
-                                        className="p-2 text-om-muted hover:text-om-ink"
+                                        className="border border-om-line"
                                         aria-label={ws.is_active ? __('Deactivate') : __('Activate')}
                                     >
                                         {ws.is_active ? (
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                            </svg>
+                                            <Icon name="circle-slash" size={16} />
                                         ) : (
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
+                                            <Icon name="circle-check" size={16} />
                                         )}
-                                    </button>
+                                    </IconButton>
                                 </Tooltip>
                                 {ws.template_steps_count === 0 ? (
                                     <Tooltip label={__('Delete')}>
-                                        <button
+                                        <IconButton
                                             onClick={() => handleDelete(ws)}
-                                            className="p-2 text-om-blocked hover:text-om-blocked"
+                                            variant="danger"
                                             aria-label={__('Delete')}
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
+                                            <Icon name="trash-2" size={16} />
+                                        </IconButton>
                                     </Tooltip>
                                 ) : (
                                     <Tooltip label={__('Cannot delete — has template steps')}>
-                                        <span className="p-2 text-om-faintest">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
+                                        <span className="inline-flex size-[38px] items-center justify-center text-om-faintest">
+                                            <Icon name="lock-keyhole" size={16} />
                                         </span>
                                     </Tooltip>
                                 )}
