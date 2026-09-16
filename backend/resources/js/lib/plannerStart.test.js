@@ -3,7 +3,7 @@ import { hourlyLanes, placementsOf, onMonthlyDay, weeklySlot, weeklyPlacements }
 
 const order = {
     id: 1, line_id: 1, due_date: '2026-09-30', planned_start_at: '2026-09-18T07:30:00+02:00',
-    planned_end_at: null, shift_number: 1, end_date: null, placements: [],
+    planned_end_at: null, shift_number: null, end_date: null, placements: [],
 };
 
 describe('planned start and deadline', () => {
@@ -87,4 +87,10 @@ describe('weekly conflicts use the same time ranges as daily', () => {
         const other = { ...first, id: 2, line_id: 2 };
         expect(weeklyPlacements([first, other], days, 1, 1).items.some(i => i.conflict)).toBe(false);
     });
+});
+
+it('projects a single weekly slot through the end of its day', () => {
+    const scheduled = { ...order, planned_start_at: '2026-09-17T00:00:00', shift_number: 1 };
+    expect(hourlyLanes([scheduled], 1, '2026-09-17', [{ start_time: '00:00:00', end_time: '00:00:00' }]).items[0])
+        .toMatchObject({ start: 0, end: 1440, placeholder: false, rangeEnd: '2026-09-18T00:00:00' });
 });

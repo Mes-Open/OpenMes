@@ -394,7 +394,7 @@ export function hourlyLanes(
         .map((p) => {
           let proj = projectSegment(orig, p);
           const firstDate = proj.planned_start_at?.slice(0, 10) ?? proj.due_date;
-          const shiftBased = !proj.planned_end_at && !!firstDate && !!(proj.end_date || proj.end_shift_number);
+          const shiftBased = !proj.planned_end_at && !!firstDate && !!(proj.end_date || proj.end_shift_number || proj.shift_number);
           if (shiftBased) {
             const firstShift = shifts[(proj.shift_number || 1) - 1];
             const lastShift = shifts[(proj.end_shift_number || proj.shift_number || 1) - 1];

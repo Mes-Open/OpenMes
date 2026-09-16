@@ -90,10 +90,17 @@ export default function Planner() {
     const config = { shiftsPerDay, slotMinutes, showWeekends };
 
     // ── Saving / writes ────────────────────────────────────────────────────────
-    const saveOrder = useCallback(async (orderId, body) => {
+    const saveOrder = useCallback(async function savePlacement(orderId, body) {
         setSaving(true);
         try {
             const r = await apiCall(`/admin/schedule/${orderId}`, 'PUT', body);
+            if (r.status === 409 && !body.force_conflict) {
+                setSaving(false);
+                return await new Promise((resolve) => setConflict({
+                    apply: () => resolve(savePlacement(orderId, { ...body, force_conflict: true })),
+                    cancel: () => resolve(null),
+                }));
+            }
             const json = await r.json();
             if (json.success) return json;
             toast(json.message ?? __('Error saving'), 'error');
@@ -121,6 +128,8 @@ export default function Planner() {
 
     const slotStart = (date, shift) => date ? `${date}T${shifts?.[Math.max(0, Number(shift || 1) - 1)]?.start_time?.slice(0, 5) || '00:00'}:00` : '';
 
+    const dayEnd = (date) => date ? `${dayList(date, 2, true)[1].date}T00:00:00` : '';
+
     const performDrop = useCallback(async (wo, target, placement) => {
         const body = placement !== 'primary'
             ? {
@@ -132,8 +141,8 @@ export default function Planner() {
                 line_id: target.lineId,
                 planned_start_at: slotStart(target.date, target.shift),
                 shift_number: target.shift || '',
-                week_number: '', end_date: '', end_shift_number: '',
-                planned_end_at: '',
+                week_number: '', end_date: target.date || '', end_shift_number: target.shift || '',
+                planned_end_at: dayEnd(target.date),
             };
         const result = await saveOrder(wo.id, body);
         if (result) {
@@ -239,8 +248,8 @@ export default function Planner() {
             body = {
                 line_id: newLineId ?? wo.line_id,
                 planned_start_at: slotStart(a.date, a.shift), week_number: '', shift_number: a.shift,
-                end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
-                planned_end_at: '',
+                end_date: b.date, end_shift_number: b.shift,
+                planned_end_at: dayEnd(b.date),
             };
         }
         return saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); return refreshContent(); } });
@@ -412,7 +421,7 @@ export default function Planner() {
                     }}
                 />
             )}
-            {conflict && <ConflictDialog onCancel={() => setConflict(null)} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
+            {conflict && <ConflictDialog onCancel={() => { conflict.cancel?.(); setConflict(null); }} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
             {confirmBox && (
                 <ConfirmDialog open onClose={() => setConfirmBox(null)}
                     onConfirm={() => { const apply = confirmBox.apply; setConfirmBox(null); apply(); }}
