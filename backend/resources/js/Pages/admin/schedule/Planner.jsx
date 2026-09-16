@@ -341,6 +341,9 @@ export default function Planner() {
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
 
             <div className="w-full min-w-0">
+            <DndProvider backend={HTML5Backend}>
+            <DragWatcher draggingRef={draggingRef} />
+            <div className="p-4 sm:p-6">
             {/* page header */}
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
                 <div>
@@ -379,12 +382,10 @@ export default function Planner() {
                 </div>
             )}
 
-            <DndProvider backend={HTML5Backend}>
-            <DragWatcher draggingRef={draggingRef} />
-
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
                 live={live} onMaintenance={() => setMaintOpen(true)} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
+            </div>
             <BacklogRail ctx={ctx} />
             <div className="w-full min-w-0" style={{ border: '1px solid var(--om-line)', borderRadius: 0, overflow: 'hidden', background: 'var(--om-bg)' }}>
                 <div className="om-main w-full min-w-0 overflow-auto">

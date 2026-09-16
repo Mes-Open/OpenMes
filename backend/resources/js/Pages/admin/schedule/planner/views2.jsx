@@ -136,17 +136,17 @@ export function HourlyView({ ctx }) {
         <div>
             <div className="flex items-center gap-2.5 mb-3">
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__('Snap')}</span>
-                <div className="flex gap-0.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: 3 }}>
+                <div className="flex gap-0.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 0, padding: 3 }}>
                     {[5, 10, 15, 30].map((n) => (
                         <span key={n} onClick={() => setSnap(n)}
-                            style={{ fontFamily: MONO, fontSize: 11, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', ...(snap === n ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) }}>{n}m</span>
+                            style={{ fontFamily: MONO, fontSize: 11, padding: '5px 10px', borderRadius: 0, cursor: 'pointer', ...(snap === n ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) }}>{n}m</span>
                     ))}
                 </div>
                 <div style={{ flex: 1 }} />
                 <span className="flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 10, color: 'var(--om-faint)' }}><span style={{ width: 8, height: 8, borderRadius: 2, boxShadow: '0 0 0 1.5px var(--om-blocked)' }} />{__('overlap')}</span>
             </div>
 
-            <div className="om-grid" style={{ overflow: 'auto', border: '1px solid var(--om-line)', borderRadius: 12, background: 'var(--om-card)' }}>
+            <div className="om-grid" style={{ overflow: 'auto', border: '1px solid var(--om-line)', borderRadius: 0, background: 'var(--om-card)' }}>
                 <div style={{ minWidth: 920 }}>
                     {/* hour header */}
                     <div className="flex" style={{ borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
