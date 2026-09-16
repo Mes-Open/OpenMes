@@ -106,6 +106,7 @@ class SettingsController extends Controller
         $settings = [
             'production_period' => json_decode($rows['production_period']?->value ?? '"none"', true) ?? 'none',
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
+            'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
@@ -437,6 +438,7 @@ class SettingsController extends Controller
         $slotDuration = $shiftsPerDay > 0 ? (int) (24 / $shiftsPerDay) : 8;
 
         $map = [
+            ...($request->has('block_negative_stock') ? ['block_negative_stock' => (bool) $validated['block_negative_stock']] : []),
             'production_period' => $validated['production_period'],
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),

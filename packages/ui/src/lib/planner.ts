@@ -76,6 +76,7 @@ export interface ChainChip {
 
 /** A placed block on the weekly board, after lane packing. */
 export interface WeeklyItem {
+  conflict?: boolean;
   wo: PlannerOrder;
   placementKey: PlacementKey;
   lineId: number | null;
@@ -85,6 +86,9 @@ export interface WeeklyItem {
 }
 
 export interface HourlyItem {
+  rangeStart?: string;
+  rangeEnd?: string;
+  shiftBased?: boolean;
   wo: PlannerOrder;
   placementKey: PlacementKey;
   /** Minute-of-day, clamped to the visible day. */
@@ -169,7 +173,7 @@ export function placementsOf(wo: PlannerOrder): Segment[] {
     {
       key: 'primary',
       line_id: wo.line_id,
-      due_date: wo.due_date,
+      due_date: wo.planned_start_at?.slice(0, 10) ?? wo.due_date,
       shift_number: wo.shift_number,
       end_date: wo.end_date,
       end_shift_number: wo.end_shift_number,
@@ -243,7 +247,7 @@ export function weeklySlot(
   wo: PlannerOrder,
   shiftsPerDay: number,
 ): { date: string | null; shift: number } {
-  let date = wo.due_date;
+  let date = wo.planned_start_at?.slice(0, 10) ?? wo.due_date;
   let shift = wo.shift_number;
   if (!date && wo.planned_start_at) date = wo.planned_start_at.slice(0, 10);
   if (!shift && wo.planned_start_at) {
@@ -262,8 +266,8 @@ export function weeklySlot(
 export function onMonthlyDay(wo: PlannerOrder, iso: string, dayNum: number, monthNum: number): boolean {
   // Extra segments occupy their own days too.
   if ((wo.placements ?? []).some((p) => p.due_date === iso)) return true;
-  if (wo.due_date) return wo.due_date === iso;
   if (wo.planned_start_at) return wo.planned_start_at.slice(0, 10) === iso;
+  if (wo.due_date) return wo.due_date === iso;
   if (wo.week_number) {
     const d = parseDate(iso);
     return !!d && d.getDay() === 1 && isoWeek(iso) === wo.week_number;
@@ -283,6 +287,7 @@ export function weeklyPlacements(
   days: PlannerDay[],
   shiftsPerDay: number,
   lineId: number | null = null,
+  shifts: { start_time: string; end_time: string }[] = [],
 ): { items: WeeklyItem[]; lanes: number; N: number } {
   const dayIdx: Record<string, number> = {};
   days.forEach((d, i) => {
@@ -328,6 +333,18 @@ export function weeklyPlacements(
     laneEnds[lane] = it.endCol + 1;
     it.lane = lane;
   });
+  // Reuse the daily intervals: sharing a shift cell is not itself a
+  // collision when the exact production hours are sequential.
+  const conflicts = new Set<string>();
+  const lineIds = lineId != null ? [lineId] : [...new Set(orders.flatMap(o => placementsOf(o).map(p => p.line_id)).filter((id): id is number => id != null))];
+  for (const id of lineIds) {
+    for (const day of days) {
+      for (const item of hourlyLanes(orders, id, day.date, shifts).items) {
+        if (item.conflict) conflicts.add(`${item.wo.id}:${item.placementKey}`);
+      }
+    }
+  }
+  items.forEach(item => { item.conflict = conflicts.has(`${item.wo.id}:${item.placementKey}`); });
   return { items, lanes: Math.max(1, laneEnds.length), N };
 }
 
@@ -362,30 +379,55 @@ export function hourlyLanes(
   orders: PlannerOrder[],
   lineId: number,
   dateStr: string,
+  shifts: { start_time: string; end_time: string }[] = [],
 ): { items: HourlyItem[]; totalLanes: number } {
+  const nextDay = parseDate(dateStr)!;
+  nextDay.setDate(nextDay.getDate() + 1);
+  const dayEnd = `${fmtKey(nextDay)}T00:00:00`;
+  const dayStart = `${dateStr}T00:00:00`;
   const items: HourlyItem[] = orders
     // One bar per segment on this line. Extra segments are read-only coarse
     // placeholders here — the minute plan lives on the primary.
     .flatMap((orig) =>
       placementsOf(orig)
         .filter((p) => p.line_id === lineId)
-        .map((p) => ({ orig, proj: projectSegment(orig, p), key: p.key })),
+        .map((p) => {
+          let proj = projectSegment(orig, p);
+          const firstDate = proj.planned_start_at?.slice(0, 10) ?? proj.due_date;
+          const shiftBased = !proj.planned_end_at && !!firstDate && !!(proj.end_date || proj.end_shift_number || proj.shift_number);
+          if (shiftBased) {
+            const firstShift = shifts[(proj.shift_number || 1) - 1];
+            const lastShift = shifts[(proj.end_shift_number || proj.shift_number || 1) - 1];
+            const endDay = parseDate(proj.end_date || firstDate)!;
+            const endTime = lastShift?.end_time?.slice(0, 8) || '00:00:00';
+            // Overnight shifts finish on the following calendar day. Without
+            // configured shifts the inclusive end date covers that whole day.
+            if (!lastShift || endTime <= lastShift.start_time.slice(0, 8)) endDay.setDate(endDay.getDate() + 1);
+            proj = {
+              ...proj,
+              planned_start_at: proj.planned_start_at || `${firstDate}T${firstShift?.start_time || '00:00:00'}`,
+              planned_end_at: `${fmtKey(endDay)}T${endTime}`,
+            };
+          }
+          return { orig, proj, key: p.key, shiftBased };
+        }),
     )
     .filter(({ proj }) => {
       if (proj.planned_start_at && proj.planned_end_at) {
-        return proj.planned_start_at.slice(0, 10) <= dateStr && dateStr <= proj.planned_end_at.slice(0, 10);
+        // End is exclusive: midnight belongs to the preceding interval.
+        return proj.planned_start_at.slice(0, 19) < dayEnd && proj.planned_end_at.slice(0, 19) > dayStart;
       }
       // Legacy: a due-date-only order on this day shows as a placeholder block
       // so it stays visible and can be dragged to get real times.
-      return proj.due_date === dateStr;
+      return (proj.planned_start_at?.slice(0, 10) ?? proj.due_date) === dateStr;
     })
-    .map(({ orig, proj, key }) => {
+    .map(({ orig, proj, key, shiftBased }) => {
       if (!proj.planned_start_at || !proj.planned_end_at) {
         return {
           wo: orig,
           placementKey: key,
-          start: 0,
-          end: 60,
+          start: proj.planned_start_at ? minuteOfDay(proj.planned_start_at) : 0,
+          end: proj.planned_start_at ? Math.min(1440, minuteOfDay(proj.planned_start_at) + 60) : 60,
           spansOutside: false,
           placeholder: true,
           lane: 0,
@@ -399,7 +441,10 @@ export function hourlyLanes(
         placementKey: key,
         start: startsBefore ? 0 : minuteOfDay(proj.planned_start_at),
         end: endsAfter ? 1440 : minuteOfDay(proj.planned_end_at),
-        spansOutside: startsBefore || endsAfter,
+        spansOutside: startsBefore || proj.planned_end_at.slice(0, 19) > dayEnd,
+        rangeStart: proj.planned_start_at,
+        rangeEnd: proj.planned_end_at,
+        shiftBased,
         placeholder: false,
         lane: 0,
         conflict: false,
@@ -426,7 +471,8 @@ export function hourlyLanes(
   });
 
   items.forEach((a) => {
-    a.conflict = items.some((b) => b !== a && a.start < b.end && b.start < a.end);
+    // Placeholder width is only a drag handle, not a booked production interval.
+    a.conflict = !a.placeholder && items.some((b) => b !== a && !b.placeholder && a.start < b.end && b.start < a.end);
   });
 
   return { items, totalLanes: Math.max(1, laneEnds.length) };

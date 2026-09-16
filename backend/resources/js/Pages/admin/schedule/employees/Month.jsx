@@ -66,7 +66,7 @@ export default function EmployeeMonth() {
     const dateMonth = date ? new Date(date).getMonth() : -1;
 
     return (
-        <>
+        <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6">
             <Head title={__('Employee Month Overview')} />
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
@@ -85,14 +85,14 @@ export default function EmployeeMonth() {
                         const d = new Date(date);
                         d.setMonth(d.getMonth() - 1);
                         navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
-                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line2 hover:bg-om-bg">
+                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line hover:bg-om-bg">
                         &larr;
                     </button>
                     <button onClick={() => {
                         const d = new Date(date);
                         d.setMonth(d.getMonth() + 1);
                         navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
-                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line2 hover:bg-om-bg">
+                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line hover:bg-om-bg">
                         &rarr;
                     </button>
                 </div>
@@ -100,7 +100,7 @@ export default function EmployeeMonth() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
                 {/* Calendar */}
-                <div className="bg-om-card border border-om-line2 rounded-2xl p-3 md:p-4">
+                <div className="bg-om-card border border-om-line rounded-om p-3 md:p-4">
                     {/* Weekday headers */}
                     <div className="grid grid-cols-7 gap-1.5 mb-2">
                         {[__('Mon'),__('Tue'),__('Wed'),__('Thu'),__('Fri'),__('Sat'),__('Sun')].map((wd) => (
@@ -121,7 +121,7 @@ export default function EmployeeMonth() {
                             return (
                                 <button key={cellDate}
                                         onClick={() => navTo({ view: 'month', date: cellDate, worker_id: selectedWorkerId })}
-                                        className={`min-h-[88px] flex flex-col p-1.5 rounded-om-sm border transition-colors text-left ${isSelected ? 'border-om-accent ring-2 ring-om-accent' : 'border-om-line2 hover:border-om-line'} ${!inMonth ? 'opacity-40' : ''} ${isTodayCell && !isSelected ? 'bg-om-downtime-bg/50' : 'bg-om-card'}`}>
+                                        className={`min-h-[88px] flex flex-col p-1.5 rounded-om-sm border transition-colors text-left ${isSelected ? 'border-om-accent ring-2 ring-om-accent' : 'border-om-line hover:border-om-line'} ${!inMonth ? 'opacity-40' : ''} ${isTodayCell && !isSelected ? 'bg-om-downtime-bg/50' : 'bg-om-card'}`}>
                                     <div className="flex items-start justify-between">
                                         <span className={`font-mono text-xs font-bold ${isSelected ? 'text-om-accent' : 'text-om-ink'}`}>
                                             {cellObj.getDate()}
@@ -161,7 +161,7 @@ export default function EmployeeMonth() {
                             return (
                                 <span key={k} className="flex items-center gap-1.5">
                                     <span className="w-3 h-2 rounded-sm" style={{ background: def.color }} />
-                                    {def.label}
+                                    {__(def.label)}
                                 </span>
                             );
                         })}
@@ -169,7 +169,7 @@ export default function EmployeeMonth() {
                 </div>
 
                 {/* Selected-day detail */}
-                <aside className="bg-om-card border border-om-line2 rounded-2xl p-4 flex flex-col gap-3">
+                <aside className="bg-om-card border border-om-line rounded-om p-4 flex flex-col gap-3">
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-om-accent">
                             {__('Selected')} · {date ? formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
@@ -214,7 +214,7 @@ export default function EmployeeMonth() {
                     </button>
                 </aside>
             </div>
-        </>
+        </div>
     );
 }
 

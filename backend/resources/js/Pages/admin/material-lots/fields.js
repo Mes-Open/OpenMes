@@ -35,7 +35,7 @@ export function materialLotFields(materials, sources, statuses) {
                 ...sources.map((s) => ({ value: String(s.id), label: s.external_name })),
             ],
         },
-        { name: 'quantity_received', label: __('Qty Received'), type: 'number', required: true },
+        { name: 'quantity_received', label: __('Qty Received'), type: 'number', required: true, help: __('A lot record does not increase stock. Record the delivery on the material page unless it was already booked by your integration.') },
         { name: 'quantity_available', label: __('Qty Available'), type: 'number', help: __('Defaults to the received quantity if left blank.') },
         { name: 'unit_of_measure', label: __('Unit'), required: true, placeholder: __('e.g. pcs, kg, l'), help: __('Required.') },
         { name: 'received_at', label: __('Received'), type: 'date', required: true },

@@ -40,6 +40,9 @@ class MachineProductionService
 
         return DB::transaction(function () use ($workOrder, $delta, $step) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            if ($current->plannedStartBlocker()) {
+                return false;
+            }
             if (! $current->isMachineCounted() || in_array($current->status, WorkOrder::TERMINAL_STATUSES, true)) {
                 return false;
             }
@@ -58,6 +61,9 @@ class MachineProductionService
     {
         return DB::transaction(function () use ($workOrder, $value) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            if ($current->plannedStartBlocker()) {
+                return false;
+            }
             if (! is_finite($value) || ! $current->isMachineCounted() || $current->usesStepLedger()
                 || in_array($current->status, WorkOrder::TERMINAL_STATUSES, true)) {
                 return false;

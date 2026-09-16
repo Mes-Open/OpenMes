@@ -9,8 +9,8 @@ import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
 } from './helpers';
 
-const HLANE = 46;
-const HGAP = 5;
+const HLANE = 60;
+const HGAP = 0;
 const LBL_W = 150;
 
 function fmtMin(m) {
@@ -27,16 +27,19 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     // Suppress the click the browser fires after a real drag — it must not
     // open the edit sheet.
     const draggedRef = useRef(false);
+    const pendingRef = useRef(false);
     const cur = drag || { start: item.start, end: item.end };
     const s = statusOf(wo.status);
 
     function begin(mode, e) {
-        if (readOnly) return;
+        if (readOnly || pendingRef.current) return;
         e.preventDefault(); e.stopPropagation();
         const track = e.currentTarget.closest('[data-track]');
         const ppm = (track ? track.getBoundingClientRect().width : 700) / 1440;
         const startX = e.clientX, oS = item.start, oE = item.end;
         draggedRef.current = false;
+        ctx.draggingRef.current = true;
+        let latest = null;
         const snap = (m) => Math.round(m / slotMinutes) * slotMinutes;
         function move(ev) {
             if (Math.abs(ev.clientX - startX) > 4) draggedRef.current = true;
@@ -45,13 +48,35 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
             if (mode === 'move') { ns = snap(oS + d); ne = ns + (oE - oS); if (ns < 0) { ne -= ns; ns = 0; } if (ne > 1440) { ns -= (ne - 1440); ne = 1440; } }
             else if (mode === 'l') { ns = snap(oS + d); ns = Math.max(0, Math.min(ne - slotMinutes, ns)); }
             else { ne = snap(oE + d); ne = Math.min(1440, Math.max(ns + slotMinutes, ne)); }
-            setDrag({ start: ns, end: ne });
+            latest = { start: ns, end: ne };
+            setDrag(latest);
         }
-        function up() {
+        async function up() {
+            cleanup();
+            pendingRef.current = true;
+            try {
+                // Keep the preview until the persisted board arrives, not just
+                // until the write completes. Otherwise the old props flash.
+                if (latest && (latest.start !== item.start || latest.end !== item.end)) {
+                    await ctx.onHourlyChange(wo, latest.start, latest.end);
+                }
+            } finally {
+                pendingRef.current = false;
+                ctx.draggingRef.current = false;
+                setDrag(null);
+            }
+        }
+        function cancel() {
+            cleanup();
+            ctx.draggingRef.current = false;
+            setDrag(null);
+        }
+        function cleanup() {
             window.removeEventListener('pointermove', move);
             window.removeEventListener('pointerup', up);
-            setDrag((d) => { if (d && (d.start !== item.start || d.end !== item.end)) ctx.onHourlyChange(wo, d.start, d.end); return null; });
+            window.removeEventListener('pointercancel', cancel);
         }
+        window.addEventListener('pointercancel', cancel);
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
     }
@@ -59,10 +84,21 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     const left = (cur.start / 1440) * 100;
     const width = ((cur.end - cur.start) / 1440) * 100;
     const dur = (Math.round((cur.end - cur.start) / 6) / 10) + 'h';
+    const rangeLabel = (value, isEnd = false) => {
+        const date = parseDate(value.slice(0, 10));
+        const midnightEnd = isEnd && value.slice(11, 19) === '00:00:00';
+        if (midnightEnd) date.setDate(date.getDate() - 1);
+        return `${formatDate(date, { day: '2-digit', month: '2-digit' })} ${midnightEnd ? '24:00' : value.slice(11, 16)}`;
+    };
+    const timing = !drag && item.rangeStart && item.rangeEnd && (item.spansOutside || item.shiftBased)
+        ? `${rangeLabel(item.rangeStart)} – ${rangeLabel(item.rangeEnd, true)}`
+        : item.placeholder && !drag
+        ? (item.placementKey === 'primary' && wo.planned_start_at ? `${fmtMin(cur.start)} · ${__('End not planned')}` : __('No exact time yet — drag to schedule'))
+        : `${fmtMin(cur.start)}–${fmtMin(cur.end)} · ${dur}`;
 
     return (
-        <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', minWidth: 10, zIndex: drag ? 30 : 2 }}>
-            <div className="om-wo relative" title={item.placeholder && !readOnly ? __('No exact time yet — drag to schedule') : undefined} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
+        <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', zIndex: drag ? 30 : 2 }}>
+            <div className="om-wo relative" title={`${wo.order_no} · ${timing}`} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
                 {!readOnly && <span onPointerDown={(e) => begin('l', e)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }} />}
                 <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '6px 10px', cursor: readOnly ? 'pointer' : 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
@@ -72,7 +108,7 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
                         <span className="ml-auto"><ShortageChip wo={wo} compact /></span>
                     </div>
-                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtMin(cur.start)}–{fmtMin(cur.end)} · {dur}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{timing}</span>
                 </div>
                 {item.conflict && <span style={{ position: 'absolute', top: 3, right: 9, fontFamily: MONO, fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '1px 4px', zIndex: 4, pointerEvents: 'none' }}>{__('overlap')}</span>}
                 {readOnly && (
@@ -100,17 +136,17 @@ export function HourlyView({ ctx }) {
         <div>
             <div className="flex items-center gap-2.5 mb-3">
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__('Snap')}</span>
-                <div className="flex gap-0.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: 3 }}>
+                <div className="flex gap-0.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 0, padding: 3 }}>
                     {[5, 10, 15, 30].map((n) => (
                         <span key={n} onClick={() => setSnap(n)}
-                            style={{ fontFamily: MONO, fontSize: 11, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', ...(snap === n ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) }}>{n}m</span>
+                            style={{ fontFamily: MONO, fontSize: 11, padding: '5px 10px', borderRadius: 0, cursor: 'pointer', ...(snap === n ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) }}>{n}m</span>
                     ))}
                 </div>
                 <div style={{ flex: 1 }} />
                 <span className="flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 10, color: 'var(--om-faint)' }}><span style={{ width: 8, height: 8, borderRadius: 2, boxShadow: '0 0 0 1.5px var(--om-blocked)' }} />{__('overlap')}</span>
             </div>
 
-            <div className="om-grid" style={{ overflow: 'auto', border: '1px solid var(--om-line)', borderRadius: 12, background: 'var(--om-card)' }}>
+            <div className="om-grid" style={{ overflow: 'auto', border: '1px solid var(--om-line)', borderRadius: 0, background: 'var(--om-card)' }}>
                 <div style={{ minWidth: 920 }}>
                     {/* hour header */}
                     <div className="flex" style={{ borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
@@ -123,8 +159,8 @@ export function HourlyView({ ctx }) {
                     </div>
                     {/* line tracks */}
                     {data.lines.map((line) => {
-                        const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr);
-                        const h = totalLanes * (HLANE + HGAP) + 11;
+                        const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr, data.shifts);
+                        const h = totalLanes * (HLANE + HGAP);
                         return (
                             <div key={line.id} className="flex" style={{ borderBottom: '1px solid var(--om-line2)', minHeight: 60 }}>
                                 <div style={{ width: LBL_W, flexShrink: 0, padding: '12px 14px', borderRight: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
@@ -139,11 +175,11 @@ export function HourlyView({ ctx }) {
                                         {hours.map((h2) => <div key={h2} style={{ flex: 1, borderRight: '1px solid var(--om-line2)', opacity: 0.6 }} />)}
                                     </div>
                                     {nowMin != null && (
-                                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: (nowMin / 1440 * 100) + '%', width: 1.5, background: 'var(--om-accent)', pointerEvents: 'none', zIndex: 1 }}>
+                                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: (nowMin / 1440 * 100) + '%', width: 1.5, background: 'var(--om-accent)', pointerEvents: 'none', zIndex: 40 }}>
                                             <span style={{ position: 'absolute', top: -1, left: -3, width: 7, height: 7, borderRadius: 999, background: 'var(--om-accent)' }} />
                                         </div>
                                     )}
-                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP) + 8} />)}
+                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP)} />)}
                                 </div>
                             </div>
                         );
@@ -180,7 +216,7 @@ export function MonthlyView({ ctx }) {
         <div style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-card)' }}>
             <div className="flex items-center justify-between" style={{ padding: '12px 16px', borderBottom: '1px solid var(--om-line2)' }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--om-ink)' }}>{monthLabel}</span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{__('read-only')}</span>
+                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{__('Click a day to open its schedule')}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
                 {dow.map((d) => <div key={d} style={{ padding: 10, textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{d}</div>)}
@@ -190,7 +226,7 @@ export function MonthlyView({ ctx }) {
                     if (!c) return <div key={'e' + i} style={{ minHeight: 96, borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }} />;
                     const isToday = c.iso === today;
                     return (
-                        <div key={c.iso} style={{ minHeight: 96, padding: '9px 10px', borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'color-mix(in srgb, var(--om-accent-bg) 66%, transparent)' : 'var(--om-card)' }}>
+                        <button type="button" key={c.iso} onClick={() => ctx.onSelectDay(c.iso)} aria-label={formatDate(parseDate(c.iso), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} className="text-left hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-om-accent focus-visible:-outline-offset-2" style={{ minHeight: 96, padding: '9px 10px', borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'color-mix(in srgb, var(--om-accent-bg) 66%, transparent)' : 'var(--om-card)' }}>
                             <div className="flex items-center justify-between mb-2">
                                 <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--om-accent)' : 'var(--om-ink)' }}>{c.d}</span>
                                 {c.orders.length > 0 && <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 20, padding: '1px 6px' }}>{c.orders.length}</span>}
@@ -200,7 +236,7 @@ export function MonthlyView({ ctx }) {
                                     <div key={o.id} style={{ height: 4, borderRadius: 3, background: statusOf(o.status).solid, width: Math.min(100, 40 + (o.planned_qty || 0) / 6) + '%' }} />
                                 ))}
                             </div>
-                        </div>
+                        </button>
                     );
                 })}
             </div>

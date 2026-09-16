@@ -122,6 +122,8 @@ export function PlannerView({ canEdit }: Props) {
     );
   };
 
+  const slotStart = (date: string, shift: number) => `${date}T${board?.shifts?.[Math.max(0, (shift || 1) - 1)]?.start_time?.slice(0, 5) || '00:00'}:00`;
+
   const applyMove = (wo: PlannerOrder, key: PlacementKey, target: DropTarget) => {
     if (key === 'primary') {
       // A coarse drop discards an exact minute plan — the web confirms first,
@@ -129,18 +131,18 @@ export function PlannerView({ canEdit }: Props) {
       const doMove = () =>
         submit(wo.id, {
           line_id: target.lineId,
-          due_date: target.date,
+          planned_start_at: slotStart(target.date, target.shift),
           shift_number: target.shift,
           // Clearing the span keeps end_* from pointing before the new start.
           end_date: null,
           end_shift_number: null,
-          ...(wo.planned_start_at ? { planned_start_at: null, planned_end_at: null } : {}),
+          planned_end_at: null,
         });
 
-      if (wo.planned_start_at) {
+      if (wo.planned_start_at && wo.planned_end_at) {
         Alert.alert(
           t('Replace exact time plan?'),
-          t('This order has an exact start and end time. Moving it to a shift cell will clear them.'),
+          t('This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.'),
           [
             { text: t('Cancel'), style: 'cancel' },
             { text: t('Move'), style: 'destructive', onPress: doMove },
@@ -177,7 +179,8 @@ export function PlannerView({ canEdit }: Props) {
 
     if (key === 'primary') {
       submit(wo.id, {
-        due_date: a.date,
+        planned_start_at: slotStart(a.date, a.shift),
+        planned_end_at: null,
         shift_number: a.shift,
         end_date: spanned ? b.date : null,
         end_shift_number: spanned ? b.shift : null,
@@ -255,7 +258,7 @@ export function PlannerView({ canEdit }: Props) {
   const unassign = (wo: PlannerOrder, key: PlacementKey) => {
     if (key === 'primary') {
       // Losing the primary line clears every segment (server-side rule).
-      submit(wo.id, { line_id: null, due_date: null, shift_number: null, end_date: null, end_shift_number: null });
+      submit(wo.id, { line_id: null, planned_end_at: null, shift_number: null, end_date: null, end_shift_number: null });
       return;
     }
     submit(wo.id, { extra_placements: placementsPayload(wo, { remove: key }) });

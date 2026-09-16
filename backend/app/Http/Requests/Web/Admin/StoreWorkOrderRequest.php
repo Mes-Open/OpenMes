@@ -52,6 +52,7 @@ class StoreWorkOrderRequest extends FormRequest
             'counting_source' => ['nullable', Rule::in(\App\Models\WorkOrder::COUNTING_SOURCES)],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100'],
             'due_date' => ['nullable', 'date'],
+            'planned_start_at' => ['nullable', 'date'],
             'description' => ['nullable', 'string', 'max:2000'],
         ], $this->customFieldRules());
     }

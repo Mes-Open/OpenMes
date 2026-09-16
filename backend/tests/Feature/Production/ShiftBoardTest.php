@@ -5,6 +5,7 @@ namespace Tests\Feature\Production;
 use App\Enums\DowntimeKind;
 use App\Models\DowntimeReason;
 use App\Models\Line;
+use App\Models\MachineEvent;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
 use App\Models\User;
@@ -97,6 +98,49 @@ class ShiftBoardTest extends TestCase
     private function tile(array $board, string $code): ?array
     {
         return collect($board['stations'])->firstWhere('code', $code);
+    }
+
+    public function test_large_counter_feed_is_bounded_in_memory_and_preserves_totals(): void
+    {
+        WorkstationState::create([
+            'workstation_id' => $this->running->id, 'state' => 'RUNNING',
+            'started_at' => $this->at('06:00'), 'ended_at' => null,
+        ]);
+        $base = [
+            'workstation_id' => $this->running->id,
+            'event_type' => MachineEvent::TYPE_COUNTER,
+            'event_timestamp' => $this->at('06:00:10'),
+        ];
+        $aggregateId = MachineEvent::insertGetId($base + ['payload' => json_encode(['delta' => 1500.25])]);
+        MachineEvent::insert($base + ['payload' => json_encode(['delta' => 3.5, 'kind' => 'reject'])]);
+        // A second station must keep its counters separate.
+        MachineEvent::insert(array_replace($base, [
+            'workstation_id' => $this->stopped->id,
+            'payload' => json_encode(['delta' => 7]),
+        ]));
+        // The end boundary is exclusive, even on a dense feed.
+        MachineEvent::insert(array_replace($base, [
+            'event_timestamp' => $this->at('14:00'),
+            'payload' => json_encode(['delta' => 999999]),
+        ]));
+        $expected = $this->board()['stations'];
+        MachineEvent::whereKey($aggregateId)->delete();
+
+        // 6001 pulses cross multiple page boundaries. Unused device metadata
+        // makes an eager read retain ~48 MB that the aggregates do not need.
+        $pulse = $base + ['payload' => json_encode(['delta' => 0.25, 'metadata' => str_repeat('x', 8192)])];
+        for ($offset = 0; $offset < 6001; $offset += 200) {
+            MachineEvent::insert(array_fill(0, min(200, 6001 - $offset), $pulse));
+        }
+        unset($pulse);
+        gc_collect_cycles();
+        memory_reset_peak_usage();
+        $before = memory_get_usage(true);
+        $actual = $this->board()['stations'];
+        $peakGrowth = memory_get_peak_usage(true) - $before;
+
+        $this->assertSame($expected, $actual);
+        $this->assertLessThan(32 * 1024 * 1024, $peakGrowth, 'Raw counter payloads must not accumulate for the whole shift.');
     }
 
     public function test_the_board_covers_every_line_at_once(): void

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ConfirmDialog } from '@openmes/ui';
+import { ConfirmDialog, Icon, SegmentedControl } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import Tooltip from '../../../../components/Tooltip';
 import { formatDate, __ } from '../../../../lib/i18n';
@@ -22,7 +22,7 @@ export function Tacho({ activities, typeMeta, height = 56, showHours = true, isT
     const totalMin = 24 * 60;
     return (
         <div>
-            <div className="relative overflow-hidden rounded-om-sm border border-om-line2 bg-om-panel"
+            <div className="relative overflow-hidden rounded-om-sm border border-om-line bg-om-panel"
                  style={{ height: `${height}px` }}>
                 {/* Hour grid lines */}
                 {Array.from({ length: 24 }, (_, h) => (
@@ -38,7 +38,7 @@ export function Tacho({ activities, typeMeta, height = 56, showHours = true, isT
                     const hl = highlightId !== null && a.id === highlightId;
                     return (
                         <div key={i} className="absolute"
-                             title={`${a.label ?? typeMeta[a.type]?.label ?? a.type} · ${a.from} → ${a.to}`}
+                             title={`${a.label ?? __(typeMeta[a.type]?.label ?? a.type)} · ${a.from} → ${a.to}`}
                              style={{
                                  left: `${left}%`, width: `${width}%`,
                                  top: hl ? '0' : '2px', bottom: hl ? '0' : '2px',
@@ -80,10 +80,10 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
     return (
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
-                <div className="font-mono text-[11px] tracking-wider font-bold uppercase text-om-accent">
+                <div className="font-mono text-[10px] tracking-wider uppercase text-om-muted">
                     {__('Employee day planner · Tacho view')}
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">
+                <h1 className="text-2xl font-semibold text-om-ink mt-0.5">
                     {view === 'team'
                         ? `${__('Team day')} · ${formatDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
                         : view === 'month'
@@ -94,25 +94,18 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex p-1 rounded-om-sm bg-om-line2">
-                    {tabs.map(({ key, label }) => (
-                        <button key={key}
-                                onClick={() => navTo({ view: key, date, worker_id: selectedWorkerId })}
-                                className={`px-3 py-1.5 rounded-md font-mono text-[11px] font-bold tracking-wider uppercase transition-colors ${view === key ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl label={__('Employee Day Plan')} className="w-full sm:w-[310px]" value={view}
+                    onChange={(key) => navTo({ view: key, date, worker_id: selectedWorkerId })}
+                    options={tabs.map(({ key, label }) => ({ value: key, label }))} />
 
-                <Link href="/admin/schedule" className="px-3 py-2 text-xs font-medium text-om-muted hover:text-om-ink">
-                    &larr; {__('Production schedule')}
+                <Link href="/admin/schedule" className="inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold hover:bg-om-chip">
+                    <Icon name="arrow-left" size={14} />{__('Production schedule')}
                 </Link>
 
                 {selectedWorkerId && (
                     <Link href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
-                       className="inline-flex items-center gap-2 px-3 h-9 rounded-om-sm bg-om-accent hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-                        {__('Add activity')}
+                       className="inline-flex items-center gap-2 px-3 h-9 rounded-om-sm bg-om-ink hover:bg-om-ink-hover text-om-on-ink text-xs font-semibold">
+                        <Icon name="plus" size={16} />
                         {__('Add activity')}
                     </Link>
                 )}
@@ -147,6 +140,10 @@ export default function EmployeeDay() {
 
     const navTo = (params) => router.get('/admin/schedule/employees', params, { preserveState: false });
 
+    const [workerSearch, setWorkerSearch] = useState('');
+    const visibleWorkers = workers.filter((worker) => (worker.name + ' ' + worker.code).toLocaleLowerCase().includes(workerSearch.toLocaleLowerCase()));
+    const activityCount = activities.filter((activity) => activity.id != null).length;
+
     const [deleteId, setDeleteId] = useState(null);
     const handleDelete = (actId) => setDeleteId(actId);
     const performDelete = async (actId) => {
@@ -168,35 +165,35 @@ export default function EmployeeDay() {
     }
 
     return (
-        <>
+        <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6">
             <Head title={__('Employee Day Plan')} />
 
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_360px] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] 2xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-4">
 
                 {/* LEFT: Worker list */}
-                <aside className="hidden lg:flex flex-col bg-om-card border border-om-line2 rounded-2xl p-4 min-h-[60vh]">
+                <aside className="flex flex-col bg-om-card border border-om-line rounded-om p-4 lg:min-h-[60vh]">
                     <div className="mb-3">
                         <div className="flex items-center gap-2 px-3 py-2 rounded-om-sm bg-om-chip">
-                            <svg className="w-4 h-4 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" placeholder={__('Search worker')}
+                            <Icon name="search" size={16} />
+                            <input type="text" aria-label={__('Search worker')} value={workerSearch} placeholder={__('Search worker')}
                                    className="bg-transparent w-full text-sm text-om-muted placeholder-om-faint outline-none font-mono"
-                                   onChange={(e) => {/* could filter locally */}} />
+                                   onChange={(e) => setWorkerSearch(e.target.value)} />
                         </div>
                     </div>
                     <div className="font-mono text-[10px] tracking-wider text-om-muted uppercase mt-1 mb-2">
                         {__('Workers')} · {workers.length}
                     </div>
                     <div className="flex flex-col gap-1.5 overflow-y-auto flex-1">
-                        {workers.map((w) => {
+                        {visibleWorkers.map((w) => {
                             const on = w.id === selectedWorkerId;
                             const parts = (w.name ?? '').trim().split(' ');
                             const initials = ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
                             return (
                                 <button key={w.id}
                                         onClick={() => navTo({ view: 'day', date, worker_id: w.id })}
-                                        className={`flex items-center gap-3 p-2.5 rounded-om-sm border transition-colors text-left ${on ? 'bg-om-accent-bg border-om-accent' : 'bg-om-panel border-om-line2 hover:bg-om-chip'}`}>
+                                        className={`flex items-center gap-3 p-2.5 rounded-om-sm border transition-colors text-left ${on ? 'bg-om-accent-bg border-om-accent' : 'bg-om-panel border-om-line hover:bg-om-chip'}`}>
                                     <div className={`w-8 h-8 rounded-om-sm font-mono text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${on ? 'bg-om-accent text-white' : 'bg-om-line2 text-om-muted'}`}>
                                         {initials}
                                     </div>
@@ -211,22 +208,22 @@ export default function EmployeeDay() {
                         })}
                     </div>
                     <div className="mt-3 p-3 rounded-om-sm bg-om-panel">
-                        <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Shift coverage')}</div>
+                        <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Workers')}</div>
                         <div className="font-mono text-2xl font-bold text-om-running mt-0.5">
-                            {workers.length}<span className="text-sm text-om-faint">/{workers.length}</span>
+                            {workers.length}
                         </div>
                     </div>
                 </aside>
 
                 {/* CENTER: Timeline */}
-                <section className="bg-om-card border border-om-line2 rounded-2xl p-4 md:p-5 flex flex-col gap-4 min-w-0">
+                <section className="bg-om-card border border-om-line rounded-om p-4 md:p-5 flex flex-col gap-4 min-w-0">
                     {/* Date strip */}
                     <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                         {dayStrip.map((d) => {
                             const on = d === date;
                             return (
                                 <button key={d} onClick={() => navTo({ view: 'day', date: d, worker_id: selectedWorkerId })}
-                                        className={`flex-shrink-0 px-3 py-2 rounded-om-sm font-mono text-[11px] font-bold tracking-wider uppercase border ${on ? 'bg-om-ink border-om-ink text-om-on-ink' : 'bg-om-panel border-om-line2 text-om-muted hover:bg-om-chip'}`}>
+                                        className={`flex-shrink-0 px-3 py-2 rounded-om-sm font-mono text-[11px] font-bold tracking-wider uppercase border ${on ? 'bg-om-ink border-om-ink text-om-on-ink' : 'bg-om-panel border-om-line text-om-muted hover:bg-om-chip'}`}>
                                     {formatDate(new Date(d), { weekday: 'short', day: 'numeric' })}
                                 </button>
                             );
@@ -234,7 +231,7 @@ export default function EmployeeDay() {
                     </div>
 
                     {/* Summary band */}
-                    <div className="rounded-om bg-om-panel border border-om-line2 p-4">
+                    <div className="rounded-om bg-om-panel border border-om-line p-4">
                         <div className="flex flex-wrap justify-between items-start gap-3">
                             <div>
                                 <div className="font-mono text-[10px] tracking-wider font-bold uppercase text-om-accent">
@@ -244,7 +241,7 @@ export default function EmployeeDay() {
                                     {fmtMins(totalWork + totalBreaks + (sums.maint ?? 0) + (sums.meeting ?? 0) + (sums.training ?? 0) + (sums.travel ?? 0))} {__('planned')}
                                 </div>
                                 <div className="font-mono text-[11px] text-om-muted mt-0.5">
-                                    {activities.length} {__('activities')}
+                                    {activityCount} {__('activities')}
                                 </div>
                             </div>
                             <div className="text-right">
@@ -272,7 +269,7 @@ export default function EmployeeDay() {
                                 <div key={type} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-om-card"
                                      style={{ borderColor: `${def.color}80` }}>
                                     <span className="w-2 h-2 rounded-sm" style={{ background: def.color }} />
-                                    <span className="text-xs font-semibold text-om-muted">{def.label}</span>
+                                    <span className="text-xs font-semibold text-om-muted">{__(def.label)}</span>
                                     <span className="font-mono text-[10px] font-bold text-om-muted">{fmtMins(mins)}</span>
                                 </div>
                             );
@@ -282,25 +279,25 @@ export default function EmployeeDay() {
                     {/* Activity list */}
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">
-                            {__('Activities')} · {activities.length}
+                            {__('Activities')} · {activityCount}
                         </div>
                         <div className="flex flex-col gap-1">
                             {activities.length === 0 ? (
-                                <div className="p-6 text-center text-sm text-om-faint border border-dashed border-om-line2 rounded-om">
+                                <div className="p-6 text-center text-sm text-om-faint border border-dashed border-om-line rounded-om">
                                     {__('No activities planned for this day.')}
                                 </div>
                             ) : activities.map((a, i) => {
                                 const def = typeMeta[a.type] ?? typeMeta.off ?? { color: 'var(--om-faint)', label: a.type, short: '??' };
                                 const hl = isToday && nowMin !== null && nowMin >= toMin(a.from) && nowMin < toMin(a.to === '24:00' ? '23:59' : a.to);
                                 return (
-                                    <div key={i} className={`flex items-center gap-2.5 p-2.5 rounded-om border ${hl ? 'bg-om-downtime-bg border-om-downtime' : 'bg-om-panel border-om-line2'}`}>
+                                    <div key={i} className={`flex items-center gap-2.5 p-2.5 rounded-om border ${hl ? 'bg-om-downtime-bg border-om-downtime' : 'bg-om-panel border-om-line'}`}>
                                         <div className="w-1 self-stretch rounded-sm" style={{ background: def.color }} />
                                         <div className="w-8 h-8 rounded-om-sm flex items-center justify-center flex-shrink-0" style={{ background: `${def.color}25` }}>
                                             <span className="font-mono text-[9px] font-bold tracking-wider" style={{ color: def.color }}>{def.short}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-sm font-semibold text-om-ink">{a.label ?? def.label}</span>
+                                                <span className="text-sm font-semibold text-om-ink">{a.label ?? __(def.label)}</span>
                                                 {hl && <span className="font-mono text-[8.5px] px-1.5 py-0.5 rounded bg-om-downtime text-white font-bold tracking-wider">{__('NOW')}</span>}
                                             </div>
                                             {a.wo && (
@@ -316,7 +313,7 @@ export default function EmployeeDay() {
                                         {a.id && (
                                             <Tooltip label={__('Delete')}>
                                                 <button onClick={() => handleDelete(a.id)} className="p-1 text-om-faint hover:text-om-blocked" aria-label={__('Delete')}>
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/></svg>
+                                                    <Icon name="trash-2" size={16} />
                                                 </button>
                                             </Tooltip>
                                         )}
@@ -328,16 +325,16 @@ export default function EmployeeDay() {
 
                     {selectedWorkerId && (
                         <Link href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
-                           className="h-11 rounded-om border border-dashed border-om-line text-om-accent font-mono text-[11.5px] font-bold tracking-wider uppercase flex items-center justify-center gap-2 hover:bg-om-accent-bg">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-                            {__('Add activity')}
+                           className="h-11 rounded-om border border-dashed border-om-line text-om-ink text-xs font-semibold flex items-center justify-center gap-2 hover:bg-om-accent-bg">
+                            <Icon name="plus" size={16} />
                             {__('Add activity')}
                         </Link>
                     )}
                 </section>
 
                 {/* RIGHT: Spotlight panel */}
-                <aside className="hidden lg:flex flex-col gap-3 bg-om-card border border-om-line2 rounded-2xl p-4">
+                <aside className="flex flex-col gap-3 lg:col-start-2 2xl:col-start-auto bg-om-card border border-om-line rounded-om p-4">
+                    {!spotlight && <div className="flex items-center gap-2 text-sm text-om-muted"><Icon name="calendar-days" size={16} />{__('No activities recorded for this day.')}</div>}
                     {spotlight && (() => {
                         const def = typeMeta[spotlight.type] ?? { color: 'var(--om-faint)', label: spotlight.type, short: '??' };
                         return (
@@ -349,8 +346,8 @@ export default function EmployeeDay() {
                                             {__('Selected')} · {def.short}
                                         </span>
                                     </div>
-                                    <h2 className="text-lg font-bold text-om-ink mt-1.5">{spotlight.label ?? def.label}</h2>
-                                    <div className="font-mono text-[10.5px] text-om-muted mt-0.5">{def.label.toUpperCase()}</div>
+                                    <h2 className="text-lg font-bold text-om-ink mt-1.5">{spotlight.label ?? __(def.label)}</h2>
+                                    <div className="font-mono text-[10.5px] text-om-muted mt-0.5">{__(def.label).toUpperCase()}</div>
                                 </div>
                                 <div className="rounded-om bg-om-panel p-3.5">
                                     <div className="flex justify-between items-baseline">
@@ -392,7 +389,7 @@ export default function EmployeeDay() {
                     <div className="grid grid-cols-2 gap-2">
                         <div className="p-2.5 rounded-om-sm bg-om-panel">
                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Activities')}</div>
-                            <div className="font-mono text-lg font-bold mt-1 text-om-ink">{activities.length}</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-om-ink">{activityCount}</div>
                         </div>
                         <div className="p-2.5 rounded-om-sm bg-om-panel">
                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Maint')}</div>
@@ -407,7 +404,7 @@ export default function EmployeeDay() {
                 title={__('Remove this activity?')} confirmLabel={__('Delete')} cancelLabel={__('Cancel')}>
                 {__('The activity will be removed from this day plan.')}
             </ConfirmDialog>
-        </>
+        </div>
     );
 }
 

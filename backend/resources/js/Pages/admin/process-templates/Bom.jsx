@@ -11,6 +11,11 @@ const TYPE_COLORS = {
     packaging:     'bg-om-chip text-om-ink',
 };
 
+function trackingLabel(value) {
+    const labels = { none: 'None', batch: 'Batch', serial: 'Serial' };
+    return value == null ? '—' : __(labels[value] ?? value);
+}
+
 function typeColorClass(code) {
     return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
@@ -257,6 +262,11 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
 export default function ProcessTemplatesBom() {
     const { productType, processTemplate, bomItems = [], materials = [], productTypes = [], steps = [] } = usePage().props;
 
+    const [stepFilter, setStepFilter] = useState(() => {
+        const requested = new URLSearchParams(window.location.search).get('step_id');
+        return steps.some(step => String(step.id) === requested) ? requested : '';
+    });
+
     // `null` = closed, `'new'` = the add drawer, a row = editing that line.
     const [editing, setEditing] = useState(null);
     // Bumped on a finished save, so the retained form (see keepMounted below)
@@ -335,7 +345,8 @@ export default function ProcessTemplatesBom() {
         {
             key: 'tracking_type',
             label: 'Tracking',
-            render: (row) => <span className="text-sm text-om-muted capitalize">{row.tracking_type}</span>,
+            value: (row) => trackingLabel(row.tracking_type),
+            render: (row) => <span className="text-sm text-om-muted">{trackingLabel(row.tracking_type)}</span>,
         },
     ], []);
 
@@ -384,6 +395,22 @@ export default function ProcessTemplatesBom() {
                 // Not a synced shape: a BOM belongs to one process template and
                 // nothing broadcasts it, so the rows come from this page's props.
                 rows={bomItems}
+                filterFn={stepFilter ? row => String(row.template_step_id) === stepFilter : undefined}
+                toolbarActions={
+                    <Dropdown
+                        aria-label={__('Filter by step')}
+                        value={stepFilter}
+                        onChange={(value) => {
+                            setStepFilter(value);
+                            router.get(`${templateHref}/bom`, value ? { step_id: value } : {}, { preserveState: true, preserveScroll: true, replace: true });
+                        }}
+                        options={[
+                            { value: '', label: __('All steps') },
+                            ...steps.map(step => ({ value: String(step.id), label: `#${step.step_number} ${step.name}` })),
+                        ]}
+                        className="min-w-[180px]"
+                    />
+                }
                 title={__('Bill of Materials')}
                 titleIcon="layers"
                 breadcrumbs={[
@@ -402,7 +429,7 @@ export default function ProcessTemplatesBom() {
                 actionSlots={actionSlots}
                 onCreate={() => setEditing('new')}
                 createLabel={__('Add Component')}
-                emptyText={__('No materials in BOM yet.')}
+                emptyText={stepFilter ? __('No BOM components assigned to this step.') : __('No materials in BOM yet.')}
             />
 
             <Modal

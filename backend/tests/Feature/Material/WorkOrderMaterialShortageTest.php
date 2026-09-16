@@ -139,4 +139,46 @@ class WorkOrderMaterialShortageTest extends TestCase
 
         $this->assertSame([], $this->service->shortagesForWorkOrders(collect([$order])));
     }
+
+    public function test_negative_balance_is_zero_usable_stock_without_changing_ledger(): void
+    {
+        $part = $this->material('PART', -10);
+        $order = $this->order([$this->line($part, 1)], 10);
+        $short = $this->service->shortagesForWorkOrders(collect([$order]))[$order->id];
+        $this->assertSame(0.0, $short[0]['available_qty']);
+        $this->assertSame(10.0, $short[0]['missing_qty']);
+        $this->assertSame(-10.0, (float) $part->fresh()->stock_quantity);
+        $order->update(['status' => WorkOrder::STATUS_DONE]);
+        $this->assertSame([], $this->service->shortagesForWorkOrders(collect([$order])));
+    }
+
+    public function test_repeated_material_lines_share_available_stock(): void
+    {
+        $part = $this->material('PART', 15);
+        $order = $this->order([$this->line($part, 1), $this->line($part, 1)], 10);
+        $short = $this->service->shortagesForWorkOrders(collect([$order]))[$order->id];
+        $this->assertCount(1, $short);
+        $this->assertSame(20.0, $short[0]['required_qty']);
+        $this->assertSame(5.0, $short[0]['missing_qty']);
+    }
+
+    public function test_allocations_cover_only_their_order_and_returned_allocations_do_not(): void
+    {
+        $part = $this->material('PART', 0);
+        $order = $this->order([$this->line($part, 1)], 10);
+        $other = $this->order([$this->line($part, 1)], 10);
+        $batch = \App\Models\Batch::factory()->create(['work_order_id' => $order->id]);
+        $allocation = \App\Models\MaterialAllocation::factory()->create([
+            'work_order_id' => $order->id, 'batch_id' => $batch->id,
+            'material_id' => $part->id, 'allocated_qty' => 6,
+        ]);
+        $short = $this->service->shortagesForWorkOrders(collect([$order, $other]));
+        $this->assertSame(4.0, $short[$order->id][0]['missing_qty']);
+        $this->assertSame(10.0, $short[$other->id][0]['missing_qty']);
+        $allocation->update(['allocated_qty' => 10]);
+        $this->assertSame([], $this->service->shortagesForWorkOrders(collect([$order])));
+        $allocation->update(['status' => 'returned', 'returned_qty' => 10]);
+        $short = $this->service->shortagesForWorkOrders(collect([$order]));
+        $this->assertSame(10.0, $short[$order->id][0]['missing_qty']);
+    }
 }

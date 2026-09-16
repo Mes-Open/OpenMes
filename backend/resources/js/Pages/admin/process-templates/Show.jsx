@@ -1162,7 +1162,7 @@ export default function ProcessTemplatesShow() {
                             {__("Edit")}
                         </button>
                         <a
-                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`}
+                            href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom${selectedStep ? `?step_id=${selectedStep.id}` : ''}`}
                             className="text-[12.5px] font-medium text-om-ink border border-om-line2 rounded-om-sm px-3 py-2 hover:bg-om-chip"
                         >
                             {__("BOM")}

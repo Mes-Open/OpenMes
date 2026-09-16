@@ -95,7 +95,7 @@ class ProductTypeManagementController extends Controller
      */
     public function show(ProductType $productType, CustomFieldService $cf)
     {
-        $productType->load(['processTemplates.steps']);
+        $productType->load(['processTemplates.steps', 'processTemplates.bomItems']);
         $recentWorkOrders = $productType->workOrders()
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -111,6 +111,10 @@ class ProductTypeManagementController extends Controller
         $serials = $this->serialsProducedFor($workOrderIds);
 
         return Inertia::render('admin/product-types/Show', [
+            'setup' => [
+                'lines' => $productType->lines()->get(['lines.id', 'lines.name'])->map(fn ($line) => $line->only('id', 'name')),
+                'timezone' => config('app.timezone'),
+            ],
             'productType' => [
                 'id' => $productType->id,
                 'code' => $productType->code,
@@ -125,7 +129,8 @@ class ProductTypeManagementController extends Controller
                     'name' => $t->name,
                     'version' => $t->version,
                     'is_active' => $t->is_active,
-                    'steps' => $t->steps->map(fn ($s) => ['id' => $s->id])->values(),
+                    'steps' => $t->steps->map(fn ($s) => ['id' => $s->id, 'workstation_id' => $s->workstation_id])->values(),
+                    'bom_count' => $t->bomItems->count(),
                 ])->values(),
                 'total_work_order_count' => $totalWorkOrderCount,
             ],

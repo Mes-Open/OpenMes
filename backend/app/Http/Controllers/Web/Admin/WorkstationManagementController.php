@@ -15,7 +15,7 @@ class WorkstationManagementController extends Controller
     /**
      * Display workstations for a specific line
      */
-    public function index(Line $line)
+    public function index(Line $line, CustomFieldService $cf)
     {
         $workstations = $line->workstations()
             ->withCount(['templateSteps', 'workers'])
@@ -23,9 +23,11 @@ class WorkstationManagementController extends Controller
             ->get();
 
         return Inertia::render('admin/workstations/Index', [
+            'workers' => $this->workerOptions(),
+            'customFields' => $cf->clientConfig('workstation'),
             'line' => $line->only('id', 'name', 'code'),
             'workstations' => $workstations->map(fn ($ws) => array_merge(
-                $ws->only('id', 'code', 'name', 'workstation_type', 'is_active'),
+                $ws->only('id', 'code', 'name', 'workstation_type', 'is_active', 'custom_fields'),
                 [
                     'template_steps_count' => $ws->template_steps_count,
                     'workers_count' => $ws->workers_count,
@@ -79,21 +81,28 @@ class WorkstationManagementController extends Controller
             abort(404);
         }
 
-        $workers = Worker::active()->orderBy('name')->with(['workstation', 'crew'])->get();
-
         return Inertia::render('admin/workstations/Edit', [
             'line'        => $line->only('id', 'name', 'code'),
             'workstation' => $workstation->only('id', 'code', 'name', 'workstation_type', 'is_active', 'custom_fields'),
             'customFields' => $cf->clientConfig('workstation'),
-            'workers'     => $workers->map(fn ($w) => [
+            'workers' => $this->workerOptions(),
+        ]);
+    }
+
+    private function workerOptions()
+    {
+        $workers = Worker::active()->orderBy('name')->with('workstation')
+            ->when(Worker::hasModuleRelation('crew'), fn ($query) => $query->with('crew'))
+            ->get();
+
+        return $workers->map(fn ($w) => [
                 'id'               => $w->id,
                 'name'             => $w->name,
                 'code'             => $w->code,
                 'workstation_id'   => $w->workstation_id,
                 'workstation_name' => $w->workstation?->name,
-                'crew_name' => $w->crew?->name,
-            ])->values(),
-        ]);
+                'crew_name' => Worker::hasModuleRelation('crew') ? $w->crew?->name : null,
+            ])->values();
     }
 
     /**

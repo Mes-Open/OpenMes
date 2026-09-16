@@ -4,6 +4,8 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from './fields';
 
+import { workOrderInitial } from './workOrderInitial';
+
 export default function WorkOrderEdit() {
     const { workOrder, lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [] } = usePage().props;
     return (
@@ -15,23 +17,7 @@ export default function WorkOrderEdit() {
                 method="put"
                 fields={woFields(lines, productTypes, { withStatus: true, customers, bomTemplates, bomLocked: workOrder.bom_locked, productRevisions })}
                 customFields={customFields}
-                initial={{
-                    order_no: workOrder.order_no ?? '',
-                    customer_order_no: workOrder.customer_order_no ?? '',
-                    customer_id: workOrder.customer_id != null ? String(workOrder.customer_id) : '',
-                    line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
-                    product_type_id: workOrder.product_type_id != null ? String(workOrder.product_type_id) : '',
-                    product_revision_id: workOrder.product_revision_id != null ? String(workOrder.product_revision_id) : '',
-                    bom_template_ids: workOrder.bom_template_ids ?? [],
-                    planned_qty: workOrder.planned_qty ?? '',
-                    unit_price: workOrder.unit_price ?? '',
-                    counting_source: workOrder.counting_source ?? 'operator',
-                    priority: workOrder.priority ?? 0,
-                    due_date: workOrder.due_date ?? '',
-                    description: workOrder.description ?? '',
-                    status: workOrder.status ?? 'PENDING',
-                    custom_fields: workOrder.custom_fields ?? {},
-                }}
+                initial={workOrderInitial(workOrder)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/work-orders"
             />

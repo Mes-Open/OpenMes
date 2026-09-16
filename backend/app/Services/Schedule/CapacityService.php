@@ -234,6 +234,7 @@ class CapacityService
             })
             ->where(function ($q) use ($bucket) {
                 $q->whereBetween('due_date', [$bucket['start'], $bucket['end']])
+                    ->orWhereBetween('planned_start_at', [$bucket['start'], $bucket['end']])
                     ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$bucket['start'], $bucket['end']]))
                     ->orWhere(function ($q2) use ($bucket) {
                         $q2->whereNotNull('planned_start_at')
@@ -413,6 +414,8 @@ class CapacityService
             ->whereNotNull('line_id')
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    ->orWhereBetween('planned_start_at', [$rangeStart, $rangeEnd])
+                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart))
                     // Independently-scheduled extra segments count too.
                     ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
@@ -752,7 +755,7 @@ class CapacityService
      */
     private function bucketKeyForOrder(WorkOrder $wo, array $buckets): ?string
     {
-        $date = $wo->due_date;
+        $date = $wo->planned_start_at ?? $wo->due_date;
 
         if (! $date && $wo->week_number && ! empty($buckets)) {
             $year = $wo->production_year ?? (int) $buckets[0]['start']->isoWeekYear;

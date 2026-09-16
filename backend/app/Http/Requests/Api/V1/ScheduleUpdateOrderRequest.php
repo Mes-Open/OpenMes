@@ -27,12 +27,12 @@ class ScheduleUpdateOrderRequest extends FormRequest
             'extra_placements.*.end_date' => ['nullable', 'date', 'after_or_equal:extra_placements.*.due_date'],
             'extra_placements.*.end_shift_number' => ['nullable', 'integer', 'min:1', 'max:10'],
             'due_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:due_date'],
+            'end_date' => ['nullable', 'date'],
             'week_number' => ['nullable', 'integer', 'min:1', 'max:53'],
             'shift_number' => ['nullable', 'integer', 'min:1', 'max:10'],
             'end_shift_number' => ['nullable', 'integer', 'min:1', 'max:10'],
             'planned_start_at' => ['nullable', 'date'],
-            'planned_end_at' => ['nullable', 'date', 'after:planned_start_at'],
+            'planned_end_at' => ['nullable', 'date'],
             'force_conflict' => ['nullable', 'boolean'],
         ];
     }

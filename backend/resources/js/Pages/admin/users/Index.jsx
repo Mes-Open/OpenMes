@@ -1,10 +1,16 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import CreateUserForm from './CreateDrawer';
+import { useEffect } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { __ } from '../../../lib/i18n';
 
-export default function UsersIndex() {
-    const { userRoles = {}, workstationNames = {}, currentUserId } = usePage().props;
+export default function UsersIndex({ initiallyCreating = false }) {
+    const { userRoles = {}, workstationNames = {}, currentUserId, formOptions } = usePage().props;
+
+    const drawer = useResourceDrawer();
+    useEffect(() => { if (initiallyCreating) drawer.create(); }, [initiallyCreating]);
 
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -59,13 +65,16 @@ export default function UsersIndex() {
             <ResourceTable
                 shape="users"
                 title={__('Users & Accounts')}
-                createHref="/admin/users/create"
+                onCreate={drawer.create}
                 createLabel={__('New Account')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
                 emptyText={__('No accounts yet.')}
             />
+            <ResourceFormDrawer {...drawer.props} width={640} title={{ create: __('New Account') }}
+                ensure={['formOptions']} ready={!!formOptions}
+                render={({ finish, dismiss }) => <CreateUserForm options={formOptions} finish={finish} dismiss={dismiss} />} />
         </>
     );
 }

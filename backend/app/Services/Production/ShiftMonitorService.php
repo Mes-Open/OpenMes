@@ -130,13 +130,7 @@ class ShiftMonitorService
             ->get()
             ->groupBy('workstation_id');
 
-        $countersByStation = MachineEvent::whereIn('workstation_id', $ids)
-            ->where('event_type', MachineEvent::TYPE_COUNTER)
-            ->where('event_timestamp', '>=', $window->start)
-            ->where('event_timestamp', '<', $window->end)
-            ->toBase()
-            ->get(['workstation_id', 'event_timestamp', 'payload'])
-            ->groupBy('workstation_id');
+        $countersByStation = $this->counterMinutesByStation($ids, $window);
 
         $downtimesByStation = ProductionDowntime::with('reason')
             ->whereIn('workstation_id', $ids)
@@ -182,7 +176,7 @@ class ShiftMonitorService
             $openStates, $openStops, $batches, $operators, $window, $asOf
         ) {
             $slices = $this->sliceRows($statesByStation->get($workstation->id) ?? collect(), $window);
-            $counters = $this->counterMinutesFrom($countersByStation->get($workstation->id) ?? collect(), $window);
+            $counters = $countersByStation[$workstation->id] ?? ['good' => [], 'reject' => []];
             $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
 
             $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
@@ -257,13 +251,7 @@ class ShiftMonitorService
             ->get()
             ->groupBy('workstation_id');
 
-        $countersByStation = MachineEvent::whereIn('workstation_id', $ids)
-            ->where('event_type', MachineEvent::TYPE_COUNTER)
-            ->where('event_timestamp', '>=', $window->start)
-            ->where('event_timestamp', '<', $window->end)
-            ->toBase()
-            ->get(['workstation_id', 'event_timestamp', 'payload'])
-            ->groupBy('workstation_id');
+        $countersByStation = $this->counterMinutesByStation($ids, $window);
 
         $downtimesByStation = ProductionDowntime::with('reason')
             ->whereIn('workstation_id', $ids)
@@ -276,7 +264,7 @@ class ShiftMonitorService
             $statesByStation, $countersByStation, $downtimesByStation, $window, $asOf
         ) {
             $slices = $this->sliceRows($statesByStation->get($workstation->id) ?? collect(), $window);
-            $counters = $this->counterMinutesFrom($countersByStation->get($workstation->id) ?? collect(), $window);
+            $counters = $countersByStation[$workstation->id] ?? ['good' => [], 'reject' => []];
             $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
 
             $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
@@ -404,50 +392,43 @@ class ShiftMonitorService
      */
     private function counterMinutes(Workstation $workstation, ShiftWindow $window): array
     {
-        $good = [];
-        $reject = [];
-
-        // toBase(): a counter pulse is read once and collapsed into the minute
-        // map, so nothing survives hydration — and a piece-level feed puts
-        // thousands of these in an 8-hour shift, on a path that re-runs on
-        // every push. Unordered on purpose: the result is a map, not a list.
-        $start = $window->start;
-
-        $rows = MachineEvent::where('workstation_id', $workstation->id)
-            ->where('event_type', MachineEvent::TYPE_COUNTER)
-            ->where('event_timestamp', '>=', $start)
-            ->where('event_timestamp', '<', $window->end)
-            ->toBase()
-            ->get(['event_timestamp', 'payload']);
-
-        return $this->counterMinutesFrom($rows, $window);
+        return $this->counterMinutesByStation(collect([$workstation->id]), $window)[$workstation->id]
+            ?? ['good' => [], 'reject' => []];
     }
 
     /**
-     * The same bucketing, over pulses already read. See sliceRows().
+     * Collapse pulses as they are read, keeping only minute totals in memory.
+     * Keyset pagination bounds database-driver buffers as well as PHP objects;
+     * a cursor alone can still buffer the complete result in some drivers.
      *
-     * @param  Collection<int, object>  $rows  each with event_timestamp + payload
-     * @return array{good: array<int, float>, reject: array<int, float>}
+     * @param  Collection<int, int>  $stationIds
+     * @return array<int, array{good: array<int, float>, reject: array<int, float>}>
      */
-    private function counterMinutesFrom(Collection $rows, ShiftWindow $window): array
+    private function counterMinutesByStation(Collection $stationIds, ShiftWindow $window): array
     {
-        $good = [];
-        $reject = [];
-        $start = $window->start;
+        if ($stationIds->isEmpty()) {
+            return [];
+        }
 
-        $rows->each(function ($e) use ($start, &$good, &$reject) {
-            $payload = json_decode((string) $e->payload, true) ?: [];
-            $minute = (int) floor($start->diffInSeconds(Carbon::parse($e->event_timestamp)) / 60);
-            $delta = (float) ($payload['delta'] ?? 0);
+        $rows = MachineEvent::whereIn('workstation_id', $stationIds)
+            ->where('event_type', MachineEvent::TYPE_COUNTER)
+            ->where('event_timestamp', '>=', $window->start)
+            ->where('event_timestamp', '<', $window->end)
+            ->select(['id', 'workstation_id', 'event_timestamp', 'payload'])
+            ->toBase()
+            ->lazyById(1000);
 
-            if (($payload['kind'] ?? 'good') === 'reject') {
-                $reject[$minute] = ($reject[$minute] ?? 0) + $delta;
-            } else {
-                $good[$minute] = ($good[$minute] ?? 0) + $delta;
-            }
-        });
+        $totals = [];
+        foreach ($rows as $event) {
+            $payload = json_decode((string) $event->payload, true) ?: [];
+            $minute = (int) floor($window->start->diffInSeconds(Carbon::parse($event->event_timestamp)) / 60);
+            $kind = ($payload['kind'] ?? 'good') === 'reject' ? 'reject' : 'good';
+            $id = $event->workstation_id;
+            $totals[$id] ??= ['good' => [], 'reject' => []];
+            $totals[$id][$kind][$minute] = ($totals[$id][$kind][$minute] ?? 0) + (float) ($payload['delta'] ?? 0);
+        }
 
-        return ['good' => $good, 'reject' => $reject];
+        return $totals;
     }
 
     /**

@@ -1,20 +1,21 @@
-// WeeklyView (day×shift column gantt) + DailyView, following the OpenMES Schedule
+// WeeklyView (day×shift column gantt), following the OpenMES Schedule
 // design. Weekly orders are spanning blocks: drag to move (across shifts, days and
 // lines), drag the edges to stretch across shifts/days. Backlog cards drop onto
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
+import { Icon } from '@openmes/ui';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
-import { OrderCard, TwinChip, TierDot, ShortageChip } from './OrderCard';
-import { DraggableOrder, useOrderDrop } from './dnd';
+import { TwinChip, TierDot, ShortageChip } from './OrderCard';
+import { useOrderDrop } from './dnd';
 import {
-    weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, dayList, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
+    weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
 } from './helpers';
 
 const LINE_COL_W = 172;
 const COL_MIN = 92;
 const LANE_H = 46;
-const LANE_GAP = 5;
+const LANE_GAP = 0;
 // Minimum row height — keep rows at least as tall as the (compact) line-info
 // column so a single-lane block fills the cell with no gap.
 const MIN_ROW = 56;
@@ -65,6 +66,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     // click on the block after a drag (pointer capture retargets the release
     // here), and that click must not open the edit sheet.
     const draggedRef = useRef(false);
+    const pendingRef = useRef(false);
     const s = statusOf(wo.status);
     // While moving, the block stays put (dimmed) and only the ghost follows the
     // cursor (in any direction). While resizing, the block itself follows.
@@ -72,6 +74,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const pos = (drag && !moving) ? drag : { startCol: item.startCol, endCol: item.endCol };
 
     function begin(mode, e) {
+        if (pendingRef.current) return;
         e.preventDefault(); e.stopPropagation();
         // Keep receiving pointer events even if the cursor leaves the block
         // (fast vertical drags would otherwise drop events over other rows).
@@ -80,6 +83,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
         const ppc = (row ? row.getBoundingClientRect().width : 700) / N;
         const startX = e.clientX, startY = e.clientY, oS = item.startCol, oE = item.endCol;
         draggedRef.current = false;
+        ctx.draggingRef.current = true;
+        let latest = null;
         const rows = [...document.querySelectorAll('[data-weekrow]')].map((el) => {
             const r = el.getBoundingClientRect();
             return { lineId: +el.getAttribute('data-line'), top: r.top, bottom: r.bottom };
@@ -103,7 +108,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                     const ext = mode === 'r'
                         ? { startCol: oE + 1, endCol: Math.min(N - 1, Math.max(oE + 1, oE + dCol)) }
                         : { startCol: Math.max(0, Math.min(oS - 1, oS + dCol)), endCol: oS - 1 };
-                    setDrag({ startCol: oS, endCol: oE, lineId: ln, mode, ext });
+                    latest = { startCol: oS, endCol: oE, lineId: ln, mode, ext };
+                    setDrag(latest);
                     setPreview({ lineId: ln, startCol: ext.startCol, endCol: ext.endCol });
                     return;
                 }
@@ -112,22 +118,38 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                 if (mode === 'l') ns = Math.max(0, Math.min(oE, oS + dCol));
                 else ne = Math.min(N - 1, Math.max(oS, oE + dCol));
             }
-            setDrag({ startCol: ns, endCol: ne, lineId: ln, mode });
+            latest = { startCol: ns, endCol: ne, lineId: ln, mode };
+            setDrag(latest);
             if (mode === 'move') setPreview({ lineId: ln, startCol: ns, endCol: ne });
         }
-        function up() {
+        async function up() {
+            cleanup();
+            pendingRef.current = true;
+            try {
+                if (latest?.ext && latest.lineId !== rowLineId) {
+                    await ctx.onDiagonalExtend(wo, latest.lineId, latest.ext.startCol, latest.ext.endCol);
+                } else if (latest && (latest.startCol !== item.startCol || latest.endCol !== item.endCol || latest.lineId !== rowLineId)) {
+                    await ctx.onSpanChange(wo, latest.startCol, latest.endCol, latest.lineId !== rowLineId ? latest.lineId : undefined, placementKey);
+                }
+            } finally {
+                pendingRef.current = false;
+                ctx.draggingRef.current = false;
+                setPreview(null);
+                setDrag(null);
+            }
+        }
+        function cancel() {
+            cleanup();
+            ctx.draggingRef.current = false;
+            setPreview(null);
+            setDrag(null);
+        }
+        function cleanup() {
             window.removeEventListener('pointermove', move);
             window.removeEventListener('pointerup', up);
-            setPreview(null);
-            setDrag((d) => {
-                if (d && d.ext && d.lineId !== rowLineId) {
-                    ctx.onDiagonalExtend(wo, d.lineId, d.ext.startCol, d.ext.endCol);
-                } else if (d && (d.startCol !== item.startCol || d.endCol !== item.endCol || (d.lineId && d.lineId !== rowLineId))) {
-                    ctx.onSpanChange(wo, d.startCol, d.endCol, d.lineId !== rowLineId ? d.lineId : undefined, placementKey);
-                }
-                return null;
-            });
+            window.removeEventListener('pointercancel', cancel);
         }
+        window.addEventListener('pointercancel', cancel);
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
     }
@@ -135,8 +157,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const left = (pos.startCol / N) * 100;
     const width = ((pos.endCol - pos.startCol + 1) / N) * 100;
     return (
-        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, padding: '0 2px', zIndex: drag ? 30 : 5 }}>
-            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 6, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
+        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, zIndex: drag ? 30 : 5 }}>
+            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: item.conflict ? 'inset 0 0 0 1.5px var(--om-blocked)' : wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
                 <Tooltip label={isPrimary ? __('Send to backlog') : __('Remove from this line')}>
                     <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
                         role="button" aria-label={isPrimary ? __('Send to backlog') : __('Remove from this line')}
@@ -154,7 +176,10 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                             {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
                         </span>
                     </div>
-                    <span className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)' }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)' }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</span>
+                        {item.conflict && <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-om-blocked" title={__('overlap')} style={{ fontSize: 9 }}><Icon name="triangle-alert" size={11} />{__('overlap')}</span>}
+                    </div>
                 </div>
                 <span onPointerDown={(e) => begin('r', e)} className="flex items-center justify-center" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }}>
                     <span style={{ width: 2, height: 14, borderRadius: 2, background: s.solid, opacity: 0.5 }} />
@@ -169,9 +194,9 @@ function StickyLineCell({ line, load, lc }) {
         <div style={{ width: LINE_COL_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, background: 'var(--om-card)', borderRight: '1px solid var(--om-line2)', padding: '7px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div className="flex items-center gap-2">
                 <span style={{ width: 8, height: 8, borderRadius: 999, background: lc, flexShrink: 0 }} />
-                <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
-                <span className="truncate" style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</span>
+                <span className="min-w-0 truncate" title={line.code} style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
             </div>
+            <div className="truncate mt-1" title={line.name} style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</div>
             <div className="flex items-center gap-2" style={{ marginTop: 5 }}>
                 <div className="rounded-full overflow-hidden" style={{ flex: 1, height: 5, background: 'var(--om-chip)', border: '1px solid var(--om-line2)' }}>
                     <div style={{ width: Math.min(100, load) + '%', height: '100%', background: lc, borderRadius: 20 }} />
@@ -183,7 +208,7 @@ function StickyLineCell({ line, load, lc }) {
 }
 
 function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, setPreview }) {
-    const { items, lanes, N } = weeklyPlacements(ctx.data.workOrders.filter((o) => onLine(o, line.id)), days, shiftsPerDay, line.id);
+    const { items, lanes, N } = weeklyPlacements(ctx.data.workOrders.filter((o) => onLine(o, line.id)), days, shiftsPerDay, line.id, ctx.data.shifts);
     const load = lineLoad(ctx.data.workOrders, line.id, days, shiftsPerDay);
     const lc = loadColor(load);
     const maint = (ctx.data.maintenance || []).filter((m) => m.line_id === line.id && days.some((d) => d.date === m.scheduled_at_date));
@@ -217,8 +242,8 @@ function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, 
                 {items.map((it) => <WeekBlock key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} N={N} laneH={laneH} setPreview={setPreview} />)}
                 {/* drop preview ghost — where the dragged block will land */}
                 {showGhost && (
-                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: LANE_GAP, height: laneH, padding: '0 2px', zIndex: 20, pointerEvents: 'none' }}>
-                        <div style={{ height: '100%', border: '2px dashed var(--om-accent)', borderRadius: 6, background: 'color-mix(in srgb, var(--om-accent-bg) 70%, transparent)' }} />
+                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: LANE_GAP, height: laneH, zIndex: 20, pointerEvents: 'none' }}>
+                        <div style={{ height: '100%', border: '2px dashed var(--om-accent)', borderRadius: 0, background: 'color-mix(in srgb, var(--om-accent-bg) 70%, transparent)' }} />
                     </div>
                 )}
                 {/* maintenance strip — connected directly under the work blocks */}
@@ -278,7 +303,7 @@ export function WeeklyView({ ctx }) {
     // Keyed on EVERY order's placement fields — moving any block can reflow
     // the lane packing and shift a chained segment to a different lane.
     const layoutKey = ctx.data.workOrders
-        .map((o) => [o.id, o.line_id, o.due_date, o.shift_number, o.end_date, o.end_shift_number, JSON.stringify(o.placements || [])].join('|'))
+        .map((o) => [o.id, o.line_id, o.planned_start_at, o.planned_end_at, o.due_date, o.shift_number, o.end_date, o.end_shift_number, JSON.stringify(o.placements || [])].join('|'))
         .join(';')
         // maintenance pills reserve row height, so they reflow lanes too
         + '#' + (ctx.data.maintenance || []).map((m) => `${m.line_id}@${m.scheduled_at_date}`).join(',');
@@ -375,73 +400,6 @@ export function WeeklyView({ ctx }) {
             <div style={{ marginTop: 14, fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>
                 {__('Drag a block to move it (across shifts, days or lines) · drag its edges to stretch across shifts · click an empty cell to assign · ✕ returns to backlog')} · {__('drag a block up or down to move it to another line')} · {__('drag an edge onto another line to continue the order there')} · {__('⇄ marks an order running on two lines')}
             </div>
-        </div>
-    );
-}
-
-// ── DAILY VIEW — one day, orders grouped per line ───────────────────────────
-function DailyLine({ line, date, ctx }) {
-    const [isOver, drop] = useOrderDrop({ lineId: line.id, date, shift: 1 }, ctx.onDropOrder);
-    // One card per schedule segment on this line/day.
-    const segs = ctx.data.workOrders.flatMap((o) => placementsOf(o)
-        .filter((p) => p.line_id === line.id && weeklySlot(projectSegment(o, p), 1).date === date)
-        .map((p) => ({ wo: o, key: p.key })));
-    const lc = loadColor(lineLoad(ctx.data.workOrders, line.id, [{ date }], 1) || 0);
-    return (
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--om-line2)' }}>
-            <div style={{ width: 170, flexShrink: 0, padding: 14, borderRight: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: lc }} />
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</div>
-            </div>
-            <div ref={drop} className="flex gap-2.5 flex-wrap items-start"
-                style={{ flex: 1, padding: '12px 14px', minHeight: 60, background: isOver ? 'var(--om-accent-bg)' : 'transparent' }}>
-                {segs.map(({ wo, key }) => {
-                    const isPrimary = key === 'primary';
-                    return (
-                        <DraggableOrder key={wo.id + ':' + key} wo={wo} placement={key}>
-                            <OrderCard wo={wo} variant="day" selected={ctx.selectedId === wo.id} twinMeta={chainChipMeta(wo, key, ctx.data.allLines)}
-                                onClick={(e) => { e.stopPropagation(); ctx.onSelectOrder(wo); }}
-                                onUnassign={isPrimary ? ctx.onUnassign : (w) => ctx.onDetachPlacement(w, key)}
-                                unassignTitle={isPrimary ? undefined : __('Remove from this line')} />
-                        </DraggableOrder>
-                    );
-                })}
-                {segs.length === 0 && <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faintest)', padding: 8 }}>— {__('idle')} —</span>}
-            </div>
-        </div>
-    );
-}
-
-// One day section: header + a row per line. The daily view stacks these for
-// every day in the visible range so a planner can scan several days at once.
-function DayBlock({ date, ctx, today }) {
-    const isToday = date === today;
-    // Count segments the same way the rows below render them (every segment
-    // of an order, each on its own projected date).
-    const count = ctx.data.lines.reduce((n, line) => n
-        + ctx.data.workOrders.reduce((m, o) => m + placementsOf(o)
-            .filter((p) => p.line_id === line.id && weeklySlot(projectSegment(o, p), 1).date === date).length, 0), 0);
-    return (
-        <div style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-card)' }}>
-            <div className="flex items-center justify-between" style={{ padding: '14px 18px', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : 'var(--om-panel)' }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: isToday ? 'var(--om-accent)' : 'var(--om-ink)' }}>{formatDate(parseDate(date), { weekday: 'long', day: '2-digit', month: 'long' })}</span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{count} {__('orders')}</span>
-            </div>
-            {ctx.data.lines.map((line) => <DailyLine key={line.id} line={line} date={date} ctx={ctx} />)}
-        </div>
-    );
-}
-
-export function DailyView({ ctx }) {
-    const { data, config } = ctx;
-    const range = dayList(data.range.start, 14, config.showWeekends);
-    if (!range.length) return null;
-    return (
-        <div className="flex flex-col gap-4">
-            {range.map((d) => <DayBlock key={d.date} date={d.date} ctx={ctx} today={data.range.today} />)}
         </div>
     );
 }

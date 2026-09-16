@@ -1,4 +1,10 @@
+import { useState } from 'react';
+import CreateTemplateDrawer from '../process-templates/CreateDrawer';
 import { Head, Link, router } from '@inertiajs/react';
+import { Button, Icon } from '@openmes/ui';
+import AppDataTable from '../../../components/AppDataTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { PRODUCT_TYPE_FIELDS, productTypeInitial } from './fields';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 // Explicit extension: `components/engineeringDocuments.js` (the helper module)
@@ -50,17 +56,34 @@ function ucWords(str) {
     return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const linkButton = 'inline-flex items-center justify-center gap-2 rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-[12px] font-medium text-om-ink transition-colors hover:bg-om-chip';
+
+function SetupLink({ icon, href, children, detail, onClick }) {
+    return <Link href={href} onClick={onClick} className="group flex min-w-0 items-center gap-3 rounded-om-sm px-3 py-2.5 hover:bg-om-chip transition-colors">
+        <Icon name={icon} size={16} className="shrink-0 text-om-muted" />
+        <span className="min-w-0 flex-1 text-[13px]">{children}</span>
+        {detail != null && <span className="shrink-0 font-mono text-[11px] text-om-muted">{detail}</span>}
+        <Icon name="chevron-right" size={14} className="shrink-0 text-om-faint" />
+    </Link>;
+}
+
 export default function ProductTypeShow({
     productType,
     recentWorkOrders = [],
     componentsUsed = [],
     serials = { total: 0, status_counts: {}, recent: [] },
     customFields = [],
+    setup = {},
 }) {
+    const drawer = useResourceDrawer();
+    const [creatingTemplate, setCreatingTemplate] = useState(false);
+    const openTemplate = e => { e.preventDefault(); setCreatingTemplate(true); };
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
     const serialStatusCounts = serials.status_counts ?? {};
+    const template = productType.process_templates?.find(t => t.is_active);
+    const templateUrl = template ? `/admin/product-types/${productType.id}/process-templates/${template.id}` : `/admin/product-types/${productType.id}/process-templates/create`;
 
     const handleToggleActive = () => {
         router.post(`/admin/product-types/${productType.id}/toggle-active`, {}, { preserveScroll: true });
@@ -73,128 +96,75 @@ export default function ProductTypeShow({
             {/* Breadcrumbs */}
             <PageTrail append={[{ label: productType.name }]} />
 
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-6">
-                    <Link href="/admin/product-types" className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        {__("Back")}
-                    </Link>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            {productType.image_url && (
-                                <img
-                                    src={productType.image_url}
-                                    alt={productType.name}
-                                    className="h-14 w-14 rounded-om-sm border border-om-line object-cover bg-om-bg"
-                                />
-                            )}
-                            <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
-                            {productType.is_active ? (
-                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__("Active")}</span>
-                            ) : (
-                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">{__("Inactive")}</span>
-                            )}
+            <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
+                <header className="mb-5 flex flex-col justify-between gap-4 xl:flex-row">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                            {productType.image_url && <img src={productType.image_url} alt={productType.name} className="size-12 rounded-om-sm border border-om-line object-cover" />}
+                            <h1 className="text-[26px] font-semibold tracking-tight text-om-ink break-words">{productType.name}</h1>
+                            <span className={`rounded-full px-2.5 py-1 font-mono text-[10px] uppercase ${productType.is_active ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-muted'}`}>{__(productType.is_active ? 'Active' : 'Inactive')}</span>
                         </div>
-                        <div className="flex gap-2">
-                            <Link
-                                href={`/admin/product-types/${productType.id}/edit`}
-                                className="btn-touch btn-secondary"
-                            >
-                                <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                {__("Edit Product Type")}
-                            </Link>
-                            <button
-                                type="button"
-                                onClick={handleToggleActive}
-                                className={`btn-touch ${productType.is_active ? 'btn-secondary' : 'btn-primary'}`}
-                            >
-                                {productType.is_active ? (
-                                    <>
-                                        <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                        </svg>
-                                        {__("Deactivate")}
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        {__("Activate")}
-                                    </>
-                                )}
-                            </button>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-om-muted">
+                            <span className="font-mono">{productType.code}</span>
+                            {productType.unit_of_measure && <span>{__('Unit')}: {productType.unit_of_measure}</span>}
+                            <span className="inline-flex items-center gap-1.5"><Icon name="workflow" size={14} />{__('Process Templates')}: {templateCount}</span>
+                            <span className="inline-flex items-center gap-1.5"><Icon name="clipboard-list" size={14} />{__('Work Orders')}: {totalWorkOrders}</span>
                         </div>
+                        {productType.description && <p className="mt-2 text-sm text-om-muted">{productType.description}</p>}
                     </div>
-                    <p className="text-sm text-om-muted font-mono mt-1">{productType.code}</p>
-                    {productType.description && (
-                        <p className="text-om-muted mt-2">{productType.description}</p>
-                    )}
-                    {productType.unit_of_measure && (
-                        <p className="text-sm text-om-muted mt-1">
-                            Unit: <span className="font-medium">{productType.unit_of_measure}</span>
-                        </p>
-                    )}
-                </div>
+                    <div className="flex flex-wrap items-start gap-2">
+                        <Link href="/admin/product-types" className={linkButton}><Icon name="arrow-left" size={14} />{__('Back')}</Link>
+                        <Button size="sm" variant="outline" onClick={() => drawer.edit(productType)} leftIcon={<Icon name="pencil" size={14} />}>{__('Edit Product Type')}</Button>
+                        <Button size="sm" variant="outline" onClick={handleToggleActive} leftIcon={<Icon name={productType.is_active ? 'circle-slash' : 'circle-check'} size={14} />}>{__(productType.is_active ? 'Deactivate' : 'Activate')}</Button>
+                    </div>
+                </header>
 
-                {/* Stats cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-om-muted">{__("Process Templates")}</p>
-                                <p className="text-3xl font-bold text-om-accent">{templateCount}</p>
-                            </div>
-                            <div className="bg-om-chip rounded-full p-3">
-                                <svg className="w-8 h-8 text-om-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
+                <details open className="group/setup mb-4 rounded-om border border-om-line bg-om-card">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                        <Icon name="list-checks" size={17} className="text-om-muted" />
+                        <h2 className="flex-1 text-[15px] font-semibold">{__('Prepare this product for production')}</h2>
+                        <Icon name="chevron-down" size={16} className="text-om-muted transition-transform group-open/setup:rotate-180" />
+                    </summary>
+                    <div className="border-t border-om-line px-2 py-2 sm:px-3">
+                        <p className="px-3 py-2 text-xs text-om-muted">{__('Follow these links to configure the product. A BOM is optional; assign stations only when using station routing.')}</p>
+                        <div className="grid grid-cols-1 lg:grid-cols-2">
+                            <SetupLink icon="clock" href="/settings/system?tab=general" detail={setup.timezone}>{__('Check plant timezone')}</SetupLink>
+                            <SetupLink icon="workflow" href={templateUrl} onClick={template ? undefined : openTemplate} detail={template?.steps?.length ?? 0}>{__('Define the process steps')}</SetupLink>
+                            <SetupLink icon="layers" href={template ? `${templateUrl}/bom` : templateUrl} onClick={template ? undefined : openTemplate} detail={template?.bom_count ?? 0}>{__('Configure the BOM')}</SetupLink>
+                            <SetupLink icon="package-plus" href="/admin/materials">{__('Receive the materials required by the BOM')}</SetupLink>
+                            <SetupLink icon="factory" href="/admin/lines">{__('Create the line and its workstations')}</SetupLink>
+                            <SetupLink icon="monitor" href={templateUrl} onClick={template ? undefined : openTemplate} detail={`${template?.steps?.filter(s => s.workstation_id).length ?? 0}/${template?.steps?.length ?? 0}`}>{__('Assign a workstation to each process step')}</SetupLink>
+                            <SetupLink icon="users" href="/admin/users">{__('Configure operator accounts and assignments')}</SetupLink>
+                            <SetupLink icon="clipboard-plus" href="/admin/work-orders">{__('Create a work order')}</SetupLink>
+                            <SetupLink icon="calendar-days" href="/admin/schedule">{__('Plan the production start')}</SetupLink>
                         </div>
+                        {setup.lines?.length > 0 && <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-om-line px-3 pt-3 pb-2 text-xs text-om-muted">
+                            {__('Lines')}:
+                            {setup.lines.map(line => <Link key={line.id} className={linkButton} href={`/admin/lines/${line.id}`}><Icon name="factory" size={13} />{line.name}</Link>)}
+                        </div>}
                     </div>
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-om-muted">{__("Work Orders")}</p>
-                                <p className="text-3xl font-bold text-om-ink">{totalWorkOrders}</p>
-                            </div>
-                            <div className="bg-om-chip rounded-full p-3">
-                                <svg className="w-8 h-8 text-om-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                </details>
                 <div className="mb-6">
                     <CustomFieldsDisplay definitions={customFields} values={productType.custom_fields ?? {}} />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Process Templates */}
-                    <div className="card">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-om-ink">{__("Process Templates")}</h2>
+                    <div className="min-w-0 rounded-om border border-om-line bg-om-card p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h2 className="text-[15px] font-semibold text-om-ink">{__("Process Templates")}</h2>
                             <div className="flex gap-2">
                                 <Link
                                     href={`/admin/product-types/${productType.id}/process-templates`}
-                                    className="btn-touch btn-secondary text-sm"
+                                    className={linkButton}
                                 >
                                     {__("View All")}
                                 </Link>
                                 <Link
-                                    href={`/admin/product-types/${productType.id}/process-templates/create`}
-                                    className="btn-touch btn-accent text-sm"
+                                    href={`/admin/product-types/${productType.id}/process-templates/create`} onClick={openTemplate}
+                                    className="inline-flex items-center gap-2 rounded-om-sm bg-om-ink px-3 py-2 text-[12px] font-semibold text-om-on-ink hover:bg-om-ink-hover"
                                 >
-                                    <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <Icon name="plus" size={16} className="shrink-0" />
                                     {__("Create")}
                                 </Link>
                             </div>
@@ -222,18 +192,14 @@ export default function ProductTypeShow({
                                                     {__("Version")} {template.version} &bull; {__(":count steps", { count: template.steps?.length ?? 0 })}
                                                 </p>
                                             </div>
-                                            <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
+                                            <Icon name="chevron-right" size={16} className="shrink-0 text-om-faint" />
                                         </div>
                                     </Link>
                                 ))}
                             </div>
                         ) : (
                             <div className="text-center py-8 bg-om-panel rounded-om-sm">
-                                <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
+                                <Icon name="file-text" size={24} className="mx-auto mb-3 text-om-faint" />
                                 <p className="text-om-muted mb-2">{__("No process templates yet")}</p>
                                 <p className="text-sm text-om-muted">{__("Process templates define how this product is manufactured.")}</p>
                             </div>
@@ -241,8 +207,8 @@ export default function ProductTypeShow({
                     </div>
 
                     {/* Recent Work Orders */}
-                    <div className="card">
-                        <h2 className="text-xl font-bold text-om-ink mb-4">{__("Recent Work Orders")}</h2>
+                    <div className="min-w-0 rounded-om border border-om-line bg-om-card p-5">
+                        <h2 className="text-[15px] font-semibold text-om-ink mb-4">{__("Recent Work Orders")}</h2>
                         {recentWorkOrders.length > 0 ? (
                             <>
                                 <div className="space-y-2">
@@ -271,9 +237,7 @@ export default function ProductTypeShow({
                             </>
                         ) : (
                             <div className="text-center py-8 bg-om-panel rounded-om-sm">
-                                <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                </svg>
+                                <Icon name="clipboard-list" size={24} className="mx-auto mb-3 text-om-faint" />
                                 <p className="text-om-muted">{__("No work orders yet")}</p>
                             </div>
                         )}
@@ -282,49 +246,30 @@ export default function ProductTypeShow({
 
                 {/* Components & serials used */}
                 <div className="mt-6">
-                    <h2 className="text-xl font-bold text-om-ink mb-1">{__('Components & serials used')}</h2>
+                    <h2 className="text-[15px] font-semibold text-om-ink mb-1">{__('Components & serials used')}</h2>
                     <p className="text-sm text-om-muted mb-4">
                         {__("Materials actually consumed and serialized units produced across this product's work orders.")}
                     </p>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Components consumed */}
-                        <div className="card">
+                        <div className="min-w-0 rounded-om border border-om-line bg-om-card p-5">
                             <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">
                                 {__('Components consumed')} ({componentsUsed.length})
                             </h3>
                             {componentsUsed.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                                <th className="py-2 pr-3 font-medium">{__('Material')}</th>
-                                                <th className="py-2 px-3 font-medium text-right">{__('Consumed')}</th>
-                                                <th className="py-2 pl-3 font-medium text-right">{__('Lots')}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {componentsUsed.map((c) => (
-                                                <tr key={c.id} className="border-b border-om-line2 last:border-0">
-                                                    <td className="py-2 pr-3">
-                                                        <Link
-                                                            href={`/admin/materials/${c.id}`}
-                                                            className="font-medium text-om-accent hover:underline"
-                                                        >
-                                                            {c.name}
-                                                        </Link>
-                                                        <span className="block text-xs text-om-muted font-mono">{c.code}</span>
-                                                    </td>
-                                                    <td className="py-2 px-3 text-right font-mono">
-                                                        {trimQty(c.total_consumed)}{' '}
-                                                        <span className="text-xs text-om-muted">{c.unit_of_measure}</span>
-                                                    </td>
-                                                    <td className="py-2 pl-3 text-right font-mono text-om-muted">{c.lot_count}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <AppDataTable
+                                    data={componentsUsed}
+                                    searchable={false}
+                                    columnToggle={false}
+                                    paginated={false}
+                                    bodyMaxHeight="none"
+                                    columns={[
+                                        { accessorKey: 'name', header: __('Material'), cell: ({ row }) => <Link href={`/admin/materials/${row.original.id}`} className="font-medium hover:underline">{row.original.name}<span className="block text-xs font-mono text-om-muted">{row.original.code}</span></Link> },
+                                        { accessorKey: 'total_consumed', header: __('Consumed'), meta: { align: 'right' }, cell: ({ row }) => <span className="font-mono">{trimQty(row.original.total_consumed)} {row.original.unit_of_measure}</span> },
+                                        { accessorKey: 'lot_count', header: __('Lots'), meta: { align: 'right' } },
+                                    ]}
+                                />
                             ) : (
                                 <div className="text-center py-8 bg-om-panel rounded-om-sm">
                                     <p className="text-om-muted">{__('No material consumption recorded yet')}</p>
@@ -336,8 +281,8 @@ export default function ProductTypeShow({
                         </div>
 
                         {/* Serialized units */}
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="min-w-0 rounded-om border border-om-line bg-om-card p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                 <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide">
                                     {__('Serialized units')} ({serials.total ?? 0})
                                 </h3>
@@ -397,6 +342,15 @@ export default function ProductTypeShow({
                 </div>
 
                 <EngineeringDocuments entityType="product_type" entityId={productType.id} />
+                <CreateTemplateDrawer productType={productType} open={creatingTemplate} onClose={() => setCreatingTemplate(false)} />
+                <ResourceFormDrawer
+                    {...drawer.props}
+                    action="/admin/product-types"
+                    fields={PRODUCT_TYPE_FIELDS}
+                    initial={productTypeInitial}
+                    customFields={customFields}
+                    title={{ edit: __('Edit Product Type') }}
+                />
             </div>
         </>
     );

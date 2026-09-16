@@ -90,7 +90,7 @@ class WorkOrderManagementController extends Controller
         // The planner's New-order modal posts `stay` so the user keeps their
         // page (the new order lands there via the refreshed props).
         if ($request->boolean('stay')) {
-            return back()->with('success', "Work order {$workOrder->order_no} created.");
+            return back()->with('success', __('Work order :code created.', ['code' => $workOrder->order_no]));
         }
 
         return redirect()->route('admin.work-orders.index')
@@ -200,6 +200,7 @@ class WorkOrderManagementController extends Controller
             ->first();
 
         return Inertia::render('admin/work-orders/Show', [
+            'editForm' => Inertia::optional(fn () => $this->editFormProps($workOrder, $customFields)),
             'stops' => $stops,
             'changeRequests' => $changeRequests,
             'changeControl' => [
@@ -421,10 +422,16 @@ class WorkOrderManagementController extends Controller
 
     public function edit(WorkOrder $workOrder, CustomFieldService $customFields)
     {
-        return Inertia::render('admin/work-orders/Edit', [
+        return Inertia::render('admin/work-orders/Edit', $this->editFormProps($workOrder, $customFields));
+    }
+
+    private function editFormProps(WorkOrder $workOrder, CustomFieldService $customFields): array
+    {
+        return [
             'workOrder' => [
                 ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'counting_source', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                'planned_start_at' => $workOrder->planned_start_at?->format('Y-m-d\TH:i'),
                 // Current BOM selection (empty for legacy single-BOM orders).
                 'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
                 // BOMs are frozen once production starts - the form hides the picker.
@@ -436,7 +443,7 @@ class WorkOrderManagementController extends Controller
             'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
-        ]);
+        ];
     }
 
     public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder, CustomFieldService $cf)
@@ -502,11 +509,14 @@ class WorkOrderManagementController extends Controller
         // Field edits and the BOM re-selection commit together (or not at all).
         try {
             DB::transaction(function () use ($workOrder, $validated, $requested) {
+                $workOrder->setRawAttributes(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->getAttributes(), true);
                 $workOrder->update($validated);
                 if ($requested !== null) {
                     $this->workOrderService->updateBomSelection($workOrder, $requested);
                 }
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 
@@ -514,8 +524,8 @@ class WorkOrderManagementController extends Controller
                 ->with('error', 'Failed to update work order. Please check your input and try again.');
         }
 
-        return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$workOrder->order_no} updated.");
+        return ($request->boolean('stay') ? redirect()->back() : redirect()->route('admin.work-orders.index'))
+            ->with('success', __('Work order :order updated.', ['order' => $workOrder->order_no]));
     }
 
     public function destroy(WorkOrder $workOrder)
@@ -536,7 +546,7 @@ class WorkOrderManagementController extends Controller
         $workOrder->delete();
 
         return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$no} deleted.");
+            ->with('success', __('Work order :order deleted.', ['order' => $no]));
     }
 
     /** Apply one transition to one order, or bounce back with its refusal message. */
@@ -597,7 +607,7 @@ class WorkOrderManagementController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
 
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
+        return redirect()->back()->with('success', __('Work order :order resumed.', ['order' => $workOrder->order_no]));
     }
 
     public function reopen(WorkOrder $workOrder)
@@ -621,6 +631,6 @@ class WorkOrderManagementController extends Controller
             'completed_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', "Work order {$workOrder->order_no} completed with {$validated['produced_qty']} produced.");
+        return redirect()->back()->with('success', __('Work order :order completed with :quantity produced.', ['order' => $workOrder->order_no, 'quantity' => $validated['produced_qty']]));
     }
 }

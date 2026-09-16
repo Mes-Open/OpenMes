@@ -38,7 +38,7 @@ class WorkstationController extends Controller
 
         $line = Line::with(['viewColumns', 'viewTemplate'])->findOrFail($lineId);
 
-        $query = WorkOrder::where('line_id', $lineId)
+        $query = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->whereNotIn('status', [WorkOrder::STATUS_REJECTED, WorkOrder::STATUS_CANCELLED])
             ->with(['productType'])
             ->orderByRaw("CASE WHEN status = 'IN_PROGRESS' THEN 0 WHEN status IN ('PENDING','ACCEPTED') THEN 1 ELSE 2 END")
@@ -47,7 +47,7 @@ class WorkstationController extends Controller
 
         // Week filter
         $weekFilter = $request->query('week');
-        $availableWeeks = WorkOrder::where('line_id', $lineId)
+        $availableWeeks = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->whereNotIn('status', [WorkOrder::STATUS_REJECTED, WorkOrder::STATUS_CANCELLED])
             ->whereNotNull('week_number')
             ->distinct()
@@ -210,7 +210,7 @@ class WorkstationController extends Controller
         }
 
         $weekFilter = $request->query('week');
-        $query = WorkOrder::where('line_id', $lineId)
+        $query = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->whereNotIn('status', [WorkOrder::STATUS_REJECTED, WorkOrder::STATUS_CANCELLED]);
 
         if ($weekFilter && $weekFilter !== 'all') {
@@ -272,11 +272,22 @@ class WorkstationController extends Controller
      */
     public function start(Request $request, WorkOrder $workOrder)
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            return $this->startLocked($request, $current);
+        });
+    }
+
+    private function startLocked(Request $request, WorkOrder $workOrder)
+    {
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
             return back()->with('error', 'Work order does not belong to this line.');
         }
+
+        $workOrder->assertProductionAvailable();
 
         if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
             return back()->with('error', 'Work order cannot be started from current status.');
@@ -293,6 +304,17 @@ class WorkstationController extends Controller
      */
     public function complete(Request $request, WorkOrder $workOrder)
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            return $this->completeLocked($request, $current);
+        });
+    }
+
+    private function completeLocked(Request $request, WorkOrder $workOrder)
+    {
+        $workOrder->assertProductionAvailable();
+
         if ($workOrder->usesStepLedger()) {
             return back()->withErrors(['produced_qty' => __('Record production on the work order steps.')]);
         }
@@ -344,6 +366,17 @@ class WorkstationController extends Controller
      */
     public function shiftEntry(Request $request, WorkOrder $workOrder)
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            return $this->shiftEntryLocked($request, $current);
+        });
+    }
+
+    private function shiftEntryLocked(Request $request, WorkOrder $workOrder)
+    {
+        $workOrder->assertProductionAvailable();
+
         if ($workOrder->usesStepLedger()) {
             return back()->withErrors(['quantity' => __('Record production on the work order steps.')]);
         }

@@ -44,6 +44,7 @@ class UpdateSystemSettingsRequest extends FormRequest
         return [
             'production_period' => 'required|in:none,weekly,monthly',
             'allow_overproduction' => 'nullable|boolean',
+            'block_negative_stock' => 'sometimes|boolean',
             'force_sequential_steps' => 'nullable|boolean',
             'workstation_routing_enabled' => 'nullable|boolean',
             'backflush_on_pallet_creation' => 'nullable|boolean',

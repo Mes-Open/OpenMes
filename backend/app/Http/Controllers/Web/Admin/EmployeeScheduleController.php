@@ -29,7 +29,9 @@ class EmployeeScheduleController extends Controller
             ? Carbon::parse($request->input('date'))
             : Carbon::today();
 
-        $workers = Worker::with('personnelClass')
+        $hasPersonnelClass = Worker::hasModuleRelation('personnelClass');
+        $workers = Worker::query()
+            ->when($hasPersonnelClass, fn ($query) => $query->with('personnelClass'))
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -45,7 +47,9 @@ class EmployeeScheduleController extends Controller
             'id' => $w->id,
             'name' => $w->name,
             'code' => $w->code,
-            'personnel_class_code' => $w->personnelClass?->code ?? $w->personnelClass?->name,
+            'personnel_class_code' => $hasPersonnelClass
+                ? ($w->personnelClass?->code ?? $w->personnelClass?->name)
+                : null,
         ])->values()->all();
 
         $customTypesFlat = $customTypes->map(fn ($c) => [
