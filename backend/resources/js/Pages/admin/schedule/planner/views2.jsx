@@ -175,7 +175,7 @@ export function HourlyView({ ctx }) {
                                         {hours.map((h2) => <div key={h2} style={{ flex: 1, borderRight: '1px solid var(--om-line2)', opacity: 0.6 }} />)}
                                     </div>
                                     {nowMin != null && (
-                                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: (nowMin / 1440 * 100) + '%', width: 1.5, background: 'var(--om-accent)', pointerEvents: 'none', zIndex: 1 }}>
+                                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: (nowMin / 1440 * 100) + '%', width: 1.5, background: 'var(--om-accent)', pointerEvents: 'none', zIndex: 40 }}>
                                             <span style={{ position: 'absolute', top: -1, left: -3, width: 7, height: 7, borderRadius: 999, background: 'var(--om-accent)' }} />
                                         </div>
                                     )}
