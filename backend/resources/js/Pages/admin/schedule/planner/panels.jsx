@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { Button, Dropdown, Icon, SegmentedControl } from '@openmes/ui';
+import CustomerTierBadge from '../../../../components/CustomerTierBadge';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { apiGet, apiCall } from '../../../../lib/http';
 import { OrderCard } from './OrderCard';
 import { DraggableOrder } from './dnd';
 import { NewOrderModal } from './modals';
-import { TIER_BADGE_STYLES, TIER_VALUES, tierLabel } from '../../customers/fields';
+import { TIER_VALUES } from '../../customers/fields';
 import { priorityMeta, MONO } from './helpers';
 
 const LEGEND = [
@@ -208,13 +209,13 @@ export function BacklogRail({ ctx }) {
                             ))}
                         </div>
                         {/* customer tier filter (ported from develop) */}
-                        <div className="flex flex-wrap gap-1">
-                            <button type="button" onClick={() => setTierFilter('')}
-                                className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${tierFilter === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All tiers')}</button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => setTierFilter('')} aria-pressed={tierFilter === ''}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-full border border-om-line transition ${tierFilter === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All tiers')}</button>
                             {TIER_VALUES.map((t) => (
-                                <button key={t} type="button" onClick={() => setTierFilter(tierFilter === t ? '' : t)}
-                                    className={`px-2 py-0.5 text-[10px] font-medium rounded border transition ${TIER_BADGE_STYLES[t]} ${tierFilter === t ? 'ring-2 ring-gray-400' : ''}`}>
-                                    {tierLabel(t)}
+                                <button key={t} type="button" aria-pressed={tierFilter === t} onClick={() => setTierFilter(tierFilter === t ? '' : t)}
+                                    className={`rounded-full transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-om-ink ${tierFilter === t ? 'ring-2 ring-om-ink ring-offset-2 ring-offset-om-panel' : ''}`}>
+                                    <CustomerTierBadge tier={t} />
                                 </button>
                             ))}
                         </div>
