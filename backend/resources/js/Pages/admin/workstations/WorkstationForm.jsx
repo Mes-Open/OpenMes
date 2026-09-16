@@ -4,23 +4,24 @@ import CustomFields from '../../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
 import { __ } from '../../../lib/i18n';
 
-export default function WorkstationForm({ line, workstation, workers = [], customFields = [], onSuccess, onCancel }) {
+export default function WorkstationForm({ line, workstation = null, workers = [], customFields = [], onSuccess, onCancel }) {
+    const editing = workstation != null;
     const assignedWorkerIds = workers
-        .filter((w) => w.workstation_id === workstation.id)
+        .filter((w) => editing && w.workstation_id === workstation.id)
         .map((w) => w.id);
 
     const form = useForm({
-        code: workstation.code ?? '',
-        name: workstation.name ?? '',
-        workstation_type: workstation.workstation_type ?? '',
-        is_active: !!workstation.is_active,
+        code: workstation?.code ?? '',
+        name: workstation?.name ?? '',
+        workstation_type: workstation?.workstation_type ?? '',
+        is_active: editing ? !!workstation.is_active : true,
         worker_ids: assignedWorkerIds,
-        ...customFieldInitial(workstation.custom_fields),
+        ...customFieldInitial(workstation?.custom_fields),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        submitForm(form, 'put', `/admin/lines/${line.id}/workstations/${workstation.id}`, { preserveScroll: true, onSuccess });
+        submitForm(form, editing ? 'put' : 'post', editing ? `/admin/lines/${line.id}/workstations/${workstation.id}` : `/admin/lines/${line.id}/workstations`, { preserveScroll: true, onSuccess });
     };
 
     const toggleWorker = (workerId) => {
@@ -90,7 +91,7 @@ export default function WorkstationForm({ line, workstation, workers = [], custo
                 />
 
                 {/* Assigned Workers */}
-                <div className="border-t border-om-line2 pt-5">
+                {editing && <div className="border-t border-om-line2 pt-5">
                     <h2 className="text-base font-semibold text-om-ink mb-1">{__('Assigned Workers')}</h2>
                     <p className="text-sm text-om-muted mb-3">{__('Workers regularly operating at this workstation.')}</p>
 
@@ -128,13 +129,13 @@ export default function WorkstationForm({ line, workstation, workers = [], custo
                         </div>
                     )}
                     {form.errors.worker_ids && <p className="mt-1 text-xs text-om-blocked">{form.errors.worker_ids}</p>}
-                </div>
+                </div>}
 
                 {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
                 <div className="flex items-center gap-3 pt-2">
                     <Button type="submit" variant="primary" loading={form.processing}>
-                        {form.processing ? __('Saving…') : __('Update Workstation')}
+                        {form.processing ? __('Saving…') : editing ? __('Update Workstation') : __('Create Workstation')}
                     </Button>
                     {onCancel ? (
                         <Button variant="outline" onClick={onCancel} disabled={form.processing}>{__('Cancel')}</Button>

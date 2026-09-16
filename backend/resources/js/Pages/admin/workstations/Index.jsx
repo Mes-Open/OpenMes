@@ -11,6 +11,8 @@ import { __ } from '../../../lib/i18n';
 export default function WorkstationsIndex() {
     const { line, workstations = [], workers = [], customFields = [] } = usePage().props;
     const [editing, setEditing] = useState(null);
+    const [creating, setCreating] = useState(false);
+    const closeDrawer = () => { setEditing(null); setCreating(false); };
     const { confirm, dialog: confirmDialog } = useConfirm();
 
     const handleToggle = (ws) => {
@@ -44,13 +46,13 @@ export default function WorkstationsIndex() {
                         <h1 className="text-[28px] font-semibold tracking-tight text-om-ink">{__('Workstations')}</h1>
                         <p className="text-sm text-om-muted mt-1">{line.name}</p>
                     </div>
-                    <Link
-                        href={`/admin/lines/${line.id}/workstations/create`}
+                    <button type="button"
+                        onClick={() => { setEditing(null); setCreating(true); }}
                         className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
                         <Icon name="plus" size={14} />
                         {__('Add Workstation')}
-                    </Link>
+                    </button>
                 </div>
             </div>
 
@@ -59,13 +61,13 @@ export default function WorkstationsIndex() {
                     <Icon name="monitor" size={40} className="mx-auto text-om-faint mb-4" />
                     <p className="text-lg font-medium text-om-muted">{__('No workstations yet')}</p>
                     <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first workstation for this line.')}</p>
-                    <Link
-                        href={`/admin/lines/${line.id}/workstations/create`}
+                    <button type="button"
+                        onClick={() => { setEditing(null); setCreating(true); }}
                         className="inline-flex items-center gap-1.5 bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
                         <Icon name="plus" size={14} />
                         {__('Create Workstation')}
-                    </Link>
+                    </button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -140,22 +142,22 @@ export default function WorkstationsIndex() {
             )}
 
             <Modal
-                open={editing !== null}
-                onClose={() => setEditing(null)}
+                open={creating || editing !== null}
+                onClose={closeDrawer}
                 side="right"
                 width={560}
-                title={__('Edit Workstation')}
+                title={creating ? __('Create Workstation') : __('Edit Workstation')}
                 subtitle={editing ? `${line.name} · ${editing.name}` : line.name}
                 closeLabel={__('Close')}
             >
-                {editing && <WorkstationForm
-                    key={editing.id}
+                {(creating || editing) && <WorkstationForm
+                    key={editing?.id ?? 'new'}
                     line={line}
                     workstation={editing}
                     workers={workers}
                     customFields={customFields}
-                    onSuccess={() => setEditing(null)}
-                    onCancel={() => setEditing(null)}
+                    onSuccess={closeDrawer}
+                    onCancel={closeDrawer}
                 />}
             </Modal>
             {confirmDialog}
