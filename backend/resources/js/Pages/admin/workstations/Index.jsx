@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Icon, IconButton } from '@openmes/ui';
+import { Icon, IconButton, Modal } from '@openmes/ui';
+import WorkstationForm from './WorkstationForm';
 import AppLayout from '../../../layouts/AppLayout';
 import { ActiveBadge } from '../../../components/ResourceTable';
 import Tooltip from '../../../components/Tooltip';
@@ -7,7 +9,8 @@ import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
 export default function WorkstationsIndex() {
-    const { line, workstations = [] } = usePage().props;
+    const { line, workstations = [], workers = [], customFields = [] } = usePage().props;
+    const [editing, setEditing] = useState(null);
     const { confirm, dialog: confirmDialog } = useConfirm();
 
     const handleToggle = (ws) => {
@@ -93,13 +96,13 @@ export default function WorkstationsIndex() {
                             </div>
 
                             <div className="flex gap-2 pt-4 border-t border-om-line2">
-                                <Link
-                                    href={`/admin/lines/${line.id}/workstations/${ws.id}/edit`}
+                                <button type="button"
+                                    onClick={() => setEditing(ws)}
                                     className="flex-1 inline-flex items-center justify-center gap-2 text-[12px] px-3 py-2 border border-om-line rounded-om-sm text-om-muted hover:bg-om-bg font-medium"
                                 >
                                     <Icon name="pencil" size={14} />
                                     {__('Edit')}
-                                </Link>
+                                </button>
                                 <Tooltip label={ws.is_active ? __('Deactivate') : __('Activate')}>
                                     <IconButton
                                         onClick={() => handleToggle(ws)}
@@ -136,6 +139,25 @@ export default function WorkstationsIndex() {
                 </div>
             )}
 
+            <Modal
+                open={editing !== null}
+                onClose={() => setEditing(null)}
+                side="right"
+                width={560}
+                title={__('Edit Workstation')}
+                subtitle={editing ? `${line.name} · ${editing.name}` : line.name}
+                closeLabel={__('Close')}
+            >
+                {editing && <WorkstationForm
+                    key={editing.id}
+                    line={line}
+                    workstation={editing}
+                    workers={workers}
+                    customFields={customFields}
+                    onSuccess={() => setEditing(null)}
+                    onCancel={() => setEditing(null)}
+                />}
+            </Modal>
             {confirmDialog}
         </div>
     );
