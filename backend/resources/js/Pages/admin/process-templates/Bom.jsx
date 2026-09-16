@@ -257,6 +257,11 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
 export default function ProcessTemplatesBom() {
     const { productType, processTemplate, bomItems = [], materials = [], productTypes = [], steps = [] } = usePage().props;
 
+    const [stepFilter, setStepFilter] = useState(() => {
+        const requested = new URLSearchParams(window.location.search).get('step_id');
+        return steps.some(step => String(step.id) === requested) ? requested : '';
+    });
+
     // `null` = closed, `'new'` = the add drawer, a row = editing that line.
     const [editing, setEditing] = useState(null);
     // Bumped on a finished save, so the retained form (see keepMounted below)
@@ -384,6 +389,22 @@ export default function ProcessTemplatesBom() {
                 // Not a synced shape: a BOM belongs to one process template and
                 // nothing broadcasts it, so the rows come from this page's props.
                 rows={bomItems}
+                filterFn={stepFilter ? row => String(row.template_step_id) === stepFilter : undefined}
+                toolbarActions={
+                    <Dropdown
+                        aria-label={__('Filter by step')}
+                        value={stepFilter}
+                        onChange={(value) => {
+                            setStepFilter(value);
+                            router.get(`${templateHref}/bom`, value ? { step_id: value } : {}, { preserveState: true, preserveScroll: true, replace: true });
+                        }}
+                        options={[
+                            { value: '', label: __('All steps') },
+                            ...steps.map(step => ({ value: String(step.id), label: `#${step.step_number} ${step.name}` })),
+                        ]}
+                        className="min-w-[180px]"
+                    />
+                }
                 title={__('Bill of Materials')}
                 titleIcon="layers"
                 breadcrumbs={[
@@ -402,7 +423,7 @@ export default function ProcessTemplatesBom() {
                 actionSlots={actionSlots}
                 onCreate={() => setEditing('new')}
                 createLabel={__('Add Component')}
-                emptyText={__('No materials in BOM yet.')}
+                emptyText={stepFilter ? __('No BOM components assigned to this step.') : __('No materials in BOM yet.')}
             />
 
             <Modal

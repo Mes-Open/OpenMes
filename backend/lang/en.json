@@ -6353,5 +6353,8 @@
     "Step moved down successfully.": "Step moved down successfully.",
     "Step is already first.": "Step is already first.",
     "Step is already last.": "Step is already last.",
-    "Packed / Planned": "Packed / Planned"
+    "Packed / Planned": "Packed / Planned",
+    "Filter by step": "Filter by step",
+    "All steps": "All steps",
+    "No BOM components assigned to this step.": "No BOM components assigned to this step."
 }

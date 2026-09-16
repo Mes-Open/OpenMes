@@ -6353,5 +6353,8 @@
     "Step moved down successfully.": "Przeniesiono krok w dół.",
     "Step is already first.": "Ten krok jest już pierwszy.",
     "Step is already last.": "Ten krok jest już ostatni.",
-    "Packed / Planned": "Spakowano / Plan"
+    "Packed / Planned": "Spakowano / Plan",
+    "Filter by step": "Filtruj według kroku",
+    "All steps": "Wszystkie kroki",
+    "No BOM components assigned to this step.": "Do tego kroku nie przypisano komponentów BOM."
 }
