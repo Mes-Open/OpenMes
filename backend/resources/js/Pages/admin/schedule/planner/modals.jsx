@@ -411,7 +411,7 @@ export function Toasts({ toasts }) {
             {toasts.map((t) => {
                 const clr = t.kind === 'error' ? 'var(--om-blocked)' : t.kind === 'warning' ? 'var(--om-downtime)' : 'var(--om-running)';
                 return (
-                    <div key={t.id} className="flex items-center gap-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderLeft: `3px solid ${clr}`, borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
+                    <div key={t.id} className="flex items-center gap-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
                         <span style={{ width: 9, height: 9, borderRadius: 999, background: clr }} />
                         <span style={{ fontSize: 13, color: 'var(--om-ink)' }}>{t.msg}</span>
                     </div>
