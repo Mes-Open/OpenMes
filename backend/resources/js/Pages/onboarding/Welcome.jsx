@@ -23,6 +23,7 @@ export default function Welcome() {
                         {__('The system is empty. Install an example company to have something to look at — lines, products, routings, orders and shift history — or start empty and build your own.')}
                     </p>
                 </header>
+                <p className="mb-6 text-sm text-om-muted">{__('Before scheduling production, confirm the plant timezone in Settings → General. Planned starts use that timezone, not the browser timezone.')}</p>
 
                 <form method="POST" action="/onboarding">
                     <input type="hidden" name="_token" value={csrf_token} />

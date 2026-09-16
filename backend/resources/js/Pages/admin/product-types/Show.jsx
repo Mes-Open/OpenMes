@@ -56,11 +56,14 @@ export default function ProductTypeShow({
     componentsUsed = [],
     serials = { total: 0, status_counts: {}, recent: [] },
     customFields = [],
+    setup = {},
 }) {
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
     const serialStatusCounts = serials.status_counts ?? {};
+    const template = productType.process_templates?.find(t => t.is_active);
+    const templateUrl = template ? `/admin/product-types/${productType.id}/process-templates/${template.id}` : `/admin/product-types/${productType.id}/process-templates/create`;
 
     const handleToggleActive = () => {
         router.post(`/admin/product-types/${productType.id}/toggle-active`, {}, { preserveScroll: true });
@@ -143,6 +146,20 @@ export default function ProductTypeShow({
                 </div>
 
                 {/* Stats cards */}
+                <section className="card mb-6">
+                    <h2 className="font-semibold mb-2">{__('Prepare this product for production')}</h2>
+                    <p className="text-sm text-om-muted mb-3">{__('Follow these links to configure the product. A BOM is optional; assign stations only when using station routing.')}</p>
+                    <ol className="list-decimal pl-5 space-y-2 text-sm">
+                        <li><Link className="underline" href="/settings/system?tab=general">{__('Check plant timezone')}: {setup.timezone}</Link></li>
+                        <li><Link className="underline" href={templateUrl}>{__('Define the process steps')}</Link> — {template?.steps?.length ?? 0} {__('Steps')}</li>
+                        <li><Link className="underline" href={template ? `${templateUrl}/bom` : templateUrl}>{__('Configure the BOM')}</Link> — {template?.bom_count ?? 0} {__('Materials')}</li>
+                        <li><Link className="underline" href="/admin/materials">{__('Receive the materials required by the BOM')}</Link></li>
+                        <li><Link className="underline" href="/admin/lines">{__('Create the line and its workstations')}</Link> {setup.lines?.map(line => <Link key={line.id} className="ml-2 underline" href={`/admin/lines/${line.id}`}>{line.name}</Link>)}</li>
+                        <li><Link className="underline" href={templateUrl}>{__('Assign a workstation to each process step')}</Link> — {template?.steps?.filter(s => s.workstation_id).length ?? 0}/{template?.steps?.length ?? 0}</li>
+                        <li><Link className="underline" href="/admin/users">{__('Configure operator accounts and assignments')}</Link></li>
+                        <li><Link className="underline" href="/admin/work-orders">{__('Create a work order')}</Link> → <Link className="underline" href="/admin/schedule">{__('Plan the production start')}</Link></li>
+                    </ol>
+                </section>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div className="card">
                         <div className="flex items-center justify-between">

@@ -1,5 +1,9 @@
 # Raport E2E: czysta instalacja → dwaj operatorzy → gotowy produkt
 
+> Aktualizacja: późniejsze poprawki materiałów i UX opisuje
+> [raport uzupełniający](material-availability-ux-review-2026-09-16.md).
+> Poniższe ustalenia magazynowe opisują stan pierwszego przebiegu.
+
 Data: 16 września 2026. Środowisko: lokalne `http://localhost:8080`, PostgreSQL,
 widoczny przeglądarkowy MCP `playwright-iso`. Baza została zresetowana przez
 **Ustawienia → Dane → Resetuj system**, za zgodą użytkownika. Wybrano pustą

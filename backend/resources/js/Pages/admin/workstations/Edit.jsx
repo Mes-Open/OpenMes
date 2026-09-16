@@ -130,11 +130,11 @@ export default function WorkstationEdit() {
                                             // <label> around a button-based checkbox never
                                             // associated with it.
                                             aria-label={worker.name}
+                                            label={worker.name}
                                             checked={isAssigned}
                                             onChange={() => toggleWorker(worker.id)}
                                         />
                                         <div className="flex-1 min-w-0">
-                                            <span className="text-sm font-medium text-om-ink">{worker.name}</span>
                                             <span className="text-xs text-om-faint font-mono ml-2">{worker.code}</span>
                                             {worker.workstation_id && !isAssigned && (
                                                 <span className="text-xs text-orange-500 ml-2">

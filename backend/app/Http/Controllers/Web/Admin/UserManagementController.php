@@ -158,6 +158,10 @@ class UserManagementController extends Controller
         $user->load(Worker::hasModuleRelation('skills') ? 'worker.skills' : 'worker');
 
         return Inertia::render('admin/users/Edit', array_merge($this->formData(), [
+            'assignments' => [
+                'lines' => $user->lines()->get(['lines.id', 'lines.name'])->map(fn ($line) => $line->only('id', 'name')),
+                'station' => ($user->worker?->workstation ?? $user->workstation)?->only('id', 'name', 'line_id'),
+            ],
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

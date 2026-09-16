@@ -39,6 +39,16 @@ class MaterialManagementController extends Controller
         ]);
     }
 
+    public function receive(\App\Http\Requests\Web\Admin\ReceiveMaterialRequest $request, Material $material)
+    {
+        app(\App\Services\Material\ManualMaterialReceiptService::class)->receive(
+            $material, (float) $request->validated('quantity'), $request->validated('reference'), $request->user(),
+        );
+
+        return redirect()->route('admin.materials.show', $material)
+            ->with('success', __('Material receipt recorded.'));
+    }
+
     public function store(StoreMaterialRequest $request, CustomFieldService $cf)
     {
         $validated = $request->validated();

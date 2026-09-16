@@ -703,6 +703,7 @@ Route::middleware('auth')->group(function () {
         // Materials Management
         Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
         Route::resource('materials', MaterialManagementController::class);
+        Route::post('materials/{material}/receipts', [MaterialManagementController::class, 'receive'])->name('materials.receive');
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
         // The material importer moved into the unified importer (Admin → Import).
         Route::get('/materials-import', fn () => redirect('/admin/import/materials', 301))->name('materials.import');

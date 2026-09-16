@@ -22,11 +22,8 @@ function weekLabel(wk) {
 }
 
 function statusLabel(status) {
-    if (status === 'PENDING') return 'Not Started';
-    if (status === 'IN_PROGRESS') return 'In Progress';
-    if (status === 'DONE') return 'Done';
-    if (status === 'BLOCKED') return 'Blocked';
-    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const labels = { PENDING: 'Not Started', IN_PROGRESS: 'In Progress', DONE: 'Done', BLOCKED: 'Blocked', PAUSED: 'Paused', CANCELLED: 'Cancelled', REJECTED: 'Rejected', ACCEPTED: 'Accepted' };
+    return __(labels[status] ?? status ?? 'Unknown');
 }
 
 // Imported extra_data can hold lists or nested objects — String() would print
@@ -670,6 +667,7 @@ function QuickStepCount({ order }) {
     return <div className="flex flex-col gap-1">
         {targets.length > 1 && <Dropdown aria-label={__('Assigned batch step')} value={selected} placeholder={__('Select step')} options={targets.map(t => ({ value: String(t.id), label: t.label }))} onChange={setSelected} />}
         <Button variant="accent" disabled={!target || busy} onClick={add} aria-label={__('Add one good piece')}>+1</Button>
+        {targets.length === 0 && <Link className="max-w-44 text-xs text-om-muted underline" href={`/operator/work-order/${order.id}`}>{__('Check the step: it must be started and have incoming pieces.')}</Link>}
         {error && <p role="alert" className="text-sm text-om-blocked">{error}</p>}
     </div>;
 }

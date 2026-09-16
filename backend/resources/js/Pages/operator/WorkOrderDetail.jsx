@@ -46,8 +46,8 @@ function issuePillStatus(status) {
 }
 
 function statusLabel(status) {
-    if (status === 'PENDING') return 'Not Started';
-    return (status ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const labels = { PENDING: 'Not Started', IN_PROGRESS: 'In Progress', DONE: 'Done', BLOCKED: 'Blocked', PAUSED: 'Paused', CANCELLED: 'Cancelled', REJECTED: 'Rejected', ACCEPTED: 'Accepted' };
+    return __(labels[status] ?? status ?? 'Unknown');
 }
 
 function bomTypeBadge(type) {
@@ -714,7 +714,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                 >
                     <div className="flex items-center gap-4">
                         <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-om-ink">
-                            Batch #{batch.batch_number}
+                            {__('Batch')} #{batch.batch_number}
                         </h3>
                         <StatusPill status={pillStatus(batch.status)} label={statusLabel(batch.status)} />
                         <span className="font-mono text-[13px] text-om-muted">
@@ -854,7 +854,7 @@ function QuantityLogForm({ step, throughStation = false, inflight, error, onSubm
             </label>
             <Button type="button" variant="accent" disabled={available < 1 || inflight} onClick={() => onSubmit({ good_qty: 1, scrap_qty: 0, through_station: throughStation }, () => {})} aria-label={__('Add one good piece')}>+1</Button>
             <Button type="submit" variant={throughStation ? 'accent' : 'primary'} disabled={!valid || inflight} className="px-5 py-2.5 text-[14px] whitespace-nowrap">
-                {inflight ? '…' : throughStation ? __('Log through station') : __('Log')}
+                {inflight ? '…' : throughStation ? __('Log through station') : __('Record quantities')}
             </Button>
             <span className="font-mono text-[11px] text-om-faint self-center">{__('Waiting')}: {fmtQty(available)}</span>
             {error && <p className="basis-full text-[12px] text-om-blocked m-0">{error}</p>}
@@ -1104,7 +1104,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 kind="workstation-step"
                                 id={step.id}
                                 templates={labelTemplates}
-                                label="Label"
+                                label={__('Label')}
                             />
                         </div>
 

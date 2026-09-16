@@ -150,7 +150,7 @@ export default function ResourceForm({
                     : 'flex items-center gap-3 pt-2'}
                 >
                     <Button type="submit" variant="primary" loading={processing}>
-                        {processing ? __('Saving…') : submitLabel}
+                        {processing ? __('Saving…') : __(submitLabel)}
                     </Button>
                     {cancelHref && (
                         <Link

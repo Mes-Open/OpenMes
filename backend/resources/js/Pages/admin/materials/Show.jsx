@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Button, Modal, TextField } from '@openmes/ui';
+import { __ } from '../../../lib/i18n';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
@@ -29,6 +31,15 @@ function fmt(val, decimals = 3) {
 }
 
 export default function MaterialShow({ material, lots = [], recentMovements = [], customFields = [] }) {
+    const [receiving, setReceiving] = useState(false);
+    const receipt = useForm({ quantity: '', reference: '' });
+    const receive = (event) => {
+        event.preventDefault();
+        receipt.post(`/admin/materials/${material.id}/receipts`, {
+            preserveScroll: true,
+            onSuccess: () => { setReceiving(false); receipt.reset(); },
+        });
+    };
     const available = material.available_quantity ?? 0;
     const minStock = material.min_stock_level ?? 0;
     const stockCardBorder = available < minStock ? 'border-red-400' : 'border-blue-400';
@@ -140,11 +151,11 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         },
         {
             id: 'source',
-            accessorFn: (r) => (r.source_type ? `${r.source_type} #${r.source_id}` : '—'),
+            accessorFn: (r) => (r.source_type ? `${r.source_type === 'manual_receipt' ? __('Manual receipt') : r.source_type}${r.source_id == null ? '' : ' #' + r.source_id}` : '—'),
             header: 'Source',
             cell: ({ row }) => (
                 <span className="text-xs text-om-muted">
-                    {row.original.source_type ? `${row.original.source_type} #${row.original.source_id}` : '—'}
+                    {row.original.source_type ? `${row.original.source_type === 'manual_receipt' ? __('Manual receipt') : row.original.source_type}${row.original.source_id == null ? '' : ' #' + row.original.source_id}` : '—'}
                 </span>
             ),
         },
@@ -198,6 +209,15 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
     return (
         <>
             <Head title={`Material — ${material.name}`} />
+            <Modal open={receiving} onClose={() => setReceiving(false)} title={__('Receive material')}>
+                <form onSubmit={receive} className="space-y-4">
+                    <p>{material.name} · {material.unit_of_measure}</p>
+                    <p className="text-sm text-om-muted">{__('Enter the delivered quantity, not the target balance. Use a unique delivery reference for this material.')} {' '}{__('This receipt updates total stock only. It does not receive stock into a lot or warehouse location.')}</p>
+                    <TextField label={__('Receipt quantity')} type="number" min="0.001" step="0.001" required value={receipt.data.quantity} onChange={value => receipt.setData('quantity', value)} error={receipt.errors.quantity} />
+                    <TextField label={__('Delivery reference')} required value={receipt.data.reference} onChange={value => receipt.setData('reference', value)} error={receipt.errors.reference} />
+                    <Button type="submit" variant="primary" loading={receipt.processing}>{__('Record receipt')}</Button>
+                </form>
+            </Modal>
 
             {/* Breadcrumbs */}
             <PageTrail append={[{ label: material.name }]} />
@@ -216,7 +236,10 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         </div>
                         <p className="text-sm text-om-muted mt-1 font-mono">{material.code}</p>
                     </div>
-                    <Link href={`/admin/materials/${material.id}/edit`} className="btn-touch btn-secondary">Edit</Link>
+                    <div className="flex gap-2">
+                        <Button variant="primary" onClick={() => setReceiving(true)}>{__('Receive material')}</Button>
+                        <Link href={`/admin/materials/${material.id}/edit`} className="btn-touch btn-secondary">{__('Edit')}</Link>
+                    </div>
                 </div>
 
                 {/* Details + Stock grid */}
@@ -234,20 +257,20 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
 
                     {/* Stock */}
                     <div className={`card border-l-4 ${stockCardBorder}`}>
-                        <h3 className="text-lg font-semibold mb-4">Stock breakdown</h3>
+                        <h3 className="text-lg font-semibold mb-4">{__('Stock balance')}</h3>
                         <dl className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <dt className="text-om-muted">On hand</dt>
+                                <dt className="text-om-muted">{__('Recorded stock balance')}</dt>
                                 <dd className="font-mono">{fmt(material.stock_quantity)} {material.unit_of_measure}</dd>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <dt className="text-om-muted">Reserved by active batches</dt>
+                                <dt className="text-om-muted">{__('Reserved by active batches')}</dt>
                                 <dd className="font-mono text-om-downtime">{fmt(material.reserved_quantity)} {material.unit_of_measure}</dd>
                             </div>
                             <div className="flex justify-between text-sm pt-2 border-t border-om-line2">
-                                <dt className="font-medium text-om-muted">Available</dt>
+                                <dt className="font-medium text-om-muted">{__('Available for production')}</dt>
                                 <dd className={`font-mono font-bold ${available <= 0 ? 'text-om-blocked' : 'text-om-running'}`}>
-                                    {fmt(available)} {material.unit_of_measure}
+                                    {fmt(Math.max(0, available))} {material.unit_of_measure}
                                 </dd>
                             </div>
                             {material.min_stock_level != null && (
@@ -267,6 +290,10 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         </dl>
                     </div>
 
+                    <div className="md:col-span-2 text-sm text-om-muted">
+                        {available < 0 && <p className="mb-2 text-om-blocked">{__('Negative balance: production was recorded without enough stock. Check missing receipts; the balance is not a physical quantity.')}</p>}
+                        <p>{__('A lot record alone does not receive stock. Record each delivery once; do not repeat receipts already booked by an integration or warehouse document.')}</p>
+                    </div>
                     {/* External System */}
                     <div className="card">
                         <h3 className="text-lg font-semibold mb-4">External System</h3>

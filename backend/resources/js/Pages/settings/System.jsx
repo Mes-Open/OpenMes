@@ -118,6 +118,7 @@ export default function System() {
     const { data, setData, post, processing, errors } = useForm({
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
+        block_negative_stock: settings.block_negative_stock ?? false,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
@@ -490,6 +491,11 @@ export default function System() {
                         </div>
 
                         {/* Production Rules */}
+                        <div className={CARD_CLASS}>
+                            <h2 className="text-[15px] font-semibold mb-2">{__('Material availability')}</h2>
+                            <SelectCard value={false} current={data.block_negative_stock} onChange={(v) => setData('block_negative_stock', v)} label={__('Warn and allow production')} desc={__('Missing receipts may result in a negative stock balance. Operators can continue working.')} />
+                            <SelectCard value={true} current={data.block_negative_stock} onChange={(v) => setData('block_negative_stock', v)} label={__('Block production when stock is insufficient')} desc={__('Record a material receipt before starting a step that needs more stock.')} />
+                        </div>
                         <div className={CARD_CLASS}>
                             <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Rules')}</h2>
                             <div className="space-y-4">
