@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DndProvider, useDragDropManager } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Button, Icon, ConfirmDialog } from '@openmes/ui';
+import { Icon, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { apiCall, apiGet } from '../../../lib/http';
@@ -321,7 +321,7 @@ export default function Planner() {
             <style>{STYLE}</style>
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
 
-            <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6">
+            <div className="w-full min-w-0">
             {/* page header */}
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
                 <div>
@@ -364,22 +364,16 @@ export default function Planner() {
             <DragWatcher draggingRef={draggingRef} />
 
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
-                live={live} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
+                live={live} onMaintenance={() => setMaintOpen(true)} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
-            <div className="flex justify-end mb-4">
-                <Button variant="outline" size="sm" leftIcon={<Icon name="wrench" size={14} />} onClick={() => setMaintOpen(true)}>
-                    {__('Maintenance')}
-                </Button>
-            </div>
-
-            <div className="flex flex-col xl:flex-row items-stretch" style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-bg)' }}>
-                <div className="om-main w-full flex-1 min-w-0 p-3 sm:p-5 overflow-auto">
+            <BacklogRail ctx={ctx} />
+            <div className="w-full min-w-0" style={{ border: '1px solid var(--om-line)', borderRadius: 0, overflow: 'hidden', background: 'var(--om-bg)' }}>
+                <div className="om-main w-full min-w-0 overflow-auto">
                     {viewMode === 'weekly' && <WeeklyView ctx={ctx} />}
                     {viewMode === 'daily' && <DailyView ctx={ctx} />}
                     {viewMode === 'hourly' && <HourlyView ctx={ctx} />}
                     {viewMode === 'monthly' && <MonthlyView ctx={ctx} />}
                 </div>
-                <BacklogRail ctx={ctx} />
             </div>
             </DndProvider>
             </div>

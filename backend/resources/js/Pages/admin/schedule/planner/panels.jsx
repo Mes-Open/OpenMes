@@ -27,7 +27,7 @@ function NavBtn({ children, onClick, title }) {
     );
 }
 
-export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, onPrev, onNext, onToday, rangeLabel }) {
+export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, onPrev, onNext, onToday, rangeLabel, onMaintenance }) {
     const { data } = ctx;
     // Employee scheduling lives under the (core) Schedule area but is gated by
     // the HR module — hide the shortcut when HR is off, mirroring the nav.
@@ -70,6 +70,7 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: live ? 'var(--om-running)' : 'var(--om-faint)', animation: live ? 'om-pulse 1.8s infinite' : 'none' }} />
                     <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em', color: 'var(--om-muted)' }}>{live ? __('LIVE') : __('OFF')}</span>
                 </span>
+                <Button variant="outline" size="sm" className="ml-auto" leftIcon={<Icon name="wrench" size={14} />} onClick={onMaintenance}>{__('Maintenance')}</Button>
             </div>
         </div>
     );
@@ -118,7 +119,7 @@ function ChangesPanel({ ctx }) {
     };
 
     if (items === null) return <div className="text-center" style={{ padding: 30, color: 'var(--om-faint)', fontSize: 12.5 }}>…</div>;
-    if (items.length === 0) return <div className="text-center" style={{ padding: '36px 16px', color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No schedule changes yet.')}</div>;
+    if (items.length === 0) return <div className="text-center" style={{ padding: '12px 16px', color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No schedule changes yet.')}</div>;
 
     return (
         <div className="flex flex-col gap-2">
@@ -183,25 +184,31 @@ export function BacklogRail({ ctx }) {
     const filters = [['all', 'All'], ['Urgent', 'Urgent'], ['High', 'High'], ['Medium', 'Med']];
 
     return (
-        <div className="flex w-full xl:w-[320px] flex-col shrink-0 border-t xl:border-t-0 xl:border-l border-om-line" style={{ maxHeight: 'calc(100vh - 120px)', background: 'var(--om-panel)' }}>
-            <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--om-line2)' }}>
-                <SegmentedControl label={__('Backlog')} className="mb-3" value={tab} onChange={setTab}
+        <div className="w-full min-w-0 border-y border-om-line bg-om-panel mb-4">
+            <div className="flex flex-wrap items-center gap-3 px-3 py-3 border-b border-om-line">
+                <SegmentedControl label={__('Backlog')} className="w-full sm:w-[280px] shrink-0" value={tab} onChange={setTab}
                     options={[{ value: 'backlog', label: `${__('Backlog')} · ${data.backlog.length}` }, { value: 'changes', label: __('Changes') }]} />
+            <div className="flex gap-2 sm:ml-auto">
+                <Button size="sm" onClick={() => setShowNew(true)} className="whitespace-nowrap" leftIcon={<Icon name="plus" size={14} />}>{__('New order')}</Button>
+                {canImport && (
+                    <Link href="/admin/import/work-orders" className="whitespace-nowrap inline-flex items-center justify-center gap-2 hover:bg-om-chip" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}><Icon name="upload" size={14} />{__('Import CSV')}</Link>
+                )}
+            </div>
                 {tab === 'backlog' && (
-                    <>
-                        <div className="flex items-center gap-2 mb-2.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: '8px 11px' }}>
+                    <div className="flex w-full flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 w-full sm:w-[240px]" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 8, padding: '8px 11px' }}>
                             <Icon name="search" size={15} className="shrink-0 text-om-faint" />
                             <input aria-label={__('Search backlog')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={__('Search backlog')}
                                 className="flex-1 min-w-0 outline-none" style={{ border: 'none', background: 'transparent', fontSize: 12.5, color: 'var(--om-ink)' }} />
                         </div>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1.5 min-w-[250px]">
                             {filters.map(([k, label]) => (
                                 <button type="button" aria-pressed={pf === k} key={k} onClick={() => setPf(k)} className="flex-1 text-center"
                                     style={{ fontSize: 11, fontWeight: 500, padding: 6, borderRadius: 7, cursor: 'pointer', ...(pf === k ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }) }}>{__(label)}</button>
                             ))}
                         </div>
                         {/* customer tier filter (ported from develop) */}
-                        <div className="flex flex-wrap gap-1" style={{ marginTop: 6 }}>
+                        <div className="flex flex-wrap gap-1">
                             <button type="button" onClick={() => setTierFilter('')}
                                 className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${tierFilter === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All tiers')}</button>
                             {TIER_VALUES.map((t) => (
@@ -211,43 +218,38 @@ export function BacklogRail({ ctx }) {
                                 </button>
                             ))}
                         </div>
-                    </>
+                    </div>
                 )}
+
             </div>
             {tab === 'changes' && (
-                <div className="om-bl flex-1 overflow-y-auto" style={{ padding: '12px 14px', minHeight: 0 }}>
+                <div className="om-bl max-h-[240px] overflow-auto p-3">
                     <ChangesPanel ctx={ctx} />
                 </div>
             )}
             {tab === 'backlog' && (
-            <div className="om-bl flex-1 overflow-y-auto" style={{ padding: '12px 14px', minHeight: 0 }}>
-                {items.length === 0 && <div className="text-center" style={{ padding: '36px 16px', color: 'var(--om-faint)', fontSize: 12.5 }}>{__('Backlog clear — all orders scheduled.')}</div>}
+            <div className="om-bl flex items-start gap-5 overflow-x-auto p-3">
+                {items.length === 0 && <div className="text-center" style={{ padding: '12px 16px', color: 'var(--om-faint)', fontSize: 12.5 }}>{__('Backlog clear — all orders scheduled.')}</div>}
                 {order.filter((g) => groups[g]).map((g) => (
-                    <div key={g}>
+                    <div key={g} className="shrink-0">
                         <div className="flex items-center gap-2" style={{ margin: '6px 2px 9px' }}>
                             <span style={{ width: 7, height: 7, borderRadius: 2, background: priorityMeta(g === 'Urgent' ? 5 : g === 'High' ? 4 : g === 'Medium' ? 3 : g === 'Low' ? 2 : 1).color }} />
                             <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-muted)' }}>{__(g)}</span>
                             <span style={{ fontFamily: MONO, fontSize: 9.5, color: 'var(--om-faint)' }}>{groups[g].length}</span>
                             <div style={{ flex: 1, height: 1, background: 'var(--om-line2)' }} />
                         </div>
-                        <div className="flex flex-col gap-2 mb-2">
+                        <div className="flex items-start gap-3">
                             {groups[g].map((wo) => (
-                                <DraggableOrder key={wo.id} wo={wo}>
+                                <div key={wo.id} className="w-[250px] shrink-0"><DraggableOrder wo={wo}>
                                     <OrderCard wo={wo} variant="backlog" selected={ctx.selectedId === wo.id}
                                         onClick={(e) => { e.stopPropagation(); ctx.onSelectOrder(wo); }} />
-                                </DraggableOrder>
+                                </DraggableOrder></div>
                             ))}
                         </div>
                     </div>
                 ))}
             </div>
             )}
-            <div className="flex gap-1.5" style={{ padding: '10px 14px', borderTop: '1px solid var(--om-line2)' }}>
-                <Button size="sm" onClick={() => setShowNew(true)} className="flex-1" leftIcon={<Icon name="plus" size={14} />}>{__('New order')}</Button>
-                {canImport && (
-                    <Link href="/admin/import/work-orders" className="flex-1 inline-flex items-center justify-center gap-2 hover:bg-om-chip" style={{ padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }}><Icon name="upload" size={14} />{__('Import CSV')}</Link>
-                )}
-            </div>
             {showNew && <NewOrderModal ctx={ctx} onClose={() => setShowNew(false)} />}
         </div>
     );
