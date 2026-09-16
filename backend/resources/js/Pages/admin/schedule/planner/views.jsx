@@ -194,9 +194,9 @@ function StickyLineCell({ line, load, lc }) {
         <div style={{ width: LINE_COL_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, background: 'var(--om-card)', borderRight: '1px solid var(--om-line2)', padding: '7px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div className="flex items-center gap-2">
                 <span style={{ width: 8, height: 8, borderRadius: 999, background: lc, flexShrink: 0 }} />
-                <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
-                <span className="truncate" style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</span>
+                <span className="min-w-0 truncate" title={line.code} style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
             </div>
+            <div className="truncate mt-1" title={line.name} style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</div>
             <div className="flex items-center gap-2" style={{ marginTop: 5 }}>
                 <div className="rounded-full overflow-hidden" style={{ flex: 1, height: 5, background: 'var(--om-chip)', border: '1px solid var(--om-line2)' }}>
                     <div style={{ width: Math.min(100, load) + '%', height: '100%', background: lc, borderRadius: 20 }} />
