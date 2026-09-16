@@ -89,7 +89,7 @@ export default function ProductTypeShow({
             {/* Breadcrumbs */}
             <PageTrail append={[{ label: productType.name }]} />
 
-            <div className="w-full pb-10">
+            <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
                 <header className="mb-5 flex flex-col justify-between gap-4 xl:flex-row">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
