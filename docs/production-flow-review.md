@@ -123,3 +123,10 @@ Final source verification (isolated snapshots, unrelated untracked code excluded
   JSON fixture, four SQLite-preset installer assumptions, packaging-checklist tenant pruning,
   and three sample-data replacement tests. No new failing test appeared. This is not a clean
   PostgreSQL suite; those existing failures still need resolution or explicit release triage.
+
+### PostgreSQL failures resolved
+
+The nine baseline PostgreSQL failures listed above were subsequently investigated and fixed.
+Final full suites pass without errors/failures on both databases (2,718 tests each).
+See [the PostgreSQL follow-up report](postgresql-test-review-2026-09-16.md) for the real tenant-pruning
+bug, test-fixture corrections, real replacement coverage, remaining warnings and release limits.

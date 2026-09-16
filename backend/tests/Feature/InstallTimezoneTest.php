@@ -145,7 +145,7 @@ class InstallTimezoneTest extends TestCase
         // hand-edited row must not be able to take the application down.
         DB::table('system_settings')->updateOrInsert(
             ['key' => TimezoneRegistry::SETTING_KEY],
-            ['value' => 'Mars/Olympus_Mons', 'updated_at' => now()],
+            ['value' => json_encode('Mars/Olympus_Mons'), 'updated_at' => now()],
         );
         TimezoneRegistry::flush();
 

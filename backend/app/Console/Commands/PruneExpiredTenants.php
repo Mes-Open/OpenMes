@@ -30,7 +30,13 @@ class PruneExpiredTenants extends Command
             // Isolate each tenant: a single failing delete (e.g. an un-relaxed
             // FK on a user reference) must not abort the whole scheduled run.
             try {
-                DB::transaction(fn () => $tenant->delete());
+                DB::transaction(function () use ($tenant) {
+                    // Resolve SET NULL user references while their parent batches
+                    // still exist. PostgreSQL can otherwise interleave tenant cascades
+                    // and reject the checklist update after its batch was deleted.
+                    DB::table('users')->where('tenant_id', $tenant->id)->delete();
+                    $tenant->delete();
+                });
                 $this->info("Deleted tenant #{$tenant->id} ({$tenant->name})");
             } catch (\Throwable $e) {
                 report($e);

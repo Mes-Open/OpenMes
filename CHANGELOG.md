@@ -9,6 +9,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
+- Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
+
 - Preserve omitted production flow settings, guard reverse transitions while routed work is open, and exclude flow changes from settings imports. Validate API workflow modes and tolerate machine orders without a line.
 - Require cumulative registers for built-in Modbus polling, preserve counter-only configuration on rollback, and respect cross-line routing settings on operator details.
 - Add reason-required, audited corrections to good totals on running manual transfer steps, with stale-value and downstream-consumption protection.
