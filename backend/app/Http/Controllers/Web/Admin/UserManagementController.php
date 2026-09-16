@@ -28,6 +28,7 @@ class UserManagementController extends Controller
             'userRoles' => $users->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
             'workstationNames' => Workstation::pluck('name', 'id'),
             'currentUserId' => auth()->id(),
+            'formOptions' => Inertia::optional(fn () => $this->formData()),
         ]);
     }
 
@@ -36,7 +37,14 @@ class UserManagementController extends Controller
      */
     public function create()
     {
-        return Inertia::render('admin/users/Create', $this->formData());
+        $options = $this->formData();
+
+        return Inertia::render('admin/users/Create', array_merge($options, [
+            'formOptions' => $options,
+            'currentUserId' => auth()->id(),
+            'userRoles' => User::with('roles')->get(['id'])->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
+            'workstationNames' => Workstation::pluck('name', 'id'),
+        ]));
     }
 
     public function show(User $user)
@@ -147,7 +155,7 @@ class UserManagementController extends Controller
         });
 
         return redirect()->route('admin.users.index')
-            ->with('success', 'Account created successfully.');
+            ->with('success', __('Account created successfully.'));
     }
 
     /**

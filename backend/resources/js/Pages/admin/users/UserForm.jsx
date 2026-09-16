@@ -13,7 +13,7 @@ import { nameControl } from '../../../lib/fieldName';
  * password is confirmed (password + password_confirmation). On edit, leaving
  * password blank keeps the current one.
  */
-export default function UserForm({ form, roles, workstations, crews, wageGroups, skills, isEdit, onSubmit }) {
+export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], isEdit, onSubmit, bare = false, onCancel }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
 
@@ -37,7 +37,7 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className={bare ? "space-y-5" : "bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5"}>
             {/* Account type */}
             <div>
                 {/* A <label> naming a radiogroup names nothing — `for` can't point
@@ -176,11 +176,11 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                 </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className={bare ? "sticky -bottom-4 z-10 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]" : "flex items-center gap-3 pt-2"}>
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {processing ? __('Saving…') : isEdit ? __('Save Changes') : __('Create Account')}
                 </Button>
-                <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                {onCancel ? <Button type="button" variant="outline" onClick={onCancel}>{__('Cancel')}</Button> : <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>}
             </div>
         </form>
     );

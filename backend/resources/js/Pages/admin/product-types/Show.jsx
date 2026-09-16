@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import CreateTemplateDrawer from '../process-templates/CreateDrawer';
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, Icon } from '@openmes/ui';
 import AppDataTable from '../../../components/AppDataTable';
@@ -56,8 +58,8 @@ function ucWords(str) {
 
 const linkButton = 'inline-flex items-center justify-center gap-2 rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-[12px] font-medium text-om-ink transition-colors hover:bg-om-chip';
 
-function SetupLink({ icon, href, children, detail }) {
-    return <Link href={href} className="group flex min-w-0 items-center gap-3 rounded-om-sm px-3 py-2.5 hover:bg-om-chip transition-colors">
+function SetupLink({ icon, href, children, detail, onClick }) {
+    return <Link href={href} onClick={onClick} className="group flex min-w-0 items-center gap-3 rounded-om-sm px-3 py-2.5 hover:bg-om-chip transition-colors">
         <Icon name={icon} size={16} className="shrink-0 text-om-muted" />
         <span className="min-w-0 flex-1 text-[13px]">{children}</span>
         {detail != null && <span className="shrink-0 font-mono text-[11px] text-om-muted">{detail}</span>}
@@ -74,6 +76,8 @@ export default function ProductTypeShow({
     setup = {},
 }) {
     const drawer = useResourceDrawer();
+    const [creatingTemplate, setCreatingTemplate] = useState(false);
+    const openTemplate = e => { e.preventDefault(); setCreatingTemplate(true); };
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
@@ -125,11 +129,11 @@ export default function ProductTypeShow({
                         <p className="px-3 py-2 text-xs text-om-muted">{__('Follow these links to configure the product. A BOM is optional; assign stations only when using station routing.')}</p>
                         <div className="grid grid-cols-1 lg:grid-cols-2">
                             <SetupLink icon="clock" href="/settings/system?tab=general" detail={setup.timezone}>{__('Check plant timezone')}</SetupLink>
-                            <SetupLink icon="workflow" href={templateUrl} detail={template?.steps?.length ?? 0}>{__('Define the process steps')}</SetupLink>
-                            <SetupLink icon="layers" href={template ? `${templateUrl}/bom` : templateUrl} detail={template?.bom_count ?? 0}>{__('Configure the BOM')}</SetupLink>
+                            <SetupLink icon="workflow" href={templateUrl} onClick={template ? undefined : openTemplate} detail={template?.steps?.length ?? 0}>{__('Define the process steps')}</SetupLink>
+                            <SetupLink icon="layers" href={template ? `${templateUrl}/bom` : templateUrl} onClick={template ? undefined : openTemplate} detail={template?.bom_count ?? 0}>{__('Configure the BOM')}</SetupLink>
                             <SetupLink icon="package-plus" href="/admin/materials">{__('Receive the materials required by the BOM')}</SetupLink>
                             <SetupLink icon="factory" href="/admin/lines">{__('Create the line and its workstations')}</SetupLink>
-                            <SetupLink icon="monitor" href={templateUrl} detail={`${template?.steps?.filter(s => s.workstation_id).length ?? 0}/${template?.steps?.length ?? 0}`}>{__('Assign a workstation to each process step')}</SetupLink>
+                            <SetupLink icon="monitor" href={templateUrl} onClick={template ? undefined : openTemplate} detail={`${template?.steps?.filter(s => s.workstation_id).length ?? 0}/${template?.steps?.length ?? 0}`}>{__('Assign a workstation to each process step')}</SetupLink>
                             <SetupLink icon="users" href="/admin/users">{__('Configure operator accounts and assignments')}</SetupLink>
                             <SetupLink icon="clipboard-plus" href="/admin/work-orders">{__('Create a work order')}</SetupLink>
                             <SetupLink icon="calendar-days" href="/admin/schedule">{__('Plan the production start')}</SetupLink>
@@ -157,7 +161,7 @@ export default function ProductTypeShow({
                                     {__("View All")}
                                 </Link>
                                 <Link
-                                    href={`/admin/product-types/${productType.id}/process-templates/create`}
+                                    href={`/admin/product-types/${productType.id}/process-templates/create`} onClick={openTemplate}
                                     className="inline-flex items-center gap-2 rounded-om-sm bg-om-ink px-3 py-2 text-[12px] font-semibold text-om-on-ink hover:bg-om-ink-hover"
                                 >
                                     <Icon name="plus" size={16} className="shrink-0" />
@@ -338,6 +342,7 @@ export default function ProductTypeShow({
                 </div>
 
                 <EngineeringDocuments entityType="product_type" entityId={productType.id} />
+                <CreateTemplateDrawer productType={productType} open={creatingTemplate} onClose={() => setCreatingTemplate(false)} />
                 <ResourceFormDrawer
                     {...drawer.props}
                     action="/admin/product-types"

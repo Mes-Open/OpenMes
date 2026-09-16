@@ -106,6 +106,8 @@ class MaterialManagementController extends Controller
             'material' => [
                 'id'                       => $material->id,
                 'code'                     => $material->code,
+                'description'              => $material->description,
+                'material_type_id'         => $material->material_type_id,
                 'name'                     => $material->name,
                 'is_active'                => $material->is_active,
                 'unit_of_measure'          => $material->unit_of_measure,
@@ -140,6 +142,7 @@ class MaterialManagementController extends Controller
             ],
             'lots'            => $lots,
             'recentMovements' => $recentMovements,
+            'materialTypes'   => Inertia::optional(fn () => MaterialType::orderBy('name')->get(['id', 'name'])),
             'customFields'    => $customFields->clientConfig('material'),
         ]);
     }

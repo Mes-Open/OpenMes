@@ -49,6 +49,12 @@ class ProcessTemplateManagementController extends Controller
     {
         return Inertia::render('admin/process-templates/Create', [
             'productType' => $productType->only('id', 'name'),
+            'templates' => $productType->processTemplates()->withCount('steps')->orderByDesc('version')->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id, 'name' => $t->name, 'version' => $t->version,
+                    'is_active' => (bool) $t->is_active, 'steps_count' => $t->steps_count,
+                    'created_at' => $t->created_at->format('Y-m-d H:i'),
+                ]),
         ]);
     }
 

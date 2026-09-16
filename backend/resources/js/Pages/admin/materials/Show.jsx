@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Button, Modal, TextField } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { materialFields, materialInitial } from './fields';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
@@ -30,7 +32,8 @@ function fmt(val, decimals = 3) {
     return Number(val ?? 0).toFixed(decimals);
 }
 
-export default function MaterialShow({ material, lots = [], recentMovements = [], customFields = [] }) {
+export default function MaterialShow({ material, lots = [], recentMovements = [], customFields = [], materialTypes }) {
+    const drawer = useResourceDrawer();
     const [receiving, setReceiving] = useState(false);
     const receipt = useForm({ quantity: '', reference: '' });
     const receive = (event) => {
@@ -41,8 +44,6 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         });
     };
     const available = material.available_quantity ?? 0;
-    const minStock = material.min_stock_level ?? 0;
-    const stockCardBorder = available < minStock ? 'border-red-400' : 'border-blue-400';
 
     const lotColumns = useMemo(() => [
         {
@@ -219,6 +220,17 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 </form>
             </Modal>
 
+            <ResourceFormDrawer
+                {...drawer.props}
+                action="/admin/materials"
+                fields={materialFields(materialTypes ?? [])}
+                initial={materialInitial}
+                customFields={customFields}
+                ensure={['materialTypes']}
+                ready={materialTypes !== undefined}
+                title={{ edit: __('Edit Material') }}
+            />
+
             {/* Breadcrumbs */}
             <PageTrail append={[{ label: material.name }]} />
 
@@ -238,7 +250,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                     </div>
                     <div className="flex gap-2">
                         <Button variant="primary" onClick={() => setReceiving(true)}>{__('Receive material')}</Button>
-                        <Link href={`/admin/materials/${material.id}/edit`} className="btn-touch btn-secondary">{__('Edit')}</Link>
+                        <Button variant="outline" onClick={() => drawer.edit(material)}>{__('Edit')}</Button>
                     </div>
                 </div>
 
@@ -256,7 +268,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                     </div>
 
                     {/* Stock */}
-                    <div className={`card border-l-4 ${stockCardBorder}`}>
+                    <div className="card">
                         <h3 className="text-lg font-semibold mb-4">{__('Stock balance')}</h3>
                         <dl className="space-y-2">
                             <div className="flex justify-between text-sm">

@@ -200,7 +200,7 @@ export default function ProductTypesIndex() {
                     <Icon name="package" size={40} className="mx-auto text-om-faintest mb-4" />
                     <p className="text-[15px] font-semibold text-om-ink">{__('No product types yet')}</p>
                     <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first product type.')}</p>
-                    <Button variant="accent" onClick={() => router.visit('/admin/product-types/create')}>
+                    <Button variant="accent" onClick={drawer.create}>
                         <Icon name="plus" size={16} />
                         {__('Create Product Type')}
                     </Button>
