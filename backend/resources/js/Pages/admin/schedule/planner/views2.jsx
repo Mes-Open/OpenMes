@@ -59,10 +59,13 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     const left = (cur.start / 1440) * 100;
     const width = ((cur.end - cur.start) / 1440) * 100;
     const dur = (Math.round((cur.end - cur.start) / 6) / 10) + 'h';
+    const timing = item.placeholder && !drag
+        ? (item.placementKey === 'primary' && wo.planned_start_at ? `${fmtMin(cur.start)} · ${__('End not planned')}` : __('No exact time yet — drag to schedule'))
+        : `${fmtMin(cur.start)}–${fmtMin(cur.end)} · ${dur}`;
 
     return (
         <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', minWidth: 10, zIndex: drag ? 30 : 2 }}>
-            <div className="om-wo relative" title={item.placeholder && !readOnly ? __('No exact time yet — drag to schedule') : undefined} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
+            <div className="om-wo relative" title={timing} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
                 {!readOnly && <span onPointerDown={(e) => begin('l', e)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }} />}
                 <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '6px 10px', cursor: readOnly ? 'pointer' : 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
@@ -72,7 +75,7 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
                         <span className="ml-auto"><ShortageChip wo={wo} compact /></span>
                     </div>
-                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtMin(cur.start)}–{fmtMin(cur.end)} · {dur}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{timing}</span>
                 </div>
                 {item.conflict && <span style={{ position: 'absolute', top: 3, right: 9, fontFamily: MONO, fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '1px 4px', zIndex: 4, pointerEvents: 'none' }}>{__('overlap')}</span>}
                 {readOnly && (

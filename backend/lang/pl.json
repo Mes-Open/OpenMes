@@ -6253,5 +6253,14 @@
     "Save correction": "Zapisz korektę",
     "Step total corrections require the Full edit policy.": "Korekta łącznej ilości kroku wymaga ustawienia Pełna edycja.",
     "Only the operator who started this step or a supervisor can correct its total.": "Ilość kroku może skorygować tylko operator, który go rozpoczął, lub przełożony.",
-    "Transfer step totals require Full edit. Timed windows apply only to individual shift entries.": "Łączne ilości kroków w trybie przekazywania wymagają ustawienia Pełna edycja. Okno czasowe dotyczy tylko pojedynczych wpisów zmianowych."
+    "Transfer step totals require Full edit. Timed windows apply only to individual shift entries.": "Łączne ilości kroków w trybie przekazywania wymagają ustawienia Pełna edycja. Okno czasowe dotyczy tylko pojedynczych wpisów zmianowych.",
+    "Planned start": "Planowany start",
+    "Plant local time. Until this time, the order is unavailable for production. Leave empty for immediate availability.": "Czas lokalny zakładu. Do tej chwili zlecenie nie będzie dostępne do pracy. Puste pole oznacza dostępność od razu.",
+    "Production is available from :start (plant time).": "Produkcja będzie dostępna od :start (czas zakładu).",
+    "An order that has started cannot be postponed into the future.": "Nie można przesunąć rozpoczętego zlecenia na przyszłość.",
+    "Planned end must be after planned start.": "Planowany koniec musi być późniejszy niż planowany start.",
+    "End date cannot precede planned start.": "Data końca nie może być wcześniejsza niż planowany start.",
+    "Planned end": "Planowany koniec",
+    "This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.": "To zlecenie ma dokładny czas rozpoczęcia i zakończenia. Przeniesienie do komórki zmiany ustawi start na początek zmiany i usunie dokładny koniec.",
+    "End not planned": "Koniec nieustalony"
 }

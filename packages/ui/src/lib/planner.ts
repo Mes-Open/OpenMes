@@ -169,7 +169,7 @@ export function placementsOf(wo: PlannerOrder): Segment[] {
     {
       key: 'primary',
       line_id: wo.line_id,
-      due_date: wo.due_date,
+      due_date: wo.planned_start_at?.slice(0, 10) ?? wo.due_date,
       shift_number: wo.shift_number,
       end_date: wo.end_date,
       end_shift_number: wo.end_shift_number,
@@ -243,7 +243,7 @@ export function weeklySlot(
   wo: PlannerOrder,
   shiftsPerDay: number,
 ): { date: string | null; shift: number } {
-  let date = wo.due_date;
+  let date = wo.planned_start_at?.slice(0, 10) ?? wo.due_date;
   let shift = wo.shift_number;
   if (!date && wo.planned_start_at) date = wo.planned_start_at.slice(0, 10);
   if (!shift && wo.planned_start_at) {
@@ -262,8 +262,8 @@ export function weeklySlot(
 export function onMonthlyDay(wo: PlannerOrder, iso: string, dayNum: number, monthNum: number): boolean {
   // Extra segments occupy their own days too.
   if ((wo.placements ?? []).some((p) => p.due_date === iso)) return true;
-  if (wo.due_date) return wo.due_date === iso;
   if (wo.planned_start_at) return wo.planned_start_at.slice(0, 10) === iso;
+  if (wo.due_date) return wo.due_date === iso;
   if (wo.week_number) {
     const d = parseDate(iso);
     return !!d && d.getDay() === 1 && isoWeek(iso) === wo.week_number;
@@ -377,15 +377,15 @@ export function hourlyLanes(
       }
       // Legacy: a due-date-only order on this day shows as a placeholder block
       // so it stays visible and can be dragged to get real times.
-      return proj.due_date === dateStr;
+      return (proj.planned_start_at?.slice(0, 10) ?? proj.due_date) === dateStr;
     })
     .map(({ orig, proj, key }) => {
       if (!proj.planned_start_at || !proj.planned_end_at) {
         return {
           wo: orig,
           placementKey: key,
-          start: 0,
-          end: 60,
+          start: proj.planned_start_at ? minuteOfDay(proj.planned_start_at) : 0,
+          end: proj.planned_start_at ? Math.min(1440, minuteOfDay(proj.planned_start_at) + 60) : 60,
           spansOutside: false,
           placeholder: true,
           lane: 0,
@@ -426,7 +426,8 @@ export function hourlyLanes(
   });
 
   items.forEach((a) => {
-    a.conflict = items.some((b) => b !== a && a.start < b.end && b.start < a.end);
+    // Placeholder width is only a drag handle, not a booked production interval.
+    a.conflict = !a.placeholder && items.some((b) => b !== a && !b.placeholder && a.start < b.end && b.start < a.end);
   });
 
   return { items, totalLanes: Math.max(1, laneEnds.length) };

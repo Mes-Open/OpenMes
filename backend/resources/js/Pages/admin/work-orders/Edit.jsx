@@ -28,6 +28,7 @@ export default function WorkOrderEdit() {
                     counting_source: workOrder.counting_source ?? 'operator',
                     priority: workOrder.priority ?? 0,
                     due_date: workOrder.due_date ?? '',
+                    planned_start_at: workOrder.planned_start_at ?? '',
                     description: workOrder.description ?? '',
                     status: workOrder.status ?? 'PENDING',
                     custom_fields: workOrder.custom_fields ?? {},

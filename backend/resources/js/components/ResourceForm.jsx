@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppDatePicker from './AppDatePicker';
+import AppDateTimePicker from './AppDateTimePicker';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
 import { __ } from '../lib/i18n';
@@ -186,7 +187,7 @@ function Field({ field, value, error, setData, data }) {
     const inputId = `${uid}-input`;
     const describedBy = [help && `${uid}-help`, error && `${uid}-error`].filter(Boolean).join(' ') || undefined;
     /** Named through aria-* instead: `htmlFor` only reaches real form controls. */
-    const custom = type === 'select' || type === 'date';
+    const custom = type === 'select' || type === 'date' || type === 'datetime';
     const a11y = custom
         ? { 'aria-label': __(label) }
         : {
@@ -255,6 +256,8 @@ function Field({ field, value, error, setData, data }) {
                     placeholder={placeholder ? __(placeholder) : `${__(label)}…`}
                     {...a11y}
                 />
+            ) : type === 'datetime' ? (
+                <AppDateTimePicker value={value || ''} onChange={set} className="w-full" {...a11y} />
             ) : type === 'date' ? (
                 <AppDatePicker
                     className="w-full"

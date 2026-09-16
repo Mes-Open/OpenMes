@@ -45,6 +45,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and fit operator navigation and step controls on mobile screens.
 
 ### Added
+
+- Plan work-order availability with a plant-local start date and time in creation,
+  editing and scheduling. Preserve delivery deadlines when moving orders; keep
+  undated orders available and guard early production and postponement of started
+  orders across manual, API and machine entry paths.
 - **Machine counter channels** — persistent cumulative, increment and pulse tracking, stable event-ID
   deduplication, explicit batch-step assignment, timestamp validation, reset review and retained
   unassigned/blocked readings with audited reconciliation. One good-count channel per step avoids

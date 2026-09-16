@@ -43,7 +43,7 @@ class WorkOrderController extends Controller
         $request->session()->put('selected_line_id', $lineId);
 
         // Get active and completed work orders for this line
-        $activeWorkOrders = WorkOrder::where('line_id', $lineId)
+        $activeWorkOrders = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->with(['productType', 'batches.steps.workstation.line', 'lineStatus'])
             ->orderBy('priority', 'desc')
@@ -52,7 +52,7 @@ class WorkOrderController extends Controller
 
         $activeWorkOrders->each(fn (WorkOrder $order) => $order->setAttribute('uses_step_ledger', $order->usesStepLedger()));
 
-        $completedWorkOrders = WorkOrder::where('line_id', $lineId)
+        $completedWorkOrders = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->where('status', WorkOrder::STATUS_DONE)
             ->with(['productType', 'batches', 'lineStatus'])
             ->orderBy('updated_at', 'desc')
@@ -85,7 +85,7 @@ class WorkOrderController extends Controller
             // When routing is enabled, scan all active work orders (steps may route
             // across lines, e.g. a shared packing station); otherwise stay on this line.
             $queueSource = $routingEnabled
-                ? WorkOrder::whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                ? WorkOrder::availableForProduction()->whereIn('status', WorkOrder::ACTIVE_STATUSES)
                     ->with(['productType', 'batches.steps.workstation'])
                     ->get()
                 : $activeWorkOrders;
@@ -121,6 +121,16 @@ class WorkOrderController extends Controller
      */
     public function updateLineStatus(Request $request, WorkOrder $workOrder)
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            return $this->updateLineStatusLocked($request, $current);
+        });
+    }
+
+    private function updateLineStatusLocked(Request $request, WorkOrder $workOrder)
+    {
+        $workOrder->assertProductionAvailable();
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
@@ -169,7 +179,7 @@ class WorkOrderController extends Controller
             return response()->json(['active' => 0, 'workstation' => 0]);
         }
 
-        $activeCount = WorkOrder::where('line_id', $lineId)
+        $activeCount = WorkOrder::availableForProduction()->where('line_id', $lineId)
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->count();
 
@@ -184,7 +194,7 @@ class WorkOrderController extends Controller
         $workstation = $selection->resolve($request, (int) $lineId, allowOtherLines: $routingEnabled);
 
         if ($workstation && in_array($trackingMode, ['per_operation', 'hybrid'])) {
-            $source = WorkOrder::whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            $source = WorkOrder::availableForProduction()->whereIn('status', WorkOrder::ACTIVE_STATUSES)
                 ->when(! $routingEnabled, fn ($query) => $query->where('line_id', $lineId))
                 ->get();
 
@@ -370,7 +380,7 @@ class WorkOrderController extends Controller
         $flowMode = \App\Support\ProductionFlow::mode();
         $manualCorrectionsEnabled = app(\App\Services\WorkOrder\BatchService::class)->manualCorrectionsEnabled();
         foreach ($workOrder->batches as $batch) {
-            $productionBlocker = null;
+            $productionBlocker = $workOrder->plannedStartBlocker();
             if ($flowMode === \App\Support\ProductionFlow::TRANSFER && ($firstStep = $batch->steps->first())) {
                 $firstStep->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations()));
                 $productionBlocker = $firstStep->productionBlocker();

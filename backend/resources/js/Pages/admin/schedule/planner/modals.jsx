@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppDatePicker from '../../../../components/AppDatePicker';
+import AppDateTimePicker from '../../../../components/AppDateTimePicker';
 import { __ } from '../../../../lib/i18n';
 import DueCountdown from '../../../../components/DueCountdown';
 import WorkOrderForm from '../../work-orders/WorkOrderForm';
@@ -137,6 +138,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
     const s = statusOf(wo.status);
     const [line, setLine] = useState(wo.line_id || '');
     const [extras, setExtras] = useState((wo.placements || []).map((p) => ({ ...p })));
+    const [start, setStart] = useState(wo.planned_start_at?.slice(0, 16) || '');
+    const [plannedEnd, setPlannedEnd] = useState(wo.planned_end_at?.slice(0, 16) || '');
     const [due, setDue] = useState(wo.due_date || '');
     const [endDate, setEndDate] = useState(wo.end_date || '');
     const [shift, setShift] = useState(wo.shift_number || '');
@@ -171,6 +174,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="col-span-2"><div style={lblStyle}>{__('Planned start')}</div><AppDateTimePicker value={start} onChange={setStart} timeLabel={__('Planned start')} /></div>
+                        {plannedEnd && <div className="col-span-2"><div style={lblStyle}>{__('Planned end')}</div><AppDateTimePicker value={plannedEnd} onChange={setPlannedEnd} timeLabel={__('Planned end')} /></div>}
                         <div>
                             <div style={lblStyle}>{__('Production line')}</div>
                             <Dropdown value={line == null ? '' : String(line)} placeholder={__('Unassigned')}
@@ -220,7 +225,7 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 {__('End date')}
                                 {endDate && <button type="button" onClick={() => setEndDate('')} style={{ color: 'var(--om-accent)', textTransform: 'none', letterSpacing: 0 }}>{__('Clear')}</button>}
                             </div>
-                            <AppDatePicker value={endDate || null} min={due || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
+                            <AppDatePicker value={endDate || null} min={start?.slice(0, 10) || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
                         </div>
                         <div><div style={lblStyle}>{__('Start shift')}</div><Dropdown value={shift == null ? '' : String(shift)} onChange={(v) => setShift(v)} placeholder="—" options={shiftOpts} /></div>
                         <div><div style={lblStyle}>{__('End shift')}</div><Dropdown value={endShift == null ? '' : String(endShift)} onChange={(v) => setEndShift(v)} placeholder="—" options={shiftOpts} /></div>
@@ -230,6 +235,7 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                         <a href={`/admin/work-orders/${wo.id}`} className="flex-1 text-center" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}>{__('Open work order')} ↗</a>
                         <button onClick={() => onSave(wo, {
                             line_id: line ? +line : null,
+                            planned_start_at: start || null, planned_end_at: plannedEnd || null,
                             due_date: due || null, week_number: wo.week_number ?? null, end_date: endDate || null,
                             shift_number: shift ? +shift : null, end_shift_number: endShift ? +endShift : null,
                             extra_placements: extras.map((p) => ({

@@ -35,6 +35,7 @@ class BatchService
     {
         return DB::transaction(function () use ($step, $user, $picksByMaterial) {
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
                 throw new \DomainException($blocker);
             }
@@ -97,6 +98,7 @@ class BatchService
     {
         return DB::transaction(function () use ($step, $user, $data) {
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
                 throw new \DomainException($blocker);
             }
@@ -226,6 +228,7 @@ class BatchService
                 throw new \DomainException(__('Step total corrections require the Full edit policy.'));
             }
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             $this->loadLedgerContext($step);
             $this->guardWorkstationRouting($step, $user);
             if ((int) $step->started_by_id !== (int) $user->id && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
@@ -287,6 +290,7 @@ class BatchService
             // Serialise concurrent logs (two operators, or an operator and a
             // sensor) against the same step so the available count can't go negative.
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             $this->loadLedgerContext($step);
 
             $this->guardWorkstationRouting($step, $user);
@@ -407,6 +411,7 @@ class BatchService
 
         return DB::transaction(function () use ($step, $qty) {
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             $this->loadLedgerContext($step);
 
             if ($step->productionBlocker() || in_array($step->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED], true)) {
@@ -439,6 +444,7 @@ class BatchService
     {
         return DB::transaction(function () use ($step, $user, $reason) {
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
                 throw new \DomainException($blocker);
             }
@@ -481,6 +487,7 @@ class BatchService
     {
         return DB::transaction(function () use ($step, $user) {
             $step = $this->lockProductionStep($step);
+            $step->batch->workOrder->assertProductionAvailable();
             if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
                 throw new \DomainException($blocker);
             }
@@ -664,10 +671,8 @@ class BatchService
     /** Serialize transfer transitions across batches before reading the order rollup. */
     private function lockProductionStep(BatchStep $step): BatchStep
     {
-        if (ProductionFlow::isTransfer()) {
-            $orderId = Batch::whereKey($step->batch_id)->value('work_order_id');
-            \App\Models\WorkOrder::whereKey($orderId)->lockForUpdate()->firstOrFail();
-        }
+        $orderId = Batch::whereKey($step->batch_id)->value('work_order_id');
+        \App\Models\WorkOrder::whereKey($orderId)->lockForUpdate()->firstOrFail();
 
         return BatchStep::whereKey($step->getKey())->lockForUpdate()->firstOrFail();
     }

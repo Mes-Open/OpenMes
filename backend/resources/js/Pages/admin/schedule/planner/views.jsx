@@ -278,7 +278,7 @@ export function WeeklyView({ ctx }) {
     // Keyed on EVERY order's placement fields — moving any block can reflow
     // the lane packing and shift a chained segment to a different lane.
     const layoutKey = ctx.data.workOrders
-        .map((o) => [o.id, o.line_id, o.due_date, o.shift_number, o.end_date, o.end_shift_number, JSON.stringify(o.placements || [])].join('|'))
+        .map((o) => [o.id, o.line_id, o.planned_start_at, o.planned_end_at, o.due_date, o.shift_number, o.end_date, o.end_shift_number, JSON.stringify(o.placements || [])].join('|'))
         .join(';')
         // maintenance pills reserve row height, so they reflow lanes too
         + '#' + (ctx.data.maintenance || []).map((m) => `${m.line_id}@${m.scheduled_at_date}`).join(',');

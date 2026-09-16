@@ -6253,5 +6253,14 @@
     "Save correction": "Save correction",
     "Step total corrections require the Full edit policy.": "Step total corrections require the Full edit policy.",
     "Only the operator who started this step or a supervisor can correct its total.": "Only the operator who started this step or a supervisor can correct its total.",
-    "Transfer step totals require Full edit. Timed windows apply only to individual shift entries.": "Transfer step totals require Full edit. Timed windows apply only to individual shift entries."
+    "Transfer step totals require Full edit. Timed windows apply only to individual shift entries.": "Transfer step totals require Full edit. Timed windows apply only to individual shift entries.",
+    "Planned start": "Planned start",
+    "Plant local time. Until this time, the order is unavailable for production. Leave empty for immediate availability.": "Plant local time. Until this time, the order is unavailable for production. Leave empty for immediate availability.",
+    "Production is available from :start (plant time).": "Production is available from :start (plant time).",
+    "An order that has started cannot be postponed into the future.": "An order that has started cannot be postponed into the future.",
+    "Planned end must be after planned start.": "Planned end must be after planned start.",
+    "End date cannot precede planned start.": "End date cannot precede planned start.",
+    "Planned end": "Planned end",
+    "This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.": "This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.",
+    "End not planned": "End not planned"
 }

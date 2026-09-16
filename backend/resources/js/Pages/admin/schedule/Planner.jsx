@@ -113,6 +113,8 @@ export default function Planner() {
         return list;
     };
 
+    const slotStart = (date, shift) => date ? `${date}T${shifts?.[Math.max(0, Number(shift || 1) - 1)]?.start_time?.slice(0, 5) || '00:00'}:00` : '';
+
     const performDrop = useCallback(async (wo, target, placement) => {
         const body = placement !== 'primary'
             ? {
@@ -122,10 +124,10 @@ export default function Planner() {
             }
             : {
                 line_id: target.lineId,
-                due_date: target.date || '',
+                planned_start_at: slotStart(target.date, target.shift),
                 shift_number: target.shift || '',
                 week_number: '', end_date: '', end_shift_number: '',
-                planned_start_at: '', planned_end_at: '',
+                planned_end_at: '',
             };
         const result = await saveOrder(wo.id, body);
         if (result) {
@@ -133,7 +135,7 @@ export default function Planner() {
             toast(`${wo.order_no} → ${code}`);
             refreshContent();
         }
-    }, [saveOrder, allLines, toast, refreshContent]);
+    }, [saveOrder, allLines, toast, refreshContent, shifts]);
 
     // Drop a card onto a coarse (weekly/daily) cell. `placement` says which
     // schedule segment was dragged — only that segment moves. A coarse primary
@@ -143,7 +145,7 @@ export default function Planner() {
         if (placement === 'primary' && wo.planned_start_at && wo.planned_end_at) {
             setConfirmBox({
                 title: __('Replace exact time plan?'),
-                body: __('This order has an exact time plan — replace it with a day/shift placement?'),
+                body: __('This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.'),
                 confirmLabel: __('Replace'),
                 apply: () => performDrop(wo, target, placement),
             });
@@ -177,15 +179,14 @@ export default function Planner() {
 
     const saveEdit = useCallback(async (wo, patch) => {
         const result = await saveOrder(wo.id, patch);
-        setSelected(null);
-        if (result) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
+        if (result) { setSelected(null); toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
     }, [saveOrder, toast, refreshContent]);
 
     const performUnassign = useCallback(async (wo) => {
         // Clearing the primary line also deletes every extra segment server-side.
         const result = await saveOrder(wo.id, {
-            line_id: '', due_date: '', week_number: '', shift_number: '',
-            end_date: '', end_shift_number: '', planned_start_at: '', planned_end_at: '',
+            line_id: '', week_number: '', shift_number: '',
+            end_date: '', end_shift_number: '', planned_end_at: '',
         });
         setSelected(null);
         if (result) { toast(`${wo.order_no} → ${__('Backlog')}`); refreshContent(); }
@@ -231,13 +232,13 @@ export default function Planner() {
         } else {
             body = {
                 line_id: newLineId ?? wo.line_id,
-                due_date: a.date, week_number: '', shift_number: a.shift,
+                planned_start_at: slotStart(a.date, a.shift), week_number: '', shift_number: a.shift,
                 end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
-                planned_start_at: '', planned_end_at: '',
+                planned_end_at: '',
             };
         }
         saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); } });
-    }, [config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
+    }, [shifts, config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
 
     // Diagonal edge-stretch: the order continues on another line — the
     // extension is APPENDED as a new segment, so the block chain reads as a
@@ -262,7 +263,7 @@ export default function Planner() {
                 refreshContent();
             }
         });
-    }, [config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
+    }, [shifts, config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
 
     const ctx = {
         data, config, days,

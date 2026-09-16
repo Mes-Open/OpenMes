@@ -189,6 +189,7 @@ interface BarProps {
 }
 
 function HourlyBar({ item, allLines, snap, canEdit, onHourlyChange, onSelect }: BarProps) {
+  const { t } = useTranslation();
   const { wo } = item;
   const status = statusOf(wo.status);
   const chip = chainChipMeta(wo, item.placementKey, allLines);
@@ -320,7 +321,9 @@ function HourlyBar({ item, allLines, snap, canEdit, onHourlyChange, onSelect }: 
           ) : null}
         </View>
         <Mono size={8.5} color={colors.muted} numberOfLines={1}>
-          {fmtMin(item.start)}–{fmtMin(item.end)} · {durH}h
+          {item.placeholder
+            ? (item.placementKey === 'primary' && wo.planned_start_at ? `${fmtMin(item.start)} · ${t('End not planned')}` : t('No exact time yet — drag to schedule'))
+            : `${fmtMin(item.start)}–${fmtMin(item.end)} · ${durH}h`}
         </Mono>
 
         {item.conflict ? (

@@ -425,6 +425,7 @@ class WorkOrderManagementController extends Controller
             'workOrder' => [
                 ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'counting_source', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                'planned_start_at' => $workOrder->planned_start_at?->format('Y-m-d\TH:i'),
                 // Current BOM selection (empty for legacy single-BOM orders).
                 'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
                 // BOMs are frozen once production starts - the form hides the picker.
@@ -502,11 +503,14 @@ class WorkOrderManagementController extends Controller
         // Field edits and the BOM re-selection commit together (or not at all).
         try {
             DB::transaction(function () use ($workOrder, $validated, $requested) {
+                $workOrder->setRawAttributes(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->getAttributes(), true);
                 $workOrder->update($validated);
                 if ($requested !== null) {
                     $this->workOrderService->updateBomSelection($workOrder, $requested);
                 }
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 

@@ -367,6 +367,9 @@ class BatchStep extends Model
     public function productionBlocker(): ?string
     {
         $order = $this->batch->workOrder;
+        if ($message = $order->plannedStartBlocker()) {
+            return $message;
+        }
         if (ProductionFlow::isTransfer() && $order->isMachineCounted()
             && app(\App\Services\Machine\MachineCountingCompatibility::class)->legacySources($order->line_id)) {
             return __('Migrate legacy machine channels before recording transfer production.');
@@ -423,7 +426,7 @@ class BatchStep extends Model
             return false;
         }
 
-        if ($this->batch->workOrder->isBlocked()) {
+        if ($this->batch->workOrder->isBlocked() || $this->batch->workOrder->plannedStartBlocker()) {
             return false;
         }
 
