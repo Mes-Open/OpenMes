@@ -14,7 +14,7 @@ import {
 const LINE_COL_W = 172;
 const COL_MIN = 92;
 const LANE_H = 46;
-const LANE_GAP = 5;
+const LANE_GAP = 0;
 // Minimum row height — keep rows at least as tall as the (compact) line-info
 // column so a single-lane block fills the cell with no gap.
 const MIN_ROW = 56;
@@ -135,8 +135,8 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const left = (pos.startCol / N) * 100;
     const width = ((pos.endCol - pos.startCol + 1) / N) * 100;
     return (
-        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, padding: '0 2px', zIndex: drag ? 30 : 5 }}>
-            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 6, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
+        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, zIndex: drag ? 30 : 5 }}>
+            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
                 <Tooltip label={isPrimary ? __('Send to backlog') : __('Remove from this line')}>
                     <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
                         role="button" aria-label={isPrimary ? __('Send to backlog') : __('Remove from this line')}
@@ -217,8 +217,8 @@ function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, 
                 {items.map((it) => <WeekBlock key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} N={N} laneH={laneH} setPreview={setPreview} />)}
                 {/* drop preview ghost — where the dragged block will land */}
                 {showGhost && (
-                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: LANE_GAP, height: laneH, padding: '0 2px', zIndex: 20, pointerEvents: 'none' }}>
-                        <div style={{ height: '100%', border: '2px dashed var(--om-accent)', borderRadius: 6, background: 'color-mix(in srgb, var(--om-accent-bg) 70%, transparent)' }} />
+                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: LANE_GAP, height: laneH, zIndex: 20, pointerEvents: 'none' }}>
+                        <div style={{ height: '100%', border: '2px dashed var(--om-accent)', borderRadius: 0, background: 'color-mix(in srgb, var(--om-accent-bg) 70%, transparent)' }} />
                     </div>
                 )}
                 {/* maintenance strip — connected directly under the work blocks */}
