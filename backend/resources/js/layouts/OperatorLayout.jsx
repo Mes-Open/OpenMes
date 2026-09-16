@@ -24,13 +24,13 @@ export default function OperatorLayout({ children }) {
     return (
         <div className="min-h-screen flex flex-col bg-om-bg font-sans">
             <header className="shrink-0 bg-om-card border-b border-om-line">
-                <div className="flex items-center gap-4 px-4 h-16">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-2 min-h-16 md:h-16">
                     <Link href="/operator/select-line" className="flex items-center shrink-0">
                         <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
                     </Link>
 
                     {line && (
-                        <div className="min-w-0 border-l border-om-line pl-4">
+                        <div className="min-w-0 flex-1 md:flex-none border-l border-om-line pl-4">
                             <p className="text-[15px] font-semibold leading-tight text-om-ink truncate">{line.name}</p>
                             {selectedWorkstation && (
                                 <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{selectedWorkstation.name}</p>
@@ -41,7 +41,7 @@ export default function OperatorLayout({ children }) {
                     <OnlineDot label={__("ONLINE")} pulse className="hidden md:inline-flex shrink-0" />
 
                     {line && (
-                        <nav className="ml-auto flex items-center gap-2">
+                        <nav className="order-last w-full flex flex-wrap items-center gap-2 md:order-none md:w-auto md:ml-auto">
                             <TopLink href="/operator/queue" active={isActive('/operator/queue') || isActive('/operator/work-order')}>
                                 {__('Queue')}
                             </TopLink>
@@ -57,7 +57,7 @@ export default function OperatorLayout({ children }) {
                         </nav>
                     )}
 
-                    <div className={`flex items-center gap-3 ${line ? '' : 'ml-auto'}`}>
+                    <div className={`flex items-center gap-3 ${line ? 'ml-auto md:ml-0' : 'ml-auto'}`}>
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center text-om-on-ink text-sm font-semibold">
                                 {auth?.user?.initial ?? '?'}

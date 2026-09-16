@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProcessTemplate;
 use App\Models\WorkOrder;
+use App\Support\ProductionFlow;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
@@ -782,8 +783,16 @@ class WorkOrderService
             return;
         }
 
-        // Check if complete
-        if ($workOrder->isComplete()) {
+        $hasInProgressBatch = $workOrder->batches()
+            ->where('status', Batch::STATUS_IN_PROGRESS)
+            ->exists();
+
+        // Check if complete. In transfer flow the produced quantity is rolled up
+        // live, so it can reach the plan while the last station is still
+        // finishing its step — the order closes with its last batch, not before.
+        // Whole-batch flow keeps closing the moment the plan is reached.
+        $waitForBatches = $hasInProgressBatch && ProductionFlow::isTransfer();
+        if ($workOrder->isComplete() && ! $waitForBatches) {
             $workOrder->update([
                 'status' => WorkOrder::STATUS_DONE,
                 'completed_at' => now(),
@@ -792,12 +801,11 @@ class WorkOrderService
             return;
         }
 
-        // Check if any batch is in progress
-        $hasInProgressBatch = $workOrder->batches()
-            ->where('status', Batch::STATUS_IN_PROGRESS)
-            ->exists();
-
-        if ($hasInProgressBatch) {
+        // A finished transfer batch can leave a shortfall (including 100% scrap).
+        // The order has started and still needs replacement production.
+        $hasFinishedTransferBatch = ProductionFlow::isTransfer() && $workOrder->batches()
+            ->where('status', Batch::STATUS_DONE)->exists();
+        if ($hasInProgressBatch || $hasFinishedTransferBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
             return;

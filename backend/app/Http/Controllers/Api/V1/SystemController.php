@@ -19,26 +19,30 @@ class SystemController extends Controller
 
     public function listSettings(Request $request): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $rows = DB::table('system_settings')->orderBy('key')->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'key' => $r->key,
                 'value' => json_decode($r->value, true),
                 'description' => $r->description,
                 'updated_at' => $r->updated_at,
             ])->values();
+
         return response()->json(['data' => $rows]);
     }
 
     public function showSetting(Request $request, string $key): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $row = DB::table('system_settings')->where('key', $key)->first();
-        if (!$row) return response()->json(['message' => 'Setting not found'], 404);
+        if (! $row) {
+            return response()->json(['message' => 'Setting not found'], 404);
+        }
+
         return response()->json(['data' => [
             'key' => $row->key,
             'value' => json_decode($row->value, true),
@@ -47,29 +51,18 @@ class SystemController extends Controller
         ]]);
     }
 
-    public function updateSetting(Request $request, string $key): JsonResponse
+    public function updateSetting(\App\Http\Requests\Api\V1\UpdateSystemSettingRequest $request, string $key): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-        $validated = $request->validate(['value' => ['present']]);
-
-        $knownSettings = [
-            'production_period' => 'in:none,weekly,monthly',
-            'allow_overproduction' => 'boolean',
-            'force_sequential_steps' => 'boolean',
-            'pin_login_enabled' => 'boolean',
-        ];
-        if (isset($knownSettings[$key])) {
-            $request->validate(['value' => ['required', $knownSettings[$key]]]);
-        }
-
         $row = DB::table('system_settings')->where('key', $key)->first();
-        if (!$row) return response()->json(['message' => 'Setting not found'], 404);
+        if (! $row) {
+            return response()->json(['message' => 'Setting not found'], 404);
+        }
         DB::table('system_settings')->where('key', $key)->update([
             'value' => json_encode($request->input('value')),
             'updated_at' => now(),
         ]);
+        \App\Support\ProductionFlow::forget();
+
         return response()->json([
             'message' => 'Setting updated',
             'data' => [
@@ -83,27 +76,30 @@ class SystemController extends Controller
 
     public function listModules(Request $request, ModuleManager $manager): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
+
         return response()->json(['data' => $manager->discover()]);
     }
 
     public function enableModule(Request $request, ModuleManager $manager, string $name): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $manager->enable($name);
+
         return response()->json(['message' => "Module {$name} enabled"]);
     }
 
     public function disableModule(Request $request, ModuleManager $manager, string $name): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $manager->disable($name);
+
         return response()->json(['message' => "Module {$name} disabled"]);
     }
 
@@ -111,7 +107,7 @@ class SystemController extends Controller
 
     public function schedule(Request $request): JsonResponse
     {
-        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+        if (! $request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
             abort(403, 'Unauthorized');
         }
 
@@ -133,9 +129,9 @@ class SystemController extends Controller
             $events = $events->concat(
                 MaintenanceEvent::query()
                     ->whereBetween('scheduled_at', [$from, $to])
-                    ->when($lineId, fn($q) => $q->where('line_id', $lineId))
+                    ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
                     ->get()
-                    ->map(fn($e) => [
+                    ->map(fn ($e) => [
                         'type' => 'maintenance',
                         'id' => $e->id,
                         'line_id' => $e->line_id,
@@ -152,9 +148,9 @@ class SystemController extends Controller
             $events = $events->concat(
                 WorkOrder::query()
                     ->whereBetween('due_date', [$from, $to])
-                    ->when($lineId, fn($q) => $q->where('line_id', $lineId))
+                    ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
                     ->get()
-                    ->map(fn($wo) => [
+                    ->map(fn ($wo) => [
                         'type' => 'work_order',
                         'id' => $wo->id,
                         'line_id' => $wo->line_id,
@@ -211,7 +207,7 @@ class SystemController extends Controller
 
     public function alertsCounts(Request $request): JsonResponse
     {
-        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+        if (! $request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $issues = Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])->count();
@@ -226,7 +222,7 @@ class SystemController extends Controller
             ->count();
         $blockedOrders = WorkOrder::where('status', WorkOrder::STATUS_BLOCKED)->count();
         $blockingIssues = Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
+            ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
             ->count();
 
         return response()->json([
@@ -245,7 +241,7 @@ class SystemController extends Controller
 
     public function alerts(Request $request): JsonResponse
     {
-        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+        if (! $request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $type = $request->query('type', 'all');
@@ -258,7 +254,7 @@ class SystemController extends Controller
                     ->orderByDesc('reported_at')
                     ->limit(50)
                     ->get()
-                    ->map(fn($i) => [
+                    ->map(fn ($i) => [
                         'type' => 'issue',
                         'id' => $i->id,
                         'title' => $i->title ?? $i->issueType?->name ?? 'Issue',
@@ -276,7 +272,7 @@ class SystemController extends Controller
                     ->orderByDesc('scheduled_at')
                     ->limit(50)
                     ->get()
-                    ->map(fn($e) => [
+                    ->map(fn ($e) => [
                         'type' => 'maintenance',
                         'id' => $e->id,
                         'title' => $e->title,
@@ -293,7 +289,7 @@ class SystemController extends Controller
                 MachineConnection::where('is_active', true)
                     ->whereIn('status', ['error', 'disconnected'])
                     ->get()
-                    ->map(fn($c) => [
+                    ->map(fn ($c) => [
                         'type' => 'machine_offline',
                         'id' => $c->id,
                         'title' => "{$c->name} ({$c->protocol})",
@@ -313,10 +309,10 @@ class SystemController extends Controller
                     ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
                     ->orderBy('due_date')
                     ->get()
-                    ->map(fn($w) => [
+                    ->map(fn ($w) => [
                         'type' => 'overdue_order',
                         'id' => $w->id,
-                        'title' => $w->order_no . ($w->line ? ' · ' . $w->line->name : ''),
+                        'title' => $w->order_no.($w->line ? ' · '.$w->line->name : ''),
                         'severity' => $w->due_date && $w->due_date->diffInDays(now()) > 2 ? 'CRITICAL' : 'HIGH',
                         'status' => $w->status,
                         'created_at' => $w->due_date?->toIso8601String(),
@@ -331,10 +327,10 @@ class SystemController extends Controller
                     ->where('status', WorkOrder::STATUS_BLOCKED)
                     ->orderByDesc('updated_at')
                     ->get()
-                    ->map(fn($w) => [
+                    ->map(fn ($w) => [
                         'type' => 'blocked_order',
                         'id' => $w->id,
-                        'title' => $w->order_no . ($w->line ? ' · ' . $w->line->name : ''),
+                        'title' => $w->order_no.($w->line ? ' · '.$w->line->name : ''),
                         'severity' => 'HIGH',
                         'status' => $w->status,
                         'created_at' => $w->updated_at?->toIso8601String(),
@@ -346,11 +342,11 @@ class SystemController extends Controller
         if ($type === 'all' || $type === 'blocking_issue') {
             $alerts = $alerts->concat(
                 Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-                    ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
+                    ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
                     ->with(['issueType', 'workOrder'])
                     ->orderByDesc('reported_at')
                     ->get()
-                    ->map(fn($i) => [
+                    ->map(fn ($i) => [
                         'type' => 'blocking_issue',
                         'id' => $i->id,
                         'title' => $i->title ?? $i->issueType?->name ?? 'Blocking issue',
@@ -370,6 +366,7 @@ class SystemController extends Controller
     public function updateCheck(): JsonResponse
     {
         $current = config('app.version', '0.5.0');
+
         return response()->json([
             'data' => [
                 'current_version' => $current,

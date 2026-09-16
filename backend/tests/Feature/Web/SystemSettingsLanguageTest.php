@@ -106,7 +106,7 @@ class SystemSettingsLanguageTest extends TestCase
             ->post('/settings/system', $this->payload(['language' => 'pl']))
             ->assertSessionHas('locale', 'pl');
 
-        $this->assertDatabaseHas('system_settings', ['key' => 'language', 'value' => json_encode('pl')]);
+        $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
     }
 
     public function test_labor_costing_settings_are_persisted(): void
@@ -118,8 +118,8 @@ class SystemSettingsLanguageTest extends TestCase
             ]))
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('system_settings', ['key' => 'standard_weekly_hours', 'value' => json_encode(38.0)]);
-        $this->assertDatabaseHas('system_settings', ['key' => 'default_currency', 'value' => json_encode('EUR')]);
+        $this->assertSame(38.0, (float) json_decode(DB::table('system_settings')->where('key', 'standard_weekly_hours')->value('value'), true));
+        $this->assertSame('EUR', json_decode(DB::table('system_settings')->where('key', 'default_currency')->value('value'), true));
     }
 
     public function test_invalid_currency_length_is_rejected(): void

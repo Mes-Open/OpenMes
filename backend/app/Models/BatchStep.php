@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\SoftDeletesWithAudit;
+use App\Support\ProductionFlow;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,7 @@ class BatchStep extends Model
         'instruction',
         'requires_confirmation',
         'passed_qty',
+        'scrap_qty',
         'workstation_id',
         'workstation_type_id',
         'estimated_duration_minutes',
@@ -61,7 +63,8 @@ class BatchStep extends Model
     {
         return [
             'step_number' => 'integer',
-            'passed_qty' => 'integer',
+            'passed_qty' => 'decimal:2',
+            'scrap_qty' => 'decimal:2',
             'estimated_duration_minutes' => 'integer',
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',
@@ -291,6 +294,15 @@ class BatchStep extends Model
             return true;
         }
 
+        // Transfer flow: the step opens as soon as pieces are waiting at it,
+        // whether or not the previous station has finished the whole batch —
+        // and in any case once that station has closed, even if nothing reached
+        // this step (everything scrapped upstream), so the batch can still be
+        // closed instead of stalling on a step nobody can start.
+        if (ProductionFlow::isTransfer()) {
+            return $this->inflowClosed() || $this->availableQty() > 0;
+        }
+
         if ($this->step_number === 1) {
             return true;
         }
@@ -300,6 +312,103 @@ class BatchStep extends Model
             ->first();
 
         return $previousStep && in_array($previousStep->status, [self::STATUS_DONE, self::STATUS_SKIPPED], true);
+    }
+
+    // ── Quantity ledger ───────────────────────────────────────────────────
+    //
+    // Each step counts what left it as good (`passed_qty`) or as scrap
+    // (`scrap_qty`). What arrives at a step is whatever the previous
+    // non-skipped step passed (the batch quantity for the first step), and the
+    // difference is what is still waiting at the station.
+
+    /**
+     * The nearest earlier step that is not SKIPPED — the one this step
+     * receives its pieces from. Null for the first effective step.
+     */
+    public function previousEffectiveStep(): ?self
+    {
+        $steps = $this->batch->relationLoaded('steps')
+            ? $this->batch->steps
+            : $this->batch->steps()->get();
+
+        return $steps
+            ->filter(fn (self $s) => $s->step_number < $this->step_number && $s->status !== self::STATUS_SKIPPED)
+            ->sortByDesc('step_number')
+            ->first();
+    }
+
+    /** Pieces that have reached this step so far. */
+    public function incomingQty(): float
+    {
+        $previous = $this->previousEffectiveStep();
+
+        return $previous ? (float) $previous->passed_qty : (float) $this->batch->target_qty;
+    }
+
+    /** Pieces that reached this step and have neither passed it nor been scrapped. */
+    public function availableQty(): float
+    {
+        if ($this->status === self::STATUS_SKIPPED) {
+            return 0.0;
+        }
+
+        return max(0.0, round($this->incomingQty() - (float) $this->passed_qty - (float) $this->scrap_qty, 2));
+    }
+
+    /** True once nothing more can arrive: the feeding step is closed (or there is none). */
+    public function inflowClosed(): bool
+    {
+        $previous = $this->previousEffectiveStep();
+
+        return $previous === null || $previous->status === self::STATUS_DONE;
+    }
+
+    /** A production stop gates repeatable output logs as well as starting work. */
+    public function productionBlocker(): ?string
+    {
+        $order = $this->batch->workOrder;
+        if (ProductionFlow::isTransfer() && $order->isMachineCounted()
+            && app(\App\Services\Machine\MachineCountingCompatibility::class)->legacySources($order->line_id)) {
+            return __('Migrate legacy machine channels before recording transfer production.');
+        }
+        if (in_array($this->batch->status, [Batch::STATUS_CANCELLED, Batch::STATUS_DONE], true)
+            || in_array($order->status, [...WorkOrder::TERMINAL_STATUSES, WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_CHANGE_HOLD], true)) {
+            return __('Production is stopped for this work order.');
+        }
+        if ($order->isBlocked()) {
+            return __('Resolve the blocking issues before recording production.');
+        }
+        if (QualityControlTask::hasOpenBlockingForBatch($this->batch_id)) {
+            return __('A required quality control is outstanding for this batch and must be completed first.');
+        }
+
+        return null;
+    }
+
+    /**
+     * In transfer flow, why this step cannot be finished yet (null when it can).
+     * Whole-batch flow never blocks here: finishing passes the remainder along.
+     */
+    public function completionBlocker(): ?string
+    {
+        if (! ProductionFlow::isTransfer()) {
+            return null;
+        }
+
+        if (! $this->inflowClosed()) {
+            return __('Pieces can still arrive from :step — finish that step first.', [
+                'step' => $this->previousEffectiveStep()?->name,
+            ]);
+        }
+
+        $waiting = $this->availableQty();
+        if ($waiting > 0) {
+            return __(':qty pieces are still waiting at this step — log them as good or scrap before finishing.', [
+                'qty' => rtrim(rtrim(number_format($waiting, 2, '.', ''), '0'), '.'),
+            ]);
+        }
+
+        return null;
     }
 
     /**

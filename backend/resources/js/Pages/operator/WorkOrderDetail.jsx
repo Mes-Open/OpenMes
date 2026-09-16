@@ -9,7 +9,7 @@ import CustomFields from '../../components/CustomFields';
 import Tooltip from '../../components/Tooltip';
 import EngineeringViewerModal from '../../components/EngineeringViewerModal';
 import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
-import { apiGet } from '../../lib/http';
+import { apiGet, apiCall } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -70,6 +70,44 @@ const errorCls = 'mt-[5px] text-[11.5px] text-om-blocked';
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+function ScrapReasonForm({ entry, reasons }) {
+    const [reason, setReason] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const submit = async (event) => {
+        event.preventDefault();
+        if (!reason || busy) return;
+        setBusy(true);
+        setError('');
+        try {
+            const response = await apiCall(`/api/v1/scrap-entries/${entry.id}`, 'PATCH', { scrap_reason_id: Number(reason) });
+            if (!response.ok) {
+                const data = await response.json();
+                setError(data.errors?.scrap_reason_id?.[0] || data.message);
+                return;
+            }
+            router.reload({ only: ['workOrder'], preserveScroll: true });
+        } catch {
+            setError(__('Failed to save correction. Please try again.'));
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <form onSubmit={submit} className="mt-2 space-y-2" data-testid={`scrap-reason-${entry.id}`}>
+            <label className="block text-sm text-om-muted">
+                {__('Scrap reason')}
+                <select value={reason} onChange={(event) => setReason(event.target.value)} className={inputCls}>
+                    <option value="">{__('Select a reason')}</option>
+                    {reasons.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+            </label>
+            <Button type="submit" disabled={!reason || busy}>{__('Save')}</Button>
+            {error && <p className={errorCls}>{error}</p>}
+        </form>
+    );
+}
 
 function ChevronIcon({ open }) {
     return (
@@ -657,7 +695,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, flowMode = 'whole_batch', selectedWorkstation = null }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -727,7 +765,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} stepOutputs={stepOutputs} flowMode={flowMode} selectedWorkstation={selectedWorkstation} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -741,8 +779,115 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {} }) {
+// Consecutive steps bound to the same workstation form one "station operation":
+// the unit of work an operator at that station sees and confirms.
+function groupStepsByStation(steps) {
+    const groups = [];
+    for (const step of steps) {
+        const workstationId = step.workstation_id ?? null;
+        const last = groups[groups.length - 1];
+        if (last && last.workstationId === workstationId) {
+            last.steps.push(step);
+        } else {
+            groups.push({ workstationId, workstation: step.workstation ?? null, steps: [step] });
+        }
+    }
+    return groups;
+}
+
+// Transfer-flow ledger of one step: what arrived, what is still waiting here,
+// what left as good and what was lost.
+function StepLedger({ step }) {
+    const waiting = Number(step.available_qty ?? 0);
+    return (
+        <div className="flex flex-wrap gap-x-5 gap-y-1 px-3 pb-3 font-mono text-[11px] text-om-muted" data-testid={`ledger-${step.step_number}`}>
+            <span>{__('Incoming')}: <b className="text-om-ink">{fmtQty(step.incoming_qty ?? 0)}</b></span>
+            <span>{__('Waiting')}: <b className={waiting > 0 ? 'text-om-accent' : 'text-om-ink'}>{fmtQty(waiting)}</b></span>
+            <span>{__('Passed')}: <b className="text-om-done">{fmtQty(step.passed_qty ?? 0)}</b></span>
+            <span>{__('Scrap')}: <b className="text-om-ink">{fmtQty(step.scrap_qty ?? 0)}</b></span>
+        </div>
+    );
+}
+
+function QuantityCorrection({ step }) {
+    const form = useForm({ good_qty: String(step.passed_qty), expected_good_qty: String(step.passed_qty), reason: '' });
+    return <details className="px-3 pb-3">
+        <summary className="cursor-pointer text-sm text-om-accent">{__('Correct good quantity')}</summary>
+        <form className="space-y-2 pt-2" onSubmit={e => { e.preventDefault(); form.post(`/operator/batch-step/${step.id}/quantity-correction`, { preserveScroll: true }); }}>
+            <p className="text-sm text-om-muted">{__('Enter the corrected total, not an increment. The original and corrected values are retained in the audit history.')}</p>
+            <label className="block">{__('Corrected good total')}<input aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" type="number" min="0" step="0.01" required value={form.data.good_qty} onChange={e => form.setData('good_qty', e.target.value)} /></label>
+            <label className="block">{__('Correction reason')}<input aria-label={__('Correction reason')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" required maxLength={1000} value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} /></label>
+            {Object.entries(form.errors).map(([key, value]) => <p key={key} role="alert" className="text-sm text-om-blocked">{value}</p>)}
+            <Button type="submit" variant="outline" disabled={form.processing}>{__('Save correction')}</Button>
+        </form>
+    </details>;
+}
+
+// Quick quantity log for a running step: good pieces move on to the next
+// station, scrapped ones are recorded as a bare number (reason added later).
+// With `throughStation` the good pieces also pass through the station's
+// following steps in one go.
+function QuantityLogForm({ step, throughStation = false, inflight, error, onSubmit }) {
+    const [good, setGood] = useState('');
+    const [scrap, setScrap] = useState('');
+    const available = Number(step.available_qty ?? 0);
+    const total = (Number(good) || 0) + (Number(scrap) || 0);
+    const valid = total > 0 && total <= available + 0.001;
+    const submit = (e) => {
+        e.preventDefault();
+        if (!valid || inflight) return;
+        onSubmit(
+            { good_qty: good === '' ? 0 : good, scrap_qty: scrap === '' ? 0 : scrap, through_station: throughStation },
+            () => { setGood(''); setScrap(''); },
+        );
+    };
+    const inputCls = 'w-24 border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2 font-mono text-[14px]';
+    return (
+        <form onSubmit={submit} className={`flex flex-wrap items-end gap-3 px-3 pb-3 ${throughStation ? 'pt-3' : ''}`} data-testid={`log-${throughStation ? 'station' : 'step'}-${step.step_number}`}>
+            <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
+                {__('Good')}
+                <input type="number" min="0" step="0.01" max={available} value={good} onChange={(e) => setGood(e.target.value)} className={inputCls} aria-label={__('Good')} />
+            </label>
+            <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
+                {__('Scrap')}
+                <input type="number" min="0" step="0.01" max={available} value={scrap} onChange={(e) => setScrap(e.target.value)} className={inputCls} aria-label={__('Scrap')} />
+            </label>
+            <Button type="button" variant="accent" disabled={available < 1 || inflight} onClick={() => onSubmit({ good_qty: 1, scrap_qty: 0, through_station: throughStation }, () => {})} aria-label={__('Add one good piece')}>+1</Button>
+            <Button type="submit" variant={throughStation ? 'accent' : 'primary'} disabled={!valid || inflight} className="px-5 py-2.5 text-[14px] whitespace-nowrap">
+                {inflight ? '…' : throughStation ? __('Log through station') : __('Log')}
+            </Button>
+            <span className="font-mono text-[11px] text-om-faint self-center">{__('Waiting')}: {fmtQty(available)}</span>
+            {error && <p className="basis-full text-[12px] text-om-blocked m-0">{error}</p>}
+        </form>
+    );
+}
+
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, flowMode = 'whole_batch', selectedWorkstation = null }) {
     const [inflightStepId, setInflightStepId] = useState(null);
+    const transfer = flowMode === 'transfer';
+
+    // Station scoping: with a station selected in the queue, its own steps stay
+    // open and every other station's run of steps folds into one summary row.
+    const groups = groupStepsByStation(steps ?? []);
+    const stationScoped = !!selectedWorkstation;
+    const [showAll, setShowAll] = useState(false);
+
+    // Quantity log (transfer flow): posts to the ledger route; a rule violation
+    // comes back as a `good_qty` error shown under the form that sent it.
+    const [logTarget, setLogTarget] = useState(null);
+    const [logErrors, setLogErrors] = useState({});
+    const [startErrors, setStartErrors] = useState({});
+    const handleLogQuantity = (step, payload, onDone) => {
+        setLogErrors({});
+        setLogTarget(`${step.id}:${payload.through_station ? 'station' : 'step'}`);
+        setInflightStepId(step.id);
+        router.post(`/operator/batch-step/${step.id}/quantity`, payload, {
+            preserveScroll: true,
+            onSuccess: onDone,
+            onError: setLogErrors,
+            onFinish: () => setInflightStepId(null),
+        });
+    };
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
     const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
@@ -809,6 +954,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     // picking. With lots to pick, open the WO-time picking modal seeded with the
     // system's proposal; otherwise start the step directly (unchanged behavior).
     const handleStart = async (step) => {
+        setStartErrors({});
         setInflightStepId(step.id);
         try {
             const res = await fetch(`/operator/batch-step/${step.id}/pick-preview`, {
@@ -830,15 +976,16 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         router.post(
             `/operator/batch-step/${step.id}/start`,
             {},
-            { preserveScroll: true, onFinish: () => setInflightStepId(null) }
+            {
+                preserveScroll: true,
+                onError: errors => setStartErrors({ [step.id]: Object.values(errors).join(' ') }),
+                onSuccess: page => { if (page.props.flash?.error) setStartErrors({ [step.id]: page.props.flash.error }); },
+                onFinish: () => setInflightStepId(null),
+            }
         );
     };
 
-    return (
-        <div>
-            <h4 className={`${sectionLabelCls} mb-2`}>{__('Steps')}</h4>
-            <div className="space-y-2">
-                {steps.map((step) => {
+    const renderStep = (step) => {
                     const isInflight = inflightStepId === step.id;
                     const photo = stepPhotos[step.step_number];
                     const stepDocs = step.documents || [];
@@ -853,11 +1000,15 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const outputs = stepOutputs[step.step_number] || [];
                     const outputValues = step.output_values || [];
                     const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
+                    // Transfer flow: the step can't be finished while pieces can still
+                    // arrive or are waiting (the server tells us why).
+                    const productionBlocker = transfer ? step.production_blocker : null;
+                    const ledgerBlocker = productionBlocker || (transfer ? step.completion_blocker : null);
                     return (
                         <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
-                        <div className="flex items-center gap-3 p-3">
-                            <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
-                                {step.step_number}
+                        <div className="flex flex-wrap items-center gap-3 p-3">
+                            <span className="min-w-7 px-1 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
+                                {step.step_number}/{steps.length}
                             </span>
                             {photo && (
                                 <Tooltip label={photo.caption || 'Step photo'}>
@@ -876,32 +1027,32 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     </button>
                                 </Tooltip>
                             )}
-                            <span className="flex-1 text-sm font-medium text-om-ink">
+                            <span className="min-w-0 flex-1 break-words text-sm font-medium text-om-ink">
                                 {step.name}
                             </span>
 
                              {/* Status label for terminal states */}
                             {step.status === 'DONE' && (
-                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-done break-words max-w-full">
                                     {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {step.status === 'SKIPPED' && (
-                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">{__('Skipped')}</span>
+                                <span className="font-mono text-[11px] text-om-faint break-words max-w-full">{__('Skipped')}</span>
                             )}
                             {step.status === 'IN_PROGRESS' && !inflightStepId && (
-                                <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-running break-words max-w-full">
                                     {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
                             {/* Fallback for older data without explicit status field */}
                             {!step.status && step.completed_at && (
-                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-done break-words max-w-full">
                                     {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {!step.status && !step.completed_at && step.started_at && (
-                                <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-running break-words max-w-full">
                                     {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
@@ -912,17 +1063,20 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                             {(step.status === 'PENDING' || step.status === 'READY') && (
                                 <Button
                                     variant="accent"
-                                    disabled={isInflight}
+                                    disabled={isInflight || !!productionBlocker || step.prerequisites_met === false}
+                                    title={productionBlocker || undefined}
                                     onClick={() => handleStart(step)}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : __('Start')}
+                                    {isInflight ? '…' : step.prerequisites_met === false ? __('Waiting for the previous step') : __('Start')}
                                 </Button>
                             )}
+                            {startErrors[step.id] && <p role="alert" className="w-full text-sm text-om-blocked">{startErrors[step.id]}</p>}
+                            {productionBlocker && ['PENDING', 'READY'].includes(step.status) && <p role="status" className="w-full text-sm text-om-muted">{productionBlocker}</p>}
                             {step.status === 'IN_PROGRESS' && (
                                 <Button
                                     variant="primary"
-                                    disabled={isInflight || isDocBlocked || needsConfirm}
+                                    disabled={isInflight || isDocBlocked || needsConfirm || !!ledgerBlocker}
                                     onClick={() => (
                                         // Opt-in: only steps with ISA-95 standard times (#52) prompt for
                                         // operator-confirmed actuals; the rest complete directly as before.
@@ -931,7 +1085,9 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                             : handleStepAction(step, 'complete')
                                     )}
                                     title={
-                                        isDocBlocked
+                                        ledgerBlocker
+                                            ? ledgerBlocker
+                                            : isDocBlocked
                                             ? __('Validate the mandatory document(s) before completing this step.')
                                             : needsConfirm
                                               ? __('Confirm you have read the instructions before completing this step.')
@@ -951,6 +1107,20 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 label="Label"
                             />
                         </div>
+
+                        {transfer && step.status !== 'SKIPPED' && <StepLedger step={step} />}
+                        {transfer && !productionBlocker && step.status === 'IN_PROGRESS' && step.manual_correction_allowed && <QuantityCorrection key={`${step.id}:${step.passed_qty}`} step={step} />}
+                        {transfer && !productionBlocker && step.status === 'IN_PROGRESS' && Number(step.available_qty ?? 0) > 0 && (
+                            <QuantityLogForm
+                                step={step}
+                                inflight={isInflight}
+                                error={logTarget === `${step.id}:step` ? (logErrors.good_qty || logErrors.scrap_qty) : null}
+                                onSubmit={(payload, onDone) => handleLogQuantity(step, payload, onDone)}
+                            />
+                        )}
+                        {transfer && ledgerBlocker && step.status === 'IN_PROGRESS' && (productionBlocker || Number(step.available_qty ?? 0) === 0) && (
+                            <p className="px-3 pb-3 m-0 text-[12px] text-om-muted">{ledgerBlocker}</p>
+                        )}
 
                         {media.length > 0 && <StepInstructions media={media} onZoom={setPhotoZoom} />}
 
@@ -995,6 +1165,62 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 onValidate={handleValidateDocument}
                             />
                         )}
+                        </div>
+                    );
+    };
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-2">
+                <h4 className={`${sectionLabelCls} m-0`}>{__('Steps')}</h4>
+                {stationScoped && (
+                    <button type="button" onClick={() => setShowAll((v) => !v)} className="font-mono text-[11px] text-om-accent underline-offset-2 hover:underline cursor-pointer">
+                        {showAll ? __('Show my station only') : __('Show all steps')}
+                    </button>
+                )}
+            </div>
+            <div className="space-y-3">
+                {groups.filter(group => !stationScoped || showAll || group.workstationId === selectedWorkstation.id).map((group, gi) => {
+                    const mine = stationScoped && group.workstationId === selectedWorkstation.id;
+                    const last = group.steps[group.steps.length - 1];
+                    const done = group.steps.filter((st) => st.status === 'DONE' || st.status === 'SKIPPED').length;
+                    const running = group.steps.some((st) => st.status === 'IN_PROGRESS');
+                    const stationName = group.workstation?.name ?? __('No station');
+                    const rangeLabel = group.steps.map(s => `${s.step_number}/${steps.length}`).join(', ');
+                    const next = steps.find(s => s.step_number > last.step_number && s.status !== 'SKIPPED');
+                    // Station-level log (N:1): the station's first open step is running and holds pieces.
+                    const stationLogStep = transfer && mine && group.steps.length > 1
+                        ? group.steps.find((st) => st.status !== 'DONE' && st.status !== 'SKIPPED')
+                        : null;
+                    const showStationLog = stationLogStep && !stationLogStep.production_blocker && stationLogStep.status === 'IN_PROGRESS' && Number(stationLogStep.available_qty ?? 0) > 0;
+                    const showHeader = stationScoped || group.steps.length > 1;
+                    return (
+                        <div key={gi} className={`rounded-om-sm ${mine ? 'border border-om-accent/40 bg-om-accent/5 p-2' : ''}`} data-testid={`station-group-${gi}`}>
+                            {showHeader && (
+                                <div className="w-full flex flex-wrap items-center gap-2 px-2 py-1.5 text-left">
+                                    <span className="text-sm font-semibold text-om-ink">{stationName}</span>
+                                    {mine && <span className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-om-accent text-white">{__('Your station')}</span>}
+                                    <span className="font-mono text-[11px] text-om-muted">{rangeLabel}</span>
+                                    <span className={`font-mono text-[11px] ${running ? 'text-om-running' : 'text-om-muted'}`}>
+                                        {running ? __('In progress') : __(':done of :total done', { done, total: group.steps.length })}
+                                    </span>
+                                </div>
+                            )}
+                            {showStationLog && (
+                                <div className="bg-om-panel border border-om-line2 rounded-om-sm mb-2">
+                                    <QuantityLogForm
+                                        step={stationLogStep}
+                                        throughStation
+                                        inflight={inflightStepId === stationLogStep.id}
+                                        error={logTarget === `${stationLogStep.id}:station` ? (logErrors.good_qty || logErrors.scrap_qty) : null}
+                                        onSubmit={(payload, onDone) => handleLogQuantity(stationLogStep, payload, onDone)}
+                                    />
+                                </div>
+                            )}
+                            <div className="space-y-2">{group.steps.map(renderStep)}</div>
+                            {mine && <p className="px-2 pt-2 text-sm text-om-muted">{next
+                                ? __('Next: :station · Line: :line', { station: next.workstation?.name ?? next.name, line: next.workstation?.line?.name ?? '—' })
+                                : __('Final step — finished output')}</p>}
                         </div>
                     );
                 })}
@@ -1178,7 +1404,7 @@ function StepDocuments({ docs = [], blocked, canValidate, inflightDocId, onValid
                             )}
                             <span className="flex-1" />
                             {validated ? (
-                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-done break-words max-w-full">
                                     {__('Validated')}{doc.validated_by ? ` · ${doc.validated_by.name}` : ''}
                                 </span>
                             ) : doc.requires_validation ? (
@@ -1258,7 +1484,7 @@ function StepChecklist({ step, items = [], completedItemIds, completions = [], c
                                 {item.is_required && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-om-downtime">{__('Required')}</span>}
                             </span>
                             {checked && c?.checked_by && (
-                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">{c.checked_by.name}</span>
+                                <span className="font-mono text-[11px] text-om-done break-words max-w-full">{c.checked_by.name}</span>
                             )}
                         </li>
                     );
@@ -1375,6 +1601,7 @@ const EPSILON = 0.0001;
 
 function LotPickModal({ step, materials, onClose }) {
     const [submitting, setSubmitting] = useState(false);
+    const [startError, setStartError] = useState('');
     // picks: { [materialId]: [{ material_lot_id, picked_qty: string }] }
     const [picks, setPicks] = useState(() =>
         Object.fromEntries(
@@ -1433,6 +1660,7 @@ function LotPickModal({ step, materials, onClose }) {
     const submit = (e) => {
         e.preventDefault();
         if (!allValid) return;
+        setStartError('');
         setSubmitting(true);
         const payload = {
             picks: materials.map((m) => ({
@@ -1445,7 +1673,11 @@ function LotPickModal({ step, materials, onClose }) {
         };
         router.post(`/operator/batch-step/${step.id}/start`, payload, {
             preserveScroll: true,
-            onSuccess: onClose,
+            onError: errors => setStartError(Object.values(errors).join(' ')),
+            onSuccess: page => {
+                if (page.props.flash?.error) setStartError(page.props.flash.error);
+                else onClose();
+            },
             onFinish: () => setSubmitting(false),
         });
     };
@@ -1454,6 +1686,7 @@ function LotPickModal({ step, materials, onClose }) {
         <ModalShell title={__("Pick material lots")} subtitle={step.name} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="max-h-[60vh] space-y-5 overflow-y-auto px-[18px] py-4">
+                    {startError && <p role="alert" className="text-sm text-om-blocked">{startError}</p>}
                     {materials.map((m) => {
                         const lines = picks[m.material_id] ?? [];
                         const allocated = lines.reduce((s, ln) => s + (Number(ln.picked_qty) || 0), 0);
@@ -1960,7 +2193,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [] } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -1986,7 +2219,8 @@ export default function WorkOrderDetail() {
 
     const canCreateBatch = !['DONE', 'CANCELLED', 'BLOCKED'].includes(workOrder.status);
     const canReportIssue = !['DONE', 'CANCELLED'].includes(workOrder.status);
-    const canReportScrap = scrapReasons.length > 0 && !['DONE', 'CANCELLED'].includes(workOrder.status);
+    const hasStepLedger = flowMode === 'transfer' && ((workOrder.process_snapshot?.steps?.length ?? 0) > 0 || workOrder.batches?.some((batch) => batch.steps?.length));
+    const canReportScrap = !hasStepLedger && scrapReasons.length > 0 && !['DONE', 'CANCELLED'].includes(workOrder.status);
 
     const scrapEntries = workOrder.scrap_entries ?? [];
     const totalScrap = scrapEntries.reduce((sum, e) => sum + Number(e.quantity ?? 0), 0);
@@ -2161,6 +2395,8 @@ export default function WorkOrderDetail() {
                                             stepMedia={stepMedia}
                                             stepChecklists={stepChecklists}
                                             stepOutputs={stepOutputs}
+                                            flowMode={flowMode}
+                                            selectedWorkstation={selectedWorkstation}
                                         />
                                     ))}
                                 </div>
@@ -2266,6 +2502,7 @@ export default function WorkOrderDetail() {
                                 )}
                             </div>
 
+                            {hasStepLedger && <p className="text-sm text-om-muted mb-3">{__('Record scrap on the work order steps.')}</p>}
                             <div className="flex justify-between items-baseline text-sm mb-2">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('TOTAL SCRAP:')}</span>
                                 <span className="font-mono text-[15px] font-medium text-om-ink">{fmtQty(totalScrap)}</span>
@@ -2295,6 +2532,7 @@ export default function WorkOrderDetail() {
                                                 {entry.scrap_reason?.name || __('Unknown reason')}
                                                 {entry.reported_by ? ` ${__('by')} ${entry.reported_by.name}` : ''}
                                             </p>
+                                            {entry.can_classify && !entry.scrap_reason_id && scrapReasons.length > 0 && <ScrapReasonForm entry={entry} reasons={scrapReasons} />}
                                             {entry.notes && (
                                                 <p className="text-xs text-om-muted mt-1">
                                                     {entry.notes.length > 80 ? `${entry.notes.slice(0, 80)}…` : entry.notes}

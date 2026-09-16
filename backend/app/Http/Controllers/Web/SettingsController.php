@@ -122,6 +122,7 @@ class SettingsController extends Controller
             'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']?->value ?? '8', true) ?? 8,
             'realtime_mode' => json_decode($rows['realtime_mode']?->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']?->value ?? '"per_operation"', true) ?? 'per_operation',
+            'production_flow_mode' => \App\Support\ProductionFlow::mode(),
             'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '"*"', true) ?? '*',
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']?->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']?->value ?? '1', true) ?? 1,
@@ -451,6 +452,7 @@ class SettingsController extends Controller
             'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
+            'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
             'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
             'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
             'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
@@ -476,6 +478,9 @@ class SettingsController extends Controller
                 ['value' => json_encode($value)]
             );
         }
+
+        // The flow mode is cached per request; this save bypasses ProductionFlow::set().
+        \App\Support\ProductionFlow::forget();
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.
@@ -585,6 +590,7 @@ class SettingsController extends Controller
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
                 'cors_allowed_origins', 'cors_allowed_methods',
                 'modules_enabled',
+                'production_flow_mode',
             ];
 
             $imported = 0;

@@ -2,6 +2,20 @@
 
 use Illuminate\Support\Facades\Broadcast;
 
+Broadcast::channel('operator-line.{line}', function ($user, string $line) {
+    if (! ctype_digit($line) || ! \App\Models\Line::whereKey($line)->exists()) {
+        return false;
+    }
+    if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
+        return true;
+    }
+
+    return $user->hasRole('Operator') && (
+        $user->lines()->whereKey($line)->exists()
+        || (string) $user->workstation?->line_id === $line
+    );
+});
+
 /**
  * Synced-collection channels (Reverb). Private channel per collection, namespaced
  * by tenant so a user only receives their own tenant's rows (tenantKey = the

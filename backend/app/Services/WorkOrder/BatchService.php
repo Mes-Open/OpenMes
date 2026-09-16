@@ -5,10 +5,13 @@ namespace App\Services\WorkOrder;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\QualityControlTask;
+use App\Models\ScrapEntry;
+use App\Models\Shift;
 use App\Models\User;
 use App\Models\Workstation;
 use App\Services\Material\MaterialAllocationService;
 use App\Services\Quality\QualityTriggerService;
+use App\Support\ProductionFlow;
 use Illuminate\Support\Facades\DB;
 
 class BatchService
@@ -31,6 +34,11 @@ class BatchService
     public function startStep(BatchStep $step, User $user, array $picksByMaterial = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $picksByMaterial) {
+            $step = $this->lockProductionStep($step);
+            if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
+                throw new \DomainException($blocker);
+            }
+
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
 
@@ -88,12 +96,23 @@ class BatchService
     public function completeStep(BatchStep $step, User $user, array $data = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $data) {
+            $step = $this->lockProductionStep($step);
+            if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
+                throw new \DomainException($blocker);
+            }
+
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
 
             // Validate step can be completed
             if (! $step->canComplete()) {
                 throw new \Exception('Step cannot be completed. Current status: '.$step->status);
+            }
+
+            // Transfer flow: nothing may still be on its way here, and nothing
+            // may be left waiting, before the step is closed.
+            if ($blocker = $step->completionBlocker()) {
+                throw new \DomainException($blocker);
             }
 
             // Document control: a mandatory, validatable document attached to this
@@ -157,9 +176,15 @@ class BatchService
                 throw new \Exception(__('Actual setup + run time cannot exceed the actual elapsed time.'));
             }
 
+            // Whole-batch flow: finishing a step passes along whatever was not
+            // scrapped, so the ledger stays consistent without any quantity
+            // logging. (Transfer flow arrives here with nothing left waiting.)
+            $remainder = $step->availableQty();
+
             // Complete the step
             $step->update([
                 'status' => BatchStep::STATUS_DONE,
+                'passed_qty' => (float) $step->passed_qty + $remainder,
                 'completed_at' => now(),
                 'completed_by_id' => $user->id,
                 'duration_minutes' => $durationMinutes,
@@ -175,23 +200,231 @@ class BatchService
             // The next step (prerequisites now met) becomes READY.
             $batch->promoteReadySteps();
 
-            // If batch is complete, update produced quantity and consume materials
-            if ($batch->status === Batch::STATUS_DONE) {
-                // End-of-batch BOM rows (consumed_at='end') get allocated now,
-                // immediately before everything is marked consumed. Attribute to
-                // the completing step so the genealogy bridge has a step to record.
-                $this->allocationService->allocateForBatchEnd($batch, $user, attributeStepId: $step->id);
-                $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
-                $this->allocationService->consumeForBatch($batch);
-
-                // Quality-control triggers: every-N-units checks (#105).
-                $this->qualityTriggerService->fireForUnits($batch->fresh());
-            }
+            $this->finishBatchIfComplete($batch, $step, $user, $data);
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
 
             return $step->fresh();
+        });
+    }
+
+    /** Aggregate step totals cannot safely apply an entry-level correction window. */
+    public function manualCorrectionsEnabled(): bool
+    {
+        return json_decode(DB::table('system_settings')->where('key', 'production_qty_edit_policy')->value('value') ?? '"none"', true) === 'full';
+    }
+
+    /** Correct a running manual step without erasing the audit trail or consumed output. */
+    public function correctGoodQuantity(BatchStep $step, User $user, float $good, float $expected, string $reason): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $good, $expected, $reason) {
+            if (! ProductionFlow::isTransfer()) {
+                throw new \DomainException(__('Step corrections require transfer flow.'));
+            }
+            if (! $this->manualCorrectionsEnabled()) {
+                throw new \DomainException(__('Step total corrections require the Full edit policy.'));
+            }
+            $step = $this->lockProductionStep($step);
+            $this->loadLedgerContext($step);
+            $this->guardWorkstationRouting($step, $user);
+            if ((int) $step->started_by_id !== (int) $user->id && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
+                throw new \DomainException(__('Only the operator who started this step or a supervisor can correct its total.'));
+            }
+            $batch = $step->batch;
+            $order = $batch->workOrder;
+            if ($order->counting_source !== 'operator' || $step->status !== BatchStep::STATUS_IN_PROGRESS) {
+                throw new \DomainException(__('Only running, manually counted steps can be corrected.'));
+            }
+            if ($blocker = $step->productionBlocker()) {
+                throw new \DomainException($blocker);
+            }
+            if (! is_finite($good) || ! is_finite($expected) || $good < 0 || $good > 99999999 || abs($good - round($good, 2)) > 0.000001 || trim($reason) === '') {
+                throw new \DomainException(__('Enter a valid quantity and correction reason.'));
+            }
+            if (abs((float) $step->passed_qty - $expected) > 0.001) {
+                throw new \DomainException(__('The quantity changed. Refresh and review it before correcting.'));
+            }
+            if ($good + (float) $step->scrap_qty > $step->incomingQty() + 0.001) {
+                throw new \DomainException(__('The correction exceeds the incoming quantity.'));
+            }
+            $downstream = $batch->steps->filter(fn ($s) => $s->step_number > $step->step_number && $s->status !== BatchStep::STATUS_SKIPPED)->sortBy('step_number');
+            $next = $downstream->first();
+            if ($downstream->contains('status', BatchStep::STATUS_DONE)
+                || ($next && $good + 0.001 < (float) $next->passed_qty + (float) $next->scrap_qty)) {
+                throw new \DomainException(__('Correct downstream quantities first; these pieces have already been processed.'));
+            }
+            $before = (float) $step->passed_qty;
+            if (abs($before - $good) < 0.001) {
+                return $step;
+            }
+            $step->update(['passed_qty' => $good]);
+            \App\Models\AuditLog::create([
+                'user_id' => $user->id, 'entity_type' => BatchStep::class, 'entity_id' => $step->id,
+                'action' => 'quantity_corrected', 'before_state' => ['passed_qty' => $before],
+                'after_state' => ['passed_qty' => $good, 'reason' => trim($reason)],
+            ]);
+            $batch->promoteReadySteps();
+            $this->rollUpProducedQty($batch);
+            $this->workOrderService->updateWorkOrderStatus($order->fresh());
+
+            return $step->fresh();
+        });
+    }
+
+    /**
+     * Log pieces leaving a step: `$good` passed to the next station, `$scrap`
+     * lost here (recorded as a scrap entry without a reason — the reason can be
+     * added later from the scrap report). In transfer flow this is what opens
+     * the next step and drives the batch / work-order produced quantity live.
+     *
+     * @throws \DomainException when the step is not running, nothing is logged,
+     *                          or more is logged than is waiting at the step
+     */
+    public function recordQuantity(BatchStep $step, User $user, float $good, float $scrap = 0, ?string $notes = null): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $good, $scrap, $notes) {
+            // Serialise concurrent logs (two operators, or an operator and a
+            // sensor) against the same step so the available count can't go negative.
+            $step = $this->lockProductionStep($step);
+            $this->loadLedgerContext($step);
+
+            $this->guardWorkstationRouting($step, $user);
+
+            if ($step->status !== BatchStep::STATUS_IN_PROGRESS) {
+                throw new \DomainException(__('Start the step before logging quantities.'));
+            }
+
+            if ($blocker = $step->productionBlocker()) {
+                throw new \DomainException($blocker);
+            }
+
+            $good = round(max(0, $good), 2);
+            $scrap = round(max(0, $scrap), 2);
+            if ($good + $scrap <= 0) {
+                throw new \DomainException(__('Log at least one good or scrapped piece.'));
+            }
+
+            $available = $step->availableQty();
+            if ($good + $scrap > $available + 0.001) {
+                throw new \DomainException(__('Only :qty pieces are waiting at this step.', ['qty' => self::formatQty($available)]));
+            }
+
+            $step->update([
+                'passed_qty' => (float) $step->passed_qty + $good,
+                'scrap_qty' => (float) $step->scrap_qty + $scrap,
+            ]);
+
+            $batch = $step->batch;
+            $workOrder = $batch->workOrder;
+
+            if ($scrap > 0) {
+                ScrapEntry::create([
+                    'work_order_id' => $workOrder->id,
+                    'batch_step_id' => $step->id,
+                    'scrap_reason_id' => null,
+                    'quantity' => $scrap,
+                    'shift_id' => Shift::current($workOrder->line_id)?->id,
+                    'notes' => $notes,
+                    'reported_by' => $user->id,
+                    'reported_at' => now(),
+                ]);
+            }
+
+            // Pieces are now waiting at the next station: open it (transfer flow).
+            $batch->promoteReadySteps();
+
+            if (ProductionFlow::isTransfer()) {
+                $this->rollUpProducedQty($batch);
+                $this->workOrderService->updateWorkOrderStatus($workOrder->fresh());
+            }
+
+            return $step->fresh();
+        });
+    }
+
+    /**
+     * Log pieces leaving a station that owns several consecutive steps: the
+     * scrap is lost at `$step`, the good pieces are passed through it and then
+     * through every following step bound to the same workstation (starting each
+     * one as needed), so the operator confirms the station's work once.
+     */
+    public function recordQuantityThroughStation(BatchStep $step, User $user, float $good, float $scrap = 0, ?string $notes = null): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $good, $scrap, $notes) {
+            $first = $this->recordQuantity($step, $user, $good, $scrap, $notes);
+
+            // Only transfer flow can pass pieces into a step whose predecessor is
+            // still running; in whole-batch flow the station's next step opens
+            // when this one is finished, so this is an ordinary log.
+            if ($good <= 0 || ! $first->workstation_id || ! ProductionFlow::isTransfer()) {
+                return $first;
+            }
+
+            $following = $first->batch->steps()
+                ->where('step_number', '>', $first->step_number)
+                ->where('status', '!=', BatchStep::STATUS_SKIPPED)
+                ->orderBy('step_number')
+                ->get();
+
+            foreach ($following as $next) {
+                if ((int) $next->workstation_id !== (int) $first->workstation_id) {
+                    break; // the station's run of steps ends here
+                }
+
+                if (in_array($next->status, [BatchStep::STATUS_PENDING, BatchStep::STATUS_READY], true)) {
+                    $next = $this->startStep($next, $user);
+                }
+
+                $this->recordQuantity($next, $user, $good);
+            }
+
+            return $first->fresh();
+        });
+    }
+
+    /**
+     * Pieces counted leaving a step by a machine (break-beam pulse, machine
+     * good-count). Whole-batch flow keeps the historical bare counter. Transfer
+     * flow treats the count like an operator's good log without the operator
+     * gates: it is capped at what is actually waiting at the step (so an
+     * over-count can't create pieces downstream), it opens the next station, and
+     * it rolls the batch / work-order produced quantity up from the ledger.
+     *
+     * @return float the quantity actually counted (after the cap)
+     */
+    public function recordMachinePass(BatchStep $step, float $qty): float
+    {
+        if ($qty <= 0) {
+            return 0.0;
+        }
+
+        if (! ProductionFlow::isTransfer()) {
+            $step->increment('passed_qty', $qty);
+
+            return $qty;
+        }
+
+        return DB::transaction(function () use ($step, $qty) {
+            $step = $this->lockProductionStep($step);
+            $this->loadLedgerContext($step);
+
+            if ($step->productionBlocker() || in_array($step->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED], true)) {
+                return 0.0;
+            }
+
+            $counted = round(min($qty, $step->availableQty()), 2);
+            if ($counted <= 0) {
+                return 0.0;
+            }
+
+            $step->update(['passed_qty' => (float) $step->passed_qty + $counted]);
+
+            $batch = $step->batch->fresh();
+            $batch->promoteReadySteps();
+            $this->rollUpProducedQty($batch);
+
+            return $counted;
         });
     }
 
@@ -205,11 +438,18 @@ class BatchService
     public function skipStep(BatchStep $step, User $user, ?string $reason = null): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $reason) {
+            $step = $this->lockProductionStep($step);
+            if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
+                throw new \DomainException($blocker);
+            }
+
             $this->guardWorkstationRouting($step, $user);
 
             if (! $step->canSkip()) {
                 throw new \Exception('This step is required and cannot be skipped.');
             }
+
+            $this->guardUnprocessedRouting($step);
 
             $step->update([
                 'status' => BatchStep::STATUS_SKIPPED,
@@ -221,6 +461,10 @@ class BatchService
             $this->updateBatchStatus($step->batch);
             // Skipping a step unblocks the next one (SKIPPED counts like DONE).
             $step->batch->promoteReadySteps();
+            if (ProductionFlow::isTransfer()) {
+                $this->rollUpProducedQty($step->batch);
+                $this->finishBatchIfComplete($step->batch, $step, $user);
+            }
             $this->workOrderService->updateWorkOrderStatus($step->batch->workOrder);
 
             return $step->fresh();
@@ -236,12 +480,22 @@ class BatchService
     public function chooseVariant(BatchStep $step, User $user): BatchStep
     {
         return DB::transaction(function () use ($step, $user) {
+            $step = $this->lockProductionStep($step);
+            if (ProductionFlow::isTransfer() && ($blocker = $step->productionBlocker())) {
+                throw new \DomainException($blocker);
+            }
+
             if ($step->variant_group === null) {
                 throw new \Exception('This step is not part of a variant group.');
             }
 
             if ($step->status === BatchStep::STATUS_DONE) {
                 throw new \Exception('This variant is already completed.');
+            }
+
+            $this->guardUnprocessedRouting($step);
+            foreach ($step->variantSiblings()->get() as $sibling) {
+                $this->guardUnprocessedRouting($sibling);
             }
 
             // Activate the chosen variant, skip every sibling not already done.
@@ -312,6 +566,27 @@ class BatchService
         });
     }
 
+    private function finishBatchIfComplete(Batch $batch, BatchStep $step, User $user, array $data = []): void
+    {
+        // If batch is complete, update produced quantity and consume materials
+        if ($batch->status === Batch::STATUS_DONE) {
+            // End-of-batch BOM rows (consumed_at='end') get allocated now,
+            // immediately before everything is marked consumed. Attribute to
+            // the completing step so the genealogy bridge has a step to record.
+            $this->allocationService->allocateForBatchEnd($batch, $user, attributeStepId: $step->id);
+            // Transfer flow: the batch produced exactly what left its last step.
+            $producedQty = ProductionFlow::isTransfer()
+                ? (float) ($batch->lastEffectiveStep()?->passed_qty ?? 0)
+                : ($data['produced_qty'] ?? $batch->target_qty);
+            $this->completeBatch($batch, $producedQty);
+            $this->allocationService->consumeForBatch($batch);
+
+            // Quality-control triggers: every-N-units checks (#105).
+            $this->qualityTriggerService->fireForUnits($batch->fresh());
+        }
+
+    }
+
     /**
      * Update batch status based on steps.
      */
@@ -350,6 +625,12 @@ class BatchService
             'produced_qty' => $producedQty,
         ]);
 
+        if (ProductionFlow::isTransfer()) {
+            $this->rollUpProducedQty($batch);
+
+            return;
+        }
+
         // Update work order produced qty
         $workOrder = $batch->workOrder;
         $totalProduced = $workOrder->batches()
@@ -359,6 +640,61 @@ class BatchService
         $workOrder->update([
             'produced_qty' => $totalProduced,
         ]);
+    }
+
+    /**
+     * Transfer flow: a batch has produced whatever left its last step so far,
+     * and the work order the sum over its live batches — updated as pieces
+     * flow, not only when a batch closes.
+     */
+    protected function rollUpProducedQty(Batch $batch): void
+    {
+        $batch->update([
+            'produced_qty' => (float) ($batch->lastEffectiveStep()?->passed_qty ?? 0),
+        ]);
+
+        $workOrder = $batch->workOrder;
+        $workOrder->update([
+            'produced_qty' => $workOrder->batches()
+                ->where('status', '!=', Batch::STATUS_CANCELLED)
+                ->sum('produced_qty'),
+        ]);
+    }
+
+    /** Serialize transfer transitions across batches before reading the order rollup. */
+    private function lockProductionStep(BatchStep $step): BatchStep
+    {
+        if (ProductionFlow::isTransfer()) {
+            $orderId = Batch::whereKey($step->batch_id)->value('work_order_id');
+            \App\Models\WorkOrder::whereKey($orderId)->lockForUpdate()->firstOrFail();
+        }
+
+        return BatchStep::whereKey($step->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    private function guardUnprocessedRouting(BatchStep $step): void
+    {
+        if (ProductionFlow::isTransfer() && $step->batch->steps()
+            ->where('step_number', '>=', $step->step_number)
+            ->where(fn ($q) => $q->where('passed_qty', '>', 0)->orWhere('scrap_qty', '>', 0))
+            ->exists()) {
+            throw new \DomainException(__('A step cannot be skipped or changed after quantities have been recorded at it or downstream.'));
+        }
+    }
+
+    /**
+     * Give the step a batch that already holds all of its steps, so the ledger
+     * (incoming / available / blockers) is computed from one query instead of
+     * re-querying the batch's steps on every call.
+     */
+    private function loadLedgerContext(BatchStep $step): void
+    {
+        $step->setRelation('batch', $step->batch()->with('steps')->firstOrFail());
+    }
+
+    private static function formatQty(float $qty): string
+    {
+        return rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.');
     }
 
     /**
@@ -427,7 +763,7 @@ class BatchService
 
             if (! $previousStep || ! in_array($previousStep->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])) {
                 $prevNum = $step->step_number - 1;
-                throw new \Exception('must be completed before');
+                throw new \Exception(__('Complete step :step before starting this step.', ['step' => $prevNum]));
             }
         }
 

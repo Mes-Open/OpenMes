@@ -72,6 +72,11 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_wipes_the_database_then_installs_the_chosen_company(): void
     {
         $this->configureAdminCredentials();
+        // These tests fake migrate:fresh/seeding. Keep the matching connection
+        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
+        $database = \Mockery::mock(DB::getFacadeRoot());
+        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
+        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
@@ -102,6 +107,11 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_records_the_new_company(): void
     {
         $this->configureAdminCredentials();
+        // These tests fake migrate:fresh/seeding. Keep the matching connection
+        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
+        $database = \Mockery::mock(DB::getFacadeRoot());
+        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
+        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
@@ -118,6 +128,11 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_leaves_an_admin_able_to_sign_in(): void
     {
         $this->configureAdminCredentials();
+        // These tests fake migrate:fresh/seeding. Keep the matching connection
+        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
+        $database = \Mockery::mock(DB::getFacadeRoot());
+        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
+        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);

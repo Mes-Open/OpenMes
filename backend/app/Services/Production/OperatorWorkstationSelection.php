@@ -3,8 +3,10 @@
 namespace App\Services\Production;
 
 use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
+use App\Support\ProductionFlow;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -78,7 +80,22 @@ class OperatorWorkstationSelection
 
     private function hasBatchAt(WorkOrder $wo, Workstation $workstation): bool
     {
+        $transfer = ProductionFlow::isTransfer();
+
         foreach ($this->liveBatches($wo) as $batch) {
+            // Transfer flow: several stations work on the same batch at once, so
+            // the order is "at" every station with a step running or holding
+            // pieces (READY means some have arrived), not only the current one.
+            if ($transfer) {
+                $here = $batch->steps->first(fn ($step) => (int) $step->workstation_id === (int) $workstation->id
+                    && in_array($step->status, [BatchStep::STATUS_READY, BatchStep::STATUS_IN_PROGRESS], true));
+                if ($here) {
+                    return true;
+                }
+
+                continue;
+            }
+
             $currentStep = $batch->currentStep();
             if ($currentStep && (int) $currentStep->workstation_id === (int) $workstation->id) {
                 return true;

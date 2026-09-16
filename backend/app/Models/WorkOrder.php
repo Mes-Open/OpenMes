@@ -413,6 +413,17 @@ class WorkOrder extends Model
             || $this->counting_source === null;
     }
 
+    /** Routed transfer orders derive output from their batch steps. */
+    public function usesStepLedger(): bool
+    {
+        if (! \App\Support\ProductionFlow::isTransfer()) {
+            return false;
+        }
+
+        return ! empty($this->process_snapshot['steps'])
+            || $this->batches()->where('status', '!=', Batch::STATUS_CANCELLED)->whereHas('steps')->exists();
+    }
+
     /**
      * Extra schedule segments beyond the primary placement — the order also
      * runs on these lines/dates (a multi-line staircase or concurrent runs).

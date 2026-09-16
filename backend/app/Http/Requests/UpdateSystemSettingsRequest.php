@@ -23,6 +23,19 @@ class UpdateSystemSettingsRequest extends FormRequest
         return $this->user()?->hasRole('Admin') ?? false;
     }
 
+    public function after(): array
+    {
+        return [function (\Illuminate\Validation\Validator $validator) {
+            if (! is_string($this->input('production_flow_mode'))) {
+                return;
+            }
+            $sources = app(\App\Services\Machine\MachineCountingCompatibility::class)->transitionBlockers($this->input('production_flow_mode'));
+            if ($sources) {
+                $validator->errors()->add('production_flow_mode', __('Resolve these requirements before changing production flow: :sources', ['sources' => implode(', ', $sources)]));
+            }
+        }];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -47,6 +60,7 @@ class UpdateSystemSettingsRequest extends FormRequest
             'schedule_show_weekends' => 'nullable|boolean',
             'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
+            'production_flow_mode' => 'nullable|in:whole_batch,transfer',
             'cors_allowed_origins' => 'nullable|string|max:1000',
             'cors_allowed_methods' => 'nullable|string|max:200',
             'cors_max_age' => 'nullable|integer|min:0|max:86400',

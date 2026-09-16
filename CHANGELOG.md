@@ -7,6 +7,81 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
+- Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
+
+- Preserve omitted production flow settings, guard reverse transitions while routed work is open, and exclude flow changes from settings imports. Validate API workflow modes and tolerate machine orders without a line.
+- Require cumulative registers for built-in Modbus polling, preserve counter-only configuration on rollback, and respect cross-line routing settings on operator details.
+- Add reason-required, audited corrections to good totals on running manual transfer steps, with stale-value and downstream-consumption protection.
+
+- Restore step-aware +1 counting and show station-scoped routing with overall step numbers and the next destination.
+
+- Disable operator step start while upstream prerequisites are unmet and show start failures beside the affected step.
+
+- Link REST demo connections to their own counters instead of nonexistent protocol detail and edit pages.
+
+- Use shared UI dropdowns throughout machine counter configuration and reading review, the shared reading-history table, and styled header, filter and pagination buttons.
+- Preserve legacy machine counting after upgrades: MQTT, Modbus and OPC UA channels opt into
+  explicit counting individually. Opening a counter does not change its behaviour. Add an
+  audited return to legacy mode and transfer compatibility checks in web/API settings, including
+  protection against losing existing machine-order totals when switching to step-ledger output.
+- Persist raw machine baselines independently of order output. Counter resets and late readings
+  no longer invent production; explicit MQTT and gateway counters use saved step assignments.
+- Preflight step-ledger schema rollback before any changes: refuse downgrades that would discard
+  scrap, fractional/out-of-range counters, or unclassified reasons (including deleted audit rows).
+  Compatible data still supports rollback and re-upgrade; used ledgers require roll-forward or
+  the documented backup recovery procedure.
+- Protect transfer quantity ledgers from legacy workstation, shift correction, board completion
+  and generic scrap writes. Machine counts use the same ownership rule. Recorded step scrap
+  can be classified later, but cannot be moved, resized or deleted independently of the ledger.
+- Reject output while production is stopped or blocked by issues/QC; serialize transfer
+  transitions per order. Reject routing changes after output/scrap, and correctly roll up and
+  consume materials when the final optional step is skipped. Scrapped batches with a production
+  shortfall leave the order in progress; skipped steps have no waiting quantity.
+- Synchronize operator pages through authorized, data-free private line events. Keep form errors
+  local to the submitted form across live refreshes, correct READY step labels in the queue,
+  and fit operator navigation and step controls on mobile screens.
+
+### Added
+- **Machine counter channels** — persistent cumulative, increment and pulse tracking, stable event-ID
+  deduplication, explicit batch-step assignment, timestamp validation, reset review and retained
+  unassigned/blocked readings with audited reconciliation. One good-count channel per step avoids
+  duplicate sources. Admins/supervisors manage channels under Connectivity → Machine counters.
+  Isolated CLI-created demo sources support browser simulation without enabling it for real channels.
+- **Per-step quantity ledger and a "transfer" production flow** — every batch step now counts what
+  left it as good (`passed_qty`, the same counter break-beam sensors already feed) and as scrap
+  (`scrap_qty`); what arrives at a step is what the previous non-skipped step passed, so each step
+  knows how many pieces are still waiting at its station. Operators log these with a new
+  `POST /operator/batch-step/{step}/quantity` (good / scrap / notes, validated by
+  `RecordStepQuantityRequest`); scrap logged this way becomes a scrap entry without a reason, to be
+  classified later (`scrap_entries.scrap_reason_id` is now nullable). A new system setting,
+  **Production Flow** (`production_flow_mode`), picks how pieces move: *Whole batch* (default —
+  unchanged behaviour: the next station opens when the previous step is finished, and finishing
+  passes along everything not scrapped) or *Transfer* — the next station opens as soon as pieces
+  are logged as good, so stations on a routing work at the same time; a step can only be finished
+  once its feeding step is closed and nothing is left waiting (a step nothing reached opens once its
+  feeder closes, so a batch scrapped upstream can still be closed); the batch and work order produced
+  quantity follow the last step live, and the order closes with its last batch rather than the
+  moment the count is reached. In transfer flow machine counts go through the ledger too: a
+  break-beam pulse is capped at what is waiting at its step and opens the next station, and a
+  machine good-count lands on its explicitly assigned batch step. Only final-step output rolls
+  up to the order. Whole-batch flow retains completion at the planned order quantity; configured
+  machine channels also cap their accepted quantity at the step's available input. The migration
+  backfills `passed_qty` of steps finished before it, so batches already in flight can continue
+  after switching to transfer flow.
+- **Operator work-order page is station-scoped** — consecutive steps bound to the same workstation
+  form one "station operation". With a workstation selected in the queue, that station's steps stay
+  open (marked *Your station*) and every other station's run of steps folds into one summary row
+  (station, step range, done count, and in transfer flow its waiting/passed counts), with *Show all
+  steps* to unfold them. In transfer flow each step shows its ledger (incoming, waiting, passed,
+  scrap), a running step gets a quick *Log* form (good / scrap), a station owning several steps gets
+  *Log through station* (the good pieces pass through all of its steps in one go; scrap stays at the
+  first — `through_station` on the quantity route), and *Complete* is disabled with the reason while
+  pieces can still arrive or are waiting. The station queue lists an order at every station that has
+  a running step or pieces waiting, not only at its current step.
+
 ## [0.23.1] - 2026-09-14
 
 ### Changed

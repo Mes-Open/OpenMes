@@ -109,8 +109,9 @@ class ModbusPollCommand extends Command
                     $runtime->heartbeat($connection->protocol, $connection->id);
                     foreach ($tags as $tag) {
                         try {
+                            $acquiredAt = now();
                             $value = $reader->readTag($tag);
-                            $ingestor->ingest($tag, $value);
+                            $ingestor->ingest($tag, $value, $acquiredAt, null, $modbus->only(['host', 'port', 'unit_id', 'byte_order', 'word_order']));
                             $connection->increment('messages_received');
                         } catch (\Throwable $e) {
                             $this->warn("tag {$tag->name}: {$e->getMessage()}");
