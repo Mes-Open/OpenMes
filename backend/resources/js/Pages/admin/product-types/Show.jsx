@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, Icon } from '@openmes/ui';
 import AppDataTable from '../../../components/AppDataTable';
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { PRODUCT_TYPE_FIELDS, productTypeInitial } from './fields';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 // Explicit extension: `components/engineeringDocuments.js` (the helper module)
@@ -71,6 +73,7 @@ export default function ProductTypeShow({
     customFields = [],
     setup = {},
 }) {
+    const drawer = useResourceDrawer();
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
@@ -107,7 +110,7 @@ export default function ProductTypeShow({
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
                         <Link href="/admin/product-types" className={linkButton}><Icon name="arrow-left" size={14} />{__('Back')}</Link>
-                        <Link href={`/admin/product-types/${productType.id}/edit`} className={linkButton}><Icon name="pencil" size={14} />{__('Edit Product Type')}</Link>
+                        <Button size="sm" variant="outline" onClick={() => drawer.edit(productType)} leftIcon={<Icon name="pencil" size={14} />}>{__('Edit Product Type')}</Button>
                         <Button size="sm" variant="outline" onClick={handleToggleActive} leftIcon={<Icon name={productType.is_active ? 'circle-slash' : 'circle-check'} size={14} />}>{__(productType.is_active ? 'Deactivate' : 'Activate')}</Button>
                     </div>
                 </header>
@@ -335,6 +338,14 @@ export default function ProductTypeShow({
                 </div>
 
                 <EngineeringDocuments entityType="product_type" entityId={productType.id} />
+                <ResourceFormDrawer
+                    {...drawer.props}
+                    action="/admin/product-types"
+                    fields={PRODUCT_TYPE_FIELDS}
+                    initial={productTypeInitial}
+                    customFields={customFields}
+                    title={{ edit: __('Edit Product Type') }}
+                />
             </div>
         </>
     );
