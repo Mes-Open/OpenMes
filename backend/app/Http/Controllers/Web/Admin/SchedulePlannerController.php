@@ -17,11 +17,19 @@ class SchedulePlannerController extends Controller
 
     public function index(Request $request)
     {
+        if ($request->input('view_mode') === 'hourly') {
+            return redirect()->route('admin.schedule', [...$request->query(), 'view_mode' => 'daily']);
+        }
+
         $board = $this->planner->board([
             'view_mode' => $request->input('view_mode'),
             'start_date' => $request->input('start_date'),
             'line_id' => $request->input('line_id'),
         ]);
+
+        if ($board['viewMode'] === 'hourly') {
+            return redirect()->route('admin.schedule', [...$request->query(), 'view_mode' => 'daily']);
+        }
 
         return Inertia::render('admin/schedule/Planner', [
             ...$board,

@@ -34,7 +34,7 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
     // the HR module — hide the shortcut when HR is off, mirroring the nav.
     const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
     const hrEnabled = accessibleTabs.includes('hr');
-    const tabs = [['weekly', __('Weekly')], ['daily', __('Daily')], ['hourly', __('Hourly')], ['monthly', __('Monthly')]];
+    const tabs = [['weekly', __('Weekly')], ['daily', __('Daily')], ['monthly', __('Monthly')]];
 
 
     return (

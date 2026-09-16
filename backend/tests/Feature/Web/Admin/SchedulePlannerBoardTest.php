@@ -100,11 +100,9 @@ class SchedulePlannerBoardTest extends TestCase
             'planned_end_at' => "$day 13:00:00",
         ])->assertOk()->assertJson(['success' => true]);
 
-        foreach (['daily', 'hourly'] as $mode) {
-            $orders = collect($this->props([...$query, 'view_mode' => $mode])['workOrders'])
-                ->sortBy('planned_start_at')->pluck('id')->values()->all();
-            $this->assertSame([$second->id, $first->id], $orders);
-        }
+        $orders = collect($this->props($query)['workOrders'])
+            ->sortBy('planned_start_at')->pluck('id')->values()->all();
+        $this->assertSame([$second->id, $first->id], $orders);
         $this->assertSame('10:00', $second->fresh()->planned_start_at->format('H:i'));
         $this->assertSame($day, $first->fresh()->due_date->format('Y-m-d'));
     }

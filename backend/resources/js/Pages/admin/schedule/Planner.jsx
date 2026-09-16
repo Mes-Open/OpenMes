@@ -389,7 +389,7 @@ export default function Planner() {
             <div className="w-full min-w-0" style={{ border: '1px solid var(--om-line)', borderRadius: 0, overflow: 'hidden', background: 'var(--om-bg)' }}>
                 <div className="om-main w-full min-w-0 overflow-auto">
                     {viewMode === 'weekly' && <WeeklyView ctx={ctx} />}
-                    {(viewMode === 'daily' || viewMode === 'hourly') && <HourlyView ctx={ctx} />}
+                    {viewMode === 'daily' && <HourlyView ctx={ctx} />}
                     {viewMode === 'monthly' && <MonthlyView ctx={ctx} />}
                 </div>
             </div>
