@@ -34,7 +34,7 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
     // the HR module — hide the shortcut when HR is off, mirroring the nav.
     const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
     const hrEnabled = accessibleTabs.includes('hr');
-    const tabs = [['weekly', __('Weekly')], ['daily', __('Daily')], ['monthly', __('Monthly')]];
+    const tabs = [['weekly', __('Weekly view'), 'calendar-range'], ['daily', __('Daily'), 'calendar-clock'], ['monthly', __('Monthly'), 'calendar-days']];
 
 
     return (
@@ -45,8 +45,8 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
                 <NavBtn onClick={onNext} title={__('Next')}><Icon name="chevron-right" size={16} /></NavBtn>
             </div>
             <Button variant="outline" size="sm" onClick={onToday} leftIcon={<Icon name="calendar-days" size={14} />}>{__('Today')}</Button>
-            <SegmentedControl label={__('Production Planner')} className="w-full sm:w-[350px]" value={view} onChange={setView}
-                options={tabs.map(([value, label]) => ({ value, label }))} />
+            <SegmentedControl label={__('Production Planner')} className="w-full sm:w-[390px]" value={view} onChange={setView}
+                options={tabs.map(([value, label, icon]) => ({ value, label: <span className="inline-flex items-center justify-center gap-1.5"><Icon name={icon} size={14} />{label}</span> }))} />
             <Dropdown
                 className="min-w-[150px]"
                 value={lineFilter == null ? '' : String(lineFilter)}
