@@ -368,6 +368,7 @@ class WorkOrderController extends Controller
         // page can show and gate the quick quantity log; the flow mode tells it
         // whether finishing a step needs the ledger to be empty first.
         $flowMode = \App\Support\ProductionFlow::mode();
+        $manualCorrectionsEnabled = app(\App\Services\WorkOrder\BatchService::class)->manualCorrectionsEnabled();
         foreach ($workOrder->batches as $batch) {
             $productionBlocker = null;
             if ($flowMode === \App\Support\ProductionFlow::TRANSFER && ($firstStep = $batch->steps->first())) {
@@ -381,6 +382,8 @@ class WorkOrderController extends Controller
                 // then drop that relation again so it isn't serialized into the props.
                 $step->setRelation('batch', $batch->withoutRelations()->setRelation('steps', $batch->steps));
                 $step->setAttribute('production_blocker', $productionBlocker);
+                $step->setAttribute('manual_correction_allowed', $workOrder->counting_source === 'operator' && $manualCorrectionsEnabled
+                    && ((int) $step->started_by_id === (int) $request->user()->id || $request->user()->hasAnyRole(['Admin', 'Supervisor'])));
                 $step->setAttribute('prerequisites_met', $step->prerequisitesMet());
                 $step->setAttribute('incoming_qty', $step->incomingQty());
                 $step->setAttribute('available_qty', $step->availableQty());
@@ -392,7 +395,7 @@ class WorkOrderController extends Controller
         // The station the operator picked in the queue (or their workstation
         // account): the page folds the other stations' steps away behind it.
         $selectedWorkstation = app(\App\Services\Production\OperatorWorkstationSelection::class)
-            ->resolve($request, (int) $workOrder->line_id, allowOtherLines: true);
+            ->resolve($request, (int) $workOrder->line_id, allowOtherLines: (bool) json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false', true));
         $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
 
         return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation'));

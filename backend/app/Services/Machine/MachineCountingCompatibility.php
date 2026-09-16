@@ -29,6 +29,26 @@ class MachineCountingCompatibility
         return array_merge($tags, $mappings);
     }
 
+    public function transitionBlockers(string $mode): array
+    {
+        if (! in_array($mode, \App\Support\ProductionFlow::MODES, true)) {
+            return [__('Invalid production flow mode.')];
+        }
+        if ($mode === \App\Support\ProductionFlow::TRANSFER) {
+            return $this->transferBlockers();
+        }
+        if (! \App\Support\ProductionFlow::isTransfer()) {
+            return [];
+        }
+
+        // Completed history does not prevent future whole-batch work. Open routed
+        // work must close first, including batches that have not logged output yet.
+        return WorkOrder::withoutGlobalScope(\App\Scopes\TenantScope::class)
+            ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
+            ->get()->filter(fn ($order) => $order->usesStepLedger())
+            ->map(fn ($order) => __('Finish routed order #:id before switching to whole-batch flow.', ['id' => $order->id]))->values()->all();
+    }
+
     public function transferBlockers(): array
     {
         // A system setting affects all tenants, even when the administrator has a tenant scope.
@@ -55,13 +75,13 @@ class MachineCountingCompatibility
         return array_values(array_unique($sources));
     }
 
-    private function legacySourcesForTenant(?int $tenantId, int $lineId): array
+    private function legacySourcesForTenant(?int $tenantId, ?int $lineId): array
     {
         // Existing tenant scope is respected for normal UI reads; the system-wide switch must
         // also detect sources belonging to other tenants without exposing their names.
         $ids = \App\Models\MachineConnection::withoutGlobalScopes()->whereNull('deleted_at')
             ->where('tenant_id', $tenantId)->where('is_active', true)->pluck('id');
-        $tags = MachineTag::whereIn('machine_connection_id', $ids)->where('is_active', true)
+        $tags = $lineId === null ? [] : MachineTag::whereIn('machine_connection_id', $ids)->where('is_active', true)
             ->whereIn('signal_type', ['good_count', 'reject_count', 'cycle_complete'])
             ->whereHas('workstation', fn ($q) => $q->where('line_id', $lineId))
             ->whereDoesntHave('counter', fn ($q) => $q->whereNotNull('configured_at'))->pluck('id')->map(fn ($id) => 'Tag #'.$id)->all();

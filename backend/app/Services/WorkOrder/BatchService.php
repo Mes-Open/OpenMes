@@ -209,6 +209,69 @@ class BatchService
         });
     }
 
+    /** Aggregate step totals cannot safely apply an entry-level correction window. */
+    public function manualCorrectionsEnabled(): bool
+    {
+        return json_decode(DB::table('system_settings')->where('key', 'production_qty_edit_policy')->value('value') ?? '"none"', true) === 'full';
+    }
+
+    /** Correct a running manual step without erasing the audit trail or consumed output. */
+    public function correctGoodQuantity(BatchStep $step, User $user, float $good, float $expected, string $reason): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $good, $expected, $reason) {
+            if (! ProductionFlow::isTransfer()) {
+                throw new \DomainException(__('Step corrections require transfer flow.'));
+            }
+            if (! $this->manualCorrectionsEnabled()) {
+                throw new \DomainException(__('Step total corrections require the Full edit policy.'));
+            }
+            $step = $this->lockProductionStep($step);
+            $this->loadLedgerContext($step);
+            $this->guardWorkstationRouting($step, $user);
+            if ((int) $step->started_by_id !== (int) $user->id && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
+                throw new \DomainException(__('Only the operator who started this step or a supervisor can correct its total.'));
+            }
+            $batch = $step->batch;
+            $order = $batch->workOrder;
+            if ($order->counting_source !== 'operator' || $step->status !== BatchStep::STATUS_IN_PROGRESS) {
+                throw new \DomainException(__('Only running, manually counted steps can be corrected.'));
+            }
+            if ($blocker = $step->productionBlocker()) {
+                throw new \DomainException($blocker);
+            }
+            if (! is_finite($good) || ! is_finite($expected) || $good < 0 || $good > 99999999 || abs($good - round($good, 2)) > 0.000001 || trim($reason) === '') {
+                throw new \DomainException(__('Enter a valid quantity and correction reason.'));
+            }
+            if (abs((float) $step->passed_qty - $expected) > 0.001) {
+                throw new \DomainException(__('The quantity changed. Refresh and review it before correcting.'));
+            }
+            if ($good + (float) $step->scrap_qty > $step->incomingQty() + 0.001) {
+                throw new \DomainException(__('The correction exceeds the incoming quantity.'));
+            }
+            $downstream = $batch->steps->filter(fn ($s) => $s->step_number > $step->step_number && $s->status !== BatchStep::STATUS_SKIPPED)->sortBy('step_number');
+            $next = $downstream->first();
+            if ($downstream->contains('status', BatchStep::STATUS_DONE)
+                || ($next && $good + 0.001 < (float) $next->passed_qty + (float) $next->scrap_qty)) {
+                throw new \DomainException(__('Correct downstream quantities first; these pieces have already been processed.'));
+            }
+            $before = (float) $step->passed_qty;
+            if (abs($before - $good) < 0.001) {
+                return $step;
+            }
+            $step->update(['passed_qty' => $good]);
+            \App\Models\AuditLog::create([
+                'user_id' => $user->id, 'entity_type' => BatchStep::class, 'entity_id' => $step->id,
+                'action' => 'quantity_corrected', 'before_state' => ['passed_qty' => $before],
+                'after_state' => ['passed_qty' => $good, 'reason' => trim($reason)],
+            ]);
+            $batch->promoteReadySteps();
+            $this->rollUpProducedQty($batch);
+            $this->workOrderService->updateWorkOrderStatus($order->fresh());
+
+            return $step->fresh();
+        });
+    }
+
     /**
      * Log pieces leaving a step: `$good` passed to the next station, `$scrap`
      * lost here (recorded as a scrap entry without a reason — the reason can be

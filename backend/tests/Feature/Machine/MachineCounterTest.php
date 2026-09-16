@@ -376,4 +376,27 @@ class MachineCounterTest extends TestCase
         $this->assertSame('source_changed', $this->counter->readings()->latest('id')->first()->status);
         $this->assertEquals(0, $this->first->fresh()->passed_qty);
     }
+
+    public function test_polled_modbus_rejects_modes_without_stable_event_identity(): void
+    {
+        \App\Models\ModbusConnection::create(['machine_connection_id' => $this->counter->machine_connection_id, 'host' => 'plc', 'port' => 502, 'unit_id' => 1]);
+        foreach (['pulse', 'increment'] as $mode) {
+            try {
+                $this->configure($this->first, $mode);
+                $this->fail('Polled Modbus must reject '.$mode);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $this->assertStringContainsString('cumulative', $e->getMessage());
+            }
+        }
+        $this->configure($this->first);
+        $this->assertSame('cumulative', $this->counter->fresh()->mode);
+    }
+
+    public function test_rollback_preserves_counter_configuration_without_readings(): void
+    {
+        \App\Models\MachineCounterReading::query()->delete();
+        $migration = require database_path('migrations/2026_09_15_120000_create_machine_counters.php');
+        $this->expectException(\RuntimeException::class);
+        $migration->down();
+    }
 }

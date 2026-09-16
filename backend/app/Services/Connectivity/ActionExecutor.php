@@ -130,25 +130,25 @@ class ActionExecutor
     private function updateWorkOrderQty(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
     {
         return $this->counters->withChannel($mapping, fn ($counter) => $counter->configured_at
-            ? $this->countReading($mapping, $data, $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue)
+            ? $this->countReading($counter, $mapping, $data, $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue)
             : app(\App\Services\Machine\LegacyMachineCounting::class)->updateWorkOrderQty($params, $data, $fieldValue));
     }
 
     private function countStep(TopicMapping $mapping, array $params, array $data, mixed $fieldValue): array
     {
         return $this->counters->withChannel($mapping, fn ($counter) => $counter->configured_at
-            ? $this->countReading($mapping, $data, $this->resolveParam($params, 'increment_path', $data) ?? ($params['increment'] ?? 1))
+            ? $this->countReading($counter, $mapping, $data, $this->resolveParam($params, 'increment_path', $data) ?? ($params['increment'] ?? 1))
             : app(\App\Services\Machine\LegacyMachineCounting::class)->countStep($mapping, $params, $data, $fieldValue));
     }
 
-    private function countReading(TopicMapping $mapping, array $data, mixed $value): array
+    private function countReading(\App\Models\MachineCounter $counter, TopicMapping $mapping, array $data, mixed $value): array
     {
         // Payload routing hints never override the supervisor's explicit assignment.
         $params = $mapping->action_params ?? [];
         $eventId = $this->parser->resolvePath($params['event_id_path'] ?? '$.event_id', $data);
         $timestamp = $this->parser->resolvePath($params['timestamp_path'] ?? '$.timestamp', $data);
         $at = $timestamp ? \Illuminate\Support\Carbon::parse($timestamp) : null;
-        $reading = $this->counters->ingest($this->counters->forSource($mapping), $value, $at, is_scalar($eventId) ? (string) $eventId : null, $this->counters->sourceSnapshot($mapping));
+        $reading = $this->counters->ingest($counter, $value, $at, is_scalar($eventId) ? (string) $eventId : null, $this->counters->sourceSnapshot($mapping));
 
         return ['reading_id' => $reading->id, 'counter_status' => $reading->status, 'applied_qty' => (float) $reading->applied_qty];
     }

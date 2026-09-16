@@ -671,4 +671,101 @@ class StepQuantityFlowTest extends TestCase
         ProductionFlow::set(ProductionFlow::TRANSFER);
         $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
     }
+
+    public function test_manual_good_correction_is_audited_and_updates_downstream_availability(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => '"full"']);
+        $batch = $this->makeBatch();
+        $service = app(BatchService::class);
+        $step = $this->step($batch, 1);
+        $service->startStep($step, $this->operator);
+        $service->recordQuantity($step, $this->operator, 4);
+        $this->actingAsOperator()->post("/operator/batch-step/{$step->id}/quantity-correction", [
+            'good_qty' => 3, 'expected_good_qty' => 4, 'reason' => 'Accidental extra click',
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(3, $step->fresh()->passed_qty);
+        $this->assertEquals(3, $this->step($batch, 2)->incomingQty());
+        $audit = \App\Models\AuditLog::where('action', 'quantity_corrected')->sole();
+        $this->assertEquals($this->operator->id, $audit->user_id);
+        $this->assertEquals(4, $audit->before_state['passed_qty']);
+        $this->assertEquals(3, $audit->after_state['passed_qty']);
+        $this->assertSame('Accidental extra click', $audit->after_state['reason']);
+    }
+
+    public function test_manual_correction_rejects_stale_values_consumed_output_and_missing_reason(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => '"full"']);
+        $batch = $this->makeBatch();
+        $service = app(BatchService::class);
+        $step = $this->step($batch, 1);
+        $service->startStep($step, $this->operator);
+        $service->recordQuantity($step, $this->operator, 4);
+        $next = $this->step($batch, 2);
+        $service->startStep($next, $this->operator);
+        $service->recordQuantity($next, $this->operator, 3);
+        $url = "/operator/batch-step/{$step->id}/quantity-correction";
+        foreach ([['good_qty' => 3, 'expected_good_qty' => 2], ['good_qty' => 2, 'expected_good_qty' => 4], ['good_qty' => 11, 'expected_good_qty' => 4]] as $payload) {
+            $this->actingAsOperator()->post($url, $payload + ['reason' => 'Correction'])->assertSessionHasErrors('good_qty');
+        }
+        $this->postJson($url, ['good_qty' => 3, 'expected_good_qty' => 4, 'reason' => ' '])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->assertEquals(4, $step->fresh()->passed_qty);
+        $this->assertSame(0, \App\Models\AuditLog::where('action', 'quantity_corrected')->count());
+    }
+
+    public function test_final_step_correction_updates_order_output_and_rejects_machine_or_stopped_work(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => '"full"']);
+        $batch = $this->makeBatch();
+        $service = app(BatchService::class);
+        foreach ([1, 2, 3] as $n) {
+            $step = $this->step($batch, $n);
+            $service->startStep($step, $this->operator);
+            $service->recordQuantity($step, $this->operator, 4);
+        }
+        $url = "/operator/batch-step/{$step->id}/quantity-correction";
+        $payload = ['good_qty' => 3, 'expected_good_qty' => 4, 'reason' => 'Double click'];
+        $this->actingAsOperator()->post($url, $payload)->assertSessionHasNoErrors();
+        $this->assertEquals(3, $batch->workOrder->fresh()->produced_qty);
+        $payload = ['good_qty' => 2, 'expected_good_qty' => 3, 'reason' => 'Correction'];
+        $batch->workOrder->update(['counting_source' => 'machine']);
+        $this->post($url, $payload)->assertSessionHasErrors('good_qty');
+        $batch->workOrder->update(['counting_source' => 'operator', 'status' => WorkOrder::STATUS_PAUSED]);
+        $this->post($url, $payload)->assertSessionHasErrors('good_qty');
+        $this->assertEquals(3, $step->fresh()->passed_qty);
+    }
+
+    public function test_correction_rejects_wrong_line_and_wrong_role(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => '"full"']);
+        $batch = $this->makeBatch();
+        $step = $this->step($batch, 1);
+        app(BatchService::class)->startStep($step, $this->operator);
+        $url = "/operator/batch-step/{$step->id}/quantity-correction";
+        $payload = ['good_qty' => 1, 'expected_good_qty' => 0, 'reason' => 'Correction'];
+        $this->actingAs($this->operator)->withSession(['selected_line_id' => Line::factory()->create()->id])->post($url, $payload)->assertSessionHasErrors('good_qty');
+        $this->actingAs(User::factory()->create())->postJson($url, $payload)->assertForbidden();
+        $this->assertEquals(0, $step->fresh()->passed_qty);
+    }
+
+    public function test_step_total_correction_honours_policy_and_ownership(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        $step = $this->step($this->makeBatch(), 1);
+        app(BatchService::class)->startStep($step, $this->operator);
+        $url = "/operator/batch-step/{$step->id}/quantity-correction";
+        $payload = ['good_qty' => 1, 'expected_good_qty' => 0, 'reason' => 'Correction'];
+        foreach (['none', 'timed'] as $policy) {
+            DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => json_encode($policy)]);
+            $this->actingAsOperator()->post($url, $payload)->assertSessionHasErrors('good_qty');
+        }
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => '"full"']);
+        $other = User::factory()->create();
+        $other->assignRole('Operator');
+        $this->actingAs($other)->post($url, $payload)->assertSessionHasErrors('good_qty');
+        $this->assertEquals(0, $step->fresh()->passed_qty);
+    }
 }

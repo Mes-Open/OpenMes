@@ -48,7 +48,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (\Illuminate\Support\Facades\DB::table('machine_counter_readings')->exists()) {
+        if (\Illuminate\Support\Facades\DB::table('machine_counters')->exists() || \Illuminate\Support\Facades\DB::table('machine_counter_readings')->exists()) {
             throw new \RuntimeException('Machine counter history exists. Use a forward migration; rollback would destroy baselines and deduplication history.');
         }
         Schema::dropIfExists('machine_counter_readings');

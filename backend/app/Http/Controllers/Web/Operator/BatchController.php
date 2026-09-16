@@ -140,6 +140,22 @@ class BatchController extends Controller
         }
     }
 
+    /** Save an auditable correction to a running manual step. */
+    public function correctQuantity(\App\Http\Requests\Operator\CorrectStepQuantityRequest $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->withErrors(['good_qty' => __('This step does not belong to the selected line.')]);
+        }
+        try {
+            $data = $request->validated();
+            $this->batchService->correctGoodQuantity($batchStep, $request->user(), (float) $data['good_qty'], (float) $data['expected_good_qty'], $data['reason']);
+
+            return back()->with('success', __('Quantity correction saved.'));
+        } catch (\Exception $e) {
+            return back()->withErrors(['good_qty' => $e->getMessage()]);
+        }
+    }
+
     /**
      * Log pieces leaving a running step (good → next station, scrap → lost).
      * Rule violations (nothing logged, more than is waiting, step not running)

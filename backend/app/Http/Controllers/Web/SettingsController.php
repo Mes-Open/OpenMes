@@ -452,7 +452,7 @@ class SettingsController extends Controller
             'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
-            'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::WHOLE_BATCH,
+            'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
             'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
             'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
             'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
@@ -590,6 +590,7 @@ class SettingsController extends Controller
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
                 'cors_allowed_origins', 'cors_allowed_methods',
                 'modules_enabled',
+                'production_flow_mode',
             ];
 
             $imported = 0;

@@ -198,4 +198,46 @@ class LegacyMachineCountingTest extends TestCase
         $step->update(['passed_qty' => 5]);
         $this->assertSame([], app(MachineCountingCompatibility::class)->transferBlockers());
     }
+
+    public function test_unassigned_machine_order_is_checked_without_a_type_error(): void
+    {
+        [$order] = $this->setupMachine();
+        $order->update(['line_id' => null]);
+        $this->assertSame([], app(MachineCountingCompatibility::class)->transferBlockers());
+    }
+
+    public function test_open_routed_order_blocks_reverse_flow_until_completed(): void
+    {
+        [$order] = $this->setupMachine();
+        $order->update(['counting_source' => 'operator']);
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        $admin = User::factory()->create();
+        Role::findOrCreate('Admin', 'web');
+        $admin->assignRole('Admin');
+        $this->actingAs($admin)->putJson('/api/v1/system/settings/production_flow_mode', ['value' => 'whole_batch'])->assertUnprocessable();
+        $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
+        $order->update(['status' => WorkOrder::STATUS_DONE]);
+        $this->putJson('/api/v1/system/settings/production_flow_mode', ['value' => 'whole_batch'])->assertSuccessful();
+    }
+
+    public function test_omitted_flow_is_preserved_and_import_cannot_change_it(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        $admin = User::factory()->create();
+        Role::findOrCreate('Admin', 'web');
+        $admin->assignRole('Admin');
+        $payload = ['production_period' => 'none', 'workflow_mode' => 'status', 'schedule_view_mode' => 'weekly',
+            'schedule_shifts_per_day' => 1, 'schedule_horizon_weeks' => 6, 'realtime_mode' => 'polling',
+            'production_tracking_mode' => 'per_operation', 'production_qty_edit_policy' => 'none', 'scanner_mode' => 'hid'];
+        $this->actingAs($admin)->post('/settings/system', $payload)->assertSessionHasNoErrors();
+        $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('settings.json', json_encode([
+            'system_settings' => ['production_flow_mode' => json_encode('whole_batch'), 'schedule_horizon_weeks' => '8'],
+        ]));
+        $this->post('/settings/import', ['settings_file' => $file])->assertSessionHasNoErrors();
+        $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
+        $this->assertEquals(8, json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'schedule_horizon_weeks')->value('value'), true));
+        $this->putJson('/api/v1/system/settings/workflow_mode', ['value' => 'invalid'])->assertUnprocessable();
+        $this->putJson('/api/v1/system/settings/workflow_mode', ['value' => 'board_status'])->assertSuccessful();
+    }
 }

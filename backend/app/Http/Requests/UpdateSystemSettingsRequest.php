@@ -26,12 +26,12 @@ class UpdateSystemSettingsRequest extends FormRequest
     public function after(): array
     {
         return [function (\Illuminate\Validation\Validator $validator) {
-            if ($this->input('production_flow_mode') !== 'transfer') {
+            if (! is_string($this->input('production_flow_mode'))) {
                 return;
             }
-            $sources = app(\App\Services\Machine\MachineCountingCompatibility::class)->transferBlockers();
+            $sources = app(\App\Services\Machine\MachineCountingCompatibility::class)->transitionBlockers($this->input('production_flow_mode'));
             if ($sources) {
-                $validator->errors()->add('production_flow_mode', __('Resolve these machine counting requirements before enabling transfer flow: :sources', ['sources' => implode(', ', $sources)]));
+                $validator->errors()->add('production_flow_mode', __('Resolve these requirements before changing production flow: :sources', ['sources' => implode(', ', $sources)]));
             }
         }];
     }

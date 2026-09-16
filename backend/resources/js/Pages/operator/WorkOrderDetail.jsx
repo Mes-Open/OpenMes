@@ -809,6 +809,20 @@ function StepLedger({ step }) {
     );
 }
 
+function QuantityCorrection({ step }) {
+    const form = useForm({ good_qty: String(step.passed_qty), expected_good_qty: String(step.passed_qty), reason: '' });
+    return <details className="px-3 pb-3">
+        <summary className="cursor-pointer text-sm text-om-accent">{__('Correct good quantity')}</summary>
+        <form className="space-y-2 pt-2" onSubmit={e => { e.preventDefault(); form.post(`/operator/batch-step/${step.id}/quantity-correction`, { preserveScroll: true }); }}>
+            <p className="text-sm text-om-muted">{__('Enter the corrected total, not an increment. The original and corrected values are retained in the audit history.')}</p>
+            <label className="block">{__('Corrected good total')}<input aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" type="number" min="0" step="0.01" required value={form.data.good_qty} onChange={e => form.setData('good_qty', e.target.value)} /></label>
+            <label className="block">{__('Correction reason')}<input aria-label={__('Correction reason')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" required maxLength={1000} value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} /></label>
+            {Object.entries(form.errors).map(([key, value]) => <p key={key} role="alert" className="text-sm text-om-blocked">{value}</p>)}
+            <Button type="submit" variant="outline" disabled={form.processing}>{__('Save correction')}</Button>
+        </form>
+    </details>;
+}
+
 // Quick quantity log for a running step: good pieces move on to the next
 // station, scrapped ones are recorded as a bare number (reason added later).
 // With `throughStation` the good pieces also pass through the station's
@@ -857,7 +871,6 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const groups = groupStepsByStation(steps ?? []);
     const stationScoped = !!selectedWorkstation;
     const [showAll, setShowAll] = useState(false);
-    const [openGroups, setOpenGroups] = useState({});
 
     // Quantity log (transfer flow): posts to the ledger route; a rule violation
     // comes back as a `good_qty` error shown under the form that sent it.
@@ -1096,6 +1109,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                         </div>
 
                         {transfer && step.status !== 'SKIPPED' && <StepLedger step={step} />}
+                        {transfer && !productionBlocker && step.status === 'IN_PROGRESS' && step.manual_correction_allowed && <QuantityCorrection key={`${step.id}:${step.passed_qty}`} step={step} />}
                         {transfer && !productionBlocker && step.status === 'IN_PROGRESS' && Number(step.available_qty ?? 0) > 0 && (
                             <QuantityLogForm
                                 step={step}
@@ -1168,8 +1182,6 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
             <div className="space-y-3">
                 {groups.filter(group => !stationScoped || showAll || group.workstationId === selectedWorkstation.id).map((group, gi) => {
                     const mine = stationScoped && group.workstationId === selectedWorkstation.id;
-                    const expanded = !stationScoped || mine || showAll || !!openGroups[gi];
-                    const first = group.steps[0];
                     const last = group.steps[group.steps.length - 1];
                     const done = group.steps.filter((st) => st.status === 'DONE' || st.status === 'SKIPPED').length;
                     const running = group.steps.some((st) => st.status === 'IN_PROGRESS');
@@ -1182,31 +1194,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                         : null;
                     const showStationLog = stationLogStep && !stationLogStep.production_blocker && stationLogStep.status === 'IN_PROGRESS' && Number(stationLogStep.available_qty ?? 0) > 0;
                     const showHeader = stationScoped || group.steps.length > 1;
-                    // Only another station's group folds (and only on a station-scoped page).
-                    const foldable = stationScoped && !mine && !showAll;
                     return (
                         <div key={gi} className={`rounded-om-sm ${mine ? 'border border-om-accent/40 bg-om-accent/5 p-2' : ''}`} data-testid={`station-group-${gi}`}>
                             {showHeader && (
-                                <button
-                                    type="button"
-                                    disabled={!foldable}
-                                    onClick={() => setOpenGroups((o) => ({ ...o, [gi]: !o[gi] }))}
-                                    className={`w-full flex flex-wrap items-center gap-2 px-2 py-1.5 text-left ${foldable ? 'cursor-pointer' : 'cursor-default'}`}
-                                    aria-expanded={foldable ? expanded : undefined}
-                                >
+                                <div className="w-full flex flex-wrap items-center gap-2 px-2 py-1.5 text-left">
                                     <span className="text-sm font-semibold text-om-ink">{stationName}</span>
                                     {mine && <span className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-om-accent text-white">{__('Your station')}</span>}
                                     <span className="font-mono text-[11px] text-om-muted">{rangeLabel}</span>
                                     <span className={`font-mono text-[11px] ${running ? 'text-om-running' : 'text-om-muted'}`}>
                                         {running ? __('In progress') : __(':done of :total done', { done, total: group.steps.length })}
                                     </span>
-                                    {transfer && !expanded && (
-                                        <span className="font-mono text-[11px] text-om-muted">
-                                            {__('Waiting')}: {fmtQty(first.available_qty ?? 0)} · {__('Passed')}: {fmtQty(last.passed_qty ?? 0)}
-                                        </span>
-                                    )}
-                                    {foldable && <ChevronIcon open={expanded} />}
-                                </button>
+                                </div>
                             )}
                             {showStationLog && (
                                 <div className="bg-om-panel border border-om-line2 rounded-om-sm mb-2">
@@ -1219,7 +1217,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     />
                                 </div>
                             )}
-                            {expanded && <div className="space-y-2">{group.steps.map(renderStep)}</div>}
+                            <div className="space-y-2">{group.steps.map(renderStep)}</div>
                             {mine && <p className="px-2 pt-2 text-sm text-om-muted">{next
                                 ? __('Next: :station · Line: :line', { station: next.workstation?.name ?? next.name, line: next.workstation?.line?.name ?? '—' })
                                 : __('Final step — finished output')}</p>}

@@ -273,6 +273,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         // Quantity ledger: log good / scrapped pieces leaving a running step
         // (transfer flow opens the next station from this).
+        Route::post('/batch-step/{batchStep}/quantity-correction', [OperatorBatchController::class, 'correctQuantity'])->name('batch-step.quantity-correction');
         Route::post('/batch-step/{batchStep}/quantity', [OperatorBatchController::class, 'recordQuantity'])->name('batch-step.quantity');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');

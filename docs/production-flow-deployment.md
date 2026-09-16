@@ -130,3 +130,26 @@ soft deletion remains available; hard purges are constrained while counter evide
 those sources.
 
 For an isolated browser rehearsal, follow [the browser test guide](machine-counter-browser-tests.md).
+
+## Flow changes and manual corrections
+
+Changing from transfer to whole-batch flow is refused while any nonterminal routed order
+remains open, including orders with no output yet. Finish or cancel these orders first.
+Omitting the flow field preserves its current value. Settings imports intentionally ignore
+`production_flow_mode`; change it separately through System settings or the validated API.
+
+The built-in Modbus poller accepts **cumulative** explicit counters only. For pulse/increment
+production, use a gateway that preserves acquisition timestamps and stable event IDs.
+Repeated polling of a boolean does not identify physical pulses.
+
+With **Production Quantity Corrections → Full edit** enabled, the operator who started the
+step (or a Supervisor/Admin) can correct a running Operator-counted step in transfer mode.
+Timed windows apply to individual shift entries, not aggregated step totals. **Correct good quantity** accepts the
+corrected total and a mandatory reason. It records before/after totals and the user in the
+immutable audit log. Stale forms, stopped production, completed steps, machine-counted orders,
+quantities above incoming pieces, and reductions below downstream consumption are rejected.
+Correct downstream steps first when necessary. This action does not edit scrap or reopen
+completed work; investigate those discrepancies before closing affected work.
+
+Counter migration rollback is refused as soon as a counter exists, even without readings.
+Configuration and assignments are production state too; use the recovery policy above.

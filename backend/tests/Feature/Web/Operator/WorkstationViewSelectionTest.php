@@ -399,4 +399,17 @@ class WorkstationViewSelectionTest extends TestCase
             ->get("/operator/workstation?workstation={$this->exposure->id}")
             ->assertForbidden();
     }
+
+    public function test_order_detail_only_accepts_cross_line_station_when_routing_is_enabled(): void
+    {
+        $foreign = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
+        $url = "/operator/work-order/{$this->atExposure->id}?workstation={$foreign->id}";
+        foreach ([false, true] as $enabled) {
+            DB::table('system_settings')->updateOrInsert(['key' => 'workstation_routing_enabled'], ['value' => json_encode($enabled)]);
+            $this->actingAs($this->operator)->withSession(['selected_line_id' => $this->line->id])->get($url)
+                ->assertOk()->assertInertia(fn (AssertableInertia $page) => $enabled
+                    ? $page->where('selectedWorkstation.id', $foreign->id)
+                    : $page->where('selectedWorkstation', null));
+        }
+    }
 }

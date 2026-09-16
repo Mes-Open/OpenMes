@@ -81,6 +81,9 @@ class MachineCounterService
             if ($counter->topic_mapping_id && strpbrk($counter->mapping?->topic?->topic_pattern ?? '', '+#') !== false) {
                 $this->fail('Use an exact MQTT topic for a production counter; wildcard topics can mix machines.');
             }
+            if ($counter->machine_tag_id && $connection->modbusConnection && $data['mode'] !== 'cumulative') {
+                $this->fail('The built-in Modbus poller requires cumulative counting. Use an event-aware gateway for pulse or increment counts.');
+            }
             $step = empty($data['batch_step_id']) ? null : BatchStep::findOrFail($data['batch_step_id']);
             if ($step) {
                 $this->validateTarget($counter, $step, $ws->id);

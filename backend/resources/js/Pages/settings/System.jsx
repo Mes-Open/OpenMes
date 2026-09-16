@@ -610,6 +610,7 @@ export default function System() {
                         <div className={CARD_CLASS}>
                             <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Quantity Corrections')}</h2>
                             <p className={`${HELP_CLASS} mb-4`}>{__('Defines whether and when operators can correct previously reported quantities.')}</p>
+                            <p className={`${HELP_CLASS} mb-4`}>{__('Transfer step totals require Full edit. Timed windows apply only to individual shift entries.')}</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {[
                                     { value: 'none', label: __('No corrections'), desc: __('Operators cannot edit reported quantities. All entries are final.') },

@@ -75,3 +75,51 @@ No production deployment or push is part of this session.
   decode saved JSON instead of using PostgreSQL's unsupported JSON equality operator.
 - PHP formatting, translation key parity and whitespace checks passed. These are focused
   regression results; the previously reported full-workspace failures remain outside this claim.
+
+## PR #300 review follow-up — 2026-09-16
+
+Validated CodeRabbit findings against the implementation before applying them:
+
+- Preserve omitted flow settings and block transfer → whole-batch while routed orders remain open.
+- Exclude flow-mode changes from generic imports; validate API workflow modes.
+- Handle machine orders without a line and respect the cross-line routing setting on details.
+- Preserve counter configuration on rollback even when no readings exist.
+- Reject pulse/increment configuration for built-in Modbus polling; event-aware gateways remain supported.
+- Reuse the locked MQTT counter and cached ledger flag. Remove unreachable station folding logic while
+  retaining the requested station-only default and explicit show-all control.
+
+Added audited good-total corrections for running manual transfer steps. They require Full edit,
+the operator who started the step or a Supervisor/Admin, a reason and the expected current total.
+They reject stale values, stopped/closed work, machine orders and impossible downstream quantities.
+Timed correction windows still apply only to individual shift entries. Scrap edits and reopening
+completed work are outside this action.
+
+Visible `playwright-iso` checks used isolated local order `TEST-CORRECTION-PR300` (#69): 4 → 3,
+downstream consumption preventing 3 → 1, downstream-first correction, final-step order rollup,
++1, station-only/show-all views, and policy gating. Audit rows retained the operator, reason and
+before/after totals. Admin flow reversal was refused with open routed orders. The counter page
+loaded with zero native selects and the history table. The original local correction policy
+(`none`) and transfer flow were preserved after testing; the test order remains for inspection.
+
+The new local route initially returned 404 because the server retained its old route cache.
+Rebuilding the route cache and reloading workers resolved it. The deployment entrypoint already
+rebuilds that cache. An initial clean-checkout test started before frontend assets were built;
+its missing-manifest failure was an environment setup issue. Final suites use built assets.
+
+A production-copy migration rehearsal remains pending: no production database copy or staging
+location was supplied. Do not treat disposable-database tests as measured migration downtime.
+The broader phase-3 admin routing/WIP dashboards and searchable large counter-assignment redesign
+remain separate follow-ups.
+
+Final source verification (isolated snapshots, unrelated untracked code excluded):
+
+- SQLite: **2,716 tests / 11,249 assertions**, no errors or failures; five existing PHPUnit
+  deprecations, one skipped test and one risky empty test.
+- Frontend: **134 tests / 11 files**, production build, PHP formatting and translation parity passed.
+- Backend test image included GD WebP support. The repository's deployable image still lacks
+  that capability; this follow-up does not change its build or resolve existing dependency advisories.
+- PostgreSQL 17: **2,716 tests / 11,227 assertions**, one error and eight failures. All nine
+  failing test methods match the already reproduced `cca82cab` baseline: invalid timezone
+  JSON fixture, four SQLite-preset installer assumptions, packaging-checklist tenant pruning,
+  and three sample-data replacement tests. No new failing test appeared. This is not a clean
+  PostgreSQL suite; those existing failures still need resolution or explicit release triage.

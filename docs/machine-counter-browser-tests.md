@@ -103,3 +103,22 @@ channel is migrated. If a whole-batch machine order already has output that is n
 in its steps, finish or reconcile it before enabling Transfer; the settings gate reports it.
 
 Compatibility recording: `docs/review-evidence/counting-compatibility/compatibility.webm`.
+
+## Manual correction regression (Polish UI)
+
+Use a separate test order with counting source **Operator**, transfer flow, quantity 10,
+and at least two sequential steps. Enable **Korekty ilości produkcji → Pełna edycja**
+for this test and use the operator who started the step. Restore the previous policy afterward.
+Do not reuse live production work.
+
+1. Start the first step and log 4 good pieces. The next step receives 4.
+2. Expand **Skoryguj ilość dobrych sztuk**. Enter total 3 and a reason, then **Zapisz korektę**.
+   The first step shows 3 passed and 7 waiting; the next receives 3. The audit retains 4 → 3.
+3. Start the next step and log 2 good pieces. Try correcting the first total to 1.
+   An inline error must appear and both counts must remain unchanged.
+4. Correct the next total to 1 with a reason, then the first total to 1. Both are allowed.
+5. On the final step, a valid correction must also update the order's produced quantity.
+6. Check an old form after another session changes its total: submission must require refresh.
+7. Blank reasons, more than two decimals, machine-counted and completed steps are refused.
+8. In System settings, try switching to **Cała partia** with this order open: the switch must
+   fail and retain **Przekazywanie**. Finish/cancel test work when testing is complete.

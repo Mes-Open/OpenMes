@@ -95,7 +95,7 @@ class WorkstationController extends Controller
         $workOrders->loadMissing('batches.steps');
         foreach ($workOrders as $order) {
             $targets = collect();
-            if ($order->usesStepLedger() && $order->counting_source !== 'machine') {
+            if ($order->uses_step_ledger && $order->counting_source !== 'machine') {
                 foreach ($order->batches as $batch) {
                     $batch->setRelation('workOrder', $order);
                     foreach ($batch->steps as $step) {
