@@ -8,7 +8,7 @@ import LiveRefresh from '../../../components/LiveRefresh';
 import { apiCall, apiGet } from '../../../lib/http';
 import { __, formatDate } from '../../../lib/i18n';
 import { todayKey, dayList } from './planner/helpers';
-import { WeeklyView, DailyView } from './planner/views';
+import { WeeklyView } from './planner/views';
 import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import {
@@ -312,7 +312,9 @@ export default function Planner() {
     }, [saving, refreshContent]);
 
     const rangeLabel = (rangeStart && rangeEnd)
-        ? `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+        ? rangeStart === rangeEnd
+            ? formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
         : '';
 
     return (
@@ -370,8 +372,7 @@ export default function Planner() {
             <div className="w-full min-w-0" style={{ border: '1px solid var(--om-line)', borderRadius: 0, overflow: 'hidden', background: 'var(--om-bg)' }}>
                 <div className="om-main w-full min-w-0 overflow-auto">
                     {viewMode === 'weekly' && <WeeklyView ctx={ctx} />}
-                    {viewMode === 'daily' && <DailyView ctx={ctx} />}
-                    {viewMode === 'hourly' && <HourlyView ctx={ctx} />}
+                    {(viewMode === 'daily' || viewMode === 'hourly') && <HourlyView ctx={ctx} />}
                     {viewMode === 'monthly' && <MonthlyView ctx={ctx} />}
                 </div>
             </div>

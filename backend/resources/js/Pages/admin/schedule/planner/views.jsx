@@ -1,14 +1,14 @@
-// WeeklyView (day×shift column gantt) + DailyView, following the OpenMES Schedule
+// WeeklyView (day×shift column gantt), following the OpenMES Schedule
 // design. Weekly orders are spanning blocks: drag to move (across shifts, days and
 // lines), drag the edges to stretch across shifts/days. Backlog cards drop onto
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
-import { OrderCard, TwinChip, TierDot, ShortageChip } from './OrderCard';
-import { DraggableOrder, useOrderDrop } from './dnd';
+import { TwinChip, TierDot, ShortageChip } from './OrderCard';
+import { useOrderDrop } from './dnd';
 import {
-    weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, dayList, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
+    weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
 } from './helpers';
 
 const LINE_COL_W = 172;
@@ -375,73 +375,6 @@ export function WeeklyView({ ctx }) {
             <div style={{ marginTop: 14, fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>
                 {__('Drag a block to move it (across shifts, days or lines) · drag its edges to stretch across shifts · click an empty cell to assign · ✕ returns to backlog')} · {__('drag a block up or down to move it to another line')} · {__('drag an edge onto another line to continue the order there')} · {__('⇄ marks an order running on two lines')}
             </div>
-        </div>
-    );
-}
-
-// ── DAILY VIEW — one day, orders grouped per line ───────────────────────────
-function DailyLine({ line, date, ctx }) {
-    const [isOver, drop] = useOrderDrop({ lineId: line.id, date, shift: 1 }, ctx.onDropOrder);
-    // One card per schedule segment on this line/day.
-    const segs = ctx.data.workOrders.flatMap((o) => placementsOf(o)
-        .filter((p) => p.line_id === line.id && weeklySlot(projectSegment(o, p), 1).date === date)
-        .map((p) => ({ wo: o, key: p.key })));
-    const lc = loadColor(lineLoad(ctx.data.workOrders, line.id, [{ date }], 1) || 0);
-    return (
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--om-line2)' }}>
-            <div style={{ width: 170, flexShrink: 0, padding: 14, borderRight: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: lc }} />
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: 'var(--om-ink)' }}>{line.code}</span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--om-muted)' }}>{line.name}</div>
-            </div>
-            <div ref={drop} className="flex gap-2.5 flex-wrap items-start"
-                style={{ flex: 1, padding: '12px 14px', minHeight: 60, background: isOver ? 'var(--om-accent-bg)' : 'transparent' }}>
-                {segs.map(({ wo, key }) => {
-                    const isPrimary = key === 'primary';
-                    return (
-                        <DraggableOrder key={wo.id + ':' + key} wo={wo} placement={key}>
-                            <OrderCard wo={wo} variant="day" selected={ctx.selectedId === wo.id} twinMeta={chainChipMeta(wo, key, ctx.data.allLines)}
-                                onClick={(e) => { e.stopPropagation(); ctx.onSelectOrder(wo); }}
-                                onUnassign={isPrimary ? ctx.onUnassign : (w) => ctx.onDetachPlacement(w, key)}
-                                unassignTitle={isPrimary ? undefined : __('Remove from this line')} />
-                        </DraggableOrder>
-                    );
-                })}
-                {segs.length === 0 && <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faintest)', padding: 8 }}>— {__('idle')} —</span>}
-            </div>
-        </div>
-    );
-}
-
-// One day section: header + a row per line. The daily view stacks these for
-// every day in the visible range so a planner can scan several days at once.
-function DayBlock({ date, ctx, today }) {
-    const isToday = date === today;
-    // Count segments the same way the rows below render them (every segment
-    // of an order, each on its own projected date).
-    const count = ctx.data.lines.reduce((n, line) => n
-        + ctx.data.workOrders.reduce((m, o) => m + placementsOf(o)
-            .filter((p) => p.line_id === line.id && weeklySlot(projectSegment(o, p), 1).date === date).length, 0), 0);
-    return (
-        <div style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-card)' }}>
-            <div className="flex items-center justify-between" style={{ padding: '14px 18px', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : 'var(--om-panel)' }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: isToday ? 'var(--om-accent)' : 'var(--om-ink)' }}>{formatDate(parseDate(date), { weekday: 'long', day: '2-digit', month: 'long' })}</span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{count} {__('orders')}</span>
-            </div>
-            {ctx.data.lines.map((line) => <DailyLine key={line.id} line={line} date={date} ctx={ctx} />)}
-        </div>
-    );
-}
-
-export function DailyView({ ctx }) {
-    const { data, config } = ctx;
-    const range = dayList(data.range.start, 14, config.showWeekends);
-    if (!range.length) return null;
-    return (
-        <div className="flex flex-col gap-4">
-            {range.map((d) => <DayBlock key={d.date} date={d.date} ctx={ctx} today={data.range.today} />)}
         </div>
     );
 }

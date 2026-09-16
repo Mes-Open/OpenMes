@@ -67,6 +67,48 @@ class SchedulePlannerBoardTest extends TestCase
         $this->assertNotContains($nextWeek->id, $ids->all());
     }
 
+    public function test_daily_shows_one_day_and_keeps_time_based_order_after_a_move(): void
+    {
+        $line = Line::factory()->create(['is_active' => true]);
+        $day = '2026-09-16';
+        $first = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_PENDING,
+            'due_date' => $day, 'planned_start_at' => "$day 08:00:00",
+            'planned_end_at' => "$day 09:00:00",
+        ]);
+        $second = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_PENDING,
+            'due_date' => $day, 'planned_start_at' => "$day 10:00:00",
+            'planned_end_at' => "$day 11:00:00",
+        ]);
+        $tomorrow = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_PENDING,
+            'due_date' => '2026-09-17', 'planned_start_at' => '2026-09-17 08:00:00',
+            'planned_end_at' => '2026-09-17 09:00:00',
+        ]);
+        $query = ['view_mode' => 'daily', 'start_date' => $day];
+        $props = $this->props($query);
+        $this->assertSame($day, $props['rangeStart']);
+        $this->assertSame($day, $props['rangeEnd']);
+        $this->assertSame('2026-09-15', $props['navPrev']);
+        $this->assertSame('2026-09-17', $props['navNext']);
+        $this->assertNotContains($tomorrow->id, array_column($props['workOrders'], 'id'));
+
+        // Drag the first block past the second without changing its duration.
+        $this->actingAs($this->admin)->putJson("/admin/schedule/{$first->id}/resize", [
+            'planned_start_at' => "$day 12:00:00",
+            'planned_end_at' => "$day 13:00:00",
+        ])->assertOk()->assertJson(['success' => true]);
+
+        foreach (['daily', 'hourly'] as $mode) {
+            $orders = collect($this->props([...$query, 'view_mode' => $mode])['workOrders'])
+                ->sortBy('planned_start_at')->pluck('id')->values()->all();
+            $this->assertSame([$second->id, $first->id], $orders);
+        }
+        $this->assertSame('10:00', $second->fresh()->planned_start_at->format('H:i'));
+        $this->assertSame($day, $first->fresh()->due_date->format('Y-m-d'));
+    }
+
     public function test_distinct_shifts_sharing_a_sort_order_are_not_collapsed(): void
     {
         $line = Line::factory()->create(['is_active' => true]);

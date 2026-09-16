@@ -787,11 +787,7 @@ class SchedulePlannerService
     private function calculateDateRange(string $viewMode, Carbon $startDate, int $horizonWeeks): array
     {
         return match ($viewMode) {
-            'daily' => [
-                $startDate->copy(),
-                $startDate->copy()->addDays(13)->endOfDay(),
-            ],
-            'hourly' => [
+            'daily', 'hourly' => [
                 $startDate->copy()->startOfDay(),
                 $startDate->copy()->endOfDay(),
             ],
