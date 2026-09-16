@@ -9,8 +9,8 @@ import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
 } from './helpers';
 
-const HLANE = 46;
-const HGAP = 5;
+const HLANE = 60;
+const HGAP = 0;
 const LBL_W = 150;
 
 function fmtMin(m) {
@@ -64,8 +64,8 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
         : `${fmtMin(cur.start)}–${fmtMin(cur.end)} · ${dur}`;
 
     return (
-        <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', minWidth: 10, zIndex: drag ? 30 : 2 }}>
-            <div className="om-wo relative" title={timing} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
+        <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', zIndex: drag ? 30 : 2 }}>
+            <div className="om-wo relative" title={`${wo.order_no} · ${timing}`} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
                 {!readOnly && <span onPointerDown={(e) => begin('l', e)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }} />}
                 <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '6px 10px', cursor: readOnly ? 'pointer' : 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
@@ -127,7 +127,7 @@ export function HourlyView({ ctx }) {
                     {/* line tracks */}
                     {data.lines.map((line) => {
                         const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr);
-                        const h = totalLanes * (HLANE + HGAP) + 11;
+                        const h = totalLanes * (HLANE + HGAP);
                         return (
                             <div key={line.id} className="flex" style={{ borderBottom: '1px solid var(--om-line2)', minHeight: 60 }}>
                                 <div style={{ width: LBL_W, flexShrink: 0, padding: '12px 14px', borderRight: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
@@ -146,7 +146,7 @@ export function HourlyView({ ctx }) {
                                             <span style={{ position: 'absolute', top: -1, left: -3, width: 7, height: 7, borderRadius: 999, background: 'var(--om-accent)' }} />
                                         </div>
                                     )}
-                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP) + 8} />)}
+                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP)} />)}
                                 </div>
                             </div>
                         );
@@ -183,7 +183,7 @@ export function MonthlyView({ ctx }) {
         <div style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-card)' }}>
             <div className="flex items-center justify-between" style={{ padding: '12px 16px', borderBottom: '1px solid var(--om-line2)' }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--om-ink)' }}>{monthLabel}</span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{__('read-only')}</span>
+                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--om-faint)' }}>{__('Click a day to open its schedule')}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
                 {dow.map((d) => <div key={d} style={{ padding: 10, textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{d}</div>)}
@@ -193,7 +193,7 @@ export function MonthlyView({ ctx }) {
                     if (!c) return <div key={'e' + i} style={{ minHeight: 96, borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }} />;
                     const isToday = c.iso === today;
                     return (
-                        <div key={c.iso} style={{ minHeight: 96, padding: '9px 10px', borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'color-mix(in srgb, var(--om-accent-bg) 66%, transparent)' : 'var(--om-card)' }}>
+                        <button type="button" key={c.iso} onClick={() => ctx.onSelectDay(c.iso)} aria-label={formatDate(parseDate(c.iso), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} className="text-left hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-om-accent focus-visible:-outline-offset-2" style={{ minHeight: 96, padding: '9px 10px', borderRight: '1px solid var(--om-line2)', borderBottom: '1px solid var(--om-line2)', background: isToday ? 'color-mix(in srgb, var(--om-accent-bg) 66%, transparent)' : 'var(--om-card)' }}>
                             <div className="flex items-center justify-between mb-2">
                                 <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--om-accent)' : 'var(--om-ink)' }}>{c.d}</span>
                                 {c.orders.length > 0 && <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 20, padding: '1px 6px' }}>{c.orders.length}</span>}
@@ -203,7 +203,7 @@ export function MonthlyView({ ctx }) {
                                     <div key={o.id} style={{ height: 4, borderRadius: 3, background: statusOf(o.status).solid, width: Math.min(100, 40 + (o.planned_qty || 0) / 6) + '%' }} />
                                 ))}
                             </div>
-                        </div>
+                        </button>
                     );
                 })}
             </div>

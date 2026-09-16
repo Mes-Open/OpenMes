@@ -267,6 +267,7 @@ export default function Planner() {
 
     const ctx = {
         data, config, days,
+        onSelectDay: (date) => nav({ start_date: date, view_mode: 'daily', line_id: lineId }),
         onSelectOrder: setSelected, selectedId: selected?.id, onHourlyChange,
         onDropOrder: dropToCell,
         onUnassign: unassign,

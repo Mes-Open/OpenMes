@@ -85,16 +85,16 @@ function changeSummary(c, allLines) {
     const b = c.before || {}; const a = c.after || {};
     const parts = [];
     const primaryChanged = ['line_id', 'due_date', 'shift_number', 'end_date', 'end_shift_number'].some((k) => (b[k] ?? null) !== (a[k] ?? null));
-    if (primaryChanged) parts.push(`${slot(b)} → ${slot(a)}`);
+    if (primaryChanged) parts.push(<span className="inline-flex flex-wrap items-center gap-2"><span>{slot(b)}</span><Icon name="arrow-right" size={14} /><span>{slot(a)}</span></span>);
     const key = (p) => `${p.line_id}|${p.due_date}|${p.shift_number ?? ''}|${p.end_date ?? ''}|${p.end_shift_number ?? ''}`;
     const bp = (b.placements || []).map(key); const ap = (a.placements || []).map(key);
-    (a.placements || []).forEach((p) => { if (!bp.includes(key(p))) parts.push(`+ ${code(p.line_id)} ${p.due_date}`); });
-    (b.placements || []).forEach((p) => { if (!ap.includes(key(p))) parts.push(`− ${code(p.line_id)} ${p.due_date}`); });
+    (a.placements || []).forEach((p) => { if (!bp.includes(key(p))) parts.push(<span className="inline-flex items-center gap-1"><Icon name="plus" size={12} />{code(p.line_id)} {p.due_date}</span>); });
+    (b.placements || []).forEach((p) => { if (!ap.includes(key(p))) parts.push(<span className="inline-flex items-center gap-1"><Icon name="minus" size={12} />{code(p.line_id)} {p.due_date}</span>); });
     if (!parts.length && ((b.planned_start_at ?? '') !== (a.planned_start_at ?? '') || (b.planned_end_at ?? '') !== (a.planned_end_at ?? ''))) {
-        const t = (x) => (x ? x.slice(11, 16) : '—');
-        parts.push(`${t(b.planned_start_at)}–${t(b.planned_end_at)} → ${t(a.planned_start_at)}–${t(a.planned_end_at)}`);
+        const t = (x) => (x ? `${x.slice(0, 10)} ${x.slice(11, 16)}` : __('End not planned'));
+        parts.push(<span className="inline-flex flex-wrap items-center gap-2"><span>{t(b.planned_start_at)} · {t(b.planned_end_at)}</span><Icon name="arrow-right" size={14} /><span>{t(a.planned_start_at)} · {t(a.planned_end_at)}</span></span>);
     }
-    return parts.join(' · ') || __('updated');
+    return parts.length ? parts.map((part, index) => <span key={index} className="inline-flex items-center gap-2">{part}</span>) : __('updated');
 }
 
 function ChangesPanel({ ctx }) {
@@ -131,7 +131,7 @@ function ChangesPanel({ ctx }) {
                         <div className="flex items-center gap-2">
                             {c.action === 'undo' && (
                                 <Tooltip label={__('Undo')}>
-                                    <span style={{ fontSize: 10, color: 'var(--om-accent)' }}>↩</span>
+                                    <Icon name="undo-2" size={14} className="text-om-muted shrink-0" />
                                 </Tooltip>
                             )}
                             <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{c.order_no}</span>
@@ -139,17 +139,16 @@ function ChangesPanel({ ctx }) {
                                 {formatDate(new Date(c.created_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
-                        <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--om-muted)', marginTop: 3 }}>{changeSummary(c, ctx.data.allLines)}</div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-om-muted mt-2">{changeSummary(c, ctx.data.allLines)}</div>
                         <div className="flex items-center gap-2" style={{ marginTop: 6 }}>
                             {c.user && <span style={{ fontSize: 10, color: 'var(--om-faint)' }}>{c.user}</span>}
                             <span className="ml-auto">
                                 {undone
                                     ? <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__('Undone')}</span>
                                     : (
-                                        <button type="button" onClick={() => undo(c)} disabled={busy === c.id}
-                                            style={{ fontSize: 11, fontWeight: 600, color: 'var(--om-accent)', background: 'var(--om-accent-bg)', borderRadius: 7, padding: '4px 10px', opacity: busy === c.id ? 0.5 : 1 }}>
-                                            {__('Undo')}
-                                        </button>
+                                        <Button variant="outline" size="sm" onClick={() => undo(c)} disabled={busy === c.id}>
+                                            <Icon name="undo-2" size={14} />{__('Undo')}
+                                        </Button>
                                     )}
                             </span>
                         </div>
