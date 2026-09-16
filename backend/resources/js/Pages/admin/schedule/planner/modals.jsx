@@ -2,7 +2,7 @@
 // toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
+import { Dropdown, Icon } from '@openmes/ui';
 import AppDatePicker from '../../../../components/AppDatePicker';
 import AppDateTimePicker from '../../../../components/AppDateTimePicker';
 import { __ } from '../../../../lib/i18n';
@@ -231,9 +231,9 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                         <div><div style={lblStyle}>{__('End shift')}</div><Dropdown value={endShift == null ? '' : String(endShift)} onChange={(v) => setEndShift(v)} placeholder="—" options={shiftOpts} /></div>
                     </div>
 
-                    <div className="flex gap-2.5">
-                        <a href={`/admin/work-orders/${wo.id}`} className="flex-1 text-center" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}>{__('Open work order')} ↗</a>
-                        <button onClick={() => onSave(wo, {
+                    <div className="flex flex-wrap gap-2.5">
+                        <a href={`/admin/work-orders/${wo.id}`} className="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}><Icon name="external-link" size={16} />{__('Open work order')}</a>
+                        <button type="button" className="inline-flex items-center justify-center gap-2" onClick={() => onSave(wo, {
                             line_id: line ? +line : null,
                             planned_start_at: start || null, planned_end_at: plannedEnd || null,
                             due_date: due || null, week_number: wo.week_number ?? null, end_date: endDate || null,
@@ -243,8 +243,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 shift_number: p.shift_number ?? null, end_date: p.end_date ?? null, end_shift_number: p.end_shift_number ?? null,
                             })),
                         })}
-                            style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', background: 'var(--om-accent)', borderRadius: 9, padding: '11px 18px' }}>{__('Save')}</button>
-                        <button onClick={() => onUnassign(wo)} style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 9, padding: '11px 18px' }}>{__('Unschedule')}</button>
+                            style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', background: 'var(--om-accent)', borderRadius: 9, padding: '11px 18px' }}><Icon name="save" size={16} />{__('Save')}</button>
+                        <button type="button" className="inline-flex items-center justify-center gap-2" onClick={() => onUnassign(wo)} style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 9, padding: '11px 18px' }}><Icon name="calendar-x" size={16} />{__('Unschedule')}</button>
                     </div>
                 </div>
             </div>
