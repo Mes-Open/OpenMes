@@ -3,6 +3,7 @@
 // lines), drag the edges to stretch across shifts/days. Backlog cards drop onto
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
+import { Icon } from '@openmes/ui';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { TwinChip, TierDot, ShortageChip } from './OrderCard';
@@ -157,7 +158,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const width = ((pos.endCol - pos.startCol + 1) / N) * 100;
     return (
         <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, zIndex: drag ? 30 : 5 }}>
-            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
+            <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: item.conflict ? 'inset 0 0 0 1.5px var(--om-blocked)' : wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
                 <Tooltip label={isPrimary ? __('Send to backlog') : __('Remove from this line')}>
                     <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
                         role="button" aria-label={isPrimary ? __('Send to backlog') : __('Remove from this line')}
@@ -175,7 +176,10 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                             {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
                         </span>
                     </div>
-                    <span className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)' }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate" style={{ fontSize: 10, color: 'var(--om-muted)' }}>{wo.product_name || '—'} · {fmtQty(wo.planned_qty)}</span>
+                        {item.conflict && <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-om-blocked" title={__('overlap')} style={{ fontSize: 9 }}><Icon name="triangle-alert" size={11} />{__('overlap')}</span>}
+                    </div>
                 </div>
                 <span onPointerDown={(e) => begin('r', e)} className="flex items-center justify-center" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }}>
                     <span style={{ width: 2, height: 14, borderRadius: 2, background: s.solid, opacity: 0.5 }} />
@@ -204,7 +208,7 @@ function StickyLineCell({ line, load, lc }) {
 }
 
 function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, setPreview }) {
-    const { items, lanes, N } = weeklyPlacements(ctx.data.workOrders.filter((o) => onLine(o, line.id)), days, shiftsPerDay, line.id);
+    const { items, lanes, N } = weeklyPlacements(ctx.data.workOrders.filter((o) => onLine(o, line.id)), days, shiftsPerDay, line.id, ctx.data.shifts);
     const load = lineLoad(ctx.data.workOrders, line.id, days, shiftsPerDay);
     const lc = loadColor(load);
     const maint = (ctx.data.maintenance || []).filter((m) => m.line_id === line.id && days.some((d) => d.date === m.scheduled_at_date));

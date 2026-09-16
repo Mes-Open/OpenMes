@@ -112,10 +112,12 @@ class SchedulePlannerService
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
                     ->orWhereBetween('planned_start_at', [$rangeStart, $rangeEnd])
-                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart))
+                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
                     // Extra segments are scheduled independently — an order
                     // with any segment in the range must ship too.
-                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                        ->orWhere(fn ($span) => $span->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay())))
+                    ->orWhere(fn ($span) => $span->whereNull('planned_start_at')->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                         // Minute-planned orders that overlap the visible range
                         $q2->whereNotNull('planned_start_at')

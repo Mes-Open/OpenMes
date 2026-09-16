@@ -53,7 +53,11 @@ export default function Planner() {
         router.get('/admin/schedule', params, { preserveState: false, preserveScroll: true });
     }, []);
     const goTo = (start) => nav({ start_date: start, view_mode: viewMode, line_id: lineId });
-    const setView = (k) => nav({ view_mode: k, line_id: lineId, start_date: startDate });
+    const setView = (k) => nav({
+        view_mode: k, line_id: lineId,
+        // Let the server choose today's date when opening the daily plan.
+        ...(viewMode === 'weekly' && k === 'daily' ? {} : { start_date: startDate }),
+    });
     const setLineFilter = (v) => nav({ view_mode: viewMode, line_id: v, start_date: startDate });
 
     const refreshContent = useCallback(() => new Promise((resolve) => {

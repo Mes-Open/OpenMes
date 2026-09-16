@@ -84,7 +84,15 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     const left = (cur.start / 1440) * 100;
     const width = ((cur.end - cur.start) / 1440) * 100;
     const dur = (Math.round((cur.end - cur.start) / 6) / 10) + 'h';
-    const timing = item.placeholder && !drag
+    const rangeLabel = (value, isEnd = false) => {
+        const date = parseDate(value.slice(0, 10));
+        const midnightEnd = isEnd && value.slice(11, 19) === '00:00:00';
+        if (midnightEnd) date.setDate(date.getDate() - 1);
+        return `${formatDate(date, { day: '2-digit', month: '2-digit' })} ${midnightEnd ? '24:00' : value.slice(11, 16)}`;
+    };
+    const timing = !drag && item.rangeStart && item.rangeEnd && (item.spansOutside || item.shiftBased)
+        ? `${rangeLabel(item.rangeStart)} – ${rangeLabel(item.rangeEnd, true)}`
+        : item.placeholder && !drag
         ? (item.placementKey === 'primary' && wo.planned_start_at ? `${fmtMin(cur.start)} · ${__('End not planned')}` : __('No exact time yet — drag to schedule'))
         : `${fmtMin(cur.start)}–${fmtMin(cur.end)} · ${dur}`;
 
@@ -151,7 +159,7 @@ export function HourlyView({ ctx }) {
                     </div>
                     {/* line tracks */}
                     {data.lines.map((line) => {
-                        const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr);
+                        const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr, data.shifts);
                         const h = totalLanes * (HLANE + HGAP);
                         return (
                             <div key={line.id} className="flex" style={{ borderBottom: '1px solid var(--om-line2)', minHeight: 60 }}>

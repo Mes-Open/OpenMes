@@ -109,6 +109,39 @@ class SchedulePlannerBoardTest extends TestCase
         $this->assertSame($day, $first->fresh()->due_date->format('Y-m-d'));
     }
 
+    public function test_daily_includes_the_second_day_of_shift_based_ranges(): void
+    {
+        $line = Line::factory()->create(['is_active' => true]);
+        $other = Line::factory()->create(['is_active' => true]);
+        $primary = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_PENDING,
+            'planned_start_at' => '2026-09-16 06:00:00', 'planned_end_at' => null,
+            'due_date' => '2026-09-30', 'end_date' => '2026-09-17', 'end_shift_number' => 1,
+        ]);
+        $legacy = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_PENDING,
+            'planned_start_at' => null, 'planned_end_at' => null,
+            'due_date' => '2026-09-16', 'end_date' => '2026-09-17',
+        ]);
+        $extra = WorkOrder::factory()->create([
+            'line_id' => $other->id, 'status' => WorkOrder::STATUS_PENDING,
+            'planned_start_at' => '2026-09-01 06:00:00', 'planned_end_at' => null,
+            'due_date' => '2026-09-01',
+        ]);
+        $extra->extraPlacements()->create([
+            'line_id' => $line->id, 'due_date' => '2026-09-16',
+            'end_date' => '2026-09-17', 'shift_number' => 1, 'end_shift_number' => 1,
+        ]);
+        $props = $this->props(['view_mode' => 'daily', 'start_date' => '2026-09-17', 'line_id' => $line->id]);
+        $ids = array_column($props['workOrders'], 'id');
+        // The payload also retains the final shift's possible overnight tail.
+        $tail = $this->props(['view_mode' => 'daily', 'start_date' => '2026-09-18', 'line_id' => $line->id]);
+        $this->assertContains($extra->id, array_column($tail['workOrders'], 'id'));
+        foreach ([$primary, $legacy, $extra] as $order) {
+            $this->assertContains($order->id, $ids);
+        }
+    }
+
     public function test_distinct_shifts_sharing_a_sort_order_are_not_collapsed(): void
     {
         $line = Line::factory()->create(['is_active' => true]);
