@@ -20,6 +20,19 @@ import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 // dropdown key `adminGroup`.
 const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
 
+/** '/admin/bakery/routings' from an absolute or relative URL, query dropped. */
+function pathOf(url) {
+    try {
+        return new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+    } catch {
+        return String(url ?? '').split('?')[0];
+    }
+}
+
+// Entries an installed module contributed are tinted so it is visible at a
+// glance which screens are core and which came with a module.
+export const MODULE_TINT = 'bg-om-accent-bg border-l-2 border-om-accent';
+
 // Module pages are legacy server-rendered (Blade), not Inertia components, so
 // their links must trigger a full navigation (`external`) — an Inertia <Link>
 // would fetch JSON for a non-Inertia route and fail.
@@ -31,7 +44,10 @@ function moduleItemToChild(item) {
     return {
         label: item.label,
         href: item.url,
-        match: [item.url],
+        // Modules register absolute URLs (url()/route()), but the active check
+        // compares against the page path — match on the path or the entry never
+        // lights up on its own screen.
+        match: [pathOf(item.url)],
         external: true,
         order: item.order,
         badge: item.badge,
@@ -206,7 +222,7 @@ function mergeModuleNav(moduleNav) {
             // A module may declare a group that is really a single screen: it
             // names a url and ships no entries, and then renders flat.
             href: g.url ?? undefined,
-            match: g.url ? [g.url, ...groupMatch([], children)] : groupMatch([], children),
+            match: g.url ? [pathOf(g.url), ...groupMatch([], children)] : groupMatch([], children),
             children,
         };
     });
@@ -951,7 +967,8 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
                     className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm transition-colors
                                 text-om-faint hover:bg-om-chip hover:text-om-ink
                                 ${collapsed && !showLabels ? 'justify-center !px-0' : ''}
-                                ${groupActive && showLabels ? 'text-om-ink' : ''}`}
+                                ${groupActive && showLabels ? 'text-om-ink' : ''}
+                                ${group.moduleGroup ? MODULE_TINT : ''}`}
                 >
                     {group.lucide
                         ? <UiIcon name={group.lucide} size={20} className="shrink-0" />
@@ -1064,7 +1081,8 @@ function ChildLink({ child, path, dot, hideBadge = false }) {
     }
 
     const className = `flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
-                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`;
+                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
+                        ${child.external && !active ? MODULE_TINT : ''}`;
 
     // Module (legacy Blade) target — plain anchor for a full page load.
     if (child.external) {

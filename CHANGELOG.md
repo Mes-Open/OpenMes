@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Module seams: `MenuRegistry::addOperatorItem()` puts a module's screen on the operator top bar as a tab; `modules/<Name>/lang/<locale>.json` strings are merged into the frontend translations; `ImportRegistry` accepts module importers through the `import.entities` filter; `Tests\Support\ModuleTestCase` migrates a module's tables inside the test transaction. Module-contributed nav entries are tinted with the accent colour and highlight on their own pages (they registered absolute URLs, which the path-based active check never matched).
+
 ### Fixed
 
 - Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
