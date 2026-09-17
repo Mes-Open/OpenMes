@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
             'moduleNav' => [
                 'items' => fn () => app(\App\Services\MenuRegistry::class)->getAllItems(),
                 'groups' => fn () => app(\App\Services\MenuRegistry::class)->getGroups(),
+                //   operator: [{label,url,order,prefix}] extra tabs on the operator
+                //           panel's top bar (OperatorLayout), Inertia links.
+                'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
             ],
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),

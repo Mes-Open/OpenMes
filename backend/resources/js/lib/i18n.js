@@ -17,6 +17,10 @@
 
 // Lazy glob → one dynamic-import chunk per locale file.
 const localeFiles = import.meta.glob('../../../lang/*.json');
+// A module ships its own strings under modules/<Name>/lang/<locale>.json (the
+// same source-string-keyed shape). They are merged under the core file, so a
+// module can never redefine a core string — only add its own.
+const moduleLocaleFiles = import.meta.glob('../../../modules/*/lang/*.json');
 
 let messages = {};
 let activeLocale = 'en';
@@ -27,7 +31,16 @@ let activeTimezone;
 /** Load (and activate) a locale's messages. Call once before the first render. */
 export async function loadLocale(locale) {
     const loader = localeFiles[`../../../lang/${locale}.json`];
-    messages = loader ? (await loader()).default ?? {} : {};
+    const core = loader ? (await loader()).default ?? {} : {};
+
+    const suffix = `/lang/${locale}.json`;
+    const fromModules = await Promise.all(
+        Object.entries(moduleLocaleFiles)
+            .filter(([path]) => path.endsWith(suffix))
+            .map(([, load]) => load().then((m) => m.default ?? {})),
+    );
+
+    messages = Object.assign({}, ...fromModules, core);
     activeLocale = locale;
     return messages;
 }

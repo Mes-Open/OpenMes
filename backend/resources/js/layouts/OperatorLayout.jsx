@@ -17,7 +17,9 @@ import { __ } from '../lib/i18n';
  * Geist White restyle: light-only v1 — former `dark:` classes removed.
  */
 export default function OperatorLayout({ children }) {
-    const { auth, line, selectedWorkstation, csrf_token } = usePage().props;
+    const { auth, line, selectedWorkstation, csrf_token, moduleNav } = usePage().props;
+    // Tabs an enabled module registered via MenuRegistry::addOperatorItem().
+    const moduleTabs = moduleNav?.operator ?? [];
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const isActive = (prefix) => path === prefix || path.startsWith(prefix);
 
@@ -48,6 +50,11 @@ export default function OperatorLayout({ children }) {
                             <TopLink href="/operator/workstation" active={isActive('/operator/workstation')}>
                                 {__('Workstation')}
                             </TopLink>
+                            {moduleTabs.map((tab) => (
+                                <TopLink key={tab.url} href={tab.url} active={isActive(tab.prefix)} module>
+                                    {__(tab.label)}
+                                </TopLink>
+                            ))}
                             <Link
                                 href="/operator/select-line"
                                 className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
@@ -91,13 +98,15 @@ export default function OperatorLayout({ children }) {
     );
 }
 
-function TopLink({ href, active, children }) {
+// `module` marks a tab an installed module contributed: tinted with the accent
+// so the panel shows at a glance which tabs are core and which are not.
+function TopLink({ href, active, module = false, children }) {
     return (
         <Link
             href={href}
             className={`px-4 py-2.5 rounded-om-sm text-sm font-semibold transition-colors ${
-                active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
-            }`}
+                active ? 'bg-om-ink text-om-on-ink' : module ? 'bg-om-accent-bg text-om-accent hover:bg-om-accent hover:text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
+            }${module && active ? ' ring-2 ring-om-accent' : ''}`}
         >
             {children}
         </Link>

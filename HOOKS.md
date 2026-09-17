@@ -227,6 +227,63 @@ $menu->addGroupItem('yourmod', 'Overview', url('/modules/your-module'), order: 1
 Resolve URLs with `url()` (not `route()`) so registration never depends on route
 load order or a cached route table.
 
+Every entry a module contributes is tinted with the accent colour in the sidebar,
+and lights up as active on its own pages (the registered URL is matched by path).
+
+### Operator panel tabs
+
+A module that ships an operator screen registers it as a tab on the operator
+top bar, next to Queue / Workstation:
+
+```php
+// label, url, order (built-in tabs are 10 and 20), optional path prefix that
+// keeps the tab highlighted (defaults to the link's own path).
+$menu->addOperatorItem('Team', url('/operator/team'), order: 30);
+```
+
+Operator tabs are Inertia links — the page behind them is a React page under the
+module's `resources/js/Pages/`. They arrive in the browser as `moduleNav.operator`
+and render tinted like sidebar entries.
+
+### Translations
+
+A module's own strings live in `modules/<Name>/lang/<locale>.json` (the same
+source-string-keyed shape as core's `lang/*.json`). The frontend merges them
+under the core file at bootstrap — a module can add strings, never redefine a
+core one — and the provider loads the same directory for PHP:
+
+```php
+$this->loadJsonTranslationsFrom(__DIR__.'/../lang');
+```
+
+### Import entities
+
+`ImportRegistry` (Admin → Import) accepts importers from modules through the
+`import.entities` filter:
+
+```php
+app(FilterRegistry::class)->addFilter('import.entities', fn ($e) => [...$e, MyImporter::class]);
+```
+
+`MyImporter` extends `App\Import\AbstractEntityImporter`; the screen, the queued
+job, the sample file and the routes pick it up.
+
+### Testing a module
+
+`Tests\Support\ModuleTestCase` registers the module's provider on each test's
+fresh application and migrates the module's directory inside the test
+transaction (the suite's `migrate:fresh` runs before any provider boots, so a
+module's tables are never part of that schema):
+
+```php
+class MyModuleTest extends \Tests\Support\ModuleTestCase
+{
+    protected string $module = 'MyModule';
+    protected string $provider = \Modules\MyModule\Providers\MyModuleServiceProvider::class;
+    protected string $probeTable = 'my_module_things';
+}
+```
+
 ## 3. Dashboard widget hooks
 
 `App\Services\WidgetRegistry` lets a module add cards to the admin dashboard.

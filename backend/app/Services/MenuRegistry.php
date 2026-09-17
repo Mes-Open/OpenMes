@@ -59,6 +59,9 @@ class MenuRegistry
     /** Custom top-level dropdown groups. */
     private array $groups = [];
 
+    /** @var list<array{label: string, url: string, order: int, prefix: string}> */
+    private array $operatorItems = [];
+
     // -------------------------------------------------------------------------
     // Built-in group injection
     // -------------------------------------------------------------------------
@@ -179,5 +182,49 @@ class MenuRegistry
         usort($groups, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $groups;
+    }
+
+    // -------------------------------------------------------------------------
+    // Operator (shop-floor panel) tabs
+    // -------------------------------------------------------------------------
+
+    /**
+     * Add a tab to the operator panel's top bar, next to Queue / Workstation.
+     *
+     * The operator chrome is a different surface from the admin sidebar: a
+     * handful of big touch targets on a tablet, not a tree of dropdowns. A
+     * module that ships an operator screen — a waste register, a team clock-in —
+     * registers it here and it renders as one more tab, active while the
+     * browser is anywhere under `$prefix` (defaults to the link's own path).
+     *
+     * Module operator pages are React/Inertia pages, so the tab is an Inertia
+     * link, not a full page load.
+     *
+     * @param  string  $label  Tab text
+     * @param  string  $url  Resolved URL (call route() or url() in your ServiceProvider)
+     * @param  int  $order  Sort weight — built-in tabs are 10 (Queue) and 20 (Workstation)
+     * @param  string|null  $prefix  Path prefix that keeps the tab highlighted
+     */
+    public function addOperatorItem(string $label, string $url, int $order = 50, ?string $prefix = null): void
+    {
+        $this->operatorItems[] = [
+            'label' => $label,
+            'url' => $url,
+            'order' => $order,
+            'prefix' => $prefix ?? (parse_url($url, PHP_URL_PATH) ?: $url),
+        ];
+    }
+
+    /**
+     * Operator tabs sorted by order.
+     *
+     * @return list<array{label: string, url: string, order: int, prefix: string}>
+     */
+    public function getOperatorItems(): array
+    {
+        $items = $this->operatorItems;
+        usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
+
+        return $items;
     }
 }
