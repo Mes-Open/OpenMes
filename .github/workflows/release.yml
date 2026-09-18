@@ -155,12 +155,38 @@ jobs:
             --exclude='storage/installed' \
             --exclude='bootstrap/cache/*.php'
 
+          # Root-level modules/ and packages/ — a different thing from
+          # backend/modules above. backend/Dockerfile copies both out of the build
+          # context (`COPY modules/ ./modules/`, `COPY packages/ /var/www/packages/`),
+          # and packages/ui is what `file:../packages/ui` in backend/package.json
+          # resolves to, so `npm ci` fails outright without it. Leaving them out is
+          # what made the v0.22.0 package unable to run the `docker compose up -d`
+          # its own release notes prescribe.
+          rsync -a modules/ "${DIST}/modules/" --exclude='node_modules' --exclude='.git'
+          rsync -a packages/ "${DIST}/packages/" --exclude='node_modules' --exclude='.git'
+
           # Ensure storage directories exist
           mkdir -p "${DIST}/backend/storage/logs"
           mkdir -p "${DIST}/backend/storage/framework/cache"
           mkdir -p "${DIST}/backend/storage/framework/sessions"
           mkdir -p "${DIST}/backend/storage/framework/views"
           touch "${DIST}/backend/storage/logs/.gitkeep"
+
+          # The package promises `docker compose up -d --build` works from the
+          # unpacked folder, so every path the Dockerfile copies has to be in it.
+          # Nothing compared these two files before, which is how v0.22.0 shipped
+          # a ZIP that could not build on any machine — the failure was in the
+          # package, not in anyone's Docker.
+          missing=0
+          while read -r src; do
+            if [ ! -e "${DIST}/${src}" ]; then
+              echo "::error::backend/Dockerfile copies '${src}', which is missing from the release package"
+              missing=1
+            fi
+          done < <(grep -E '^COPY ' backend/Dockerfile | grep -v -- '--from=' | awk '{print $2}')
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
 
           zip -r "${DIST}.zip" "${DIST}/"
           echo "zip_name=${DIST}.zip" >> $GITHUB_ENV

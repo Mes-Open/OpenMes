@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Ship the root `modules/` and `packages/` directories in the release ZIP. The Dockerfile copies
+  both out of the build context, and `packages/ui` is what `backend/package.json` resolves
+  `file:../packages/ui` to, so the published package could not run the `docker compose up -d`
+  its own release notes prescribe — the build failed on every machine. Releases now also fail
+  if any path the Dockerfile copies is absent from the package, so this cannot recur unnoticed.
 - Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
 - Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
 
