@@ -6366,5 +6366,7 @@
     "Account created successfully.": "Account created successfully.",
     "Work order :order updated.": "Work order :order updated.",
     "Work order :order deleted.": "Work order :order deleted.",
-    "Work order :order completed with :quantity produced.": "Work order :order completed with :quantity produced."
+    "Work order :order completed with :quantity produced.": "Work order :order completed with :quantity produced.",
+    "Record at least one measurement before completing this inspection.": "Record at least one measurement before completing this inspection.",
+    "This inspection has already been completed (:status).": "This inspection has already been completed (:status)."
 }

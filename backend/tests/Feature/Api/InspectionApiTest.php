@@ -46,6 +46,7 @@ class InspectionApiTest extends TestCase
     private function asAdmin(): self
     {
         $this->actingAs($this->admin, 'sanctum');
+
         return $this;
     }
 
@@ -141,10 +142,73 @@ class InspectionApiTest extends TestCase
         $this->assertNull($complete->json('data.issue_id'));
     }
 
+    public function test_completing_an_inspection_with_no_criteria_is_refused_not_a_crash(): void
+    {
+        // An inspection may legitimately be started without a plan — the lot is
+        // still recorded and can be dispositioned. It just has nothing to judge,
+        // so completing it is refused. That refusal is a rule the inspector has
+        // to read, and it used to arrive as a 500 because nothing handled it.
+        $start = $this->actingAs($this->inspector, 'sanctum')
+            ->postJson('/api/v1/inspections', [
+                'material_id' => $this->material->id,
+                'lot_number' => 'LOT-NO-PLAN',
+                'quantity_received' => 10,
+            ]);
+        $start->assertCreated();
+        $this->assertSame([], $start->json('data.results') ?? []);
+
+        $this->actingAs($this->inspector, 'sanctum')
+            ->postJson("/api/v1/inspections/{$start->json('data.id')}/complete")
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Record at least one measurement before completing this inspection.');
+
+        $this->assertSame(
+            Inspection::STATUS_PENDING,
+            Inspection::find($start->json('data.id'))->status,
+            'A refused completion must leave the inspection open.',
+        );
+    }
+
+    public function test_completing_an_inspection_twice_is_refused_not_a_crash(): void
+    {
+        // The second press of a button, or a back-and-resubmit. Reopening a
+        // completed inspection would rewrite a quality record, so it stays
+        // refused — but as an answer, not an error page.
+        $plan = $this->makePlan();
+
+        $start = $this->actingAs($this->inspector, 'sanctum')
+            ->postJson('/api/v1/inspections', [
+                'material_id' => $this->material->id,
+                'lot_number' => 'LOT-TWICE',
+                'inspection_plan_id' => $plan->id,
+            ]);
+        $inspId = $start->json('data.id');
+
+        foreach ($start->json('data.results') as $r) {
+            $this->actingAs($this->inspector, 'sanctum')->patchJson(
+                "/api/v1/inspections/{$inspId}/results/{$r['id']}",
+                $r['criterion_type'] === 'measurement' ? ['value_numeric' => 10.0] : ['value_boolean' => true],
+            );
+        }
+
+        $this->actingAs($this->inspector, 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspId}/complete")->assertOk();
+
+        $this->actingAs($this->inspector, 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspId}/complete")
+            ->assertStatus(422);
+
+        $this->assertSame(
+            Inspection::STATUS_PASS,
+            Inspection::find($inspId)->status,
+            'The first verdict must survive the second attempt.',
+        );
+    }
+
     public function test_complete_with_fail_creates_linked_non_conformance(): void
     {
         $plan = $this->makePlan();
-        $inspection = (new \App\Services\Quality\InboundInspectionService())
+        $inspection = (new \App\Services\Quality\InboundInspectionService)
             ->start($this->material, 'LOT-FAIL', 100, $plan, $this->inspector);
 
         foreach ($inspection->results as $r) {
@@ -171,12 +235,12 @@ class InspectionApiTest extends TestCase
     public function test_cannot_edit_results_after_completion(): void
     {
         $plan = $this->makePlan();
-        $inspection = (new \App\Services\Quality\InboundInspectionService())
+        $inspection = (new \App\Services\Quality\InboundInspectionService)
             ->start($this->material, 'LOT-DONE', 10, $plan, $this->inspector);
         foreach ($inspection->results as $r) {
-            (new \App\Services\Quality\InboundInspectionService())->recordResult($r, ['value_boolean' => true, 'value_numeric' => 10.0]);
+            (new \App\Services\Quality\InboundInspectionService)->recordResult($r, ['value_boolean' => true, 'value_numeric' => 10.0]);
         }
-        (new \App\Services\Quality\InboundInspectionService())->complete($inspection);
+        (new \App\Services\Quality\InboundInspectionService)->complete($inspection);
 
         $firstResult = $inspection->refresh()->results->first();
 

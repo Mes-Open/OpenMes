@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Answer, rather than crash, when an inspection cannot be completed. Completing one with no
+  recorded criteria — or completing it twice — is correctly refused, but the refusal reached the
+  user as a 500. It now renders as a 422 for API clients and a flash message on the web. An
+  inspection started without a plan has no criteria and never will, so the screen no longer offers
+  a Complete button it cannot honour.
 - Say where the stock went when a material shortage is caused by reservations. Availability is
   on-hand minus what other batches have reserved, so a full store could report "have 0" — which
   reads as the system having lost the stock. The shortage line now carries on-hand and reserved

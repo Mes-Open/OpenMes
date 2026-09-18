@@ -6366,5 +6366,7 @@
     "No BOM components assigned to this step.": "Do tego kroku nie przypisano komponentów BOM.",
     "No production steps on this order": "Brak kroków produkcyjnych w tym zleceniu",
     "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.": "Zlecenie zachowuje konfigurację procesu, z którą zostało utworzone, więc kroki dodane do szablonu później nie pojawią się tutaj. Poproś przełożonego o zastosowanie wniosku o zmianę do tego zlecenia albo o wystawienie nowego.",
-    "reserved by other batches": "zarezerwowane przez inne partie"
+    "reserved by other batches": "zarezerwowane przez inne partie",
+    "Record at least one measurement before completing this inspection.": "Zapisz co najmniej jeden pomiar, zanim zakończysz tę kontrolę.",
+    "This inspection has already been completed (:status).": "Ta kontrola została już zakończona (:status)."
 }
