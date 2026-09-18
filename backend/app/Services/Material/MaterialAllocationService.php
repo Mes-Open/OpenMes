@@ -197,6 +197,12 @@ class MaterialAllocationService
                     'available_qty' => round($available, 4),
                     'missing_qty' => round(max(0, $required - $available), 4),
                     'material_exists' => $material !== null,
+                    // Available is on-hand minus what other batches have already
+                    // reserved, so a full store can still read as zero available.
+                    // Carry both halves: without them the shortage looks like the
+                    // system losing stock rather than stock being spoken for.
+                    'on_hand_qty' => round((float) ($material?->stock_quantity ?? 0), 4),
+                    'reserved_qty' => round((float) ($material?->reserved_quantity ?? 0), 4),
                 ];
             }
 

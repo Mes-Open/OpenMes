@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Say where the stock went when a material shortage is caused by reservations. Availability is
+  on-hand minus what other batches have reserved, so a full store could report "have 0" — which
+  reads as the system having lost the stock. The shortage line now carries on-hand and reserved
+  alongside it, and names them when there is a reservation to explain.
 - Explain an order that has no production steps instead of rendering nothing. A work order keeps
   the process configuration it was created with, so steps added to the template afterwards never
   reach an order that predates them — previously the operator screen simply showed no step list at

@@ -6358,5 +6358,6 @@
     "All steps": "All steps",
     "No BOM components assigned to this step.": "No BOM components assigned to this step.",
     "No production steps on this order": "No production steps on this order",
-    "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.": "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one."
+    "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.": "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.",
+    "reserved by other batches": "reserved by other batches"
 }

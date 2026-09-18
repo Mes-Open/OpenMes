@@ -2296,6 +2296,17 @@ export default function WorkOrderDetail() {
                                     {m.material_exists
                                         ? ` · ${__('need')} ${fmtQty(m.required_qty)} · ${__('have')} ${fmtQty(m.available_qty)} · ${__('missing')} ${fmtQty(m.missing_qty)} ${m.unit_of_measure || ''}`
                                         : ` · ${__('not in stock list')}`}
+                                    {/*
+                                        "have 0" next to a full store reads as a fault in the
+                                        system. It is not: the stock is reserved by other
+                                        batches. Say so, but only when there is a reservation
+                                        to explain — otherwise this is noise on every line.
+                                    */}
+                                    {m.material_exists && m.reserved_qty > 0 && (
+                                        <span className="text-om-muted">
+                                            {` (${__('on hand')} ${fmtQty(m.on_hand_qty)} · ${__('reserved by other batches')} ${fmtQty(m.reserved_qty)})`}
+                                        </span>
+                                    )}
                                 </li>
                             ))}
                         </ul>
