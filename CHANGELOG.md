@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- File process-template checklist items and operator outputs against the step that is actually
+  open. The step card was reused across steps rather than remounted, so both forms kept the step
+  they were first rendered with — normally step 1 — and everything added from any later step was
+  filed there instead. Work-instruction media and step photos were unaffected; they already read
+  the step at submit time.
 - Ship the root `modules/` and `packages/` directories in the release ZIP. The Dockerfile copies
   both out of the build context, and `packages/ui` is what `backend/package.json` resolves
   `file:../packages/ui` to, so the published package could not run the `docker compose up -d`

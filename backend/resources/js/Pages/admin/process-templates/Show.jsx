@@ -620,8 +620,11 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     const addOutput = (e) => {
         e.preventDefault();
         if (!outputForm.data.key.trim() || !outputForm.data.label.trim()) return;
+        // step.id is read here rather than trusted from the form's seed value:
+        // spreading `d` would carry whichever step this editor first mounted on.
         outputForm.transform((d) => ({
             ...d,
+            template_step_id: step.id,
             options: d.value_type === 'select'
                 ? d.options.split(',').map((s) => s.trim()).filter(Boolean)
                 : null,
@@ -651,7 +654,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
     const addItem = (e) => {
         e.preventDefault();
         if (!itemForm.data.label.trim()) return;
-        itemForm.post(checklistBase, { preserveScroll: true, onSuccess: () => itemForm.reset('label', 'is_required') });
+        // Same reason as the outputs above: bind the step at submit time, not at
+        // mount time.
+        itemForm.transform((d) => ({ ...d, template_step_id: step.id }));
+        itemForm.post(checklistBase, {
+            preserveScroll: true,
+            onSuccess: () => itemForm.reset('label', 'is_required'),
+            onFinish: () => itemForm.transform((d) => d),
+        });
     };
 
     return (
@@ -1258,7 +1268,16 @@ export default function ProcessTemplatesShow() {
                             </div>
                             <div className="flex-1 bg-om-card p-4 overflow-y-auto [&_.drag-handle]:hidden" style={{ maxHeight: 560 }}>
                                 {selectedStep ? (
+                                    /*
+                                        Keyed by step so switching steps remounts the card rather
+                                        than swapping a prop under the same instance. The editors
+                                        inside seed `useForm` with `step.id`, and useForm keeps its
+                                        initial value for the life of the instance — without this
+                                        key, a checklist item or output added to step 3 was filed
+                                        against whichever step was open when the page loaded.
+                                    */
                                     <StepCard
+                                        key={selectedStep.id}
                                         step={selectedStep}
                                         photo={photoByStep[selectedStep.id] ?? null}
                                         photosBaseUrl={photosBaseUrl}
