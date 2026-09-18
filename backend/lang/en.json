@@ -6359,5 +6359,12 @@
     "No BOM components assigned to this step.": "No BOM components assigned to this step.",
     "No production steps on this order": "No production steps on this order",
     "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.": "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.",
-    "reserved by other batches": "reserved by other batches"
+    "reserved by other batches": "reserved by other batches",
+    "Weekly view": "Weekly view",
+    "Click a day to open its schedule": "Click a day to open its schedule",
+    "No activities recorded for this day.": "No activities recorded for this day.",
+    "Account created successfully.": "Account created successfully.",
+    "Work order :order updated.": "Work order :order updated.",
+    "Work order :order deleted.": "Work order :order deleted.",
+    "Work order :order completed with :quantity produced.": "Work order :order completed with :quantity produced."
 }
