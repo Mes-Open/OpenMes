@@ -892,7 +892,21 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
     const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
 
-    if (!steps || steps.length === 0) return null;
+    // An order with no steps used to render as nothing at all, which reads as a
+    // broken screen rather than as the consequence it is: a work order keeps the
+    // configuration it was created with, so steps added to the template later
+    // never reach an order that predates them. Say that, and say what to do
+    // about it — the operator cannot fix it from here, but whoever they ask can.
+    if (!steps || steps.length === 0) {
+        return (
+            <div className="rounded-om border border-om-line2 bg-om-panel px-4 py-3">
+                <p className="font-medium text-om-ink text-[13px]">{__('No production steps on this order')}</p>
+                <p className="mt-1 text-sm text-om-muted">
+                    {__('A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.')}
+                </p>
+            </div>
+        );
+    }
 
     const handleStepAction = (step, action) => {
         setInflightStepId(step.id);

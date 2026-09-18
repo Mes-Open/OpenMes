@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- Explain an order that has no production steps instead of rendering nothing. A work order keeps
+  the process configuration it was created with, so steps added to the template afterwards never
+  reach an order that predates them — previously the operator screen simply showed no step list at
+  all, which reads as a broken page rather than as the consequence it is.
 - File process-template checklist items and operator outputs against the step that is actually
   open. The step card was reused across steps rather than remounted, so both forms kept the step
   they were first rendered with — normally step 1 — and everything added from any later step was
