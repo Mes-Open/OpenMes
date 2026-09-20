@@ -88,6 +88,82 @@ function TimezonePicker({ groups, value, onChange }) {
     );
 }
 
+/**
+ * Usage reporting, stated plainly and shown rather than described.
+ *
+ * The promise — software only, never the customer's data — is the same
+ * sentence the installer shows and the same one the tests enforce. The
+ * "show me" button fetches the real payload from the same builder the
+ * scheduled job uses, so an admin who does not believe the paragraph can read
+ * the bytes instead. For an open-source project that is the difference between
+ * telemetry people tolerate and telemetry they resent.
+ */
+function TelemetryCard({ enabled, onChange, lastSentAt }) {
+    const [payload, setPayload] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const reveal = async () => {
+        if (payload) {
+            setPayload(null);
+
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/settings/telemetry/preview', { headers: { Accept: 'application/json' } });
+            setPayload(JSON.stringify(await res.json(), null, 2));
+        } catch {
+            setPayload(__('The preview could not be loaded.'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className={CARD_CLASS}>
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Usage reporting')}</h2>
+            <p className={`${HELP_CLASS} mb-4`}>
+                {__('OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.')}
+            </p>
+
+            <div className="flex items-start gap-3">
+                <Switch checked={enabled} onChange={onChange} />
+                <div>
+                    <p className="text-[13px] font-medium text-om-ink">{__('Send usage reports')}</p>
+                    <p className={HELP_CLASS}>
+                        {__('Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.')}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="secondary" onClick={reveal} loading={loading}>
+                    {payload ? __('Hide the report') : __('Show exactly what is sent')}
+                </Button>
+                <Link
+                    href="/settings/telemetry/reset-id"
+                    method="post"
+                    as="button"
+                    type="button"
+                    className="text-[12.5px] text-om-muted hover:text-om-ink underline"
+                >
+                    {__('Reset installation ID')}
+                </Link>
+                <span className={HELP_CLASS}>
+                    {lastSentAt ? `${__('Last sent')}: ${lastSentAt}` : __('Nothing has been sent yet.')}
+                </span>
+            </div>
+
+            {payload && (
+                <pre className="mt-3 max-h-80 overflow-auto rounded-om-sm border border-om-line2 bg-om-panel p-3 text-[11.5px] text-om-ink">
+                    {payload}
+                </pre>
+            )}
+        </div>
+    );
+}
+
 export default function System() {
     const toast = useToast();
     const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
@@ -119,6 +195,8 @@ export default function System() {
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
         block_negative_stock: settings.block_negative_stock ?? false,
+        // Opt-out: an installation that was never asked reports.
+        telemetry_enabled: settings.telemetry_enabled ?? true,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
@@ -854,6 +932,13 @@ export default function System() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Telemetry */}
+                        <TelemetryCard
+                            enabled={data.telemetry_enabled}
+                            onChange={(v) => setData('telemetry_enabled', v)}
+                            lastSentAt={settings.telemetry_last_sent_at}
+                        />
 
                         {/* CORS */}
                         <div className={CARD_CLASS}>

@@ -6368,5 +6368,17 @@
     "A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.": "Zlecenie zachowuje konfigurację procesu, z którą zostało utworzone, więc kroki dodane do szablonu później nie pojawią się tutaj. Poproś przełożonego o zastosowanie wniosku o zmianę do tego zlecenia albo o wystawienie nowego.",
     "reserved by other batches": "zarezerwowane przez inne partie",
     "Record at least one measurement before completing this inspection.": "Zapisz co najmniej jeden pomiar, zanim zakończysz tę kontrolę.",
-    "This inspection has already been completed (:status).": "Ta kontrola została już zakończona (:status)."
+    "This inspection has already been completed (:status).": "Ta kontrola została już zakończona (:status).",
+    "Usage reporting": "Raportowanie użycia",
+    "OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.": "OpenMES wysyła informacje o oprogramowaniu — wersje, włączone funkcje, przybliżone przedziały wielkości oraz miejsca wystąpienia błędów (klasa, plik i linia). Nigdy nie wysyła niczego, co wprowadzono do OpenMES: żadnych kodów materiałów ani wyrobów, numerów partii, danych zleceń, receptur, danych osobowych ani treści komunikatów błędów.",
+    "Send usage reports": "Wysyłaj raporty użycia",
+    "Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.": "Pozwala nam zobaczyć, które funkcje są używane i które wydania psują się w praktyce, dzięki czemu problemy wychodzą na jaw bez czekania na zgłoszenie. Można to też wyłączyć przed startem przez OPENMES_TELEMETRY=false.",
+    "Show exactly what is sent": "Pokaż dokładnie, co jest wysyłane",
+    "Hide the report": "Ukryj raport",
+    "Reset installation ID": "Zresetuj identyfikator instalacji",
+    "Last sent": "Ostatnio wysłano",
+    "Nothing has been sent yet.": "Nic jeszcze nie zostało wysłane.",
+    "The preview could not be loaded.": "Nie udało się wczytać podglądu.",
+    "Installation ID reset. A new one will be created on the next report.": "Identyfikator instalacji zresetowany. Nowy powstanie przy kolejnym raporcie.",
+    "The installation ID could not be reset.": "Nie udało się zresetować identyfikatora instalacji."
 }

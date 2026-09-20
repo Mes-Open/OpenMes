@@ -67,6 +67,17 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Count faults so we can tell whether a release broke somebody's plant
+        // without waiting for them to email us. Only the class, file and line
+        // are kept — never the message, which in this system routinely names
+        // materials, lots and customers. Returning false leaves Laravel's own
+        // logging exactly as it was.
+        $exceptions->report(function (\Throwable $e): bool {
+            \App\Services\Telemetry\TelemetryErrorBuffer::record($e);
+
+            return false;
+        });
+
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
             return redirect()->route('login')->withErrors(['session' => 'Your session has expired. Please log in again.']);
         });

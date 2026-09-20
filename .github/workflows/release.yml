@@ -354,7 +354,14 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          # Named explicitly rather than left to the action's default. On v3 that
+          # default was `tools platform-tools`, and Google has since withdrawn the
+          # obsolete `tools` package — so the step failed on a package we never
+          # asked for and do not need. Gradle fetches the platform and build-tools
+          # it wants by itself.
+          packages: 'platform-tools'
 
       - name: Install mobile dependencies
         working-directory: mobile

@@ -206,6 +206,10 @@ Route::middleware('auth')->group(function () {
         // Admin-only system settings
         Route::get('/system', [\App\Http\Controllers\Web\SettingsController::class, 'showSystemSettings'])->name('system')->middleware('role:Admin');
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
+        // Telemetry: the admin can read the exact report before deciding, and
+        // can make a cloned installation a stranger again.
+        Route::get('/telemetry/preview', [\App\Http\Controllers\Web\SettingsController::class, 'previewTelemetry'])->name('telemetry.preview')->middleware('role:Admin');
+        Route::post('/telemetry/reset-id', [\App\Http\Controllers\Web\SettingsController::class, 'resetTelemetryId'])->name('telemetry.reset-id')->middleware('role:Admin');
         // Admin-only sample data
         Route::post('/sample-data', [\App\Http\Controllers\Web\SettingsController::class, 'loadSampleData'])->name('sample-data')->middleware('role:Admin');
         // Admin-only settings export/import
