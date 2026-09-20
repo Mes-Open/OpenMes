@@ -43,8 +43,18 @@ class SendTelemetryJob implements ShouldQueue
                 return;
             }
 
+            $url = trim((string) config('telemetry.endpoint'));
+
+            // No endpoint configured is not a network failure and must not be
+            // counted as one: it happens on an upgrade whose config cache still
+            // predates this feature, and on a build that deliberately strips the
+            // destination. Backing off for a month over a missing setting would
+            // be the wrong answer to the wrong question.
+            if ($url === '') {
+                return;
+            }
+
             $payload = (new TelemetrySnapshot)->build();
-            $url = (string) config('telemetry.endpoint');
 
             // The endpoint is ours, but it is overridable from .env — and an
             // admin pointing it at 169.254.169.254 would be a cheap probe of

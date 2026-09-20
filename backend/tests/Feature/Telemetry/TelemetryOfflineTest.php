@@ -81,6 +81,24 @@ class TelemetryOfflineTest extends TestCase
         $this->assertSame(1, (int) TelemetrySettings::setting('telemetry_consecutive_failures', 0));
     }
 
+    public function test_a_missing_endpoint_is_not_mistaken_for_a_network_failure(): void
+    {
+        // Happens on an upgrade whose config cache still predates this feature.
+        // Counting it as a failed attempt would back the installation off for a
+        // month over a setting, and hide the real state behind a fake one.
+        config()->set('telemetry.endpoint', '');
+        Http::fake();
+
+        $this->runJob();
+
+        Http::assertNothingSent();
+        $this->assertSame(
+            0,
+            (int) TelemetrySettings::setting('telemetry_consecutive_failures', 0),
+            'Nothing was attempted, so nothing failed.',
+        );
+    }
+
     public function test_a_name_that_does_not_resolve_is_handled_by_the_guard_not_the_client(): void
     {
         // The URL guard resolves the host before any request is made, so on a
