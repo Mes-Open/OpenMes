@@ -7,6 +7,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-09-20
+
+> **Read before upgrading.** This release introduces outbound network traffic.
+> OpenMES now reports on itself once a day to `getopenmes.com` — software only,
+> never your data. It is on by default. Switch it off in **Settings → System →
+> Usage reporting**, or set `OPENMES_TELEMETRY=false` before starting. Full
+> detail in [docs/telemetry.md](docs/telemetry.md).
+
 ### Added
 
 - Usage reporting. OpenMES now reports on **itself** once a day — versions, which features are
@@ -29,6 +37,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Stop `storage/installed` and the new `storage/telemetry-id` from being committable. Neither was
   ignored; a committed installation id would have made every clone of the repository report as the
   same installation.
+- Do not treat a missing telemetry endpoint as a blocked network. An upgrade whose config cache
+  predates this feature resolves the endpoint to an empty string; that was being counted as a
+  failed delivery and backed the installation off for weeks over a missing setting.
+- Stop the Android APK build asking the SDK for `tools`, a package Google has withdrawn. The
+  action's v3 default requested it and the step died on something we never needed, which is why
+  v0.24.0 shipped without an APK.
 
 ## [0.24.0] - 2026-09-20
 
