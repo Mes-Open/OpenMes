@@ -7,6 +7,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Usage reporting. OpenMES now reports on **itself** once a day — versions, which features are
+  switched on, rough size bands, and where errors occur (class, file and line) — so we can see
+  which releases break and which features matter without waiting for somebody to email us.
+  It never sends anything entered into OpenMES: no material or product codes, no lot numbers, no
+  order data, no recipes, no personal data, and no error message text. Error *messages* are
+  excluded entirely rather than redacted, because redaction cannot be made reliable here:
+  `InsufficientStockException` names the material and its code, and a `QueryException` carries the
+  SQL together with its bound values. The boundary is enforced by a test that builds the real
+  payload from a seeded database and fails if any value from it appears.
+  On by default and switchable off in Settings → System, or with `OPENMES_TELEMETRY=false` before
+  the database exists. The installer says so plainly and offers the choice up front, and the
+  settings page will print the exact payload on request. An installation with no route out behaves
+  exactly like a connected one: nothing fails, nothing slows down, nothing reaches `failed_jobs`,
+  and only the first failure in a run is logged — at debug level.
+
+### Fixed
+
+- Stop `storage/installed` and the new `storage/telemetry-id` from being committable. Neither was
+  ignored; a committed installation id would have made every clone of the repository report as the
+  same installation.
+
 ## [0.24.0] - 2026-09-20
 
 ### Fixed

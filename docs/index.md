@@ -12,6 +12,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 | [Supervisor Guide](supervisor-guide.md) | Supervisors & team leads | Managing lines, monitoring production, handling issues |
 | [Admin Guide](admin-guide.md) | System administrators | Installation, configuration, user management, modules |
 | [Implementation Runbook](implementation-runbook.md) | Integrators & IT leads | End-to-end procedure for deploying OpenMES in a plant: infrastructure, install, master data, pilot, go-live, handover |
+| [Usage reporting](telemetry.md) | Administrators & IT security | What OpenMES reports about itself, what it never reports, and how to switch it off |
 
 ---
 

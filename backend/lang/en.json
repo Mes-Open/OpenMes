@@ -6368,5 +6368,17 @@
     "Work order :order deleted.": "Work order :order deleted.",
     "Work order :order completed with :quantity produced.": "Work order :order completed with :quantity produced.",
     "Record at least one measurement before completing this inspection.": "Record at least one measurement before completing this inspection.",
-    "This inspection has already been completed (:status).": "This inspection has already been completed (:status)."
+    "This inspection has already been completed (:status).": "This inspection has already been completed (:status).",
+    "Usage reporting": "Usage reporting",
+    "OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.": "OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.",
+    "Send usage reports": "Send usage reports",
+    "Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.": "Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.",
+    "Show exactly what is sent": "Show exactly what is sent",
+    "Hide the report": "Hide the report",
+    "Reset installation ID": "Reset installation ID",
+    "Last sent": "Last sent",
+    "Nothing has been sent yet.": "Nothing has been sent yet.",
+    "The preview could not be loaded.": "The preview could not be loaded.",
+    "Installation ID reset. A new one will be created on the next report.": "Installation ID reset. A new one will be created on the next report.",
+    "The installation ID could not be reset.": "The installation ID could not be reset."
 }

@@ -372,6 +372,26 @@ sudo lsof -i :80
 - [PWA Testing Guide](docs/pwa-testing-guide.md) - Offline functionality testing
 - [Technical Documentation](docs/development.md) - For developers
 - [MQTT Connectivity Testing](docs/mqtt-connectivity.md) - Machine connection testing guide
+- [Usage reporting](docs/telemetry.md) - What OpenMES reports about itself, and how to switch it off
+
+---
+
+## 📡 Usage reporting
+
+OpenMES reports on **itself** once a day — versions, which features are switched
+on, rough size bands, and where errors occur (class, file and line). It never
+sends anything you entered into OpenMES: no material or product codes, no lot
+numbers, no order data, no recipes, no personal data, and no error message text.
+That boundary is [enforced by tests](backend/tests/Feature/Telemetry/), not by
+good intentions.
+
+It is on by default. Switch it off in **Settings → System → Usage reporting**,
+or set `OPENMES_TELEMETRY=false` before first start. An installation with no
+route to the internet behaves exactly like a connected one — nothing breaks,
+nothing slows down, and the log does not fill up.
+
+See what would be sent, at any time, with `php artisan telemetry:send --dry-run`.
+Full details in [docs/telemetry.md](docs/telemetry.md).
 
 ---
 
