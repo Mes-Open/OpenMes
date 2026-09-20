@@ -271,6 +271,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/batch-step/{batchStep}/pick-preview', [OperatorBatchController::class, 'pickPreview'])->name('batch-step.pick-preview');
         Route::post('/batch-step/{batchStep}/start', [OperatorBatchController::class, 'startStep'])->name('batch-step.start');
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
+        // Quantity ledger: log good / scrapped pieces leaving a running step
+        // (transfer flow opens the next station from this).
+        Route::post('/batch-step/{batchStep}/quantity-correction', [OperatorBatchController::class, 'correctQuantity'])->name('batch-step.quantity-correction');
+        Route::post('/batch-step/{batchStep}/quantity', [OperatorBatchController::class, 'recordQuantity'])->name('batch-step.quantity');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
         // Read-confirmation: acknowledge reading a critical step's instructions.
@@ -699,6 +703,7 @@ Route::middleware('auth')->group(function () {
         // Materials Management
         Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
         Route::resource('materials', MaterialManagementController::class);
+        Route::post('materials/{material}/receipts', [MaterialManagementController::class, 'receive'])->name('materials.receive');
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
         // The material importer moved into the unified importer (Admin → Import).
         Route::get('/materials-import', fn () => redirect('/admin/import/materials', 301))->name('materials.import');
@@ -838,6 +843,17 @@ Route::middleware('auth')->group(function () {
 
         // ── Connectivity ──────────────────────────────────────────────────────
         Route::get('/connectivity', [ConnectivityController::class, 'index'])->name('connectivity.index');
+
+        Route::prefix('connectivity/counters')->middleware('role:Admin|Supervisor')->group(function () {
+            $controller = \App\Http\Controllers\Web\Admin\MachineCounterController::class;
+            Route::get('/', [$controller, 'index'])->name('connectivity.counters.index');
+            Route::post('/', [$controller, 'register']);
+            Route::put('/{counter}', [$controller, 'configure']);
+            Route::post('/{counter}/legacy', [$controller, 'useLegacy']);
+            Route::post('/{counter}/rebaseline', [$controller, 'rebaseline']);
+            Route::post('/{counter}/readings/{reading}/review', [$controller, 'review']);
+            Route::post('/{counter}/simulate', [$controller, 'simulate']);
+        });
 
         // MQTT connections
         Route::get('/connectivity/mqtt', [MqttConnectionController::class, 'index'])->name('connectivity.mqtt.index');

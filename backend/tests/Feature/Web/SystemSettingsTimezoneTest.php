@@ -66,13 +66,10 @@ class SystemSettingsTimezoneTest extends TestCase
             ->post('/settings/system', $this->payload(['app_timezone' => 'America/Argentina/Buenos_Aires']))
             ->assertSessionHasNoErrors();
 
-        // `system_settings.value` is a JSON column, so the identifier must be
-        // JSON-encoded — a bare string is rejected by Postgres (SQLite tolerates
-        // it, which is how the bug shipped). stored() decodes it back.
-        $this->assertDatabaseHas('system_settings', [
-            'key' => TimezoneRegistry::SETTING_KEY,
-            'value' => json_encode('America/Argentina/Buenos_Aires'),
-        ]);
+        // Read and decode JSON: PostgreSQL's json type has no equality operator.
+        $this->assertSame('America/Argentina/Buenos_Aires', json_decode(
+            \Illuminate\Support\Facades\DB::table('system_settings')->where('key', TimezoneRegistry::SETTING_KEY)->value('value'), true
+        ));
         TimezoneRegistry::flush();
         $this->assertSame('America/Argentina/Buenos_Aires', TimezoneRegistry::stored());
     }

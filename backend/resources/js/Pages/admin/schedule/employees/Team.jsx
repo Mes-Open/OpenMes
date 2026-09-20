@@ -28,13 +28,13 @@ export default function EmployeeTeam() {
     const hourLabels = [0, 3, 6, 9, 12, 15, 18, 21];
 
     return (
-        <>
+        <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6">
             <Head title={__('Team day')} />
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
             <div className="flex flex-col gap-3">
                 {/* Hour ruler */}
-                <div className="bg-om-card border border-om-line2 rounded-om p-3.5">
+                <div className="bg-om-card border border-om-line rounded-om p-3.5">
                     <div className="grid gap-3.5 items-center" style={{ gridTemplateColumns: '160px 1fr 80px' }}>
                         <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Worker')}</div>
                         <div className="relative h-4">
@@ -52,8 +52,7 @@ export default function EmployeeTeam() {
                 {/* Worker rows */}
                 <div className="flex flex-col gap-2">
                     {workers.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-om-faint border border-dashed border-om-line2 rounded-om">
-                            {__('No workers configured.')}
+                        <div className="p-8 text-center text-sm text-om-faint border border-dashed border-om-line rounded-om">
                             {__('No workers configured.')}
                         </div>
                     ) : workers.map((w) => {
@@ -65,7 +64,7 @@ export default function EmployeeTeam() {
                         return (
                             <button key={w.id}
                                     onClick={() => navTo({ view: 'day', date, worker_id: w.id })}
-                                    className={`grid gap-3.5 items-center p-3 rounded-om border transition-colors text-left ${primary ? 'bg-om-accent-bg border-om-accent' : 'bg-om-card border-om-line2 hover:bg-om-bg'}`}
+                                    className={`grid gap-3.5 items-center p-3 rounded-om border transition-colors text-left ${primary ? 'bg-om-accent-bg border-om-accent' : 'bg-om-card border-om-line hover:bg-om-bg'}`}
                                     style={{ gridTemplateColumns: '160px 1fr 80px' }}>
                                 <div className="flex items-center gap-2.5 min-w-0">
                                     <div className={`w-9 h-9 rounded-om-sm font-mono text-[11px] font-bold flex items-center justify-center flex-shrink-0 ${primary ? 'bg-om-accent text-white' : 'bg-om-line2 text-om-muted'}`}>
@@ -91,16 +90,16 @@ export default function EmployeeTeam() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex flex-wrap gap-3 px-3.5 py-2.5 bg-om-card border border-om-line2 rounded-om font-mono text-[9.5px] tracking-wide text-om-muted uppercase">
+                <div className="flex flex-wrap gap-3 px-3.5 py-2.5 bg-om-card border border-om-line rounded-om font-mono text-[9.5px] tracking-wide text-om-muted uppercase">
                     {Object.entries(typeMeta).filter(([k]) => !['off', 'custom'].includes(k)).map(([k, def]) => (
                         <span key={k} className="flex items-center gap-1.5">
                             <span className="w-3 h-2 rounded-sm" style={{ background: def.color }} />
-                            {def.label}
+                            {__(def.label)}
                         </span>
                     ))}
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 

@@ -122,11 +122,19 @@ class MenuRegistry
      * @param  string  $label  Dropdown button text
      * @param  int  $order  Position relative to other custom groups (lower = rendered first / leftmost)
      * @param  string|null  $badge  Short tag rendered to the right of the group label.
+     * @param  string|null  $url  Give a destination and add no items, and the entry
+     *                            renders as a flat link in the group's position
+     *                            rather than as a dropdown. For a module whose
+     *                            feature is one screen: a dropdown holding a
+     *                            single link is a link with an extra click.
      */
-    public function addGroup(string $id, string $label, int $order = self::AFTER_BUILT_IN, ?string $badge = null): void
+    public function addGroup(string $id, string $label, int $order = self::AFTER_BUILT_IN, ?string $badge = null, ?string $url = null): void
     {
         if (! isset($this->groups[$id])) {
-            $this->groups[$id] = ['id' => $id, 'label' => $label, 'order' => $order, 'badge' => $badge, 'items' => []];
+            $this->groups[$id] = [
+                'id' => $id, 'label' => $label, 'order' => $order,
+                'badge' => $badge, 'url' => $url, 'items' => [],
+            ];
         }
     }
 
@@ -152,13 +160,16 @@ class MenuRegistry
     /**
      * Return all custom groups that have at least one item, sorted by order.
      *
-     * @return list<array{id: string, label: string, order: int, badge: ?string, items: list<array{label: string, url: string, order: int, badge: ?string}>}>
+     * @return list<array{id: string, label: string, order: int, badge: ?string, url: ?string, items: list<array{label: string, url: string, order: int, badge: ?string}>}>
      */
     public function getGroups(): array
     {
+        // A group earns its place by having somewhere to go: entries to show,
+        // or a destination of its own. One with neither would be a header that
+        // opens onto nothing.
         $groups = array_values(array_filter(
             $this->groups,
-            fn ($g) => ! empty($g['items'])
+            fn ($g) => ! empty($g['items']) || ! empty($g['url'])
         ));
 
         foreach ($groups as &$group) {

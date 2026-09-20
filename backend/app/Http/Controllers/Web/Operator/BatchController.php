@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
+use App\Http\Requests\Operator\RecordStepQuantityRequest;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
@@ -136,6 +137,49 @@ class BatchController extends Controller
             return back()->with('success', 'Step completed.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** Save an auditable correction to a running manual step. */
+    public function correctQuantity(\App\Http\Requests\Operator\CorrectStepQuantityRequest $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->withErrors(['good_qty' => __('This step does not belong to the selected line.')]);
+        }
+        try {
+            $data = $request->validated();
+            $this->batchService->correctGoodQuantity($batchStep, $request->user(), (float) $data['good_qty'], (float) $data['expected_good_qty'], $data['reason']);
+
+            return back()->with('success', __('Quantity correction saved.'));
+        } catch (\Exception $e) {
+            return back()->withErrors(['good_qty' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Log pieces leaving a running step (good → next station, scrap → lost).
+     * Rule violations (nothing logged, more than is waiting, step not running)
+     * come back as a field error so the quick-log form shows them in place.
+     */
+    public function recordQuantity(RecordStepQuantityRequest $request, BatchStep $batchStep)
+    {
+        // Every refusal comes back as the `good_qty` field error, which the
+        // quick-log form shows in place (and keeps what was typed). A flash as
+        // well would show the same message twice; a flash alone would read as
+        // success to the page and clear the form.
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->withErrors(['good_qty' => __('This step does not belong to the selected line.')]);
+        }
+
+        try {
+            $args = [$batchStep, $request->user(), $request->goodQty(), $request->scrapQty(), $request->validated()['notes'] ?? null];
+            $request->throughStation()
+                ? $this->batchService->recordQuantityThroughStation(...$args)
+                : $this->batchService->recordQuantity(...$args);
+
+            return back()->with('success', __('Quantities logged.'));
+        } catch (\Exception $e) {
+            return back()->withErrors(['good_qty' => $e->getMessage()]);
         }
     }
 

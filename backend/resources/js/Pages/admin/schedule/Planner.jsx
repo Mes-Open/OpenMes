@@ -2,13 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DndProvider, useDragDropManager } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { ConfirmDialog } from '@openmes/ui';
+import { Icon, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { apiCall, apiGet } from '../../../lib/http';
 import { __, formatDate } from '../../../lib/i18n';
 import { todayKey, dayList } from './planner/helpers';
-import { WeeklyView, DailyView } from './planner/views';
+import { WeeklyView } from './planner/views';
 import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import {
@@ -53,10 +53,16 @@ export default function Planner() {
         router.get('/admin/schedule', params, { preserveState: false, preserveScroll: true });
     }, []);
     const goTo = (start) => nav({ start_date: start, view_mode: viewMode, line_id: lineId });
-    const setView = (k) => nav({ view_mode: k, line_id: lineId, start_date: startDate });
+    const setView = (k) => nav({
+        view_mode: k, line_id: lineId,
+        // Let the server choose today's date when opening the daily plan.
+        ...(viewMode === 'weekly' && k === 'daily' ? {} : { start_date: startDate }),
+    });
     const setLineFilter = (v) => nav({ view_mode: viewMode, line_id: v, start_date: startDate });
 
-    const refreshContent = useCallback(() => { router.reload({ preserveScroll: true }); }, []);
+    const refreshContent = useCallback(() => new Promise((resolve) => {
+        router.reload({ preserveScroll: true, onFinish: resolve });
+    }), []);
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [saving, setSaving] = useState(false);
@@ -84,10 +90,17 @@ export default function Planner() {
     const config = { shiftsPerDay, slotMinutes, showWeekends };
 
     // ── Saving / writes ────────────────────────────────────────────────────────
-    const saveOrder = useCallback(async (orderId, body) => {
+    const saveOrder = useCallback(async function savePlacement(orderId, body) {
         setSaving(true);
         try {
             const r = await apiCall(`/admin/schedule/${orderId}`, 'PUT', body);
+            if (r.status === 409 && !body.force_conflict) {
+                setSaving(false);
+                return await new Promise((resolve) => setConflict({
+                    apply: () => resolve(savePlacement(orderId, { ...body, force_conflict: true })),
+                    cancel: () => resolve(null),
+                }));
+            }
             const json = await r.json();
             if (json.success) return json;
             toast(json.message ?? __('Error saving'), 'error');
@@ -113,6 +126,10 @@ export default function Planner() {
         return list;
     };
 
+    const slotStart = (date, shift) => date ? `${date}T${shifts?.[Math.max(0, Number(shift || 1) - 1)]?.start_time?.slice(0, 5) || '00:00'}:00` : '';
+
+    const dayEnd = (date) => date ? `${dayList(date, 2, true)[1].date}T00:00:00` : '';
+
     const performDrop = useCallback(async (wo, target, placement) => {
         const body = placement !== 'primary'
             ? {
@@ -122,10 +139,10 @@ export default function Planner() {
             }
             : {
                 line_id: target.lineId,
-                due_date: target.date || '',
+                planned_start_at: slotStart(target.date, target.shift),
                 shift_number: target.shift || '',
-                week_number: '', end_date: '', end_shift_number: '',
-                planned_start_at: '', planned_end_at: '',
+                week_number: '', end_date: target.date || '', end_shift_number: target.shift || '',
+                planned_end_at: dayEnd(target.date),
             };
         const result = await saveOrder(wo.id, body);
         if (result) {
@@ -133,7 +150,7 @@ export default function Planner() {
             toast(`${wo.order_no} → ${code}`);
             refreshContent();
         }
-    }, [saveOrder, allLines, toast, refreshContent]);
+    }, [saveOrder, allLines, toast, refreshContent, shifts]);
 
     // Drop a card onto a coarse (weekly/daily) cell. `placement` says which
     // schedule segment was dragged — only that segment moves. A coarse primary
@@ -143,7 +160,7 @@ export default function Planner() {
         if (placement === 'primary' && wo.planned_start_at && wo.planned_end_at) {
             setConfirmBox({
                 title: __('Replace exact time plan?'),
-                body: __('This order has an exact time plan — replace it with a day/shift placement?'),
+                body: __('This order has an exact start and end time. Moving it to a shift cell will use the shift start and clear the exact end.'),
                 confirmLabel: __('Replace'),
                 apply: () => performDrop(wo, target, placement),
             });
@@ -155,7 +172,7 @@ export default function Planner() {
     // Hourly move/resize commit → resize endpoint (handles minute conflicts).
     const onHourlyChange = useCallback(async (wo, startMin, endMin, force = false) => {
         const day = data.range.start;
-        const iso = (m) => `${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
+        const iso = (m) => m === 1440 ? `${dayList(day, 2, true)[1].date}T00:00:00` : `${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
         const body = { planned_start_at: iso(startMin), planned_end_at: iso(endMin) };
         if (force) body.force_conflict = true;
         setSaving(true);
@@ -166,7 +183,7 @@ export default function Planner() {
                 return;
             }
             const json = await r.json();
-            if (json.success) { toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); refreshContent(); }
+            if (json.success) { toast(`${wo.order_no} ${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}–${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`); await refreshContent(); }
             else toast(json.message ?? __('Error saving'), 'error');
         } catch {
             toast(__('Connection error'), 'error');
@@ -177,15 +194,14 @@ export default function Planner() {
 
     const saveEdit = useCallback(async (wo, patch) => {
         const result = await saveOrder(wo.id, patch);
-        setSelected(null);
-        if (result) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
+        if (result) { setSelected(null); toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
     }, [saveOrder, toast, refreshContent]);
 
     const performUnassign = useCallback(async (wo) => {
         // Clearing the primary line also deletes every extra segment server-side.
         const result = await saveOrder(wo.id, {
-            line_id: '', due_date: '', week_number: '', shift_number: '',
-            end_date: '', end_shift_number: '', planned_start_at: '', planned_end_at: '',
+            line_id: '', week_number: '', shift_number: '',
+            end_date: '', end_shift_number: '', planned_end_at: '',
         });
         setSelected(null);
         if (result) { toast(`${wo.order_no} → ${__('Backlog')}`); refreshContent(); }
@@ -231,13 +247,13 @@ export default function Planner() {
         } else {
             body = {
                 line_id: newLineId ?? wo.line_id,
-                due_date: a.date, week_number: '', shift_number: a.shift,
-                end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
-                planned_start_at: '', planned_end_at: '',
+                planned_start_at: slotStart(a.date, a.shift), week_number: '', shift_number: a.shift,
+                end_date: b.date, end_shift_number: b.shift,
+                planned_end_at: dayEnd(b.date),
             };
         }
-        saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); } });
-    }, [config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
+        return saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); return refreshContent(); } });
+    }, [shifts, config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
 
     // Diagonal edge-stretch: the order continues on another line — the
     // extension is APPENDED as a new segment, so the block chain reads as a
@@ -248,7 +264,7 @@ export default function Planner() {
         const a = cell(startCol); const b = cell(endCol);
         if (!a.date || !b.date) return;
         const spanned = endCol > startCol;
-        saveOrder(wo.id, {
+        return saveOrder(wo.id, {
             extra_placements: placementsPayload(wo, {
                 add: {
                     line_id: lineId, due_date: a.date, shift_number: a.shift,
@@ -259,13 +275,15 @@ export default function Planner() {
             if (r) {
                 const code = allLines.find((l) => l.id === lineId)?.code ?? '';
                 toast(`${wo.order_no} ⇄ ${code}`);
-                refreshContent();
+                return refreshContent();
             }
         });
-    }, [config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
+    }, [shifts, config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
 
     const ctx = {
         data, config, days,
+        draggingRef,
+        onSelectDay: (date) => nav({ start_date: date, view_mode: 'daily', line_id: lineId }),
         onSelectOrder: setSelected, selectedId: selected?.id, onHourlyChange,
         onDropOrder: dropToCell,
         onUnassign: unassign,
@@ -311,7 +329,9 @@ export default function Planner() {
     }, [saving, refreshContent]);
 
     const rangeLabel = (rangeStart && rangeEnd)
-        ? `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+        ? rangeStart === rangeEnd
+            ? formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
         : '';
 
     return (
@@ -320,6 +340,10 @@ export default function Planner() {
             <style>{STYLE}</style>
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
 
+            <div className="w-full min-w-0">
+            <DndProvider backend={HTML5Backend}>
+            <DragWatcher draggingRef={draggingRef} />
+            <div className="p-4 sm:p-6">
             {/* page header */}
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
                 <div>
@@ -334,7 +358,7 @@ export default function Planner() {
             {/* High-value customers with overdue orders — ported from develop's banner */}
             {overdueImportant.count > 0 && (
                 <div className="mb-3 flex items-start gap-2 rounded-om border border-om-blocked/30 bg-om-blocked-bg px-4 py-2.5 text-[13px] text-om-blocked">
-                    <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <Icon name="triangle-alert" size={16} className="mt-0.5 shrink-0" />
                     <div>
                         <span className="font-semibold">
                             {__(':count high-tier customer order(s) overdue', { count: overdueImportant.count })}
@@ -358,29 +382,20 @@ export default function Planner() {
                 </div>
             )}
 
-            <DndProvider backend={HTML5Backend}>
-            <DragWatcher draggingRef={draggingRef} />
-
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
-                live={live} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
+                live={live} onMaintenance={() => setMaintOpen(true)} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
-            <div className="flex justify-end mb-2">
-                <button type="button" onClick={() => setMaintOpen(true)}
-                    style={{ fontSize: 12.5, fontWeight: 600, color: '#78350f', background: '#fde68a', border: '1px solid #d97706', borderRadius: 8, padding: '7px 12px' }}>
-                    + {__('Maintenance')}
-                </button>
             </div>
-
-            <div className="flex items-start" style={{ border: '1px solid var(--om-line)', borderRadius: 12, overflow: 'hidden', background: 'var(--om-bg)' }}>
-                <div className="om-main flex-1 min-w-0" style={{ padding: '18px 20px', overflow: 'auto' }}>
+            <BacklogRail ctx={ctx} />
+            <div className="w-full min-w-0" style={{ border: '1px solid var(--om-line)', borderRadius: 0, overflow: 'hidden', background: 'var(--om-bg)' }}>
+                <div className="om-main w-full min-w-0 overflow-auto">
                     {viewMode === 'weekly' && <WeeklyView ctx={ctx} />}
-                    {viewMode === 'daily' && <DailyView ctx={ctx} />}
-                    {viewMode === 'hourly' && <HourlyView ctx={ctx} />}
+                    {viewMode === 'daily' && <HourlyView ctx={ctx} />}
                     {viewMode === 'monthly' && <MonthlyView ctx={ctx} />}
                 </div>
-                <BacklogRail ctx={ctx} />
             </div>
             </DndProvider>
+            </div>
 
             {selected && <OrderEditSheet wo={selected} ctx={ctx} onClose={() => setSelected(null)} onSave={saveEdit} onUnassign={unassign} />}
             {assignTarget && (
@@ -407,7 +422,7 @@ export default function Planner() {
                     }}
                 />
             )}
-            {conflict && <ConflictDialog onCancel={() => setConflict(null)} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
+            {conflict && <ConflictDialog onCancel={() => { conflict.cancel?.(); setConflict(null); }} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
             {confirmBox && (
                 <ConfirmDialog open onClose={() => setConfirmBox(null)}
                     onConfirm={() => { const apply = confirmBox.apply; setConfirmBox(null); apply(); }}

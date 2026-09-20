@@ -417,6 +417,7 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
         const nextId = ids[(currentIdx + 1) % ids.length];
 
         if (workflowMode === 'board_status' && nextId !== null && doneStatusIds.map(Number).includes(nextId)) {
+            if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
             onDoneQty({ woId: wo.id, woNo: wo.order_no, statusId: nextId });
             return;
         }
@@ -502,6 +503,7 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
     const handleSelectChange = (v) => {
         const selectedId = v ? parseInt(v) : null;
         if (workflowMode === 'board_status' && selectedId !== null && doneStatusIds.map(Number).includes(selectedId)) {
+            if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
             onDoneQty({ woId: wo.id, woNo: wo.order_no, statusId: selectedId });
             // revert — user will see the modal (Dropdown reverts to current value below)
             return;
@@ -868,12 +870,12 @@ export default function Queue() {
                                 const currentBatch = (wo.batches ?? []).find((b) =>
                                     b.steps && b.steps.some((s) => s.workstation_id != null &&
                                         String(s.workstation_id) === String(selectedWorkstation.id) &&
-                                        (s.status === 'PENDING' || s.status === 'IN_PROGRESS'))
+                                        (s.status === 'READY' || s.status === 'IN_PROGRESS'))
                                 ) ?? null;
                                 const currentStep = currentBatch
                                     ? (currentBatch.steps ?? []).find((s) =>
                                         String(s.workstation_id) === String(selectedWorkstation.id) &&
-                                        (s.status === 'PENDING' || s.status === 'IN_PROGRESS'))
+                                        (s.status === 'READY' || s.status === 'IN_PROGRESS'))
                                     : null;
 
                                 return (

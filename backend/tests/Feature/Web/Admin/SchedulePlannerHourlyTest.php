@@ -15,7 +15,7 @@ use Tests\TestCase;
 /**
  * Feature coverage for the hourly (minute-level) view of the schedule planner:
  *
- * - GET /admin/schedule?view_mode=hourly  — render + role guard + payload
+ * - GET /admin/schedule?view_mode=daily  — render + role guard + payload
  * - PUT /admin/schedule/{wo}              — minute-level update + conflict
  * - PUT /admin/schedule/{wo}/resize       — minute-level resize + conflict
  *
@@ -74,12 +74,12 @@ class SchedulePlannerHourlyTest extends TestCase
 
     // ── view rendering ───────────────────────────────────────────────────────
 
-    public function test_admin_can_view_hourly_mode(): void
+    public function test_admin_can_view_daily_timeline(): void
     {
         $line = $this->createLine(['name' => 'Hourly Test Line']);
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly');
+            ->get('/admin/schedule?view_mode=daily');
 
         $response->assertOk();
 
@@ -89,7 +89,7 @@ class SchedulePlannerHourlyTest extends TestCase
         $response->assertInertia(
             fn (\Inertia\Testing\AssertableInertia $page) => $page
                 ->component('admin/schedule/Planner')
-                ->where('viewMode', 'hourly')
+                ->where('viewMode', 'daily')
                 ->where('slotMinutes', 15)
                 ->has('lines')
                 ->has('workOrders')
@@ -99,10 +99,20 @@ class SchedulePlannerHourlyTest extends TestCase
         $this->assertSame(15, $response->viewData('page')['props']['slotMinutes']);
     }
 
+    public function test_old_hourly_link_redirects_to_daily_preserving_date_and_line(): void
+    {
+        $line = $this->createLine();
+        $this->actingAs($this->admin)
+            ->get("/admin/schedule?view_mode=hourly&start_date=2026-09-17&line_id={$line->id}")
+            ->assertRedirect(route('admin.schedule', [
+                'view_mode' => 'daily', 'start_date' => '2026-09-17', 'line_id' => $line->id,
+            ]));
+    }
+
     public function test_non_admin_cannot_access(): void
     {
         $response = $this->actingAs($this->operator)
-            ->get('/admin/schedule?view_mode=hourly');
+            ->get('/admin/schedule?view_mode=daily');
 
         $response->assertStatus(403);
     }
@@ -177,7 +187,7 @@ class SchedulePlannerHourlyTest extends TestCase
         $startDate = $start->copy()->startOfWeek()->format('Y-m-d');
 
         $response = $this->actingAs($this->admin)
-            ->get("/admin/schedule?view_mode=hourly&start_date={$startDate}");
+            ->get("/admin/schedule?view_mode=daily&start_date={$startDate}");
 
         $response->assertOk();
         $response->assertSee('WO-HOUR-VIS');
@@ -210,7 +220,7 @@ class SchedulePlannerHourlyTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly&start_date='.$monday->format('Y-m-d'));
+            ->get('/admin/schedule?view_mode=daily&start_date='.$monday->format('Y-m-d'));
 
         $response->assertOk();
 
@@ -487,7 +497,7 @@ class SchedulePlannerHourlyTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly&start_date='.$monday->format('Y-m-d'));
+            ->get('/admin/schedule?view_mode=daily&start_date='.$monday->format('Y-m-d'));
 
         $response->assertOk();
         $response->assertSee('WO-MIDNIGHT-END');
@@ -509,7 +519,7 @@ class SchedulePlannerHourlyTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly&start_date='.$monday->format('Y-m-d'));
+            ->get('/admin/schedule?view_mode=daily&start_date='.$monday->format('Y-m-d'));
 
         $response->assertOk();
         $response->assertSee('WO-MIDNIGHT-START');
@@ -533,7 +543,7 @@ class SchedulePlannerHourlyTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly&start_date='.$monday->format('Y-m-d'));
+            ->get('/admin/schedule?view_mode=daily&start_date='.$monday->format('Y-m-d'));
 
         $response->assertOk();
         $response->assertSee('WO-LEGACY');
@@ -558,7 +568,7 @@ class SchedulePlannerHourlyTest extends TestCase
         );
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly');
+            ->get('/admin/schedule?view_mode=daily');
 
         $response->assertOk();
         $this->assertSame(30, $response->viewData('page')['props']['slotMinutes']);
@@ -572,7 +582,7 @@ class SchedulePlannerHourlyTest extends TestCase
         );
 
         $response = $this->actingAs($this->admin)
-            ->get('/admin/schedule?view_mode=hourly');
+            ->get('/admin/schedule?view_mode=daily');
 
         $response->assertOk();
         $this->assertSame(15, $response->viewData('page')['props']['slotMinutes']);

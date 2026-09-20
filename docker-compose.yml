@@ -36,10 +36,15 @@ services:
   backend:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
-    # runs the current code (the published image is private; a plain pull would
-    # fail or serve a stale local image). Builds are layer-cached → instant when
-    # nothing changed. Deployers pulling a published tag can set
-    # OPENMES_PULL_POLICY=missing.
+    # runs the current code rather than a stale local image. Builds are
+    # layer-cached → instant when nothing changed.
+    #
+    # Deployers who want the published image instead of a build set
+    # OPENMES_PULL_POLICY=missing and OPENMES_VERSION=<tag>. Prefer that on hosts
+    # where building is unreliable — NAS appliances on pre-6.6 kernels cannot
+    # extract archives inside a build at all (the fchmodat2 syscall is missing and
+    # older libseccomp reports the wrong error), so every image build fails there
+    # while a pulled image runs fine.
     pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
@@ -106,10 +111,15 @@ services:
   reverb:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
-    # runs the current code (the published image is private; a plain pull would
-    # fail or serve a stale local image). Builds are layer-cached → instant when
-    # nothing changed. Deployers pulling a published tag can set
-    # OPENMES_PULL_POLICY=missing.
+    # runs the current code rather than a stale local image. Builds are
+    # layer-cached → instant when nothing changed.
+    #
+    # Deployers who want the published image instead of a build set
+    # OPENMES_PULL_POLICY=missing and OPENMES_VERSION=<tag>. Prefer that on hosts
+    # where building is unreliable — NAS appliances on pre-6.6 kernels cannot
+    # extract archives inside a build at all (the fchmodat2 syscall is missing and
+    # older libseccomp reports the wrong error), so every image build fails there
+    # while a pulled image runs fine.
     pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
@@ -153,10 +163,15 @@ services:
   mqtt-listener:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
-    # runs the current code (the published image is private; a plain pull would
-    # fail or serve a stale local image). Builds are layer-cached → instant when
-    # nothing changed. Deployers pulling a published tag can set
-    # OPENMES_PULL_POLICY=missing.
+    # runs the current code rather than a stale local image. Builds are
+    # layer-cached → instant when nothing changed.
+    #
+    # Deployers who want the published image instead of a build set
+    # OPENMES_PULL_POLICY=missing and OPENMES_VERSION=<tag>. Prefer that on hosts
+    # where building is unreliable — NAS appliances on pre-6.6 kernels cannot
+    # extract archives inside a build at all (the fchmodat2 syscall is missing and
+    # older libseccomp reports the wrong error), so every image build fails there
+    # while a pulled image runs fine.
     pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
@@ -196,10 +211,15 @@ services:
   modbus-poller:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
-    # runs the current code (the published image is private; a plain pull would
-    # fail or serve a stale local image). Builds are layer-cached → instant when
-    # nothing changed. Deployers pulling a published tag can set
-    # OPENMES_PULL_POLICY=missing.
+    # runs the current code rather than a stale local image. Builds are
+    # layer-cached → instant when nothing changed.
+    #
+    # Deployers who want the published image instead of a build set
+    # OPENMES_PULL_POLICY=missing and OPENMES_VERSION=<tag>. Prefer that on hosts
+    # where building is unreliable — NAS appliances on pre-6.6 kernels cannot
+    # extract archives inside a build at all (the fchmodat2 syscall is missing and
+    # older libseccomp reports the wrong error), so every image build fails there
+    # while a pulled image runs fine.
     pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
@@ -262,10 +282,15 @@ services:
   queue-worker:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
-    # runs the current code (the published image is private; a plain pull would
-    # fail or serve a stale local image). Builds are layer-cached → instant when
-    # nothing changed. Deployers pulling a published tag can set
-    # OPENMES_PULL_POLICY=missing.
+    # runs the current code rather than a stale local image. Builds are
+    # layer-cached → instant when nothing changed.
+    #
+    # Deployers who want the published image instead of a build set
+    # OPENMES_PULL_POLICY=missing and OPENMES_VERSION=<tag>. Prefer that on hosts
+    # where building is unreliable — NAS appliances on pre-6.6 kernels cannot
+    # extract archives inside a build at all (the fchmodat2 syscall is missing and
+    # older libseccomp reports the wrong error), so every image build fails there
+    # while a pulled image runs fine.
     pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .

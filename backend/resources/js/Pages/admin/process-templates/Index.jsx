@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, IconButton, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import CreateTemplateDrawer from './CreateDrawer';
 import Tooltip from '../../../components/Tooltip';
 import { __ } from '../../../lib/i18n';
 
-export default function ProcessTemplatesIndex() {
+export default function ProcessTemplatesIndex({ initiallyCreating = false }) {
     const { productType, templates = [] } = usePage().props;
 
+    const [creating, setCreating] = useState(initiallyCreating);
     const [toDelete, setToDelete] = useState(null);
 
     const handleToggleActive = (template) => {
@@ -32,7 +34,7 @@ export default function ProcessTemplatesIndex() {
         <>
             <Head title={__('Process Templates - :name', { name: productType.name })} />
 
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
                 <div className="mb-6">
                     <Link
                         href={`/admin/product-types/${productType.id}`}
@@ -54,7 +56,7 @@ export default function ProcessTemplatesIndex() {
                         <Button
                             variant="accent"
                             onClick={() =>
-                                router.visit(`/admin/product-types/${productType.id}/process-templates/create`)
+                                setCreating(true)
                             }
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +184,7 @@ export default function ProcessTemplatesIndex() {
                         <Button
                             variant="accent"
                             onClick={() =>
-                                router.visit(`/admin/product-types/${productType.id}/process-templates/create`)
+                                setCreating(true)
                             }
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,6 +196,7 @@ export default function ProcessTemplatesIndex() {
                 )}
             </div>
 
+            <CreateTemplateDrawer productType={productType} open={creating} onClose={() => setCreating(false)} />
             <ConfirmDialog
                 open={toDelete !== null}
                 onClose={() => setToDelete(null)}

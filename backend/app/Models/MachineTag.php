@@ -89,4 +89,9 @@ class MachineTag extends Model
 
         return $raw;
     }
+
+    public function counter(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(MachineCounter::class);
+    }
 }

@@ -47,7 +47,7 @@ const em = '—';
 function Card({ title, count, subtitle, action, children, flush = false }) {
     return (
         <section className="overflow-hidden rounded-om border border-om-line bg-om-card">
-            <div className="flex items-baseline justify-between gap-3 px-[22px] pt-4 pb-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-3 px-[22px] pt-4 pb-3">
                 <div className="min-w-0">
                     <h2 className="text-[15px] font-semibold text-om-ink">
                         {title}
@@ -161,7 +161,7 @@ function RemoveButton({ label, onClick, className = '' }) {
 
 function Header({ line, onToggleActive }) {
     return (
-        <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
+        <div className="mb-5 flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-start">
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
                     <h1 className="text-[30px] leading-none font-semibold tracking-[-0.02em] text-om-ink">
@@ -191,13 +191,15 @@ function Header({ line, onToggleActive }) {
                 </Link>
                 <Link
                     href={`/admin/lines/${line.id}/edit`}
-                    className="inline-flex items-center rounded-om-sm border border-om-line bg-om-card px-4 py-[9px] text-[13px] font-medium text-om-ink transition-colors hover:bg-om-chip"
+                    className="inline-flex items-center gap-2 rounded-om-sm border border-om-line bg-om-card px-4 py-[9px] text-[13px] font-medium text-om-ink transition-colors hover:bg-om-chip"
                 >
+                    <Icon name="pencil" size={14} />
                     {__('Edit line')}
                 </Link>
                 <Button
                     type="button"
                     variant={line.is_active ? 'danger' : 'primary'}
+                    leftIcon={<Icon name={line.is_active ? 'circle-slash' : 'circle-check'} size={14} />}
                     onClick={onToggleActive}
                 >
                     {line.is_active ? __('Deactivate') : __('Activate')}
@@ -231,8 +233,8 @@ function LineStatusesCard({ line, lineStatuses }) {
             title={__('Line Statuses')}
             subtitle={__('Kanban statuses for work orders on this line. Global statuses are muted.')}
             action={
-                <Link href="/admin/line-statuses" className="shrink-0 text-[12px] font-semibold text-om-accent hover:underline">
-                    {__('Manage global statuses')} →
+                <Link href="/admin/line-statuses" className="inline-flex items-center gap-2 text-[12px] font-semibold text-om-accent hover:underline">
+                    {__('Manage global statuses')} <Icon name="arrow-right" size={14} />
                 </Link>
             }
         >
@@ -383,8 +385,9 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
             action={
                 <Link
                     href={`/admin/lines/${line.id}/workstations`}
-                    className="shrink-0 rounded-om-sm border border-om-line px-3 py-1.5 text-[12.5px] font-medium text-om-ink transition-colors hover:bg-om-chip"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-om-sm border border-om-line px-3 py-1.5 text-[12.5px] font-medium text-om-ink transition-colors hover:bg-om-chip"
                 >
+                    <Icon name="settings-2" size={14} />
                     {__('Manage')}
                 </Link>
             }
@@ -485,7 +488,7 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds }) {
                             <p className="mb-3 text-[11px] text-om-faint">
                                 {__('Leave all unchecked to allow all product types on this line.')}
                             </p>
-                            <Button type="submit" variant="primary" loading={form.processing}>
+                            <Button type="submit" variant="primary" loading={form.processing} leftIcon={<Icon name="save" size={14} />}>
                                 {__('Save Assignment')}
                             </Button>
                         </>
@@ -686,7 +689,7 @@ function ViewTemplateCard({ line, allViewTemplates }) {
                         onChange={(v) => form.setData('view_template_id', v)}
                     />
                 </div>
-                <Button type="submit" variant="primary" loading={form.processing}>
+                <Button type="submit" variant="primary" loading={form.processing} leftIcon={<Icon name="save" size={14} />}>
                     {__('Save')}
                 </Button>
             </form>
@@ -839,7 +842,7 @@ function ViewColumnsCard({ line, viewColumns }) {
                 </div>
 
                 <div className="mt-3 flex justify-end">
-                    <Button type="submit" variant="ghost" loading={processing}>
+                    <Button type="submit" variant="ghost" loading={processing} leftIcon={<Icon name="save" size={14} />}>
                         {__('Save View Columns')}
                     </Button>
                 </div>
@@ -885,9 +888,9 @@ function WorkOrdersCard({ line, workOrders, productTypeNames, batchCounts }) {
             action={
                 <Link
                     href={`/admin/work-orders?line_id=${line.id}`}
-                    className="shrink-0 text-[12px] font-semibold text-om-accent hover:underline"
+                    className="inline-flex items-center gap-2 text-[12px] font-semibold text-om-accent hover:underline"
                 >
-                    {__('Open all :count', { count: line.work_orders_count })} →
+                    {__('Open all :count', { count: line.work_orders_count })} <Icon name="arrow-right" size={14} />
                 </Link>
             }
             flush
@@ -936,11 +939,7 @@ export default function LineShow() {
             <Head title={`${line.name} — ${__('Configure')}`} />
             <PageTrail append={line.name} />
 
-            {/* Full-bleed, like the lists: `main` is unpadded and the content
-                starts at its edge, so the heading lines up with the breadcrumb
-                above it. A centred max-width box indented the page against the
-                header bar instead. */}
-            <div className="w-full pb-10">
+            <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
                 <Header line={line} onToggleActive={toggleActive} />
 
                 <div className="mb-4 grid grid-cols-1 gap-3.5 sm:grid-cols-3">

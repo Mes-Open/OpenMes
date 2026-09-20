@@ -61,21 +61,11 @@ class WorkOrderController extends Controller
     /**
      * Create a new work order.
      */
-    public function store(Request $request): JsonResponse
+    public function store(\App\Http\Requests\Api\V1\StoreWorkOrderRequest $request): JsonResponse
     {
         $this->authorize('create', WorkOrder::class);
 
-        $validated = $request->validate([
-            'order_no' => 'required|string|max:100|unique:work_orders,order_no',
-            'customer_order_no' => 'nullable|string|max:100',
-            'line_id' => 'nullable|exists:lines,id',
-            'product_type_id' => 'nullable|exists:product_types,id',
-            'planned_qty' => 'required|numeric|min:0.01|max:99999999',
-            'priority' => 'nullable|integer',
-            'due_date' => 'nullable|date',
-            'description' => 'nullable|string',
-            'extra_data' => 'nullable|array',
-        ]);
+        $validated = $request->validated();
 
         $workOrder = $this->workOrderService->createWorkOrder($validated);
 
@@ -88,17 +78,11 @@ class WorkOrderController extends Controller
     /**
      * Update a work order.
      */
-    public function update(Request $request, WorkOrder $workOrder): JsonResponse
+    public function update(\App\Http\Requests\Api\V1\UpdateWorkOrderRequest $request, WorkOrder $workOrder): JsonResponse
     {
         $this->authorize('update', $workOrder);
 
-        $validated = $request->validate([
-            'customer_order_no' => 'nullable|string|max:100',
-            'planned_qty' => 'nullable|numeric|min:0.01|max:99999999',
-            'priority' => 'nullable|integer',
-            'due_date' => 'nullable|date',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $workOrder = $this->workOrderService->updateWorkOrder($workOrder, $validated);
 
@@ -211,7 +195,9 @@ class WorkOrderController extends Controller
             return response()->json(['message' => $errorMessage], 422);
         }
 
-        $workOrder->update(['status' => $target]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $target) {
+            WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->update(['status' => $target]);
+        });
 
         return response()->json([
             'message' => "Work order status set to {$target}",

@@ -44,8 +44,9 @@ class InstallPresetTest extends TestCase
         parent::tearDown();
     }
 
-    private function enablePreset(string $driver = 'sqlite'): void
+    private function enablePreset(?string $driver = null): void
     {
+        $driver ??= config('database.default');
         putenv("INSTALLER_PRESET={$driver}");
         $_ENV['INSTALLER_PRESET'] = $driver;
         $_SERVER['INSTALLER_PRESET'] = $driver;

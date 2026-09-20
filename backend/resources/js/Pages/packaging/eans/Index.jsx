@@ -1,21 +1,11 @@
-// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
-import { DataTable } from '@openmes/ui/table';
+import { Button, ConfirmDialog, Dropdown, Icon, StatusBadge, TextField } from '@openmes/ui';
+import AppDataTable from '../../../components/AppDataTable';
+import { woStatusBadge } from '../../admin/work-orders/fields';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 import PageTrail from '../../../components/PageTrail';
-
-const STATUS_PILLS = {
-    DONE: 'done',
-    IN_PROGRESS: 'running',
-    PENDING: 'pending',
-};
-
-function pillStatus(status) {
-    return STATUS_PILLS[status] ?? 'pending';
-}
 
 export default function EansIndex() {
     const { workOrders = {} } = usePage().props;
@@ -72,7 +62,7 @@ export default function EansIndex() {
         {
             id: 'order_no',
             accessorKey: 'order_no',
-            header: 'Zlecenie',
+            header: __('Work Order'),
             cell: ({ row }) => (
                 <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>
             ),
@@ -80,7 +70,7 @@ export default function EansIndex() {
         {
             id: 'product',
             accessorFn: (r) => r.product_type?.name ?? '—',
-            header: 'Produkt',
+            header: __('Product'),
             cell: ({ row }) => (
                 <span className="text-om-ink">{row.original.product_type?.name ?? '—'}</span>
             ),
@@ -90,19 +80,16 @@ export default function EansIndex() {
             accessorKey: 'status',
             header: __('Status'),
             cell: ({ row }) => (
-                <StatusPill
-                    status={pillStatus(row.original.status)}
-                    label={(row.original.status ?? '').replace(/_/g, ' ')}
-                />
+                <StatusBadge size="sm" {...woStatusBadge(row.original.status)} />
             ),
         },
         {
             id: 'eans',
-            header: 'Kody EAN',
+            header: __('EAN codes'),
             enableSorting: false,
             cell: ({ row }) => (
                 (row.original.eans ?? []).length === 0 ? (
-                    <span className="text-[11.5px] text-om-faint">Brak EAN</span>
+                    <span className="text-[11.5px] text-om-faint">{__('No EAN')}</span>
                 ) : (row.original.eans ?? []).map((ean) => (
                     <div key={ean.id} className="flex items-center gap-2 mb-1">
                         <span className="font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px]">
@@ -111,9 +98,9 @@ export default function EansIndex() {
                         <button
                             type="button"
                             onClick={() => setEanToDelete(ean)}
-                            className="text-[11.5px] text-om-blocked hover:underline transition-colors"
+                            className="inline-flex items-center gap-1 text-[11.5px] text-om-blocked hover:underline transition-colors"
                         >
-                            Usuń
+                            <Icon name="trash-2" size={13} /> {__('Delete')}
                         </button>
                     </div>
                 ))
@@ -122,7 +109,7 @@ export default function EansIndex() {
         {
             id: 'packed',
             accessorFn: (r) => r.packed_qty ?? 0,
-            header: 'Spakowano / Plan',
+            header: __('Packed / Planned'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono text-om-muted">
@@ -136,28 +123,28 @@ export default function EansIndex() {
     return (
         <>
             <Head title={__('EAN Codes — Management')} />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
                 {/* Breadcrumbs */}
                 <PageTrail />
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink">{__('EAN Codes — Management')}</h1>
+                        <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-om-ink">{__('EAN Codes — Management')}</h1>
                         <p className="text-[12.5px] text-om-muted mt-1">{__('Assign barcodes to work orders')}</p>
                     </div>
                     <Link
                         href="/packaging"
-                        className="inline-flex items-center justify-center rounded-om-sm bg-om-chip px-4 py-2.5 text-[13px] font-semibold text-om-ink hover:bg-om-line2 transition-colors"
+                        className="inline-flex items-center justify-center gap-2 rounded-om-sm border border-om-line bg-om-card px-4 py-2.5 text-[13px] font-semibold text-om-ink hover:bg-om-line2 transition-colors"
                     >
-                        &larr; {__('Packaging Overview')}
+                        <Icon name="arrow-left" size={14} /> {__('Packaging Overview')}
                     </Link>
                 </div>
 
                 {/* Add EAN form */}
                 <div className="bg-om-card border border-om-line rounded-om p-5 mb-6">
-                    <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-4">{__('Add EAN code')}</h2>
-                    <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-4"><Icon name="barcode" size={17} />{__('Add EAN code')}</h2>
+                    <form onSubmit={handleAddSubmit} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
                         <div>
                             <div className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Production work order')}</div>
                             <Dropdown
@@ -190,6 +177,7 @@ export default function EansIndex() {
                                 type="submit"
                                 variant="primary"
                                 loading={form.processing}
+                                leftIcon={<Icon name="plus" size={14} />}
                                 className="w-full sm:w-auto"
                             >
                                 {form.processing ? __('Adding…') : __('Add EAN')}
@@ -200,16 +188,16 @@ export default function EansIndex() {
 
                 {/* Search */}
                 <form onSubmit={handleSearch} className="bg-om-card border border-om-line rounded-om px-5 py-3 mb-4">
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         <TextField
-                            className="flex-1"
+                            className="min-w-0 flex-1"
                             value={searchVal}
                             onChange={setSearchVal}
                             placeholder={__('Search by order number…')}
                         />
-                        <Button type="submit" variant="secondary">{__('Search')}</Button>
+                        <Button type="submit" variant="outline" leftIcon={<Icon name="search" size={14} />}>{__('Search')}</Button>
                         {hasSearch && (
-                            <Button variant="ghost" onClick={handleClear}>
+                            <Button variant="ghost" onClick={handleClear} leftIcon={<Icon name="x" size={14} />}>
                                 {__('Clear')}
                             </Button>
                         )}
@@ -217,13 +205,14 @@ export default function EansIndex() {
                 </form>
 
                 {/* Table */}
-                <div>
-                    <DataTable
+                <div className="overflow-hidden rounded-om border border-om-line bg-om-card">
+                    <AppDataTable
                         data={rows}
                         columns={columns}
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
+                        bodyMaxHeight="none"
                         emptyLabel={__('No results found')}
                     />
 

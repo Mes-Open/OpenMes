@@ -1,0 +1,146 @@
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { cloneElement, useMemo, useState } from 'react';
+import { Button, Dropdown } from '@openmes/ui';
+import AppDataTable from '../../../components/AppDataTable';
+import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
+
+const base = '/admin/connectivity/counters';
+const input = 'border border-om-line2 rounded px-3 py-2 bg-om-surface text-om-ink w-full';
+const button = 'rounded bg-om-accent text-white px-4 py-2 disabled:opacity-50';
+const statuses = {
+    legacy_incompatible: 'Explicit counting required', legacy_enabled: 'Legacy counting enabled', configured: 'Configured', baseline: 'Baseline established', applied: 'Applied', unchanged: 'Unchanged',
+    unconfigured: 'Configuration required', unassigned: 'Unassigned', blocked: 'Step blocked', partial: 'Partially applied',
+    reset_required: 'Reset review required', source_changed: 'Source changed', out_of_order: 'Out-of-order reading',
+    future_reading: 'Future reading', event_id_required: 'Event ID required', timestamp_required: 'Timestamp required',
+    invalid_value: 'Invalid counter value', invalid_pulse: 'Pulse must equal one', quality_unknown: 'Quality review required',
+    rebaseline: 'Baseline requested', reconciled: 'Reconciled', dismissed: 'Dismissed',
+};
+function Errors({ errors }) {
+    return Object.entries(errors).map(([key, value]) => <p key={key} role="alert" className="text-red-600 text-sm">{value}</p>);
+}
+function Field({ label, children }) {
+    return <label className="block space-y-1"><span className="text-sm text-om-muted">{__(label)}</span>{cloneElement(children, { 'aria-label': __(label) })}</label>;
+}
+function Configuration({ counter, workstations, steps }) {
+    const form = useForm({ mode: counter.mode, kind: counter.kind, workstation_id: counter.workstation_id ?? '', batch_step_id: counter.batch_step_id ?? '', note: '' });
+    const options = steps.filter(s => s.workstation_id === Number(form.data.workstation_id));
+    return <form aria-label={__('Counter configuration')} className="space-y-3" onSubmit={e => { e.preventDefault(); form.put(`${base}/${counter.id}`, { preserveScroll: true }); }}>
+        <div className="grid md:grid-cols-2 gap-3">
+            <Field label="Counter mode"><Dropdown className="w-full" value={form.data.mode} onChange={value => form.setData('mode', value)} options={['cumulative', 'increment', 'pulse'].map((value, i) => ({ value, label: __(['Cumulative', 'Increment', 'Pulse'][i]) }))} /></Field>
+            <Field label="Count quality"><Dropdown className="w-full" value={form.data.kind} onChange={value => form.setData('kind', value)} options={['good', 'reject', 'total'].map((value, i) => ({ value, label: __(['Good', 'Reject', 'Total (quality unknown)'][i]) }))} /></Field>
+            <Field label="Workstation"><Dropdown className="w-full" value={String(form.data.workstation_id)} onChange={value => form.setData({ ...form.data, workstation_id: value, batch_step_id: '' })} placeholder={__('Select workstation')} options={workstations.map(w => ({ value: String(w.id), label: w.name }))} /></Field>
+            <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} options={[{ value: '', label: __('Unassigned') }, ...options.map(s => ({ value: String(s.id), label: s.label }))]} /></Field>
+        </div>
+        <p className="text-sm text-om-muted">{__('After a configuration change, the next cumulative reading establishes the baseline. Earlier readings are never replayed automatically.')}</p>
+        <Field label="Reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing || !form.data.workstation_id}>{__(counter.configured_at ? 'Save counter configuration' : 'Enable explicit counting')}</button>
+    </form>;
+}
+function LegacySwitch({ counter }) {
+    const form = useForm({ note: '' });
+    return <form aria-label={__('Return to legacy counting')} className="space-y-2" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/legacy`, { preserveScroll: true }); }}>
+        <Field label="Reason"><input className={input} required value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__('Return to legacy counting')}</button>
+    </form>;
+}
+function Baseline({ counter }) {
+    const form = useForm({ note: '' });
+    return <form aria-label={__('Reset review')} className="space-y-2" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/rebaseline`, { preserveScroll: true, onSuccess: () => form.reset() }); }}>
+        <p className="text-sm text-om-muted">{__('Confirm a reset only after checking the machine. The next fresh reading becomes the baseline and adds no production.')}</p>
+        <Field label="Reset reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__('Establish new baseline')}</button>
+    </form>;
+}
+function Simulator({ counter }) {
+    const form = useForm({ value: '', event_id: '', timestamp: '' });
+    return <form aria-label={__('Test reading')} className="space-y-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/simulate`, { preserveScroll: true }); }}>
+        <h2 className="font-semibold">{__('Local test readings')}</h2>
+        <p className="text-sm text-om-muted">{__('These readings change the demo order. Simulation is available only for specially created test sources.')}</p>
+        <div className="grid md:grid-cols-3 gap-3">
+            <Field label="Raw count"><input className={input} type="number" step="0.01" min="0" required value={form.data.value} onChange={e => form.setData('value', e.target.value)} /></Field>
+            <Field label="Event ID"><input className={input} maxLength={160} value={form.data.event_id} onChange={e => form.setData('event_id', e.target.value)} /></Field>
+            <Field label="Timestamp (optional ISO 8601)"><input className={input} value={form.data.timestamp} onChange={e => form.setData('timestamp', e.target.value)} /></Field>
+        </div>
+        <Errors errors={form.errors} /><button className={button} disabled={form.processing}>{__('Send test reading')}</button>
+    </form>;
+}
+function Review({ counter, reading, steps, close }) {
+    const form = useForm({ decision: 'dismiss', batch_step_id: reading.batch_step_id ?? '', note: '' });
+    const canApply = reading.payload?.kind === 'good' && Number(reading.delta) > Number(reading.applied_qty);
+    return <form aria-label={__('Review reading')} className="p-4 border border-om-line2 space-y-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/readings/${reading.id}/review`, { preserveScroll: true, onSuccess: close }); }}>
+        <h3 className="font-semibold">{__('Review reading')} #{reading.id}</h3>
+        <Field label="Decision"><Dropdown className="w-full" value={form.data.decision} onChange={value => form.setData('decision', value)} options={[{ value: 'dismiss', label: __('Dismiss with reason') }, ...(canApply ? [{ value: 'apply', label: __('Apply remaining good quantity') }] : [])]} /></Field>
+        {form.data.decision === 'apply' && <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} placeholder={__('Select step')} options={steps.filter(s => s.workstation_id === counter.workstation_id).map(s => ({ value: String(s.id), label: s.label }))} /></Field>}
+        <Field label="Review reason"><input required maxLength={1000} className={input} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Errors errors={form.errors} /><div className="flex gap-3"><button className={button} disabled={form.processing || (form.data.decision === 'apply' && !form.data.batch_step_id)}>{__('Save review')}</button><button type="button" onClick={close}>{__('Cancel')}</button></div>
+    </form>;
+}
+function ReadingHistory({ counter, readings, onReview }) {
+    const { url } = usePage();
+    const awaitingReview = new URL(url, window.location.origin).searchParams.get('review') === '1';
+    const columns = useMemo(() => [
+        { accessorKey: 'id', header: __('ID') },
+        { accessorKey: 'observed_at', header: __('Time'), cell: ({ row }) => <div className="whitespace-nowrap">{new Date(row.original.observed_at).toLocaleString()}<div className="text-om-muted">{row.original.event_id}</div></div> },
+        { accessorKey: 'raw_value', header: __('Raw count'), cell: ({ getValue }) => getValue() ?? '—' },
+        { accessorKey: 'delta', header: __('Delta') },
+        { accessorKey: 'applied_qty', header: __('Applied quantity') },
+        { accessorKey: 'status', header: __('Status'), cell: ({ getValue }) => __(statuses[getValue()] ?? getValue()) },
+        { accessorKey: 'batch_step_id', header: __('Batch step'), cell: ({ getValue }) => getValue() ?? '—' },
+        { id: 'review', header: __('Review'), cell: ({ row }) => {
+            const reading = row.original;
+            return reading.review_note ?? (!reading.reviewed_at && ['unassigned', 'blocked', 'partial', 'quality_unknown'].includes(reading.status)
+                ? <Button size="sm" variant="outline" onClick={() => onReview(reading)}>{__('Review')}</Button> : null);
+        } },
+    ].map(column => ({ ...column, enableSorting: false })), [onReview]);
+    const visit = target => router.visit(target, { preserveScroll: true });
+    return <section className="space-y-3">
+        <h2 className="font-semibold">{__('Reading history')}</h2>
+        <div className="flex flex-wrap gap-2">
+            <Button variant={awaitingReview ? 'outline' : 'secondary'} aria-pressed={!awaitingReview} onClick={() => visit(`${base}?counter=${counter.id}`)}>{__('All readings')}</Button>
+            <Button variant={awaitingReview ? 'secondary' : 'outline'} aria-pressed={awaitingReview} onClick={() => visit(`${base}?counter=${counter.id}&review=1`)}>{__('Awaiting review')}</Button>
+        </div>
+        <AppDataTable data={readings?.data ?? []} columns={columns} getRowId={row => String(row.id)} searchable={false} columnToggle={false} paginated={false} bodyMaxHeight={null} />
+        {(readings?.prev_page_url || readings?.next_page_url) && <div className="flex gap-2">
+            <Button variant="outline" disabled={!readings.prev_page_url} onClick={() => visit(readings.prev_page_url)}>{__('Previous')}</Button>
+            <Button variant="outline" disabled={!readings.next_page_url} onClick={() => visit(readings.next_page_url)}>{__('Next')}</Button>
+        </div>}
+    </section>;
+}
+export default function Counters() {
+    const { counters, selectedId, sources, workstations, steps, readings, canSimulate } = usePage().props;
+    const counter = counters.find(c => c.id === selectedId);
+    const register = useForm({ source_type: 'tag', source_id: '' });
+    const [review, setReview] = useState(null);
+    const assigned = steps.find(s => s.id === counter?.batch_step_id);
+    return <><Head title={__('Machine counters')} /><div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold">{__('Machine counters')}</h1>
+            <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => router.visit('/admin/connectivity')}>{__('Machine Connectivity')}</Button>
+                <Button variant="outline" onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</Button>
+            </div>
+        </div>
+        <p className="text-om-muted">{__('Existing channels keep legacy counting until you enable explicit counting. In explicit mode, assign a channel to one batch step and verify its count quality.')}</p>
+        <form aria-label={__('Register counter')} className="flex flex-wrap items-end gap-3" onSubmit={e => { e.preventDefault(); register.post(base); }}>
+            <Field label="Machine source"><Dropdown className="w-full min-w-64" value={register.data.source_id ? `${register.data.source_type}:${register.data.source_id}` : ''} placeholder={__('Select source')} onChange={value => { const [source_type, source_id] = value.split(':'); register.setData({ source_type, source_id }); }} options={sources.map(s => ({ value: `${s.type}:${s.id}`, label: `${s.label} (${s.type} #${s.id})` }))} /></Field>
+            <button className={button} disabled={register.processing || !register.data.source_id}>{__('Open counter')}</button><Errors errors={register.errors} />
+        </form>
+        <nav className="flex flex-wrap gap-2">{counters.map(c => <Link key={c.id} href={`${base}?counter=${c.id}`} onClick={() => setReview(null)} className={`px-3 py-2 rounded border ${c.id === selectedId ? 'border-om-accent text-om-accent' : 'border-om-line2'}`}>{c.label} #{c.id}</Link>)}</nav>
+        {counter && <>
+            <section className="rounded border border-om-line2 p-4 space-y-4">
+                <h2 className="font-semibold">{counter.label} — {counter.connection?.name}</h2>
+                <div className="flex flex-wrap gap-6 text-sm"><span>{__('Last raw count')}: <strong data-testid="last-raw">{counter.last_raw ?? '—'}</strong></span><span>{__('Assigned batch step')}: {assigned?.label ?? counter.batch_step_id ?? __('Unassigned')}</span><span>{__('Good')}: <strong data-testid="step-good">{assigned?.passed_qty ?? '—'}</strong></span></div>
+                {counter.reset_required && <p role="alert" className="text-red-600 font-semibold">{__('Reset review required')}</p>}
+                <p className="text-sm text-om-muted">{__(counter.configured_at ? 'Explicit counting is enabled for this channel.' : 'Legacy counting is active. Opening this page does not change machine behaviour. Enable explicit counting when this channel is ready.')}</p>
+                <Configuration key={`${counter.id}:${counter.updated_at}`} {...{ counter, workstations, steps }} />
+            </section>
+            {counter.configured_at && counter.mode === 'cumulative' && <section className="rounded border border-om-line2 p-4"><Baseline key={counter.id} counter={counter} /></section>}
+            {counter.configured_at && <details className="rounded border border-om-line2 p-4"><summary>{__('Return to legacy counting')}</summary><LegacySwitch counter={counter} /></details>}
+            {canSimulate && <section className="rounded border border-om-line2 p-4"><Simulator key={counter.id} counter={counter} /></section>}
+            {review && <Review key={review.id} {...{ counter, reading: review, steps }} close={() => setReview(null)} />}
+            <ReadingHistory counter={counter} readings={readings} onReview={setReview} />
+        </>}
+    </div></>;
+}
+Counters.layout = page => <AppLayout>{page}</AppLayout>;

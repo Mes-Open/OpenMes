@@ -22,11 +22,8 @@ function weekLabel(wk) {
 }
 
 function statusLabel(status) {
-    if (status === 'PENDING') return 'Not Started';
-    if (status === 'IN_PROGRESS') return 'In Progress';
-    if (status === 'DONE') return 'Done';
-    if (status === 'BLOCKED') return 'Blocked';
-    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const labels = { PENDING: 'Not Started', IN_PROGRESS: 'In Progress', DONE: 'Done', BLOCKED: 'Blocked', PAUSED: 'Paused', CANCELLED: 'Cancelled', REJECTED: 'Rejected', ACCEPTED: 'Accepted' };
+    return __(labels[status] ?? status ?? 'Unknown');
 }
 
 // Imported extra_data can hold lists or nested objects — String() would print
@@ -183,7 +180,7 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
         router.post(`/operator/workstation/${wo.id}/shift-entry`, { shift_id: shift.id, quantity: qty });
     }, [inputVal, wo.id, shift.id]);
 
-    if (isDone) {
+    if (isDone || wo.uses_step_ledger) {
         return (
             <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                 <span className="font-mono text-[13px] text-om-faint">{entryQty > 0 ? Math.round(entryQty) : 0}</span>
@@ -651,6 +648,30 @@ function StatusBadge({ status }) {
 
 // ─── row ─────────────────────────────────────────────────────────────────────
 
+function QuickStepCount({ order }) {
+    const targets = order.quick_count_targets ?? [];
+    const [selected, setSelected] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const target = targets.length === 1 ? targets[0] : targets.find(t => String(t.id) === selected);
+    const add = () => {
+        if (!target || busy) return;
+        setBusy(true);
+        setError('');
+        router.post(`/operator/batch-step/${target.id}/quantity`, { good_qty: 1, scrap_qty: 0 }, {
+            preserveScroll: true,
+            onError: errors => setError(Object.values(errors).join(' ')),
+            onFinish: () => setBusy(false),
+        });
+    };
+    return <div className="flex flex-col gap-1">
+        {targets.length > 1 && <Dropdown aria-label={__('Assigned batch step')} value={selected} placeholder={__('Select step')} options={targets.map(t => ({ value: String(t.id), label: t.label }))} onChange={setSelected} />}
+        <Button variant="accent" disabled={!target || busy} onClick={add} aria-label={__('Add one good piece')}>+1</Button>
+        {targets.length === 0 && <Link className="max-w-44 text-xs text-om-muted underline" href={`/operator/work-order/${order.id}`}>{__('Check the step: it must be started and have incoming pieces.')}</Link>}
+        {error && <p role="alert" className="text-sm text-om-blocked">{error}</p>}
+    </div>;
+}
+
 function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, onStart, onComplete, onInfo, onReport, labelTemplates = [] }) {
     const isDone = wo.status === 'DONE';
     const isActive = wo.status === 'IN_PROGRESS';
@@ -659,6 +680,10 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
     const remaining = Math.max(0, planned - produced);
 
     const handleRowClick = () => {
+        if (wo.uses_step_ledger) {
+            router.visit(`/operator/work-order/${wo.id}`);
+            return;
+        }
         if (isDone) return;
         if (!isActive) {
             onStart({
@@ -742,7 +767,13 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             {/* Actions */}
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
-                    {!isDone && (
+                    {wo.uses_step_ledger && <QuickStepCount order={wo} />}
+                    {wo.uses_step_ledger && (
+                        <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent">
+                            {__('Record output')}
+                        </Link>
+                    )}
+                    {!isDone && !wo.uses_step_ledger && (
                         <Tooltip label="Add produced quantity">
                             <IconButton
                                 variant="primary"
@@ -874,7 +905,7 @@ export default function Workstation() {
 
             <div className="max-w-full mx-auto px-2 sm:px-4">
                 {machineStates.length > 0 && (
-                    <MachineStatePanel machines={machineStates} options={machineStateOptions} />
+                    <MachineStatePanel machines={machineStates} options={machineStateOptions} label={workOrders.some(order => ['machine', 'both'].includes(order.counting_source)) ? __('Machine state') : __('Workstation state')} />
                 )}
                 {/* Header */}
                 <div className="mb-4">
@@ -1091,14 +1122,14 @@ const MACHINE_STATE_DOT = {
     WAITING: 'bg-yellow-400', CLEANING: 'bg-purple-400', MAINTENANCE: 'bg-orange-400',
 };
 
-function MachineStatePanel({ machines, options }) {
+function MachineStatePanel({ machines, options, label }) {
     const setState = (workstationId, state) => {
         router.post(`/operator/workstation/machine-state/${workstationId}`, { state }, { preserveScroll: true });
     };
 
     return (
         <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{__('Machine state')}</p>
+            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{label}</p>
             <div className="flex flex-wrap gap-3">
                 {machines.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
@@ -1109,7 +1140,7 @@ function MachineStatePanel({ machines, options }) {
                             value={m.state ?? undefined}
                             placeholder="—"
                             onChange={(state) => state !== m.state && setState(m.id, state)}
-                            aria-label={`${__('Machine state')}: ${m.name}`}
+                            aria-label={`${label}: ${m.name}`}
                             options={[
                                 // A state outside the settable list (e.g. from a machine feed) stays visible.
                                 ...(m.state && !options.includes(m.state) ? [m.state] : []),

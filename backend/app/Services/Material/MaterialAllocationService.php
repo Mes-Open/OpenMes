@@ -112,6 +112,7 @@ class MaterialAllocationService
      */
     public function shortagesForWorkOrders(Collection $workOrders): array
     {
+        $workOrders = $workOrders->reject(fn ($order) => in_array($order->status, ['DONE', 'CANCELLED', 'REJECTED'], true));
         $boms = [];
         $ids = [];
         $codes = [];
@@ -144,6 +145,11 @@ class MaterialAllocationService
             ? Material::whereIn('code', array_unique($codes))->get()->keyBy('code')
             : collect();
 
+        $covered = MaterialAllocation::whereIn('work_order_id', $workOrders->pluck('id'))
+            ->where('status', '!=', MaterialAllocation::STATUS_RETURNED)
+            ->whereHas('batch', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
+            ->get()->groupBy('work_order_id')->map(fn ($rows) => $rows->groupBy('material_id')
+            ->map(fn ($items) => $items->sum(fn ($item) => max(0, (float) $item->allocated_qty - (float) $item->returned_qty))));
         $out = [];
 
         foreach ($workOrders as $workOrder) {
@@ -153,7 +159,9 @@ class MaterialAllocationService
             }
 
             $short = [];
+            $remainingCovered = ($covered->get($workOrder->id) ?? collect())->all();
 
+            $requirements = [];
             foreach ($bom as $bomItem) {
                 $material = ! empty($bomItem['material_id'])
                     ? $byId->get($bomItem['material_id'])
@@ -162,10 +170,20 @@ class MaterialAllocationService
                     $material = $byCode->get($bomItem['material_code']);
                 }
 
-                // A BOM line naming a material that no longer exists cannot be
-                // covered either — worth flagging rather than skipping.
-                $required = $this->calculateRequiredQty($bomItem, (float) $workOrder->planned_qty);
-                $available = (float) ($material?->available_quantity ?? 0);
+                $key = $material ? 'id:'.$material->id : 'missing:'.($bomItem['material_id'] ?? $bomItem['material_code'] ?? json_encode($bomItem));
+                $requirements[$key] ??= ['material' => $material, 'item' => $bomItem, 'quantity' => 0.0];
+                $requirements[$key]['quantity'] += $this->calculateRequiredQty($bomItem, (float) $workOrder->planned_qty);
+            }
+
+            foreach ($requirements as $requirement) {
+                $material = $requirement['material'];
+                $bomItem = $requirement['item'];
+                $required = max(0, $requirement['quantity'] - ($remainingCovered[$material?->id] ?? 0));
+                if ($required <= 0) {
+                    continue;
+                }
+                // Keep the signed accounting balance; operators need usable stock.
+                $available = max(0, (float) ($material?->available_quantity ?? 0));
 
                 if ($material && $available >= $required) {
                     continue;
@@ -179,6 +197,12 @@ class MaterialAllocationService
                     'available_qty' => round($available, 4),
                     'missing_qty' => round(max(0, $required - $available), 4),
                     'material_exists' => $material !== null,
+                    // Available is on-hand minus what other batches have already
+                    // reserved, so a full store can still read as zero available.
+                    // Carry both halves: without them the shortage looks like the
+                    // system losing stock rather than stock being spoken for.
+                    'on_hand_qty' => round((float) ($material?->stock_quantity ?? 0), 4),
+                    'reserved_qty' => round((float) ($material?->reserved_quantity ?? 0), 4),
                 ];
             }
 

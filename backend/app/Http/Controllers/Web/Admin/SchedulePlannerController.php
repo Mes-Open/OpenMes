@@ -17,11 +17,19 @@ class SchedulePlannerController extends Controller
 
     public function index(Request $request)
     {
+        if ($request->input('view_mode') === 'hourly') {
+            return redirect()->route('admin.schedule', [...$request->query(), 'view_mode' => 'daily']);
+        }
+
         $board = $this->planner->board([
             'view_mode' => $request->input('view_mode'),
             'start_date' => $request->input('start_date'),
             'line_id' => $request->input('line_id'),
         ]);
+
+        if ($board['viewMode'] === 'hourly') {
+            return redirect()->route('admin.schedule', [...$request->query(), 'view_mode' => 'daily']);
+        }
 
         return Inertia::render('admin/schedule/Planner', [
             ...$board,
@@ -32,26 +40,8 @@ class SchedulePlannerController extends Controller
         ]);
     }
 
-    public function updateOrder(Request $request, WorkOrder $workOrder)
+    public function updateOrder(\App\Http\Requests\Api\V1\ScheduleUpdateOrderRequest $request, WorkOrder $workOrder)
     {
-        $request->validate([
-            'line_id' => 'nullable|exists:lines,id',
-            'extra_placements' => 'sometimes|array|max:20',
-            'extra_placements.*.id' => 'nullable|integer',
-            'extra_placements.*.line_id' => 'required|exists:lines,id',
-            'extra_placements.*.due_date' => 'required|date',
-            'extra_placements.*.shift_number' => 'nullable|integer|min:1|max:10',
-            'extra_placements.*.end_date' => 'nullable|date|after_or_equal:extra_placements.*.due_date',
-            'extra_placements.*.end_shift_number' => 'nullable|integer|min:1|max:10',
-            'due_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:due_date',
-            'week_number' => 'nullable|integer|min:1|max:53',
-            'shift_number' => 'nullable|integer|min:1|max:10',
-            'end_shift_number' => 'nullable|integer|min:1|max:10',
-            'planned_start_at' => 'nullable|date',
-            'planned_end_at' => 'nullable|date|after:planned_start_at',
-        ]);
-
         // Presence, not value, decides what gets written: only() drops keys the
         // request never carried, matching the service's partial-update contract.
         $result = $this->planner->updateOrder(
@@ -100,27 +90,14 @@ class SchedulePlannerController extends Controller
         return back()->with('success', __('Work order updated successfully.'));
     }
 
-    public function resizeOrder(Request $request, WorkOrder $workOrder)
+    public function resizeOrder(\App\Http\Requests\Web\Admin\ScheduleResizeOrderRequest $request, WorkOrder $workOrder)
     {
         // Minute-level resize: when both `planned_start_at` and
         // `planned_end_at` are present we treat the request as a minute-level
         // move/resize and bypass the legacy shift-level branch.
         $minuteLevel = $request->filled('planned_start_at') && $request->filled('planned_end_at');
 
-        if ($minuteLevel) {
-            $input = $request->validate([
-                'planned_start_at' => 'required|date',
-                'planned_end_at' => 'required|date|after:planned_start_at',
-            ]);
-        } elseif ($request->input('end_date') === null && $request->input('end_shift_number') === null) {
-            // Allow null to clear span (legacy shift-level behaviour)
-            $input = ['end_date' => null, 'end_shift_number' => null];
-        } else {
-            $input = $request->validate([
-                'end_date' => 'required|date|after_or_equal:'.($workOrder->due_date?->format('Y-m-d') ?? 'today'),
-                'end_shift_number' => 'required|integer|min:1|max:10',
-            ]);
-        }
+        $input = $request->validated();
 
         $result = $this->planner->resizeOrder($workOrder, $input, $request->boolean('force_conflict'));
 

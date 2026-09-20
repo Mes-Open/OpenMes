@@ -26,6 +26,7 @@ export default function SupervisorWorkOrderEdit() {
                     unit_price: workOrder.unit_price ?? '',
                     priority: workOrder.priority ?? 0,
                     due_date: workOrder.due_date ?? '',
+                    planned_start_at: workOrder.planned_start_at ?? '',
                     description: workOrder.description ?? '',
                     status: workOrder.status ?? 'PENDING',
                 }}

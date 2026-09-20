@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProcessTemplate;
 use App\Models\WorkOrder;
+use App\Support\ProductionFlow;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
@@ -93,7 +94,8 @@ class WorkOrderService
     {
         $rule = self::transition($action);
 
-        return $rule !== null && in_array($workOrder->status, $rule['from'], true);
+        return $rule !== null && in_array($workOrder->status, $rule['from'], true)
+            && (! in_array($rule['to'], [WorkOrder::STATUS_IN_PROGRESS, WorkOrder::STATUS_DONE], true) || ! $workOrder->plannedStartBlocker());
     }
 
     /**
@@ -104,9 +106,20 @@ class WorkOrderService
      */
     public static function applyTransition(WorkOrder $workOrder, string $action): array
     {
+        return DB::transaction(function () use ($workOrder, $action) {
+            return self::applyTransitionLocked(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail(), $action);
+        });
+    }
+
+    private static function applyTransitionLocked(WorkOrder $workOrder, string $action): array
+    {
         $rule = self::transition($action);
         if ($rule === null) {
             return ['ok' => false, 'message' => 'Unknown action.'];
+        }
+
+        if (in_array($rule['to'], [WorkOrder::STATUS_IN_PROGRESS, WorkOrder::STATUS_DONE], true) && ($message = $workOrder->plannedStartBlocker())) {
+            return ['ok' => false, 'message' => $message];
         }
 
         if (! self::canTransition($workOrder, $action)) {
@@ -133,19 +146,17 @@ class WorkOrderService
     {
         $rule = self::transitions()[$action];
 
-        $orders = WorkOrder::whereIn('id', $ids)->get();
-
-        $eligible = $orders->filter(fn (WorkOrder $w) => in_array($w->status, $rule['from'], true));
-
-        DB::transaction(function () use ($eligible, $rule) {
-            // Updated one by one (not a mass `whereIn(...)->update()`) so model
-            // events still fire — priority re-scoring and the sync broadcast that
-            // pushes each row to the browser both hang off them.
+        [$total, $applied] = DB::transaction(function () use ($ids, $rule, $action) {
+            $orders = WorkOrder::whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+            $eligible = $orders->filter(fn (WorkOrder $w) => self::canTransition($w, $action));
+            // Individual updates preserve model events and live notifications.
             $eligible->each(fn (WorkOrder $w) => $w->update(['status' => $rule['to']]));
+
+            return [$orders->count(), $eligible->count()];
         });
 
-        $skipped = $orders->count() - $eligible->count();
-        $message = __($rule['bulk'], ['count' => $eligible->count()]);
+        $skipped = $total - $applied;
+        $message = __($rule['bulk'], ['count' => $applied]);
 
         if ($skipped > 0) {
             $message .= ' '.__(':count skipped (not applicable in their current status).', ['count' => $skipped]);
@@ -196,6 +207,7 @@ class WorkOrderService
                 'status' => WorkOrder::STATUS_PENDING,
                 'priority' => $data['priority'] ?? 0,
                 'due_date' => $data['due_date'] ?? null,
+                'planned_start_at' => $data['planned_start_at'] ?? null,
                 'description' => $data['description'] ?? null,
                 'extra_data' => $data['extra_data'] ?? null,
                 'custom_fields' => $data['custom_fields'] ?? null,
@@ -645,6 +657,13 @@ class WorkOrderService
      */
     public function updateWorkOrder(WorkOrder $workOrder, array $data): WorkOrder
     {
+        return DB::transaction(function () use ($workOrder, $data) {
+            return $this->updateWorkOrderLocked(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail(), $data);
+        });
+    }
+
+    private function updateWorkOrderLocked(WorkOrder $workOrder, array $data): WorkOrder
+    {
         // Don't allow updates to completed work orders
         if ($workOrder->status === WorkOrder::STATUS_DONE) {
             throw new \Exception('Cannot update completed work order');
@@ -663,6 +682,7 @@ class WorkOrderService
                 : $workOrder->unit_price,
             'priority' => $data['priority'] ?? $workOrder->priority,
             'due_date' => $data['due_date'] ?? $workOrder->due_date,
+            'planned_start_at' => array_key_exists('planned_start_at', $data) ? $data['planned_start_at'] : $workOrder->planned_start_at,
             'description' => $data['description'] ?? $workOrder->description,
         ]);
 
@@ -782,8 +802,16 @@ class WorkOrderService
             return;
         }
 
-        // Check if complete
-        if ($workOrder->isComplete()) {
+        $hasInProgressBatch = $workOrder->batches()
+            ->where('status', Batch::STATUS_IN_PROGRESS)
+            ->exists();
+
+        // Check if complete. In transfer flow the produced quantity is rolled up
+        // live, so it can reach the plan while the last station is still
+        // finishing its step — the order closes with its last batch, not before.
+        // Whole-batch flow keeps closing the moment the plan is reached.
+        $waitForBatches = $hasInProgressBatch && ProductionFlow::isTransfer();
+        if ($workOrder->isComplete() && ! $waitForBatches) {
             $workOrder->update([
                 'status' => WorkOrder::STATUS_DONE,
                 'completed_at' => now(),
@@ -792,12 +820,11 @@ class WorkOrderService
             return;
         }
 
-        // Check if any batch is in progress
-        $hasInProgressBatch = $workOrder->batches()
-            ->where('status', Batch::STATUS_IN_PROGRESS)
-            ->exists();
-
-        if ($hasInProgressBatch) {
+        // A finished transfer batch can leave a shortfall (including 100% scrap).
+        // The order has started and still needs replacement production.
+        $hasFinishedTransferBatch = ProductionFlow::isTransfer() && $workOrder->batches()
+            ->where('status', Batch::STATUS_DONE)->exists();
+        if ($hasInProgressBatch || $hasFinishedTransferBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
             return;
@@ -820,6 +847,10 @@ class WorkOrderService
     {
         $query = WorkOrder::forUser($user)
             ->with(['line', 'productType', 'batches.steps']);
+
+        if ($user->hasRole('Operator') && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
+            $query->availableForProduction();
+        }
 
         // Apply filters
         if (isset($filters['status'])) {

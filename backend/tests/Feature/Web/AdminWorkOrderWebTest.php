@@ -217,6 +217,34 @@ class AdminWorkOrderWebTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_detail_drawer_loads_edit_options_and_saves_back_to_detail(): void
+    {
+        $wo = WorkOrder::factory()->create(['planned_qty' => 100]);
+        $url = "/admin/work-orders/{$wo->id}";
+
+        $this->actingAs($this->admin)->get($url)
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('editForm'));
+
+        $this->get($url, [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => \Inertia\Inertia::getVersion(),
+            'X-Inertia-Partial-Component' => 'admin/work-orders/Show',
+            'X-Inertia-Partial-Data' => 'editForm',
+        ])->assertOk()->assertJsonPath('props.editForm.workOrder.id', $wo->id)
+            ->assertJsonPath('props.editForm.workOrder.planned_qty', '100.00')
+            ->assertJsonStructure(['props' => ['editForm' => ['lines', 'productTypes', 'customers', 'bomTemplates', 'productRevisions', 'customFields']]]);
+
+        $this->withSession(['locale' => 'pl'])->from($url)->put($url, [
+            'order_no' => $wo->order_no,
+            'planned_qty' => 125,
+            'status' => WorkOrder::STATUS_PENDING,
+            'stay' => 1,
+        ])->assertSessionHasNoErrors()->assertRedirect($url)
+            ->assertSessionHas('success', "Zaktualizowano zlecenie {$wo->order_no}.");
+
+        $this->assertEquals(125, $wo->fresh()->planned_qty);
+    }
+
     public function test_admin_can_update_work_order(): void
     {
         $wo = WorkOrder::factory()->create(['planned_qty' => 100]);

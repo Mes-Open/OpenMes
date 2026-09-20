@@ -77,7 +77,7 @@ class BatchStepTest extends TestCase
             ->postJson("/api/v1/batch-steps/{$secondStep->id}/start");
 
         $response->assertStatus(422)
-            ->assertJsonFragment(['must be completed before']);
+            ->assertJsonPath('errors.step.0', 'Complete step 1 before starting this step.');
     }
 
     public function test_can_start_step_after_previous_step_completed(): void

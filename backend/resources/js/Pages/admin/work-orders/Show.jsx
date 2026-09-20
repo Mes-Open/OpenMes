@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Breadcrumbs, Button, Icon, ProgressBar, StatusBadge, StatusPill, Stepper, useToast } from '@openmes/ui';
 
+import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import { workOrderInitial } from './workOrderInitial';
+import { woFields } from './fields';
+import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import PageTitle from '../../../components/PageTitle';
@@ -89,11 +93,12 @@ function fmtDate(d) {
 
 export default function AdminWorkOrderShow() {
     const {
-        workOrder, customFields = [],
+        workOrder, customFields = [], editForm,
         // Change control (#182) and materials reconciliation (#99).
         stops = [], changeRequests = [], changeControl = {},
         canReclassify = false, materials = [], allocations = [],
     } = usePage().props;
+    const drawer = useResourceDrawer();
     const { confirm, dialog } = useConfirm();
     const { prompt, dialog: promptDialog } = usePrompt();
     const [showStopModal, setShowStopModal] = useState(false);
@@ -132,6 +137,21 @@ export default function AdminWorkOrderShow() {
 
     return (
         <>
+            <ResourceFormDrawer
+                key={drawer.props.open ? 'open' : 'closed'}
+                {...drawer.props}
+                action="/admin/work-orders"
+                title={{ edit: __('Edit Work Order') }}
+                ensure={['editForm']}
+                ready={!!editForm}
+                fields={woFields(editForm?.lines ?? [], editForm?.productTypes ?? [], {
+                    withStatus: true, customers: editForm?.customers ?? [],
+                    bomTemplates: editForm?.bomTemplates ?? [], bomLocked: editForm?.workOrder?.bom_locked,
+                    productRevisions: editForm?.productRevisions ?? [],
+                })}
+                initial={() => workOrderInitial(editForm?.workOrder ?? workOrder)}
+                customFields={editForm?.customFields ?? []}
+            />
             <Head title={__('Work Order :no', { no: workOrder.order_no })} />
 
             {/* The trail belongs in the app header's title slot, beside the clock —
@@ -148,13 +168,10 @@ export default function AdminWorkOrderShow() {
                 />
             </PageTitle>
 
-            {/* Full-bleed, like the lists and the line detail page: `main` is
-                unpadded and the content starts at its edge, so the heading lines
-                up with the breadcrumb above it. A centred max-width box indented
-                the page against the header bar instead. */}
-            <div className="w-full pb-10">
+            <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6">
                 <Header
                     workOrder={workOrder}
+                    onEdit={() => drawer.edit(workOrder)}
                     status={status}
                     isTerminal={isTerminal}
                     isDuePast={isDuePast}
@@ -237,7 +254,7 @@ AdminWorkOrderShow.layout = (page) => <AppLayout>{page}</AppLayout>;
  * for is the filled one; everything else is an outline.
  */
 function Header({
-    workOrder, status, isTerminal, isDuePast, post, confirm, promptComplete,
+    workOrder, status, isTerminal, isDuePast, post, confirm, promptComplete, onEdit,
     changeControl = {}, resume, resumeBlocked, onStopProduction, onRequestChange,
 }) {
     return (
@@ -271,12 +288,9 @@ function Header({
                     <Icon name="arrow-left" size={14} />
                     {__('Back')}
                 </Link>
-                <Link
-                    href={`/admin/work-orders/${workOrder.id}/edit`}
-                    className="inline-flex items-center rounded-om-sm border border-om-line bg-om-card px-4 py-[9px] text-[13px] font-medium text-om-ink transition-colors hover:bg-om-chip"
-                >
+                <Button variant="outline" onClick={onEdit} leftIcon={<Icon name="pencil" size={14} />}>
                     {__('Edit')}
-                </Link>
+                </Button>
 
                 {status === 'PENDING' && (
                     <Button variant="ghost" onClick={() => confirm({ title: __('Reject this work order?') }, () => post('reject'))}>
@@ -341,7 +355,7 @@ function Header({
                     </Button>
                 )}
                 {isTerminal && (
-                    <Button variant="primary" onClick={() => confirm({ title: __('Reopen this work order?') }, () => post('reopen'))}>
+                    <Button variant="primary" leftIcon={<Icon name="rotate-ccw" size={14} />} onClick={() => confirm({ title: __('Reopen this work order?') }, () => post('reopen'))}>
                         {__('Reopen')}
                     </Button>
                 )}
@@ -816,69 +830,38 @@ function MaterialsReconciliation({ workOrder, allocations, canReclassify, materi
     const [modal, setModal] = useState(null); // { kind: 'consume'|'return'|'reclassify', alloc }
 
     return (
-        <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
-            <h2 className="text-lg font-bold text-om-ink mb-1">
+        <div className="bg-om-card rounded-om border border-om-line overflow-hidden">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold text-om-ink px-5 pt-5 mb-1">
+                <Icon name="package-check" size={16} className="text-om-muted" />
                 {__('Materials reconciliation')}{' '}
                 <span className="text-sm font-normal text-om-faint">({allocations.length})</span>
             </h2>
-            <p className="text-xs text-om-muted mb-4">
+            <p className="text-xs text-om-muted px-5 mb-4">
                 {__('Record what was actually consumed, return leftovers to stock, or reclassify material.')}
             </p>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-left text-om-muted border-b border-om-line2">
-                            <th className="py-2 pr-3 font-medium">{__('Material')}</th>
-                            <th className="py-2 px-3 font-medium text-right">{__('Allocated')}</th>
-                            <th className="py-2 px-3 font-medium text-right">{__('Consumed')}</th>
-                            <th className="py-2 px-3 font-medium text-right">{__('Returned')}</th>
-                            <th className="py-2 px-3 font-medium text-right">{__('Scrap')}</th>
-                            <th className="py-2 px-3 font-medium">{__('Status')}</th>
-                            <th className="py-2 pl-3 font-medium text-right">{__('Actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {allocations.map((a) => {
-                            const open = a.status === 'allocated';
-                            return (
-                                <tr key={a.id} className="border-b border-om-line2 last:border-0">
-                                    <td className="py-2 pr-3">
-                                        <span className="font-medium text-om-ink">{a.material_code}</span>
-                                        <span className="text-om-faint"> · {a.material_name}</span>
-                                    </td>
-                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.allocated_qty)}</td>
-                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.consumed_qty)}</td>
-                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.returned_qty)}</td>
-                                    <td className="py-2 px-3 text-right font-mono">{fmtQty(a.scrap_qty)}</td>
-                                    <td className="py-2 px-3">
-                                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${ALLOC_STATUS_STYLES[a.status] ?? 'bg-om-chip text-om-muted'}`}>
-                                            {__(a.status)}
-                                        </span>
-                                    </td>
-                                    <td className="py-2 pl-3 text-right whitespace-nowrap">
-                                        {open && (
-                                            <>
-                                                <button type="button" onClick={() => setModal({ kind: 'consume', alloc: a })}
-                                                    className="text-xs text-om-accent hover:underline">{__('Consume')}</button>
-                                                <span className="text-om-faint mx-1.5">·</span>
-                                                <button type="button" onClick={() => setModal({ kind: 'return', alloc: a })}
-                                                    className="text-xs text-om-accent hover:underline">{__('Return')}</button>
-                                                {canReclassify && (
-                                                    <>
-                                                        <span className="text-om-faint mx-1.5">·</span>
-                                                        <button type="button" onClick={() => setModal({ kind: 'reclassify', alloc: a })}
-                                                            className="text-xs text-om-accent hover:underline">{__('Reclassify')}</button>
-                                                    </>
-                                                )}
-                                            </>
-                                        )}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+            <AppDataTable
+                data={allocations}
+                searchable={false}
+                paginated={false}
+                columnToggle={false}
+                selectable={false}
+                bodyMaxHeight="none"
+                columns={[
+                    { accessorKey: 'material_code', header: __('Material'), cell: ({ row }) => <span className="font-medium">{row.original.material_code}<span className="block text-xs text-om-muted">{row.original.material_name}</span></span> },
+                    ...[['allocated_qty', 'Allocated'], ['consumed_qty', 'Consumed'], ['returned_qty', 'Returned'], ['scrap_qty', 'Scrap']].map(([key, label]) => ({
+                        accessorKey: key, header: __(label), meta: { align: 'right' },
+                        cell: ({ row }) => <span className="font-mono">{fmtQty(row.original[key])}</span>,
+                    })),
+                    { accessorKey: 'status', header: __('Status'), cell: ({ row }) => <span className={`inline-block px-2 py-0.5 rounded text-xs ${ALLOC_STATUS_STYLES[row.original.status] ?? 'bg-om-chip text-om-muted'}`}>{__(row.original.status)}</span> },
+                    { id: 'actions', header: __('Actions'), cell: ({ row }) => row.original.status === 'allocated' && (
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setModal({ kind: 'consume', alloc: row.original })}>{__('Consume')}</Button>
+                            <Button size="sm" variant="outline" onClick={() => setModal({ kind: 'return', alloc: row.original })}>{__('Return')}</Button>
+                            {canReclassify && <Button size="sm" variant="outline" onClick={() => setModal({ kind: 'reclassify', alloc: row.original })}>{__('Reclassify')}</Button>}
+                        </div>
+                    ) },
+                ]}
+            />
 
             {modal?.kind === 'consume' && (
                 <ConsumeModal workOrder={workOrder} alloc={modal.alloc} onClose={() => setModal(null)} />

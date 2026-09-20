@@ -26,6 +26,28 @@ class WorkOrder extends Model
     protected static function booted(): void
     {
         static::saving(function (self $workOrder): void {
+            if ($workOrder->exists && $workOrder->isDirty(['planned_start_at', 'planned_end_at'])
+                && $workOrder->planned_start_at && $workOrder->planned_end_at
+                && $workOrder->planned_end_at->lte($workOrder->planned_start_at)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'planned_start_at' => __('Planned end must be after planned start.'),
+                ]);
+            }
+            if ($workOrder->exists && $workOrder->isDirty('planned_start_at') && $workOrder->planned_start_at?->isFuture()) {
+                $started = ! in_array($workOrder->getOriginal('status'), [self::STATUS_PENDING, self::STATUS_ACCEPTED], true)
+                    || (float) $workOrder->getOriginal('produced_qty') > 0
+                    || $workOrder->batches()->whereHas('steps', fn ($q) => $q->whereNotNull('started_at'))->exists();
+                if ($started) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'planned_start_at' => __('An order that has started cannot be postponed into the future.'),
+                    ]);
+                }
+            }
+            if ($workOrder->exists && (($workOrder->isDirty('status') && in_array($workOrder->status, [self::STATUS_IN_PROGRESS, self::STATUS_DONE], true))
+                || $workOrder->isDirty('produced_qty'))) {
+                $workOrder->assertProductionAvailable();
+            }
+
             // Recompute only when a scoring-relevant field changed (or the row is
             // new); other saves — status transitions, produced_qty ticks — skip
             // the rule query. Time-based rules are kept fresh by priority:recalculate.
@@ -53,6 +75,25 @@ class WorkOrder extends Model
                 $accrue($workOrder);
             }
         });
+    }
+
+    public function scopeAvailableForProduction($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('planned_start_at')->orWhere('planned_start_at', '<=', now()));
+    }
+
+    public function plannedStartBlocker(): ?string
+    {
+        return $this->planned_start_at?->isFuture()
+            ? __('Production is available from :start (plant time).', ['start' => $this->planned_start_at->format('Y-m-d H:i')])
+            : null;
+    }
+
+    public function assertProductionAvailable(): void
+    {
+        if ($message = $this->plannedStartBlocker()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['planned_start_at' => $message]);
+        }
     }
 
     const STATUS_PENDING = 'PENDING';
@@ -411,6 +452,17 @@ class WorkOrder extends Model
     {
         return in_array($this->counting_source, [self::COUNTING_OPERATOR, self::COUNTING_BOTH], true)
             || $this->counting_source === null;
+    }
+
+    /** Routed transfer orders derive output from their batch steps. */
+    public function usesStepLedger(): bool
+    {
+        if (! \App\Support\ProductionFlow::isTransfer()) {
+            return false;
+        }
+
+        return ! empty($this->process_snapshot['steps'])
+            || $this->batches()->where('status', '!=', Batch::STATUS_CANCELLED)->whereHas('steps')->exists();
     }
 
     /**

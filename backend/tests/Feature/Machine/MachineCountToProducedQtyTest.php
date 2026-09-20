@@ -10,7 +10,6 @@ use App\Models\MachineTag;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
-use App\Services\Connectivity\ActionExecutor;
 use App\Services\Machine\MachineSignalIngestor;
 use App\Services\WorkOrder\MachineProductionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +44,7 @@ class MachineCountToProducedQtyTest extends TestCase
             'work_order_id' => $workOrder->id,
             'workstation_id' => $workstation->id,
         ]);
-        BatchStep::factory()->inProgress()->create([
+        $step = BatchStep::factory()->inProgress()->create([
             'batch_id' => $batch->id,
             'workstation_id' => $workstation->id,
         ]);
@@ -65,17 +64,22 @@ class MachineCountToProducedQtyTest extends TestCase
             'is_active' => true,
         ]);
 
-        return [$workOrder, $workstation, $tag];
+        if ($countingSource === WorkOrder::COUNTING_MACHINE) {
+            $service = app(\App\Services\Machine\MachineCounterService::class);
+            $service->configure($service->forSource($tag), ['workstation_id' => $workstation->id, 'batch_step_id' => $step->id,
+                'mode' => 'cumulative', 'kind' => 'good', 'note' => 'Test assignment'], User::factory()->create()->id);
+        }
+
+        return [$workOrder, $workstation, $tag->fresh()];
     }
 
-    public function test_service_resolves_the_active_work_order_at_a_workstation(): void
+    public function test_unconfigured_source_keeps_legacy_counting_for_whole_batch_orders(): void
     {
-        [$workOrder, $workstation] = $this->scenario(WorkOrder::COUNTING_MACHINE);
-
-        $resolved = app(MachineProductionService::class)->resolveActiveWorkOrder($workstation);
-
-        $this->assertNotNull($resolved);
-        $this->assertSame($workOrder->id, $resolved->id);
+        [$workOrder, , $tag] = $this->scenario(WorkOrder::COUNTING_OPERATOR);
+        $workOrder->update(['counting_source' => WorkOrder::COUNTING_MACHINE]);
+        app(MachineSignalIngestor::class)->ingest($tag, 10);
+        app(MachineSignalIngestor::class)->ingest($tag, 13);
+        $this->assertEquals(3, $workOrder->fresh()->produced_qty);
     }
 
     public function test_machine_counted_order_gains_produced_qty_from_a_good_count_delta(): void
@@ -84,9 +88,9 @@ class MachineCountToProducedQtyTest extends TestCase
         $ingestor = app(MachineSignalIngestor::class);
 
         // First reading establishes the cumulative baseline (delta 0, no-op).
-        $ingestor->ingest($tag, 0);
+        $ingestor->ingest($tag, 0, now());
         // Machine counter climbs to 7 → a delta of 7 good parts.
-        $ingestor->ingest($tag, 7);
+        $ingestor->ingest($tag, 7, now());
 
         $this->assertEqualsWithDelta(7.0, (float) $workOrder->fresh()->produced_qty, 0.001);
     }
@@ -96,8 +100,8 @@ class MachineCountToProducedQtyTest extends TestCase
         [$workOrder, , $tag] = $this->scenario(WorkOrder::COUNTING_OPERATOR);
         $ingestor = app(MachineSignalIngestor::class);
 
-        $ingestor->ingest($tag, 0);
-        $ingestor->ingest($tag, 12);
+        $ingestor->ingest($tag, 0, now());
+        $ingestor->ingest($tag, 12, now());
 
         // The event is still logged upstream, but produced_qty must not move.
         $this->assertEqualsWithDelta(0.0, (float) $workOrder->fresh()->produced_qty, 0.001);
@@ -115,22 +119,13 @@ class MachineCountToProducedQtyTest extends TestCase
         $this->assertNotNull($fresh->completed_at);
     }
 
-    public function test_action_executor_honours_counting_source(): void
+    public function test_source_assignment_cannot_override_operator_counting(): void
     {
-        [$machineWo] = $this->scenario(WorkOrder::COUNTING_MACHINE, planned: 100);
-        [$operatorWo] = $this->scenario(WorkOrder::COUNTING_OPERATOR, planned: 100);
-
-        $executor = app(ActionExecutor::class);
-        $method = new \ReflectionMethod($executor, 'updateWorkOrderQty');
-        $method->setAccessible(true);
-
-        $method->invoke($executor, ['order_no' => $machineWo->order_no, 'qty_increment' => true], [], 5);
-        $method->invoke($executor, ['order_no' => $operatorWo->order_no, 'qty_increment' => true], [], 5);
-
-        $this->assertEqualsWithDelta(5.0, (float) $machineWo->fresh()->produced_qty, 0.001);
-        // Operator-counted order is left untouched — this is what kills the
-        // double-count when a mapping and operator entry hit the same order.
-        $this->assertEqualsWithDelta(0.0, (float) $operatorWo->fresh()->produced_qty, 0.001);
+        [$workOrder, , $tag] = $this->scenario(WorkOrder::COUNTING_MACHINE);
+        app(MachineSignalIngestor::class)->ingest($tag, 0, now());
+        $workOrder->update(['counting_source' => WorkOrder::COUNTING_OPERATOR]);
+        app(MachineSignalIngestor::class)->ingest($tag, 5, now());
+        $this->assertEquals(0, $workOrder->fresh()->produced_qty);
     }
 
     public function test_operator_cannot_manually_enter_qty_on_a_machine_counted_order(): void

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppDatePicker from './AppDatePicker';
+import AppDateTimePicker from './AppDateTimePicker';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
 import { __ } from '../lib/i18n';
@@ -145,11 +146,11 @@ export default function ResourceForm({
                     when it is given one, without having to hand the submit button
                     across the component boundary to get there. */}
                 <div className={bare
-                    ? 'sticky bottom-0 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
+                    ? 'sticky -bottom-4 z-10 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]'
                     : 'flex items-center gap-3 pt-2'}
                 >
                     <Button type="submit" variant="primary" loading={processing}>
-                        {processing ? __('Saving…') : submitLabel}
+                        {processing ? __('Saving…') : __(submitLabel)}
                     </Button>
                     {cancelHref && (
                         <Link
@@ -186,7 +187,7 @@ function Field({ field, value, error, setData, data }) {
     const inputId = `${uid}-input`;
     const describedBy = [help && `${uid}-help`, error && `${uid}-error`].filter(Boolean).join(' ') || undefined;
     /** Named through aria-* instead: `htmlFor` only reaches real form controls. */
-    const custom = type === 'select' || type === 'date';
+    const custom = type === 'select' || type === 'date' || type === 'datetime';
     const a11y = custom
         ? { 'aria-label': __(label) }
         : {
@@ -255,6 +256,8 @@ function Field({ field, value, error, setData, data }) {
                     placeholder={placeholder ? __(placeholder) : `${__(label)}…`}
                     {...a11y}
                 />
+            ) : type === 'datetime' ? (
+                <AppDateTimePicker value={value || ''} onChange={set} className="w-full" {...a11y} />
             ) : type === 'date' ? (
                 <AppDatePicker
                     className="w-full"

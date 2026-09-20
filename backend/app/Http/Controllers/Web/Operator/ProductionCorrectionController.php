@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -99,6 +98,8 @@ class ProductionCorrectionController extends Controller
      */
     private function authorizeCorrection(WorkOrderShiftEntry $shiftEntry): void
     {
+        abort_if($shiftEntry->workOrder->usesStepLedger(), 403, __('Record production on the work order steps.'));
+
         // Ownership check — only entry creator or Supervisor/Admin can correct
         $user = auth()->user();
         if (

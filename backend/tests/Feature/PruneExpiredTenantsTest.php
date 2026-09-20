@@ -42,6 +42,7 @@ class PruneExpiredTenantsTest extends TestCase
      */
     public function test_expired_tenant_with_user_referenced_by_packaging_checklist_is_deleted(): void
     {
+        $other = User::factory()->create();
         $tenant = Tenant::create(['name' => 'Demo with checklist', 'expires_at' => now()->subHour()]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
 
@@ -64,5 +65,28 @@ class PruneExpiredTenantsTest extends TestCase
 
         $this->assertDatabaseMissing('tenants', ['id' => $tenant->id]);
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertDatabaseMissing('batches', ['id' => $batch->id]);
+        $this->assertDatabaseMissing('packaging_checklists', ['batch_id' => $batch->id]);
+        $this->assertDatabaseHas('users', ['id' => $other->id]);
+    }
+
+    public function test_retained_counter_state_rolls_back_user_deletion_and_other_tenants_still_prune(): void
+    {
+        $tenant = Tenant::create(['name' => 'Retained audit', 'expires_at' => now()->subHour()]);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $order = WorkOrder::factory()->create(['tenant_id' => $tenant->id]);
+        $batch = Batch::factory()->create(['work_order_id' => $order->id]);
+        $step = \App\Models\BatchStep::factory()->create(['batch_id' => $batch->id]);
+        $connection = \App\Models\MachineConnection::create(['name' => 'Retained counter', 'protocol' => 'rest']);
+        $counter = \App\Models\MachineCounter::create(['machine_connection_id' => $connection->id, 'batch_step_id' => $step->id]);
+        $other = Tenant::create(['name' => 'Prunable', 'expires_at' => now()->subHour()]);
+
+        Artisan::call('tenants:prune');
+
+        $this->assertDatabaseHas('tenants', ['id' => $tenant->id]);
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('batches', ['id' => $batch->id]);
+        $this->assertDatabaseHas('machine_counters', ['id' => $counter->id]);
+        $this->assertDatabaseMissing('tenants', ['id' => $other->id]);
     }
 }

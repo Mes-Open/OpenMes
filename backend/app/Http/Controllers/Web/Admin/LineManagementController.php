@@ -304,7 +304,7 @@ class LineManagementController extends Controller
         \App\Events\User\UserAssignedToLine::dispatch($user, $line);
 
         return redirect()->route('admin.lines.show', $line)
-            ->with('success', "Operator {$user->name} assigned successfully.");
+            ->with('success', __('Operator :name assigned successfully.', ['name' => $user->name]));
     }
 
     /**
@@ -332,7 +332,7 @@ class LineManagementController extends Controller
         $line->users()->detach($user->id);
 
         return redirect()->route('admin.lines.show', $line)
-            ->with('success', "Operator {$user->name} unassigned successfully.");
+            ->with('success', __('Operator :name unassigned successfully.', ['name' => $user->name]));
     }
 
     /**

@@ -111,9 +111,13 @@ class SchedulePlannerService
             })
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    ->orWhereBetween('planned_start_at', [$rangeStart, $rangeEnd])
+                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
                     // Extra segments are scheduled independently — an order
                     // with any segment in the range must ship too.
-                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                        ->orWhere(fn ($span) => $span->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay())))
+                    ->orWhere(fn ($span) => $span->whereNull('planned_start_at')->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                         // Minute-planned orders that overlap the visible range
                         $q2->whereNotNull('planned_start_at')
@@ -158,7 +162,7 @@ class SchedulePlannerService
             ->where(function ($q) {
                 $q->whereNull('line_id')
                     ->orWhere(function ($q2) {
-                        $q2->whereNull('due_date')->whereNull('week_number');
+                        $q2->whereNull('due_date')->whereNull('week_number')->whereNull('planned_start_at');
                     });
             })
             ->orderBy('priority_score', 'desc')
@@ -308,6 +312,15 @@ class SchedulePlannerService
 
     public function updateOrder(WorkOrder $workOrder, array $input, bool $force = false): array
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $input, $force) {
+            $workOrder->setRawAttributes(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->getAttributes(), true);
+
+            return $this->updateOrderLocked($workOrder, $input, $force);
+        });
+    }
+
+    private function updateOrderLocked(WorkOrder $workOrder, array $input, bool $force): array
+    {
         $data = [];
         foreach (['line_id', 'due_date', 'week_number', 'shift_number', 'end_date', 'end_shift_number'] as $field) {
             if (array_key_exists($field, $input)) {
@@ -328,13 +341,19 @@ class SchedulePlannerService
             }
         }
 
-        // Conflict detection: if both timestamps are being set and a line is
+        $start = array_key_exists('planned_start_at', $data) ? $data['planned_start_at'] : $workOrder->planned_start_at;
+        $end = array_key_exists('planned_end_at', $data) ? $data['planned_end_at'] : $workOrder->planned_end_at;
+        if ($start && $end && Carbon::parse($end)->lte(Carbon::parse($start))) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['planned_end_at' => __('Planned end must be after planned start.')]);
+        }
+
+        // Conflict detection: if the resulting interval has both endpoints and a line is
         // assigned, refuse the update when another active WO on the same line
         // overlaps the proposed window — unless the caller explicitly forces.
         // The minute plan lives on the primary placement only; extra segments
         // are coarse (day + shift) and never carry a minute window.
-        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $newPrimary !== null) {
-            $conflict = $this->minuteConflictExists($workOrder, [(int) $newPrimary], $data['planned_start_at'], $data['planned_end_at']);
+        if ($start && $end && $newPrimary !== null) {
+            $conflict = $this->minuteConflictExists($workOrder, [(int) $newPrimary], $start, $end);
 
             if ($conflict && ! $force) {
                 return [
@@ -342,6 +361,11 @@ class SchedulePlannerService
                     'message' => __('This time slot overlaps another work order on the same line.'),
                 ];
             }
+        }
+
+        $endDate = array_key_exists('end_date', $data) ? $data['end_date'] : $workOrder->end_date;
+        if ($start && $endDate && Carbon::parse($endDate)->startOfDay()->lt(Carbon::parse($start)->startOfDay())) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['end_date' => __('End date cannot precede planned start.')]);
         }
 
         $workOrder->update($data);
@@ -383,6 +407,15 @@ class SchedulePlannerService
      * @return array{conflict:bool, message?:string}
      */
     public function resizeOrder(WorkOrder $workOrder, array $input, bool $force = false): array
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $input, $force) {
+            $workOrder->setRawAttributes(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->getAttributes(), true);
+
+            return $this->resizeOrderLocked($workOrder, $input, $force);
+        });
+    }
+
+    private function resizeOrderLocked(WorkOrder $workOrder, array $input, bool $force): array
     {
         $snapshotBefore = $this->placementSnapshot($workOrder);
 
@@ -452,6 +485,16 @@ class SchedulePlannerService
      * The revert is itself logged (action 'undo'), so it can be undone too.
      */
     public function undoChange(ScheduleChangeLog $change): bool
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($change) {
+            $order = WorkOrder::whereKey($change->work_order_id)->lockForUpdate()->first();
+            $change->setRelation('workOrder', $order);
+
+            return $this->undoChangeLocked($change);
+        });
+    }
+
+    private function undoChangeLocked(ScheduleChangeLog $change): bool
     {
         $workOrder = $change->workOrder;
         if (! $workOrder) {
@@ -746,11 +789,7 @@ class SchedulePlannerService
     private function calculateDateRange(string $viewMode, Carbon $startDate, int $horizonWeeks): array
     {
         return match ($viewMode) {
-            'daily' => [
-                $startDate->copy(),
-                $startDate->copy()->addDays(13)->endOfDay(),
-            ],
-            'hourly' => [
+            'daily', 'hourly' => [
                 $startDate->copy()->startOfDay(),
                 $startDate->copy()->endOfDay(),
             ],

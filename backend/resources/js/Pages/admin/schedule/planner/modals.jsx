@@ -2,8 +2,9 @@
 // toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
+import { Button, Dropdown, Icon } from '@openmes/ui';
 import AppDatePicker from '../../../../components/AppDatePicker';
+import AppDateTimePicker from '../../../../components/AppDateTimePicker';
 import { __ } from '../../../../lib/i18n';
 import DueCountdown from '../../../../components/DueCountdown';
 import WorkOrderForm from '../../work-orders/WorkOrderForm';
@@ -64,7 +65,7 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
         <Backdrop onClose={onClose}>
             <div style={{ width: 460, maxWidth: '92vw', background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--om-line2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: '#fde68a', border: '1px solid #d97706' }} />
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-om-sm bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"><Icon name="wrench" size={18} /></span>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--om-ink)' }}>{__('Add maintenance')}</h3>
                 </div>
                 <div style={{ padding: '16px 20px', display: 'grid', gap: 12 }}>
@@ -96,10 +97,10 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
                                 className="w-full" />
                         </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 12 }}>
-                        <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="col-span-2">
                             <div style={lblStyle}>{__('Date')}</div>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+                            <AppDatePicker value={date || null} onChange={(value) => setDate(value || '')} className="w-full" />
                         </div>
                         <div>
                             <div style={lblStyle}>{__('Time')}</div>
@@ -112,11 +113,11 @@ export function AddMaintenanceModal({ lines = [], schedules = [], startDate, onC
                     </div>
                 </div>
                 <div style={{ padding: '14px 20px', borderTop: '1px solid var(--om-line2)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                    <button type="button" onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 9, padding: '9px 16px' }}>{__('Cancel')}</button>
-                    <button type="button" onClick={submit} disabled={busy}
-                        style={{ fontSize: 13, fontWeight: 700, color: '#78350f', background: '#fde68a', border: '1px solid #d97706', borderRadius: 9, padding: '9px 18px', opacity: busy ? 0.6 : 1 }}>
+                    <Button variant="outline" onClick={onClose}>{__('Cancel')}</Button>
+                    <Button onClick={submit} disabled={busy}>
+                        <Icon name="calendar-plus" size={16} />
                         {busy ? __('Adding…') : __('Add to planner')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Backdrop>
@@ -137,6 +138,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
     const s = statusOf(wo.status);
     const [line, setLine] = useState(wo.line_id || '');
     const [extras, setExtras] = useState((wo.placements || []).map((p) => ({ ...p })));
+    const [start, setStart] = useState(wo.planned_start_at?.slice(0, 16) || '');
+    const [plannedEnd, setPlannedEnd] = useState(wo.planned_end_at?.slice(0, 16) || '');
     const [due, setDue] = useState(wo.due_date || '');
     const [endDate, setEndDate] = useState(wo.end_date || '');
     const [shift, setShift] = useState(wo.shift_number || '');
@@ -171,6 +174,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="col-span-2"><div style={lblStyle}>{__('Planned start')}</div><AppDateTimePicker value={start} onChange={setStart} timeLabel={__('Planned start')} /></div>
+                        {plannedEnd && <div className="col-span-2"><div style={lblStyle}>{__('Planned end')}</div><AppDateTimePicker value={plannedEnd} onChange={setPlannedEnd} timeLabel={__('Planned end')} /></div>}
                         <div>
                             <div style={lblStyle}>{__('Production line')}</div>
                             <Dropdown value={line == null ? '' : String(line)} placeholder={__('Unassigned')}
@@ -220,16 +225,17 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 {__('End date')}
                                 {endDate && <button type="button" onClick={() => setEndDate('')} style={{ color: 'var(--om-accent)', textTransform: 'none', letterSpacing: 0 }}>{__('Clear')}</button>}
                             </div>
-                            <AppDatePicker value={endDate || null} min={due || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
+                            <AppDatePicker value={endDate || null} min={start?.slice(0, 10) || undefined} onChange={(iso) => setEndDate(iso ?? '')} className="w-full" />
                         </div>
                         <div><div style={lblStyle}>{__('Start shift')}</div><Dropdown value={shift == null ? '' : String(shift)} onChange={(v) => setShift(v)} placeholder="—" options={shiftOpts} /></div>
                         <div><div style={lblStyle}>{__('End shift')}</div><Dropdown value={endShift == null ? '' : String(endShift)} onChange={(v) => setEndShift(v)} placeholder="—" options={shiftOpts} /></div>
                     </div>
 
-                    <div className="flex gap-2.5">
-                        <a href={`/admin/work-orders/${wo.id}`} className="flex-1 text-center" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}>{__('Open work order')} ↗</a>
-                        <button onClick={() => onSave(wo, {
+                    <div className="flex flex-wrap gap-2.5">
+                        <a href={`/admin/work-orders/${wo.id}`} className="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}><Icon name="external-link" size={16} />{__('Open work order')}</a>
+                        <button type="button" className="inline-flex items-center justify-center gap-2" onClick={() => onSave(wo, {
                             line_id: line ? +line : null,
+                            planned_start_at: start || null, planned_end_at: plannedEnd || null,
                             due_date: due || null, week_number: wo.week_number ?? null, end_date: endDate || null,
                             shift_number: shift ? +shift : null, end_shift_number: endShift ? +endShift : null,
                             extra_placements: extras.map((p) => ({
@@ -237,8 +243,8 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                                 shift_number: p.shift_number ?? null, end_date: p.end_date ?? null, end_shift_number: p.end_shift_number ?? null,
                             })),
                         })}
-                            style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', background: 'var(--om-accent)', borderRadius: 9, padding: '11px 18px' }}>{__('Save')}</button>
-                        <button onClick={() => onUnassign(wo)} style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 9, padding: '11px 18px' }}>{__('Unschedule')}</button>
+                            style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', background: 'var(--om-accent)', borderRadius: 9, padding: '11px 18px' }}><Icon name="save" size={16} />{__('Save')}</button>
+                        <button type="button" className="inline-flex items-center justify-center gap-2" onClick={() => onUnassign(wo)} style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 9, padding: '11px 18px' }}><Icon name="calendar-x" size={16} />{__('Unschedule')}</button>
                     </div>
                 </div>
             </div>
@@ -405,7 +411,7 @@ export function Toasts({ toasts }) {
             {toasts.map((t) => {
                 const clr = t.kind === 'error' ? 'var(--om-blocked)' : t.kind === 'warning' ? 'var(--om-downtime)' : 'var(--om-running)';
                 return (
-                    <div key={t.id} className="flex items-center gap-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderLeft: `3px solid ${clr}`, borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
+                    <div key={t.id} className="flex items-center gap-3" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 11, padding: '13px 16px', boxShadow: '0 18px 44px -18px rgba(0,0,0,.4)' }}>
                         <span style={{ width: 9, height: 9, borderRadius: 999, background: clr }} />
                         <span style={{ fontSize: 13, color: 'var(--om-ink)' }}>{t.msg}</span>
                     </div>

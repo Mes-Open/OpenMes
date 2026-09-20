@@ -31,7 +31,7 @@ class MachineConnectivityTest extends TestCase
             'name' => 'Test', 'protocol' => 'modbus', 'is_active' => true, 'status' => 'disconnected',
         ]);
 
-        return MachineTag::create(array_merge([
+        $tag = MachineTag::create(array_merge([
             'machine_connection_id' => $conn->id,
             'workstation_id' => $ws->id,
             'name' => $signal,
@@ -40,6 +40,12 @@ class MachineConnectivityTest extends TestCase
             'data_type' => 'int16',
             'register_type' => 'holding',
         ], $attrs));
+        if ($signal === 'good_count') {
+            $service = app(\App\Services\Machine\MachineCounterService::class);
+            $service->configure($service->forSource($tag), ['workstation_id' => $ws->id, 'batch_step_id' => null, 'mode' => 'cumulative', 'kind' => 'good', 'note' => 'Monitor test'], \App\Models\User::factory()->create()->id);
+        }
+
+        return $tag;
     }
 
     // ── Tag transform ────────────────────────────────────────────
@@ -97,7 +103,7 @@ class MachineConnectivityTest extends TestCase
         $ws = $this->workstation();
         $tag = $this->tag($ws, 'state', ['transform' => ['value_map' => ['1' => 'RUNNING', '3' => 'FAULT']]]);
 
-        app(MachineSignalIngestor::class)->ingest($tag, 1);
+        app(MachineSignalIngestor::class)->ingest($tag, 1, now());
 
         $this->assertEquals('RUNNING', app(WorkstationStateMachine::class)->current($ws)->state);
         $this->assertEquals(1, MachineEvent::where('event_type', 'state_change')->where('workstation_id', $ws->id)->count());
@@ -109,8 +115,8 @@ class MachineConnectivityTest extends TestCase
         $tag = $this->tag($ws, 'good_count');
         $ingestor = app(MachineSignalIngestor::class);
 
-        $ingestor->ingest($tag, 10); // first reading → baseline, delta 0
-        $ingestor->ingest($tag, 13); // delta 3
+        $ingestor->ingest($tag, 10, now()); // first reading → baseline, delta 0
+        $ingestor->ingest($tag, 13, now()); // delta 3
 
         // Scoped to this test's own workstation: the assertion is about what
         // these two ingests produced, not about the table being empty.
@@ -128,9 +134,9 @@ class MachineConnectivityTest extends TestCase
         $goodTag = $this->tag($ws, 'good_count');
         $ingestor = app(MachineSignalIngestor::class);
 
-        $ingestor->ingest($stateTag, 1);
-        $ingestor->ingest($goodTag, 0);
-        $ingestor->ingest($goodTag, 5);
+        $ingestor->ingest($stateTag, 1, now());
+        $ingestor->ingest($goodTag, 0, now());
+        $ingestor->ingest($goodTag, 5, now());
 
         $status = app(MachineMonitorService::class)->liveStatus($ws);
         $this->assertEquals('RUNNING', $status['state']);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { Button, ConfirmDialog, IconButton, StatusPill, Switch } from '@openmes/ui';
+import { Button, ConfirmDialog, Icon, IconButton, StatusPill, Switch } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import Tooltip from '../../../components/Tooltip';
@@ -50,40 +50,52 @@ export default function ProductTypesIndex() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 py-5 sm:px-6 sm:py-6">
             <Head title={__('Product Types')} />
 
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-5">
                 <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-om-ink">{__('Product Types')}</h1>
-                <div className="flex items-center gap-2">
-                    <Button variant="secondary" onClick={() => router.visit('/admin/import/product-types')}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" onClick={() => router.visit('/admin/import/product-types')}>
+                        <Icon name="upload" size={16} />
                         {__('Import')}
                     </Button>
                     <Tooltip label={__('Download example CSV file for product types import')}>
                         <a
                             href="/admin/import-example/product-types"
-                            className="w-6 h-6 rounded-full bg-om-chip text-om-faint flex items-center justify-center font-mono text-[11px] font-bold hover:bg-om-line2 hover:text-om-ink transition-colors"
+                            className="size-[38px] rounded-om-sm border border-om-line text-om-muted flex items-center justify-center hover:bg-om-chip hover:text-om-ink transition-colors"
                             aria-label={__('Download example CSV file for product types import')}
                         >
-                            ?
+                            <Icon name="download" size={15} />
                         </a>
                     </Tooltip>
                     <Button variant="accent" onClick={drawer.create}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                        <Icon name="plus" size={16} />
                         {__('Add Product Type')}
                     </Button>
                 </div>
             </div>
 
+            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                    { label: __('Total Product Types'), value: list.length, icon: 'package' },
+                    { label: __('Active Types'), value: activeCount, icon: 'circle-check' },
+                    { label: __('Total Templates'), value: totalTemplates, icon: 'workflow' },
+                ].map(stat => (
+                    <div key={stat.label} className="flex items-center justify-between gap-3 rounded-om border border-om-line bg-om-card px-5 py-4">
+                        <div>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{stat.label}</p>
+                            <p className="mt-2 font-mono text-[26px] leading-none text-om-ink">{stat.value}</p>
+                        </div>
+                        <Icon name={stat.icon} size={20} className="shrink-0 text-om-muted" />
+                    </div>
+                ))}
+            </div>
+
             {list.length > 0 ? (
                 <>
                     {/* Product Types Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {list.map((pt) => {
                             const templates = templatesOf(pt.id);
                             const workOrders = workOrdersOf(pt.id);
@@ -92,9 +104,9 @@ export default function ProductTypesIndex() {
                             return (
                                 <div key={pt.id} className="bg-om-card border border-om-line rounded-om p-5">
                                     <div className="flex items-start justify-between mb-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="text-[15px] font-semibold text-om-ink">{pt.name}</h3>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h3 className="text-[15px] font-semibold text-om-ink break-words">{pt.name}</h3>
                                                 {pt.is_active ? (
                                                     <StatusPill status="running" label={__('Active')} />
                                                 ) : (
@@ -145,9 +157,7 @@ export default function ProductTypesIndex() {
                                                         onClick={() => drawer.edit(pt)}
                                                         aria-label={__('Edit')}
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
+                                                        <Icon name="pencil" size={16} />
                                                     </IconButton>
                                                 </Tooltip>
                                                 {deletable ? (
@@ -157,17 +167,13 @@ export default function ProductTypesIndex() {
                                                             onClick={() => setToDelete(pt)}
                                                             aria-label={__('Delete')}
                                                         >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
+                                                            <Icon name="trash-2" size={16} />
                                                         </IconButton>
                                                     </Tooltip>
                                                 ) : (
                                                     <Tooltip label={__('Cannot delete - has templates or work orders')}>
                                                         <span className="inline-flex size-[38px] items-center justify-center text-om-faintest">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                            </svg>
+                                                            <Icon name="lock-keyhole" size={16} />
                                                         </span>
                                                     </Tooltip>
                                                 )}
@@ -179,6 +185,7 @@ export default function ProductTypesIndex() {
                                             onClick={() => router.visit(`/admin/product-types/${pt.id}`)}
                                         >
                                             {__('View Details')}
+                                            <Icon name="arrow-right" size={14} />
                                         </Button>
                                     </div>
                                 </div>
@@ -186,36 +193,15 @@ export default function ProductTypesIndex() {
                         })}
                     </div>
 
-                    {/* Summary Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                        <div className="bg-om-card border border-om-line rounded-om p-5">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Total Product Types')}</p>
-                            <p className="mt-1 font-mono text-[28px] text-om-ink">{list.length}</p>
-                        </div>
-
-                        <div className="bg-om-card border border-om-line rounded-om p-5">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Active Types')}</p>
-                            <p className="mt-1 font-mono text-[28px] text-om-accent">{activeCount}</p>
-                        </div>
-
-                        <div className="bg-om-card border border-om-line rounded-om p-5">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Total Templates')}</p>
-                            <p className="mt-1 font-mono text-[28px] text-om-ink">{totalTemplates}</p>
-                        </div>
-                    </div>
                 </>
             ) : (
                 /* Empty State */
                 <div className="bg-om-card border border-om-line rounded-om text-center py-12">
-                    <svg className="mx-auto h-16 w-16 text-om-faintest mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
+                    <Icon name="package" size={40} className="mx-auto text-om-faintest mb-4" />
                     <p className="text-[15px] font-semibold text-om-ink">{__('No product types yet')}</p>
                     <p className="text-sm text-om-muted mt-1 mb-4">{__('Get started by creating your first product type.')}</p>
-                    <Button variant="accent" onClick={() => router.visit('/admin/product-types/create')}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                    <Button variant="accent" onClick={drawer.create}>
+                        <Icon name="plus" size={16} />
                         {__('Create Product Type')}
                     </Button>
                 </div>

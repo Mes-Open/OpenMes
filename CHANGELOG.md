@@ -7,6 +7,114 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-20
+
+### Fixed
+
+- Pin every GitHub Action to a commit SHA. The repository requires it, so since 14 September each
+  workflow was rejected before it ran — which is why v0.23.0 and v0.23.1 were published with no
+  downloadable assets and no container image was pushed for either.
+- Answer, rather than crash, when an inspection cannot be completed. Completing one with no
+  recorded criteria — or completing it twice — is correctly refused, but the refusal reached the
+  user as a 500. It now renders as a 422 for API clients and a flash message on the web. An
+  inspection started without a plan has no criteria and never will, so the screen no longer offers
+  a Complete button it cannot honour.
+- Say where the stock went when a material shortage is caused by reservations. Availability is
+  on-hand minus what other batches have reserved, so a full store could report "have 0" — which
+  reads as the system having lost the stock. The shortage line now carries on-hand and reserved
+  alongside it, and names them when there is a reservation to explain.
+- Explain an order that has no production steps instead of rendering nothing. A work order keeps
+  the process configuration it was created with, so steps added to the template afterwards never
+  reach an order that predates them — previously the operator screen simply showed no step list at
+  all, which reads as a broken page rather than as the consequence it is.
+- File process-template checklist items and operator outputs against the step that is actually
+  open. The step card was reused across steps rather than remounted, so both forms kept the step
+  they were first rendered with — normally step 1 — and everything added from any later step was
+  filed there instead. Work-instruction media and step photos were unaffected; they already read
+  the step at submit time.
+- Ship the root `modules/` and `packages/` directories in the release ZIP. The Dockerfile copies
+  both out of the build context, and `packages/ui` is what `backend/package.json` resolves
+  `file:../packages/ui` to, so the published package could not run the `docker compose up -d`
+  its own release notes prescribe — the build failed on every machine. Releases now also fail
+  if any path the Dockerfile copies is absent from the package, so this cannot recur unnoticed.
+- Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
+- Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
+
+- Preserve omitted production flow settings, guard reverse transitions while routed work is open, and exclude flow changes from settings imports. Validate API workflow modes and tolerate machine orders without a line.
+- Require cumulative registers for built-in Modbus polling, preserve counter-only configuration on rollback, and respect cross-line routing settings on operator details.
+- Add reason-required, audited corrections to good totals on running manual transfer steps, with stale-value and downstream-consumption protection.
+
+- Restore step-aware +1 counting and show station-scoped routing with overall step numbers and the next destination.
+
+- Disable operator step start while upstream prerequisites are unmet and show start failures beside the affected step.
+
+- Link REST demo connections to their own counters instead of nonexistent protocol detail and edit pages.
+
+- Use shared UI dropdowns throughout machine counter configuration and reading review, the shared reading-history table, and styled header, filter and pagination buttons.
+- Preserve legacy machine counting after upgrades: MQTT, Modbus and OPC UA channels opt into
+  explicit counting individually. Opening a counter does not change its behaviour. Add an
+  audited return to legacy mode and transfer compatibility checks in web/API settings, including
+  protection against losing existing machine-order totals when switching to step-ledger output.
+- Persist raw machine baselines independently of order output. Counter resets and late readings
+  no longer invent production; explicit MQTT and gateway counters use saved step assignments.
+- Preflight step-ledger schema rollback before any changes: refuse downgrades that would discard
+  scrap, fractional/out-of-range counters, or unclassified reasons (including deleted audit rows).
+  Compatible data still supports rollback and re-upgrade; used ledgers require roll-forward or
+  the documented backup recovery procedure.
+- Protect transfer quantity ledgers from legacy workstation, shift correction, board completion
+  and generic scrap writes. Machine counts use the same ownership rule. Recorded step scrap
+  can be classified later, but cannot be moved, resized or deleted independently of the ledger.
+- Reject output while production is stopped or blocked by issues/QC; serialize transfer
+  transitions per order. Reject routing changes after output/scrap, and correctly roll up and
+  consume materials when the final optional step is skipped. Scrapped batches with a production
+  shortfall leave the order in progress; skipped steps have no waiting quantity.
+- Synchronize operator pages through authorized, data-free private line events. Keep form errors
+  local to the submitted form across live refreshes, correct READY step labels in the queue,
+  and fit operator navigation and step controls on mobile screens.
+
+### Added
+
+- Plan work-order availability with a plant-local start date and time in creation,
+  editing and scheduling. Preserve delivery deadlines when moving orders; keep
+  undated orders available and guard early production and postponement of started
+  orders across manual, API and machine entry paths.
+- **Machine counter channels** — persistent cumulative, increment and pulse tracking, stable event-ID
+  deduplication, explicit batch-step assignment, timestamp validation, reset review and retained
+  unassigned/blocked readings with audited reconciliation. One good-count channel per step avoids
+  duplicate sources. Admins/supervisors manage channels under Connectivity → Machine counters.
+  Isolated CLI-created demo sources support browser simulation without enabling it for real channels.
+- **Per-step quantity ledger and a "transfer" production flow** — every batch step now counts what
+  left it as good (`passed_qty`, the same counter break-beam sensors already feed) and as scrap
+  (`scrap_qty`); what arrives at a step is what the previous non-skipped step passed, so each step
+  knows how many pieces are still waiting at its station. Operators log these with a new
+  `POST /operator/batch-step/{step}/quantity` (good / scrap / notes, validated by
+  `RecordStepQuantityRequest`); scrap logged this way becomes a scrap entry without a reason, to be
+  classified later (`scrap_entries.scrap_reason_id` is now nullable). A new system setting,
+  **Production Flow** (`production_flow_mode`), picks how pieces move: *Whole batch* (default —
+  unchanged behaviour: the next station opens when the previous step is finished, and finishing
+  passes along everything not scrapped) or *Transfer* — the next station opens as soon as pieces
+  are logged as good, so stations on a routing work at the same time; a step can only be finished
+  once its feeding step is closed and nothing is left waiting (a step nothing reached opens once its
+  feeder closes, so a batch scrapped upstream can still be closed); the batch and work order produced
+  quantity follow the last step live, and the order closes with its last batch rather than the
+  moment the count is reached. In transfer flow machine counts go through the ledger too: a
+  break-beam pulse is capped at what is waiting at its step and opens the next station, and a
+  machine good-count lands on its explicitly assigned batch step. Only final-step output rolls
+  up to the order. Whole-batch flow retains completion at the planned order quantity; configured
+  machine channels also cap their accepted quantity at the step's available input. The migration
+  backfills `passed_qty` of steps finished before it, so batches already in flight can continue
+  after switching to transfer flow.
+- **Operator work-order page is station-scoped** — consecutive steps bound to the same workstation
+  form one "station operation". With a workstation selected in the queue, that station's steps stay
+  open (marked *Your station*) and every other station's run of steps folds into one summary row
+  (station, step range, done count, and in transfer flow its waiting/passed counts), with *Show all
+  steps* to unfold them. In transfer flow each step shows its ledger (incoming, waiting, passed,
+  scrap), a running step gets a quick *Log* form (good / scrap), a station owning several steps gets
+  *Log through station* (the good pieces pass through all of its steps in one go; scrap stays at the
+  first — `through_station` on the quantity route), and *Complete* is disabled with the reason while
+  pieces can still arrive or are waiting. The station queue lists an order at every station that has
+  a running step or pieces waiting, not only at its current step.
+
 ## [0.23.1] - 2026-09-14
 
 ### Changed

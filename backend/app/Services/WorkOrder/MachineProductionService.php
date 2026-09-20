@@ -6,23 +6,11 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
+use Illuminate\Support\Facades\DB;
 
-/**
- * The single authoritative path for applying machine-reported production counts
- * to a work order's produced_qty. Both the protocol-agnostic signal pipeline
- * (MachineSignalIngestor) and the legacy MQTT topic-mapping path (ActionExecutor)
- * funnel through here, so the counting_source guard and the auto-start /
- * auto-complete side effects live in exactly one place — no double-count, no
- * divergent status logic.
- */
+/** Applies explicit good-output deltas; raw machine readings belong to MachineCounterService. */
 class MachineProductionService
 {
-    /**
-     * Resolve the work order a machine at this workstation is currently producing:
-     * the batch step in progress at the workstation → its batch → work order.
-     * Falls back to an active batch assigned to the workstation. Returns null
-     * when nothing is running there (the count is still logged upstream).
-     */
     public function resolveActiveWorkOrder(Workstation $workstation): ?WorkOrder
     {
         $step = BatchStep::where('workstation_id', $workstation->id)
@@ -43,36 +31,47 @@ class MachineProductionService
         return $batch?->workOrder;
     }
 
-    /**
-     * Add a positive good-count delta to produced_qty, honouring counting_source.
-     * Returns true when the count was applied, false when it was ignored (order
-     * is operator-counted, terminal, or the delta is non-positive).
-     */
-    public function recordGoodCount(WorkOrder $workOrder, float $delta): bool
+    /** Direct output increments are reserved for whole-batch orders. Raw readings use MachineCounterService. */
+    public function recordGoodCount(WorkOrder $workOrder, float $delta, ?BatchStep $step = null): bool
     {
-        if ($delta <= 0 || ! $workOrder->isMachineCounted()) {
+        if (! is_finite($delta) || $delta <= 0) {
             return false;
         }
 
-        $this->setProducedQty($workOrder, (float) $workOrder->produced_qty + $delta);
+        return DB::transaction(function () use ($workOrder, $delta, $step) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            if ($current->plannedStartBlocker()) {
+                return false;
+            }
+            if (! $current->isMachineCounted() || in_array($current->status, WorkOrder::TERMINAL_STATUSES, true)) {
+                return false;
+            }
+            if ($current->usesStepLedger()) {
+                return $step && $step->batch?->work_order_id === $current->id
+                    && app(BatchService::class)->recordMachinePass($step, $delta) > 0;
+            }
+            $this->setProducedQty($current, (float) $current->produced_qty + $delta);
 
-        return true;
+            return true;
+        });
     }
 
-    /**
-     * Set produced_qty to an absolute machine-reported value, honouring
-     * counting_source. Used by the legacy MQTT path when a mapping reports the
-     * cumulative total rather than a delta.
-     */
+    /** Legacy absolute totals remain supported for whole-batch orders only. */
     public function recordAbsoluteCount(WorkOrder $workOrder, float $value): bool
     {
-        if (! $workOrder->isMachineCounted()) {
-            return false;
-        }
+        return DB::transaction(function () use ($workOrder, $value) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            if ($current->plannedStartBlocker()) {
+                return false;
+            }
+            if (! is_finite($value) || ! $current->isMachineCounted() || $current->usesStepLedger()
+                || in_array($current->status, WorkOrder::TERMINAL_STATUSES, true)) {
+                return false;
+            }
+            $this->setProducedQty($current, $value);
 
-        $this->setProducedQty($workOrder, $value);
-
-        return true;
+            return true;
+        });
     }
 
     /**

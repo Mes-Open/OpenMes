@@ -455,7 +455,8 @@ class BakeryDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 5,
                 'due_date' => now()->addDay()->setTime(5, 0),
-                'planned_start_at' => now()->setTime(23, 0),
+                // A running demo order must already be available, even when seeded before the night shift.
+                'planned_start_at' => now()->subHour(),
                 'planned_end_at' => now()->addDay()->setTime(4, 0),
                 'description' => 'Kaiser rolls — FineFare morning round, twelve stores.',
             ],

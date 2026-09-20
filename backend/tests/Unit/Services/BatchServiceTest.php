@@ -90,7 +90,7 @@ class BatchServiceTest extends TestCase
         $secondStep = $this->batch->steps()->where('step_number', 2)->first();
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessageMatches('/must be completed before/i');
+        $this->expectExceptionMessage('Complete step 1 before starting this step.');
 
         $this->service->startStep($secondStep, $this->user);
     }

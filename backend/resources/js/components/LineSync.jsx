@@ -1,63 +1,51 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
-import { useLiveQuery } from '@tanstack/react-db';
-import { realtimeCollection } from '../lib/realtimeCollection';
+import { echo } from '../lib/echo';
 
-/**
- * Live-refresh trigger for operator screens (non-optimistic, server-authoritative).
- *
- * Operator pages render deep relational data (batches, steps, quality checks)
- * that is impractical to reproduce as client-side joins, so the page keeps using
- * server-computed Inertia props. This component subscribes to the
- * `work_orders_active` collection and, whenever the active work orders for the
- * selected line change (another operator/supervisor writes, a batch completes,
- * etc.), asks Inertia to reload the given props. Data is always re-fetched from
- * the server — no optimistic state — so what the operator sees is always correct.
- *
- * Render it once near the top of an operator page:
- *   <LineSync lineId={line.id} reloadOnly={['activeWorkOrders']} />
- *
- * Props:
- *   lineId      — currently selected line id
- *   reloadOnly  — Inertia prop keys to partial-reload (empty = full reload)
- */
+/** Private, line-authorized nudges; production data comes from the page's controller. */
 export default function LineSync({ lineId, reloadOnly = [] }) {
-    const collection = useMemo(
-        () => realtimeCollection('work_orders_active', (r) => r.id),
-        [],
-    );
+    const only = useRef(reloadOnly);
+    only.current = reloadOnly;
 
-    const { data: rows = [] } = useLiveQuery((q) => q.from({ r: collection }));
-
-    // A signal that changes whenever a relevant row's sync-visible state changes.
-    // Ids/line_id serialise as strings — compare with String().
-    const signal = useMemo(
-        () =>
-            rows
-                .filter((r) => String(r.line_id) === String(lineId))
-                .map((r) => `${r.id}:${r.status}:${r.produced_qty}:${r.line_status_id ?? ''}:${r.updated_at ?? ''}`)
-                .sort()
-                .join('|'),
-        [rows, lineId],
-    );
-
-    const first = useRef(true);
     useEffect(() => {
-        if (first.current) {
-            first.current = false; // skip the initial settle so we don't double-load
-            return;
-        }
-        // preserveState/preserveScroll keep the page's React state (open modals,
-        // in-progress form input, scroll position) intact across a live refresh —
-        // otherwise the periodic reload would close an operator's open issue /
-        // downtime modal and lose their typing.
-        router.reload({
-            preserveState: true,
-            preserveScroll: true,
-            ...(reloadOnly.length ? { only: reloadOnly } : {}),
+        if (!lineId) return;
+        let timer;
+        let visiting = false;
+        let pending = false;
+        const refresh = () => {
+            clearTimeout(timer);
+            pending = true;
+            timer = setTimeout(() => {
+                if (visiting || document.hidden) return;
+                pending = false;
+                router.reload({
+                    preserveState: true,
+                    preserveScroll: true,
+                    ...(only.current.length ? { only: only.current } : {}),
+                });
+            }, 150);
+        };
+        // A nudge must not cancel the operator's in-flight write.
+        const offStart = router.on('start', () => { visiting = true; });
+        const offFinish = router.on('finish', () => {
+            visiting = false;
+            if (pending) refresh();
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [signal]);
+        const channelName = `operator-line.${lineId}`;
+        echo.private(channelName).listen('.changed', refresh).subscribed(refresh);
+        // Recover missed changes after a network outage or returning to a hidden tab.
+        const poll = setInterval(refresh, 30000);
+        const onVisible = () => { if (!document.hidden) refresh(); };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearTimeout(timer);
+            clearInterval(poll);
+            offStart();
+            offFinish();
+            document.removeEventListener('visibilitychange', onVisible);
+            echo.leave(channelName);
+        };
+    }, [lineId]);
 
     return null;
 }

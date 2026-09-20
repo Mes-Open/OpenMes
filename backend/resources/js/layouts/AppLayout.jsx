@@ -203,7 +203,10 @@ function mergeModuleNav(moduleNav) {
             moduleGroup: true,
             order: g.order,
             badge: g.badge,
-            match: groupMatch([], children),
+            // A module may declare a group that is really a single screen: it
+            // names a url and ships no entries, and then renders flat.
+            href: g.url ?? undefined,
+            match: g.url ? [g.url, ...groupMatch([], children)] : groupMatch([], children),
             children,
         };
     });
@@ -649,14 +652,32 @@ function Sidebar({
                         {navGroups
                             .filter((group) => group.moduleGroup || groupVisible(group, showTab))
                             .map((group) => (
-                                <NavGroup
-                                    key={group.key}
-                                    group={group}
-                                    path={path}
-                                    collapsed={collapsed}
-                                    showLabels={showLabels}
-                                    showTab={showTab}
-                                />
+                                // A destination with nothing under it is a link,
+                                // not a dropdown. A group holding one entry is a
+                                // link with an extra click, and one holding none
+                                // would be a header that opens onto nothing — so
+                                // an entry that names a single screen renders
+                                // flat, while keeping its place among the groups
+                                // rather than being pushed up with the top links.
+                                group.href && ! group.children?.length ? (
+                                    <NavLink
+                                        key={group.key}
+                                        link={group}
+                                        path={path}
+                                        collapsed={collapsed}
+                                        showLabels={showLabels}
+                                        alertCount={0}
+                                    />
+                                ) : (
+                                    <NavGroup
+                                        key={group.key}
+                                        group={group}
+                                        path={path}
+                                        collapsed={collapsed}
+                                        showLabels={showLabels}
+                                        showTab={showTab}
+                                    />
+                                )
                             ))}
                     </>
                 )}
@@ -868,13 +889,16 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                         )}
                     </span>
                     {showLabels && (
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-1 items-center gap-2">
                             {__(link.label)}
                             {link.alert && alertCount > 0 && (
                                 <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
                                     {alertCount}
                                 </span>
                             )}
+                            {/* Same tag a group header carries, so a module's
+                                single-screen entry is marked like its others. */}
+                            <NavBadge label={link.badge} tone={active ? 'onInk' : 'muted'} />
                         </span>
                     )}
                 </Link>

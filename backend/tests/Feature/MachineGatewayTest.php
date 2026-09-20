@@ -111,16 +111,19 @@ class MachineGatewayTest extends TestCase
     {
         $conn = $this->opcuaConnection();
         $ws = Workstation::factory()->create(['line_id' => Line::factory()]);
-        MachineTag::create([
+        $tag = MachineTag::create([
             'machine_connection_id' => $conn->id, 'workstation_id' => $ws->id,
             'name' => 'Good', 'address' => 'ns=2;s=Good', 'signal_type' => 'good_count', 'data_type' => 'int32',
         ]);
 
+        $service = app(\App\Services\Machine\MachineCounterService::class);
+        $service->configure($service->forSource($tag), ['workstation_id' => $ws->id, 'batch_step_id' => null, 'mode' => 'cumulative', 'kind' => 'good', 'note' => 'Gateway test'], $this->admin->id);
+
         $this->actingAs($this->admin)->postJson("/api/v1/machine-connections/{$conn->id}/signals", [
-            'readings' => [['node_id' => 'ns=2;s=Good', 'value' => 0]],
+            'readings' => [['node_id' => 'ns=2;s=Good', 'value' => 0, 'ts' => now()->toISOString()]],
         ])->assertOk();
         $this->actingAs($this->admin)->postJson("/api/v1/machine-connections/{$conn->id}/signals", [
-            'readings' => [['node_id' => 'ns=2;s=Good', 'value' => 7]],
+            'readings' => [['node_id' => 'ns=2;s=Good', 'value' => 7, 'ts' => now()->toISOString()]],
         ])->assertJsonPath('accepted', 1);
 
         // Scoped to this test's own workstation: the assertion is about the

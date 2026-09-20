@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\IngestMachineSignalsRequest;
 use App\Models\MachineConnection;
 use App\Models\MachineTag;
 use App\Services\Machine\MachineSignalIngestor;
 use App\Services\Machine\RuntimeMonitor;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * Bridge endpoint for external protocol gateways (OPC UA sidecar, custom REST
@@ -62,15 +62,9 @@ class MachineGatewayController extends Controller
      *
      * Body: { readings: [ { tag_id?, node_id?, value, ts? }, ... ] }
      */
-    public function ingest(Request $request, MachineConnection $machineConnection): JsonResponse
+    public function ingest(IngestMachineSignalsRequest $request, MachineConnection $machineConnection): JsonResponse
     {
-        $data = $request->validate([
-            'readings' => ['required', 'array', 'min:1'],
-            'readings.*.tag_id' => ['nullable', 'integer'],
-            'readings.*.node_id' => ['nullable', 'string'],
-            'readings.*.value' => ['present'],
-            'readings.*.ts' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
         // Heartbeat: a posting gateway is, by definition, alive.
         $this->runtime->heartbeat($machineConnection->protocol, $machineConnection->id);
@@ -87,7 +81,7 @@ class MachineGatewayController extends Controller
                 continue;
             }
             $at = isset($r['ts']) ? \Illuminate\Support\Carbon::parse($r['ts']) : null;
-            $this->ingestor->ingest($tag, $r['value'], $at);
+            $this->ingestor->ingest($tag, $r['value'], $at, $r['event_id'] ?? null);
             $machineConnection->increment('messages_received');
             $accepted++;
         }

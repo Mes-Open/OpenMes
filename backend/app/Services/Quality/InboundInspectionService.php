@@ -2,6 +2,7 @@
 
 namespace App\Services\Quality;
 
+use App\Exceptions\InspectionNotCompletableException;
 use App\Models\Inspection;
 use App\Models\InspectionPlan;
 use App\Models\InspectionResult;
@@ -10,7 +11,6 @@ use App\Models\IssueType;
 use App\Models\Material;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
 use RuntimeException;
 
 class InboundInspectionService
@@ -90,13 +90,13 @@ class InboundInspectionService
     public function complete(Inspection $inspection, ?string $notes = null): Inspection
     {
         if (! $inspection->isPending()) {
-            throw new RuntimeException('Inspection #'.$inspection->id.' is already completed (status: '.$inspection->status.').');
+            throw InspectionNotCompletableException::alreadyCompleted($inspection->status);
         }
 
         $inspection->loadMissing('results', 'material', 'inspector');
 
         if ($inspection->results->isEmpty()) {
-            throw new InvalidArgumentException('Cannot complete inspection without any recorded criteria.');
+            throw InspectionNotCompletableException::withoutCriteria();
         }
 
         $overall = $this->evaluateOverall($inspection);
