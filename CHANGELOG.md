@@ -7,8 +7,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-20
+
 ### Fixed
 
+- Pin every GitHub Action to a commit SHA. The repository requires it, so since 14 September each
+  workflow was rejected before it ran — which is why v0.23.0 and v0.23.1 were published with no
+  downloadable assets and no container image was pushed for either.
 - Answer, rather than crash, when an inspection cannot be completed. Completing one with no
   recorded criteria — or completing it twice — is correctly refused, but the refusal reached the
   user as a 500. It now renders as a 422 for API clients and a flash message on the web. An
