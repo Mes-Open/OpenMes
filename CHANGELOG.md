@@ -7,6 +7,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.24.2] - 2026-09-21
+
+### Security
+
+- **Enforce a required password change on every request, not once at login.** An administrator who
+  ticked "require password change at next login" got a control that looked like it worked: the user
+  was redirected to the form once, then typed any other address and carried on. The session was
+  already authenticated, so nothing stopped them. Reported privately by Maxwell Jones.
+- **Restrict the API token issued to an account that owes a password change.** Login handed out a
+  full-scope token regardless and merely reported the flag in the response body, leaving enforcement
+  to the client's good manners — a mobile app, an integration or curl had no reason to honour it.
+  Such a login now yields a token that can do one thing: change the password.
+- **End sessions and revoke tokens whenever a password changes**, including when an administrator
+  sets one on a user's behalf. Previously neither happened outside the API's own reset endpoint, so
+  resetting a compromised account left the attacker's session and token working — the remediation
+  looked complete and changed nothing. Found while checking whether administrators had a working
+  alternative to the forced change; it is the more dangerous of the two, because unlike the bypass
+  no procedure worked around it.
+
+### Changed
+
+- Loading a different example company no longer rebuilds the database schema. It was dropping every
+  table and replaying 249 migrations in order to delete rows from a schema that was already correct;
+  it now empties the tables instead. The cost of the old approach grew with the size of the database,
+  which is why it was felt most on large installations. Emptying tables is also transaction-safe, so
+  the tests covering this path now exercise it for real rather than mocking it away.
+
 ## [0.24.1] - 2026-09-20
 
 > **Read before upgrading.** This release introduces outbound network traffic.
