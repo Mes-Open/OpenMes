@@ -72,31 +72,21 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_wipes_the_database_then_installs_the_chosen_company(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        // Artisan is faked here rather than letting the wipe run: migrate:fresh
-        // drops the schema mid-test, which breaks the transaction RefreshDatabase
-        // is holding and takes every later test with it. What matters is the
-        // sequence — wipe, reference data, then the chosen plant.
+        // The wipe empties tables rather than dropping the schema, so it is
+        // transaction-safe and runs for real here. Which Artisan command it
+        // uses is an implementation detail; what matters is that the old plant
+        // is gone and the new one is present.
         $called = [];
-        Artisan::shouldReceive('call')->andReturnUsing(function ($command, $params = []) use (&$called) {
-            $called[] = $command.' '.($params['--class'] ?? '');
-
-            return 0;
-        });
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)
             ->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1'])
             ->assertSessionHas('success');
 
-        $this->assertContains('migrate:fresh ', $called, 'The database was not wiped before reinstalling.');
         $this->assertContains('db:seed ', $called, 'Reference data was not reseeded after the wipe.');
 
         foreach (DemoDatasetRegistry::seedersFor('bakery') as $seeder) {
@@ -107,16 +97,12 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_records_the_new_company(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        Artisan::shouldReceive('call')->andReturn(0);
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1']);
 
@@ -128,16 +114,12 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_leaves_an_admin_able_to_sign_in(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        Artisan::shouldReceive('call')->andReturn(0);
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1']);
 
@@ -286,5 +268,28 @@ class LoadSampleDataTest extends TestCase
             json_decode(DB::table('system_settings')->where('key', 'modules_enabled')->value('value'), true),
             'Loading an example company uninstalled the modules.',
         );
+    }
+
+    /**
+     * Fake the seeding, but really put the roles back.
+     *
+     * The wipe now empties tables instead of dropping them, so it runs for real
+     * in these tests — which means the roles table is genuinely empty
+     * afterwards, and the admin the handler recreates has a role to be given.
+     * Faking that away would make the test pass on a path production never takes.
+     *
+     * @param  array<int, string>  $called  filled with each command invoked
+     */
+    private function fakeSeedingKeepingRoles(array &$called): void
+    {
+        Artisan::shouldReceive('call')->andReturnUsing(function ($command, $params = []) use (&$called) {
+            $called[] = $command.' '.($params['--class'] ?? '');
+
+            if ($command === 'db:seed' && empty($params['--class'])) {
+                (new \Database\Seeders\RolesAndPermissionsSeeder)->run();
+            }
+
+            return 0;
+        });
     }
 }

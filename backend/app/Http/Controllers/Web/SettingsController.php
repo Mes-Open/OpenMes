@@ -66,8 +66,18 @@ class SettingsController extends Controller
             'force_password_change' => false,
         ]);
 
+        // Everything issued against the old password goes with it: API tokens
+        // here, and other browser sessions via AuthenticateSession, which keys
+        // off the hash this update just changed. Without both, a password
+        // changed after a compromise leaves the attacker exactly where he was.
+        $user->tokens()->delete();
+
+        // Keep this session alive — it is the one that just proved knowledge of
+        // the old password — by re-storing the hash the guard now compares against.
+        auth()->guard('web')->logoutOtherDevices($validated['password']);
+
         return redirect()->route('settings.index')
-            ->with('success', 'Password changed successfully.');
+            ->with('success', __('Password changed successfully.'));
     }
 
     /**
@@ -368,6 +378,72 @@ class SettingsController extends Controller
      * credentials and signed straight back in, so switching companies does not
      * also mean losing the session.
      */
+    /**
+     * Empty every table except the migration ledger.
+     *
+     * The ledger has to survive: it is the record of which migrations have run,
+     * and clearing it would make Laravel try to replay them all against tables
+     * that already exist.
+     *
+     * PostgreSQL does the whole thing in one statement — one lock, one pass,
+     * sequences reset, foreign keys followed. SQLite has no TRUNCATE, so it
+     * gets DELETE with the key checks suspended for the duration; that path
+     * exists for the test suite, which runs in memory.
+     */
+    private function truncateAllTables(): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        $tables = collect(DB::connection()->getSchemaBuilder()->getTables())
+            ->pluck('name')
+            ->reject(fn (string $name) => in_array($name, ['migrations', 'sqlite_sequence'], true))
+            ->values();
+
+        if ($tables->isEmpty()) {
+            return;
+        }
+
+        if ($driver === 'pgsql') {
+            $quoted = $tables->map(fn (string $t) => '"'.str_replace('"', '""', $t).'"')->implode(', ');
+            DB::statement("TRUNCATE TABLE {$quoted} RESTART IDENTITY CASCADE");
+
+            return;
+        }
+
+        if ($driver === 'sqlite') {
+            // Two pragmas because they cover different situations and only one
+            // of them works in each. `foreign_keys` cannot be changed inside a
+            // transaction and is silently ignored there; `defer_foreign_keys`
+            // is made for exactly that case and resets itself at the end of the
+            // transaction. The test suite runs inside one, so without the
+            // second the deletes fail on the first table with a dependent row.
+            DB::statement('PRAGMA foreign_keys = OFF');
+            DB::statement('PRAGMA defer_foreign_keys = ON');
+
+            try {
+                $tables->each(fn (string $t) => DB::table($t)->delete());
+                // Identity columns restart from 1, matching the PostgreSQL path
+                // so a test cannot pass on one driver and fail on the other.
+                if (DB::connection()->getSchemaBuilder()->hasTable('sqlite_sequence')) {
+                    DB::table('sqlite_sequence')->delete();
+                }
+            } finally {
+                DB::statement('PRAGMA foreign_keys = ON');
+            }
+
+            return;
+        }
+
+        // MySQL/MariaDB: no multi-table TRUNCATE, so one each with the key
+        // checks off.
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            $tables->each(fn (string $t) => DB::table($t)->truncate());
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
+    }
+
     private function wipeForReplacement(): void
     {
         $username = config('openmmes.admin.username');
@@ -378,14 +454,12 @@ class SettingsController extends Controller
             throw new \RuntimeException(__('Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.'));
         }
 
-        // Octane keeps connections and query plans between requests, so the
-        // schema has to be dropped on a connection that is then thrown away.
-        //
-        // Never on an in-memory SQLite database, though: there the connection
-        // *is* the database, so purging it discards every table rather than
-        // refreshing a handle.
-        $inMemory = DB::connection()->getDriverName() === 'sqlite'
-            && DB::connection()->getDatabaseName() === ':memory:';
+        // No connection juggling any more. It was here because the schema was
+        // being dropped and Octane would otherwise reuse a handle and query
+        // plans pointing at tables that no longer existed. Emptying tables
+        // leaves the schema alone, so the connection stays valid — which also
+        // means this whole operation is now transaction-safe and the tests can
+        // exercise it for real instead of mocking it away.
 
         // Which modules are installed is not sample data — it is how this
         // installation is put together. migrate:fresh drops the settings table
@@ -395,12 +469,17 @@ class SettingsController extends Controller
             ->whereIn('key', ['modules_enabled', 'enabled_modules'])
             ->pluck('value', 'key');
 
-        if (! $inMemory) {
-            DB::purge();
-            DB::reconnect();
-        }
+        // Empty the tables rather than drop and rebuild them. migrate:fresh was
+        // doing this by tearing the whole schema down and replaying 249
+        // migrations — to delete rows from a schema that was already correct.
+        // On the demo database, 2.4 GB across 144 tables, that is the
+        // difference between a click and a coffee break.
+        $this->truncateAllTables();
 
-        Artisan::call('migrate:fresh', ['--force' => true]);
+        // Cheap insurance, and a no-op on an up-to-date schema: migrate:fresh
+        // used to guarantee the schema matched the code, and dropping that
+        // guarantee silently would be a poor trade for the speed.
+        Artisan::call('migrate', ['--force' => true]);
         Artisan::call('db:seed', ['--force' => true]);
 
         foreach ($installation as $key => $value) {
@@ -408,11 +487,6 @@ class SettingsController extends Controller
                 ['key' => $key],
                 ['value' => $value, 'updated_at' => now()],
             );
-        }
-
-        if (! $inMemory) {
-            DB::purge();
-            DB::reconnect();
         }
 
         $admin = \App\Models\User::create([
