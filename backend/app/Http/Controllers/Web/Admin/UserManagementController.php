@@ -225,12 +225,25 @@ class UserManagementController extends Controller
             'force_password_change' => $request->boolean('force_password_change'),
         ];
 
-        if (! empty($validated['password'])) {
+        $passwordChanged = ! empty($validated['password']);
+
+        if ($passwordChanged) {
             $updateData['password'] = Hash::make($validated['password']);
         }
 
-        DB::transaction(function () use ($request, $user, $validated, $updateData) {
+        DB::transaction(function () use ($request, $user, $validated, $updateData, $passwordChanged) {
             $user->update($updateData);
+
+            // An administrator setting somebody's password is almost always a
+            // response to something — a leak, a departure, a suspected
+            // compromise. Leaving their tokens alive would mean the reset
+            // changed nothing for whoever already held one. Browser sessions
+            // are ended by AuthenticateSession, which compares against the
+            // hash this update just replaced.
+            if ($passwordChanged) {
+                $user->tokens()->delete();
+            }
+
             if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
                 $user->syncRoles([$validated['role']]);
             } elseif ($validated['account_type'] === 'workstation') {

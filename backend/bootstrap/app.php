@@ -43,6 +43,17 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // HandleInertiaRequests::share() reads it.
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\LogRequest::class,
+            // Ties the session to the password it was created with, so changing
+            // a password ends every other session for that account. Without it
+            // an administrator can reset a compromised account and the
+            // attacker's session survives — the remediation looks done and is
+            // not. Runs before the checks below so a session that should be
+            // dead never reaches them.
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
+            // A forced password change has to be checked on every request. As a
+            // one-off redirect at login it enforced nothing — the session was
+            // already authenticated by then, so any other URL walked past it.
+            \App\Http\Middleware\EnsurePasswordChanged::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
@@ -51,6 +62,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             \App\Http\Middleware\ApplyPlantTimezone::class,
             \App\Http\Middleware\LogRequest::class,
+            // Same rule as the web group. Without it the block would apply to
+            // the browser and not to the mobile app or an integration, which
+            // is the half that matters least.
+            \App\Http\Middleware\EnsurePasswordChanged::class,
         ]);
 
         // Register Spatie Permission middleware
