@@ -13,7 +13,7 @@
 [![ISA-95](https://img.shields.io/badge/ISA--95-compatible-blueviolet)](./docs/isa95.md)
 
 **🚀 [Try the live demo → demo-2.getopenmes.com](https://demo.getopenmes.com/register)**
-*Free demo account — active for 3 hours, no credit card required*
+*Free demo account — active for 30 days, no credit card required*
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/fw3fG78pZj)
 
