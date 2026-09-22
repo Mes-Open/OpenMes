@@ -381,6 +381,53 @@ class TraceabilityTest extends TestCase
             ->assertSee('RAW-1');
     }
 
+    public function test_guest_is_redirected_from_traceability_page(): void
+    {
+        $this->get(route('admin.traceability.index'))->assertRedirect(route('login'));
+    }
+
+    public function test_console_without_a_term_offers_the_browse_tables(): void
+    {
+        ['wo' => $wo] = $this->scenario();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.traceability.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/traceability/Index')
+                ->where('result', null)
+                ->where("workOrderNumbers.{$wo->id}", 'WO-TRACE-1')
+                ->has('lineNames')
+                ->has('productTypeNames')
+                ->has('customerNames')
+                ->has('materialNames'));
+    }
+
+    public function test_admin_can_trace_a_work_order_by_its_order_number(): void
+    {
+        $this->scenario();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.traceability.index', ['q' => 'WO-TRACE-1']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('result.type', 'work_order')
+                ->where('result.data.order_no', 'WO-TRACE-1')
+                ->has('result.data.work_orders', 1)
+                ->where('result.data.work_orders.0.batches.0.lot_number', 'FG-1')
+                ->where('result.data.work_orders.0.batches.0.components.0.lot_number', 'RAW-1'));
+    }
+
+    public function test_work_order_trace_covers_only_the_order_asked_for(): void
+    {
+        $this->scenario();
+        WorkOrder::factory()->create(['order_no' => 'WO-OTHER']);
+
+        $trace = app(TraceabilityService::class)->workOrderTrace(WorkOrder::where('order_no', 'WO-TRACE-1')->firstOrFail());
+
+        $this->assertSame(['WO-TRACE-1'], $trace['work_orders']->pluck('order_no')->all());
+    }
+
     public function test_unknown_search_term_shows_no_result(): void
     {
         $this->actingAs($this->admin)

@@ -6356,5 +6356,10 @@
     "Packed / Planned": "Packed / Planned",
     "Filter by step": "Filter by step",
     "All steps": "All steps",
-    "No BOM components assigned to this step.": "No BOM components assigned to this step."
+    "No BOM components assigned to this step.": "No BOM components assigned to this step.",
+    "Back to the list": "Back to the list",
+    "Identifier to trace": "Identifier to trace",
+    "Exact number: order, LOT, pallet, serial, supplier LOT, container…": "Exact number: order, LOT, pallet, serial, supplier LOT, container…",
+    "What to trace": "What to trace",
+    "Nothing traceable matches": "Nothing traceable matches"
 }

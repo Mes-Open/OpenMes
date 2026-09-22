@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use App\Models\Line;
+use App\Models\Material;
+use App\Models\ProductType;
 use App\Models\SerialUnit;
 use App\Models\WorkOrder;
 use App\Services\Traceability\SerialTraceService;
@@ -59,6 +63,13 @@ class TraceabilityController extends Controller
                     'components' => $this->tracer->componentLineJourneys($unit)['components'],
                     'data' => $this->mapSerial($this->serials->getHistory($unit)),
                 ];
+            } elseif ($workOrder = WorkOrder::where('order_no', $term)->first()) {
+                // The order number is what the shop floor knows - and what the
+                // console's own orders table links with.
+                $result = [
+                    'type' => 'work_order',
+                    'data' => $this->tracer->workOrderTrace($workOrder),
+                ];
             } elseif (WorkOrder::where('customer_order_no', $term)->exists()) {
                 // Customer order number is non-unique → aggregate all matching WOs.
                 $result = [
@@ -71,6 +82,13 @@ class TraceabilityController extends Controller
         return Inertia::render('admin/traceability/Index', [
             'term' => $term,
             'result' => $result,
+            // id => name lookups for the browse tables, whose rows are synced
+            // collections carrying only the foreign keys.
+            'lineNames' => Line::pluck('name', 'id'),
+            'productTypeNames' => ProductType::pluck('name', 'id'),
+            'customerNames' => Customer::pluck('name', 'id'),
+            'materialNames' => Material::pluck('name', 'id'),
+            'workOrderNumbers' => WorkOrder::pluck('order_no', 'id'),
         ]);
     }
 

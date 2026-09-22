@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- Traceability console: browse work orders, material lots and pallets in searchable, filterable tables and open a trace from the row instead of pasting a number; work orders are now traceable by their own order number.
+
 ### Fixed
 
 - Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.

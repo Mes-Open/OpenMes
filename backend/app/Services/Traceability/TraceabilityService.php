@@ -10,6 +10,7 @@ use App\Models\Pallet;
 use App\Models\SerialUnit;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -553,7 +554,34 @@ class TraceabilityService
      */
     public function customerOrderTrace(string $customerOrderNo): array
     {
-        $workOrders = WorkOrder::where('customer_order_no', $customerOrderNo)
+        return [
+            'customer_order_no' => $customerOrderNo,
+            'work_orders' => $this->traceWorkOrders(WorkOrder::where('customer_order_no', $customerOrderNo)),
+        ];
+    }
+
+    /**
+     * The same descent as customerOrderTrace(), for the one work order the
+     * console was pointed at - by its order number or from the orders table.
+     */
+    public function workOrderTrace(WorkOrder $workOrder): array
+    {
+        return [
+            'order_no' => $workOrder->order_no,
+            'customer_order_no' => $workOrder->customer_order_no,
+            'work_orders' => $this->traceWorkOrders(WorkOrder::whereKey($workOrder->getKey())),
+        ];
+    }
+
+    /**
+     * Work orders with their pallets and batches, each batch carrying the lots it
+     * produced and the component lots it consumed.
+     *
+     * @param  Builder<WorkOrder>  $query
+     */
+    private function traceWorkOrders(Builder $query): Collection
+    {
+        $workOrders = $query
             ->with([
                 'productType:id,name',
                 'pallets:id,work_order_id,batch_id,pallet_no,status',
@@ -570,35 +598,32 @@ class TraceabilityService
         $batchIds = $workOrders->pluck('batches')->flatten(1)->pluck('id')->filter()->unique()->all();
         $inputLotsByBatch = $this->inputLotsByBatch($batchIds);
 
-        return [
-            'customer_order_no' => $customerOrderNo,
-            'work_orders' => $workOrders->map(fn ($wo) => [
-                'order_no' => $wo->order_no,
-                'product' => $wo->productType?->name,
-                'status' => $wo->status,
-                'pallets' => $wo->pallets->map(fn ($p) => [
-                    'pallet_no' => $p->pallet_no,
-                    'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
-                    'batch_lot' => $p->batch?->lot_number,
+        return $workOrders->map(fn ($wo) => [
+            'order_no' => $wo->order_no,
+            'product' => $wo->productType?->name,
+            'status' => $wo->status,
+            'pallets' => $wo->pallets->map(fn ($p) => [
+                'pallet_no' => $p->pallet_no,
+                'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
+                'batch_lot' => $p->batch?->lot_number,
+            ])->values(),
+            'batches' => $wo->batches->map(fn ($b) => [
+                'batch_number' => $b->batch_number,
+                'lot_number' => $b->lot_number,
+                'status' => $b->status,
+                'output_lots' => $b->outputLots->map(fn ($o) => [
+                    'lot_number' => $o->lot_number,
+                    'material' => $o->material?->name,
+                    'status' => $o->status,
                 ])->values(),
-                'batches' => $wo->batches->map(fn ($b) => [
-                    'batch_number' => $b->batch_number,
-                    'lot_number' => $b->lot_number,
-                    'status' => $b->status,
-                    'output_lots' => $b->outputLots->map(fn ($o) => [
-                        'lot_number' => $o->lot_number,
-                        'material' => $o->material?->name,
-                        'status' => $o->status,
-                    ])->values(),
-                    'components' => collect($inputLotsByBatch[$b->id] ?? [])->map(fn ($lot) => [
-                        'lot_number' => $lot->lot_number,
-                        'material' => $lot->material?->name,
-                        'supplier_lot_no' => $lot->supplier_lot_no,
-                        'status' => $lot->status,
-                    ])->values(),
+                'components' => collect($inputLotsByBatch[$b->id] ?? [])->map(fn ($lot) => [
+                    'lot_number' => $lot->lot_number,
+                    'material' => $lot->material?->name,
+                    'supplier_lot_no' => $lot->supplier_lot_no,
+                    'status' => $lot->status,
                 ])->values(),
             ])->values(),
-        ];
+        ])->values();
     }
 
     /**
