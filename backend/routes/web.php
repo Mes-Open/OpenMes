@@ -298,7 +298,7 @@ Route::middleware('auth')->group(function () {
 
         // Production downtime (replaces the old Livewire DowntimeReporter).
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
-        Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop');
+        Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
@@ -345,8 +345,8 @@ Route::middleware('auth')->group(function () {
         // stops still waiting on a cause.
         Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
         Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
-        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
-        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify')->whereNumber('downtime');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate')->whereNumber('downtime');
 
         // Line overview — every machine on one line for the running shift, as a
         // way in to the monitor above rather than a second copy of it.
@@ -437,8 +437,8 @@ Route::middleware('auth')->group(function () {
         // Live shift monitor — same screen the supervisor section serves.
         Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
         Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
-        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
-        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify')->whereNumber('downtime');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate')->whereNumber('downtime');
 
         // Line overview — same screen the supervisor section serves.
         Route::get('/shift-overview', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'index'])->name('shift-overview.index');

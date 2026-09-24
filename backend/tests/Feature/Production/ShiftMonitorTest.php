@@ -19,6 +19,7 @@ use App\Services\Production\ShiftMonitorService;
 use App\Support\ShiftWindow;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -238,6 +239,91 @@ class ShiftMonitorTest extends TestCase
             ->assertStatus(422);
 
         $this->assertTrue($downtime->fresh()->needs_reason, 'a rejected classification must leave the stop unclassified');
+    }
+
+    public function test_a_non_numeric_downtime_id_is_refused_before_the_database_is_asked(): void
+    {
+        // The reported 500: a segment drawn from a state slice with no downtime
+        // row behind it carries no id, the client interpolated it into the URL
+        // anyway, and `where id = 'null'` is a type error PostgreSQL answers
+        // with 22P02.
+        //
+        // The status alone cannot prove this fixed. SQLite — which is what the
+        // suite and CI run on — casts the string and answers 404 whether or not
+        // the route is constrained, so an assertNotFound() here passes just as
+        // happily with the constraint deleted. What actually separates the two
+        // is that a constrained route never gets as far as asking.
+        //
+        // Both verbs, both sections: the admin tree sits behind different
+        // middleware (tab.access rather than role:), and a route that does not
+        // match is refused before either runs.
+        $reason = $this->reason('no_material', DowntimeKind::Unplanned);
+        $supervisor = $this->supervisor();
+
+        $paths = [
+            '/supervisor/shift-monitor/downtimes/%s/classify',
+            '/supervisor/shift-monitor/downtimes/%s/escalate',
+            '/admin/shift-monitor/downtimes/%s/classify',
+            '/admin/shift-monitor/downtimes/%s/escalate',
+        ];
+
+        $asked = [];
+        DB::listen(function ($query) use (&$asked) {
+            if (str_contains($query->sql, 'production_downtimes')) {
+                $asked[] = $query->sql;
+            }
+        });
+
+        // "null" and "undefined" are what JavaScript interpolates when an id is
+        // missing; the rest guard the constraint itself rather than one string.
+        foreach (['null', 'undefined', 'abc', '1x'] as $id) {
+            foreach ($paths as $path) {
+                $url = sprintf($path, $id);
+
+                $this->actingAs($supervisor)
+                    ->postJson($url, ['downtime_reason_id' => $reason->id])
+                    ->assertNotFound($url.' should not match any route');
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $asked,
+            'a non-numeric id must be refused by the route, before anything looks it up',
+        );
+    }
+
+    public function test_an_unknown_downtime_id_is_still_a_plain_not_found(): void
+    {
+        // The counterweight to the constraint: a well-formed id that happens not
+        // to exist must keep answering 404 rather than turning into an error.
+        $this->actingAs($this->supervisor())
+            ->postJson('/supervisor/shift-monitor/downtimes/999999/classify', [
+                'downtime_reason_id' => $this->reason('no_material', DowntimeKind::Unplanned)->id,
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_a_down_slice_with_no_downtime_row_is_reported_without_an_id(): void
+    {
+        // The state timeline and the downtime records are separate sources, and
+        // the second can be missing: anything that writes a state without going
+        // through WorkstationStateMachine leaves a stop with no record behind
+        // it. The segment is still true — the machine really was down — so it
+        // keeps its place, but it cannot be classified or escalated, and the
+        // drawer reads this field to decide whether to offer either.
+        $this->state(WorkstationState::STOPPED, 0, 15);
+        $this->state(WorkstationState::RUNNING, 15, 60);
+
+        $snapshot = app(ShiftMonitorService::class)->snapshot($this->workstation, $this->window());
+        $stops = collect($snapshot['hours'][0]['segments'])->where('kind', 'down')->values();
+
+        $this->assertCount(1, $stops);
+        $this->assertNull($stops[0]['downtimeId'], 'a stop with no record has no id to act on');
+        $this->assertFalse(
+            $stops[0]['needsCause'],
+            'and must not be counted among the stops awaiting a cause, or the screen would ask for something it cannot take',
+        );
     }
 
     public function test_a_second_supervisor_cannot_silently_overwrite_a_cause(): void
