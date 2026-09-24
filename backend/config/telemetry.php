@@ -13,13 +13,18 @@ return [
     | message text. That boundary is enforced by tests, not by convention —
     | see tests/Feature/Telemetry/.
     |
-    | Reporting is on by default and can be switched off in Settings. This env
-    | var overrides the setting and is read before the database exists, so an
-    | air-gapped or packaged deployment can be born with it off.
+    | Reporting is OFF until an administrator turns it on in Settings. It used
+    | to be on unless switched off; opt-in is the honest default when the data
+    | leaves somebody else's network, and in the EU it is also the position
+    | that does not depend on defending a legitimate interest.
+    |
+    | This env var still overrides the setting in both directions and is read
+    | before the database exists, so a packaged or air-gapped deployment can be
+    | born with it off — and a maintainer can force it on without a database.
     |
     */
 
-    'enabled' => env('OPENMES_TELEMETRY', true),
+    'enabled' => env('OPENMES_TELEMETRY'),
 
     'endpoint' => env('TELEMETRY_URL', 'https://getopenmes.com/telemetry.php'),
 

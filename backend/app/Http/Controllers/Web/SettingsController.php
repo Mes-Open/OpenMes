@@ -118,7 +118,7 @@ class SettingsController extends Controller
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
             'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
             // Opt-out: an installation that was never asked reports.
-            'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'true', true) ?? true,
+            'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'false', true) ?? false,
             'telemetry_last_sent_at' => json_decode($rows['telemetry_last_sent_at']?->value ?? 'null', true),
             'telemetry_last_status' => json_decode($rows['telemetry_last_status']?->value ?? 'null', true),
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,

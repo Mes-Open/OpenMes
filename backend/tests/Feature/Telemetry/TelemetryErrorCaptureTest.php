@@ -6,6 +6,7 @@ use App\Exceptions\InsufficientStockException;
 use App\Models\Material;
 use App\Models\MaterialType;
 use App\Services\Telemetry\TelemetryErrorBuffer;
+use App\Support\TelemetrySettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -32,6 +33,11 @@ class TelemetryErrorCaptureTest extends TestCase
         // for these tests only — the point is to exercise the real capture path.
         config()->set('telemetry.enabled', true);
         $this->markInstalled();
+        // Opt-in jest teraz domyslne, wiec przypadek, ktory cwiczy sciezke
+        // raportowania, musi ja wlaczyc wprost. Wczesniej brak wiersza znaczyl
+        // zgode i testy korzystaly z tego milczaco.
+        TelemetrySettings::put(TelemetrySettings::SETTING_KEY, true);
+        TelemetrySettings::forget();
         TelemetryErrorBuffer::clear();
     }
 
