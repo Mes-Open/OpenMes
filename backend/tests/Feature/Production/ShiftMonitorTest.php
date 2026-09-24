@@ -21,6 +21,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -324,6 +325,25 @@ class ShiftMonitorTest extends TestCase
             $stops[0]['needsCause'],
             'and must not be counted among the stops awaiting a cause, or the screen would ask for something it cannot take',
         );
+    }
+
+    public function test_a_stop_with_no_record_is_reported_to_the_log_once_per_station(): void
+    {
+        // The screen copes with these, so without a line in the log nobody would
+        // ever learn they happen. The throttle is the other half: the monitor
+        // rebuilds this snapshot every few seconds, and a station that has one
+        // orphan slice has it for the rest of the shift — unthrottled, that is
+        // the only thing the log would contain.
+        Log::spy();
+
+        $this->state(WorkstationState::STOPPED, 0, 15);
+        $this->state(WorkstationState::RUNNING, 15, 60);
+
+        app(ShiftMonitorService::class)->snapshot($this->workstation, $this->window());
+        app(ShiftMonitorService::class)->snapshot($this->workstation, $this->window());
+        app(ShiftMonitorService::class)->snapshot($this->workstation, $this->window());
+
+        Log::shouldHaveReceived('warning')->once();
     }
 
     public function test_a_second_supervisor_cannot_silently_overwrite_a_cause(): void
