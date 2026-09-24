@@ -133,12 +133,16 @@ class ShiftMonitorDemoSeeder extends Seeder
                 ?? self::RATE_BY_TYPE[$workstation->workstation_type]
                 ?? self::DEFAULT_RATE;
 
-            $workstation->update(['ideal_rate_per_hour' => $ratePerHour]);
-
             // Without this, every state slice and stop would push a live nudge
             // — a few hundred synchronous Reverb calls per run, for a shift
-            // nobody is watching yet.
-            Model::withoutEvents(fn () => $this->seedStation($workstation, $ratePerHour));
+            // nobody is watching yet. The rate update belongs inside it for the
+            // same reason: it sat outside and broadcast once per station, which
+            // is the one thing the comment above says not to do.
+            Model::withoutEvents(function () use ($workstation, $ratePerHour) {
+                $workstation->update(['ideal_rate_per_hour' => $ratePerHour]);
+
+                $this->seedStation($workstation, $ratePerHour);
+            });
         }
     }
 

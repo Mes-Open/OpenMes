@@ -48,6 +48,17 @@ class OnboardingController extends Controller
      */
     public function store(LoadSampleDataRequest $request)
     {
+        return \App\Support\SampleDataLock::run(
+            fn () => $this->storeUnderLock($request),
+            // Somebody else — another administrator, or Settings → Data — is
+            // already rewriting the same tables. Running a second seeder into
+            // them is what produced a deadlock on the demo.
+            fn () => back()->with('info', __('Sample data is already being loaded. Please wait for it to finish.')),
+        );
+    }
+
+    private function storeUnderLock(LoadSampleDataRequest $request)
+    {
         $dataset = $request->validated()['dataset'];
 
         try {

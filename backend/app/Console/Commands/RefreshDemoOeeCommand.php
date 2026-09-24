@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\SampleDataLock;
 use Database\Seeders\OeeAndDowntimeDemoSeeder;
 use Illuminate\Console\Command;
 
@@ -28,18 +29,34 @@ class RefreshDemoOeeCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->info('Refreshing demo OEE/production data for today…');
+        // This writes the same tables the sample-data loader does, and it runs
+        // at 00:30 — which an administrator loading an example company is under
+        // no obligation to avoid. Two seeders into one set of tables is what
+        // deadlocked the demo, so this one gives way.
+        return SampleDataLock::run(
+            function (): int {
+                $this->info('Refreshing demo OEE/production data for today…');
 
-        // The seeder is idempotent — updateOrCreate for OEE/downtime rows and a
-        // skip for lines that already have DONE batches today — so a daily run
-        // only rolls today/yesterday forward and never duplicates history.
-        $this->callSilent('db:seed', [
-            '--class' => OeeAndDowntimeDemoSeeder::class,
-            '--force' => true,
-        ]);
+                // The seeder is idempotent — updateOrCreate for OEE/downtime rows and a
+                // skip for lines that already have DONE batches today — so a daily run
+                // only rolls today/yesterday forward and never duplicates history.
+                $this->callSilent('db:seed', [
+                    '--class' => OeeAndDowntimeDemoSeeder::class,
+                    '--force' => true,
+                ]);
 
-        $this->info('Demo OEE refreshed.');
+                $this->info('Demo OEE refreshed.');
 
-        return self::SUCCESS;
+                return self::SUCCESS;
+            },
+            function (): int {
+                // Success, not failure: missing one nightly refresh changes
+                // nothing anybody will notice, and a non-zero exit here would
+                // page somebody over a scheduling coincidence.
+                $this->warn('Sample data is being loaded right now — skipping this refresh.');
+
+                return self::SUCCESS;
+            },
+        );
     }
 }
