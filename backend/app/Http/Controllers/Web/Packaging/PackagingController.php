@@ -8,6 +8,7 @@ use App\Http\Requests\CreatePalletStationRequest;
 use App\Http\Requests\PackagingScanRequest;
 use App\Models\PackagingScanLog;
 use App\Models\Pallet;
+use App\Models\SerialUnit;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use App\Services\Production\PalletBackflushService;
@@ -125,6 +126,43 @@ class PackagingController extends Controller
             ],
             'pallet' => $pallet ? $this->palletPayload($pallet) : null,
             'message' => __('Packed: :name', ['name' => $this->productLabel($workOrder)]),
+        ]);
+    }
+
+    /**
+     * Carton label by process serial number: the operator scans the unit's
+     * process serial label and gets the unit's serial number back with
+     * ready-to-print label URLs.
+     */
+    public function scanUnit(Request $request)
+    {
+        $request->validate(['psn' => ['required', 'string', 'max:100']]);
+
+        $psn = trim($request->string('psn')->toString());
+
+        $unit = SerialUnit::where('psn', $psn)->first();
+
+        if (! $unit) {
+            return response()->json(['message' => __('Unknown process serial number')], 404);
+        }
+
+        $unit->loadMissing('workOrder.productType');
+        $wo = $unit->workOrder;
+
+        return response()->json([
+            'unit' => [
+                'id' => $unit->id,
+                'serial_no' => $unit->serial_no,
+                'psn' => $unit->psn,
+                'status' => $unit->status,
+                'work_order' => $wo ? [
+                    'order_no' => $wo->order_no,
+                    'product' => $this->productLabel($wo),
+                ] : null,
+            ],
+            'label_pdf' => route('packaging.labels.serial-unit.pdf', $unit),
+            'label_zpl' => route('packaging.labels.serial-unit.zpl', $unit),
+            'message' => __('Unit :sn found - print the carton label.', ['sn' => $unit->serial_no]),
         ]);
     }
 

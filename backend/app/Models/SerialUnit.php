@@ -35,6 +35,7 @@ class SerialUnit extends Model
 
     protected $fillable = [
         'serial_no',
+        'psn',
         'work_order_id',
         'batch_id',
         'material_id',

@@ -56,7 +56,9 @@ class TraceabilityController extends Controller
                     'forward' => $this->mapForward($this->tracer->forwardTrace($lot)),
                     'backward' => $this->tracer->backwardTraceLot($lot),
                 ];
-            } elseif ($unit = SerialUnit::where('serial_no', $term)->first()) {
+            } elseif ($unit = SerialUnit::where(function ($q) use ($term) {
+                $q->where('serial_no', $term)->orWhere('psn', $term);
+            })->first()) {
                 $result = [
                     'type' => 'serial',
                     'recall' => $this->tracer->recallImpactForSerial($unit),
@@ -160,6 +162,7 @@ class TraceabilityController extends Controller
     {
         return [
             'serial_no' => $u->serial_no,
+            'psn' => $u->psn,
             'status' => $u->status,
             'product' => $u->workOrder?->productType?->name ?? $u->material?->name,
             'work_order' => $u->workOrder?->order_no,

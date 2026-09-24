@@ -857,6 +857,11 @@ function SerialResult({ unit, recall, components }) {
             <Card>
                 <span className="text-xs font-semibold uppercase text-om-faint">{__('Serial unit')}</span>
                 <h2 className="text-2xl font-bold text-om-ink font-mono">{unit.serial_no}</h2>
+                {unit.psn && (
+                    <p className="text-sm text-om-muted mt-0.5">
+                        {__('Process serial (PSN)')}: <span className="font-mono font-medium text-om-ink">{unit.psn}</span>
+                    </p>
+                )}
                 <p className="text-sm text-om-muted mt-1">
                     {__('Product')}: <span className="font-medium">{unit.product ?? '—'}</span>
                     {unit.work_order && <> · {__('Work Order')}: <span className="font-medium">{unit.work_order}</span></>}

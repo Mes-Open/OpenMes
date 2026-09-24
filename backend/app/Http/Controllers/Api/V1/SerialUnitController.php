@@ -23,7 +23,9 @@ class SerialUnitController extends Controller
         $units = SerialUnit::query()
             ->when($request->query('work_order_id'), fn ($q, $id) => $q->where('work_order_id', $id))
             ->when($request->query('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when($request->query('search'), fn ($q, $s) => $q->where('serial_no', 'like', "%{$s}%"))
+            ->when($request->query('search'), fn ($q, $s) => $q->where(
+                fn ($qq) => $qq->where('serial_no', 'like', "%{$s}%")->orWhere('psn', 'like', "%{$s}%")
+            ))
             ->orderByDesc('id')
             ->limit(100)
             ->get();
@@ -40,6 +42,7 @@ class SerialUnitController extends Controller
     {
         $data = $request->validate([
             'serial_no' => ['required', 'string', 'max:100'],
+            'psn' => ['nullable', 'string', 'max:100'],
             'work_order_id' => ['nullable', 'integer', 'exists:work_orders,id'],
             'batch_id' => ['nullable', 'integer', 'exists:batches,id'],
             'material_id' => ['nullable', 'integer', 'exists:materials,id'],

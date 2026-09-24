@@ -23,6 +23,7 @@ class SerialTraceService
         return SerialUnit::firstOrCreate(
             ['serial_no' => $serialNo, 'tenant_id' => $attributes['tenant_id'] ?? null],
             [
+                'psn' => $attributes['psn'] ?? null,
                 'work_order_id' => $attributes['work_order_id'] ?? null,
                 'batch_id' => $attributes['batch_id'] ?? null,
                 'material_id' => $attributes['material_id'] ?? null,

@@ -3,6 +3,12 @@
     <table class="label-grid">
         <tr>
             <td class="label-content" style="width: {{ $label['content_width'] }}mm;">
+                @if($template->hasField('serial_no') && !empty($label['fields']['serial_no']))
+                    <div class="line wo-number">{{ $label['fields']['serial_no'] }}</div>
+                @endif
+                @if($template->hasField('psn') && !empty($label['fields']['psn']))
+                    <div class="line lot">PSN: {{ $label['fields']['psn'] }}</div>
+                @endif
                 @if($template->hasField('pallet_no') && !empty($label['fields']['pallet_no']))
                     <div class="line wo-number">{{ $label['fields']['pallet_no'] }}</div>
                 @endif

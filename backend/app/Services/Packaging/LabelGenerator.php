@@ -13,6 +13,8 @@ use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Collection;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 
+use App\Models\SerialUnit;
+
 class LabelGenerator
 {
     public function pdfForWorkOrders(Collection $workOrders, LabelTemplate $template)
@@ -43,6 +45,13 @@ class LabelGenerator
         return $this->renderPdf('packaging.pdf.labels.pallet', $labels, $template);
     }
 
+    public function pdfForSerialUnits(Collection $units, LabelTemplate $template)
+    {
+        $labels = $units->map(fn (SerialUnit $unit) => $this->labelDataForSerialUnit($unit, $template))->all();
+
+        return $this->renderPdf('packaging.pdf.labels.serial-unit', $labels, $template);
+    }
+
     public function zplForPallets(Collection $pallets, LabelTemplate $template): string
     {
         return $pallets
@@ -69,6 +78,42 @@ class LabelGenerator
         return $steps
             ->map(fn (BatchStep $step) => $this->zplLabel($this->labelDataForBatchStep($step, $template), $template))
             ->implode("\n");
+    }
+
+    public function zplForSerialUnits(Collection $units, LabelTemplate $template): string
+    {
+        return $units
+            ->map(fn (SerialUnit $unit) => $this->zplLabel($this->labelDataForSerialUnit($unit, $template), $template))
+            ->implode("\n");
+    }
+
+    /**
+     * Per-unit carton label: the serial number is the primary value (barcode +
+     * QR); the process serial number is also printed so the unit can be
+     * re-found at packing by process-serial scan.
+     */
+    private function labelDataForSerialUnit(SerialUnit $unit, LabelTemplate $template): array
+    {
+        $unit->loadMissing('workOrder.productType');
+        $wo = $unit->workOrder;
+        $barcodeValue = $unit->serial_no;
+        $qrValue = url('/admin/traceability?q=' . rawurlencode($unit->serial_no));
+
+        return [
+            'fields' => [
+                'serial_no' => $unit->serial_no,
+                'psn' => $unit->psn,
+                'wo_number' => $wo?->order_no,
+                'product' => $wo?->productType?->name,
+                'quantity' => null,
+                'lot' => null,
+                'prod_date' => ($unit->produced_at ?? $unit->created_at)?->format('Y-m-d'),
+            ],
+            'barcode_value' => $barcodeValue,
+            'qr_value' => $qrValue,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($barcodeValue, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($qrValue) : null,
+        ];
     }
 
     private function labelDataForWorkOrder(WorkOrder $wo, LabelTemplate $template): array
@@ -240,6 +285,14 @@ class LabelGenerator
         if ($template->hasField('pallet_no') && ! empty($fields['pallet_no'])) {
             $zpl .= "^FO20,{$y}^A0N,32,32^FD".$this->zplEscape($fields['pallet_no'])."^FS\n";
             $y += $lineHeight + 4;
+        }
+        if ($template->hasField('serial_no') && ! empty($fields['serial_no'])) {
+            $zpl .= "^FO20,{$y}^A0N,32,32^FD".$this->zplEscape($fields['serial_no'])."^FS\n";
+            $y += $lineHeight + 4;
+        }
+        if ($template->hasField('psn') && ! empty($fields['psn'])) {
+            $zpl .= "^FO20,{$y}^A0N,20,20^FDPSN: ".$this->zplEscape($fields['psn'])."^FS\n";
+            $y += $lineHeight;
         }
         if ($template->hasField('wo_number') && ! empty($fields['wo_number'])) {
             $zpl .= "^FO20,{$y}^A0N,28,28^FD".$this->zplEscape($fields['wo_number'])."^FS\n";

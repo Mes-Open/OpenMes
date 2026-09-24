@@ -20,11 +20,14 @@ class LabelTemplate extends Model
 
     const TYPE_PALLET = 'pallet';
 
+    const TYPE_SERIAL_UNIT = 'serial_unit';
+
     const TYPES = [
         self::TYPE_WORK_ORDER => 'Work Order',
         self::TYPE_FINISHED_GOODS => 'Finished Goods',
         self::TYPE_WORKSTATION_STEP => 'Workstation Step',
         self::TYPE_PALLET => 'Pallet',
+        self::TYPE_SERIAL_UNIT => 'Serial Unit (SN)',
     ];
 
     const SIZES = [
@@ -44,6 +47,8 @@ class LabelTemplate extends Model
     const AVAILABLE_FIELDS = [
         'wo_number' => 'Work order number',
         'pallet_no' => 'Pallet number',
+        'serial_no' => 'Serial number (SN)',
+        'psn' => 'Process serial (PSN)',
         'product' => 'Product name',
         'quantity' => 'Quantity',
         'barcode' => 'Barcode (1D)',
@@ -119,6 +124,19 @@ class LabelTemplate extends Model
                 'logo' => false,
                 'lot' => false,
                 'location' => true,
+                'prod_date' => true,
+            ],
+            self::TYPE_SERIAL_UNIT => [
+                'serial_no' => true,
+                'psn' => true,
+                'wo_number' => true,
+                'product' => true,
+                'quantity' => false,
+                'barcode' => true,
+                'qr' => true,
+                'logo' => false,
+                'lot' => false,
+                'location' => false,
                 'prod_date' => true,
             ],
             default => array_fill_keys(array_keys(self::AVAILABLE_FIELDS), false),

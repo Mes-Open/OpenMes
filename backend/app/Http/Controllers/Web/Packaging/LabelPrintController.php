@@ -8,6 +8,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\LabelTemplate;
 use App\Models\Pallet;
+use App\Models\SerialUnit;
 use App\Models\WorkOrder;
 use App\Services\Packaging\LabelGenerator;
 use Illuminate\Http\Request;
@@ -94,6 +95,25 @@ class LabelPrintController extends Controller
         ]);
     }
 
+    public function serialUnitPdf(Request $request, SerialUnit $serialUnit)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_SERIAL_UNIT);
+        $pdf = $this->generator->pdfForSerialUnits(collect([$serialUnit]), $template);
+
+        return $pdf->stream('label-unit-'.$this->unitFileName($serialUnit).'.pdf');
+    }
+
+    public function serialUnitZpl(Request $request, SerialUnit $serialUnit)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_SERIAL_UNIT);
+        $zpl = $this->generator->zplForSerialUnits(collect([$serialUnit]), $template);
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => 'attachment; filename=label-unit-'.$this->unitFileName($serialUnit).'.zpl',
+        ]);
+    }
+
     public function printMultiple(PrintMultipleLabelsRequest $request)
     {
         $validated = $request->validated();
@@ -109,6 +129,7 @@ class LabelPrintController extends Controller
             LabelTemplate::TYPE_FINISHED_GOODS => $this->multiFinishedGoods($validated['ids'], $template, $validated['format']),
             LabelTemplate::TYPE_WORKSTATION_STEP => $this->multiBatchSteps($validated['ids'], $template, $validated['format']),
             LabelTemplate::TYPE_PALLET => $this->multiPallets($validated['ids'], $template, $validated['format']),
+            LabelTemplate::TYPE_SERIAL_UNIT => $this->multiSerialUnits($validated['ids'], $template, $validated['format']),
         };
     }
 
@@ -125,6 +146,21 @@ class LabelPrintController extends Controller
         }
 
         return $this->generator->pdfForPallets($pallets, $template)->stream("{$filename}.pdf");
+    }
+
+    private function multiSerialUnits(array $ids, LabelTemplate $template, string $format)
+    {
+        $units = SerialUnit::whereIn('id', $ids)->get();
+        $filename = 'labels-serial-units-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForSerialUnits($units, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForSerialUnits($units, $template)->stream("{$filename}.pdf");
     }
 
     private function multiWorkOrders(array $ids, LabelTemplate $template, string $format)
@@ -170,6 +206,11 @@ class LabelPrintController extends Controller
         }
 
         return $this->generator->pdfForBatchSteps($steps, $template)->stream("{$filename}.pdf");
+    }
+
+    private function unitFileName(SerialUnit $unit): string
+    {
+        return preg_replace('/\s+/', '_', (string) $unit->serial_no);
     }
 
     private function resolveTemplate(Request $request, string $type): LabelTemplate

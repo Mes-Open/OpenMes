@@ -47,6 +47,9 @@ export default function Station() {
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ today_packed: 0, plan: 0, backlog: 0 });
     const [lastScan, setLastScan] = useState(null);
+    const [psn, setPsn] = useState('');
+    const [psnBusy, setPsnBusy] = useState(false);
+    const [psnResult, setPsnResult] = useState(null); // { success, unit?, error? }
     const [flash, setFlash] = useState(null); // 'success' | 'error' | null
     const [activePallet, setActivePallet] = useState(null); // { id, pallet_no, work_order_id, order_no, qty }
     const [openPallets, setOpenPallets] = useState([]); // all currently open pallets (persist across shifts)
@@ -246,6 +249,35 @@ export default function Station() {
 
         setTimeout(() => setFlash(null), 2000);
     }, [fetchItems, fetchStats, fetchOpenPallets]);
+
+    // Scan the process serial number to open the matching carton label for printing.
+    const submitPsnLabel = useCallback(async (e) => {
+        e?.preventDefault();
+        const term = psn.trim();
+        if (!term || psnBusy) return;
+        setPsnBusy(true);
+        try {
+            const res = await fetch('/packaging/scan-unit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ psn: term }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setPsnResult({ success: true, unit: data.unit, scanned_at: formatTime(new Date()) });
+                setFlash('success');
+                window.open(data.label_pdf, '_blank');
+                setPsn('');
+            } else {
+                setPsnResult({ success: false, error: data.message, scanned_at: formatTime(new Date()) });
+                setFlash('error');
+            }
+        } catch {
+            setPsnResult({ success: false, error: __('Connection error'), scanned_at: formatTime(new Date()) });
+            setFlash('error');
+        }
+        setTimeout(() => setFlash(null), 2000);
+    }, [psn, psnBusy]);
 
     const createPallet = useCallback(async () => {
         if (!palletWoId || palletBusy) return;
@@ -606,6 +638,36 @@ export default function Station() {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Carton label by PSN (process serial number) */}
+                <div className="bg-om-card border border-om-line rounded-om p-5 mb-6">
+                    <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-3">
+                        {__('Carton label (scan PSN)')}
+                    </h2>
+                    <form onSubmit={submitPsnLabel} className="flex flex-wrap items-center gap-3">
+                        <input
+                            aria-label={__('Process serial (PSN)')}
+                            className="form-input font-mono w-64"
+                            placeholder="260-26-1"
+                            value={psn}
+                            onChange={(e) => setPsn(e.target.value)}
+                        />
+                        <Button variant="primary" type="submit" loading={psnBusy} disabled={psnBusy || !psn.trim()} className="px-5 py-2.5">
+                            {__('Print carton label (SN)')}
+                        </Button>
+                        {psnResult && (psnResult.success ? (
+                            <span className="text-[13px] text-om-muted">
+                                {__('Serial Number')}: <span className="font-mono font-semibold text-om-ink">{psnResult.unit.serial_no}</span>
+                                {psnResult.unit.work_order && <> &middot; {psnResult.unit.work_order.order_no}</>}
+                            </span>
+                        ) : (
+                            <span className="text-[13px] text-om-blocked font-medium">{psnResult.error}</span>
+                        ))}
+                    </form>
+                    <p className="text-[11.5px] text-om-faint mt-2">
+                        {__('Scan the process serial number label. The printed label carries the unit serial number.')}
+                    </p>
                 </div>
 
                 {/* Items to pack */}

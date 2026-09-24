@@ -10,7 +10,8 @@ use Carbon\CarbonInterface;
  * Supported tokens:
  *   [seq]        sequence number, zero-padded to pad_size
  *   [date]       date as Ymd (e.g. 20260606)
- *   [date:FMT]   date with a custom PHP date format (e.g. [date:y-m-d])
+ *   [date:FMT]   date with a custom PHP date format (e.g. [date:y-m-d]);
+ *                extra alias y1 = 1-digit year (2026 -> 6)
  *   [year]       4-digit year
  *   [month]      2-digit month
  *   [day]        2-digit day of month
@@ -33,7 +34,9 @@ class LotPatternFormatter
         return preg_replace_callback(self::TOKEN_REGEX, function (array $m) use ($number, $padSize, $productCode, $now) {
             return match ($m[1]) {
                 'seq' => str_pad((string) $number, $padSize, '0', STR_PAD_LEFT),
-                'date' => $now->format($m[2] ?? 'Ymd'),
+                'date' => $m[2] === 'y1'
+                    ? (string) ($now->year % 10)
+                    : $now->format($m[2] ?? 'Ymd'),
                 'year' => $now->format('Y'),
                 'month' => $now->format('m'),
                 'day' => $now->format('d'),

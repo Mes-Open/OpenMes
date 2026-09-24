@@ -53,6 +53,7 @@ use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
+use App\Http\Controllers\Web\Operator\UnitLabelStationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
 use App\Http\Controllers\Web\Packaging\PackagingController;
@@ -298,6 +299,9 @@ Route::middleware('auth')->group(function () {
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
+        Route::get('/unit-labels/station', [UnitLabelStationController::class, 'index'])->name('unit-labels.station');
+        Route::post('/unit-labels/apply', [UnitLabelStationController::class, 'apply'])->name('unit-labels.apply');
+        Route::get('/unit-labels/units', [UnitLabelStationController::class, 'units'])->name('unit-labels.units');
         Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
         // Manual machine-state set (#87) — operator/supervisor sets a workstation's state.
         Route::post('/workstation/machine-state/{workstation}', [OperatorWorkstationController::class, 'setMachineState'])->name('workstation.machine-state');
@@ -934,6 +938,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('role:Operator|Supervisor|Admin')->group(function () {
             Route::get('/station', [PackagingController::class, 'station'])->name('station');
             Route::post('/scan', [PackagingController::class, 'scan'])->name('scan');
+            Route::post('/scan-unit', [PackagingController::class, 'scanUnit'])->name('scan-unit');
             Route::get('/items', [PackagingController::class, 'items'])->name('items');
             Route::get('/history', [PackagingController::class, 'history'])->name('history');
             Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
@@ -959,6 +964,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
             Route::get('/pallet/{pallet}/pdf', [LabelPrintController::class, 'palletPdf'])->name('pallet.pdf');
             Route::get('/pallet/{pallet}/zpl', [LabelPrintController::class, 'palletZpl'])->name('pallet.zpl');
+            Route::get('/serial-unit/{serialUnit}/pdf', [LabelPrintController::class, 'serialUnitPdf'])->name('serial-unit.pdf');
+            Route::get('/serial-unit/{serialUnit}/zpl', [LabelPrintController::class, 'serialUnitZpl'])->name('serial-unit.zpl');
             Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
         });
 

@@ -225,6 +225,7 @@ class TraceabilityDemoSeeder extends Seeder
             $failed = $n === 5;
             $unit = SerialUnit::create([
                 'serial_no' => sprintf('TR-SN-%04d', $n),
+                'psn' => sprintf('%s-%02d-%03d', now()->format('z'), now()->format('y'), $n),
                 'work_order_id' => $order->id,
                 'batch_id' => $batch->id,
                 'material_id' => $materials['bike']->id,
