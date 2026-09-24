@@ -6380,5 +6380,8 @@
     "Nothing has been sent yet.": "Nic jeszcze nie zostało wysłane.",
     "The preview could not be loaded.": "Nie udało się wczytać podglądu.",
     "Installation ID reset. A new one will be created on the next report.": "Identyfikator instalacji zresetowany. Nowy powstanie przy kolejnym raporcie.",
-    "The installation ID could not be reset.": "Nie udało się zresetować identyfikatora instalacji."
+    "The installation ID could not be reset.": "Nie udało się zresetować identyfikatora instalacji.",
+    "This stop has no linked downtime record, so it cannot be classified or escalated.": "Ten postój nie ma powiązanego rekordu przestoju, więc nie można przypisać mu przyczyny ani go eskalować.",
+    "Stop with no record": "Postój bez rekordu",
+    "NO RECORD": "BRAK REKORDU"
 }

@@ -6380,5 +6380,8 @@
     "Nothing has been sent yet.": "Nothing has been sent yet.",
     "The preview could not be loaded.": "The preview could not be loaded.",
     "Installation ID reset. A new one will be created on the next report.": "Installation ID reset. A new one will be created on the next report.",
-    "The installation ID could not be reset.": "The installation ID could not be reset."
+    "The installation ID could not be reset.": "The installation ID could not be reset.",
+    "This stop has no linked downtime record, so it cannot be classified or escalated.": "This stop has no linked downtime record, so it cannot be classified or escalated.",
+    "Stop with no record": "Stop with no record",
+    "NO RECORD": "NO RECORD"
 }
