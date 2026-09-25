@@ -6385,5 +6385,6 @@
     "Stop with no record": "Postój bez rekordu",
     "NO RECORD": "BRAK REKORDU",
     "Sample data is already being loaded. Please wait for it to finish.": "Dane przykładowe są właśnie wczytywane. Poczekaj na zakończenie.",
-    "Additional fields": "Pola dodatkowe"
+    "Additional fields": "Pola dodatkowe",
+    "Enter EAN code": "Wpisz kod EAN"
 }
