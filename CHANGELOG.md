@@ -22,6 +22,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the route parameter closes the whole class of input rather than the one string that was
   reported, on both the supervisor and admin trees and on the operator's own stop endpoint,
   which took the same parameter and had the same hole.
+- **Sample data loaded before the first shift is usable straight away.** The demo seeders
+  marked orders as running while planning their start for later the same day — a row that
+  contradicts itself, which the work-order rules rightly refuse to save again. Loading an
+  example company early in the morning produced orders nobody could start until the shift
+  they were nominally already working in, and reseeding failed outright. One generated
+  order was worse still: in progress, planned to start tomorrow.
 - **Loading the sample data can no longer collide with replacing it.** A demo install
   deadlocked when one administrator was seeding an example company while another was
   replacing it — the replacement empties the tables and then runs `migrate`, and the two met
