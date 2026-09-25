@@ -10,7 +10,14 @@ import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
 
 export default function WorkerShow() {
-    const { worker, certifications = [], skills = [], levels = [], customFields = [] } = usePage().props;
+    const {
+        worker, certifications = [], skills = [], levels = [], customFields = [],
+        // The attach/detach endpoints belong to an optional module. Without it
+        // they do not exist, so the screen must not offer the buttons that post
+        // to them — an empty certification list is a different question, since a
+        // module with no skills recorded yet can still take one.
+        canManageCertifications = false,
+    } = usePage().props;
     const [showModal, setShowModal] = useState(false);
     const { confirm, dialog } = useConfirm();
     const [form, setForm] = useState({
@@ -104,7 +111,7 @@ export default function WorkerShow() {
                 </Tooltip>
             ),
         },
-    ], []);
+    ].filter((column) => column.id !== 'actions' || canManageCertifications), [canManageCertifications]);
 
     return (
         <>
@@ -150,6 +157,7 @@ export default function WorkerShow() {
                             <h2 className="text-lg font-semibold text-om-muted">{__('Certifications')}</h2>
                             <p className="text-xs text-om-muted">{__('ISA-95 Personnel Capability — issued skill certifications with validity windows.')}</p>
                         </div>
+                        {canManageCertifications && (
                         <button
                             type="button"
                             onClick={() => setShowModal(true)}
@@ -160,6 +168,7 @@ export default function WorkerShow() {
                             </svg>
                             {__('Add certification')}
                         </button>
+                        )}
                     </div>
 
                     <DataTable
@@ -174,7 +183,7 @@ export default function WorkerShow() {
             </div>
 
             {/* Add certification modal */}
-            {showModal && (
+            {showModal && canManageCertifications && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
                     onKeyDown={(e) => e.key === 'Escape' && setShowModal(false)}
