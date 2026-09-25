@@ -5,8 +5,10 @@ namespace Tests\Feature\Settings;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Support\DemoDatasetRegistry;
+use App\Support\SampleDataLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -268,6 +270,98 @@ class LoadSampleDataTest extends TestCase
             json_decode(DB::table('system_settings')->where('key', 'modules_enabled')->value('value'), true),
             'Loading an example company uninstalled the modules.',
         );
+    }
+
+    public function test_a_second_load_is_refused_while_one_is_running(): void
+    {
+        // The reported deadlock: one request was replacing the sample data —
+        // which empties the tables and then runs migrate, taking DDL locks —
+        // while another was seeding into them.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $held = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($held->get(), 'the test needs to hold the lock itself');
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('info');
+
+        $held->release();
+
+        // The session message is the smaller half of this. What matters is that
+        // no seeder ran: a refusal that still seeds would deadlock exactly as
+        // before while looking like it had been handled.
+        $this->assertSame([], $called, 'nothing may be seeded while another load holds the lock');
+    }
+
+    public function test_the_lock_is_released_after_a_successful_load(): void
+    {
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'a finished load must leave the lock free');
+        $lock->release();
+    }
+
+    public function test_the_lock_is_released_when_seeding_throws(): void
+    {
+        // The one failure mode a lock introduces that nothing else does: held
+        // and never given back, the button is dead until the TTL expires.
+        //
+        // This covers the realistic path only — the controller catches its own
+        // exceptions, so nothing escapes the locked callable here. Whether the
+        // lock survives an exception passing through it is settled in
+        // Tests\Unit\Support\SampleDataLockTest, which can arrange that.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        Artisan::shouldReceive('call')->andThrow(new \RuntimeException('the seeder fell over'));
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('error');
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'a failed load must still give the lock back');
+        $lock->release();
+    }
+
+    public function test_the_already_loaded_check_happens_under_the_lock(): void
+    {
+        // Settings used to read `sample_data_loaded` and then act on it minutes
+        // later, by which time a parallel request could have changed the answer.
+        // The read belongs inside the lock; this is the regression guard for it
+        // ever drifting back out.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'sample_data_loaded'],
+            ['value' => json_encode('bakery'), 'updated_at' => now()],
+        );
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('info');
+
+        $this->assertSame([], $called, 'an unconfirmed second load must not seed anything');
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'and must not walk away holding the lock either');
+        $lock->release();
     }
 
     /**

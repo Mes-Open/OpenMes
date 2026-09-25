@@ -7,6 +7,41 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A stop with no downtime record no longer offers a cause picker that cannot work.** The
+  shift monitor draws a stop for every DOWN slice on the state timeline, but the downtime
+  record behind it is a separate row and can be missing. The drawer decided what to show
+  from the segment's kind alone, so such a stop got the full cause picker and the escalate
+  button — and clicking either sent the missing id as the literal string `null`, which
+  PostgreSQL refuses with a type error rather than a refusal. The segment keeps its place,
+  because the machine really was down, and loses only what it cannot carry out. Two smaller
+  lies in the same panel go with it: the drawer opened with no heading at all, and the status
+  chip said the stop was classified when there was no record to have classified.
+- **A malformed id in a stop's URL is refused before it reaches the database.** Constraining
+  the route parameter closes the whole class of input rather than the one string that was
+  reported, on both the supervisor and admin trees and on the operator's own stop endpoint,
+  which took the same parameter and had the same hole.
+- **Sample data loaded before the first shift is usable straight away.** The demo seeders
+  marked orders as running while planning their start for later the same day — a row that
+  contradicts itself, which the work-order rules rightly refuse to save again. Loading an
+  example company early in the morning produced orders nobody could start until the shift
+  they were nominally already working in, and reseeding failed outright. One generated
+  order was worse still: in progress, planned to start tomorrow.
+- **Loading the sample data can no longer collide with replacing it.** A demo install
+  deadlocked when one administrator was seeding an example company while another was
+  replacing it — the replacement empties the tables and then runs `migrate`, and the two met
+  in the middle. Onboarding, Settings → Data and the nightly demo refresh now take one lock
+  between them, and the "already loaded" check happens while it is held, so it cannot go
+  stale between being read and being acted on. A second request is told to wait rather than
+  failing.
+
+### Changed
+
+- A stop drawn with no downtime record behind it is now recorded in the log, once an hour
+  per station. It is harmless to the screen and always has been, which is exactly why nobody
+  could say how often it happens or what produces it.
+
 ## [0.24.2] - 2026-09-21
 
 ### Security

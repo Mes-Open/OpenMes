@@ -9,6 +9,7 @@ use Database\Seeders\AirFilterDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 /**
@@ -39,6 +40,22 @@ class ShiftMonitorDemoSeederTest extends TestCase
         // An empty monitor is the failure this whole dataset exists to prevent.
         $this->assertGreaterThan(0, Batch::count(), 'The monitor needs batches to show.');
         $this->assertGreaterThan(0, \DB::table('workstation_states')->count());
+    }
+
+    public function test_seeding_broadcasts_nothing(): void
+    {
+        // The seeder silences model events precisely so a few hundred state
+        // slices do not become a few hundred synchronous Reverb calls for a
+        // shift nobody is watching yet. The rate update sat outside that
+        // silence and broadcast once per station — quietly undoing a slice of
+        // what the silence was for, and the kind of thing that only ever grows.
+        $this->seedPlant();
+
+        Event::fake();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        Event::assertNotDispatched('eloquent.updated: '.Workstation::class);
+        Event::assertNotDispatched('eloquent.created: '.Batch::class);
     }
 
     public function test_downtimes_are_stamped_with_a_tenant(): void
