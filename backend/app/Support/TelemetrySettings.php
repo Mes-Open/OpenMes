@@ -58,20 +58,20 @@ class TelemetrySettings
             return false;
         }
 
-        // 5. The admin's choice. Absent row means never asked, which is on
-        //    (opt-out) — but a database we cannot read is not the same thing as
-        //    consent, so that answers no.
+        // 5. The admin's choice. Absent row means never asked, which is off:
+        //    silence is not consent. A database we cannot read is not consent
+        //    either, so that answers no as well.
         return self::choice() === true;
     }
 
     /**
      * The stored choice: true/false when known, null when unreadable.
      *
-     * The distinction matters. "No row" means this installation predates the
-     * setting or was never asked, and opt-out says report. "Cannot reach the
-     * database" — mid-migration, or the database is down — means we do not
-     * know, and reporting on a maybe is not something to do with somebody
-     * else's network.
+     * Both unknowns answer the same way, for different reasons. "No row" means
+     * nobody was ever asked, and an unanswered question is not a yes. "Cannot
+     * reach the database" — mid-migration, or the database is down — means we
+     * do not know, and reporting on a maybe is not something to do with
+     * somebody else's network.
      */
     public static function choice(): ?bool
     {
@@ -82,7 +82,7 @@ class TelemetrySettings
         }
 
         if ($raw === null) {
-            return true;
+            return false;
         }
 
         return json_decode($raw, true) === true;

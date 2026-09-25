@@ -27,6 +27,10 @@ class TelemetryKillSwitchTest extends TestCase
 
         config()->set('telemetry.enabled', true);
         $this->markInstalled();
+        // Opt-in jest teraz domyslne, wiec przypadek, ktory cwiczy sciezke
+        // raportowania, musi ja wlaczyc wprost. Wczesniej brak wiersza znaczyl
+        // zgode i testy korzystaly z tego milczaco.
+        TelemetrySettings::put(TelemetrySettings::SETTING_KEY, true);
         TelemetrySettings::forget();
         Http::fake();
     }
@@ -84,12 +88,27 @@ class TelemetryKillSwitchTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_the_default_for_an_install_that_was_never_asked_is_on(): void
+    public function test_the_default_for_an_install_that_was_never_asked_is_off(): void
     {
-        // Opt-out: the migration seeds true, and an absent row also means on.
+        // Opt-in: an unanswered question is not a yes. This used to assert the
+        // opposite — reporting started on and had to be switched off.
         TelemetrySettings::put(TelemetrySettings::SETTING_KEY, null);
         \Illuminate\Support\Facades\DB::table('system_settings')
             ->where('key', TelemetrySettings::SETTING_KEY)->delete();
+        TelemetrySettings::forget();
+
+        $this->assertFalse(TelemetrySettings::enabled());
+
+        (new SendTelemetryJob)->handle();
+        Http::assertNothingSent();
+    }
+
+    public function test_an_administrator_can_turn_it_on(): void
+    {
+        // The other half of opt-in: off by default must still be a switch, not
+        // a wall. Without this, "off unless asked" would be indistinguishable
+        // from "off, and the toggle does nothing".
+        TelemetrySettings::put(TelemetrySettings::SETTING_KEY, true);
         TelemetrySettings::forget();
 
         $this->assertTrue(TelemetrySettings::enabled());

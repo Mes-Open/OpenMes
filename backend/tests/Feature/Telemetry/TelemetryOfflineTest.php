@@ -41,6 +41,10 @@ class TelemetryOfflineTest extends TestCase
         }
 
         TelemetryErrorBuffer::clear();
+        // Opt-in jest teraz domyslnie wylaczone, wiec przypadek, ktory cwiczy
+        // sciezke raportowania, musi ja wlaczyc wprost. Wczesniej brak wiersza
+        // znaczyl zgode i testy korzystaly z tego milczaco.
+        TelemetrySettings::put(TelemetrySettings::SETTING_KEY, true);
         TelemetrySettings::forget();
     }
 
