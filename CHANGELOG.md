@@ -7,17 +7,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Fixed
+## [0.24.3] - 2026-09-25
 
-- **Screens and endpoints that reach into the optional workforce module no longer fail on an
-  installation without it.** The worker edit form returned a server error (reported in #308),
-  and so did the team-day activity feed and the production cost report over the API; saving a
-  worker, a line or a process segment with a crew, division or skill answered with a server
-  error instead of a validation message. The worker detail page also offered to add and remove
-  certifications through endpoints that are not installed. Everything degrades the way the rest
-  of the module boundary already did: the fields are simply absent, and what cannot be offered
-  cannot be submitted.
+### Changed
 
+- **Telemetry is off until you turn it on.** It shipped in 0.24.0 as opt-out: a migration
+  seeded the setting to true, and an absent row meant the same, which put every installation
+  on the reporting side of a question nobody had been asked. Reporting is now opt-in, and this
+  release turns it off once for everybody — there is no way to tell a deliberate yes from the
+  seeded one, and between those two mistakes the safe one is asking again. Nothing about what
+  is collected changes: the payload describes the software and never anything entered into it,
+  and that boundary is held by tests rather than by convention. `OPENMES_TELEMETRY` still
+  overrides in both directions and is read before the database exists.
+- A stop drawn with no downtime record behind it is now recorded in the log, once an hour per
+  station. It is harmless to the screen and always has been, which is exactly why nobody could
+  say how often it happens or what produces it.
 
 ### Fixed
 
@@ -34,6 +38,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the route parameter closes the whole class of input rather than the one string that was
   reported, on both the supervisor and admin trees and on the operator's own stop endpoint,
   which took the same parameter and had the same hole.
+- **Screens and endpoints that reach into the optional workforce module no longer fail on an
+  installation without it** (#308). The worker edit form returned a server error, and so did
+  the team-day activity feed and the production cost report over the API; saving a worker, a
+  line or a process segment with a crew, division or skill answered with a server error
+  instead of a validation message. The worker detail page also offered to add and remove
+  certifications through endpoints that are not installed. Everything degrades the way the
+  rest of the module boundary already did: the fields are simply absent, and what cannot be
+  offered cannot be submitted.
 - **Sample data loaded before the first shift is usable straight away.** The demo seeders
   marked orders as running while planning their start for later the same day — a row that
   contradicts itself, which the work-order rules rightly refuse to save again. Loading an
@@ -47,12 +59,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   between them, and the "already loaded" check happens while it is held, so it cannot go
   stale between being read and being acted on. A second request is told to wait rather than
   failing.
-
-### Changed
-
-- A stop drawn with no downtime record behind it is now recorded in the log, once an hour
-  per station. It is harmless to the screen and always has been, which is exactly why nobody
-  could say how often it happens or what produces it.
 
 ## [0.24.2] - 2026-09-21
 
