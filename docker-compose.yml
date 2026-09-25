@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: ${OPENMES_NAME_PREFIX:-openmmes}-postgres
     command:
       - "postgres"
@@ -15,7 +15,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-openmmes_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18+ images store data in a major-version subdirectory and
+      # expect the mount ONE level up (at /var/lib/postgresql, not /…/data);
+      # mounting the old /…/data path makes the 18 image refuse to start.
+      # (docker-library/postgres#1259.) Existing pre-18 deployments must
+      # dump/restore into a fresh volume — see the PostgreSQL 18 note in the
+      # CHANGELOG — the data does not carry over in place.
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test:
         [
