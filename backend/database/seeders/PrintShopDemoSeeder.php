@@ -36,6 +36,8 @@ use Spatie\Permission\Models\Role;
  */
 class PrintShopDemoSeeder extends Seeder
 {
+    use \Database\Seeders\Concerns\PlansStartedWorkInThePast;
+
     public function run(): void
     {
         $this->seedIssueTypes();
@@ -380,7 +382,7 @@ class PrintShopDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 3,
                 'due_date' => now()->addDays(2),
-                'planned_start_at' => now()->setTime(8, 0),
+                'planned_start_at' => $this->shiftStartAlreadyPast(8),
                 'planned_end_at' => now()->addDays(1)->setTime(14, 0),
                 'description' => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],
@@ -441,7 +443,7 @@ class PrintShopDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 3,
                 'due_date' => now()->addDays(3),
-                'planned_start_at' => now()->addDay()->setTime(10, 0),
+                'planned_start_at' => $this->shiftStartAlreadyPast(10),
                 'planned_end_at' => now()->addDays(2)->setTime(16, 0),
                 'description' => 'Sublimation mugs — personalised customer photos, gift order',
             ],
@@ -635,12 +637,19 @@ class PrintShopDemoSeeder extends Seeder
                         $status = match (true) {
                             $weekOffset < 0 => WorkOrder::STATUS_DONE,
                             $weekOffset > 0 => mt_rand(0, 1) ? WorkOrder::STATUS_PENDING : WorkOrder::STATUS_ACCEPTED,
-                            default => [
-                                WorkOrder::STATUS_IN_PROGRESS,
-                                WorkOrder::STATUS_IN_PROGRESS,
-                                WorkOrder::STATUS_ACCEPTED,
-                                WorkOrder::STATUS_PENDING,
-                            ][mt_rand(0, 3)],
+                            // …but only for days that have actually arrived. A
+                            // block later this week is still to come, and calling
+                            // it IN_PROGRESS makes a row that contradicts itself —
+                            // which the model refuses to save again on the next
+                            // reseed.
+                            default => $start->isFuture()
+                                ? (mt_rand(0, 1) ? WorkOrder::STATUS_PENDING : WorkOrder::STATUS_ACCEPTED)
+                                : [
+                                    WorkOrder::STATUS_IN_PROGRESS,
+                                    WorkOrder::STATUS_IN_PROGRESS,
+                                    WorkOrder::STATUS_ACCEPTED,
+                                    WorkOrder::STATUS_PENDING,
+                                ][mt_rand(0, 3)],
                         };
 
                         WorkOrder::updateOrCreate(
