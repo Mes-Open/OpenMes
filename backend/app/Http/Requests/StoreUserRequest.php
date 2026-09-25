@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AllowsModuleFields;
 use App\Http\Requests\Concerns\ValidatesWorkforceIds;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,7 @@ use Illuminate\Validation\Rules\Password;
  */
 class StoreUserRequest extends FormRequest
 {
+    use AllowsModuleFields;
     use ValidatesWorkforceIds;
 
     public function authorize(): bool
@@ -29,7 +31,7 @@ class StoreUserRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return $this->withModuleFields([
             'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'username' => ['required', 'string', 'max:255', $this->usernameUniqueness()],
             'email' => ['required', 'string', 'email', 'max:255', $this->emailUniqueness()],
@@ -44,7 +46,7 @@ class StoreUserRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', Rule::in($this->offeredWorkforceIds('skillOptions'))],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ];
+        ]);
     }
 
     public function messages(): array
@@ -52,6 +54,16 @@ class StoreUserRequest extends FormRequest
         return [
             'name.regex' => __('Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.'),
         ];
+    }
+
+    protected function moduleFieldFilter(): string
+    {
+        return 'validation.admin.users';
+    }
+
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'user' => null];
     }
 
     protected function usernameUniqueness(): mixed

@@ -7,6 +7,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- A module can add its own fields to the user and worker forms. The rule set of each
+  Form Request now passes through a `FilterRegistry` filter (`validation.admin.users`,
+  `validation.admin.workers`), which is what makes a module's key survive `validated()` —
+  without a declared rule it was dropped between the browser and the controller, silently.
+  With no module listening the rule set is returned untouched.
+
 ### Changed
 
 - User administration validates through Form Requests. The rule set lived inline in the
