@@ -7,6 +7,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- User administration validates through Form Requests. The rule set lived inline in the
+  controller in two near-identical copies, one per action, which the project's own conventions
+  forbid and which is how the two copies drifted apart. Behaviour is unchanged with one
+  deliberate exception: editing somebody whose crew or wage group has since been deactivated
+  now saves, where before their own stored value was refused because the pickers no longer
+  offered it. The same fix the worker screen already carries.
+
 ## [0.24.3] - 2026-09-25
 
 ### Changed
