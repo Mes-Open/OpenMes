@@ -9,11 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- A module can add its own fields to the user and worker forms. The rule set of each
-  Form Request now passes through a `FilterRegistry` filter (`validation.admin.users`,
-  `validation.admin.workers`), which is what makes a module's key survive `validated()` —
-  without a declared rule it was dropped between the browser and the controller, silently.
-  With no module listening the rule set is returned untouched.
+- **A module can add its own fields to the user and worker forms** — shown by core,
+  validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
+  until now unused) carries the field's description to the page, where `ModuleFields` draws
+  it; the Form Request rule sets pass through a `FilterRegistry` filter, which is what makes
+  the module's key survive `validated()` — without a declared rule it was dropped between the
+  browser and the controller, silently; and a new `persist.*` hook tells the module, inside
+  the controller's transaction, that the record was saved, so a failed write there rolls the
+  whole save back rather than leaving the field lost. With no module listening none of it
+  costs anything: the page is sent `{}` and the rule set comes back untouched.
+
+  A module distributed as a ZIP cannot ship working React into a released install — the page
+  globs are expanded when core is built — so contributing data that core renders is the only
+  arrangement that works at all.
 
 ### Changed
 
