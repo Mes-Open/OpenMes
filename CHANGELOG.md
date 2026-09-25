@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Screens and endpoints that reach into the optional workforce module no longer fail on an
+  installation without it.** The worker edit form returned a server error (reported in #308),
+  and so did the team-day activity feed and the production cost report over the API; saving a
+  worker, a line or a process segment with a crew, division or skill answered with a server
+  error instead of a validation message. The worker detail page also offered to add and remove
+  certifications through endpoints that are not installed. Everything degrades the way the rest
+  of the module boundary already did: the fields are simply absent, and what cannot be offered
+  cannot be submitted.
+
+
+### Fixed
+
 - **A stop with no downtime record no longer offers a cause picker that cannot work.** The
   shift monitor draws a stop for every DOWN slice on the state timeline, but the downtime
   record behind it is a separate row and can be missing. The drawer decided what to show
