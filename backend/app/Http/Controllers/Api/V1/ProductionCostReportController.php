@@ -88,7 +88,11 @@ class ProductionCostReportController extends Controller
             'productType:id,name,code',
             'productType.processTemplates.bomItems.material',
             'materialAllocations.material:id,code,name,unit_price,price_currency',
-            'employeeActivities.worker.wageGroup',
+            // wageGroup is attached by an optional module; eager-loading it
+            // unconditionally is a 500 on an installation without it. The web
+            // twin of this report has guarded it since it was written — this
+            // copy did not.
+            ...(\App\Models\Worker::hasModuleRelation('wageGroup') ? ['employeeActivities.worker.wageGroup'] : []),
             'additionalCosts',
         ];
     }

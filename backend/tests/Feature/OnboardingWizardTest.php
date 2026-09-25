@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\User;
+use App\Support\SampleDataLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -156,5 +158,29 @@ class OnboardingWizardTest extends TestCase
         foreach (['/onboarding/modules', '/onboarding/step/1', '/onboarding/step/4', '/onboarding/complete'] as $path) {
             $this->actingAs($this->admin)->get($path)->assertNotFound();
         }
+    }
+
+    public function test_onboarding_refuses_to_seed_while_another_load_holds_the_lock(): void
+    {
+        // The demo is multi-tenant and first-run is the busiest screen on it, so
+        // two people reaching this at once is the normal case rather than the
+        // edge. Both seeding into the same tables is what deadlocked it.
+        $held = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($held->get(), 'the test needs to hold the lock itself');
+
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.store'), ['dataset' => 'bakery'])
+            ->assertSessionHas('info');
+
+        $held->release();
+
+        // Nothing was installed, and — just as important — first run was not
+        // ticked off. Marking it complete on a load that never happened would
+        // leave the install with no data and no way back to the screen.
+        $this->assertDatabaseMissing('system_settings', ['key' => 'sample_data_loaded']);
+        $this->assertSame(
+            'false',
+            (string) DB::table('system_settings')->where('key', 'onboarding_completed')->value('value'),
+        );
     }
 }

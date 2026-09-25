@@ -118,7 +118,7 @@ class SettingsController extends Controller
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
             'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
             // Opt-out: an installation that was never asked reports.
-            'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'true', true) ?? true,
+            'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'false', true) ?? false,
             'telemetry_last_sent_at' => json_decode($rows['telemetry_last_sent_at']?->value ?? 'null', true),
             'telemetry_last_status' => json_decode($rows['telemetry_last_status']?->value ?? 'null', true),
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
@@ -326,6 +326,22 @@ class SettingsController extends Controller
      * Load sample data (admin only).
      */
     public function loadSampleData(\App\Http\Requests\LoadSampleDataRequest $request)
+    {
+        return \App\Support\SampleDataLock::run(
+            fn () => $this->loadSampleDataUnderLock($request),
+            fn () => redirect()->route('settings.system')
+                ->with('info', __('Sample data is already being loaded. Please wait for it to finish.')),
+        );
+    }
+
+    /**
+     * The body of the above, with the lock held.
+     *
+     * Reading `sample_data_loaded` is part of the work, not a preamble to it:
+     * checked outside the lock it could be minutes stale by the time the wipe
+     * acts on it.
+     */
+    private function loadSampleDataUnderLock(\App\Http\Requests\LoadSampleDataRequest $request)
     {
         $alreadyLoaded = DB::table('system_settings')->where('key', 'sample_data_loaded')->exists();
         $replace = (bool) ($request->validated()['replace'] ?? false);
