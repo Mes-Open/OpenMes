@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workstation;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
@@ -57,22 +56,6 @@ class UserManagementController extends Controller
         return app(\App\Extension\Contracts\WorkforceProvider::class);
     }
 
-    /**
-     * Ids from an option list, for validating against exactly what was offered.
-     *
-     * Deliberately not `exists:crews,id`: that rule queries a table this
-     * installation may not have, and it would also accept a value the form
-     * never offered. An empty list rejects everything, which is the correct
-     * answer when nothing records crews.
-     *
-     * @param  list<array{id: int, name: string}>  $options
-     * @return list<int>
-     */
-    private function idsOf(array $options): array
-    {
-        return array_column($options, 'id');
-    }
-
     /** Shared option lists for the create/edit forms. */
     private function formData(): array
     {
@@ -93,26 +76,9 @@ class UserManagementController extends Controller
     /**
      * Store a newly created user
      */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
-            'username' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type' => 'required|in:user,workstation',
-            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code' => 'nullable|string|max:50|unique:workers,code',
-            'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
-            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
-            'skills' => 'nullable|array',
-            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
-            'skills.*.level' => 'nullable|integer|min:1|max:5',
-        ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($request, $validated) {
             $user = User::create([
@@ -195,26 +161,9 @@ class UserManagementController extends Controller
     /**
      * Update the specified user
      */
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
-            'username' => 'required|string|max:255|unique:users,username,'.$user->id,
-            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
-            'password' => ['nullable', 'confirmed', Password::defaults()],
-            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type' => 'required|in:user,workstation',
-            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code' => 'nullable|string|max:50|unique:workers,code,'.($user->worker_id ?? 'NULL'),
-            'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
-            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
-            'skills' => 'nullable|array',
-            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
-            'skills.*.level' => 'nullable|integer|min:1|max:5',
-        ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
-        ]);
+        $validated = $request->validated();
 
         $updateData = [
             'name' => $validated['name'],
