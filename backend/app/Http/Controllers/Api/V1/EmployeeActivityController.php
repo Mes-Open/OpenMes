@@ -198,7 +198,15 @@ class EmployeeActivityController extends Controller
     {
         $date = $request->filled('date') ? Carbon::parse($request->input('date')) : Carbon::today();
 
-        $workers = Worker::with('personnelClass:id,code,name')
+        // personnelClass is attached by an optional module. Eager-loading it
+        // unconditionally is a 500 on an installation without it; the rows then
+        // simply carry personnel_class: null, which keeps the response shape
+        // stable for clients rather than dropping the key.
+        $workers = Worker::query()
+            ->when(
+                Worker::hasModuleRelation('personnelClass'),
+                fn ($q) => $q->with('personnelClass:id,code,name'),
+            )
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

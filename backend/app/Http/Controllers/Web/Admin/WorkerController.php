@@ -86,6 +86,11 @@ class WorkerController extends Controller
             'certifications' => $certifications,
             'skills' => $skills,
             'levels' => $this->workforce()->certificationLevels(),
+            // Whether this installation can record certifications at all. The
+            // endpoints behind the buttons belong to the module, so without it
+            // the screen must not offer them — an empty list is not the same
+            // question, since a module with no skills defined is still able to.
+            'canManageCertifications' => \App\Models\Worker::hasModuleRelation('skills'),
             'customFields' => $cf->clientConfig('worker'),
         ]);
     }
@@ -139,7 +144,13 @@ class WorkerController extends Controller
      */
     public function edit(Worker $worker, CustomFieldService $cf)
     {
-        $worker->load('skills');
+        // skills is attached by an optional module; show() above guards the same
+        // load and this one was missed. Without the module the relation does not
+        // exist and `load` is a fatal — reported as a 500 on the edit form of the
+        // one workforce screen core keeps.
+        if (\App\Models\Worker::hasModuleRelation('skills')) {
+            $worker->load('skills');
+        }
 
         return Inertia::render('admin/workers/Edit', [
             'worker' => [
@@ -157,7 +168,9 @@ class WorkerController extends Controller
                 'is_active' => $worker->is_active,
                 'is_logistics' => $worker->is_logistics,
                 'custom_fields' => $worker->custom_fields,
-                'skills' => $worker->skills->map(fn ($s) => [
+                // relationLoaded rather than a second hasModuleRelation: one
+                // question, asked once, is what show() does too.
+                'skills' => ! $worker->relationLoaded('skills') ? [] : $worker->skills->map(fn ($s) => [
                     'id' => $s->id,
                     'level' => $s->pivot->level ?? 1,
                 ]),
