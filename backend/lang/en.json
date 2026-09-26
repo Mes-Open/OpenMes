@@ -6384,5 +6384,6 @@
     "This stop has no linked downtime record, so it cannot be classified or escalated.": "This stop has no linked downtime record, so it cannot be classified or escalated.",
     "Stop with no record": "Stop with no record",
     "NO RECORD": "NO RECORD",
-    "Sample data is already being loaded. Please wait for it to finish.": "Sample data is already being loaded. Please wait for it to finish."
+    "Sample data is already being loaded. Please wait for it to finish.": "Sample data is already being loaded. Please wait for it to finish.",
+    "Additional fields": "Additional fields"
 }

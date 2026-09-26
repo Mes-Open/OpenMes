@@ -12,6 +12,11 @@ use Illuminate\Validation\Rules\Password;
  */
 class UpdateUserRequest extends StoreUserRequest
 {
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'user' => $this->currentUser()];
+    }
+
     protected function usernameUniqueness(): mixed
     {
         return Rule::unique('users', 'username')->ignore($this->currentUser()?->id);

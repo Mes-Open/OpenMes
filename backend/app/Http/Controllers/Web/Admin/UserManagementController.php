@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Extension\HookRegistry;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -15,6 +16,10 @@ use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
 {
+    private const FIELDS_HOOK = 'display.admin.users.form.fields';
+
+    private const SAVED_HOOK = 'persist.admin.users';
+
     /**
      * Display a listing of users. Rows live-sync via the `users` shape (safe
      * columns only); role + workstation names come as props keyed by id.
@@ -56,10 +61,33 @@ class UserManagementController extends Controller
         return app(\App\Extension\Contracts\WorkforceProvider::class);
     }
 
-    /** Shared option lists for the create/edit forms. */
-    private function formData(): array
+    /**
+     * Fields an installed module contributes to this form.
+     *
+     * Empty on a community install, where the prop is `{}` and ModuleFields
+     * renders nothing. A module ships no JSX of its own — see HookRegistry.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function moduleFields(?User $user = null): array
+    {
+        return app(HookRegistry::class)->renderMany(
+            [self::FIELDS_HOOK],
+            ['user' => $user, 'worker' => $user?->worker],
+        );
+    }
+
+    /**
+     * Shared option lists for the create/edit forms.
+     *
+     * Takes the record so module contributions are resolved once, against it —
+     * resolving them here without it and again in edit() would run a module's
+     * callback twice, the first time with no record to read.
+     */
+    private function formData(?User $user = null): array
     {
         return [
+            'hooks' => $this->moduleFields($user),
             'roles' => Role::orderBy('name')->pluck('name'),
             'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(['id', 'name', 'line_id'])
                 ->map(fn ($w) => ['id' => $w->id, 'name' => $w->line ? "{$w->name} ({$w->line->name})" : $w->name]),
@@ -118,6 +146,15 @@ class UserManagementController extends Controller
 
                 $user->update(['worker_id' => $worker->id]);
             }
+
+            // Inside the transaction on purpose: a module's write belongs to the
+            // same unit of work as the account it hangs off.
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'store',
+                'user' => $user,
+                'worker' => $user->worker,
+                'input' => $validated,
+            ]);
         });
 
         return redirect()->route('admin.users.index')
@@ -131,7 +168,7 @@ class UserManagementController extends Controller
     {
         $user->load(Worker::hasModuleRelation('skills') ? 'worker.skills' : 'worker');
 
-        return Inertia::render('admin/users/Edit', array_merge($this->formData(), [
+        return Inertia::render('admin/users/Edit', array_merge($this->formData($user), [
             'assignments' => [
                 'lines' => $user->lines()->get(['lines.id', 'lines.name'])->map(fn ($line) => $line->only('id', 'name')),
                 'station' => ($user->worker?->workstation ?? $user->workstation)?->only('id', 'name', 'line_id'),
@@ -226,6 +263,13 @@ class UserManagementController extends Controller
                     );
                 }
             }
+
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'update',
+                'user' => $user,
+                'worker' => $user->fresh()->worker,
+                'input' => $validated,
+            ]);
         });
 
         return redirect()->route('admin.users.index')
