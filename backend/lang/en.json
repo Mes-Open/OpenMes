@@ -6384,5 +6384,10 @@
     "This stop has no linked downtime record, so it cannot be classified or escalated.": "This stop has no linked downtime record, so it cannot be classified or escalated.",
     "Stop with no record": "Stop with no record",
     "NO RECORD": "NO RECORD",
-    "Sample data is already being loaded. Please wait for it to finish.": "Sample data is already being loaded. Please wait for it to finish."
+    "Sample data is already being loaded. Please wait for it to finish.": "Sample data is already being loaded. Please wait for it to finish.",
+    "Additional fields": "Additional fields",
+    "Enter EAN code": "Enter EAN code",
+    "Module \":name\" requires OpenMES :required; this installation is :current.": "Module \":name\" requires OpenMES :required; this installation is :current.",
+    "Module \":name\" could not be uninstalled: :msg": "Module \":name\" could not be uninstalled: :msg",
+    "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.": "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data."
 }

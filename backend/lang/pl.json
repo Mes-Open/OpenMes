@@ -6384,5 +6384,10 @@
     "This stop has no linked downtime record, so it cannot be classified or escalated.": "Ten postój nie ma powiązanego rekordu przestoju, więc nie można przypisać mu przyczyny ani go eskalować.",
     "Stop with no record": "Postój bez rekordu",
     "NO RECORD": "BRAK REKORDU",
-    "Sample data is already being loaded. Please wait for it to finish.": "Dane przykładowe są właśnie wczytywane. Poczekaj na zakończenie."
+    "Sample data is already being loaded. Please wait for it to finish.": "Dane przykładowe są właśnie wczytywane. Poczekaj na zakończenie.",
+    "Additional fields": "Pola dodatkowe",
+    "Enter EAN code": "Wpisz kod EAN",
+    "Module \":name\" requires OpenMES :required; this installation is :current.": "Moduł \":name\" wymaga OpenMES :required; ta instalacja to :current.",
+    "Module \":name\" could not be uninstalled: :msg": "Nie udało się odinstalować modułu \":name\": :msg",
+    "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.": "Moduł \":name\" odinstalowany. Jego tabele w bazie zostały nienaruszone; ponowna instalacja zachowa dane."
 }

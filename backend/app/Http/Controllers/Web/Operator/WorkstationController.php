@@ -18,6 +18,9 @@ use Inertia\Inertia;
 
 class WorkstationController extends Controller
 {
+    /** Where a module may contribute to the operator's station screen. */
+    private const STATION_HOOK = 'display.operator.workstation.actor';
+
     /**
      * Workstation production view — flat table with inline quantity entry.
      */
@@ -142,7 +145,17 @@ class WorkstationController extends Controller
         $machineStates = $this->machineStatesForLine((int) $lineId, $selectedWorkstation?->id);
         $machineStateOptions = WorkstationState::STATES;
 
+        // A region an installed module may contribute to — the station is where
+        // a module identifying the person at the machine has something to say,
+        // and a module cannot ship its own React into a released install.
+        // Empty on a community install, where the prop is `{}`.
+        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
+            [self::STATION_HOOK],
+            ['line' => $line, 'workstation' => $selectedWorkstation],
+        );
+
         return Inertia::render('operator/Workstation', compact(
+            'hooks',
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
             'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',

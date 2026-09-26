@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AllowsModuleFields;
 use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use App\Http\Requests\Concerns\ValidatesWorkforceIds;
 use App\Models\Worker;
@@ -10,6 +11,7 @@ use Illuminate\Validation\Rule;
 
 class StoreWorkerRequest extends FormRequest
 {
+    use AllowsModuleFields;
     use MergesCustomFieldRules;
     use ValidatesWorkforceIds;
 
@@ -24,6 +26,16 @@ class StoreWorkerRequest extends FormRequest
         return 'worker';
     }
 
+    protected function moduleFieldFilter(): string
+    {
+        return 'validation.admin.workers';
+    }
+
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'worker' => null];
+    }
+
     public function rules(): array
     {
         // The record being edited may hold a value the pickers no longer
@@ -31,7 +43,7 @@ class StoreWorkerRequest extends FormRequest
         // value valid stops an unrelated edit from failing on it.
         $current = null;
 
-        return array_merge([
+        return $this->withModuleFields(array_merge([
             'code' => ['required', 'string', 'max:50', 'unique:workers,code'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -47,6 +59,6 @@ class StoreWorkerRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', 'integer', Rule::in($this->offeredWorkforceIds('skillOptions'))],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ], $this->customFieldRules());
+        ], $this->customFieldRules()));
     }
 }

@@ -7,6 +7,61 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-09-26
+
+### Added
+
+- **A module can reach the operator's station screen**: a display region on the workstation
+  page, and the same rule filter the user and worker forms use, so a module's own key
+  survives `validated()` when a step is started or completed. Nothing else was needed —
+  `StepStarted` and `StepCompleted` are already dispatched from the model observer, inside
+  the service transaction and on every path that moves a step.
+
+- **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
+  read it, so a module built against extension points this core does not have installed
+  cleanly and then quietly did nothing. Installing or enabling one now says so instead,
+  naming both versions. A module that declares no requirement is unaffected, and an
+  unreadable one is refused rather than treated as "any version".
+- **A module can add its own fields to the user and worker forms** — shown by core,
+  validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
+  until now unused) carries the field's description to the page, where `ModuleFields` draws
+  it; the Form Request rule sets pass through a `FilterRegistry` filter, which is what makes
+  the module's key survive `validated()` — without a declared rule it was dropped between the
+  browser and the controller, silently; and a new `persist.*` hook tells the module, inside
+  the controller's transaction, that the record was saved, so a failed write there rolls the
+  whole save back rather than leaving the field lost. With no module listening none of it
+  costs anything: the page is sent `{}` and the rule set comes back untouched.
+
+  A module distributed as a ZIP cannot ship working React into a released install — the page
+  globs are expanded when core is built — so contributing data that core renders is the only
+  arrangement that works at all.
+
+### Fixed
+
+- **Uninstalling a module now runs the module's own uninstall hook**, while its classes are
+  still on disk — afterwards there is nothing left to call, so the hook never ran at all. It
+  is a module's only chance to undo what it did outside its own tables. A hook that fails
+  leaves the module in place to be retried, and the success message now says plainly that the
+  module's database tables are kept.
+- **The scanner mode setting now does something.** Settings → System has offered a choice
+  between a keyboard-wedge reader and manual entry since it was merged, and its own
+  description promised the operator "a visible field" — but the packing station never read
+  the setting, and no such field existed. Picking `manual` therefore left the station with
+  no way to enter a code at all. The station now honours the setting: `hid` keeps the
+  document-level capture, `manual` detaches it and shows the field.
+
+### Changed
+
+- User administration validates through Form Requests. The rule set lived inline in the
+  controller in two near-identical copies, one per action, which the project's own conventions
+  forbid and which is how the two copies drifted apart. Behaviour is unchanged with one
+  deliberate exception: editing somebody whose crew or wage group has since been deactivated
+  now saves, where before their own stored value was refused because the pickers no longer
+  offered it. The same fix the worker screen already carries.
+- The reader capture moved out of the packing station into `useScanBuffer`, unchanged in
+  behaviour and now covered by unit tests, so the pages that need it next do not each grow
+  their own copy.
+
 ## [0.24.3] - 2026-09-25
 
 ### Changed
