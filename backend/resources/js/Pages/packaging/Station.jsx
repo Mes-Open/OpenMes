@@ -5,6 +5,7 @@ import { Badge, Button, Dropdown, Icon, StatusPill } from '@openmes/ui';
 import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import { __, formatTime } from '../../lib/i18n';
+import useScanBuffer from '../../lib/useScanBuffer';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 
 function csrf() {
@@ -41,7 +42,7 @@ function ShiftLabel() {
 }
 
 export default function Station() {
-    const { auth, labelTemplates = [], currentShift = null } = usePage().props;
+    const { auth, labelTemplates = [], currentShift = null, scannerMode = 'hid' } = usePage().props;
 
     const [items, setItems] = useState([]);
     const [history, setHistory] = useState([]);
@@ -54,8 +55,7 @@ export default function Station() {
     const [palletBatchId, setPalletBatchId] = useState(''); // selected batch (when the WO has several)
     const [palletBusy, setPalletBusy] = useState(false);
     const lastHistoryIdRef = useRef(0);
-    const bufferRef = useRef('');
-    const bufferTimerRef = useRef(null);
+    const [manualCode, setManualCode] = useState('');
     const activePalletRef = useRef(null);
     useEffect(() => { activePalletRef.current = activePallet; }, [activePallet]);
 
@@ -311,34 +311,30 @@ export default function Station() {
         }
     }, [palletBusy, fetchOpenPallets]);
 
-    const onKey = useCallback((e) => {
-        const tag = e.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-        if (e.key === 'Enter') {
-            const ean = bufferRef.current.trim();
-            bufferRef.current = '';
-            if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
-            if (ean) handleScan(ean);
-        } else if (e.key.length === 1) {
-            bufferRef.current += e.key;
-            if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
-            bufferTimerRef.current = setTimeout(() => { bufferRef.current = ''; }, 500);
-        }
-    }, [handleScan]);
-
     useEffect(() => {
         Promise.all([fetchItems(), fetchHistory(), fetchStats(), fetchOpenPallets()]);
         const interval = setInterval(poll, 3000);
         // Refresh the open-pallets list on a slower cadence so a pallet opened on
         // another device/shift shows up here too.
         const palletInterval = setInterval(fetchOpenPallets, 5000);
-        document.addEventListener('keydown', onKey);
         return () => {
             clearInterval(interval);
             clearInterval(palletInterval);
-            document.removeEventListener('keydown', onKey);
         };
-    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, poll, onKey]);
+    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, poll]);
+
+    // A reader in `hid` mode types into the page; in `manual` mode the operator
+    // types into the field below, so the global listener would only get in the
+    // way. Settings → System decides which.
+    useScanBuffer(handleScan, { enabled: scannerMode !== 'manual' });
+
+    const submitManualCode = useCallback((e) => {
+        e.preventDefault();
+        const code = manualCode.trim();
+        if (! code) return;
+        setManualCode('');
+        handleScan(code);
+    }, [manualCode, handleScan]);
 
     const flashBg =
         flash === 'success'
@@ -378,7 +374,10 @@ export default function Station() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <StatusPill status="running" label={__('Scanning active')} />
+                        <StatusPill
+                            status="running"
+                            label={scannerMode === 'manual' ? __('Manual entry') : __('Scanning active')}
+                        />
                     </div>
                 </div>
 
@@ -538,6 +537,19 @@ export default function Station() {
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-3">
                             {__('Last scan')}
                         </h2>
+                        {scannerMode === 'manual' && (
+                            <form onSubmit={submitManualCode} className="flex items-center gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    value={manualCode}
+                                    onChange={(e) => setManualCode(e.target.value)}
+                                    placeholder={__('Enter EAN code')}
+                                    autoFocus
+                                    className="flex-1 font-mono text-[13px] bg-om-card border border-om-line rounded-om px-3 py-2 text-om-ink placeholder:text-om-faint focus:outline-none focus:border-om-accent"
+                                />
+                                <Button type="submit" disabled={! manualCode.trim()}>{__('Confirm')}</Button>
+                            </form>
+                        )}
                         {!lastScan ? (
                             <div className="py-8 text-center text-om-faint text-[12.5px]">
                                 {__('Scan an EAN code…')}

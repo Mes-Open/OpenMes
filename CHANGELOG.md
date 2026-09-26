@@ -23,6 +23,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   globs are expanded when core is built — so contributing data that core renders is the only
   arrangement that works at all.
 
+### Fixed
+
+- **The scanner mode setting now does something.** Settings → System has offered a choice
+  between a keyboard-wedge reader and manual entry since it was merged, and its own
+  description promised the operator "a visible field" — but the packing station never read
+  the setting, and no such field existed. Picking `manual` therefore left the station with
+  no way to enter a code at all. The station now honours the setting: `hid` keeps the
+  document-level capture, `manual` detaches it and shows the field.
+
 ### Changed
 
 - User administration validates through Form Requests. The rule set lived inline in the
@@ -31,6 +40,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   deliberate exception: editing somebody whose crew or wage group has since been deactivated
   now saves, where before their own stored value was refused because the pickers no longer
   offered it. The same fix the worker screen already carries.
+- The reader capture moved out of the packing station into `useScanBuffer`, unchanged in
+  behaviour and now covered by unit tests, so the pages that need it next do not each grow
+  their own copy.
 
 ## [0.24.3] - 2026-09-25
 
