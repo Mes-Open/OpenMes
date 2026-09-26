@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module can reach the operator's station screen**: a display region on the workstation
+  page, and the same rule filter the user and worker forms use, so a module's own key
+  survives `validated()` when a step is started or completed. Nothing else was needed —
+  `StepStarted` and `StepCompleted` are already dispatched from the model observer, inside
+  the service transaction and on every path that moves a step.
+
 - **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
   read it, so a module built against extension points this core does not have installed
   cleanly and then quietly did nothing. Installing or enabling one now says so instead,

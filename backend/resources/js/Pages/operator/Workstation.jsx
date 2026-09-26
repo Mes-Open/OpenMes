@@ -8,6 +8,7 @@ import LabelPrintMenu from '../../components/LabelPrintMenu';
 import Tooltip from '../../components/Tooltip';
 import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
+import { Hook } from '../../lib/hooks';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
 
@@ -857,6 +858,7 @@ export default function Workstation() {
         machineStates = [],
         machineStateOptions = [],
         selectedWorkstation = null,
+        hooks = {},
     } = usePage().props;
 
     const { visibleKeys, toggleColumn, resetColumns } = useVisibleColumns(allColumns, line?.id ?? 0);
@@ -955,6 +957,15 @@ export default function Workstation() {
                             </Link>
                         </div>
                     </div>
+
+                    {/* Anything an installed module contributes to this screen.
+                        Renders nothing on a community install. */}
+                    <Hook
+                        name="display.operator.workstation.actor"
+                        hooks={hooks}
+                        line={line}
+                        workstation={selectedWorkstation}
+                    />
 
                     {/* Week filter */}
                     {availableWeeks.length > 0 && (
