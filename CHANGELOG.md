@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-09-26
+
 ### Added
 
 - **A module can reach the operator's station screen**: a display region on the workstation
