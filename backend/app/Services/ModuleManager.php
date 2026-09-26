@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CoreVersionConstraint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -69,6 +70,37 @@ class ModuleManager
             return $row ? (json_decode($row->value, true) ?? []) : [];
         } catch (\Exception) {
             return [];
+        }
+    }
+
+    /**
+     * The module's manifest, or an empty array when it has none.
+     *
+     * @return array<string, mixed>
+     */
+    public function manifest(string $name): array
+    {
+        $path = "{$this->modulesPath}/{$name}/module.json";
+
+        if (! is_file($path)) {
+            return [];
+        }
+
+        return json_decode((string) file_get_contents($path), true) ?: [];
+    }
+
+    /**
+     * Whether this core satisfies a module's `requires_core`.
+     *
+     * An unreadable constraint counts as unsatisfied rather than as "no
+     * constraint": a typo must not quietly widen what a module accepts.
+     */
+    public function coreSatisfies(?string $constraint): bool
+    {
+        try {
+            return CoreVersionConstraint::isSatisfied($constraint);
+        } catch (\InvalidArgumentException) {
+            return false;
         }
     }
 
@@ -150,6 +182,21 @@ class ModuleManager
             throw new \RuntimeException('Invalid provider namespace: must start with "Modules\\".');
         }
 
+        // The core version the module was built against. Nothing read this
+        // until now, so a module installed on an older core simply did not
+        // work: the seams it relies on were absent, and the admin was left
+        // guessing. Refusing the install says so once, at the only moment
+        // anybody can act on it.
+        if (! $this->coreSatisfies($manifest['requires_core'] ?? null)) {
+            $zip->close();
+            throw new \RuntimeException(sprintf(
+                'Module "%s" requires OpenMES %s; this installation is %s.',
+                $manifest['name'],
+                $manifest['requires_core'],
+                config('version.current'),
+            ));
+        }
+
         // Validate module name (alphanumeric + hyphens only, no path traversal)
         if (! preg_match('/^[A-Za-z0-9_-]+$/', $manifest['name'])) {
             $zip->close();
@@ -206,9 +253,22 @@ class ModuleManager
 
     /**
      * Delete an installed module directory.
+     *
+     * The module's own uninstall hook runs FIRST, while its classes are still
+     * on disk and autoloadable — after the directory is gone there is nothing
+     * left to call. It is the module's only chance to undo what it did outside
+     * its own tables: permissions it registered, settings it wrote.
+     *
+     * A throwing hook aborts the uninstall and leaves the directory in place.
+     * Deleting anyway would run half an uninstall and lose the other half with
+     * no way to retry; this way the administrator sees the failure and the
+     * module is still there to try again. The module's own migrations are NOT
+     * rolled back — see the note the controller shows.
      */
     public function uninstall(string $name): void
     {
+        $this->runInstaller($name, 'uninstall');
+
         $this->disable($name);
         $dir = "{$this->modulesPath}/{$name}";
         if (is_dir($dir)) {
@@ -238,6 +298,20 @@ class ModuleManager
     }
 
     /**
+     * The module's own migrations directory, or null when it ships none.
+     *
+     * Needed because a module's migrations are registered by its service
+     * provider, which is only loaded at boot — so the process that *enables* a
+     * module cannot see them and has to be told where they are.
+     */
+    public function migrationsPath(string $name): ?string
+    {
+        $path = "{$this->modulesPath}/{$name}/database/migrations";
+
+        return is_dir($path) ? $path : null;
+    }
+
+    /**
      * Run a module's optional installer hook.
      *
      * Migrations cover tables, but a module usually has setup that is not schema:
@@ -252,20 +326,6 @@ class ModuleManager
      *
      * @param  string  $method  install | uninstall
      */
-    /**
-     * The module's own migrations directory, or null when it ships none.
-     *
-     * Needed because a module's migrations are registered by its service
-     * provider, which is only loaded at boot — so the process that *enables* a
-     * module cannot see them and has to be told where they are.
-     */
-    public function migrationsPath(string $name): ?string
-    {
-        $path = "{$this->modulesPath}/{$name}/database/migrations";
-
-        return is_dir($path) ? $path : null;
-    }
-
     public function runInstaller(string $name, string $method = 'install'): void
     {
         $installer = "Modules\\{$name}\\Installer";

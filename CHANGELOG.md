@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
+  read it, so a module built against extension points this core does not have installed
+  cleanly and then quietly did nothing. Installing or enabling one now says so instead,
+  naming both versions. A module that declares no requirement is unaffected, and an
+  unreadable one is refused rather than treated as "any version".
 - **A module can add its own fields to the user and worker forms** — shown by core,
   validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
   until now unused) carries the field's description to the page, where `ModuleFields` draws
@@ -25,6 +30,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Uninstalling a module now runs the module's own uninstall hook**, while its classes are
+  still on disk — afterwards there is nothing left to call, so the hook never ran at all. It
+  is a module's only chance to undo what it did outside its own tables. A hook that fails
+  leaves the module in place to be retried, and the success message now says plainly that the
+  module's database tables are kept.
 - **The scanner mode setting now does something.** Settings → System has offered a choice
   between a keyboard-wedge reader and manual entry since it was merged, and its own
   description promised the operator "a visible field" — but the packing station never read
