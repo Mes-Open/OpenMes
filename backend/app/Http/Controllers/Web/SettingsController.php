@@ -193,6 +193,9 @@ class SettingsController extends Controller
                 DB::table('system_settings')->where('key', 'sample_data_loaded')->value('value') ?? 'null',
                 true,
             ),
+            // Tabs a module adds to this page: {slot, title, component} each.
+            // The module's component saves through its own route. `{}` when none.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
         ]);
     }
 

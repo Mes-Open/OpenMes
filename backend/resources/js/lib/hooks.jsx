@@ -9,9 +9,10 @@
 // fields that render as a standard card — so a module can contribute without
 // shipping any JSX at all.
 
-// Same shape as the page glob in app.jsx: matches nothing, and yields {}, when
+// Same target as the page glob in app.jsx (backend/modules), one directory
+// deeper because this file sits in lib/: matches nothing, and yields {}, when
 // no module is installed.
-const moduleComponents = import.meta.glob('../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
+const moduleComponents = import.meta.glob('../../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
 
 /**
  * Resolve 'ext:Example/LinePicker' to the component a module ships at

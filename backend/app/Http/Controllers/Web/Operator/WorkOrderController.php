@@ -108,7 +108,14 @@ class WorkOrderController extends Controller
             ->latest('started_at')
             ->first();
 
+        // The operator's number inputs, when a module replaces them (a keypad).
+        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
+            ['display.operator.quantity_field'],
+            ['lineId' => (int) $lineId, 'workstationId' => $selectedWorkstation?->id],
+        );
+
         return Inertia::render('operator/Queue', compact(
+            'hooks',
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
             'trackingMode', 'workstationQueue', 'workstationNotStarted', 'lineWorkstations',
@@ -408,6 +415,13 @@ class WorkOrderController extends Controller
             ->resolve($request, (int) $workOrder->line_id, allowOtherLines: (bool) json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false', true));
         $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation'));
+        // Regions an installed module may contribute to: extra sections after the
+        // BOM, and a replacement for the operator's number inputs. `{}` when none.
+        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
+            ['display.operator.work_order.sections', 'display.operator.quantity_field'],
+            ['workOrderId' => $workOrder->id, 'workstationId' => $selectedWorkstation['id'] ?? null],
+        );
+
+        return Inertia::render('operator/WorkOrderDetail', compact('hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation'));
     }
 }

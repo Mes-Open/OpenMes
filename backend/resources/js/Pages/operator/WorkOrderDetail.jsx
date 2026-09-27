@@ -7,6 +7,8 @@ import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import Tooltip from '../../components/Tooltip';
+import QuantityField from '../../components/QuantityField';
+import { Hook } from '../../lib/hooks';
 import EngineeringViewerModal from '../../components/EngineeringViewerModal';
 import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
 import { apiGet, apiCall } from '../../lib/http';
@@ -395,12 +397,11 @@ function QualityCheckForm({ batch, onClose }) {
             <form onSubmit={submit}>
                 <div className="mb-3">
                     <div className={fieldLabelCls}>{__('Production Quantity')}</div>
-                    <input
+                    <QuantityField
                         aria-label={__('Production Quantity')}
-                        type="number"
                         step="0.01"
                         value={productionQty}
-                        onChange={(e) => setProductionQty(e.target.value)}
+                        onChange={setProductionQty}
                         className={`${inputCls} font-mono`}
                         placeholder={__('Current production qty')}
                     />
@@ -523,13 +524,12 @@ function ReleaseForm({ batch, onClose }) {
                 <div className={fieldLabelCls}>
                     {__('Scrap quantity (optional)')}
                 </div>
-                <input
+                <QuantityField
                     aria-label={__('Scrap quantity (optional)')}
-                    type="number"
                     step="0.01"
                     min="0"
                     value={form.data.scrap_qty}
-                    onChange={(e) => form.setData('scrap_qty', e.target.value)}
+                    onChange={(v) => form.setData('scrap_qty', v)}
                     className={`${inputCls} w-32 font-mono`}
                     placeholder="0"
                 />
@@ -815,7 +815,7 @@ function QuantityCorrection({ step }) {
         <summary className="cursor-pointer text-sm text-om-accent">{__('Correct good quantity')}</summary>
         <form className="space-y-2 pt-2" onSubmit={e => { e.preventDefault(); form.post(`/operator/batch-step/${step.id}/quantity-correction`, { preserveScroll: true }); }}>
             <p className="text-sm text-om-muted">{__('Enter the corrected total, not an increment. The original and corrected values are retained in the audit history.')}</p>
-            <label className="block">{__('Corrected good total')}<input aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" type="number" min="0" step="0.01" required value={form.data.good_qty} onChange={e => form.setData('good_qty', e.target.value)} /></label>
+            <label className="block">{__('Corrected good total')}<QuantityField aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" min="0" step="0.01" required value={form.data.good_qty} onChange={v => form.setData('good_qty', v)} /></label>
             <label className="block">{__('Correction reason')}<input aria-label={__('Correction reason')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" required maxLength={1000} value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} /></label>
             {Object.entries(form.errors).map(([key, value]) => <p key={key} role="alert" className="text-sm text-om-blocked">{value}</p>)}
             <Button type="submit" variant="outline" disabled={form.processing}>{__('Save correction')}</Button>
@@ -846,11 +846,11 @@ function QuantityLogForm({ step, throughStation = false, inflight, error, onSubm
         <form onSubmit={submit} className={`flex flex-wrap items-end gap-3 px-3 pb-3 ${throughStation ? 'pt-3' : ''}`} data-testid={`log-${throughStation ? 'station' : 'step'}-${step.step_number}`}>
             <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
                 {__('Good')}
-                <input type="number" min="0" step="0.01" max={available} value={good} onChange={(e) => setGood(e.target.value)} className={inputCls} aria-label={__('Good')} />
+                <QuantityField min="0" step="0.01" max={available} value={good} onChange={setGood} className={inputCls} aria-label={__('Good')} />
             </label>
             <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
                 {__('Scrap')}
-                <input type="number" min="0" step="0.01" max={available} value={scrap} onChange={(e) => setScrap(e.target.value)} className={inputCls} aria-label={__('Scrap')} />
+                <QuantityField min="0" step="0.01" max={available} value={scrap} onChange={setScrap} className={inputCls} aria-label={__('Scrap')} />
             </label>
             <Button type="button" variant="accent" disabled={available < 1 || inflight} onClick={() => onSubmit({ good_qty: 1, scrap_qty: 0, through_station: throughStation }, () => {})} aria-label={__('Add one good piece')}>+1</Button>
             <Button type="submit" variant={throughStation ? 'accent' : 'primary'} disabled={!valid || inflight} className="px-5 py-2.5 text-[14px] whitespace-nowrap">
@@ -2207,7 +2207,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, hooks = {} } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2381,6 +2381,9 @@ export default function WorkOrderDetail() {
 
                         {/* Recipe / BOM */}
                         <BomSection workOrder={workOrder} />
+
+                        {/* Sections an installed module adds after the BOM — nothing on a community install */}
+                        <Hook name="display.operator.work_order.sections" hooks={hooks} workOrder={workOrder} />
 
                         {/* Process reference photos (work instructions) */}
                         <ProcessPhotosSection photos={processPhotos} />

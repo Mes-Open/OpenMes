@@ -216,13 +216,18 @@ class MenuRegistry
     }
 
     /**
-     * Operator tabs sorted by order.
+     * Operator tabs sorted by order, after filter `operator.module_tabs`.
+     *
+     * Registration happens once at boot; the filter runs per request, so a module
+     * can decide which of the tabs this viewer sees right now (per station, per
+     * who is signed in) without re-registering anything.
      *
      * @return list<array{label: string, url: string, order: int, prefix: string}>
      */
     public function getOperatorItems(): array
     {
-        $items = $this->operatorItems;
+        $items = app(\App\Extension\FilterRegistry::class)->filter('operator.module_tabs', $this->operatorItems);
+        $items = array_values($items);
         usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $items;
