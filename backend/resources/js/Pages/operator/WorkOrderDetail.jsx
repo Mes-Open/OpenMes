@@ -1742,13 +1742,12 @@ function LotPickModal({ step, materials, onClose }) {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                    <input
-                                                        type="number"
+                                                    <QuantityField
                                                         step="0.0001"
                                                         min="0"
                                                         inputMode="decimal"
                                                         value={ln.picked_qty}
-                                                        onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
+                                                        onChange={(v) => setLineQty(m.material_id, idx, v)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
                                                     <Tooltip label="Remove lot">
@@ -1843,14 +1842,13 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         <div className={fieldLabelCls}>
                             {__('Quantity')}
                         </div>
-                        <input
+                        <QuantityField
                             aria-label={__('Quantity')}
-                            type="number"
                             step="0.01"
                             min="0.01"
                             max={remaining}
                             value={form.data.target_qty}
-                            onChange={(e) => form.setData('target_qty', e.target.value)}
+                            onChange={(v) => form.setData('target_qty', v)}
                             className={`${inputCls} font-mono text-[15px]`}
                             required
                         />
@@ -2085,13 +2083,12 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                         <div className={fieldLabelCls}>
                             {__('Quantity')} <span className="text-om-blocked">*</span>
                         </div>
-                        <input
+                        <QuantityField
                             aria-label={__('Quantity')}
-                            type="number"
                             step="0.01"
                             min="0.01"
                             value={form.data.quantity}
-                            onChange={(e) => form.setData('quantity', e.target.value)}
+                            onChange={(v) => form.setData('quantity', v)}
                             className={`${inputCls} font-mono text-[15px]`}
                             placeholder="0"
                             required

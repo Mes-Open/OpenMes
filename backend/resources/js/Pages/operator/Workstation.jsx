@@ -8,7 +8,7 @@ import LabelPrintMenu from '../../components/LabelPrintMenu';
 import Tooltip from '../../components/Tooltip';
 import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
-import { Hook, hasHook } from '../../lib/hooks';
+import { Hook, hasRenderableHook } from '../../lib/hooks';
 import QuantityField from '../../components/QuantityField';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
@@ -205,8 +205,9 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
 
     // A module that contributes to this point replaces the whole editable cell —
     // input and correction link — so core draws neither. Read-only cells above
-    // (done / step ledger) stay core's.
-    if (hasHook(hooks, SHIFT_CELL_HOOK)) {
+    // (done / step ledger) stay core's, and so does this one when the module's
+    // component is not in this build.
+    if (hasRenderableHook(hooks, SHIFT_CELL_HOOK)) {
         return (
             <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                 <Hook

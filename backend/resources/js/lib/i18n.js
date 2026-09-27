@@ -40,9 +40,17 @@ export async function loadLocale(locale) {
             .map(([, load]) => load().then((m) => m.default ?? {})),
     );
 
-    messages = Object.assign({}, ...fromModules, core);
+    messages = mergeMessages(core, fromModules);
     activeLocale = locale;
     return messages;
+}
+
+/**
+ * Module strings under core's: a module adds keys, it never redefines a core
+ * one. Later modules win over earlier ones among themselves.
+ */
+export function mergeMessages(core, fromModules = []) {
+    return Object.assign({}, ...fromModules, core);
 }
 
 export function locale() {

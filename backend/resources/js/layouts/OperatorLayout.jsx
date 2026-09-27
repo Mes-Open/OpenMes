@@ -25,7 +25,9 @@ export default function OperatorLayout({ children }) {
     // Tabs an enabled module registered via MenuRegistry::addOperatorItem().
     const moduleTabs = moduleNav?.operator ?? [];
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    const isActive = (prefix) => path === prefix || path.startsWith(prefix);
+    // Matched at a path boundary, so a tab for /operator/team is not also
+    // active on /operator/teams.
+    const isActive = (prefix) => path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`);
 
     return (
         <div className="min-h-screen flex flex-col bg-om-bg font-sans">

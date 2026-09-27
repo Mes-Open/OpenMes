@@ -3,7 +3,6 @@
 namespace Tests\Feature\Extension;
 
 use App\Extension\FilterRegistry;
-use App\Import\AbstractEntityImporter;
 use App\Import\ImportRegistry;
 use App\Models\User;
 use App\Services\MenuRegistry;
@@ -59,48 +58,5 @@ class ModuleSeamsTest extends TestCase
         $this->assertArrayHasKey('seam_things', $registry->forSection('admin'));
         $this->assertArrayNotHasKey('seam_things', $registry->forSection('supervisor'));
         $this->assertSame(count($before) + 1, count($registry->keys()));
-    }
-}
-
-class SeamThingImporter extends AbstractEntityImporter
-{
-    public function key(): string
-    {
-        return 'seam_things';
-    }
-
-    public function label(): string
-    {
-        return 'Seam things';
-    }
-
-    public function description(): string
-    {
-        return 'A test-only entity.';
-    }
-
-    public function fields(): array
-    {
-        return ['name' => ['label' => 'Name', 'required' => true, 'type' => 'text']];
-    }
-
-    public function options(): array
-    {
-        return [];
-    }
-
-    public function optionRules(): array
-    {
-        return [];
-    }
-
-    public function sample(): array
-    {
-        return ['headers' => ['name'], 'rows' => [['a']]];
-    }
-
-    public function import(array $rows, array $options): array
-    {
-        return ['imported' => count($rows), 'updated' => 0, 'skipped' => 0, 'errors' => []];
     }
 }

@@ -87,3 +87,13 @@ export function Hook({ name, hooks, ...context }) {
 export function hasHook(hooks, name) {
     return Boolean(hooks?.[name]?.length);
 }
+
+/**
+ * True when at least one contribution will actually render: it names no
+ * component (a generic card) or one this build contains. A hook point that
+ * REPLACES a core control asks this rather than hasHook(), so a module whose
+ * component is missing from the build never leaves the operator with nothing.
+ */
+export function hasRenderableHook(hooks, name) {
+    return (hooks?.[name] ?? []).some((c) => ! c.component || resolveHookComponent(c.component) !== null);
+}
