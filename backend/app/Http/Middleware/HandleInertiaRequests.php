@@ -64,6 +64,13 @@ class HandleInertiaRequests extends Middleware
                 //           panel's top bar (OperatorLayout), Inertia links.
                 'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
             ],
+            // Compiled frontends of modules installed after this app was built.
+            // Their pages are not in the bundle — nothing rebuilds it on a
+            // running system — so the browser fetches each module's own file and
+            // the module registers its pages before the first render.
+            // Plain closure, not Inertia::lazy: app.jsx reads this off the initial
+            // payload on a cold load, which a lazy prop would omit.
+            'moduleAssets' => fn () => app(\App\Services\ModuleManager::class)->frontendAssets(),
             // Operator chrome (OperatorLayout). Each is a seam a module can bend
             // without core knowing which module, or why:
             //   operatorTabs:      the top bar's own tabs, through filter `operator.tabs`

@@ -109,6 +109,8 @@ class ModuleManager
      */
     public function enable(string $name): void
     {
+        $this->publishAssets($name);
+
         $enabled = $this->enabledNames();
         if (! in_array($name, $enabled)) {
             $enabled[] = $name;
@@ -123,6 +125,94 @@ class ModuleManager
     {
         $enabled = array_values(array_filter($this->enabledNames(), fn ($n) => $n !== $name));
         $this->saveEnabled($enabled);
+
+        $this->unpublishAssets($name);
+    }
+
+    /**
+     * Copy a module's compiled frontend into public/, where the browser can
+     * fetch it.
+     *
+     * A module's pages are not in this app's bundle — that was compiled before
+     * the module existed, and nothing rebuilds it on a running system. The
+     * module ships its own built file instead, and it has to be reachable over
+     * HTTP for the browser to load it; modules/ is not web-accessible.
+     *
+     * Silently does nothing for a module without a built frontend: plenty of
+     * modules are backend-only, and those are not broken.
+     */
+    public function publishAssets(string $name): void
+    {
+        $source = "{$this->modulesPath}/{$name}/public/{$name}.js";
+
+        if (! is_file($source)) {
+            return;
+        }
+
+        $targetDir = public_path('modules');
+        if (! is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        copy($source, "{$targetDir}/{$name}.js");
+
+        // The sidecar records which runtime contract the module was built
+        // against; HandleInertiaRequests passes it on so the browser can refuse
+        // a module built for a core it no longer matches.
+        $manifest = "{$this->modulesPath}/{$name}/public/{$name}.runtime.json";
+        if (is_file($manifest)) {
+            copy($manifest, "{$targetDir}/{$name}.runtime.json");
+        }
+    }
+
+    /** Remove what publishAssets() put in public/. */
+    public function unpublishAssets(string $name): void
+    {
+        foreach (["{$name}.js", "{$name}.runtime.json"] as $file) {
+            $path = public_path("modules/{$file}");
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Enabled modules that ship a frontend, as the browser needs them: a URL to
+     * load and the contract version the file was built against.
+     *
+     * @return array<int, array{name: string, url: string, requires_runtime: int|null}>
+     */
+    public function frontendAssets(): array
+    {
+        $assets = [];
+
+        foreach ($this->enabledNames() as $name) {
+            $path = public_path("modules/{$name}.js");
+
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $requires = null;
+            $sidecar = public_path("modules/{$name}.runtime.json");
+            if (is_file($sidecar)) {
+                $decoded = json_decode(file_get_contents($sidecar), true);
+                $requires = is_array($decoded) ? ($decoded['requires_runtime'] ?? null) : null;
+            }
+
+            $assets[] = [
+                'name' => $name,
+                // Cache-busted on the file's contents, not its mtime: publishing
+                // copies the file, so mtime is "when it was copied" — it changes
+                // on every enable/disable cycle even when nothing about the
+                // module did, throwing away the browser's cache for no reason,
+                // and two publishes inside the same second collide.
+                'url' => "/modules/{$name}.js?v=".substr(md5_file($path), 0, 12),
+                'requires_runtime' => $requires,
+            ];
+        }
+
+        return $assets;
     }
 
     /**
