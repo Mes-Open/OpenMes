@@ -7,6 +7,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
+  get-binary` asked api.github.com for the release list on every build, and five services in
+  `docker-compose.yml` build from this Dockerfile — so one `up --build` made that call several
+  times over, in parallel. A resolver that answered NODATA under that burst failed the whole
+  install with an error that pointed at RoadRunner rather than at the network. The binary now
+  comes from the official image, pinned to the `spiral/roadrunner` release in `composer.lock`.
+
 ### Added
 
 - **A module can reach the operator's station screen**: a display region on the workstation
