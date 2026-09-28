@@ -75,6 +75,9 @@ services:
       # entrypoint runs a queue worker on the primary, so this works out of the
       # box. (Live-sync broadcasts are ShouldBroadcastNow and unaffected.)
       QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      # Anonymous usage reports. Unset means "ask the stored setting";
+      # false forces reporting off without touching the database.
+      OPENMES_TELEMETRY: ${OPENMES_TELEMETRY:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
