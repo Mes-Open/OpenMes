@@ -382,7 +382,18 @@ class ModuleManager
             $provider = $manifest['provider'] ?? null;
 
             if ($provider && class_exists($provider)) {
-                $app->register($provider);
+                // Wrapped rather than registered directly: an exception from the
+                // provider's boot() is thrown while Laravel boots every provider,
+                // long after this method returned, so the caller's try/catch
+                // cannot see it — and one bad module would 502 the whole app.
+                //
+                // Registered with force, because the container deduplicates by
+                // class name: without it the second module's guard would be
+                // mistaken for the first one's and silently skipped.
+                $app->register(
+                    new \App\Support\ModuleProviderGuard($app, new $provider($app), $name),
+                    force: true,
+                );
             }
         }
     }
