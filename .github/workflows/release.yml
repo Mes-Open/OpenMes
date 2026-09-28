@@ -140,13 +140,21 @@ jobs:
           # along in a release built from it. The three bundled examples are
           # tracked source and stay — the include rules come first because rsync
           # takes the first matching rule.
+          #
+          # Every pattern is ANCHORED with a leading slash, meaning
+          # backend/modules and nothing else. Without it rsync matches a
+          # directory called `modules` at any depth, and this repository has a
+          # second one: resources/js/Pages/admin/modules. Unanchored, these rules
+          # stripped the Modules admin screen out of every release — so the one
+          # screen that installs a module was missing from the package, and the
+          # UI answered "Page unavailable" with no way to tell why.
           rsync -a backend/ "${DIST}/backend/" \
-            --include='modules/' \
-            --include='modules/README.md' \
-            --include='modules/ExampleHooks/***' \
-            --include='modules/ExampleShowcase/***' \
-            --include='modules/OrderPinger/***' \
-            --exclude='modules/*' \
+            --include='/modules/' \
+            --include='/modules/README.md' \
+            --include='/modules/ExampleHooks/***' \
+            --include='/modules/ExampleShowcase/***' \
+            --include='/modules/OrderPinger/***' \
+            --exclude='/modules/*' \
             --exclude='.env' \
             --exclude='node_modules' \
             --exclude='tests' \
@@ -171,6 +179,28 @@ jobs:
           mkdir -p "${DIST}/backend/storage/framework/sessions"
           mkdir -p "${DIST}/backend/storage/framework/views"
           touch "${DIST}/backend/storage/logs/.gitkeep"
+
+          # Every tracked file under backend/resources/ has to be in the package.
+          #
+          # This is the check that was missing when an unanchored rsync exclude
+          # quietly dropped resources/js/Pages/admin/modules — three files out of
+          # 228, in a package nobody counts by hand. The Dockerfile check below
+          # did not catch it: the directory it copies was there, only emptied.
+          #
+          # resources/ is entirely source that ships; anything excluded from it
+          # is a mistake by definition, which is what makes this safe to assert.
+          missing_resources=0
+          while read -r tracked; do
+            rel="${tracked#backend/}"
+            if [ ! -e "${DIST}/backend/${rel}" ]; then
+              echo "::error::${tracked} is tracked but missing from the release package"
+              missing_resources=$((missing_resources + 1))
+            fi
+          done < <(git ls-files backend/resources)
+          if [ "$missing_resources" -ne 0 ]; then
+            echo "::error::${missing_resources} tracked file(s) under backend/resources did not make it into the package"
+            exit 1
+          fi
 
           # The package promises `docker compose up -d --build` works from the
           # unpacked folder, so every path the Dockerfile copies has to be in it.

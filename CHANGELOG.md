@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **The release package no longer ships without the Modules admin screen.** The rsync rules
+  that keep locally installed modules out of a release were unanchored, so they matched any
+  directory called `modules` — and this repository has a second one,
+  `resources/js/Pages/admin/modules`. Three files were dropped from every package, which left
+  the one screen that installs a module answering "Page unavailable" with no way to tell why.
+  The rules are anchored to `backend/modules`, and the release now fails if any tracked file
+  under `backend/resources` is missing from the package.
+
+### Fixed
+
 - **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
   get-binary` asked api.github.com for the release list on every build, and five services in
   `docker-compose.yml` build from this Dockerfile — so one `up --build` made that call several
