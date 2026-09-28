@@ -6,6 +6,7 @@ import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import Tooltip from '../../components/Tooltip';
+import QuantityField from '../../components/QuantityField';
 import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` classes removed.
@@ -258,9 +259,9 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
                             <div className={monoLabelCls}>
                                 {__("Produced quantity")} <span className="text-om-blocked">*</span>
                             </div>
-                            <input aria-label={__("Produced quantity")} type="number"
+                            <QuantityField variant="big" aria-label={__("Produced quantity")}
                                    value={qty}
-                                   onChange={(e) => setQty(e.target.value)}
+                                   onChange={setQty}
                                    className="w-full rounded-om-sm border border-om-line bg-om-bg font-mono text-3xl font-medium text-center py-4 text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
                                    placeholder="0" min="0" step="0.01" required autoFocus />
                             <p className="text-xs text-om-faint mt-1.5">{__("Enter the number of units actually produced.")}</p>

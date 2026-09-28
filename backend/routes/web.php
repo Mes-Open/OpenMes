@@ -73,21 +73,25 @@ use Illuminate\Support\Facades\Route;
 if (! function_exists('registerImportRoutes')) {
     function registerImportRoutes(): void
     {
+        // `{entity}` is only shape-checked here. The slug list cannot be read at
+        // this point: routes are defined before module providers boot, so a
+        // module importer added through the `import.entities` filter would 404.
+        // An unknown slug still 404s in DataImportController::resolve().
         Route::get('/import/runs/{import}', [DataImportController::class, 'show'])->name('import.show');
         Route::get('/import/runs/{import}/errors.csv', [DataImportController::class, 'errors'])->name('import.errors');
         Route::delete('/import/profiles/{mapping}', [DataImportController::class, 'destroyProfile'])->name('import.profiles.destroy');
         Route::get('/import/samples/{entity}', [DataImportController::class, 'sample'])->name('import.sample')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::post('/import/{entity}/upload', [DataImportController::class, 'upload'])->name('import.upload')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::get('/import/{entity}/map/{token}', [DataImportController::class, 'map'])->name('import.map')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+            ->where('entity', '[a-z0-9-]+')->where('token', '[A-Za-z0-9]{32}');
         Route::post('/import/{entity}/preview/{token}', [DataImportController::class, 'preview'])->name('import.preview')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+            ->where('entity', '[a-z0-9-]+')->where('token', '[A-Za-z0-9]{32}');
         Route::post('/import/{entity}/process', [DataImportController::class, 'process'])->name('import.process')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::get('/import/{entity?}', [DataImportController::class, 'index'])->name('import.index')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
     }
 
 }

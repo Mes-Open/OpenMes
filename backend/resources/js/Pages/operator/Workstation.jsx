@@ -8,7 +8,8 @@ import LabelPrintMenu from '../../components/LabelPrintMenu';
 import Tooltip from '../../components/Tooltip';
 import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
-import { Hook } from '../../lib/hooks';
+import { Hook, hasRenderableHook } from '../../lib/hooks';
+import QuantityField from '../../components/QuantityField';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
 
@@ -156,7 +157,12 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
 
 // ─── shift cell ─────────────────────────────────────────────────────────────
 
+const SHIFT_CELL_HOOK = 'display.operator.workstation.shift_cell';
+
 function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes }) {
+    // Read page-wide rather than threaded through every row: the controller
+    // resolved this page's hook points into the `hooks` prop.
+    const { hooks } = usePage().props;
     const isDone = wo.status === 'DONE';
     const entryKey = `${wo.id}_${shift.id}`;
     const entriesForCell = shiftEntries[entryKey] ?? [];
@@ -196,6 +202,25 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
         (qtyEditPolicy === 'full' ||
             (qtyEditPolicy === 'timed' &&
                 new Date(firstEntry.updated_at).getTime() + qtyEditWindowMinutes * 60 * 1000 > Date.now()));
+
+    // A module that contributes to this point replaces the whole editable cell —
+    // input and correction link — so core draws neither. Read-only cells above
+    // (done / step ledger) stay core's, and so does this one when the module's
+    // component is not in this build.
+    if (hasRenderableHook(hooks, SHIFT_CELL_HOOK)) {
+        return (
+            <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
+                <Hook
+                    name={SHIFT_CELL_HOOK}
+                    hooks={hooks}
+                    entry={firstEntry}
+                    workOrder={wo}
+                    shift={shift}
+                    canCorrect={Boolean(canCorrect)}
+                />
+            </td>
+        );
+    }
 
     return (
         <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
@@ -340,11 +365,11 @@ function CompleteModal({ modal, onClose }) {
                             <div className={fieldLabelCls}>
                                 Quantity <span className="text-om-blocked">*</span>
                             </div>
-                            <input
+                            <QuantityField
+                                variant="big"
                                 aria-label="Quantity"
-                                type="number"
                                 value={qty}
-                                onChange={(e) => setQty(e.target.value)}
+                                onChange={setQty}
                                 className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-4 font-mono text-[30px] font-medium tracking-[-0.02em] text-center text-om-ink placeholder:text-om-faintest outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]"
                                 placeholder="0"
                                 min="0"

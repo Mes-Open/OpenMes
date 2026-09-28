@@ -33,6 +33,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   A module distributed as a ZIP cannot ship working React into a released install — the page
   globs are expanded when core is built — so contributing data that core renders is the only
   arrangement that works at all.
+- Module seams: `MenuRegistry::addOperatorItem()` puts a module's screen on the operator top bar as a tab; `modules/<Name>/lang/<locale>.json` strings are merged into the frontend translations; `ImportRegistry` accepts module importers through the `import.entities` filter; `Tests\Support\ModuleTestCase` migrates a module's tables inside the test transaction. Module-contributed nav entries are tinted with the accent colour and highlight on their own pages (they registered absolute URLs, which the path-based active check never matched).
 
 ### Fixed
 

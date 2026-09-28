@@ -21,6 +21,12 @@ class WorkstationController extends Controller
     /** Where a module may contribute to the operator's station screen. */
     private const STATION_HOOK = 'display.operator.workstation.actor';
 
+    /** Replaces a whole shift cell (quantity input + correction link). */
+    private const SHIFT_CELL_HOOK = 'display.operator.workstation.shift_cell';
+
+    /** Replaces every operator number input on the page. */
+    private const QUANTITY_FIELD_HOOK = 'display.operator.quantity_field';
+
     /**
      * Workstation production view — flat table with inline quantity entry.
      */
@@ -149,9 +155,17 @@ class WorkstationController extends Controller
         // a module identifying the person at the machine has something to say,
         // and a module cannot ship its own React into a released install.
         // Empty on a community install, where the prop is `{}`.
+        //
+        // The shift cell and quantity field points REPLACE a core control when a
+        // module contributes; the page checks hasHook() and otherwise draws its own.
         $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
-            [self::STATION_HOOK],
-            ['line' => $line, 'workstation' => $selectedWorkstation],
+            [self::STATION_HOOK, self::SHIFT_CELL_HOOK, self::QUANTITY_FIELD_HOOK],
+            [
+                'line' => $line,
+                'workstation' => $selectedWorkstation,
+                'lineId' => (int) $lineId,
+                'workstationId' => $selectedWorkstation?->id,
+            ],
         );
 
         return Inertia::render('operator/Workstation', compact(

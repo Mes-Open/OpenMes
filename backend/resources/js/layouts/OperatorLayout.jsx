@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { OnlineDot } from '@openmes/ui';
 import Tooltip from '../components/Tooltip';
+import { Hook } from '../lib/hooks';
 import { __ } from '../lib/i18n';
 
 /**
@@ -17,9 +18,16 @@ import { __ } from '../lib/i18n';
  * Geist White restyle: light-only v1 — former `dark:` classes removed.
  */
 export default function OperatorLayout({ children }) {
-    const { auth, line, selectedWorkstation, csrf_token } = usePage().props;
+    const {
+        auth, line, selectedWorkstation, csrf_token, moduleNav,
+        operatorTabs = [], operatorCanLogout = true, operatorHooks = {},
+    } = usePage().props;
+    // Tabs an enabled module registered via MenuRegistry::addOperatorItem().
+    const moduleTabs = moduleNav?.operator ?? [];
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    const isActive = (prefix) => path === prefix || path.startsWith(prefix);
+    // Matched at a path boundary, so a tab for /operator/team is not also
+    // active on /operator/teams.
+    const isActive = (prefix) => path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`);
 
     return (
         <div className="min-h-screen flex flex-col bg-om-bg font-sans">
@@ -42,12 +50,17 @@ export default function OperatorLayout({ children }) {
 
                     {line && (
                         <nav className="order-last w-full flex flex-wrap items-center gap-2 md:order-none md:w-auto md:ml-auto">
-                            <TopLink href="/operator/queue" active={isActive('/operator/queue') || isActive('/operator/work-order')}>
-                                {__('Queue')}
-                            </TopLink>
-                            <TopLink href="/operator/workstation" active={isActive('/operator/workstation')}>
-                                {__('Workstation')}
-                            </TopLink>
+                            {/* Core tabs arrive as data (filter `operator.tabs`), so a module can drop or reorder them. */}
+                            {operatorTabs.map((tab) => (
+                                <TopLink key={tab.key} href={tab.url} active={(tab.prefixes ?? [tab.url]).some(isActive)}>
+                                    {__(tab.label)}
+                                </TopLink>
+                            ))}
+                            {moduleTabs.map((tab) => (
+                                <TopLink key={tab.url} href={tab.url} active={isActive(tab.prefix)} module>
+                                    {__(tab.label)}
+                                </TopLink>
+                            ))}
                             <Link
                                 href="/operator/select-line"
                                 className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
@@ -64,26 +77,29 @@ export default function OperatorLayout({ children }) {
                             </div>
                             <span className="text-sm text-om-ink hidden md:block">{auth?.user?.name}</span>
                         </div>
-                        <form action="/logout" method="POST">
-                            <input type="hidden" name="_token" value={csrf_token} />
-                            <Tooltip label="Logout">
-                                <button
-                                    type="submit"
-                                    aria-label="Logout"
-                                    className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
-                                </button>
-                            </Tooltip>
-                        </form>
+                        {operatorCanLogout && (
+                            <form action="/logout" method="POST">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <Tooltip label="Logout">
+                                    <button
+                                        type="submit"
+                                        aria-label="Logout"
+                                        className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                    </button>
+                                </Tooltip>
+                            </form>
+                        )}
                     </div>
                 </div>
             </header>
 
             <main className="flex-1 overflow-auto p-4 md:p-6">
+                <Hook name="display.operator.layout" hooks={operatorHooks} />
                 <FlashMessages />
                 {children}
             </main>
@@ -91,13 +107,15 @@ export default function OperatorLayout({ children }) {
     );
 }
 
-function TopLink({ href, active, children }) {
+// `module` marks a tab an installed module contributed: tinted with the accent
+// so the panel shows at a glance which tabs are core and which are not.
+function TopLink({ href, active, module = false, children }) {
     return (
         <Link
             href={href}
             className={`px-4 py-2.5 rounded-om-sm text-sm font-semibold transition-colors ${
-                active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
-            }`}
+                active ? 'bg-om-ink text-om-on-ink' : module ? 'bg-om-accent-bg text-om-accent hover:bg-om-accent hover:text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
+            }${module && active ? ' ring-2 ring-om-accent' : ''}`}
         >
             {children}
         </Link>

@@ -60,7 +60,23 @@ class HandleInertiaRequests extends Middleware
             'moduleNav' => [
                 'items' => fn () => app(\App\Services\MenuRegistry::class)->getAllItems(),
                 'groups' => fn () => app(\App\Services\MenuRegistry::class)->getGroups(),
+                //   operator: [{label,url,order,prefix}] extra tabs on the operator
+                //           panel's top bar (OperatorLayout), Inertia links.
+                'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
             ],
+            // Operator chrome (OperatorLayout). Each is a seam a module can bend
+            // without core knowing which module, or why:
+            //   operatorTabs:      the top bar's own tabs, through filter `operator.tabs`
+            //   operatorCanLogout: whether the logout button shows, filter `operator.can_logout`
+            //                      (UX only — a module that forbids logout refuses the POST itself)
+            //   operatorHooks:     display hook `display.operator.layout`, rendered at the
+            //                      top of every operator screen
+            // With no module listening these are the defaults, `true` and `{}`.
+            'operatorTabs' => fn () => $this->operatorTabs($user),
+            'operatorCanLogout' => fn () => (bool) app(\App\Extension\FilterRegistry::class)
+                ->filter('operator.can_logout', true, ['user' => $user]),
+            'operatorHooks' => fn () => app(\App\Extension\HookRegistry::class)
+                ->renderMany(['display.operator.layout'], ['user' => $user]),
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend
@@ -112,6 +128,23 @@ class HandleInertiaRequests extends Middleware
             // and both this and the `accessibleTabs` prop need it.
             $this->accessibleTabs($user),
         );
+    }
+
+    /**
+     * The operator top bar's core tabs, as data a module may filter. Labels are
+     * English keys; the frontend translates them. A tab is active while the path
+     * starts with any of its `prefixes`.
+     *
+     * @return list<array{key: string, label: string, url: string, prefixes: list<string>}>
+     */
+    private function operatorTabs($user): array
+    {
+        $tabs = [
+            ['key' => 'queue', 'label' => 'Queue', 'url' => '/operator/queue', 'prefixes' => ['/operator/queue', '/operator/work-order']],
+            ['key' => 'workstation', 'label' => 'Workstation', 'url' => '/operator/workstation', 'prefixes' => ['/operator/workstation']],
+        ];
+
+        return array_values(app(\App\Extension\FilterRegistry::class)->filter('operator.tabs', $tabs, ['user' => $user]));
     }
 
     private function alertCount($user): int
