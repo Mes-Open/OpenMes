@@ -7,6 +7,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **The install scripts now ask about anonymous usage reports.** The web setup wizard has
+  asked since reporting became opt-in, but a Docker install never reaches that wizard — the
+  entrypoint creates the admin and marks the application installed — so nobody installing with
+  `install.sh` or `install.ps1` was ever asked. The prompt defaults to **no**, and an
+  unattended run is treated as no rather than as consent. The answer is written to
+  `OPENMES_TELEMETRY` in `.env`, passed to the container, and recorded once by the entrypoint
+  before the install is marked complete, so it can never overwrite a later choice made in
+  Settings → System.
+
 ### Fixed
 
 - **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
