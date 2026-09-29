@@ -111,7 +111,8 @@ class BomService
             ->values();
 
         return $items->map(function (BomItem $item) use ($productionQty) {
-            $baseQty = round($item->quantity_per_unit * $productionQty, 4);
+            // Per finished unit: a per-carton or per-pallet line divides by the packing step's size.
+            $baseQty = round($item->perUnitQuantity() * $productionQty, 4);
             $scrapQty = round($baseQty * ($item->scrap_percentage / 100), 4);
 
             return [

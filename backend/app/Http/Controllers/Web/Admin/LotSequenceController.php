@@ -21,7 +21,7 @@ class LotSequenceController extends Controller
             'productTypeNames' => fn () => ProductType::pluck('name', 'id'),
             // The drawer's option lists — fetched on first open, not per visit.
             'productTypes' => Inertia::optional(fn () => $this->activeProductTypes()),
-            'patternTokens' => Inertia::optional(fn () => LotPatternFormatter::TOKENS),
+            'patternTokens' => Inertia::optional(fn () => (new LotPatternFormatter)->describe(now())),
         ]);
     }
 
@@ -29,7 +29,7 @@ class LotSequenceController extends Controller
     {
         return Inertia::render('admin/lot-sequences/Create', [
             'productTypes' => $this->activeProductTypes(),
-            'patternTokens' => LotPatternFormatter::TOKENS,
+            'patternTokens' => (new LotPatternFormatter)->describe(now()),
         ]);
     }
 
@@ -48,7 +48,7 @@ class LotSequenceController extends Controller
                 'pattern', 'pad_size', 'year_prefix', 'reset_period',
             ),
             'productTypes' => $this->activeProductTypes(),
-            'patternTokens' => LotPatternFormatter::TOKENS,
+            'patternTokens' => (new LotPatternFormatter)->describe(now()),
         ]);
     }
 

@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import CustomFields from '../../../components/CustomFields';
+import ModuleFields from '../../../components/ModuleFields';
 import { customFieldProps } from '../../../lib/customFieldForm';
 import { nameControl } from '../../../lib/fieldName';
 
@@ -12,7 +13,7 @@ import { nameControl } from '../../../lib/fieldName';
  * The skills matrix mirrors UserForm: a checkbox per skill plus a 1–5 level
  * select, writing form.data.skills = [{ id, level }].
  */
-export default function WorkerForm({ form, crews, wageGroups, personnelClasses, skills, customFields = [], isEdit, onSubmit }) {
+export default function WorkerForm({ form, crews, wageGroups, personnelClasses, skills, customFields = [], hooks, isEdit, onSubmit }) {
     const { data, setData, errors, processing } = form;
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
@@ -125,6 +126,14 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
             </div>
 
             {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
+
+            <ModuleFields
+                hooks={hooks}
+                name="display.admin.workers.form.fields"
+                values={data}
+                onChange={setData}
+                errors={errors}
+            />
 
             <div className="flex items-center gap-3 pt-2">
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>

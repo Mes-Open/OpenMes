@@ -170,7 +170,7 @@ Dedicated station for scanning finished products with a barcode reader (EAN/QR) 
 
 **How it works:**
 
-1. Operator opens `/packaging/station` on a dedicated workstation or tablet
+1. Operator opens `/operator/packaging` on a dedicated workstation or tablet (supervisors and admins reach the same screen at `/packaging/station`)
 2. Scans an EAN barcode with a USB/Bluetooth reader (or types it manually)
 3. The system looks up which work order the EAN belongs to and increments its `packed_qty` counter
 4. Live stats update every 3 seconds: packed today, plan, backlog, realisation %
@@ -187,7 +187,8 @@ Dedicated station for scanning finished products with a barcode reader (EAN/QR) 
 
 | URL | Access | Description |
 |---|---|---|
-| `/packaging/station` | Operator, Supervisor, Admin | Scanning station |
+| `/operator/packaging` | Operator | Scanning station (operator shell) |
+| `/packaging/station` | Supervisor, Admin | Scanning station (admin shell; operators are redirected to `/operator/packaging`) |
 | `/packaging/` | Supervisor, Admin | Admin overview |
 | `/packaging/eans` | Supervisor, Admin | EAN code management |
 

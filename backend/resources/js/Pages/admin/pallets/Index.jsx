@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
+import LabelPrintMenu from '../../../components/LabelPrintMenu';
 import PalletForm, { palletInitial } from './PalletForm';
 import { __ } from '../../../lib/i18n';
 
@@ -52,41 +54,31 @@ function NoTemplateBanner() {
     );
 }
 
-/** Inline label buttons for a pallet row — PDF opens in a new tab, ZPL downloads. */
+/**
+ * The row's label: the same preview modal (print, ZPL, template choice) the
+ * stations use, instead of PDF and ZPL links that leave the page.
+ */
 function LabelCell({ palletId, templates }) {
     // No template configured → a muted dash; the page-level banner drives the
     // "prepare a label" call to action instead of repeating it on every row.
     if (!templates.length) {
         return <span className="text-om-faint">—</span>;
     }
-    const tpl = templates.find((t) => t.is_default) ?? templates[0];
-    const base = `/packaging/labels/pallet/${palletId}`;
-    return (
-        <div className="flex items-center gap-1.5">
-            <a
-                href={`${base}/pdf?template=${tpl.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-xs font-semibold bg-om-ink text-om-on-ink hover:bg-om-ink-hover shadow-sm"
-            >
-                {PRINTER_ICON} PDF
-            </a>
-            <a
-                href={`${base}/zpl?template=${tpl.id}`}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-om-sm text-xs font-medium bg-om-ink text-om-on-ink hover:bg-om-ink-hover"
-                title="Download ZPL for a Zebra printer"
-            >
-                ZPL
-            </a>
-        </div>
-    );
+    return <LabelPrintMenu kind="pallet" id={palletId} templates={templates} label={__('Label')} size="sm" />;
 }
 
 export default function PalletsIndex() {
     const drawer = useResourceDrawer();
 
-    const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [], workOrders, statuses } = usePage().props;
+    const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [], workOrders, statuses, editPallet = null } = usePage().props;
     const formReady = workOrders !== undefined && statuses !== undefined;
+
+    // A deep link to /admin/pallets/{id}/edit arrives as ?edit={id} with the
+    // record attached: open the drawer on it, the same way a row's Edit does.
+    useEffect(() => {
+        if (editPallet) drawer.edit(editPallet);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editPallet?.id]);
 
     const columns = [
         { key: 'pallet_no', label: __('Pallet number'), className: 'font-mono font-medium text-om-ink', filter: 'text' },
@@ -130,12 +122,14 @@ export default function PalletsIndex() {
         {
             key: 'label',
             label: __('Label'),
+            filter: false,
             render: (r) => <LabelCell palletId={r.id} templates={labelTemplates} />,
         },
     ];
 
     const actions = (r) => [
         { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        { label: __('Packing list'), icon: 'document', onClick: () => window.open(`/packaging/labels/pallet/${r.id}/packing-list`, '_blank', 'noopener') },
         {
             label: 'Delete',
             icon: 'delete',

@@ -203,11 +203,16 @@ class AuthController extends Controller
             return redirect()->route('supervisor.dashboard');
         }
 
-        // Workstation accounts skip line selection — go straight to queue
+        // Workstation accounts skip line selection and open on their bench's
+        // first screen - a packing bench on packing, not on a queue it has no tab for.
         if ($user->account_type === 'workstation' && $user->workstation_id) {
-            $lineId = $user->workstation?->line_id;
-            if ($lineId) {
-                return redirect()->route('operator.queue', ['line' => $lineId]);
+            $workstation = $user->workstation;
+            if ($workstation?->line_id) {
+                session(['selected_line_id' => $workstation->line_id, 'selected_workstation_id' => $workstation->id]);
+                $screens = app(\App\Services\Production\OperatorScreens::class);
+                $route = $screens->landingRoute($screens->for($user, $workstation), $workstation->line?->default_operator_view ?? 'queue');
+
+                return redirect()->route($route, ['line' => $workstation->line_id]);
             }
         }
 

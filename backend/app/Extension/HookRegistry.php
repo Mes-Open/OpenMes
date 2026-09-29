@@ -2,6 +2,8 @@
 
 namespace App\Extension;
 
+use Illuminate\Support\Facades\Log;
+
 /**
  * Display hooks — named points on a page where a module may contribute something.
  *
@@ -14,6 +16,14 @@ namespace App\Extension;
  * Registered as a SCOPED binding, not a singleton: under Octane the container
  * outlives the request, and a registry that accumulated across requests would
  * render a module's contribution twice on the second hit.
+ *
+ * ⚠️ `component` works only for a module that was present when the core frontend
+ * was built. The page glob below is expanded by Vite at build time, and the
+ * release ZIP ships a prebuilt frontend — so a module INSTALLED FROM A ZIP can
+ * never deliver a working component, and naming one produces an empty region and
+ * a console warning. Such a module must contribute the data fields instead and
+ * let core render them. This is the same trap that produced a blank
+ * /admin/plant-reports; do not walk into it again.
  *
  * Naming a hook point: `display.<page>.<region>`, e.g.
  *   display.admin.lines.form.fields
@@ -31,14 +41,43 @@ namespace App\Extension;
  *
  * Deliberately NOT shared from HandleInertiaRequests: resolving every hook on
  * every request would run a module's queries on pages that never use them.
+ *
+ * The same registry also carries `persist.<page>` points, resolved with
+ * dispatch() rather than render(): those are called for their effect, inside the
+ * controller's transaction, so a module can store what it contributed.
  */
 class HookRegistry
 {
     /** @var array<string, list<array{order: int, payload: callable|array<string, mixed>}>> */
     private array $handlers = [];
 
-    /** Fields a contribution may carry; anything else is dropped. */
-    private const ALLOWED = ['component', 'props', 'slot', 'title', 'metric', 'body', 'href', 'external', 'tone'];
+    /**
+     * Fields a contribution may carry; anything else is dropped.
+     *
+     * Two groups. The card fields (title/metric/body/href/external/tone) are what
+     * WidgetRegistry has always carried. The field fields (name/type/label/…)
+     * describe one form input, which is what a module needs to add a field to a
+     * core form — see ModuleFields.jsx for what renders them.
+     *
+     * `required` is cosmetic, an asterisk and nothing more: whether the value is
+     * actually demanded is decided by the module's validation rule, contributed
+     * separately through FilterRegistry. A contribution cannot make the backend
+     * demand anything.
+     */
+    private const ALLOWED = [
+        'component', 'props', 'slot',
+        'title', 'metric', 'body', 'href', 'external', 'tone',
+        'name', 'type', 'label', 'value', 'options', 'placeholder', 'help', 'required',
+    ];
+
+    /**
+     * Input types a contributed field may ask for.
+     *
+     * Kept short on purpose. Every entry is a control core already renders, and a
+     * contribution naming anything else is dropped rather than guessed at — a
+     * page that renders an unknown control is how a typo becomes a broken form.
+     */
+    private const FIELD_TYPES = ['text', 'select', 'checkbox'];
 
     /**
      * Contribute to a hook point.
@@ -82,10 +121,39 @@ class HookRegistry
                 continue;
             }
 
-            $out[] = array_intersect_key($result, array_flip(self::ALLOWED));
+            $contribution = array_intersect_key($result, array_flip(self::ALLOWED));
+
+            if (! $this->fieldTypeIsRenderable($contribution, $hook)) {
+                continue;
+            }
+
+            $out[] = $contribution;
         }
 
         return $out;
+    }
+
+    /**
+     * A contributed field naming a type core cannot draw is dropped, with a line
+     * in the log — the same degradation the browser side applies to a component
+     * this build does not contain.
+     *
+     * @param  array<string, mixed>  $contribution
+     */
+    private function fieldTypeIsRenderable(array $contribution, string $hook): bool
+    {
+        if (! isset($contribution['type']) || in_array($contribution['type'], self::FIELD_TYPES, true)) {
+            return true;
+        }
+
+        Log::warning('A module contributed a field of a type this application cannot render.', [
+            'hook' => $hook,
+            'type' => $contribution['type'],
+            'field' => $contribution['name'] ?? null,
+            'renderable' => self::FIELD_TYPES,
+        ]);
+
+        return false;
     }
 
     /**
@@ -114,5 +182,36 @@ class HookRegistry
         }
 
         return $out;
+    }
+
+    /**
+     * Tell the listeners that a record was saved, so a module can store what it
+     * contributed to the form.
+     *
+     * Unlike render(), this returns nothing and is called for its effect. Call it
+     * INSIDE the controller's transaction: a module's write belongs to the same
+     * unit of work as the record it hangs off, or a failure there leaves the
+     * account saved and its module field silently lost.
+     *
+     * A listener that throws therefore rolls the whole save back, which is the
+     * intended behaviour and not an accident — see the transaction test.
+     *
+     * The context carries the validated input and the saved model; a module reads
+     * only its own prefixed keys from it.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    public function dispatch(string $hook, array $context = []): void
+    {
+        $handlers = $this->handlers[$hook] ?? [];
+        usort($handlers, fn ($a, $b) => $a['order'] <=> $b['order']);
+
+        foreach ($handlers as $handler) {
+            $payload = $handler['payload'];
+
+            if (is_callable($payload)) {
+                $payload($context);
+            }
+        }
     }
 }

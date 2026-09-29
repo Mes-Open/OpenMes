@@ -8,6 +8,7 @@ use App\Models\QualityControlTask;
 use App\Models\ScrapEntry;
 use App\Models\Shift;
 use App\Models\User;
+use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\Material\MaterialAllocationService;
 use App\Services\Quality\QualityTriggerService;
@@ -57,6 +58,12 @@ class BatchService
             $batch = $step->batch;
             $wasPending = $batch->status === Batch::STATUS_PENDING;
 
+            // Production hold (setting): a batch does not start production while
+            // stock cannot cover its order - the planner's shortage check, enforced.
+            if ($wasPending && self::holdsOnMaterialShortage()) {
+                $this->assertMaterialAvailable($batch->workOrder);
+            }
+
             // Start the step
             $step->update([
                 'status' => BatchStep::STATUS_IN_PROGRESS,
@@ -87,6 +94,31 @@ class BatchService
 
             return $step->fresh();
         });
+    }
+
+    /** System setting `hold_on_material_shortage` (off unless switched on). */
+    public static function holdsOnMaterialShortage(): bool
+    {
+        try {
+            return (bool) json_decode((string) DB::table('system_settings')->where('key', 'hold_on_material_shortage')->value('value'), true);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** @throws \DomainException naming what is missing and how much */
+    private function assertMaterialAvailable(WorkOrder $workOrder): void
+    {
+        $short = $this->allocationService->shortagesForWorkOrders(collect([$workOrder]))[$workOrder->id] ?? [];
+        if ($short === []) {
+            return;
+        }
+        $items = collect($short)->map(fn ($line) => trim(($line['material_code'] ?? $line['material_name'] ?? '?').' ('.__('missing :qty :unit', [
+            'qty' => rtrim(rtrim(number_format((float) $line['missing_qty'], 3, '.', ''), '0'), '.'),
+            'unit' => $line['unit_of_measure'] ?? '',
+        ]).')'))->implode(', ');
+
+        throw new \DomainException(__('Production hold: stock does not cover order :order. Missing: :items.', ['order' => $workOrder->order_no, 'items' => $items]));
     }
 
     /**

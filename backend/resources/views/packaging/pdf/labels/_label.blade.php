@@ -3,6 +3,12 @@
     <table class="label-grid">
         <tr>
             <td class="label-content" style="width: {{ $label['content_width'] }}mm;">
+                @if($template->hasField('serial_no') && !empty($label['fields']['serial_no']))
+                    <div class="line wo-number">{{ $label['fields']['serial_no'] }}</div>
+                @endif
+                @if($template->hasField('psn') && !empty($label['fields']['psn']))
+                    <div class="line lot">PSN: {{ $label['fields']['psn'] }}</div>
+                @endif
                 @if($template->hasField('pallet_no') && !empty($label['fields']['pallet_no']))
                     <div class="line wo-number">{{ $label['fields']['pallet_no'] }}</div>
                 @endif
@@ -14,6 +20,15 @@
                 @endif
                 @if($template->hasField('quantity') && !empty($label['fields']['quantity']))
                     <div class="line">Qty: <strong>{{ $label['fields']['quantity'] }}</strong></div>
+                @endif
+                @if($template->hasField('material') && !empty($label['fields']['material']))
+                    <div class="line product">{{ $label['fields']['material'] }}</div>
+                @endif
+                @if($template->hasField('status') && !empty($label['fields']['status']))
+                    <div class="line"><strong>{{ $label['fields']['status'] }}</strong></div>
+                @endif
+                @if($template->hasField('supplier_lot') && !empty($label['fields']['supplier_lot']))
+                    <div class="line muted">{{ $label['fields']['supplier_lot'] }}</div>
                 @endif
                 @if($template->hasField('lot') && !empty($label['fields']['lot']))
                     <div class="line lot">{{ $label['fields']['lot'] }}</div>

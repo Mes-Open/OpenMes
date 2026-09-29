@@ -112,6 +112,8 @@ const ACTION_ICON = {
     complete: 'circle-check',
     reopen: 'rotate-ccw',
     cancel: 'ban',
+    // A document that opens beside the row (a packing list, a report).
+    document: 'file-text',
 };
 // Icon-only row buttons carry their meaning in colour as well as glyph: the two
 // state verbs take the same running/blocked pair the status pills use, so

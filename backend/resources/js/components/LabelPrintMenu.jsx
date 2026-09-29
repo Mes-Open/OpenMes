@@ -1,96 +1,82 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from '@inertiajs/react';
+import { Button, Dropdown, Icon } from '@openmes/ui';
+import LabelPreviewModal from './LabelPreviewModal';
 import { __ } from '../lib/i18n';
 
 /**
- * Label-print dropdown — React replacement for the old <x-label-print-dropdown>
- * Blade component. Lists the active label templates of the matching type and
- * links to the PDF/ZPL endpoints under /packaging/labels/{kind}/{id}.
+ * The "print a label" button, everywhere one appears: opens the label in the
+ * in-place preview (print, ZPL) instead of a dropdown of PDF/ZPL links that
+ * lands in a new tab - on a station tablet that tab is a dead end. With more
+ * than one active template of the type, the preview lets you pick one.
  *
  * Props:
- *   kind      — 'work-order' | 'finished-goods' | 'workstation-step'
- *   id        — entity id (workOrder / batch / batchStep)
+ *   kind      — 'work-order' | 'finished-goods' | 'workstation-step' | 'pallet' | 'serial-unit'
+ *   id        — entity id
  *   templates — all active label templates [{id,name,type,size,barcode_format,is_default}]
  *   label     — button text (default 'Print Label')
+ *   size      — Button size ('sm' for dense rows)
+ *   preferredTemplateId — template to open with when the caller knows one (a packing step's choice)
  */
 const KIND_TO_TYPE = {
     'work-order': 'work_order',
     'finished-goods': 'finished_goods',
     'workstation-step': 'workstation_step',
     pallet: 'pallet',
+    'serial-unit': 'serial_unit',
+    carton: 'carton',
 };
 
-export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label' }) {
+export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label', size = 'md', variant = 'outline', preferredTemplateId = null }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef(null);
+    const [templateId, setTemplateId] = useState(null);
     const wantType = KIND_TO_TYPE[kind];
     const applicable = templates.filter((t) => t.type === wantType);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-        document.addEventListener('mousedown', onClick);
-        return () => document.removeEventListener('mousedown', onClick);
-    }, [open]);
-
     if (!id) return null;
-
-    const printIcon = (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-    );
 
     // No template configured for this type → point at the templates admin page.
     if (applicable.length === 0) {
         return (
-            <Link href="/packaging/label-templates"
-               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
-               title={__('Configure label templates first')}>
-                {printIcon} {__('Set up labels…')}
+            <Link
+                href="/packaging/label-templates"
+                className="inline-flex items-center gap-1.5 rounded-om-sm bg-om-chip px-3 py-1.5 text-sm text-om-muted hover:bg-om-line2"
+                title={__('Configure label templates first')}
+            >
+                <Icon name="printer" size={14} /> {__('Set up labels…')}
             </Link>
         );
     }
 
-    const url = (tid, fmt) => `/packaging/labels/${kind}/${id}/${fmt}?template=${tid}`;
+    // Explicit pick, else what the caller prefers (a packing step's template), else the type's default.
+    const chosen = applicable.find((t) => t.id === templateId)
+        ?? applicable.find((t) => t.id === preferredTemplateId)
+        ?? applicable.find((t) => t.is_default)
+        ?? applicable[0];
+    const url = (fmt) => `/packaging/labels/${kind}/${id}/${fmt}?template=${chosen.id}`;
 
     return (
-        <div className="relative inline-block" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
-            >
-                {printIcon}
-                {label}
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            {open && (
-                <div className="absolute right-0 mt-1 w-64 bg-om-card rounded-om-sm shadow-lg border border-om-line2 z-50">
-                    <div className="p-2">
-                        <p className="px-2 py-1 text-xs text-om-muted uppercase tracking-wide">{__('Choose template')}</p>
-                        {applicable.map((t) => (
-                            <div key={t.id} className="px-2 py-1.5">
-                                <p className="text-sm font-medium text-om-muted truncate">
-                                    {t.name}
-                                    {t.is_default && <span className="text-[10px] text-om-accent ml-1">{__('default')}</span>}
-                                </p>
-                                <p className="text-xs text-om-muted">
-                                    {t.size} mm · {String(t.barcode_format ?? '').toUpperCase()}
-                                </p>
-                                <div className="flex gap-2 mt-1">
-                                    <a href={url(t.id, 'pdf')} target="_blank" rel="noreferrer"
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">PDF</a>
-                                    <a href={url(t.id, 'zpl')}
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">ZPL</a>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
+        <>
+            <Button variant={variant} size={size} leftIcon={<Icon name="printer" size={14} />} onClick={() => setOpen(true)}>
+                {__(label)}
+            </Button>
+            <LabelPreviewModal
+                open={open}
+                onClose={() => setOpen(false)}
+                title={__(label)}
+                subtitle={`${chosen.name} · ${chosen.size} mm · ${String(chosen.barcode_format ?? '').toUpperCase()}`}
+                pdfUrl={url('pdf')}
+                zplUrl={url('zpl')}
+                templatePicker={applicable.length > 1 ? (
+                    <Dropdown
+                        aria-label={__('Choose template')}
+                        value={String(chosen.id)}
+                        onChange={(v) => setTemplateId(Number(v))}
+                        options={applicable.map((t) => ({ value: String(t.id), label: `${t.name}${t.is_default ? ` (${__('default')})` : ''} · ${t.size} mm` }))}
+                        className="w-72"
+                    />
+                ) : null}
+            />
+        </>
     );
 }

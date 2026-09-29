@@ -63,6 +63,7 @@ class StockDocument extends Model
         'warehouse_id',
         'work_order_id',
         'batch_id',
+        'pallet_id',
         'notes',
         'erp_reference',
         'erp_synced_at',
@@ -169,5 +170,11 @@ class StockDocument extends Model
         return in_array($type, [self::TYPE_MATERIAL_ISSUE, self::TYPE_MATERIAL_RECEIPT], true)
             ? Warehouse::KIND_RAW_MATERIAL
             : Warehouse::KIND_FINISHED_GOODS;
+    }
+
+    /** The pallet this document books, when it was booked pallet by pallet. */
+    public function pallet(): BelongsTo
+    {
+        return $this->belongsTo(Pallet::class);
     }
 }

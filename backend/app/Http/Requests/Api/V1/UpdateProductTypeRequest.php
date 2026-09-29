@@ -7,11 +7,15 @@ use Illuminate\Validation\Rule;
 
 class UpdateProductTypeRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     public function rules(): array
     {
         $id = $this->route('product_type')?->id;
+
         return [
             'code' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('product_types', 'code')->ignore($id)],
             'name' => ['sometimes', 'required', 'string', 'max:255'],

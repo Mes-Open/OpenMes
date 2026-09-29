@@ -3,19 +3,30 @@
  * Native twin of index.web.jsx — identical props API. Options open in an RN
  * Modal over the scrim token as a centered menu card.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Modal,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     View,
     type StyleProp,
     type ViewStyle,
 } from 'react-native';
 
+import { useUILabels } from '../lib/labels';
 import { colors, fonts, radius } from '../tokens';
+
+/** Lower-case, accents stripped (é→e, ł→l), so "lodz" finds "Łódź". */
+export function foldForSearch(text: string | null | undefined): string {
+    return String(text ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ł/g, 'l');
+}
 
 export interface DropdownOption {
     value: string;
@@ -35,6 +46,12 @@ export interface DropdownProps {
     placeholder?: string;
     disabled?: boolean;
     style?: StyleProp<ViewStyle>;
+    /** `'auto'` (search box once the list is longer than `searchThreshold`), `true` or `false`. */
+    searchable?: boolean | 'auto';
+    searchThreshold?: number;
+    /** Search box placeholder / empty-result note; default from `UILabelsProvider`. */
+    searchPlaceholder?: string;
+    noResultsLabel?: string;
 }
 
 export function Dropdown({
@@ -47,8 +64,24 @@ export function Dropdown({
     placeholder,
     disabled = false,
     style,
+    searchable = 'auto',
+    searchThreshold = 4,
+    searchPlaceholder,
+    noResultsLabel,
 }: DropdownProps) {
     const [open, setOpen] = useState(false);
+
+    const uiLabels = useUILabels();
+    const searchText = searchPlaceholder ?? uiLabels.searchPlaceholder ?? '';
+    const noResultsText = noResultsLabel ?? uiLabels.noResultsLabel ?? '—';
+    const showSearch = searchable === true || (searchable === 'auto' && options.length > searchThreshold);
+    const [query, setQuery] = useState('');
+    useEffect(() => { if (!open) setQuery(''); }, [open]);
+    const visible = useMemo(() => {
+        const q = foldForSearch(query.trim());
+        if (!showSearch || !q) return options;
+        return options.filter((o) => foldForSearch(o.label).includes(q));
+    }, [options, query, showSearch]);
 
     const selectedValues = multiple ? (values ?? []) : [];
     const single = !multiple ? options.find((o) => o.value === value) : undefined;
@@ -82,8 +115,26 @@ export function Dropdown({
             <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
                 <Pressable style={styles.scrim} onPress={() => setOpen(false)}>
                     <Pressable style={styles.menu}>
-                        <ScrollView bounces={false} style={styles.menuScroll}>
-                            {options.map((o) => {
+                        {showSearch && (
+                            <View style={styles.search}>
+                                <TextInput
+                                    value={query}
+                                    onChangeText={setQuery}
+                                    placeholder={searchText}
+                                    placeholderTextColor={colors.faint}
+                                    // No autoFocus: on a phone or tablet it raises the keyboard over the list.
+                                    autoCorrect={false}
+                                    autoCapitalize="none"
+                                    accessibilityLabel={searchText || undefined}
+                                    style={styles.searchInput}
+                                />
+                            </View>
+                        )}
+                        <ScrollView bounces={false} style={styles.menuScroll} keyboardShouldPersistTaps="handled">
+                            {showSearch && visible.length === 0 && (
+                                <Text style={styles.noResults}>{noResultsText}</Text>
+                            )}
+                            {visible.map((o) => {
                                 if (multiple) {
                                     const on = selectedValues.includes(o.value);
                                     return (
@@ -181,6 +232,26 @@ const styles = StyleSheet.create({
     },
     menuScroll: {
         maxHeight: 380,
+    },
+    search: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.line,
+        paddingHorizontal: 11,
+        paddingVertical: 6,
+        marginBottom: 4,
+    },
+    searchInput: {
+        fontSize: 13.5,
+        fontFamily: fonts.sans.native.regular,
+        color: colors.ink,
+        paddingVertical: 6,
+    },
+    noResults: {
+        paddingVertical: 9,
+        paddingHorizontal: 11,
+        fontSize: 13,
+        fontFamily: fonts.sans.native.regular,
+        color: colors.faint,
     },
     row: {
         flexDirection: 'row',

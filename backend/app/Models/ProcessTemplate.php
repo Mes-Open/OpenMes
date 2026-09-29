@@ -101,6 +101,8 @@ class ProcessTemplate extends Model
                 return [
                     'step_number' => $step->step_number,
                     'name' => $step->name,
+                    'kind' => $step->kind ?? TemplateStep::KIND_PRODUCTION,
+                    'config' => $step->config,
                     'instruction' => $step->instruction,
                     'requires_confirmation' => (bool) $step->requires_confirmation,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
@@ -146,7 +148,11 @@ class ProcessTemplate extends Model
                     'material_type' => $item->material->materialType?->code,
                     'tracking_type' => $item->material->tracking_type,
                     'unit_of_measure' => $item->material->unit_of_measure,
-                    'quantity_per_unit' => (float) $item->quantity_per_unit,
+                    // Per finished unit whatever the line was typed per: the packing
+                    // step's capacities are folded in here, once, at freeze time.
+                    'quantity_per_unit' => $item->perUnitQuantity(),
+                    'per' => $item->per ?? BomItem::PER_UNIT,
+                    'quantity_per_basis' => (float) $item->quantity_per_unit,
                     'scrap_percentage' => (float) $item->scrap_percentage,
                     'consumed_at' => $item->consumed_at,
                     'step_number' => $item->templateStep?->step_number,

@@ -48,7 +48,7 @@
  *                                  row. `fn(rows)` receives the matching rows and
  *                                  returns whatever the cell should show.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 /** Floor for a `bodyMaxHeight="fill"` body — a short viewport still shows rows. */
 const FILL_MIN_HEIGHT = 240;
@@ -535,6 +535,15 @@ export function DataTable({
      *  row should read as (a deactivated record dimmed, say). Appended last, so it
      *  wins over the stripe/hover/selection classes when it sets the same property. */
     rowClassName,
+    /** `(row) => node | null` — a fold-out under a row (a graph, a sub-list); rendered
+     *  as a full-width row right after it whenever it returns something. */
+    rowDetail,
+    /** Starting visibility, `{ [columnId]: false }` for hidden ones — e.g. what the
+     *  reader saved last time. `meta.hidden` columns start off as well. */
+    columnVisibility: columnVisibilityProp,
+    /** Called with the full `{ [columnId]: boolean }` map whenever the reader
+     *  shows or hides a column, so the page can remember it. */
+    onColumnVisibilityChange,
     className = '',
     ...props
 }) {
@@ -562,11 +571,12 @@ export function DataTable({
     // Columns marked `meta.hidden` start off. Lazy state, not a memo: this is an
     // *initial* value, and recomputing it when `columns` changes identity (which
     // it does on every parent render) would fight the reader's own toggling.
-    const [initialColumnVisibility] = useState(() =>
-        Object.fromEntries(
+    const [initialColumnVisibility] = useState(() => ({
+        ...Object.fromEntries(
             columns.filter((c) => c.meta?.hidden).map((c) => [c.id ?? c.accessorKey, false]),
         ),
-    );
+        ...(columnVisibilityProp ?? {}),
+    }));
 
     const table = useReactTable({
         data,
@@ -597,6 +607,14 @@ export function DataTable({
 
     const state = table.getState();
     const visibleCols = table.getVisibleLeafColumns();
+
+    // Report the reader's column choices (not the initial map — that is theirs already).
+    const visibilityRef = useRef(state.columnVisibility);
+    useEffect(() => {
+        if (visibilityRef.current === state.columnVisibility) return;
+        visibilityRef.current = state.columnVisibility;
+        onColumnVisibilityChange?.(state.columnVisibility);
+    }, [state.columnVisibility]); // eslint-disable-line react-hooks/exhaustive-deps
     const hideableColumns = table.getAllLeafColumns().filter((col) => col.getCanHide());
 
     // Numeric columns centre themselves. Ragged-width numbers read as noise when
@@ -1047,7 +1065,8 @@ export function DataTable({
                         </thead>
                         <tbody>
                             {pageRows.map((row, i) => (
-                                <Row key={row.id} id={row.id} index={i} disabled={!canReorder}>
+                                <Fragment key={row.id}>
+                                <Row id={row.id} index={i} disabled={!canReorder}>
                                 {({ rowRef, handleRef, isDragging }) => (
                                 <tr
                                     ref={rowRef}
@@ -1126,6 +1145,15 @@ export function DataTable({
                                 </tr>
                                 )}
                                 </Row>
+                                {rowDetail && (() => {
+                                    const detail = rowDetail(row.original, row);
+                                    return detail == null ? null : (
+                                        <tr key={`${row.id}-detail`} className="[&>td]:border-b [&>td]:border-om-line2 bg-om-panel">
+                                            <td colSpan={bodyColSpan} className="p-0">{detail}</td>
+                                        </tr>
+                                    );
+                                })()}
+                            </Fragment>
                             ))}
                             {total === 0 && (
                                 <tr>

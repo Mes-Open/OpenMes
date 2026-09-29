@@ -381,6 +381,69 @@ class TraceabilityTest extends TestCase
             ->assertSee('RAW-1');
     }
 
+    public function test_guest_is_redirected_from_traceability_page(): void
+    {
+        $this->get(route('admin.traceability.index'))->assertRedirect(route('login'));
+    }
+
+    public function test_console_without_a_term_offers_the_browse_tables(): void
+    {
+        ['wo' => $wo] = $this->scenario();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.traceability.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/traceability/Index')
+                ->where('result', null)
+                ->where("workOrderNumbers.{$wo->id}", 'WO-TRACE-1')
+                ->has('lineNames')
+                ->has('productTypeNames')
+                ->has('customerNames')
+                ->has('materialNames'));
+    }
+
+    public function test_admin_can_trace_a_work_order_by_its_order_number(): void
+    {
+        $this->scenario();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.traceability.index', ['q' => 'WO-TRACE-1']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('result.type', 'work_order')
+                ->where('result.data.order_no', 'WO-TRACE-1')
+                ->has('result.data.work_orders', 1)
+                ->where('result.data.work_orders.0.batches.0.lot_number', 'FG-1')
+                ->where('result.data.work_orders.0.batches.0.components.0.lot_number', 'RAW-1'));
+    }
+
+    public function test_work_order_trace_covers_only_the_order_asked_for(): void
+    {
+        $this->scenario();
+        WorkOrder::factory()->create(['order_no' => 'WO-OTHER']);
+
+        $trace = app(TraceabilityService::class)->workOrderTrace(WorkOrder::where('order_no', 'WO-TRACE-1')->firstOrFail());
+
+        $this->assertSame(['WO-TRACE-1'], $trace['work_orders']->pluck('order_no')->all());
+    }
+
+    public function test_serial_units_are_a_synced_collection_for_the_browse_tab(): void
+    {
+        $registry = app(\App\Sync\ShapeRegistry::class);
+        $columns = $registry->find('serial_units')->columns();
+
+        foreach (['serial_no', 'psn', 'work_order_id', 'status'] as $column) {
+            $this->assertContains($column, $columns);
+        }
+
+        SerialUnit::create(['serial_no' => 'SN-LIST-1', 'psn' => 'P-LIST-1']);
+        $this->actingAs($this->admin)
+            ->getJson('/api/collections/serial_units')
+            ->assertOk()
+            ->assertJsonFragment(['serial_no' => 'SN-LIST-1', 'psn' => 'P-LIST-1']);
+    }
+
     public function test_unknown_search_term_shows_no_result(): void
     {
         $this->actingAs($this->admin)
@@ -411,14 +474,58 @@ class TraceabilityTest extends TestCase
         $this->assertEquals(210, $history->history->first()->parameters['temp']);
     }
 
-    public function test_failed_step_scraps_the_unit(): void
+    private function failPolicy(string $policy, int $attempts = 1): void
     {
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'unit_test_fail_policy'], ['value' => json_encode($policy)]);
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'unit_test_max_attempts'], ['value' => (string) $attempts]);
+        app(\App\Support\UnitSerialisation::class)->forget();
+    }
+
+    public function test_the_first_failed_verdict_blocks_the_unit_by_default(): void
+    {
+        $svc = app(SerialTraceService::class);
+        $unit = $svc->registerUnit('SN-FAIL');
+
+        // Held, not scrapped: a retest can still clear it.
+        $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
+        $this->assertEquals(SerialUnit::STATUS_BLOCKED, $unit->fresh()->status);
+    }
+
+    public function test_block_policy_counts_attempts(): void
+    {
+        $this->failPolicy('block', 3);
+        $svc = app(SerialTraceService::class);
+        $unit = $svc->registerUnit('SN-FAIL');
+
+        $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
+        $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
+        $this->assertEquals(SerialUnit::STATUS_IN_PRODUCTION, $unit->fresh()->status);
+
+        $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
+        $this->assertEquals(SerialUnit::STATUS_BLOCKED, $unit->fresh()->status);
+    }
+
+    public function test_scrap_policy_scraps_on_the_first_fail(): void
+    {
+        $this->failPolicy('scrap');
         $svc = app(SerialTraceService::class);
         $unit = $svc->registerUnit('SN-FAIL');
 
         $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
 
         $this->assertEquals(SerialUnit::STATUS_SCRAPPED, $unit->fresh()->status);
+    }
+
+    public function test_record_policy_only_keeps_the_verdict(): void
+    {
+        $this->failPolicy('record');
+        $svc = app(SerialTraceService::class);
+        $unit = $svc->registerUnit('SN-FAIL');
+
+        $svc->recordStep($unit, $this->operator, null, ['result' => 'fail']);
+
+        $this->assertEquals(SerialUnit::STATUS_IN_PRODUCTION, $unit->fresh()->status);
+        $this->assertSame('fail', $unit->history()->firstOrFail()->result);
     }
 
     public function test_serial_lookup_in_traceability_console(): void
@@ -430,6 +537,45 @@ class TraceabilityTest extends TestCase
             ->get(route('admin.traceability.index', ['q' => 'SN-LOOKUP']))
             ->assertOk()
             ->assertSee('SN-LOOKUP');
+    }
+
+    public function test_console_reports_step_timings_and_unit_lead_time(): void
+    {
+        // Batch: two steps with a gap between them.
+        $wo = WorkOrder::factory()->create(['order_no' => 'WO-TIME-1', 'status' => WorkOrder::STATUS_DONE]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'lot_number' => 'FG-TIME', 'status' => Batch::STATUS_DONE]);
+        $t0 = now()->subHours(3)->startOfMinute();
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 1, 'status' => BatchStep::STATUS_DONE, 'started_at' => $t0, 'completed_at' => $t0->copy()->addMinutes(20), 'duration_minutes' => null]);
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 2, 'status' => BatchStep::STATUS_DONE, 'started_at' => $t0->copy()->addMinutes(50), 'completed_at' => $t0->copy()->addMinutes(65), 'duration_minutes' => 15]);
+
+        $this->actingAs($this->admin)->get(route('admin.traceability.index', ['q' => 'FG-TIME']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('result.data.batch.lead_time_minutes', 65)
+                ->where('result.data.batch.steps.0.duration_minutes', 20)
+                ->where('result.data.batch.steps.0.waited_minutes', null)
+                ->where('result.data.batch.steps.1.waited_minutes', 30)
+                ->where('result.data.batch.steps.1.duration_minutes', 15)
+                ->where('result.data.batch.steps.1.started_at', $t0->copy()->addMinutes(50)->format('Y-m-d H:i')));
+
+        // Unit: a label, then a test the tester timed, ten minutes later.
+        $svc = app(SerialTraceService::class);
+        $unit = $svc->registerUnit('SN-TIME-1');
+        $svc->recordStep($unit, $this->operator, null, ['parameters' => ['event' => 'label_applied'], 'processed_at' => $t0]);
+        $svc->recordStep($unit, $this->operator, null, [
+            'parameters' => ['event' => 'test', 'started_at' => $t0->copy()->addMinutes(9)->toIso8601String(), 'ended_at' => $t0->copy()->addMinutes(10)->toIso8601String()],
+            'result' => 'pass',
+            'processed_at' => $t0->copy()->addMinutes(10),
+        ]);
+
+        $this->actingAs($this->admin)->get(route('admin.traceability.index', ['q' => 'SN-TIME-1']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('result.data.history.0.since_previous_seconds', null)
+                ->where('result.data.history.1.since_previous_seconds', 600)
+                ->where('result.data.history.1.duration_seconds', 60)
+                ->where('result.data.lead_time_seconds', 600)
+                ->where('result.data.lead_time_to_shipping', false));
     }
 
     public function test_api_register_serial_unit(): void

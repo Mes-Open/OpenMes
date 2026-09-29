@@ -2,20 +2,24 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Extension\HookRegistry;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workstation;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
 {
+    private const FIELDS_HOOK = 'display.admin.users.form.fields';
+
+    private const SAVED_HOOK = 'persist.admin.users';
+
     /**
      * Display a listing of users. Rows live-sync via the `users` shape (safe
      * columns only); role + workstation names come as props keyed by id.
@@ -58,25 +62,32 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Ids from an option list, for validating against exactly what was offered.
+     * Fields an installed module contributes to this form.
      *
-     * Deliberately not `exists:crews,id`: that rule queries a table this
-     * installation may not have, and it would also accept a value the form
-     * never offered. An empty list rejects everything, which is the correct
-     * answer when nothing records crews.
+     * Empty on a community install, where the prop is `{}` and ModuleFields
+     * renders nothing. A module ships no JSX of its own — see HookRegistry.
      *
-     * @param  list<array{id: int, name: string}>  $options
-     * @return list<int>
+     * @return array<string, list<array<string, mixed>>>
      */
-    private function idsOf(array $options): array
+    private function moduleFields(?User $user = null): array
     {
-        return array_column($options, 'id');
+        return app(HookRegistry::class)->renderMany(
+            [self::FIELDS_HOOK],
+            ['user' => $user, 'worker' => $user?->worker],
+        );
     }
 
-    /** Shared option lists for the create/edit forms. */
-    private function formData(): array
+    /**
+     * Shared option lists for the create/edit forms.
+     *
+     * Takes the record so module contributions are resolved once, against it —
+     * resolving them here without it and again in edit() would run a module's
+     * callback twice, the first time with no record to read.
+     */
+    private function formData(?User $user = null): array
     {
         return [
+            'hooks' => $this->moduleFields($user),
             'roles' => Role::orderBy('name')->pluck('name'),
             'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(['id', 'name', 'line_id'])
                 ->map(fn ($w) => ['id' => $w->id, 'name' => $w->line ? "{$w->name} ({$w->line->name})" : $w->name]),
@@ -93,26 +104,9 @@ class UserManagementController extends Controller
     /**
      * Store a newly created user
      */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
-            'username' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type' => 'required|in:user,workstation',
-            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code' => 'nullable|string|max:50|unique:workers,code',
-            'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
-            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
-            'skills' => 'nullable|array',
-            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
-            'skills.*.level' => 'nullable|integer|min:1|max:5',
-        ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($request, $validated) {
             $user = User::create([
@@ -152,6 +146,15 @@ class UserManagementController extends Controller
 
                 $user->update(['worker_id' => $worker->id]);
             }
+
+            // Inside the transaction on purpose: a module's write belongs to the
+            // same unit of work as the account it hangs off.
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'store',
+                'user' => $user,
+                'worker' => $user->worker,
+                'input' => $validated,
+            ]);
         });
 
         return redirect()->route('admin.users.index')
@@ -165,7 +168,7 @@ class UserManagementController extends Controller
     {
         $user->load(Worker::hasModuleRelation('skills') ? 'worker.skills' : 'worker');
 
-        return Inertia::render('admin/users/Edit', array_merge($this->formData(), [
+        return Inertia::render('admin/users/Edit', array_merge($this->formData($user), [
             'assignments' => [
                 'lines' => $user->lines()->get(['lines.id', 'lines.name'])->map(fn ($line) => $line->only('id', 'name')),
                 'station' => ($user->worker?->workstation ?? $user->workstation)?->only('id', 'name', 'line_id'),
@@ -195,26 +198,9 @@ class UserManagementController extends Controller
     /**
      * Update the specified user
      */
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
-            'username' => 'required|string|max:255|unique:users,username,'.$user->id,
-            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
-            'password' => ['nullable', 'confirmed', Password::defaults()],
-            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type' => 'required|in:user,workstation',
-            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code' => 'nullable|string|max:50|unique:workers,code,'.($user->worker_id ?? 'NULL'),
-            'worker_phone' => 'nullable|string|max:50',
-            'worker_crew_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->crewOptions()))],
-            'worker_wage_group_id' => ['nullable', Rule::in($this->idsOf($this->workforce()->wageGroupOptions()))],
-            'skills' => 'nullable|array',
-            'skills.*.id' => ['required', Rule::in($this->idsOf($this->workforce()->skillOptions()))],
-            'skills.*.level' => 'nullable|integer|min:1|max:5',
-        ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
-        ]);
+        $validated = $request->validated();
 
         $updateData = [
             'name' => $validated['name'],
@@ -277,6 +263,13 @@ class UserManagementController extends Controller
                     );
                 }
             }
+
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'update',
+                'user' => $user,
+                'worker' => $user->fresh()->worker,
+                'input' => $validated,
+            ]);
         });
 
         return redirect()->route('admin.users.index')

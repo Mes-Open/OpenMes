@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SetWorkstationStateRequest;
+use App\Models\Batch;
 use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\Shift;
@@ -18,23 +19,25 @@ use Inertia\Inertia;
 
 class WorkstationController extends Controller
 {
+    /** Where a module may contribute to the operator's station screen. */
+    private const STATION_HOOK = 'display.operator.workstation.actor';
+
+    /** Replaces a whole shift cell (quantity input + correction link). */
+    private const SHIFT_CELL_HOOK = 'display.operator.workstation.shift_cell';
+
+    /** Replaces every operator number input on the page. */
+    private const QUANTITY_FIELD_HOOK = 'display.operator.quantity_field';
+
     /**
      * Workstation production view — flat table with inline quantity entry.
      */
     public function index(Request $request)
     {
-        $lineId = $request->session()->get('selected_line_id')
-            ?? $request->query('line');
-
-        if (! $lineId && auth()->user()->account_type === 'workstation') {
-            $lineId = auth()->user()->workstation?->line_id;
-        }
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
 
         if (! $lineId) {
             return redirect()->route('operator.select-line');
         }
-
-        $request->session()->put('selected_line_id', $lineId);
 
         $line = Line::with(['viewColumns', 'viewTemplate'])->findOrFail($lineId);
 
@@ -92,9 +95,22 @@ class WorkstationController extends Controller
             }
         }
 
-        $workOrders->loadMissing('batches.steps');
+        $workOrders->loadMissing('batches.steps.workstation');
         foreach ($workOrders as $order) {
             $targets = collect();
+            // The routing graph of the batch being worked (the first one not
+            // finished, else the last): step status per node, for the row's
+            // fold-out graph.
+            $current = $order->batches->first(fn ($b) => $b->status !== Batch::STATUS_DONE) ?? $order->batches->last();
+            $order->setAttribute('routing', $order->uses_step_ledger && $current ? $current->steps->sortBy('step_number')->values()->map(fn ($step) => [
+                'id' => $step->id,
+                'batch_id' => $current->id,
+                'step_number' => $step->step_number,
+                'name' => $step->name,
+                'status' => $step->status,
+                'workstation_id' => $step->workstation_id,
+                'workstation' => $step->workstation ? ['id' => $step->workstation->id, 'name' => $step->workstation->name] : null,
+            ])->all() : []);
             if ($order->uses_step_ledger && $order->counting_source !== 'machine') {
                 foreach ($order->batches as $batch) {
                     $batch->setRelation('workOrder', $order);
@@ -142,7 +158,25 @@ class WorkstationController extends Controller
         $machineStates = $this->machineStatesForLine((int) $lineId, $selectedWorkstation?->id);
         $machineStateOptions = WorkstationState::STATES;
 
+        // A region an installed module may contribute to — the station is where
+        // a module identifying the person at the machine has something to say,
+        // and a module cannot ship its own React into a released install.
+        // Empty on a community install, where the prop is `{}`.
+        //
+        // The shift cell and quantity field points REPLACE a core control when a
+        // module contributes; the page checks hasHook() and otherwise draws its own.
+        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
+            [self::STATION_HOOK, self::SHIFT_CELL_HOOK, self::QUANTITY_FIELD_HOOK],
+            [
+                'line' => $line,
+                'workstation' => $selectedWorkstation,
+                'lineId' => (int) $lineId,
+                'workstationId' => $selectedWorkstation?->id,
+            ],
+        );
+
         return Inertia::render('operator/Workstation', compact(
+            'hooks',
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
             'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',

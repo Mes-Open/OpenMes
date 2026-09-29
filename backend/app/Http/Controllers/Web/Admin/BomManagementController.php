@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreBomItemRequest;
+use App\Http\Requests\Web\Admin\UpdateBomItemRequest;
 use App\Models\BomItem;
 use App\Models\Material;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Services\Material\BomService;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class BomManagementController extends Controller
@@ -61,6 +62,7 @@ class BomManagementController extends Controller
                     'step_number' => $item->templateStep?->step_number,
                     'step_name' => $item->templateStep?->name,
                     'quantity_per_unit' => $item->quantity_per_unit,
+                    'per' => $item->per ?? BomItem::PER_UNIT,
                     'scrap_percentage' => $item->scrap_percentage,
                     'consumed_at' => $item->consumed_at,
                     'notes' => $item->notes,
@@ -84,49 +86,19 @@ class BomManagementController extends Controller
                 'id' => $s->id,
                 'step_number' => $s->step_number,
                 'name' => $s->name,
+                'kind' => $s->kind,
+                'config' => $s->config,
             ]),
         ]);
     }
 
-    public function store(Request $request, ProductType $productType, ProcessTemplate $processTemplate)
+    public function store(StoreBomItemRequest $request, ProductType $productType, ProcessTemplate $processTemplate)
     {
         if ($processTemplate->product_type_id !== $productType->id) {
             abort(404);
         }
 
-        // A line is exactly one of material / product-type. `required_without` +
-        // `prohibits` enforces exactly-one; `component_kind` (sent by the UI) is
-        // ignored so older material-only callers keep working.
-        $validated = $request->validate([
-            'material_id' => [
-                'required_without:product_type_id',
-                'prohibits:product_type_id',
-                'nullable',
-                'exists:materials,id',
-                \Illuminate\Validation\Rule::unique('bom_items', 'material_id')
-                    ->where('process_template_id', $processTemplate->id)
-                    ->whereNull('deleted_at'),
-            ],
-            'product_type_id' => [
-                'required_without:material_id',
-                'nullable',
-                'exists:product_types,id',
-                // A product can't be a component of itself.
-                \Illuminate\Validation\Rule::notIn([$productType->id]),
-                \Illuminate\Validation\Rule::unique('bom_items', 'product_type_id')
-                    ->where('process_template_id', $processTemplate->id)
-                    ->whereNull('deleted_at'),
-            ],
-            'template_step_id' => 'nullable|exists:template_steps,id',
-            'quantity_per_unit' => 'required|numeric|gt:0',
-            'scrap_percentage' => 'nullable|numeric|min:0|max:100',
-            'consumed_at' => 'nullable|in:start,during,end',
-            'notes' => 'nullable|string',
-        ], [
-            'material_id.unique' => __('This material is already in the BOM for this template.'),
-            'product_type_id.unique' => __('This product type is already in the BOM for this template.'),
-            'product_type_id.not_in' => __('A product type cannot be a component of itself.'),
-        ]);
+        $validated = $request->validated();
 
         // Persist only the component reference that was set.
         $data = [
@@ -134,6 +106,7 @@ class BomManagementController extends Controller
             'product_type_id' => $validated['product_type_id'] ?? null,
             'template_step_id' => $validated['template_step_id'] ?? null,
             'quantity_per_unit' => $validated['quantity_per_unit'],
+            'per' => $validated['per'] ?? BomItem::PER_UNIT,
             'scrap_percentage' => $validated['scrap_percentage'] ?? null,
             'consumed_at' => $validated['consumed_at'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -145,19 +118,16 @@ class BomManagementController extends Controller
             ->with('success', __('Component added to BOM.'));
     }
 
-    public function update(Request $request, ProductType $productType, ProcessTemplate $processTemplate, BomItem $bomItem)
+    public function update(UpdateBomItemRequest $request, ProductType $productType, ProcessTemplate $processTemplate, BomItem $bomItem)
     {
         if ($processTemplate->product_type_id !== $productType->id || $bomItem->process_template_id !== $processTemplate->id) {
             abort(404);
         }
 
-        $validated = $request->validate([
-            'template_step_id' => 'nullable|exists:template_steps,id',
-            'quantity_per_unit' => 'required|numeric|gt:0',
-            'scrap_percentage' => 'nullable|numeric|min:0|max:100',
-            'consumed_at' => 'nullable|in:start,during,end',
-            'notes' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
+        // A caller that does not send the basis keeps the line's: a per-carton
+        // line must not silently turn per-unit (and its need grow by the box size).
+        $validated['per'] = $validated['per'] ?? ($request->has('per') ? BomItem::PER_UNIT : ($bomItem->per ?? BomItem::PER_UNIT));
 
         $this->bomService->updateItem($bomItem, $validated);
 

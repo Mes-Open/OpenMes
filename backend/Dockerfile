@@ -50,10 +50,20 @@ COPY packages/ /var/www/packages/
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Fetch the RoadRunner binary for Laravel Octane (concurrent app server).
-# Placed in the project root — where Octane's RoadRunner server discovers it.
-RUN ./vendor/bin/rr get-binary --location /var/www/html \
-    && chmod +x /var/www/html/rr
+# The RoadRunner binary for Laravel Octane (concurrent app server), taken from
+# the official image rather than downloaded during the build.
+#
+# `vendor/bin/rr get-binary` asks api.github.com for the release list, which
+# makes every build depend on GitHub being reachable and on DNS answering at
+# that moment. Five services in docker-compose.yml build from this Dockerfile,
+# so a single `up --build` made that call several times over in parallel — enough
+# for a home router's resolver to return NODATA and fail the install outright.
+#
+# The version is pinned to match `spiral/roadrunner` in composer.lock. Bump both
+# together: Octane loads the PHP side from vendor and executes this binary, and
+# they are meant to be the same release.
+COPY --from=ghcr.io/roadrunner-server/roadrunner:2025.1.14 /usr/bin/rr /var/www/html/rr
+RUN chmod +x /var/www/html/rr
 
 # Install Node dependencies and build assets
 RUN npm ci && npm run build

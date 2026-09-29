@@ -4,6 +4,7 @@ namespace App\Services\Production;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\Line;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Support\ProductionFlow;
@@ -20,6 +21,57 @@ use Illuminate\Http\Request;
  */
 class OperatorWorkstationSelection
 {
+    /**
+     * The line an operator screen works on: `?line=` in the address wins and is
+     * kept in the session (only a line the user may work on - an operator's
+     * assigned lines, any line for a supervisor or admin), else the session,
+     * else a workstation account's own line. Null sends the caller to the line
+     * picker. With the address carrying the context, a link to the queue or a
+     * station opens on the right line for whoever follows it.
+     */
+    public function resolveLine(Request $request): ?int
+    {
+        $user = $request->user();
+        $raw = $request->query('line');
+        if (is_numeric($raw)) {
+            $id = (int) $raw;
+            $allowed = $user->hasRole('Admin') || $user->hasRole('Supervisor')
+                ? Line::whereKey($id)->exists()
+                : $user->lines()->where('lines.id', $id)->exists();
+            if ($allowed) {
+                if ((int) $request->session()->get('selected_line_id') !== $id) {
+                    // Another line: the old workstation would not belong to it.
+                    $request->session()->forget('selected_workstation_id');
+                }
+                $request->session()->put('selected_line_id', $id);
+
+                return $id;
+            }
+        }
+
+        $id = $request->session()->get('selected_line_id')
+            ?? ($user?->account_type === 'workstation' ? $user->workstation?->line_id : null);
+        if ($id) {
+            $request->session()->put('selected_line_id', $id);
+        }
+
+        return $id ? (int) $id : null;
+    }
+
+    /**
+     * The bench this session works at, without reading the address: the one
+     * picked earlier, else a workstation account's own bench. Null means the
+     * whole line (an operator account's assigned bench is not a choice made).
+     */
+    public function storedWorkstationId(Request $request, bool $fallBackToAccount = true): ?int
+    {
+        $user = $request->user();
+        $id = $request->session()->get('selected_workstation_id')
+            ?? ($fallBackToAccount && $user?->account_type === 'workstation' ? $user->workstation_id : null);
+
+        return $id ? (int) $id : null;
+    }
+
     public function resolve(Request $request, int $lineId, bool $allowOtherLines = false, bool $fallBackToAccount = true): ?Workstation
     {
         if ($request->has('workstation')) {
@@ -27,9 +79,7 @@ class OperatorWorkstationSelection
             $id = is_numeric($raw) ? (int) $raw : null;
             $request->session()->put('selected_workstation_id', $id);
         } else {
-            $user = $request->user();
-            $id = $request->session()->get('selected_workstation_id')
-                ?? ($fallBackToAccount && $user?->account_type === 'workstation' ? $user->workstation_id : null);
+            $id = $this->storedWorkstationId($request, $fallBackToAccount);
         }
 
         if (! $id) {

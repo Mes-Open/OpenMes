@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AllowsModuleFields;
 use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use App\Http\Requests\Concerns\ValidatesWorkforceIds;
 use App\Models\Worker;
@@ -10,6 +11,7 @@ use Illuminate\Validation\Rule;
 
 class UpdateWorkerRequest extends FormRequest
 {
+    use AllowsModuleFields;
     use MergesCustomFieldRules;
     use ValidatesWorkforceIds;
 
@@ -24,12 +26,22 @@ class UpdateWorkerRequest extends FormRequest
         return 'worker';
     }
 
+    protected function moduleFieldFilter(): string
+    {
+        return 'validation.admin.workers';
+    }
+
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'worker' => $this->route('worker')];
+    }
+
     public function rules(): array
     {
         $current = $this->route('worker');
         $workerId = $current?->id;
 
-        return array_merge([
+        return $this->withModuleFields(array_merge([
             'code' => ['required', 'string', 'max:50', Rule::unique('workers', 'code')->ignore($workerId)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -45,6 +57,6 @@ class UpdateWorkerRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', 'integer', Rule::in($this->offeredWorkforceIds('skillOptions'))],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ], $this->customFieldRules());
+        ], $this->customFieldRules()));
     }
 }

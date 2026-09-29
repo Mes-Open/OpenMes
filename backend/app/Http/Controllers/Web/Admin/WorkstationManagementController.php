@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWorkstationRequest;
+use App\Http\Requests\UpdateWorkstationRequest;
 use App\Models\Line;
 use App\Models\Worker;
 use App\Models\Workstation;
 use App\Services\CustomFieldService;
-use Illuminate\Http\Request;
+use App\Services\Production\OperatorScreens;
 use Inertia\Inertia;
 
 class WorkstationManagementController extends Controller
@@ -15,22 +17,25 @@ class WorkstationManagementController extends Controller
     /**
      * Display workstations for a specific line
      */
-    public function index(Line $line, CustomFieldService $cf)
+    public function index(Line $line, CustomFieldService $cf, OperatorScreens $screens)
     {
         $workstations = $line->workstations()
             ->withCount(['templateSteps', 'workers'])
             ->orderBy('code')
             ->get();
+        $derived = $screens->derivedFor($workstations);
 
         return Inertia::render('admin/workstations/Index', [
             'workers' => $this->workerOptions(),
             'customFields' => $cf->clientConfig('workstation'),
             'line' => $line->only('id', 'name', 'code'),
             'workstations' => $workstations->map(fn ($ws) => array_merge(
-                $ws->only('id', 'code', 'name', 'workstation_type', 'is_active', 'custom_fields'),
+                $ws->only('id', 'code', 'name', 'workstation_type', 'operator_screens', 'unit_label_actions', 'is_active', 'custom_fields'),
                 [
                     'template_steps_count' => $ws->template_steps_count,
                     'workers_count' => $ws->workers_count,
+                    // What the routing gives the bench, shown beside the manual choice.
+                    'derived_screens' => $derived[$ws->id],
                 ]
             ))->values(),
         ]);
@@ -50,14 +55,16 @@ class WorkstationManagementController extends Controller
     /**
      * Store a newly created workstation
      */
-    public function store(Request $request, Line $line, CustomFieldService $cf)
+    public function store(StoreWorkstationRequest $request, Line $line, CustomFieldService $cf)
     {
-        $validated = $request->validate(array_merge([
-            'code' => 'required|string|max:50|unique:workstations,code',
-            'name' => 'required|string|max:255',
-            'workstation_type' => 'nullable|string|max:100',
-            'is_active' => 'boolean',
-        ], $cf->rules('workstation')), [], $cf->attributeNames('workstation'));
+        $validated = $request->validated();
+        // An empty list means "follow the routing".
+        if (array_key_exists('operator_screens', $validated)) {
+            $validated['operator_screens'] = $validated['operator_screens'] ?: null;
+        }
+        if (array_key_exists('unit_label_actions', $validated)) {
+            $validated['unit_label_actions'] = $validated['unit_label_actions'] ?: null;
+        }
 
         $validated['line_id'] = $line->id;
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -75,15 +82,15 @@ class WorkstationManagementController extends Controller
     /**
      * Show the form for editing a workstation
      */
-    public function edit(Line $line, Workstation $workstation, CustomFieldService $cf)
+    public function edit(Line $line, Workstation $workstation, CustomFieldService $cf, OperatorScreens $screens)
     {
         if ($workstation->line_id !== $line->id) {
             abort(404);
         }
 
         return Inertia::render('admin/workstations/Edit', [
-            'line'        => $line->only('id', 'name', 'code'),
-            'workstation' => $workstation->only('id', 'code', 'name', 'workstation_type', 'is_active', 'custom_fields'),
+            'line' => $line->only('id', 'name', 'code'),
+            'workstation' => [...$workstation->only('id', 'code', 'name', 'workstation_type', 'operator_screens', 'unit_label_actions', 'is_active', 'custom_fields'), 'derived_screens' => $screens->derived($workstation)],
             'customFields' => $cf->clientConfig('workstation'),
             'workers' => $this->workerOptions(),
         ]);
@@ -96,33 +103,34 @@ class WorkstationManagementController extends Controller
             ->get();
 
         return $workers->map(fn ($w) => [
-                'id'               => $w->id,
-                'name'             => $w->name,
-                'code'             => $w->code,
-                'workstation_id'   => $w->workstation_id,
-                'workstation_name' => $w->workstation?->name,
-                'crew_name' => Worker::hasModuleRelation('crew') ? $w->crew?->name : null,
-            ])->values();
+            'id' => $w->id,
+            'name' => $w->name,
+            'code' => $w->code,
+            'workstation_id' => $w->workstation_id,
+            'workstation_name' => $w->workstation?->name,
+            'crew_name' => Worker::hasModuleRelation('crew') ? $w->crew?->name : null,
+        ])->values();
     }
 
     /**
      * Update the specified workstation
      */
-    public function update(Request $request, Line $line, Workstation $workstation, CustomFieldService $cf)
+    public function update(UpdateWorkstationRequest $request, Line $line, Workstation $workstation, CustomFieldService $cf)
     {
         // Ensure workstation belongs to this line
         if ($workstation->line_id !== $line->id) {
             abort(404);
         }
 
-        $validated = $request->validate(array_merge([
-            'code'             => 'required|string|max:50|unique:workstations,code,' . $workstation->id,
-            'name'             => 'required|string|max:255',
-            'workstation_type' => 'nullable|string|max:100',
-            'is_active'        => 'boolean',
-            'worker_ids'       => 'nullable|array',
-            'worker_ids.*'     => 'exists:workers,id',
-        ], $cf->rules('workstation')), [], $cf->attributeNames('workstation'));
+        $validated = $request->validated();
+        // An empty list means "follow the routing"; a request without the key
+        // (a script editing the name) leaves the bench's choice alone.
+        if (array_key_exists('operator_screens', $validated)) {
+            $validated['operator_screens'] = $validated['operator_screens'] ?: null;
+        }
+        if (array_key_exists('unit_label_actions', $validated)) {
+            $validated['unit_label_actions'] = $validated['unit_label_actions'] ?: null;
+        }
 
         $validated['is_active'] = $request->boolean('is_active');
         unset($validated['custom_field_files']);

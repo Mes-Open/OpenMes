@@ -136,13 +136,16 @@ export const ADMIN_GROUPS = [
             '/admin/product-types', '/admin/product-revisions', '/admin/traceability',
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
-            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans',
+            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans', '/packaging/station',
+            '/packaging/label-templates',
         ],
         children: [
             // Process templates, their BOMs and engineering documents all hang
             // off a specific product type — there is no standalone list to link,
             // so the product type is the way in to all three.
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            { label: 'Packing station', href: '/packaging/station', match: ['/packaging/station'], lucide: 'package' },
+            { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
@@ -195,11 +198,13 @@ export const ADMIN_GROUPS = [
         lucide: 'warehouse',
         // The stock screens themselves ship as a module; what stays here is
         // the material catalogue, which production needs on its own.
-        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots'],
+        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets'],
         children: [
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
             { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
+            // Finished goods leave the plant on pallets: closing, quality and shipping live here.
+            { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
         ],
     },
     {

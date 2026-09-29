@@ -3,12 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\BindUnitComponentApiRequest;
+use App\Http\Requests\Api\V1\RecordSerialUnitStepRequest;
+use App\Http\Requests\Api\V1\StoreSerialUnitRequest;
+use App\Http\Requests\BlockUnitRequest;
+use App\Http\Requests\UnblockUnitRequest;
 use App\Models\BatchStep;
+use App\Models\ScrapReason;
 use App\Models\SerialUnit;
+use App\Services\Traceability\BindingException;
 use App\Services\Traceability\SerialTraceService;
+use App\Support\UnitSerialisation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Per-unit (serial) genealogy API. Read access for any authenticated user;
@@ -23,7 +30,11 @@ class SerialUnitController extends Controller
         $units = SerialUnit::query()
             ->when($request->query('work_order_id'), fn ($q, $id) => $q->where('work_order_id', $id))
             ->when($request->query('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when($request->query('search'), fn ($q, $s) => $q->where('serial_no', 'like', "%{$s}%"))
+            ->when($request->query('serial_no'), fn ($q, $s) => $q->where('serial_no', app(UnitSerialisation::class)->normalize($s)))
+            ->when($request->query('psn'), fn ($q, $s) => $q->where('psn', app(UnitSerialisation::class)->normalize($s)))
+            ->when($request->query('search'), fn ($q, $s) => $q->where(
+                fn ($qq) => $qq->where('serial_no', 'like', "%{$s}%")->orWhere('psn', 'like', "%{$s}%")
+            ))
             ->orderByDesc('id')
             ->limit(100)
             ->get();
@@ -36,30 +47,52 @@ class SerialUnitController extends Controller
         return response()->json(['data' => $this->serials->getHistory($serialUnit)]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreSerialUnitRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'serial_no' => ['required', 'string', 'max:100'],
-            'work_order_id' => ['nullable', 'integer', 'exists:work_orders,id'],
-            'batch_id' => ['nullable', 'integer', 'exists:batches,id'],
-            'material_id' => ['nullable', 'integer', 'exists:materials,id'],
-            'status' => ['nullable', Rule::in(SerialUnit::STATUSES)],
-        ]);
+        $data = $request->validated();
+
+        if (empty($data['serial_no'])) {
+            try {
+                $unit = $this->serials->startUnit($data['psn'], $request->user(), ['work_order_id' => $data['work_order_id'] ?? null]);
+            } catch (BindingException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return response()->json(['data' => $unit], 201);
+        }
 
         $unit = $this->serials->registerUnit($data['serial_no'], $data);
 
         return response()->json(['data' => $unit], 201);
     }
 
-    public function recordStep(Request $request, SerialUnit $serialUnit): JsonResponse
+    /** Hold a non-conforming unit with an error code (a scrap reason). */
+    public function block(BlockUnitRequest $request, SerialUnit $serialUnit): JsonResponse
     {
-        $data = $request->validate([
-            'batch_step_id' => ['nullable', 'integer', 'exists:batch_steps,id'],
-            'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
-            'parameters' => ['nullable', 'array'],
-            'result' => ['nullable', Rule::in(['pass', 'fail', 'rework'])],
-            'notes' => ['nullable', 'string', 'max:500'],
-        ]);
+        try {
+            $unit = $this->serials->blockUnit($serialUnit, $request->user(), ScrapReason::findOrFail($request->validated('scrap_reason_id')), $request->validated('note'));
+        } catch (BindingException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $unit]);
+    }
+
+    /** Release a held unit - supervisors and admins. */
+    public function unblock(UnblockUnitRequest $request, SerialUnit $serialUnit): JsonResponse
+    {
+        try {
+            $unit = $this->serials->unblockUnit($serialUnit, $request->user(), $request->validated('note'));
+        } catch (BindingException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $unit]);
+    }
+
+    public function recordStep(RecordSerialUnitStepRequest $request, SerialUnit $serialUnit): JsonResponse
+    {
+        $data = $request->validated();
 
         $step = isset($data['batch_step_id']) ? BatchStep::find($data['batch_step_id']) : null;
 
@@ -69,5 +102,23 @@ class SerialUnitController extends Controller
             'message' => __('Unit step recorded'),
             'data' => $entry->load(['workstation:id,name,code', 'operator:id,name']),
         ], 201);
+    }
+
+    /** Scan a component onto a unit (a sub-assembly serial, a lot, or a bare identifier). */
+    public function bindComponent(BindUnitComponentApiRequest $request, SerialUnit $serialUnit): JsonResponse
+    {
+        $data = $request->validated();
+        try {
+            $component = $this->serials->bindComponent($serialUnit, $data['identifier'], $request->user(), [
+                'material_id' => $data['material_id'] ?? null,
+                'quantity' => $data['quantity'] ?? 1,
+                'batch_step_id' => $data['batch_step_id'] ?? null,
+                'workstation_id' => $data['workstation_id'] ?? null,
+            ]);
+        } catch (BindingException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => __('Component bound'), 'data' => $component->load('material:id,code,name')], 201);
     }
 }

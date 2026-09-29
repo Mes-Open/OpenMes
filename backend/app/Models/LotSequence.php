@@ -17,9 +17,19 @@ class LotSequence extends Model
 
     public const RESET_PERIODS = ['none', 'yearly', 'monthly', 'daily', 'hourly'];
 
+    /** What the sequence numbers: batch LOTs, or the identifiers a serialised unit carries. */
+    public const PURPOSE_LOT = 'lot';
+
+    public const PURPOSE_PROCESS_SERIAL = 'process_serial';
+
+    public const PURPOSE_UNIT_SERIAL = 'unit_serial';
+
+    public const PURPOSES = [self::PURPOSE_LOT, self::PURPOSE_PROCESS_SERIAL, self::PURPOSE_UNIT_SERIAL];
+
     protected $fillable = [
         'name',
         'product_type_id',
+        'purpose',
         'prefix',
         'suffix',
         'pattern',

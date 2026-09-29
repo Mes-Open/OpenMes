@@ -9,9 +9,10 @@
 // fields that render as a standard card — so a module can contribute without
 // shipping any JSX at all.
 
-// Same shape as the page glob in app.jsx: matches nothing, and yields {}, when
+// Same target as the page glob in app.jsx (backend/modules), one directory
+// deeper because this file sits in lib/: matches nothing, and yields {}, when
 // no module is installed.
-const moduleComponents = import.meta.glob('../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
+const moduleComponents = import.meta.glob('../../../modules/*/resources/js/Components/**/*.jsx', { eager: true });
 
 /**
  * Resolve 'ext:Example/LinePicker' to the component a module ships at
@@ -85,4 +86,14 @@ export function Hook({ name, hooks, ...context }) {
 /** True when anything was contributed — for deciding whether to draw a wrapper. */
 export function hasHook(hooks, name) {
     return Boolean(hooks?.[name]?.length);
+}
+
+/**
+ * True when at least one contribution will actually render: it names no
+ * component (a generic card) or one this build contains. A hook point that
+ * REPLACES a core control asks this rather than hasHook(), so a module whose
+ * component is missing from the build never leaves the operator with nothing.
+ */
+export function hasRenderableHook(hooks, name) {
+    return (hooks?.[name] ?? []).some((c) => ! c.component || resolveHookComponent(c.component) !== null);
 }

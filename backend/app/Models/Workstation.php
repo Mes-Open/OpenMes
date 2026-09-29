@@ -20,6 +20,8 @@ class Workstation extends Model
         'code',
         'name',
         'workstation_type',
+        'operator_screens',
+        'unit_label_actions',
         'ideal_rate_per_hour',
         'is_active',
     ];
@@ -29,6 +31,8 @@ class Workstation extends Model
         return [
             'is_active' => 'boolean',
             'ideal_rate_per_hour' => 'decimal:2',
+            'operator_screens' => 'array',
+            'unit_label_actions' => 'array',
         ];
     }
 

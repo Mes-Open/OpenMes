@@ -11,6 +11,7 @@ use App\Models\MaterialAllocation;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\StockMovementReason;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -389,7 +390,7 @@ class MaterialAllocationService
                         $leftoverToReturn,
                         sourceType: StockMovement::SOURCE_BATCH,
                         sourceId: $batch->id,
-                        reason: 'Batch #'.$batch->id.' completed — leftover returned to stock',
+                        reason: StockMovementReason::make('Batch #:batch completed — leftover returned to stock', ['batch' => $batch->id]),
                     );
                 }
 
@@ -400,7 +401,7 @@ class MaterialAllocationService
                         0, // scrap is a status change, not a stock delta — already left stock at allocation time
                         sourceType: StockMovement::SOURCE_BATCH,
                         sourceId: $batch->id,
-                        reason: 'Batch #'.$batch->id.' scrap qty recorded',
+                        reason: StockMovementReason::make('Batch #:batch scrap qty recorded', ['batch' => $batch->id]),
                     );
                 }
 
@@ -443,7 +444,7 @@ class MaterialAllocationService
                         (float) $allocation->allocated_qty,
                         sourceType: StockMovement::SOURCE_BATCH,
                         sourceId: $allocation->batch_id,
-                        reason: 'Batch #'.$allocation->batch_id.' cancelled — return to stock',
+                        reason: StockMovementReason::make('Batch #:batch cancelled — return to stock', ['batch' => $allocation->batch_id]),
                     );
                     $this->releaseReservation($allocation->material, (float) $allocation->allocated_qty);
                 }
@@ -537,7 +538,7 @@ class MaterialAllocationService
                 user: $user,
                 sourceType: StockMovement::SOURCE_BATCH,
                 sourceId: $allocation->batch_id,
-                reason: $reason ?? 'Adjustment on batch #'.$allocation->batch_id,
+                reason: $reason ?? StockMovementReason::make('Adjustment on batch #:batch', ['batch' => $allocation->batch_id]),
             );
 
             if ($deltaQty > 0) {
@@ -607,7 +608,7 @@ class MaterialAllocationService
                 user: $user,
                 sourceType: StockMovement::SOURCE_BATCH,
                 sourceId: $allocation->batch_id,
-                reason: $reason ?? 'Batch #'.$allocation->batch_id.' — unused material returned to stock',
+                reason: $reason ?? StockMovementReason::make('Batch #:batch — unused material returned to stock', ['batch' => $allocation->batch_id]),
             );
 
             $this->releaseReservation($material, $qty);
@@ -690,7 +691,9 @@ class MaterialAllocationService
                     user: $user,
                     sourceType: $stepId ? StockMovement::SOURCE_BATCH_STEP : StockMovement::SOURCE_BATCH,
                     sourceId: $stepId ?: $batch->id,
-                    reason: 'Allocated to batch #'.$batch->id.($stepId ? ' (step '.$stepId.')' : ''),
+                    reason: $stepId
+                        ? StockMovementReason::make('Allocated to batch #:batch (step :step)', ['batch' => $batch->id, 'step' => $stepId])
+                        : StockMovementReason::make('Allocated to batch #:batch', ['batch' => $batch->id]),
                 );
                 $material->increment('reserved_quantity', $requiredQty);
                 \App\Sync\CollectionBroadcaster::flush($material); // increment bypasses model events

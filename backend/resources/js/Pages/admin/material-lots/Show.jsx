@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTrail from '../../../components/PageTrail';
+import { __ } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     received:   'bg-om-chip text-om-accent',
@@ -167,6 +168,8 @@ export default function MaterialLotShow({ lot }) {
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
                             {ucFirst(lot.status)}
                         </span>
+                        {/* The incoming-inspection label: lot, material and the IQC verdict, for the warehouse shelf. */}
+                        <a href={`/packaging/labels/material-lot/${lot.id}/pdf`} target="_blank" rel="noopener" className="btn-touch btn-secondary">{__('IQC label')}</a>
                         <Link href={`/admin/material-lots/${lot.id}/edit`} className="btn-touch btn-secondary">Edit</Link>
                         <Link href="/admin/material-lots" className="btn-touch btn-ghost">&#8592; Back</Link>
                     </div>

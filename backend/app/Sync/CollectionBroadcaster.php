@@ -57,6 +57,7 @@ class CollectionBroadcaster
             'users' => [Models\User::class, null],
             'workers' => [Models\Worker::class, null],
             'materials' => [Models\Material::class, null],
+            'serial_units' => [Models\SerialUnit::class, null],
             'data_imports' => [Models\CsvImport::class, fn ($m) => $m->created_at === null || $m->created_at->gte(now()->subDays(\App\Sync\Shapes\DataImportsRecentShape::DAYS))],
             'material_types' => [Models\MaterialType::class, null],
             'material_lots' => [Models\MaterialLot::class, null],

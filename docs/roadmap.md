@@ -70,3 +70,34 @@ A production scheduler needs to see, over several days: what is already schedule
 ### Made-to-order vs stock order-entry paths `probable`
 
 Order entry currently treats every order the same, but the plant runs two distinct modes: **made-to-order** units, where customizing the process per order matters, and **stock** products, where reusing an established setup matters. Order creation should split into two guided paths — "from template / stock" (fast reuse of a process template) and "made-to-order" (customize the steps) — building on the existing process templates and variant/optional steps, which today lack the UX that routes the user down the right path.
+
+## Machine / workstation state — deferred items (2026-09-27)
+
+Findings from a review of the state flow (`WorkstationStateMachine`, the operator
+panel on `/operator/workstation`, the admin machine monitor and the connectivity
+adapters). Parked so the serialised-unit traceability work stays focused; pick
+them up when the state panel gets real use.
+
+1. **Manual and machine sources fight.** `transition()` has no source
+   precedence. On a workstation with a `state` tag, a manual "Fault" is undone
+   by the next poll (the machine still reports RUNNING, the ingestor sees a
+   difference and transitions back). Options: manual override with an expiry
+   (e.g. 30 min), or hide the manual dropdown where a machine feed exists.
+2. **Nothing sets RUNNING from production.** Starting a step or logging a
+   quantity never touches the state; without a connector and without clicking,
+   OEE cannot see the station worked. Proposal: on a workstation with no
+   machine state tag, starting a step sets RUNNING (source `production`), and
+   finishing the last open step sets IDLE.
+3. **Manual states never expire.** A "Fault" clicked on Friday stays open,
+   with its downtime, over the weekend. Close open manual states and their
+   auto downtimes at shift end (the shift window is already computed when a
+   downtime opens).
+4. **Alarm signals go nowhere.** `MachineSignalIngestor::handleAlarm` only
+   records a `MachineEvent`; the "downstream listener creates an issue" the
+   code mentions does not exist. Decide the policy (issue, alert, both) and add
+   the listener.
+5. ~~Operator panel has no note field~~ — done 2026-09-27: stop states prompt
+   for an optional note.
+6. **WAITING counts as unplanned loss** (`WorkstationState::LOSS_STATES`), so
+   waiting for material lowers availability. Deliberate; confirm with the
+   customer.

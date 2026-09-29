@@ -4,7 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Lot\LotPatternFormatter;
 use Carbon\Carbon;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase; // the formatter's messages and legend go through the translator
 
 class LotPatternFormatterTest extends TestCase
 {
@@ -38,6 +38,47 @@ class LotPatternFormatterTest extends TestCase
         $lot = $this->formatter->format('[date:y-m-d]/[seq]', 7, 3, null, $this->now);
 
         $this->assertSame('26-06-06/007', $lot);
+    }
+
+    public function test_date_aliases_and_day_of_year(): void
+    {
+        // 2026-06-06 is day 157, ISO week 23, a Saturday (6); calendar and ISO year both 2026.
+        $lot = $this->formatter->format('[doy]-[date:y1][date:W][date:N]-[date:o1]-[seq]', 1, 1, null, $this->now);
+
+        $this->assertSame('157-6236-6-1', $lot);
+    }
+
+    public function test_named_calendar_tokens(): void
+    {
+        $lot = $this->formatter->format('[year2]|[year1]|[week]|[weekday]|[doy]-[seq]', 3, 2, null, $this->now);
+
+        $this->assertSame('26|6|23|6|157-03', $lot);
+    }
+
+    public function test_describe_lists_every_token_with_todays_value(): void
+    {
+        $legend = collect($this->formatter->describe($this->now, 4))->keyBy('token');
+
+        $this->assertSame(LotPatternFormatter::TOKENS, $legend->keys()->all());
+        $this->assertSame('0001', $legend['seq']['example']);
+        $this->assertSame('157', $legend['doy']['example']);
+        $this->assertSame('6', $legend['weekday']['example']);
+        $this->assertNotSame('', $legend['week']['label']);
+    }
+
+    public function test_day_of_year_is_one_based_and_padded(): void
+    {
+        $lot = $this->formatter->format('[doy]-[seq]', 1, 1, null, Carbon::create(2026, 1, 1));
+
+        $this->assertSame('001-1', $lot);
+    }
+
+    public function test_iso_year_alias_follows_the_iso_week(): void
+    {
+        // 2027-01-01 is a Friday in ISO week 53 of 2026.
+        $lot = $this->formatter->format('[date:o1][date:W]-[seq]', 1, 1, null, Carbon::create(2027, 1, 1));
+
+        $this->assertSame('653-1', $lot);
     }
 
     public function test_formats_year_month_day_tokens(): void

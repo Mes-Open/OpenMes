@@ -41,6 +41,8 @@ export interface StepperStep {
     meta?: React.ReactNode;
     /** Something you can do to the step, e.g. a Start button. */
     action?: React.ReactNode;
+    /** Block content under the caption, e.g. the lots the step consumed. */
+    body?: React.ReactNode;
 }
 
 export interface StepperProps {
@@ -89,6 +91,14 @@ export function Stepper({ steps = [], size = 'md', style }: StepperProps) {
                                     {step.description}
                                 </Text>
                             )}
+                            {step.body != null && step.body !== false && step.body !== '' && (
+                                <View style={styles.bodyContent}>
+                                    {/* A plain note must sit in a Text on native, or React Native throws. */}
+                                    {typeof step.body === 'string' || typeof step.body === 'number'
+                                        ? <Text style={[styles.bodyText, { color: colors.muted }]}>{step.body}</Text>
+                                        : step.body}
+                                </View>
+                            )}
                         </View>
                         {step.meta}
                         {step.action}
@@ -122,6 +132,12 @@ const styles = StyleSheet.create({
     body: {
         flex: 1,
         minWidth: 0,
+    },
+    bodyContent: {
+        marginTop: 4,
+    },
+    bodyText: {
+        fontSize: 12,
     },
     title: {
         fontFamily: fonts.sans.native.semibold,
