@@ -7,6 +7,132 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **A module installed after the fact now has a working frontend.** Its React pages were
+  never in the bundle — the bundle is compiled before the module exists, and the production
+  image deletes `node_modules` right after building — so every page of an uploaded module
+  rendered the missing-page card while its routes answered normally. A module now ships its
+  own compiled JS, which core loads before the first render and reads as a third source in
+  the page resolver. Precedence is unchanged: core, then a compiled-in module, then a runtime
+  one. The shared contract lives in `packages/module`, so core's runtime and a module's
+  externals come from one list rather than two maintained by hand — and a module carries no
+  React of its own, which would break hooks with two copies on a page.
+- **The install scripts now ask about anonymous usage reports.** The web setup wizard has
+  asked since reporting became opt-in, but a Docker install never reaches that wizard — the
+  entrypoint creates the admin and marks the application installed — so nobody installing with
+  `install.sh` or `install.ps1` was ever asked. The prompt defaults to **no**, and an
+  unattended run is treated as no rather than as consent. The answer is written to
+  `OPENMES_TELEMETRY` in `.env`, passed to the container, and recorded once by the entrypoint
+  before the install is marked complete, so it can never overwrite a later choice made in
+  Settings → System.
+- **A module can reach the operator's station screen**: a display region on the workstation
+  page, and the same rule filter the user and worker forms use, so a module's own key
+  survives `validated()` when a step is started or completed. Nothing else was needed —
+  `StepStarted` and `StepCompleted` are already dispatched from the model observer, inside
+  the service transaction and on every path that moves a step.
+
+- **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
+  read it, so a module built against extension points this core does not have installed
+  cleanly and then quietly did nothing. Installing or enabling one now says so instead,
+  naming both versions. A module that declares no requirement is unaffected, and an
+  unreadable one is refused rather than treated as "any version".
+- **A module can add its own fields to the user and worker forms** — shown by core,
+  validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
+  until now unused) carries the field's description to the page, where `ModuleFields` draws
+  it; the Form Request rule sets pass through a `FilterRegistry` filter, which is what makes
+  the module's key survive `validated()` — without a declared rule it was dropped between the
+  browser and the controller, silently; and a new `persist.*` hook tells the module, inside
+  the controller's transaction, that the record was saved, so a failed write there rolls the
+  whole save back rather than leaving the field lost. With no module listening none of it
+  costs anything: the page is sent `{}` and the rule set comes back untouched.
+
+  A module distributed as a ZIP cannot ship working React into a released install — the page
+  globs are expanded when core is built — so contributing data that core renders is the only
+  arrangement that works at all.
+- Module seams: `MenuRegistry::addOperatorItem()` puts a module's screen on the operator top bar as a tab; `modules/<Name>/lang/<locale>.json` strings are merged into the frontend translations; `ImportRegistry` accepts module importers through the `import.entities` filter; `Tests\Support\ModuleTestCase` migrates a module's tables inside the test transaction. Module-contributed nav entries are tinted with the accent colour and highlight on their own pages (they registered absolute URLs, which the path-based active check never matched).
+
+### Fixed
+
+- **A failing module no longer takes the whole application down.** Providers were registered
+  inside a try/catch, but Laravel calls `boot()` later, outside it — so a module throwing
+  there took every route with it, including the admin screen needed to disable the module.
+  Recovery meant deleting its directory by hand. Providers now run behind
+  `ModuleProviderGuard`, which catches both phases: a module that fails contributes nothing
+  and is logged, and the rest of the application is unaffected.
+- The first scan or save after signing in no longer fails with 419: screens that post with fetch read the CSRF token from the page head, which an Inertia visit did not refresh after login regenerated it. The head now follows the token every page carries.
+- Printing a label (work order, finished goods, pallet, carton, unit, IQC), a packing list or a batch report no longer fails with a server error when the order, lot or pallet number contains a slash: download names are made safe.
+- A held unit no longer leaves as shipped with its pallet (nor counts in its finished-goods documents), and the scrap-on-failed-test policy leaves units that already shipped alone.
+- Tester logs in the one-cycle layout: a step's `lo`/`hi` limits are kept with its measurement, a run that crosses midnight ends the next day instead of before it started, the closing verdict letter decides the run as documented, and a failed step numbered 0 is no longer dropped.
+- Putting a carton on a pallet judged the pallet's quality before the carton's units were on it, so a pallet of tested units stayed "pending" and could not be shipped.
+- The "Batch created" message on the operator's order page was not translated.
+- Putting a carton on a pallet counts each unit once (a unit scanned straight
+  onto the pallet before its box was placed is no longer counted twice), refuses
+  another order's pallet and a box whose unit already sits on a different pallet.
+- Packing history rows (packed, palletised) and cartons opened at the bench are
+  attributed to the bench the operator picked for the session, not only to the
+  account's default workstation.
+- A scanned component lot matches its material lot whatever the identifier
+  normalise setting says (both sides are folded for the comparison).
+- The tester event-stream parser skips a `step_start` without `step_id` and a
+  `run_start` without `station` instead of failing the whole import.
+- Blocked serialised units show a red "Blocked" chip on the label station and
+  in traceability instead of a neutral chip with the raw status key.
+- The operator workstation page drops the two dead "Cleaning" / "Failure"
+  buttons under the line name (disabled stubs; the machine-state panel above
+  them does that job). Setting a stop state there (stopped, fault, waiting,
+  cleaning, maintenance) now asks for an optional note, stored with the state.
+- The operator header no longer overflows on tablet widths (iPad Mini and
+  narrower): the links drop to their own row and the bar grows with them.
+
+- Number fields in the admin forms carry the same bounds the server enforces
+  (a planned quantity cannot be typed as negative or zero, a price or priority
+  as negative), so the browser refuses the value instead of a failed round trip.
+- Lot tracking of materials and its picking strategy can be switched from
+  Settings → System → Production; before, the setting existed only in the
+  database.
+- A unit blocked after failed tests is released by a later passing verdict, as
+  the fail policy always said; before, the only way out of a block was scrap.
+- A pallet's quality gate now reads each unit's latest verdict; it used to read
+  the oldest, so a unit that passed and later failed could still ship.
+- Rescanning a unit's label at the packing station no longer counts it on the
+  packing step again, a unit does not go into a carton or onto a pallet of
+  another work order, and a unit already on a pallet is not moved to another
+  one by a scan (which left the first pallet's count wrong).
+- Carton numbers come from a database sequence on Postgres, like pallet
+  numbers, so two benches opening a carton at once no longer collide.
+- The traceability search normalises the typed identifier the way scanning
+  does, so a serial typed with spaces or in lower case is found.
+- Compact tester logs without a run id are no longer recorded twice when the
+  same file is imported again.
+- The unit label puts the production date on its own line under the order and
+  product, where the height allows, instead of cutting the line off under the
+  QR code on small labels.
+- **The release package no longer ships without the Modules admin screen.** The rsync rules
+  that keep locally installed modules out of a release were unanchored, so they matched any
+  directory called `modules` — and this repository has a second one,
+  `resources/js/Pages/admin/modules`. Three files were dropped from every package, which left
+  the one screen that installs a module answering "Page unavailable" with no way to tell why.
+  The rules are anchored to `backend/modules`, and the release now fails if any tracked file
+  under `backend/resources` is missing from the package.
+- **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
+  get-binary` asked api.github.com for the release list on every build, and five services in
+  `docker-compose.yml` build from this Dockerfile — so one `up --build` made that call several
+  times over, in parallel. A resolver that answered NODATA under that burst failed the whole
+  install with an error that pointed at RoadRunner rather than at the network. The binary now
+  comes from the official image, pinned to the `spiral/roadrunner` release in `composer.lock`.
+- **Uninstalling a module now runs the module's own uninstall hook**, while its classes are
+  still on disk — afterwards there is nothing left to call, so the hook never ran at all. It
+  is a module's only chance to undo what it did outside its own tables. A hook that fails
+  leaves the module in place to be retried, and the success message now says plainly that the
+  module's database tables are kept.
+- **The scanner mode setting now does something.** Settings → System has offered a choice
+  between a keyboard-wedge reader and manual entry since it was merged, and its own
+  description promised the operator "a visible field" — but the packing station never read
+  the setting, and no such field existed. Picking `manual` therefore left the station with
+  no way to enter a code at all. The station now honours the setting: `hid` keeps the
+  document-level capture, `manual` detaches it and shows the field.
+
 ### Changed
 
 - Settings → Import no longer sends a live update per imported row. A plant file with its production scenario touches a thousand rows or more, each update a synchronous call to the websocket server after the commit; on a slower host that ran the request past its time limit and answered an empty error 500, although the data had been saved. Open screens pick the new data up when they next load, as after a data import. A failed import now names its reason on the page (the screen is admin-only) instead of a generic message, and a log that cannot be written no longer turns that answer into an empty 500.
@@ -45,9 +171,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Default label templates include a Serial Unit label; its barcode and QR carry the serial number itself.
 - Settings → Import accepts a configuration file prepared by hand for a new plant, not only an export: tables are applied in dependency order whatever order the file uses, a row's `id` is the file's own reference (foreign keys such as a workstation's line, a step's workstation or a BOM item's step and material are remapped to the rows the import created), rows are upserted by their natural key so a re-import updates instead of duplicating, and label templates, lot sequences, product–line links and system settings not yet stored (from the settings form's own keys) are imported too. Each setting from a file is checked against the settings form's own rule (a serial pattern must compile, attempt counts stay in range) and invalid ones are skipped; the plant timezone applies at once; the production flow mode is never taken from a file. A reference into a table the file carries but that did not land is dropped instead of borrowing whatever row has that id here, other `*_id` columns (users and the like) are never copied, and a live row wins over a deleted one with the same key. The export writes the same table set and leaves soft-deleted rows out.
 - Settings → Import replays an optional production scenario (`scenario` section): operator accounts, material lots and a timed list of shop-floor events — work orders, schedule placements, batches, step starts/logs/completions, units started on a PSN, SN labels, components, tester runs, holds, scrap, packing, cartons and pallets — each through the same service the operator screens use, with the clock set to the event's time. One transaction with the configuration: a failing event saves nothing and names the event. Format in the admin guide.
-
-### Changed
-
 - Operators see only the tabs their bench needs. The tabs follow the steps the
   routing sends to the selected workstation: a packing step gives "Packing", a
   production step gives the queue and the workstation table, plus "SN labels"
@@ -108,132 +231,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   stays in the row tint, the badge or the switch.
 - Label templates show "Default for its type" in words with a yes/no filter
   instead of a bare star.
-
-### Fixed
-
-- The first scan or save after signing in no longer fails with 419: screens that post with fetch read the CSRF token from the page head, which an Inertia visit did not refresh after login regenerated it. The head now follows the token every page carries.
-- Printing a label (work order, finished goods, pallet, carton, unit, IQC), a packing list or a batch report no longer fails with a server error when the order, lot or pallet number contains a slash: download names are made safe.
-- A held unit no longer leaves as shipped with its pallet (nor counts in its finished-goods documents), and the scrap-on-failed-test policy leaves units that already shipped alone.
-- Tester logs in the one-cycle layout: a step's `lo`/`hi` limits are kept with its measurement, a run that crosses midnight ends the next day instead of before it started, the closing verdict letter decides the run as documented, and a failed step numbered 0 is no longer dropped.
-- Putting a carton on a pallet judged the pallet's quality before the carton's units were on it, so a pallet of tested units stayed "pending" and could not be shipped.
-- The "Batch created" message on the operator's order page was not translated.
-- Putting a carton on a pallet counts each unit once (a unit scanned straight
-  onto the pallet before its box was placed is no longer counted twice), refuses
-  another order's pallet and a box whose unit already sits on a different pallet.
-- Packing history rows (packed, palletised) and cartons opened at the bench are
-  attributed to the bench the operator picked for the session, not only to the
-  account's default workstation.
-- A scanned component lot matches its material lot whatever the identifier
-  normalise setting says (both sides are folded for the comparison).
-- The tester event-stream parser skips a `step_start` without `step_id` and a
-  `run_start` without `station` instead of failing the whole import.
-- Blocked serialised units show a red "Blocked" chip on the label station and
-  in traceability instead of a neutral chip with the raw status key.
-- The operator workstation page drops the two dead "Cleaning" / "Failure"
-  buttons under the line name (disabled stubs; the machine-state panel above
-  them does that job). Setting a stop state there (stopped, fault, waiting,
-  cleaning, maintenance) now asks for an optional note, stored with the state.
-- The operator header no longer overflows on tablet widths (iPad Mini and
-  narrower): the links drop to their own row and the bar grows with them.
-
-- Number fields in the admin forms carry the same bounds the server enforces
-  (a planned quantity cannot be typed as negative or zero, a price or priority
-  as negative), so the browser refuses the value instead of a failed round trip.
-- Lot tracking of materials and its picking strategy can be switched from
-  Settings → System → Production; before, the setting existed only in the
-  database.
-- A unit blocked after failed tests is released by a later passing verdict, as
-  the fail policy always said; before, the only way out of a block was scrap.
-- A pallet's quality gate now reads each unit's latest verdict; it used to read
-  the oldest, so a unit that passed and later failed could still ship.
-- Rescanning a unit's label at the packing station no longer counts it on the
-  packing step again, a unit does not go into a carton or onto a pallet of
-  another work order, and a unit already on a pallet is not moved to another
-  one by a scan (which left the first pallet's count wrong).
-- Carton numbers come from a database sequence on Postgres, like pallet
-  numbers, so two benches opening a carton at once no longer collide.
-- The traceability search normalises the typed identifier the way scanning
-  does, so a serial typed with spaces or in lower case is found.
-- Compact tester logs without a run id are no longer recorded twice when the
-  same file is imported again.
-- The unit label puts the production date on its own line under the order and
-  product, where the height allows, instead of cutting the line off under the
-  QR code on small labels.
-
-### Added
-
-- **The install scripts now ask about anonymous usage reports.** The web setup wizard has
-  asked since reporting became opt-in, but a Docker install never reaches that wizard — the
-  entrypoint creates the admin and marks the application installed — so nobody installing with
-  `install.sh` or `install.ps1` was ever asked. The prompt defaults to **no**, and an
-  unattended run is treated as no rather than as consent. The answer is written to
-  `OPENMES_TELEMETRY` in `.env`, passed to the container, and recorded once by the entrypoint
-  before the install is marked complete, so it can never overwrite a later choice made in
-  Settings → System.
-
-### Fixed
-
-- **The release package no longer ships without the Modules admin screen.** The rsync rules
-  that keep locally installed modules out of a release were unanchored, so they matched any
-  directory called `modules` — and this repository has a second one,
-  `resources/js/Pages/admin/modules`. Three files were dropped from every package, which left
-  the one screen that installs a module answering "Page unavailable" with no way to tell why.
-  The rules are anchored to `backend/modules`, and the release now fails if any tracked file
-  under `backend/resources` is missing from the package.
-
-### Fixed
-
-- **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
-  get-binary` asked api.github.com for the release list on every build, and five services in
-  `docker-compose.yml` build from this Dockerfile — so one `up --build` made that call several
-  times over, in parallel. A resolver that answered NODATA under that burst failed the whole
-  install with an error that pointed at RoadRunner rather than at the network. The binary now
-  comes from the official image, pinned to the `spiral/roadrunner` release in `composer.lock`.
-
-### Added
-
-- **A module can reach the operator's station screen**: a display region on the workstation
-  page, and the same rule filter the user and worker forms use, so a module's own key
-  survives `validated()` when a step is started or completed. Nothing else was needed —
-  `StepStarted` and `StepCompleted` are already dispatched from the model observer, inside
-  the service transaction and on every path that moves a step.
-
-- **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
-  read it, so a module built against extension points this core does not have installed
-  cleanly and then quietly did nothing. Installing or enabling one now says so instead,
-  naming both versions. A module that declares no requirement is unaffected, and an
-  unreadable one is refused rather than treated as "any version".
-- **A module can add its own fields to the user and worker forms** — shown by core,
-  validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
-  until now unused) carries the field's description to the page, where `ModuleFields` draws
-  it; the Form Request rule sets pass through a `FilterRegistry` filter, which is what makes
-  the module's key survive `validated()` — without a declared rule it was dropped between the
-  browser and the controller, silently; and a new `persist.*` hook tells the module, inside
-  the controller's transaction, that the record was saved, so a failed write there rolls the
-  whole save back rather than leaving the field lost. With no module listening none of it
-  costs anything: the page is sent `{}` and the rule set comes back untouched.
-
-  A module distributed as a ZIP cannot ship working React into a released install — the page
-  globs are expanded when core is built — so contributing data that core renders is the only
-  arrangement that works at all.
-- Module seams: `MenuRegistry::addOperatorItem()` puts a module's screen on the operator top bar as a tab; `modules/<Name>/lang/<locale>.json` strings are merged into the frontend translations; `ImportRegistry` accepts module importers through the `import.entities` filter; `Tests\Support\ModuleTestCase` migrates a module's tables inside the test transaction. Module-contributed nav entries are tinted with the accent colour and highlight on their own pages (they registered absolute URLs, which the path-based active check never matched).
-
-### Fixed
-
-- **Uninstalling a module now runs the module's own uninstall hook**, while its classes are
-  still on disk — afterwards there is nothing left to call, so the hook never ran at all. It
-  is a module's only chance to undo what it did outside its own tables. A hook that fails
-  leaves the module in place to be retried, and the success message now says plainly that the
-  module's database tables are kept.
-- **The scanner mode setting now does something.** Settings → System has offered a choice
-  between a keyboard-wedge reader and manual entry since it was merged, and its own
-  description promised the operator "a visible field" — but the packing station never read
-  the setting, and no such field existed. Picking `manual` therefore left the station with
-  no way to enter a code at all. The station now honours the setting: `hid` keeps the
-  document-level capture, `manual` detaches it and shows the field.
-
-### Changed
-
 - User administration validates through Form Requests. The rule set lived inline in the
   controller in two near-identical copies, one per action, which the project's own conventions
   forbid and which is how the two copies drifted apart. Behaviour is unchanged with one
