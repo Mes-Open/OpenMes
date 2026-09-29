@@ -9,6 +9,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- Settings → Import no longer sends a live update per imported row. A plant file with its production scenario touches a thousand rows or more, each update a synchronous call to the websocket server after the commit; on a slower host that ran the request past its time limit and answered an empty error 500, although the data had been saved. Open screens pick the new data up when they next load, as after a data import. A failed import now names its reason on the page (the screen is admin-only) instead of a generic message, and a log that cannot be written no longer turns that answer into an empty 500.
+- The audit log page no longer trips a PHP deprecation on rows that name no entity (a login, a settings change), and the `deprecations` log channel is declared in `config/logging.php`: under Octane the channel the framework added at runtime never reached the log manager, so every deprecation notice ended in "Log [deprecations] is not defined" through the emergency logger.
+
 - SN label station per workstation: the workstation form picks what the station offers there - start units on PSN, bind the serial label, issue numbers, components, sub-assemblies - so the first bench shows only "Start unit on PSN" and the labelling bench only the two scans. Nothing ticked keeps everything; supervisors, admins and the whole-line view always see everything.
 - The operator's work order view lists the order's serial units - serial number, PSN, status, last event and carton/pallet - next to the step quantities.
 - Packing station: on "auto" a unit of another order than the bench's open carton goes into a carton of its own order (the operator's open one, else a new one) instead of being refused; the scan field reads "PSN or serial number", and the EAN cards show only when EAN packing is in use.

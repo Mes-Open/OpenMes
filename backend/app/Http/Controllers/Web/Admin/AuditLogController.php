@@ -31,15 +31,17 @@ class AuditLogController extends Controller
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
-                $request->start_date . ' 00:00:00',
-                $request->end_date . ' 23:59:59',
+                $request->start_date.' 00:00:00',
+                $request->end_date.' 23:59:59',
             ]);
         }
 
         $auditLogs = $query->paginate(20);
 
         // Get distinct entity types for filter
+        // A row with no entity (a login, a settings change) has no type to list.
         $entityTypes = AuditLog::selectRaw('DISTINCT entity_type')
+            ->whereNotNull('entity_type')
             ->pluck('entity_type')
             ->map(function ($type) {
                 return class_basename($type);
@@ -52,15 +54,15 @@ class AuditLogController extends Controller
         $users = User::select('id', 'name', 'username')->orderBy('name')->get();
 
         return \Inertia\Inertia::render('admin/AuditLogs', [
-            'auditLogs'   => $auditLogs,
+            'auditLogs' => $auditLogs,
             'entityTypes' => $entityTypes,
-            'users'       => $users,
-            'filters'     => [
+            'users' => $users,
+            'filters' => [
                 'entity_type' => $request->input('entity_type', ''),
-                'user_id'     => $request->input('user_id', ''),
-                'action'      => $request->input('action', ''),
-                'start_date'  => $request->input('start_date', ''),
-                'end_date'    => $request->input('end_date', ''),
+                'user_id' => $request->input('user_id', ''),
+                'action' => $request->input('action', ''),
+                'start_date' => $request->input('start_date', ''),
+                'end_date' => $request->input('end_date', ''),
             ],
         ]);
     }
@@ -85,8 +87,8 @@ class AuditLogController extends Controller
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
-                $request->start_date . ' 00:00:00',
-                $request->end_date . ' 23:59:59',
+                $request->start_date.' 00:00:00',
+                $request->end_date.' 23:59:59',
             ]);
         }
 
@@ -101,7 +103,7 @@ class AuditLogController extends Controller
             $csv .= Csv::row([
                 $log->created_at->toIso8601String(),
                 $log->user ? $log->user->username : 'System',
-                class_basename($log->entity_type) . ' #' . $log->entity_id,
+                class_basename($log->entity_type).' #'.$log->entity_id,
                 $log->action,
                 $log->ip_address ?? 'N/A',
                 $changes,
@@ -110,14 +112,14 @@ class AuditLogController extends Controller
 
         return Response::make($csv, 200, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="audit_log_' . date('Y-m-d_H-i-s') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="audit_log_'.date('Y-m-d_H-i-s').'.csv"',
         ]);
     }
 
     protected function formatChanges(AuditLog $log): string
     {
         if ($log->action === 'created') {
-            return 'Created with ' . count($log->after_state ?? []) . ' fields';
+            return 'Created with '.count($log->after_state ?? []).' fields';
         }
 
         if ($log->action === 'deleted') {
@@ -130,6 +132,7 @@ class AuditLogController extends Controller
                 $oldValue = $log->before_state[$field] ?? 'null';
                 $changes[] = "{$field}: {$oldValue} -> {$newValue}";
             }
+
             return implode('; ', $changes);
         }
 

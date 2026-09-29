@@ -88,6 +88,22 @@ class SettingsConfigurationImportTest extends TestCase
         $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => UploadedFile::fake()->createWithContent('x.json', '{broken')])->assertSessionHas('error');
     }
 
+    public function test_a_failed_import_says_why_and_saves_nothing(): void
+    {
+        // Something the importer did not foresee: the admin reads the reason on
+        // the page (a server's logs may be out of reach), and nothing is kept.
+        $this->mock(\App\Services\Settings\ConfigurationImporter::class, function ($mock) {
+            $mock->shouldReceive('import')->andReturnUsing(function () {
+                \App\Models\Line::factory()->create(['code' => 'HALF-DONE']);
+                throw new \RuntimeException('column "surprise" does not exist');
+            });
+        });
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file(['lines' => []])])
+            ->assertSessionHas('error', fn ($m) => str_contains($m, 'RuntimeException') && str_contains($m, 'column "surprise" does not exist'));
+        $this->assertDatabaseMissing('lines', ['code' => 'HALF-DONE']);
+    }
+
     public function test_references_land_on_the_rows_the_file_created_whatever_ids_they_get(): void
     {
         // Rows already in the database push the new ids away from the file's.
