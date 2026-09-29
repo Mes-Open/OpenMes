@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-09-29
+
 ### Added
 
 - **A module installed after the fact now has a working frontend.** Its React pages were
