@@ -10,18 +10,6 @@ import { __, formatNumber } from '../../../lib/i18n';
  * since, availability, quality, good, reject, metadata.
  */
 
-const BORDER = {
-    green: 'border-om-running',
-    amber: 'border-amber-400',
-    blue:  'border-om-accent',
-    gray:  'border-om-faintest',
-    red:   'border-om-blocked',
-    yellow: 'border-yellow-400',
-    purple: 'border-purple-400',
-    orange: 'border-orange-400',
-    slate: 'border-slate-300',
-};
-
 const BADGE = {
     green: 'bg-om-running-bg text-om-running',
     amber: 'bg-om-downtime-bg text-om-downtime',
@@ -156,13 +144,12 @@ export default function MachineMonitorIndex() {
 MachineMonitorIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function Tile({ t, now, states = [], onSetState }) {
-    const border = BORDER[t.color] ?? BORDER.slate;
     const badge = BADGE[t.color] ?? BADGE.slate;
     const elapsed = timeInState(t.since, now);
     const metadata = t.metadata && typeof t.metadata === 'object' ? Object.entries(t.metadata) : [];
 
     return (
-        <div className={`bg-om-card rounded-om border border-om-line2 border-l-4 ${border} shadow-sm p-5`}>
+        <div className="bg-om-card rounded-om border border-om-line2 shadow-sm p-5">
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                     <h3 className="font-bold text-om-ink truncate">{t.name}</h3>

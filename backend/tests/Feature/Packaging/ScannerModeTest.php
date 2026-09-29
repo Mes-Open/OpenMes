@@ -44,7 +44,7 @@ class ScannerModeTest extends TestCase
         $this->storeMode('manual');
 
         $this->actingAs($this->operator())
-            ->get(route('packaging.station'))
+            ->get(route('operator.packaging'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('packaging/Station')
@@ -58,7 +58,7 @@ class ScannerModeTest extends TestCase
         DB::table('system_settings')->where('key', 'scanner_mode')->delete();
 
         $this->actingAs($this->operator())
-            ->get(route('packaging.station'))
+            ->get(route('operator.packaging'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('scannerMode', 'hid'));
     }
@@ -73,7 +73,7 @@ class ScannerModeTest extends TestCase
             ->post(route('settings.update-system'), $this->systemSettingsPayload(['scanner_mode' => 'manual']))
             ->assertSessionHasNoErrors();
 
-        $this->get(route('packaging.station'))
+        $this->get(route('operator.packaging'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('scannerMode', 'manual'));
     }

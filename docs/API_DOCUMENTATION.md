@@ -18,6 +18,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Production Stops and Change Control](#production-stops-and-change-control)
   - [Batches](#batches)
   - [Batch Steps](#batch-steps)
+  - [Serial Units and Test Runs](#serial-units-and-test-runs)
   - [Issues](#issues)
   - [Issue Types](#issue-types)
   - [CSV Import](#csv-import)
@@ -573,6 +574,152 @@ Content-Type: application/json
 ```
 
 This also creates an Issue linked to the work order.
+
+---
+
+### Serial Units and Test Runs
+
+Per-unit traceability: every serialised product (a serial number, optionally a
+process serial number, PSN) with its history of labels, components, test
+verdicts, packing and shipping. Requires a Sanctum token; any role.
+
+#### List / Look Up Units
+
+```http
+GET /api/v1/serial-units?serial_no=<serial number>
+GET /api/v1/serial-units?psn=<process serial>
+GET /api/v1/serial-units?work_order_id=<id>&status=blocked
+GET /api/v1/serial-units?search=<part of a serial>
+Authorization: Bearer <token>
+```
+
+`serial_no` and `psn` are exact matches, normalised the way the plant
+normalises scans (case and spacing, see Settings → System → Unit
+serialisation); `search` is a substring match. Newest first, 100 rows.
+
+#### Unit History
+
+```http
+GET /api/v1/serial-units/{id}
+Authorization: Bearer <token>
+```
+
+The unit with its work order, carton, pallet, bound components and every
+history row (event, operator, workstation, result, parameters, time).
+
+#### Register a Unit
+
+```http
+POST /api/v1/serial-units
+Content-Type: application/json
+
+{ "serial_no": "<serial number>", "psn": "<process serial>", "work_order_id": <id> }
+```
+
+A unit may also be registered on its process serial alone - `{ "psn": "<process serial>", "work_order_id": <id> }` -
+when the line numbers the unit at its first station and the serial number arrives later with the product label.
+The serial number then goes onto that same unit: at the label station (process serial + serial number), or when a
+tester posts a run carrying both numbers.
+
+#### Hold / Release a Unit
+
+```http
+POST /api/v1/serial-units/{id}/block     { "scrap_reason_id": <id>, "note": "<what was found>" }
+POST /api/v1/serial-units/{id}/unblock   { "note": "<why it may go on>" }
+```
+
+A held unit (non-conforming, with an error code from the scrap reasons) is not packed and fails its pallet's
+quality gate. A passing retest does not lift a hold put on by hand. Releasing needs the Supervisor or Admin role.
+
+#### Post a Test Run (tester integration)
+
+The tester posts the run it just finished. Three bodies are accepted; the
+format is detected from the first record, using the parsers listed in
+`config/traceability.php` (a plant adds its own tester's layout there).
+
+**1. The tester's own JSONL log**, exactly the lines it writes to file:
+
+```http
+POST /api/v1/test-runs?work_order=<order number>&source=<tester or file>
+Authorization: Bearer <token>
+Content-Type: application/x-ndjson
+
+...one JSON object per line, as the tester writes its log file...
+```
+
+**2. The native JSON shape** (one object, `serial_no` is the only required field):
+
+```http
+POST /api/v1/test-runs
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "serial_no": "<serial number>",
+    "psn": "<process serial>",
+    "run_id": "<unique run id>",
+    "verdict": "pass | fail | rework",
+    "started_at": "<ISO 8601>",
+    "ended_at": "<ISO 8601>",
+    "station": "<workstation code>",
+    "line": "<line code>",
+    "operator": "<name, e-mail or username>",
+    "steps": [
+        { "id": "<step id>", "name": "<step name>", "verdict": "pass | fail", "duration_ms": 0,
+          "measurements": [ { "name": "<name>", "value": 0, "unit": "<unit>", "low": 0, "high": 0 } ] }
+    ],
+    "failed_steps": ["<step id>"],
+    "extra": { "<key>": "<value>" }
+}
+```
+
+`verdict` is `pass`, `fail` or `rework`; without it a run with a failed step
+fails, any other passes.
+
+**3. Decoded records**: `{ "records": [ ...the JSONL rows as JSON objects... ] }`.
+
+Optional query or body fields beside the run: `work_order` (order number to
+attach a newly seen unit to), `workstation` (code to attribute the run to,
+instead of the station named in the log), `source` (free text kept on the
+history row, e.g. the log file name).
+
+What happens: the unit is registered on first sight (with its PSN and work
+order); the run is stamped with the tester's own time; the verdict runs the
+plant's fail policy (block after N fails, scrap, or record only); a passing
+retest lifts a block; a pallet the unit is already on re-reads its quality
+gate; a run with the same `run_id` posted again is not recorded twice. The
+operator on the history row is the user the log names when known, otherwise
+the token's user - give each tester its own account.
+
+```json
+{
+    "message": "Test run recorded",
+    "status": "imported",
+    "data": {
+        "unit": { "id": 1, "serial_no": "<serial number>", "psn": "<process serial>", "status": "blocked", "work_order_id": 1 },
+        "run_id": "<unique run id>",
+        "verdict": "fail",
+        "history_id": 1
+    }
+}
+```
+
+`201` when recorded, `200` with `"status": "duplicate"` when that run was
+already there, `422` when no parser recognises the body or it holds no
+complete run. Rate limit: 120 requests per minute per token.
+
+The same parsers serve the offline path: `php artisan traceability:import-jsonl <files or folders>`.
+
+#### Record a Step / Bind a Component
+
+```http
+POST /api/v1/serial-units/{id}/steps        { "result": "pass", "parameters": { "event": "test" }, "workstation_id": <id> }
+POST /api/v1/serial-units/{id}/components   { "identifier": "<lot number or component serial>", "material_id": <id>, "quantity": 1 }
+```
+
+The generic history write and the component scan, for integrations that
+already know the unit's id. A tester should prefer `POST /api/v1/test-runs`,
+which addresses the unit by serial number and de-duplicates runs.
 
 ---
 

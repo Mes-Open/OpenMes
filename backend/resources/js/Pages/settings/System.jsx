@@ -186,6 +186,16 @@ export default function System() {
     const TABS = ['general', 'production', 'schedule', 'security', 'modules', 'data', ...extTabs.map((e) => e.value)];
     const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
     const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
+    // …and a click writes it back, so a refresh or a shared link reopens the
+    // same panel. Replaced in place: one page, six views, no remount.
+    const selectTab = (next) => {
+        setTab(next);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            if (next === 'general') url.searchParams.delete('tab'); else url.searchParams.set('tab', next);
+            window.history.replaceState(window.history.state, '', url);
+        }
+    };
     const [sampleConfirm, setSampleConfirm] = useState(false);
     // Which example company the admin picked; defaults to the first on offer.
     const [dataset, setDataset] = useState(demoDatasets[0]?.key ?? null);
@@ -212,7 +222,19 @@ export default function System() {
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
+        pallet_stock_documents: settings.pallet_stock_documents ?? 'off',
+        hold_on_material_shortage: settings.hold_on_material_shortage ?? false,
+        lot_tracking_enabled: settings.lot_tracking_enabled ?? false,
+        lot_picking_strategy: settings.lot_picking_strategy ?? 'fefo',
         scanner_mode: settings.scanner_mode ?? 'hid',
+        unit_identifier_normalize: settings.unit_identifier_normalize ?? true,
+        unit_serial_pattern: settings.unit_serial_pattern ?? '',
+        unit_psn_pattern: settings.unit_psn_pattern ?? '',
+        unit_psn_required: settings.unit_psn_required ?? false,
+        unit_psn_unique: settings.unit_psn_unique ?? true,
+        unit_test_fail_policy: settings.unit_test_fail_policy ?? 'block',
+        unit_test_max_attempts: settings.unit_test_max_attempts ?? 1,
+        unit_test_attempts_scope: settings.unit_test_attempts_scope ?? 'unit',
         workflow_mode: settings.workflow_mode ?? 'status',
         pin_login_enabled: settings.pin_login_enabled ?? false,
         language: settings.language ?? 'en',
@@ -440,7 +462,7 @@ export default function System() {
                         ...extTabs.map(({ value, label }) => ({ value, label })),
                     ]}
                     value={tab}
-                    onChange={setTab}
+                    onChange={selectTab}
                     panels
                 />
             </div>
@@ -585,8 +607,17 @@ export default function System() {
                             {/* Production Rules */}
                             <div className={CARD_CLASS}>
                                 <h2 className="text-[15px] font-semibold mb-2">{__('Material availability')}</h2>
-                                <SelectCard value={false} current={data.block_negative_stock} onChange={(v) => setData('block_negative_stock', v)} label={__('Warn and allow production')} desc={__('Missing receipts may result in a negative stock balance. Operators can continue working.')} />
-                                <SelectCard value={true} current={data.block_negative_stock} onChange={(v) => setData('block_negative_stock', v)} label={__('Block production when stock is insufficient')} desc={__('Record a material receipt before starting a step that needs more stock.')} />
+                                {/* One choice over two settings: blocking a step that lacks stock, and
+                                    holding a whole batch until stock covers its order (which blocks steps too). */}
+                                {(() => {
+                                    const current = data.hold_on_material_shortage ? 'hold' : (data.block_negative_stock ? 'block' : 'warn');
+                                    const choose = (v) => setData((d) => ({ ...d, block_negative_stock: v !== 'warn', hold_on_material_shortage: v === 'hold' }));
+                                    return [
+                                        { value: 'warn', label: __('Warn and allow production'), desc: __('Missing receipts may result in a negative stock balance. Operators can continue working.') },
+                                        { value: 'block', label: __('Block production when stock is insufficient'), desc: __('Record a material receipt before starting a step that needs more stock.') },
+                                        { value: 'hold', label: __('Hold the batch until stock covers the order'), desc: __('A batch does not start while stock does not cover its whole work order; the operator sees what is missing, the planner shows it in advance. Steps are blocked as above too.') },
+                                    ].map((opt) => <SelectCard key={opt.value} value={opt.value} current={current} onChange={choose} label={opt.label} desc={opt.desc} />);
+                                })()}
                             </div>
                             <div className={CARD_CLASS}>
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Rules')}</h2>
@@ -633,6 +664,170 @@ export default function System() {
                                             <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
                                             <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[13px] font-medium text-om-ink mb-1">{__('Finished goods by pallet')}</p>
+                                    <p className={`${HELP_CLASS} mb-2`}>{__('A closed pallet is received into the finished-goods warehouse and a shipped one is issued from it, instead of one receipt when the work order completes.')}</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        {[
+                                            { value: 'off', label: __('Off'), desc: __('The work order receipt when it completes, as before.') },
+                                            { value: 'draft', label: __('Drafts'), desc: __('Documents per pallet, posted by the warehouse.') },
+                                            { value: 'post', label: __('Posted'), desc: __('Documents per pallet, posted at once: stock follows the pallets.') },
+                                        ].map((opt) => (
+                                            <SelectCard
+                                                key={opt.value}
+                                                value={opt.value}
+                                                current={data.pallet_stock_documents}
+                                                onChange={(v) => setData('pallet_stock_documents', v)}
+                                                label={opt.label}
+                                                desc={opt.desc}
+                                            />
+                                        ))}
+                                    </div>
+                                    {errors.pallet_stock_documents && <p className={ERROR_CLASS}>{errors.pallet_stock_documents}</p>}
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <Switch
+                                        checked={data.lot_tracking_enabled}
+                                        onChange={(v) => setData('lot_tracking_enabled', v)}
+                                    />
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Lot tracking of materials')}</p>
+                                        <p className={HELP_CLASS}>{__('When enabled, every reservation names the material lots it comes from: picked by the strategy below, or by the operator at the step start and at the packing station. Off, stock moves without lots.')}</p>
+                                    </div>
+                                </div>
+                                {data.lot_tracking_enabled && (
+                                    <div className="ml-12">
+                                        <label className={LABEL_CLASS} htmlFor="lot_picking_strategy">{__('Lot picking strategy')}</label>
+                                        <Dropdown
+                                            id="lot_picking_strategy"
+                                            aria-label={__('Lot picking strategy')}
+                                            value={data.lot_picking_strategy}
+                                            onChange={(v) => setData('lot_picking_strategy', v)}
+                                            options={[
+                                                { value: 'fefo', label: __('FEFO - first expiring first') },
+                                                { value: 'fifo', label: __('FIFO - oldest received first') },
+                                                { value: 'lifo', label: __('LIFO - newest received first') },
+                                                { value: 'manual', label: __('Manual - the operator always chooses') },
+                                            ]}
+                                            className="w-full md:w-96"
+                                        />
+                                        <p className={HELP_CLASS}>{__('The proposed lot when a step or the packing station starts; the operator can still pick another.')}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Serialised units: identifiers, binding and test verdicts */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Unit serialisation')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How serialised units are identified: the serial number on the product, the process serial number the line works with, and what a failed test does to a unit.')}</p>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={LABEL_CLASS} htmlFor="unit_serial_pattern">{__('Serial number pattern')}</label>
+                                            <input
+                                                id="unit_serial_pattern"
+                                                type="text"
+                                                value={data.unit_serial_pattern}
+                                                onChange={(e) => setData('unit_serial_pattern', e.target.value)}
+                                                className={`${INPUT_BASE} w-full font-mono`}
+                                                placeholder={__('e.g. ^SN-[0-9]{4}-[0-9]{4}$')}
+                                            />
+                                            <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a unit serial number must match. Leave empty to accept any.')}</p>
+                                            {errors.unit_serial_pattern && <p className={ERROR_CLASS}>{errors.unit_serial_pattern}</p>}
+                                        </div>
+                                        <div>
+                                            <label className={LABEL_CLASS} htmlFor="unit_psn_pattern">{__('Process serial pattern')}</label>
+                                            <input
+                                                id="unit_psn_pattern"
+                                                type="text"
+                                                value={data.unit_psn_pattern}
+                                                onChange={(e) => setData('unit_psn_pattern', e.target.value)}
+                                                className={`${INPUT_BASE} w-full font-mono`}
+                                                placeholder={__('e.g. ^[0-9]{3}-[0-9]{2}-[0-9]+$')}
+                                            />
+                                            <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a process serial number must match. Leave empty to accept any.')}</p>
+                                            {errors.unit_psn_pattern && <p className={ERROR_CLASS}>{errors.unit_psn_pattern}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_identifier_normalize} onChange={(v) => setData('unit_identifier_normalize', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Normalise scanned identifiers')}</p>
+                                            <p className={HELP_CLASS}>{__('Strip whitespace and uppercase before storing or matching, so a label printed with spaces and one read by a scanner are the same identifier.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_psn_required} onChange={(v) => setData('unit_psn_required', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial required')}</p>
+                                            <p className={HELP_CLASS}>{__('A unit cannot be registered at a station without its process serial number.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_psn_unique} onChange={(v) => setData('unit_psn_unique', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial identifies one unit')}</p>
+                                            <p className={HELP_CLASS}>{__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink mb-2">{__('After a failed test')}</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            {[
+                                                { value: 'block', label: __('Block the unit'), desc: __('Hold it after the number of failed tests below. A later passed test releases it.') },
+                                                { value: 'scrap', label: __('Scrap it'), desc: __('The first failed test scraps the unit. Final.') },
+                                                { value: 'record', label: __('Only record the result'), desc: __('The verdict is kept in the history; the unit is not held.') },
+                                            ].map((opt) => (
+                                                <SelectCard
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                    current={data.unit_test_fail_policy}
+                                                    onChange={(v) => setData('unit_test_fail_policy', v)}
+                                                    label={opt.label}
+                                                    desc={opt.desc}
+                                                />
+                                            ))}
+                                        </div>
+                                        {errors.unit_test_fail_policy && <p className={ERROR_CLASS}>{errors.unit_test_fail_policy}</p>}
+                                        {data.unit_test_fail_policy === 'block' && (
+                                            <div className="mt-3">
+                                                <label className={LABEL_CLASS} htmlFor="unit_test_max_attempts">{__('Failed tests before the unit is blocked')}</label>
+                                                <input
+                                                    id="unit_test_max_attempts"
+                                                    type="number"
+                                                    min={1}
+                                                    max={99}
+                                                    value={data.unit_test_max_attempts}
+                                                    onChange={(e) => setData('unit_test_max_attempts', e.target.value)}
+                                                    className={`${INPUT_BASE} w-32`}
+                                                />
+                                                <p className={`${HELP_CLASS} mt-1`}>{__('1 = the first failed test blocks the unit.')}</p>
+                                                {errors.unit_test_max_attempts && <p className={ERROR_CLASS}>{errors.unit_test_max_attempts}</p>}
+                                                <p className="text-[13px] font-medium text-om-ink mt-4 mb-2">{__('Which failed tests count')}</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {[
+                                                        { value: 'test', label: __('Per test, since its last pass'), desc: __('Failed tests at the same test station after it last passed there. A retest that passes starts the count over.') },
+                                                        { value: 'unit', label: __('All failed tests of the unit'), desc: __('Every failed test at any station counts, and a pass does not reset them.') },
+                                                    ].map((opt) => (
+                                                        <SelectCard
+                                                            key={opt.value}
+                                                            value={opt.value}
+                                                            current={data.unit_test_attempts_scope}
+                                                            onChange={(v) => setData('unit_test_attempts_scope', v)}
+                                                            label={opt.label}
+                                                            desc={opt.desc}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                {errors.unit_test_attempts_scope && <p className={ERROR_CLASS}>{errors.unit_test_attempts_scope}</p>}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1121,7 +1316,7 @@ export default function System() {
                     <div>
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Import Settings')}</h2>
                         <p className={`${HELP_CLASS} mb-4`}>
-                            {__('Upload a previously exported configuration file. This will overwrite current configuration including lines, products, templates, materials, and settings. Production data (work orders, batches, issues) is never affected. Database credentials are never imported.')}
+                            {__('Upload a configuration file: an export, or one prepared for a new plant. Lines, workstations, products, routings, materials, sequences, labels and settings are added or updated by their codes, never duplicated. A file with a production scenario also replays example orders and units on top of it. Database credentials and the production flow mode are never imported.')}
                         </p>
                         <form method="POST" action="/settings/import" encType="multipart/form-data" className="flex items-center gap-3">
                             <input type="hidden" name="_token" value={csrf_token} />

@@ -59,6 +59,24 @@ export function materialLotFields(materials, sources, statuses) {
     ];
 }
 
+/**
+ * Props for `<StatusBadge>` from a lot status. Green stays reserved for the one
+ * happy ending (released for use); a held lot is amber, a spent one grey.
+ */
+const LOT_STATUS_META = {
+    received: { tone: 'info', icon: 'inbox' },
+    quarantine: { tone: 'warn', icon: 'lock' },
+    released: { tone: 'success', icon: 'circle-check' },
+    consumed: { tone: 'neutral', icon: 'check' },
+    expired: { tone: 'danger', icon: 'clock' },
+    rejected: { tone: 'critical', icon: 'x' },
+};
+
+export function materialLotStatusBadge(status) {
+    const meta = LOT_STATUS_META[status] ?? { tone: 'neutral' };
+    return { ...meta, label: materialLotStatusLabel(status) };
+}
+
 export const STATUS_STYLES = {
     received: 'bg-blue-100 text-blue-700',
     quarantine: 'bg-yellow-100 text-yellow-700',

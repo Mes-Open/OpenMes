@@ -5,6 +5,20 @@ import ResourceFormDrawer, { useResourceDrawer } from '../../../components/Resou
 import LotSequenceForm, { lotSequenceInitial } from './LotSequenceForm';
 import { __ } from '../../../lib/i18n';
 
+const RESET_LABEL = {
+    none: () => __('No reset'),
+    yearly: () => __('Yearly'),
+    monthly: () => __('Monthly'),
+    daily: () => __('Daily'),
+    hourly: () => __('Hourly'),
+};
+
+const PURPOSE_LABEL = {
+    lot: () => __('Batch LOT numbers'),
+    process_serial: () => __('Process serial numbers (PSN)'),
+    unit_serial: () => __('Unit serial numbers'),
+};
+
 export default function LotSequencesIndex() {
     const drawer = useResourceDrawer();
 
@@ -14,6 +28,7 @@ export default function LotSequencesIndex() {
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', value: (r) => productTypeNames[r.product_type_id] ?? __('Global'), render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
+        { key: 'purpose', label: __('Numbers'), className: 'text-om-muted', value: (r) => PURPOSE_LABEL[r.purpose]?.() ?? r.purpose, render: (r) => PURPOSE_LABEL[r.purpose]?.() ?? r.purpose },
         {
             key: 'format',
             label: __('Format'),
@@ -22,13 +37,13 @@ export default function LotSequencesIndex() {
             render: (r) => r.pattern || r.prefix,
         },
         { key: 'next_number', label: __('Next #'), className: 'text-om-muted' },
-        { key: 'pad_size', label: __('Pad'), className: 'text-om-muted' },
+        { key: 'pad_size', label: __('Counter digits'), className: 'text-om-muted' },
         {
             key: 'reset_period',
-            label: __('Reset'),
+            label: __('Counter starts over'),
             className: 'text-om-muted',
-           
-            render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
+            value: (r) => RESET_LABEL[r.reset_period ?? 'none']?.() ?? r.reset_period,
+            render: (r) => RESET_LABEL[r.reset_period ?? 'none']?.() ?? r.reset_period,
         },
     ];
 

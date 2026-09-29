@@ -3,10 +3,10 @@ import { ReactFlow, Background, Controls, MarkerType, Handle, Position, Panel, u
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { Dropdown, useToast } from '@openmes/ui';
-import { __ } from '../../../lib/i18n';
-import { csrf } from '../../../lib/machineState';
-import Tooltip from '../../../components/Tooltip';
-import LinkEdge from '../../../components/flow/LinkEdge';
+import { __ } from '../../lib/i18n';
+import { csrf } from '../../lib/machineState';
+import Tooltip from '../Tooltip';
+import LinkEdge from './LinkEdge';
 
 /**
  * Routing graph editor for a process template. Steps are nodes; links are the
@@ -32,8 +32,20 @@ function layout(steps, pairs) {
     }));
 }
 
+// Batch-step status → dot colour + label, for the operator's read-only copy of
+// the graph (template steps carry no status and show nothing here).
+const STATUS_DOT = {
+    PENDING: ['bg-om-faint', 'Pending'],
+    READY: ['bg-om-accent', 'Ready'],
+    IN_PROGRESS: ['bg-om-running', 'In progress'],
+    DONE: ['bg-om-done', 'Done'],
+    SKIPPED: ['bg-om-done', 'Skipped'],
+    BLOCKED: ['bg-om-blocked', 'Blocked'],
+};
+
 function StepNode({ data, selected, isConnectable }) {
     const { step } = data;
+    const status = step.status ? STATUS_DOT[step.status] ?? STATUS_DOT.PENDING : null;
     return (
         <div
             style={{ width: NODE_W }}
@@ -46,6 +58,8 @@ function StepNode({ data, selected, isConnectable }) {
                 <div className="min-w-0">
                     <p className="text-sm font-semibold text-om-ink truncate">{step.name}</p>
                     <p className="text-[11px] text-om-muted truncate">
+                        {status && <span className={`inline-block w-2 h-2 rounded-full mr-1 align-middle ${status[0]}`} />}
+                        {status && <span className={step.status === 'IN_PROGRESS' ? 'text-om-running' : ''}>{__(status[1])} · </span>}
                         {step.workstation?.name ?? step.workstation_type?.name ?? __('Any workstation')}
                         {step.variant_group ? ` · ${__('Variant')}: ${step.variant_group}` : ''}
                         {step.is_optional ? ` · ${__('Optional')}` : ''}

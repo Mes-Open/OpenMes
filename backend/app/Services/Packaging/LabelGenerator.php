@@ -5,7 +5,10 @@ namespace App\Services\Packaging;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\LabelTemplate;
+use App\Models\MaterialLot;
 use App\Models\Pallet;
+use App\Models\SerialUnit;
+use App\Models\UnitCarton;
 use App\Models\WorkOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Endroid\QrCode\Builder\Builder;
@@ -43,6 +46,146 @@ class LabelGenerator
         return $this->renderPdf('packaging.pdf.labels.pallet', $labels, $template);
     }
 
+    public function pdfForSerialUnits(Collection $units, LabelTemplate $template)
+    {
+        $labels = $units->map(fn (SerialUnit $unit) => $this->labelDataForSerialUnit($unit, $template))->all();
+
+        return $this->renderPdf('packaging.pdf.labels.serial-unit', $labels, $template);
+    }
+
+    /** The IQC label of received material lots: the lot, its material and the inspection verdict. */
+    public function pdfForMaterialLots(Collection $lots, LabelTemplate $template)
+    {
+        $labels = $lots->map(fn (MaterialLot $lot) => $this->labelDataForMaterialLot($lot, $template))->all();
+
+        return $this->renderPdf('packaging.pdf.labels.material-lot', $labels, $template);
+    }
+
+    public function zplForMaterialLots(Collection $lots, LabelTemplate $template): string
+    {
+        return $lots
+            ->map(fn (MaterialLot $lot) => $this->zplLabel($this->labelDataForMaterialLot($lot, $template), $template))
+            ->implode("\n");
+    }
+
+    /**
+     * The lot number is what the barcode and QR carry - the next scan (issue to
+     * production, a component bound into a unit) finds the lot by it. The
+     * status line is the incoming-inspection verdict the label exists for.
+     */
+    private function labelDataForMaterialLot(MaterialLot $lot, LabelTemplate $template): array
+    {
+        $lot->loadMissing('material', 'inspection');
+        $status = __(match ($lot->status) {
+            MaterialLot::STATUS_RELEASED => 'IQC: released',
+            MaterialLot::STATUS_QUARANTINE => 'IQC: quarantine',
+            MaterialLot::STATUS_REJECTED => 'IQC: rejected',
+            default => 'IQC: :status',
+        }, ['status' => $lot->status]);
+        $inspected = $lot->released_at ?? $lot->inspection?->updated_at;
+
+        return [
+            'fields' => [
+                'lot' => $lot->lot_number,
+                'material' => $lot->material ? trim($lot->material->code.' · '.$lot->material->name) : null,
+                'quantity' => $this->formatQty($lot->quantity_received).' '.($lot->unit_of_measure ?? $lot->material?->unit_of_measure ?? ''),
+                'status' => $inspected ? $status.' · '.$inspected->format('Y-m-d') : $status,
+                'supplier_lot' => $lot->supplier_lot_no ? __('Supplier lot: :lot', ['lot' => $lot->supplier_lot_no]) : null,
+                'prod_date' => $lot->received_at?->format('Y-m-d'),
+            ],
+            'barcode_value' => $lot->lot_number,
+            'qr_value' => $lot->lot_number,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($lot->lot_number, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($lot->lot_number) : null,
+        ];
+    }
+
+    public function pdfForCartons(Collection $cartons, LabelTemplate $template)
+    {
+        $labels = $cartons->map(fn (UnitCarton $carton) => $this->labelDataForCarton($carton, $template))->all();
+
+        return $this->renderPdf('packaging.pdf.labels.carton', $labels, $template);
+    }
+
+    /**
+     * The template on sample data, for checking a layout before anything real
+     * exists to print. Every field the template can show gets a plausible
+     * value, so what is ticked is what appears.
+     */
+    public function pdfPreview(LabelTemplate $template)
+    {
+        [$view, $label] = $this->sampleLabel($template);
+
+        return $this->renderPdf($view, [$label], $template);
+    }
+
+    /** @return array{0: string, 1: array<string, mixed>} the view and one label's data */
+    private function sampleLabel(LabelTemplate $template): array
+    {
+        $today = now()->format('Y-m-d');
+        [$view, $fields, $code, $qr, $units] = match ($template->type) {
+            LabelTemplate::TYPE_SERIAL_UNIT => ['packaging.pdf.labels.serial-unit',
+                ['serial_no' => 'SN-000001', 'psn' => 'PSN-000001', 'wo_number' => 'WO-000001', 'product' => __('Sample product'), 'quantity' => null, 'lot' => null, 'prod_date' => $today],
+                'SN-000001', 'SN-000001', []],
+            LabelTemplate::TYPE_CARTON => ['packaging.pdf.labels.carton',
+                ['carton_no' => 'CTN-000001', 'wo_number' => 'WO-000001', 'product' => __('Sample product'), 'quantity' => __(':count pcs', ['count' => 6]), 'lot' => null, 'location' => 'PAL-000001', 'prod_date' => $today],
+                'CTN-000001', 'CTN-000001', ['SN-000001', 'SN-000002', 'SN-000003', 'SN-000004', 'SN-000005', 'SN-000006']],
+            LabelTemplate::TYPE_MATERIAL_LOT => ['packaging.pdf.labels.material-lot',
+                ['lot' => 'LOT-000001', 'material' => 'MAT-001 · '.__('Sample material'), 'quantity' => '500 pcs', 'status' => __('IQC: released').' · '.$today, 'supplier_lot' => __('Supplier lot: :lot', ['lot' => 'SUP-4711']), 'prod_date' => $today],
+                'LOT-000001', 'LOT-000001', []],
+            LabelTemplate::TYPE_PALLET => ['packaging.pdf.labels.pallet',
+                ['pallet_no' => 'PAL-000001', 'wo_number' => 'WO-000001', 'product' => __('Sample product'), 'quantity' => '48 pcs', 'location' => 'DOCK-1', 'lot' => 'LOT-000001', 'prod_date' => $today],
+                'PAL-000034', 'PAL-000034', []],
+            LabelTemplate::TYPE_FINISHED_GOODS => ['packaging.pdf.labels.finished-goods',
+                ['wo_number' => 'WO-2026-0142', 'product' => __('Sample product'), 'quantity' => '48 pcs', 'lot' => 'LOT-2026-091', 'prod_date' => $today],
+                'LOT-2026-091', 'LOT-2026-091', []],
+            LabelTemplate::TYPE_WORKSTATION_STEP => ['packaging.pdf.labels.workstation-step',
+                ['wo_number' => 'WO-2026-0142', 'product' => __('Sample product'), 'quantity' => '48 pcs', 'lot' => 'Step 2: '.__('Assembly'), 'prod_date' => __('Workstation').' 1'],
+                'WO-2026-0142-B1-S2', url('/admin/work-orders'), []],
+            default => ['packaging.pdf.labels.work-order',
+                ['wo_number' => 'WO-2026-0142', 'product' => __('Sample product'), 'quantity' => '48 pcs', 'lot' => null, 'prod_date' => $today],
+                'WO-2026-0142', url('/admin/work-orders'), []],
+        };
+
+        return [$view, [
+            'fields' => $fields,
+            'units' => $units,
+            'barcode_value' => $code,
+            'qr_value' => $qr,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($code, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($qr) : null,
+        ]];
+    }
+
+    /**
+     * The outer-box label: the carton number as barcode/QR, and the serial of
+     * every unit inside - what a warehouse or a customer reads to know which
+     * exact units are in the box without opening it.
+     */
+    private function labelDataForCarton(UnitCarton $carton, LabelTemplate $template): array
+    {
+        $carton->loadMissing('workOrder.productType', 'pallet:id,pallet_no');
+        $units = $carton->units()->orderBy('serial_no')->get(['serial_no', 'psn'])->map(fn ($u) => $u->serial_no ?? $u->psn)->all();
+        $wo = $carton->workOrder;
+
+        return [
+            'fields' => [
+                'carton_no' => $carton->carton_no,
+                'wo_number' => $wo?->order_no,
+                'product' => $wo?->productType?->name,
+                'quantity' => __(':count pcs', ['count' => count($units)]),
+                'lot' => null,
+                'location' => $carton->pallet?->pallet_no,
+                'prod_date' => ($carton->closed_at ?? $carton->created_at)?->format('Y-m-d'),
+            ],
+            'units' => $units,
+            'barcode_value' => $carton->carton_no,
+            'qr_value' => $carton->carton_no,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($carton->carton_no, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($carton->carton_no) : null,
+        ];
+    }
+
     public function zplForPallets(Collection $pallets, LabelTemplate $template): string
     {
         return $pallets
@@ -69,6 +212,45 @@ class LabelGenerator
         return $steps
             ->map(fn (BatchStep $step) => $this->zplLabel($this->labelDataForBatchStep($step, $template), $template))
             ->implode("\n");
+    }
+
+    public function zplForSerialUnits(Collection $units, LabelTemplate $template): string
+    {
+        return $units
+            ->map(fn (SerialUnit $unit) => $this->zplLabel($this->labelDataForSerialUnit($unit, $template), $template))
+            ->implode("\n");
+    }
+
+    /**
+     * Per-unit carton label: the serial number is the primary value (barcode +
+     * QR); the process serial number is also printed so the unit can be
+     * re-found at packing by process-serial scan.
+     */
+    private function labelDataForSerialUnit(SerialUnit $unit, LabelTemplate $template): array
+    {
+        $unit->loadMissing('workOrder.productType');
+        $wo = $unit->workOrder;
+        // Both codes carry the unit's number itself: the label is read by the
+        // next station's scanner, not by a phone - a URL there would be noise.
+        // A unit still without its SN is labelled with its PSN.
+        $barcodeValue = $unit->serial_no ?? $unit->psn;
+        $qrValue = $barcodeValue;
+
+        return [
+            'fields' => [
+                'serial_no' => $barcodeValue,
+                'psn' => $unit->serial_no !== null ? $unit->psn : null,
+                'wo_number' => $wo?->order_no,
+                'product' => $wo?->productType?->name,
+                'quantity' => null,
+                'lot' => null,
+                'prod_date' => ($unit->produced_at ?? $unit->created_at)?->format('Y-m-d'),
+            ],
+            'barcode_value' => $barcodeValue,
+            'qr_value' => $qrValue,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($barcodeValue, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($qrValue) : null,
+        ];
     }
 
     private function labelDataForWorkOrder(WorkOrder $wo, LabelTemplate $template): array
@@ -191,16 +373,25 @@ class LabelGenerator
         return $mm * 2.834645669;
     }
 
-    public function barcodePng(string $value, string $format): string
+    /**
+     * The 1D barcode as a data URI, or null when the value cannot be encoded.
+     * EAN-13 only takes 12-13 digits and CODE 39 a limited character set;
+     * an order number or a serial that does not fit falls back to CODE 128
+     * rather than failing the whole print.
+     */
+    public function barcodePng(string $value, string $format): ?string
     {
-        $type = match ($format) {
-            'code39' => BarcodeGeneratorPNG::TYPE_CODE_39,
-            'ean13' => BarcodeGeneratorPNG::TYPE_EAN_13,
+        $type = match (true) {
+            $format === 'ean13' && preg_match('/^\d{12,13}$/', $value) === 1 => BarcodeGeneratorPNG::TYPE_EAN_13,
+            $format === 'code39' && preg_match('/^[0-9A-Z\-. $\/+%]+$/', $value) === 1 => BarcodeGeneratorPNG::TYPE_CODE_39,
             default => BarcodeGeneratorPNG::TYPE_CODE_128,
         };
 
-        $generator = new BarcodeGeneratorPNG;
-        $png = $generator->getBarcode($value, $type, 2, 60);
+        try {
+            $png = (new BarcodeGeneratorPNG)->getBarcode($value, $type, 2, 60);
+        } catch (\Throwable) {
+            return null;
+        }
 
         return 'data:image/png;base64,'.base64_encode($png);
     }
@@ -241,6 +432,14 @@ class LabelGenerator
             $zpl .= "^FO20,{$y}^A0N,32,32^FD".$this->zplEscape($fields['pallet_no'])."^FS\n";
             $y += $lineHeight + 4;
         }
+        if ($template->hasField('serial_no') && ! empty($fields['serial_no'])) {
+            $zpl .= "^FO20,{$y}^A0N,32,32^FD".$this->zplEscape($fields['serial_no'])."^FS\n";
+            $y += $lineHeight + 4;
+        }
+        if ($template->hasField('psn') && ! empty($fields['psn'])) {
+            $zpl .= "^FO20,{$y}^A0N,20,20^FDPSN: ".$this->zplEscape($fields['psn'])."^FS\n";
+            $y += $lineHeight;
+        }
         if ($template->hasField('wo_number') && ! empty($fields['wo_number'])) {
             $zpl .= "^FO20,{$y}^A0N,28,28^FD".$this->zplEscape($fields['wo_number'])."^FS\n";
             $y += $lineHeight;
@@ -252,6 +451,12 @@ class LabelGenerator
         if ($template->hasField('quantity') && ! empty($fields['quantity'])) {
             $zpl .= "^FO20,{$y}^A0N,22,22^FDQty: ".$this->zplEscape($fields['quantity'])."^FS\n";
             $y += $lineHeight;
+        }
+        foreach (['material' => 22, 'status' => 22, 'supplier_lot' => 20] as $key => $size) {
+            if ($template->hasField($key) && ! empty($fields[$key])) {
+                $zpl .= "^FO20,{$y}^A0N,{$size},{$size}^FD".$this->zplEscape($fields[$key])."^FS\n";
+                $y += $lineHeight;
+            }
         }
         if ($template->hasField('lot') && ! empty($fields['lot'])) {
             $zpl .= "^FO20,{$y}^A0N,20,20^FDLOT: ".$this->zplEscape($fields['lot'])."^FS\n";

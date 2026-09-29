@@ -32,6 +32,7 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
         material_id: item ? String(item.material_id ?? '') : '',
         product_type_id: item ? String(item.product_type_id ?? '') : '',
         quantity_per_unit: item ? String(item.quantity_per_unit ?? '') : '',
+        per: item ? (item.per ?? 'unit') : 'unit',
         template_step_id: item && item.template_step_id != null ? String(item.template_step_id) : '',
         scrap_percentage: item ? String(item.scrap_percentage ?? '0') : '0',
         consumed_at: item ? (item.consumed_at ?? 'start') : 'start',
@@ -39,6 +40,25 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
     });
 
     const { data, setData, errors, processing } = form;
+
+    // On a packing step the quantity can be counted per carton or per pallet;
+    // the step's own capacities turn it into a per-unit figure when the order freezes.
+    const selectedStep = steps.find((s) => String(s.id) === String(data.template_step_id));
+    const packingStep = selectedStep?.kind === 'packing';
+    const perOptions = [
+        { value: 'unit', label: __('per unit') },
+        ...(packingStep ? [{ value: 'carton', label: __('per carton') }, { value: 'pallet', label: __('per pallet') }] : []),
+    ];
+    const onStepChange = (v) => {
+        const step = steps.find((s) => String(s.id) === String(v));
+        setData((d) => ({
+            ...d,
+            template_step_id: v,
+            // Packaging is taken while the packing step runs; a basis other than
+            // "per unit" only makes sense there.
+            ...(step?.kind === 'packing' ? { consumed_at: 'during' } : { per: 'unit' }),
+        }));
+    };
 
     const isProductType = data.component_kind === 'product_type';
     const selectedMaterial = isEdit
@@ -153,19 +173,34 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
 
                 <div>
                     <div className="block text-sm font-medium text-om-muted mb-1">
-                        {__("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
+                        {packingStep ? __("Quantity per") : __("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
                     </div>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        min="0.0001"
-                        required
-                        value={data.quantity_per_unit}
-                        onChange={(e) => setData('quantity_per_unit', e.target.value)}
-                        className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
-                    />
+                    <div className={packingStep ? 'grid grid-cols-[1fr_auto] gap-2' : ''}>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            min="0.0001"
+                            required
+                            value={data.quantity_per_unit}
+                            onChange={(e) => setData('quantity_per_unit', e.target.value)}
+                            className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
+                        />
+                        {packingStep && (
+                            <Dropdown
+                                aria-label={__("Quantity per")}
+                                value={data.per ?? 'unit'}
+                                onChange={(v) => setData('per', v)}
+                                options={perOptions}
+                                className="w-40"
+                            />
+                        )}
+                    </div>
                     <p className="mt-1 text-xs text-om-faint">
-                        {__("How much of this material is needed per one finished product unit.")}
+                        {data.per === 'carton'
+                            ? __("How much of this packaging one carton takes (the packing step's carton size converts it per unit).")
+                            : data.per === 'pallet'
+                                ? __("How much of this packaging one pallet takes (the packing step's capacities convert it per unit).")
+                                : __("How much of this material is needed per one finished product unit.")}
                     </p>
                     {errors.quantity_per_unit && (
                         <p className="mt-1 text-sm text-om-blocked">{errors.quantity_per_unit}</p>
@@ -179,7 +214,7 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                     <Dropdown
                         aria-label={__("Step (optional)")}
                         value={data.template_step_id == null ? '' : String(data.template_step_id)}
-                        onChange={(v) => setData('template_step_id', v)}
+                        onChange={onStepChange}
                         options={[
                             { value: '', label: __('All steps / general') },
                             ...steps.map((s) => ({
@@ -328,7 +363,10 @@ export default function ProcessTemplatesBom() {
             label: 'Qty/Unit',
             align: 'right',
             render: (row) => (
-                <span className="text-sm font-mono">{row.quantity_per_unit} {row.unit_of_measure}</span>
+                <span className="text-sm font-mono">
+                    {row.quantity_per_unit} {row.unit_of_measure}
+                    {row.per && row.per !== 'unit' && <span className="ml-1 text-om-muted">/ {row.per === 'carton' ? __('carton') : __('pallet')}</span>}
+                </span>
             ),
         },
         {

@@ -495,7 +495,7 @@ class BatchController extends Controller
             );
 
             return redirect()->route('operator.work-order.detail', $workOrder)
-                ->with('success', 'Batch created'.($lotNumber ? " (LOT: {$lotNumber})" : ''));
+                ->with('success', $lotNumber ? __('Batch created (LOT: :lot)', ['lot' => $lotNumber]) : __('Batch created'));
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to create batch: '.$e->getMessage())->withInput();
         }

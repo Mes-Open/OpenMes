@@ -10,6 +10,52 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TemplateStep extends Model
 {
+    /**
+     * What kind of work the step is. Production is the default and what every
+     * step was until packing became a step of its own: one that the packing
+     * station executes, with its configuration (unit / carton / pallet, how many
+     * per box, which label) instead of one behaviour for the whole plant.
+     */
+    public const KIND_PRODUCTION = 'production';
+
+    public const KIND_PACKING = 'packing';
+
+    public const KINDS = [self::KIND_PRODUCTION, self::KIND_PACKING];
+
+    /** Packing container levels, innermost first. */
+    public const PACKING_UNITS = ['unit', 'carton', 'pallet'];
+
+    /**
+     * A packing step's config as stored: only the keys the step declares, numbers
+     * as numbers (forms post strings), the container level defaulting to a carton.
+     * Shared by the web and API step requests so both write the same shape.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    public static function normalisePackingConfig(array $config): array
+    {
+        $int = fn ($v) => ($v === null || $v === '') ? null : (int) $v;
+        $num = fn ($v) => ($v === null || $v === '') ? null : round((float) $v, 2);
+        $out = [
+            'unit' => in_array($config['unit'] ?? null, self::PACKING_UNITS, true) ? $config['unit'] : 'carton',
+            'carton_capacity' => $int($config['carton_capacity'] ?? null),
+            'pallet_capacity' => $int($config['pallet_capacity'] ?? null),
+            'label_template_id' => $int($config['label_template_id'] ?? null),
+            // Print a label for every unit scanned here (a box label read off the
+            // unit's serial). On by default; off, the label shows only for a unit
+            // that has none yet. Stored only when switched off.
+            'unit_label' => isset($config['unit_label']) && ! filter_var($config['unit_label'], FILTER_VALIDATE_BOOLEAN) ? false : null,
+            // Weight check: each unit is weighed before it goes into the box; set
+            // the expected weight to switch it on, the tolerance says how far off
+            // it may be (grams).
+            'weight_expected_g' => $num($config['weight_expected_g'] ?? null),
+            'weight_tolerance_g' => isset($config['weight_expected_g']) && $config['weight_expected_g'] !== '' ? ($num($config['weight_tolerance_g'] ?? null) ?? 0.0) : null,
+        ];
+
+        return array_filter($out, fn ($v) => $v !== null);
+    }
+
     use HasFactory;
     use SoftDeletesWithAudit;
 
@@ -20,6 +66,8 @@ class TemplateStep extends Model
         'process_segment_id',
         'step_number',
         'name',
+        'kind',
+        'config',
         'instruction',
         'estimated_duration_minutes',
         'required_operators',
@@ -43,6 +91,7 @@ class TemplateStep extends Model
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',
             'parameters' => 'array',
+            'config' => 'array',
             'required_operators' => 'integer',
             'min_duration_minutes' => 'integer',
             'requires_confirmation' => 'boolean',

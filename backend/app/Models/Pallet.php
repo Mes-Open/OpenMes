@@ -37,11 +37,15 @@ class Pallet extends Model
         'arrived_at',
         'erp_reference',
         'tenant_id',
+        'active_by_id',
+        'active_workstation_id',
+        'activated_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'activated_at' => 'datetime',
             'status' => PalletStatus::class,
             'qty' => 'integer',
             'shipped_at' => 'datetime',
@@ -77,6 +81,18 @@ class Pallet extends Model
                 $pallet->shipped_at = now();
             }
         });
+
+        // Whatever screen ships the pallet, the serialised units on it leave with it.
+        static::saved(function (self $pallet): void {
+            if ($pallet->wasChanged('status') && $pallet->status === PalletStatus::Shipped) {
+                app(\App\Services\Packaging\UnitPackingService::class)->markPalletShipped($pallet, auth()->user());
+            }
+            // Finished goods in and out of the warehouse, pallet by pallet (when the plant books them so) -
+            // also for a pallet recorded straight as closed or shipped.
+            if (($pallet->wasChanged('status') || $pallet->wasRecentlyCreated) && in_array($pallet->status, [PalletStatus::Closed, PalletStatus::Shipped], true)) {
+                app(\App\Services\Warehouse\PalletStockDocumentService::class)->statusChanged($pallet, auth()->user());
+            }
+        });
     }
 
     /**
@@ -86,10 +102,16 @@ class Pallet extends Model
     public function recomputeQualityStatus(): void
     {
         $checks = $this->qualityChecks()->get(['all_passed']);
+        $units = $this->unitVerdicts();
 
+        // Serialised goods are tested one by one: the pallet is as good as its
+        // worst unit. A pallet-level check (a failed one) still overrides.
         $status = match (true) {
-            $checks->isEmpty() => self::QUALITY_PENDING,
             $checks->contains(fn ($c) => ! $c->all_passed) => self::QUALITY_FAIL,
+            $units !== null && in_array(self::QUALITY_FAIL, $units, true) => self::QUALITY_FAIL,
+            $units !== null && in_array(self::QUALITY_PENDING, $units, true) => self::QUALITY_PENDING,
+            $units !== null => self::QUALITY_PASS,
+            $checks->isEmpty() => self::QUALITY_PENDING,
             default => self::QUALITY_PASS,
         };
 
@@ -107,6 +129,39 @@ class Pallet extends Model
      * tests) the sequence does not exist, so we derive the next number from the
      * highest existing pallet_no — sufficient for the single-threaded test path.
      */
+    /**
+     * One verdict per serialised unit on the pallet (scrap excluded): its most
+     * recent test result, `pending` when it was never tested; null when the
+     * pallet carries no serialised units at all.
+     *
+     * @return array<int, string>|null
+     */
+    private function unitVerdicts(): ?array
+    {
+        $units = SerialUnit::where('pallet_id', $this->id)
+            ->where('status', '!=', SerialUnit::STATUS_SCRAPPED)
+            // The relation orders history oldest-first; drop that so the latest verdict comes first.
+            ->with(['history' => fn ($q) => $q->whereNotNull('result')->reorder()->orderByDesc('processed_at')->orderByDesc('id')])
+            ->get();
+
+        if ($units->isEmpty()) {
+            return null;
+        }
+
+        return $units->map(function (SerialUnit $unit) {
+            if ($unit->status === SerialUnit::STATUS_BLOCKED) {
+                return self::QUALITY_FAIL;
+            }
+            $latest = $unit->history->first(fn ($h) => ($h->parameters['event'] ?? null) !== 'scrapped');
+
+            return match ($latest?->result) {
+                'pass' => self::QUALITY_PASS,
+                'fail' => self::QUALITY_FAIL,
+                default => self::QUALITY_PENDING,
+            };
+        })->values()->all();
+    }
+
     public static function nextPalletNo(): string
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
@@ -156,6 +211,16 @@ class Pallet extends Model
     }
 
     /** Append-only trail of physical moves and destination changes (#101, #103). */
+    public function cartons(): HasMany
+    {
+        return $this->hasMany(UnitCarton::class);
+    }
+
+    public function units(): HasMany
+    {
+        return $this->hasMany(SerialUnit::class);
+    }
+
     public function movements(): HasMany
     {
         return $this->hasMany(PalletMovement::class);
@@ -174,5 +239,16 @@ class Pallet extends Model
     public function isInTransit(): bool
     {
         return $this->destination !== null;
+    }
+
+    /** The operator and bench currently filling this one - shared state, so every packing screen agrees. */
+    public function activeBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'active_by_id');
+    }
+
+    public function activeWorkstation(): BelongsTo
+    {
+        return $this->belongsTo(Workstation::class, 'active_workstation_id');
     }
 }

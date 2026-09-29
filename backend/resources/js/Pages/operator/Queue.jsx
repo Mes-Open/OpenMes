@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { __ } from '../../lib/i18n';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
+import AppDataTable from '../../components/AppDataTable';
 import Tooltip from '../../components/Tooltip';
 import QuantityField from '../../components/QuantityField';
 import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
@@ -54,6 +55,11 @@ function WoStatusBadge({ status }) {
         DONE:        'done',
         CANCELLED:   'blocked',
     };
+    return <StatusPill status={map[status] ?? 'pending'} label={woStatusLabel(status)} />;
+}
+
+/** The translated status word — the badge's text and the table's filter/search value. */
+function woStatusLabel(status) {
     const label = {
         PENDING:     __('Pending'),
         IN_PROGRESS: __('In Progress'),
@@ -61,7 +67,7 @@ function WoStatusBadge({ status }) {
         DONE:        __('Done'),
         CANCELLED:   __('Cancelled'),
     };
-    return <StatusPill status={map[status] ?? 'pending'} label={label[status] ?? status} />;
+    return label[status] ?? status;
 }
 
 // ─── REPORT ISSUE MODAL ──────────────────────────────────────────────────────
@@ -402,102 +408,6 @@ function BoardStatusBadge({ lineStatus }) {
     );
 }
 
-// ─── ACTIVE WORK ORDER TABLE ROW ─────────────────────────────────────────────
-
-function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onReport, onDoneQty }) {
-    const ls = wo.line_status ?? null;
-    const rowBg = ls && ls.color && ls.color.length === 7
-        ? { backgroundColor: hexToRgba(ls.color, 0.12), borderLeft: `3px solid ${ls.color}` }
-        : { borderLeft: '3px solid transparent' };
-
-    const cycleStatus = () => {
-        if (!lineStatuses.length) return;
-        const currentId = wo.line_status_id ? parseInt(wo.line_status_id) : null;
-        const ids = [null, ...lineStatuses.map((s) => parseInt(s.id))];
-        const currentIdx = ids.indexOf(currentId);
-        const nextId = ids[(currentIdx + 1) % ids.length];
-
-        if (workflowMode === 'board_status' && nextId !== null && doneStatusIds.map(Number).includes(nextId)) {
-            if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
-            onDoneQty({ woId: wo.id, woNo: wo.order_no, statusId: nextId });
-            return;
-        }
-
-        router.post(`/operator/work-order/${wo.id}/line-status`, { line_status_id: nextId ?? '' });
-    };
-
-    const plannedQty = parseFloat(wo.planned_qty) || 0;
-    const producedQty = parseFloat(wo.produced_qty) || 0;
-    const pct = plannedQty > 0 ? Math.min((producedQty / plannedQty) * 100, 100) : 0;
-
-    return (
-        <tr className="cursor-pointer transition-all hover:brightness-95 active:brightness-85"
-            style={rowBg}>
-            <td className="px-4 py-3 font-mono text-[13px] font-semibold text-om-ink whitespace-nowrap">
-                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-om-accent">
-                    {wo.order_no}
-                </Link>
-            </td>
-            <td className="px-4 py-3 whitespace-nowrap">
-                <WoStatusBadge status={wo.status} />
-            </td>
-            {lineStatuses.length > 0 && (
-                <td className="px-4 py-3 whitespace-nowrap cursor-pointer"
-                    onClick={cycleStatus}
-                    title={__("Tap to cycle status")}>
-                    <BoardStatusBadge lineStatus={ls} />
-                </td>
-            )}
-            <td className="px-4 py-3 text-[13.5px] font-medium text-om-ink">
-                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-om-accent">
-                    {wo.product_type?.name ?? '—'}
-                </Link>
-            </td>
-            <td className="px-4 py-3 text-sm whitespace-nowrap">
-                <Link href={`/operator/work-order/${wo.id}`}>
-                    <span className="font-mono text-[13px] font-medium text-om-ink">
-                        {fmtQty(producedQty)} / {fmtQty(plannedQty)}
-                    </span>
-                    {plannedQty > 0 && (
-                        <>
-                            <span className="font-mono text-[10px] text-om-faint ml-1">({fmtQty(pct)}%)</span>
-                            <ProgressBar value={pct} className="mt-1.5 w-24" />
-                        </>
-                    )}
-                </Link>
-            </td>
-            <td className="px-4 py-3 font-mono text-[13px] text-om-muted text-center">
-                {wo.batches ? wo.batches.length : 0}
-            </td>
-            <td className="px-4 py-3 font-mono text-[13px] text-om-muted text-center">
-                {wo.priority || '—'}
-            </td>
-            <td className="px-4 py-3 font-mono text-[12px] text-om-muted whitespace-nowrap">
-                {fmtDate(wo.due_date, 'short')}
-            </td>
-            {/* Actions cell — does NOT navigate */}
-            <td className="px-3 py-2 whitespace-nowrap">
-                <Button variant="danger"
-                        onClick={(e) => { e.stopPropagation(); onReport({ woId: wo.id, woNo: wo.order_no }); }}
-                        className="gap-1 text-xs"
-                        title={__("Report issue")}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
-                    </svg>
-                    {__("Report")}
-                </Button>
-            </td>
-            {/* Detail arrow */}
-            <td className="px-4 py-3 text-right" style={{ minWidth: 48, cursor: 'pointer' }}
-                onClick={() => router.visit(`/operator/work-order/${wo.id}`)}>
-                <svg className="w-6 h-6 text-om-faint inline hover:text-om-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </td>
-        </tr>
-    );
-}
-
 // ─── ACTIVE WORK ORDER CARD ───────────────────────────────────────────────────
 
 function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport, onDoneQty }) {
@@ -652,6 +562,111 @@ const completedColumns = [
     },
 ];
 
+// The active orders table: the app's DataTable (search, per-column filters,
+// column picker) instead of a hand-rolled <table>. Columns depend on the line's
+// board statuses and the modal openers, so they are built inside the page.
+function activeColumns({ lineStatuses, cycleStatus, onReport }) {
+    // String headers (built per render, so the catalogue is loaded): the column
+    // picker names a column by its header only when that is a string.
+    const link = (wo, children, cls = '') => <Link href={`/operator/work-order/${wo.id}`} className={`hover:text-om-accent ${cls}`}>{children}</Link>;
+    return [
+        {
+            id: 'order_no',
+            accessorKey: 'order_no',
+            header: __("Order No"),
+            cell: ({ row }) => link(row.original, row.original.order_no, 'font-mono text-[13px] font-semibold text-om-ink whitespace-nowrap'),
+        },
+        {
+            id: 'status',
+            accessorFn: (r) => woStatusLabel(r.status),
+            header: __("Status"),
+            cell: ({ row }) => <WoStatusBadge status={row.original.status} />,
+        },
+        ...(lineStatuses.length > 0 ? [{
+            id: 'board_status',
+            accessorFn: (r) => r.line_status?.name ?? '—',
+            header: __("Board Status"),
+            cell: ({ row }) => (
+                <button type="button" className="cursor-pointer" onClick={() => cycleStatus(row.original)} title={__("Tap to cycle status")}>
+                    <BoardStatusBadge lineStatus={row.original.line_status ?? null} />
+                </button>
+            ),
+        }] : []),
+        {
+            id: 'product',
+            accessorFn: (r) => r.product_type?.name ?? '—',
+            header: __("Product"),
+            cell: ({ row }) => link(row.original, row.original.product_type?.name ?? '—', 'text-[13.5px] font-medium text-om-ink'),
+        },
+        {
+            id: 'qty',
+            accessorFn: (r) => parseFloat(r.produced_qty) || 0,
+            header: __("Qty (done / planned)"),
+            meta: { filter: false },
+            cell: ({ row }) => {
+                const wo = row.original;
+                const planned = parseFloat(wo.planned_qty) || 0;
+                const produced = parseFloat(wo.produced_qty) || 0;
+                const pct = planned > 0 ? Math.min((produced / planned) * 100, 100) : 0;
+                return link(wo, (
+                    <>
+                        <span className="font-mono text-[13px] font-medium text-om-ink whitespace-nowrap">{fmtQty(produced)} / {fmtQty(planned)}</span>
+                        {planned > 0 && (
+                            <>
+                                <span className="font-mono text-[10px] text-om-faint ml-1">({fmtQty(pct)}%)</span>
+                                <ProgressBar value={pct} className="mt-1.5 w-24" />
+                            </>
+                        )}
+                    </>
+                ), 'block');
+            },
+        },
+        {
+            id: 'batches',
+            accessorFn: (r) => (r.batches ? r.batches.length : 0),
+            header: __("Batches"),
+            meta: { align: 'center', filter: false },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-muted">{row.original.batches ? row.original.batches.length : 0}</span>,
+        },
+        {
+            id: 'priority',
+            accessorFn: (r) => r.priority ?? 0,
+            header: __("Priority"),
+            meta: { align: 'center', filter: false },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-muted">{row.original.priority || '—'}</span>,
+        },
+        {
+            id: 'due_date',
+            accessorKey: 'due_date',
+            header: __("Due"),
+            meta: { filter: 'date' },
+            cell: ({ row }) => <span className="font-mono text-[12px] text-om-muted whitespace-nowrap">{fmtDate(row.original.due_date, 'short')}</span>,
+        },
+        {
+            id: '_actions',
+            header: __("Actions"),
+            enableSorting: false,
+            enableHiding: false,
+            meta: { align: 'right', chrome: true },
+            cell: ({ row }) => {
+                const wo = row.original;
+                return (
+                    <div className="flex items-center justify-end gap-1.5">
+                        <Button variant="danger" size="sm" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} title={__("Report issue")}>
+                            {__("Report")}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => router.visit(`/operator/work-order/${wo.id}`)} aria-label={__("Open work order")} title={__("Open work order")}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </Button>
+                    </div>
+                );
+            },
+        },
+    ];
+}
+
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 
 export default function Queue() {
@@ -697,6 +712,22 @@ export default function Queue() {
 
     const openDoneQty = ({ woId, woNo, statusId }) => setDoneQtyModal({ open: true, woId, woNo, statusId });
     const closeDoneQty = () => setDoneQtyModal((s) => ({ ...s, open: false }));
+
+    // Tapping the board-status badge walks the line's statuses in order (none → first → … → none);
+    // a "done" status asks for the quantity first, or opens the order when it keeps a step ledger.
+    const cycleStatus = (wo) => {
+        if (!lineStatuses.length) return;
+        const currentId = wo.line_status_id ? parseInt(wo.line_status_id) : null;
+        const ids = [null, ...lineStatuses.map((s) => parseInt(s.id))];
+        const nextId = ids[(ids.indexOf(currentId) + 1) % ids.length];
+        if (workflowMode === 'board_status' && nextId !== null && doneStatusIds.map(Number).includes(nextId)) {
+            if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
+            openDoneQty({ woId: wo.id, woNo: wo.order_no, statusId: nextId });
+            return;
+        }
+        router.post(`/operator/work-order/${wo.id}/line-status`, { line_status_id: nextId ?? '' });
+    };
+    const activeCols = useMemo(() => activeColumns({ lineStatuses, cycleStatus, onReport: openReport }), [lineStatuses, workflowMode, doneStatusIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const showWorkstationFilter =
         trackingMode !== 'cumulative' && lineWorkstations.length > 0;
@@ -882,9 +913,7 @@ export default function Queue() {
                                 return (
                                     <Link key={wo.id}
                                           href={`/operator/work-order/${wo.id}`}
-                                          className={`block p-4 rounded-om border border-om-line bg-om-card border-l-[3px] hover:bg-om-panel transition-colors group ${
-                                              currentStep?.status === 'IN_PROGRESS' ? 'border-l-om-running' : 'border-l-om-accent'
-                                          }`}>
+                                          className="block p-4 rounded-om border border-om-line bg-om-card hover:bg-om-panel transition-colors group">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="font-mono text-[13px] font-semibold text-om-ink">{wo.order_no}</span>
                                             <StatusPill
@@ -934,7 +963,7 @@ export default function Queue() {
                                 return (
                                     <Link key={wo.id}
                                           href={`/operator/work-order/${wo.id}`}
-                                          className="block p-4 rounded-om border border-om-line bg-om-card border-l-[3px] border-l-om-line hover:bg-om-panel transition-colors">
+                                          className="block p-4 rounded-om border border-om-line bg-om-card hover:bg-om-panel transition-colors">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="font-mono text-[13px] font-semibold text-om-ink">{wo.order_no}</span>
                                             <StatusPill status="pending" label={__('Not Started')} />
@@ -982,43 +1011,13 @@ export default function Queue() {
                         <>
                             {/* Table view */}
                             {view === 'table' && (
-                                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-om-line2">
-                                            <thead className="bg-om-panel">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Order No")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Status")}</th>
-                                                    {lineStatuses.length > 0 && (
-                                                        <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">
-                                                            {__("Board Status")}
-                                                            <Tooltip label={__("Tap badge to cycle")}>
-                                                                <span className="ml-1 text-om-faintest font-normal normal-case tracking-normal text-xs">↻</span>
-                                                            </Tooltip>
-                                                        </th>
-                                                    )}
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Product")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Qty (done / planned)")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Batches")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Priority")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Due")}</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">{__("Actions")}</th>
-                                                    <th className="px-4 py-3" />
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-om-line2">
-                                                {activeWorkOrders.map((wo) => (
-                                                    <ActiveWoTableRow key={wo.id} wo={wo}
-                                                                      lineStatuses={lineStatuses}
-                                                                      workflowMode={workflowMode}
-                                                                      doneStatusIds={doneStatusIds}
-                                                                      onReport={openReport}
-                                                                      onDoneQty={openDoneQty} />
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <AppDataTable
+                                    data={activeWorkOrders}
+                                    columns={activeCols}
+                                    getRowId={(wo) => String(wo.id)}
+                                    pageSize={10}
+                                    onRowDoubleClick={(wo) => router.visit(`/operator/work-order/${wo.id}`)}
+                                />
                             )}
 
                             {/* Card view */}

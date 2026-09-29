@@ -77,73 +77,75 @@ class MaterialManagementController extends Controller
             ->limit(20)
             ->get()
             ->map(fn ($lot) => [
-                'id'                => $lot->id,
-                'lot_number'        => $lot->lot_number,
-                'supplier_lot_no'   => $lot->supplier_lot_no,
+                'id' => $lot->id,
+                'lot_number' => $lot->lot_number,
+                'supplier_lot_no' => $lot->supplier_lot_no,
                 'quantity_received' => $lot->quantity_received,
-                'quantity_available'=> $lot->quantity_available,
-                'expiry_date'       => $lot->expiry_date?->toDateString(),
-                'status'            => $lot->status,
-                'is_expired'        => $lot->isExpired(),
+                'quantity_available' => $lot->quantity_available,
+                'expiry_date' => $lot->expiry_date?->toDateString(),
+                'status' => $lot->status,
+                'is_expired' => $lot->isExpired(),
             ]);
 
         $recentMovements = \App\Models\StockMovement::forMaterial($material->id)
             ->limit(15)
             ->get()
             ->map(fn ($mv) => [
-                'id'            => $mv->id,
-                'performed_at'  => $mv->performed_at?->toIso8601String(),
+                'id' => $mv->id,
+                'performed_at' => $mv->performed_at?->toIso8601String(),
                 'movement_type' => $mv->movement_type,
-                'quantity'      => $mv->quantity,
+                'quantity' => $mv->quantity,
                 'balance_after' => $mv->balance_after,
-                'source_type'   => $mv->source_type,
-                'source_id'     => $mv->source_id,
-                'reason'        => $mv->reason,
-                'performed_by'  => $mv->performedBy ? ['name' => $mv->performedBy->name] : null,
+                'source_type' => $mv->source_type,
+                'source_id' => $mv->source_id,
+                'reason' => $mv->reason,
+                // System-written notes in the UI locale; a user's own note as typed.
+                'reason_display' => \App\Support\StockMovementReason::translate($mv->reason),
+                'performed_by' => $mv->performedBy ? ['name' => $mv->performedBy->name] : null,
             ]);
 
         return Inertia::render('admin/materials/Show', [
             'material' => [
-                'id'                       => $material->id,
-                'code'                     => $material->code,
-                'description'              => $material->description,
-                'material_type_id'         => $material->material_type_id,
-                'name'                     => $material->name,
-                'is_active'                => $material->is_active,
-                'unit_of_measure'          => $material->unit_of_measure,
-                'tracking_type'            => $material->tracking_type,
+                'id' => $material->id,
+                'code' => $material->code,
+                'description' => $material->description,
+                'material_type_id' => $material->material_type_id,
+                'name' => $material->name,
+                'is_active' => $material->is_active,
+                'unit_of_measure' => $material->unit_of_measure,
+                'tracking_type' => $material->tracking_type,
                 'default_scrap_percentage' => $material->default_scrap_percentage,
-                'stock_quantity'           => $material->stock_quantity,
-                'reserved_quantity'        => $material->reserved_quantity ?? 0,
-                'available_quantity'       => $material->available_quantity,
-                'min_stock_level'          => $material->min_stock_level,
-                'unit_price'               => $material->unit_price,
-                'price_currency'           => $material->price_currency,
-                'external_code'            => $material->external_code,
-                'external_system'          => $material->external_system,
-                'custom_fields'            => $material->custom_fields,
-                'material_type'            => $material->materialType ? ['name' => $material->materialType->name] : null,
-                'sources'                  => $material->sources->map(fn ($s) => [
-                    'id'               => $s->id,
-                    'external_code'    => $s->external_code,
+                'stock_quantity' => $material->stock_quantity,
+                'reserved_quantity' => $material->reserved_quantity ?? 0,
+                'available_quantity' => $material->available_quantity,
+                'min_stock_level' => $material->min_stock_level,
+                'unit_price' => $material->unit_price,
+                'price_currency' => $material->price_currency,
+                'external_code' => $material->external_code,
+                'external_system' => $material->external_system,
+                'custom_fields' => $material->custom_fields,
+                'material_type' => $material->materialType ? ['name' => $material->materialType->name] : null,
+                'sources' => $material->sources->map(fn ($s) => [
+                    'id' => $s->id,
+                    'external_code' => $s->external_code,
                     'integration_config' => $s->integrationConfig ? ['system_name' => $s->integrationConfig->system_name] : null,
                 ])->values(),
-                'bom_items'                => $material->bomItems->map(fn ($item) => [
-                    'id'               => $item->id,
+                'bom_items' => $material->bomItems->map(fn ($item) => [
+                    'id' => $item->id,
                     'quantity_per_unit' => $item->quantity_per_unit,
                     'scrap_percentage' => $item->scrap_percentage,
                     'process_template' => $item->processTemplate ? [
-                        'name'         => $item->processTemplate->name,
+                        'name' => $item->processTemplate->name,
                         'product_type' => $item->processTemplate->productType
                             ? ['name' => $item->processTemplate->productType->name]
                             : null,
                     ] : null,
                 ])->values(),
             ],
-            'lots'            => $lots,
+            'lots' => $lots,
             'recentMovements' => $recentMovements,
-            'materialTypes'   => Inertia::optional(fn () => MaterialType::orderBy('name')->get(['id', 'name'])),
-            'customFields'    => $customFields->clientConfig('material'),
+            'materialTypes' => Inertia::optional(fn () => MaterialType::orderBy('name')->get(['id', 'name'])),
+            'customFields' => $customFields->clientConfig('material'),
         ]);
     }
 

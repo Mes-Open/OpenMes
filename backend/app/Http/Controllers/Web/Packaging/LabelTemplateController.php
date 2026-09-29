@@ -2,37 +2,49 @@
 
 namespace App\Http\Controllers\Web\Packaging;
 
+use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
 use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
+/** Label templates: a list that creates and edits in a drawer, like the other admin lists. */
 class LabelTemplateController extends Controller
 {
-    public function index()
+    use StaysOnList;
+
+    public function index(Request $request)
     {
+        // /create and /{id}/edit land here as ?create=1 / ?edit={id}: the page
+        // opens its drawer the same way a row's Edit or "New template" does.
+        $editTemplate = $request->integer('edit')
+            ? LabelTemplate::find($request->integer('edit'))?->only('id', 'name', 'type', 'size', 'barcode_format', 'fields_config', 'is_default', 'is_active')
+            : null;
+
         return Inertia::render('packaging/label-templates/Index', [
             'typeLabels' => LabelTemplate::TYPES,
+            'editTemplate' => $editTemplate,
+            'openCreate' => $request->boolean('create'),
+            // The drawer's option lists, loaded on its first opening (partial
+            // reload) rather than with every render of the list.
+            'types' => Inertia::optional(fn () => LabelTemplate::TYPES),
+            'sizes' => Inertia::optional(fn () => LabelTemplate::SIZES),
+            'barcodeFormats' => Inertia::optional(fn () => LabelTemplate::BARCODE_FORMATS),
+            'availableFields' => Inertia::optional(fn () => LabelTemplate::AVAILABLE_FIELDS),
+            'fieldsByType' => Inertia::optional(fn () => collect(array_keys(LabelTemplate::TYPES))
+                ->mapWithKeys(fn ($type) => [$type => LabelTemplate::fieldsForType($type)])
+                ->all()),
+            // Which fields a fresh template of each type starts with.
+            'defaultFieldsByType' => Inertia::optional(fn () => collect(array_keys(LabelTemplate::TYPES))
+                ->mapWithKeys(fn ($type) => [$type => LabelTemplate::defaultFieldsFor($type)])
+                ->all()),
         ]);
-    }
-
-    /** Option maps shared by the create/edit forms. */
-    private function formData(): array
-    {
-        return [
-            'types' => LabelTemplate::TYPES,
-            'sizes' => LabelTemplate::SIZES,
-            'barcodeFormats' => LabelTemplate::BARCODE_FORMATS,
-            'availableFields' => LabelTemplate::AVAILABLE_FIELDS,
-        ];
     }
 
     public function create()
     {
-        return Inertia::render('packaging/label-templates/Create', array_merge($this->formData(), [
-            'defaultFields' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
-        ]));
+        return redirect()->route('packaging.label-templates.index', ['create' => 1]);
     }
 
     public function store(Request $request)
@@ -45,15 +57,12 @@ class LabelTemplateController extends Controller
             $this->ensureSingleDefault($template);
         }
 
-        return redirect()->route('packaging.label-templates.index')
-            ->with('success', __('Label template created.'));
+        return $this->saved($request, redirect()->route('packaging.label-templates.index'), __('Label template created.'));
     }
 
     public function edit(LabelTemplate $labelTemplate)
     {
-        return Inertia::render('packaging/label-templates/Edit', array_merge($this->formData(), [
-            'template' => $labelTemplate->only('id', 'name', 'type', 'size', 'barcode_format', 'fields_config', 'is_default', 'is_active'),
-        ]));
+        return redirect()->route('packaging.label-templates.index', ['edit' => $labelTemplate->id]);
     }
 
     public function update(Request $request, LabelTemplate $labelTemplate)
@@ -66,8 +75,7 @@ class LabelTemplateController extends Controller
             $this->ensureSingleDefault($labelTemplate);
         }
 
-        return redirect()->route('packaging.label-templates.index')
-            ->with('success', __('Label template updated.'));
+        return $this->saved($request, redirect()->route('packaging.label-templates.index'), __('Label template updated.'));
     }
 
     public function destroy(LabelTemplate $labelTemplate)

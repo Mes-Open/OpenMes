@@ -210,14 +210,16 @@ class NetRequirementsService
             return $this->componentCache[$templateId];
         }
 
+        // `per` and the packing step turn a per-carton or per-pallet line into a per-unit need.
         $lines = $template->bomItems()
             ->whereNotNull('material_id')
+            ->with('templateStep:id,config')
             ->orderBy('sort_order')
-            ->get(['material_id', 'quantity_per_unit', 'scrap_percentage'])
+            ->get(['id', 'material_id', 'quantity_per_unit', 'scrap_percentage', 'per', 'template_step_id'])
             ->map(fn ($item) => [
                 'material_id' => (int) $item->material_id,
                 'required_per_unit' => round(
-                    (float) $item->quantity_per_unit * (1 + ((float) $item->scrap_percentage / 100)),
+                    $item->perUnitQuantity() * (1 + ((float) $item->scrap_percentage / 100)),
                     6
                 ),
             ])

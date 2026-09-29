@@ -8,8 +8,10 @@ use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\Pallet;
 use App\Models\SerialUnit;
+use App\Models\SerialUnitComponent;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -468,6 +470,7 @@ class TraceabilityService
 
         return [
             'pallet' => [
+                'id' => $pallet->id,
                 'pallet_no' => $pallet->pallet_no,
                 'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
                 'qty' => (int) $pallet->qty,
@@ -481,6 +484,18 @@ class TraceabilityService
                 'product' => $pallet->workOrder->productType?->name,
             ] : null,
             'batch' => $pallet->batch ? $this->batchChain($pallet->batch) : null,
+            // Serialised units on the pallet, by carton - the shipment's exact contents.
+            'units' => SerialUnit::where('pallet_id', $pallet->id)
+                ->with('carton:id,carton_no')
+                ->orderBy('carton_id')->orderBy('serial_no')
+                ->get()
+                ->map(fn (SerialUnit $u) => [
+                    'serial_no' => $u->serial_no,
+                    'psn' => $u->psn,
+                    'status' => $u->status,
+                    'carton_no' => $u->carton?->carton_no,
+                    'packed_at' => $u->packed_at?->format('Y-m-d H:i'),
+                ])->values(),
         ];
     }
 
@@ -553,7 +568,34 @@ class TraceabilityService
      */
     public function customerOrderTrace(string $customerOrderNo): array
     {
-        $workOrders = WorkOrder::where('customer_order_no', $customerOrderNo)
+        return [
+            'customer_order_no' => $customerOrderNo,
+            'work_orders' => $this->traceWorkOrders(WorkOrder::where('customer_order_no', $customerOrderNo)),
+        ];
+    }
+
+    /**
+     * The same descent as customerOrderTrace(), for the one work order the
+     * console was pointed at - by its order number or from the orders table.
+     */
+    public function workOrderTrace(WorkOrder $workOrder): array
+    {
+        return [
+            'order_no' => $workOrder->order_no,
+            'customer_order_no' => $workOrder->customer_order_no,
+            'work_orders' => $this->traceWorkOrders(WorkOrder::whereKey($workOrder->getKey())),
+        ];
+    }
+
+    /**
+     * Work orders with their pallets and batches, each batch carrying the lots it
+     * produced and the component lots it consumed.
+     *
+     * @param  Builder<WorkOrder>  $query
+     */
+    private function traceWorkOrders(Builder $query): Collection
+    {
+        $workOrders = $query
             ->with([
                 'productType:id,name',
                 'pallets:id,work_order_id,batch_id,pallet_no,status',
@@ -570,35 +612,32 @@ class TraceabilityService
         $batchIds = $workOrders->pluck('batches')->flatten(1)->pluck('id')->filter()->unique()->all();
         $inputLotsByBatch = $this->inputLotsByBatch($batchIds);
 
-        return [
-            'customer_order_no' => $customerOrderNo,
-            'work_orders' => $workOrders->map(fn ($wo) => [
-                'order_no' => $wo->order_no,
-                'product' => $wo->productType?->name,
-                'status' => $wo->status,
-                'pallets' => $wo->pallets->map(fn ($p) => [
-                    'pallet_no' => $p->pallet_no,
-                    'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
-                    'batch_lot' => $p->batch?->lot_number,
+        return $workOrders->map(fn ($wo) => [
+            'order_no' => $wo->order_no,
+            'product' => $wo->productType?->name,
+            'status' => $wo->status,
+            'pallets' => $wo->pallets->map(fn ($p) => [
+                'pallet_no' => $p->pallet_no,
+                'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
+                'batch_lot' => $p->batch?->lot_number,
+            ])->values(),
+            'batches' => $wo->batches->map(fn ($b) => [
+                'batch_number' => $b->batch_number,
+                'lot_number' => $b->lot_number,
+                'status' => $b->status,
+                'output_lots' => $b->outputLots->map(fn ($o) => [
+                    'lot_number' => $o->lot_number,
+                    'material' => $o->material?->name,
+                    'status' => $o->status,
                 ])->values(),
-                'batches' => $wo->batches->map(fn ($b) => [
-                    'batch_number' => $b->batch_number,
-                    'lot_number' => $b->lot_number,
-                    'status' => $b->status,
-                    'output_lots' => $b->outputLots->map(fn ($o) => [
-                        'lot_number' => $o->lot_number,
-                        'material' => $o->material?->name,
-                        'status' => $o->status,
-                    ])->values(),
-                    'components' => collect($inputLotsByBatch[$b->id] ?? [])->map(fn ($lot) => [
-                        'lot_number' => $lot->lot_number,
-                        'material' => $lot->material?->name,
-                        'supplier_lot_no' => $lot->supplier_lot_no,
-                        'status' => $lot->status,
-                    ])->values(),
+                'components' => collect($inputLotsByBatch[$b->id] ?? [])->map(fn ($lot) => [
+                    'lot_number' => $lot->lot_number,
+                    'material' => $lot->material?->name,
+                    'supplier_lot_no' => $lot->supplier_lot_no,
+                    'status' => $lot->status,
                 ])->values(),
             ])->values(),
-        ];
+        ])->values();
     }
 
     /**
@@ -674,5 +713,66 @@ class TraceabilityService
         }
 
         return null;
+    }
+
+    /**
+     * Where a component identifier ended up: every unit it was scanned into,
+     * installed or since removed. This is the recall question for a bought-in
+     * part the system knows only by the serial on its label.
+     *
+     * @return array{identifier: string, units: Collection<int, array<string, mixed>>}
+     */
+    public function componentTrace(string $identifier): array
+    {
+        $bindings = SerialUnitComponent::where('identifier', $identifier)
+            ->with(['unit:id,serial_no,psn,status,work_order_id', 'unit.workOrder:id,order_no,product_type_id', 'unit.workOrder.productType:id,name', 'material:id,code,name', 'workstation:id,name', 'boundBy:id,name'])
+            ->orderByDesc('bound_at')->orderByDesc('id')
+            ->get();
+
+        return [
+            'identifier' => $identifier,
+            'material' => $bindings->first()?->material?->only(['code', 'name']),
+            'units' => $bindings->map(fn (SerialUnitComponent $c) => [
+                'serial_no' => $c->unit?->serial_no,
+                'psn' => $c->unit?->psn,
+                'status' => $c->unit?->status,
+                'work_order' => $c->unit?->workOrder?->order_no,
+                'product' => $c->unit?->workOrder?->productType?->name,
+                'installed' => $c->unbound_at === null,
+                'bound_at' => $c->bound_at?->format('Y-m-d H:i'),
+                'unbound_at' => $c->unbound_at?->format('Y-m-d H:i'),
+                'workstation' => $c->workstation?->name,
+                'bound_by' => $c->boundBy?->name,
+            ])->values(),
+        ];
+    }
+
+    /**
+     * The components inside a unit, as scanned: what each one resolved to, and
+     * the ones taken out since, so the trace shows the unit as built and as it is.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function installedComponents(SerialUnit $unit): Collection
+    {
+        return $unit->components()
+            ->with(['material:id,code,name', 'componentUnit:id,serial_no,status', 'materialLot:id,lot_number,supplier_lot_no', 'workstation:id,name', 'boundBy:id,name'])
+            ->orderBy('bound_at')
+            ->get()
+            ->map(fn (SerialUnitComponent $c) => [
+                'identifier' => $c->identifier,
+                'kind' => $c->component_serial_unit_id ? 'serial_unit' : ($c->material_lot_id ? 'material_lot' : 'identifier'),
+                'material' => $c->material?->name,
+                'material_code' => $c->material?->code,
+                'quantity' => (float) $c->quantity,
+                'component_status' => $c->componentUnit?->status,
+                'supplier_lot_no' => $c->materialLot?->supplier_lot_no,
+                'installed' => $c->unbound_at === null,
+                'bound_at' => $c->bound_at?->format('Y-m-d H:i'),
+                'unbound_at' => $c->unbound_at?->format('Y-m-d H:i'),
+                'unbind_reason' => $c->unbind_reason,
+                'workstation' => $c->workstation?->name,
+                'bound_by' => $c->boundBy?->name,
+            ]);
     }
 }

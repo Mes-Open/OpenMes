@@ -23,7 +23,7 @@ class BatchReportController extends Controller
         $pdf = Pdf::loadView('admin.reports.batch-report-pdf', $data)
             ->setPaper('a4', 'portrait');
 
-        $filename = 'report-'.($batch->lot_number ?? 'batch-'.$batch->id).'.pdf';
+        $filename = 'report-'.\App\Support\DownloadName::safe($batch->lot_number ?? 'batch-'.$batch->id).'.pdf';
 
         return $pdf->download($filename);
     }

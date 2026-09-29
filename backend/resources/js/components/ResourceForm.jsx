@@ -176,7 +176,7 @@ export default function ResourceForm({
 }
 
 function Field({ field, value, error, setData, data }) {
-    const { name, label, type = 'text', required, placeholder, help, options, filterByField } = field;
+    const { name, label, type = 'text', required, placeholder, help, options, filterByField, min, max, step } = field;
     const set = (v) => setData(name, v);
 
     // The caption used to be a bare <label> with no `htmlFor`, so it named
@@ -282,6 +282,12 @@ function Field({ field, value, error, setData, data }) {
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
                     placeholder={placeholder ? __(placeholder) : undefined}
+                    // A number field's bounds: the browser refuses to submit a value
+                    // outside them and the spinner stops there, the same limits the
+                    // server enforces - so a negative quantity never gets a round trip.
+                    min={type === 'number' ? min : undefined}
+                    max={type === 'number' ? max : undefined}
+                    step={type === 'number' ? step : undefined}
                     className={INPUT_CLASS}
                     {...a11y}
                 />

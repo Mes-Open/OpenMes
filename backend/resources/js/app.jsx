@@ -1,6 +1,7 @@
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
-import { loadLocale, setTimezone } from './lib/i18n';
+import { UILabelsProvider } from '@openmes/ui';
+import { __, loadLocale, setTimezone } from './lib/i18n';
 import { loadModules } from './lib/moduleLoader';
 import { resolvePage } from './lib/pageResolver';
 import './lib/echo'; // opens the single Reverb WebSocket
@@ -43,6 +44,24 @@ function initialProps() {
     }
 }
 
+// Screens that post with fetch() read the CSRF token from <meta name="csrf-token">.
+// That tag is rendered once, with the first page; an Inertia visit replaces the
+// page but not the head. Signing in regenerates the session token, so without
+// this the first scan after logging in (landing on a station by an Inertia
+// redirect) was refused with 419 until a reload. Every page carries the current
+// token as a prop: keep the tag in step with it.
+function syncCsrfToken(token) {
+    if (!token || typeof document === 'undefined') return;
+    let meta = document.querySelector('meta[name="csrf-token"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'csrf-token');
+        document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', token);
+}
+router.on('navigate', (event) => syncCsrfToken(event.detail.page.props?.csrf_token));
+
 createInertiaApp({
     resolve: async (name) => {
         // Awaiting here rather than before createInertiaApp keeps the resolver
@@ -73,7 +92,12 @@ createInertiaApp({
         setTimezone(props.initialPage.props.timezone);
         // Tenant key for Reverb channel names (null-safe → 'g'), mirrors TenantScope.
         window.__TENANT__ = props.initialPage.props.auth?.user?.tenant_id ?? 'g';
-        createRoot(el).render(<App {...props} />);
+        syncCsrfToken(props.initialPage.props.csrf_token);
+        // The design-system package ships no words of its own: the labels its
+        // controls need (a search box placeholder, an empty-result note) come
+        // from here, translated, once for the whole app.
+        const uiLabels = { searchPlaceholder: __('Search…'), noResultsLabel: __('No matches'), clearLabel: __('Clear') };
+        createRoot(el).render(<UILabelsProvider labels={uiLabels}><App {...props} /></UILabelsProvider>);
     },
     progress: { color: '#1e40af' },
 });

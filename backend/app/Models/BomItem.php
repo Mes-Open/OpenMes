@@ -12,12 +12,22 @@ class BomItem extends Model
     use HasFactory;
     use SoftDeletesWithAudit;
 
+    /** What `quantity_per_unit` is counted per: a finished unit, or a carton / pallet of a packing step. */
+    public const PER_UNIT = 'unit';
+
+    public const PER_CARTON = 'carton';
+
+    public const PER_PALLET = 'pallet';
+
+    public const PER = [self::PER_UNIT, self::PER_CARTON, self::PER_PALLET];
+
     protected $fillable = [
         'process_template_id',
         'template_step_id',
         'material_id',
         'product_type_id',
         'quantity_per_unit',
+        'per',
         'scrap_percentage',
         'consumed_at',
         'sort_order',
@@ -68,11 +78,41 @@ class BomItem extends Model
     }
 
     /**
+     * How many finished units one "per" unit of this line covers: 1 for a
+     * per-unit line, the carton size for a per-carton line, the carton size
+     * times the cartons per pallet for a per-pallet line - read from the
+     * packing step the line is attached to. A step without the capacity set
+     * cannot convert, so the quantity is taken as per unit.
+     */
+    public function basisDivisor(): float
+    {
+        if ($this->per === self::PER_UNIT || $this->per === null) {
+            return 1.0;
+        }
+        $config = $this->templateStep?->config ?? [];
+        $carton = (float) ($config['carton_capacity'] ?? 0);
+        $pallet = (float) ($config['pallet_capacity'] ?? 0);
+        if ($this->per === self::PER_CARTON) {
+            return $carton > 0 ? $carton : 1.0;
+        }
+        // Per pallet: cartons of units, or loose units straight onto the pallet.
+        $unitsPerPallet = ($config['unit'] ?? 'carton') === 'pallet' ? $pallet : $carton * $pallet;
+
+        return $unitsPerPallet > 0 ? $unitsPerPallet : 1.0;
+    }
+
+    /** The line's quantity expressed per finished unit - what planning, allocation and backflush work with. */
+    public function perUnitQuantity(): float
+    {
+        return round((float) $this->quantity_per_unit / $this->basisDivisor(), 6);
+    }
+
+    /**
      * Calculate required quantity including scrap for given production quantity.
      */
     public function calculateRequiredQuantity(float $productionQty): float
     {
-        $base = $this->quantity_per_unit * $productionQty;
+        $base = $this->perUnitQuantity() * $productionQty;
         $scrap = $base * ($this->scrap_percentage / 100);
 
         return round($base + $scrap, 4);

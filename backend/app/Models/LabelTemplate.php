@@ -20,11 +20,21 @@ class LabelTemplate extends Model
 
     const TYPE_PALLET = 'pallet';
 
+    const TYPE_SERIAL_UNIT = 'serial_unit';
+
+    const TYPE_CARTON = 'carton';
+
+    /** A received material lot after incoming inspection (the IQC label). */
+    const TYPE_MATERIAL_LOT = 'material_lot';
+
     const TYPES = [
         self::TYPE_WORK_ORDER => 'Work Order',
         self::TYPE_FINISHED_GOODS => 'Finished Goods',
         self::TYPE_WORKSTATION_STEP => 'Workstation Step',
         self::TYPE_PALLET => 'Pallet',
+        self::TYPE_SERIAL_UNIT => 'Serial Unit (SN)',
+        self::TYPE_CARTON => 'Carton (units list)',
+        self::TYPE_MATERIAL_LOT => 'Material lot (IQC)',
     ];
 
     const SIZES = [
@@ -44,12 +54,17 @@ class LabelTemplate extends Model
     const AVAILABLE_FIELDS = [
         'wo_number' => 'Work order number',
         'pallet_no' => 'Pallet number',
+        'carton_no' => 'Carton number',
+        'serial_no' => 'Serial number (SN)',
+        'psn' => 'Process serial (PSN)',
         'product' => 'Product name',
         'quantity' => 'Quantity',
         'barcode' => 'Barcode (1D)',
         'qr' => 'QR code',
-        'logo' => 'Logo',
         'lot' => 'Lot number',
+        'material' => 'Material',
+        'status' => 'Inspection status',
+        'supplier_lot' => 'Supplier lot',
         'location' => 'Location',
         'prod_date' => 'Production date',
     ];
@@ -76,6 +91,20 @@ class LabelTemplate extends Model
         ];
     }
 
+    /**
+     * The fields a label of this type can show, in the form's order: what its
+     * layout actually prints, so a template does not offer a pallet number on
+     * a unit label.
+     *
+     * @return array<int, string>
+     */
+    public static function fieldsForType(string $type): array
+    {
+        $known = array_keys(self::defaultFieldsFor($type));
+
+        return array_values(array_filter(array_keys(self::AVAILABLE_FIELDS), fn ($k) => in_array($k, $known, true)));
+    }
+
     public static function defaultFieldsFor(string $type): array
     {
         return match ($type) {
@@ -85,7 +114,6 @@ class LabelTemplate extends Model
                 'quantity' => true,
                 'barcode' => true,
                 'qr' => false,
-                'logo' => false,
                 'lot' => false,
                 'prod_date' => false,
             ],
@@ -95,7 +123,6 @@ class LabelTemplate extends Model
                 'quantity' => true,
                 'barcode' => true,
                 'qr' => true,
-                'logo' => false,
                 'lot' => true,
                 'prod_date' => true,
             ],
@@ -105,7 +132,6 @@ class LabelTemplate extends Model
                 'quantity' => false,
                 'barcode' => true,
                 'qr' => false,
-                'logo' => false,
                 'lot' => false,
                 'prod_date' => false,
             ],
@@ -116,9 +142,40 @@ class LabelTemplate extends Model
                 'quantity' => true,
                 'barcode' => true,
                 'qr' => true,
-                'logo' => false,
                 'lot' => false,
                 'location' => true,
+                'prod_date' => true,
+            ],
+            self::TYPE_SERIAL_UNIT => [
+                'serial_no' => true,
+                'psn' => true,
+                'wo_number' => true,
+                'product' => true,
+                'quantity' => false,
+                'barcode' => true,
+                'qr' => true,
+                'lot' => false,
+                'location' => false,
+                'prod_date' => true,
+            ],
+            self::TYPE_CARTON => [
+                'carton_no' => true,
+                'wo_number' => true,
+                'product' => true,
+                'quantity' => true,
+                'barcode' => true,
+                'qr' => true,
+                'lot' => false,
+                'prod_date' => true,
+            ],
+            self::TYPE_MATERIAL_LOT => [
+                'lot' => true,
+                'material' => true,
+                'quantity' => true,
+                'status' => true,
+                'supplier_lot' => true,
+                'barcode' => true,
+                'qr' => true,
                 'prod_date' => true,
             ],
             default => array_fill_keys(array_keys(self::AVAILABLE_FIELDS), false),

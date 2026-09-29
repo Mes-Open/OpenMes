@@ -32,6 +32,8 @@ class BatchStep extends Model
         'batch_id',
         'step_number',
         'name',
+        'kind',
+        'config',
         'instruction',
         'requires_confirmation',
         'passed_qty',
@@ -69,6 +71,7 @@ class BatchStep extends Model
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',
             'is_optional' => 'boolean',
+            'config' => 'array',
             'requires_confirmation' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -288,6 +291,11 @@ class BatchStep extends Model
      * off, or a step whose immediate predecessor is DONE/SKIPPED. Does NOT factor
      * in work-order blocking — that's re-checked at start time.
      */
+    public function isPacking(): bool
+    {
+        return $this->kind === TemplateStep::KIND_PACKING;
+    }
+
     public function prerequisitesMet(): bool
     {
         if (! config('openmmes.force_sequential_steps', true)) {

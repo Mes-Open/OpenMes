@@ -51,12 +51,14 @@ use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
+use App\Http\Controllers\Web\Operator\UnitLabelStationController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
 use App\Http\Controllers\Web\Packaging\PackagingController;
 use App\Http\Controllers\Web\Packaging\PackagingEanController;
+use App\Http\Controllers\Web\Packaging\UnitCartonController;
 use App\Http\Controllers\Web\QualityControlTaskController;
 use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
@@ -306,6 +308,21 @@ Route::middleware('auth')->group(function () {
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
+        Route::get('/unit-labels/station', [UnitLabelStationController::class, 'index'])->name('unit-labels.station');
+        // The packing station in the operator shell; staff keep /packaging/station (sidebar).
+        Route::get('/packaging', [PackagingController::class, 'station'])->name('packaging');
+        Route::post('/unit-labels/apply', [UnitLabelStationController::class, 'apply'])->name('unit-labels.apply');
+        Route::get('/unit-labels/units', [UnitLabelStationController::class, 'units'])->name('unit-labels.units');
+        Route::post('/unit-labels/component', [UnitLabelStationController::class, 'component'])->name('unit-labels.component');
+        Route::post('/unit-labels/issue', [UnitLabelStationController::class, 'issue'])->name('unit-labels.issue');
+        Route::post('/unit-labels/{serialUnit}/scrap', [UnitLabelStationController::class, 'scrap'])->name('unit-labels.scrap');
+        Route::get('/unit-labels/components', [UnitLabelStationController::class, 'components'])->name('unit-labels.components');
+        Route::post('/unit-labels/components/{component}/unbind', [UnitLabelStationController::class, 'unbindComponent'])->name('unit-labels.component-unbind');
+        Route::post('/unit-labels/issue-batch', [UnitLabelStationController::class, 'issueBatch'])->name('unit-labels.issue-batch');
+        Route::post('/unit-labels/start', [UnitLabelStationController::class, 'start'])->name('unit-labels.start');
+        Route::post('/unit-labels/subassembly', [UnitLabelStationController::class, 'subassembly'])->name('unit-labels.subassembly');
+        Route::post('/unit-labels/{serialUnit}/block', [UnitLabelStationController::class, 'block'])->name('unit-labels.block');
+        Route::post('/unit-labels/{serialUnit}/unblock', [UnitLabelStationController::class, 'unblock'])->name('unit-labels.unblock');
         Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
         // Manual machine-state set (#87) — operator/supervisor sets a workstation's state.
         Route::post('/workstation/machine-state/{workstation}', [OperatorWorkstationController::class, 'setMachineState'])->name('workstation.machine-state');
@@ -942,13 +959,27 @@ Route::middleware('auth')->group(function () {
         Route::middleware('role:Operator|Supervisor|Admin')->group(function () {
             Route::get('/station', [PackagingController::class, 'station'])->name('station');
             Route::post('/scan', [PackagingController::class, 'scan'])->name('scan');
+            Route::post('/scan-unit', [PackagingController::class, 'scanUnit'])->name('scan-unit');
             Route::get('/items', [PackagingController::class, 'items'])->name('items');
+            Route::get('/packing-steps', [PackagingController::class, 'packingSteps'])->name('packing-steps');
+            Route::get('/packing-steps/{batchStep}/materials', [PackagingController::class, 'packingStepMaterials'])->name('packing-steps.materials');
+            Route::post('/packing-steps/{batchStep}/start', [PackagingController::class, 'startPackingStep'])->name('packing-steps.start');
             Route::get('/history', [PackagingController::class, 'history'])->name('history');
             Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
             Route::get('/stats', [PackagingController::class, 'stats'])->name('stats');
             Route::get('/pallets', [PackagingController::class, 'openPallets'])->name('pallets.open');
             Route::post('/pallets', [PackagingController::class, 'createPallet'])->name('pallets.create');
             Route::post('/pallets/{pallet}/close', [PackagingController::class, 'closePallet'])->name('pallets.close');
+            Route::post('/pallets/{pallet}/activate', [PackagingController::class, 'activatePallet'])->name('pallets.activate');
+            Route::post('/pallets/{pallet}/release', [PackagingController::class, 'releasePallet'])->name('pallets.release');
+            // Cartons of serialised units (outer boxes holding several units).
+            Route::get('/cartons', [UnitCartonController::class, 'index'])->name('cartons.index');
+            Route::post('/cartons', [UnitCartonController::class, 'store'])->name('cartons.store');
+            Route::get('/cartons/{carton}', [UnitCartonController::class, 'show'])->name('cartons.show');
+            Route::post('/cartons/{carton}/close', [UnitCartonController::class, 'close'])->name('cartons.close');
+            Route::post('/cartons/{carton}/activate', [UnitCartonController::class, 'activate'])->name('cartons.activate');
+            Route::post('/cartons/{carton}/release', [UnitCartonController::class, 'release'])->name('cartons.release');
+            Route::post('/cartons/{carton}/pallet', [UnitCartonController::class, 'assignPallet'])->name('cartons.pallet');
         });
 
         Route::middleware('role:Supervisor|Admin')->group(function () {
@@ -967,10 +998,21 @@ Route::middleware('auth')->group(function () {
             Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
             Route::get('/pallet/{pallet}/pdf', [LabelPrintController::class, 'palletPdf'])->name('pallet.pdf');
             Route::get('/pallet/{pallet}/zpl', [LabelPrintController::class, 'palletZpl'])->name('pallet.zpl');
+            Route::get('/serial-units/pdf', [LabelPrintController::class, 'serialUnitsPdf'])->name('serial-units.pdf');
+            Route::get('/serial-units/zpl', [LabelPrintController::class, 'serialUnitsZpl'])->name('serial-units.zpl');
+            Route::get('/pallet/{pallet}/packing-list', [\App\Http\Controllers\Web\Packaging\PackingListController::class, 'pallet'])->name('pallet.packing-list');
+            Route::get('/serial-unit/{serialUnit}/pdf', [LabelPrintController::class, 'serialUnitPdf'])->name('serial-unit.pdf');
+            Route::get('/serial-unit/{serialUnit}/zpl', [LabelPrintController::class, 'serialUnitZpl'])->name('serial-unit.zpl');
+            Route::get('/carton/{carton}/pdf', [LabelPrintController::class, 'cartonPdf'])->name('carton.pdf');
+            Route::get('/material-lot/{materialLot}/pdf', [LabelPrintController::class, 'materialLotPdf'])->name('material-lot.pdf');
+            Route::get('/material-lot/{materialLot}/zpl', [LabelPrintController::class, 'materialLotZpl'])->name('material-lot.zpl');
             Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
         });
 
         Route::middleware('role:Admin')->group(function () {
+            // Preview before the resource: "preview" would otherwise bind as {label_template}.
+            Route::get('/label-templates/preview', [\App\Http\Controllers\Web\Packaging\LabelTemplatePreviewController::class, 'draft'])->name('label-templates.preview-draft');
+            Route::get('/label-templates/{labelTemplate}/preview', [\App\Http\Controllers\Web\Packaging\LabelTemplatePreviewController::class, 'show'])->name('label-templates.preview');
             Route::resource('label-templates', LabelTemplateController::class)->except(['show']);
             Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault'])->name('label-templates.set-default');
         });

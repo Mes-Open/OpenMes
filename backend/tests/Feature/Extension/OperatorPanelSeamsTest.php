@@ -72,7 +72,7 @@ class OperatorPanelSeamsTest extends TestCase
     {
         $props = $this->props($this->atStation()->get(route('operator.workstation'))->assertOk());
 
-        $this->assertSame(['queue', 'workstation'], array_column($props['operatorTabs'], 'key'));
+        $this->assertSame(['queue', 'workstation', 'unit_labels', 'packing'], array_column($props['operatorTabs'], 'key'));
         $this->assertContains('/operator/work-order', $props['operatorTabs'][0]['prefixes']);
         $this->assertTrue($props['operatorCanLogout']);
         $this->assertSame([], $props['operatorHooks']);
@@ -90,7 +90,8 @@ class OperatorPanelSeamsTest extends TestCase
         $props = $this->props($this->atStation()->get(route('operator.workstation'))->assertOk());
 
         // Re-indexed, so the browser receives a list and not an object.
-        $this->assertSame([['key' => 'workstation', 'label' => 'Workstation', 'url' => '/operator/workstation', 'prefixes' => ['/operator/workstation']]], $props['operatorTabs']);
+        $this->assertSame(['workstation', 'unit_labels', 'packing'], array_column($props['operatorTabs'], 'key'));
+        $this->assertSame(['key' => 'workstation', 'label' => 'Workstation', 'url' => '/operator/workstation', 'prefixes' => ['/operator/workstation']], $props['operatorTabs'][0]);
         $this->assertInstanceOf(User::class, $seen);
     }
 

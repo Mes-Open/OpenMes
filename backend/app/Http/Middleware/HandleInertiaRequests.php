@@ -79,7 +79,7 @@ class HandleInertiaRequests extends Middleware
             //   operatorHooks:     display hook `display.operator.layout`, rendered at the
             //                      top of every operator screen
             // With no module listening these are the defaults, `true` and `{}`.
-            'operatorTabs' => fn () => $this->operatorTabs($user),
+            'operatorTabs' => fn () => $this->operatorTabs($user, $request),
             'operatorCanLogout' => fn () => (bool) app(\App\Extension\FilterRegistry::class)
                 ->filter('operator.can_logout', true, ['user' => $user]),
             'operatorHooks' => fn () => app(\App\Extension\HookRegistry::class)
@@ -144,12 +144,21 @@ class HandleInertiaRequests extends Middleware
      *
      * @return list<array{key: string, label: string, url: string, prefixes: list<string>}>
      */
-    private function operatorTabs($user): array
+    private function operatorTabs($user, Request $request): array
     {
         $tabs = [
             ['key' => 'queue', 'label' => 'Queue', 'url' => '/operator/queue', 'prefixes' => ['/operator/queue', '/operator/work-order']],
             ['key' => 'workstation', 'label' => 'Workstation', 'url' => '/operator/workstation', 'prefixes' => ['/operator/workstation']],
+            ['key' => 'unit_labels', 'label' => 'SN labels', 'url' => '/operator/unit-labels/station', 'prefixes' => ['/operator/unit-labels']],
+            ['key' => 'packing', 'label' => 'Packing', 'url' => '/operator/packaging', 'prefixes' => ['/operator/packaging']],
         ];
+        // Only the screens this bench's step needs (a packing bench sees Packing
+        // only); staff and the whole-line view keep every tab. Worked out on the
+        // operator shell only - other pages skip the queries.
+        if ($user && $request->routeIs('operator.*')) {
+            $screens = app(\App\Services\Production\OperatorScreens::class)->forRequest($request);
+            $tabs = array_values(array_filter($tabs, fn ($tab) => in_array($tab['key'], $screens, true)));
+        }
 
         return array_values(app(\App\Extension\FilterRegistry::class)->filter('operator.tabs', $tabs, ['user' => $user]));
     }

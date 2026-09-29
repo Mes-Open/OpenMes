@@ -46,7 +46,7 @@ const SIZES = {
 };
 
 export function Stepper({
-    /** `[{ key, title, description, status, icon?, label?, meta?, action? }]`. */
+    /** `[{ key, title, description, status, icon?, label?, meta?, action?, body? }]`. */
     steps = [],
     size = 'md',
     className = '',
@@ -92,6 +92,11 @@ export function Stepper({
                                         {step.description}
                                     </div>
                                 )}
+                                {/* `body` is block content that belongs to the step (the
+                                    lots it consumed, a note): it takes the full text column
+                                    under the caption, where `action` - a control on the
+                                    right that cannot shrink - would squeeze the title. */}
+                                {step.body != null && step.body !== false && step.body !== '' && <div className="mt-1">{step.body}</div>}
                             </div>
                             {/* `meta` is a fact about the step (a duration); `action`
                                 is something you can do to it. Kept apart so a row

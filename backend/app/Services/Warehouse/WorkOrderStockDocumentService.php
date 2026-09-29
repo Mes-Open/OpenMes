@@ -39,6 +39,12 @@ class WorkOrderStockDocumentService
             if ($this->alreadyHas($workOrder, $type)) {
                 continue;
             }
+            // Booked pallet by pallet instead: an order that packs onto pallets has
+            // its pallets carry the receipt; one that never palletises keeps this one.
+            if ($type === StockDocument::TYPE_PRODUCT_RECEIPT && PalletStockDocumentService::mode() !== PalletStockDocumentService::OFF
+                && \App\Models\BatchStep::where('kind', \App\Models\TemplateStep::KIND_PACKING)->whereHas('batch', fn ($q) => $q->where('work_order_id', $workOrder->id))->exists()) {
+                continue;
+            }
 
             $document = $type === StockDocument::TYPE_MATERIAL_ISSUE
                 ? $this->generateMaterialIssue($workOrder)

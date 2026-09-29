@@ -31,6 +31,18 @@ class LabelTemplatesSeeder extends Seeder
                 'name' => 'Standard Pallet',
                 'size' => '100x100',
             ],
+            LabelTemplate::TYPE_SERIAL_UNIT => [
+                'name' => 'Standard Serial Unit',
+                'size' => '80x40',
+            ],
+            LabelTemplate::TYPE_CARTON => [
+                'name' => 'Standard Carton',
+                'size' => '100x100',
+            ],
+            LabelTemplate::TYPE_MATERIAL_LOT => [
+                'name' => 'Standard Material Lot (IQC)',
+                'size' => '100x50',
+            ],
         ];
 
         $tenants = Tenant::query()->get();

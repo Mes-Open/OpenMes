@@ -24,9 +24,10 @@ class LineController extends Controller
                 $request->session()->put('selected_line_id', $lineId);
                 $request->session()->put('selected_workstation_id', $workstation->id);
                 $line = Line::find($lineId);
-                $defaultView = $line?->default_operator_view ?? 'queue';
+                $screens = app(\App\Services\Production\OperatorScreens::class);
 
-                return redirect()->route($defaultView === 'workstation' ? 'operator.workstation' : 'operator.queue');
+                // A packing bench opens on packing, an assembly bench on its queue.
+                return redirect()->route($screens->landingRoute($screens->for($user, $workstation), $line?->default_operator_view ?? 'queue'));
             }
         }
 
@@ -80,9 +81,16 @@ class LineController extends Controller
         $request->session()->put('selected_workstation_id', $workstationId);
 
         $line = Line::find($lineId);
-        $defaultView = $line?->default_operator_view ?? 'queue';
-        $route = $defaultView === 'workstation' ? 'operator.workstation' : 'operator.queue';
+        // The bench's first screen: a packing bench opens on packing, an assembly
+        // bench on the line's default production view.
+        $screens = app(\App\Services\Production\OperatorScreens::class);
+        $route = $screens->landingRoute(
+            $screens->for($request->user(), $workstationId ? \App\Models\Workstation::find($workstationId) : null),
+            $line?->default_operator_view ?? 'queue',
+        );
 
-        return redirect()->route($route);
+        // The choice rides in the address, so the page can be bookmarked or
+        // shared and opens on this line and bench.
+        return redirect()->route($route, ['line' => $lineId, 'workstation' => $workstationId ?: 'all']);
     }
 }
