@@ -100,7 +100,7 @@ class ProductionScenarioImportTest extends TestCase
             ['at' => '+1m', 'do' => 'step_log', 'order' => 'WO-SC-1', 'step' => 1, 'good' => 2, 'by' => 'op-a'],
             ['do' => 'step_complete', 'order' => 'WO-SC-1', 'step' => 1, 'by' => 'op-a'],
             ['at' => '+10m', 'do' => 'step_start', 'order' => 'WO-SC-1', 'step' => 2],
-            ['at' => '+2m', 'do' => 'test', 'unit' => 'u1', 'workstation' => 'SC-T', 'result' => 'pass', 'steps' => [['name' => 'Voltage', 'value' => 3.9, 'unit' => 'V', 'low' => 3.6, 'high' => 4.2]]],
+            ['at' => '+2m', 'do' => 'test', 'unit' => 'u1', 'workstation' => 'SC-T', 'result' => 'pass', 'steps' => [['name' => 'Voltage', 'value' => 5.02, 'unit' => 'V', 'low' => 4.75, 'high' => 5.25]]],
             ['at' => '+2m', 'do' => 'test', 'unit' => 'u2', 'workstation' => 'SC-T', 'result' => 'fail'],
             ['at' => '+5m', 'do' => 'test', 'unit' => 'u2', 'workstation' => 'SC-T', 'result' => 'pass'],
             ['at' => '+1m', 'do' => 'block', 'unit' => 'u2', 'reason' => 'SC-NC', 'note' => 'Scratch', 'workstation' => 'SC-T'],
@@ -169,6 +169,19 @@ class ProductionScenarioImportTest extends TestCase
         $this->assertFalse($this->admin->fresh()->hasRole('Operator'));
         // The clock is back where it was.
         $this->assertSame('2026-09-20 12:00:00', now()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_the_import_sends_no_live_deltas(): void
+    {
+        // A plant file touches a thousand rows or more; one synchronous websocket
+        // call each, after the commit, ran a slower host past its request limit.
+        \Illuminate\Support\Facades\Event::fake([\App\Events\CollectionChanged::class]);
+
+        $this->import(['scenario' => ['requires' => ['production_flow_mode' => 'transfer'], 'events' => $this->order()]])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('work_orders', ['order_no' => 'WO-SC-1']);
+        \Illuminate\Support\Facades\Event::assertNotDispatched(\App\Events\CollectionChanged::class);
     }
 
     public function test_orders_are_planned_ahead_on_the_schedule_and_overlaps_are_refused(): void

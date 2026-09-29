@@ -11,6 +11,7 @@ use App\Services\Settings\ProductionScenarioImporter;
 use App\Services\Settings\ScenarioException;
 use App\Support\TabRegistry;
 use App\Support\TimezoneRegistry;
+use App\Sync\CollectionBroadcaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -711,10 +712,16 @@ class SettingsController extends Controller
         }
 
         try {
-            [$imported, $events] = DB::transaction(fn () => [
+            // Without live deltas: a plant file and its scenario touch a thousand
+            // rows or more, and each delta is a synchronous call to the websocket
+            // server made after the commit - on a slower host enough of them to
+            // run the request past its time limit (an empty 500, the data saved).
+            // The admin's page reloads after the import; other screens refresh
+            // from their snapshot, as after the data import (which mutes too).
+            [$imported, $events] = CollectionBroadcaster::muted(fn () => DB::transaction(fn () => [
                 $importer->import($data),
                 is_array($data['scenario'] ?? null) ? $scenario->import($data['scenario'], $request->user()) : null,
-            ]);
+            ]));
             Cache::flush();
 
             return back()->with('success', $events === null
@@ -723,9 +730,15 @@ class SettingsController extends Controller
         } catch (ScenarioException $e) {
             return back()->with('error', __('The production scenario was not imported - nothing from the file was saved. :message', ['message' => $e->getMessage()]));
         } catch (\Throwable $e) {
-            report($e);
+            // Logged when the log can be written; a broken log must not turn the
+            // answer into an empty 500 that hides why nothing was imported.
+            rescue(fn () => report($e), report: false);
 
-            return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
+            // Admins only reach this screen: the reason is theirs to see, so a
+            // failed import on a server can be read without its logs.
+            return back()->with('error', __('Failed to import settings - nothing from the file was saved. :message', [
+                'message' => class_basename($e).': '.\Illuminate\Support\Str::limit($e->getMessage(), 300),
+            ]));
         }
     }
 

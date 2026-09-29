@@ -1188,7 +1188,6 @@
     "Members": "Członkowie",
     "Meeting": "Spotkanie",
     "no WO": "brak zlecenia",
-    "Failed to import settings. Please check the file and try again.": "Nie udało się zaimportować ustawień. Sprawdź plik i spróbuj ponownie.",
     "No results": "Brak wyników",
     "Quantity per Unit": "Ilość na jednostkę",
     "system is configured for": "system jest skonfigurowany na",
@@ -6876,5 +6875,6 @@
     "Enter EAN code": "Wpisz kod EAN",
     "Module \":name\" requires OpenMES :required; this installation is :current.": "Moduł \":name\" wymaga OpenMES :required; ta instalacja to :current.",
     "Module \":name\" could not be uninstalled: :msg": "Nie udało się odinstalować modułu \":name\": :msg",
-    "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.": "Moduł \":name\" odinstalowany. Jego tabele w bazie zostały nienaruszone; ponowna instalacja zachowa dane."
+    "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.": "Moduł \":name\" odinstalowany. Jego tabele w bazie zostały nienaruszone; ponowna instalacja zachowa dane.",
+    "Failed to import settings - nothing from the file was saved. :message": "Import ustawień nie powiódł się - nic z pliku nie zostało zapisane. :message"
 }

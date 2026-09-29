@@ -118,6 +118,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Declared here rather than left for the framework to add at runtime:
+        // under Octane that runtime copy lands in the request's config, not the
+        // one the log manager reads, and every deprecation notice then failed
+        // with "Log [deprecations] is not defined" through the emergency logger.
+        'deprecations' => [
+            'driver' => 'stack',
+            'channels' => [env('LOG_DEPRECATIONS_CHANNEL', 'null')],
+            'ignore_exceptions' => false,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
