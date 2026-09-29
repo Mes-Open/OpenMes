@@ -75,21 +75,21 @@ class OperatorScreensTest extends TestCase
 
     public function test_each_bench_gets_the_tabs_its_routed_steps_need(): void
     {
-        $this->screensAt($this->packing)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['packing']));
-        $this->screensAt($this->assembly)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation', 'unit_labels']));
+        $this->screensAt($this->packing)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['packing']));
+        $this->screensAt($this->assembly)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation', 'unit_labels']));
 
         // A bench nothing is routed to still has somewhere to work.
         $idle = Workstation::create(['line_id' => $this->line->id, 'code' => 'IDLE', 'name' => 'Idle', 'is_active' => true]);
-        $this->screensAt($idle)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation']));
+        $this->screensAt($idle)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation']));
     }
 
     public function test_the_whole_line_view_and_staff_see_every_tab(): void
     {
-        $this->screensAt(null)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation', 'unit_labels', 'packing']));
+        $this->screensAt(null)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation', 'unit_labels', 'packing']));
 
         $admin = User::factory()->create();
         $admin->assignRole('Admin');
-        $this->screensAt($this->packing, $admin)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation', 'unit_labels', 'packing']));
+        $this->screensAt($this->packing, $admin)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation', 'unit_labels', 'packing']));
     }
 
     public function test_an_operator_with_an_assigned_bench_still_sees_every_tab_on_the_whole_line(): void
@@ -98,7 +98,7 @@ class OperatorScreensTest extends TestCase
         $assigned->assignRole('Operator');
         $assigned->lines()->attach($this->line->id);
 
-        $this->screensAt(null, $assigned)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation', 'unit_labels', 'packing']));
+        $this->screensAt(null, $assigned)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation', 'unit_labels', 'packing']));
     }
 
     public function test_steps_routed_by_workstation_type_reach_every_bench_of_that_type_but_pinned_steps_do_not(): void
@@ -112,12 +112,12 @@ class OperatorScreensTest extends TestCase
         $template = ProcessTemplate::factory()->create(['product_type_id' => $product->id, 'is_active' => true]);
         // Pinned to bench A (with its type recorded): bench B must not inherit it.
         TemplateStep::create(['process_template_id' => $template->id, 'step_number' => 1, 'name' => 'Assemble at A', 'workstation_id' => $benchA->id, 'workstation_type_id' => $type->id]);
-        $this->screensAt($benchB)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation'])); // nothing routed: the fallback
+        $this->screensAt($benchB)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation'])); // nothing routed: the fallback
 
         // Open to any packer: both benches get Packing.
         TemplateStep::create(['process_template_id' => $template->id, 'step_number' => 2, 'name' => 'Pack', 'workstation_type_id' => $type->id, 'kind' => TemplateStep::KIND_PACKING, 'config' => ['unit' => 'pallet']]);
-        $this->screensAt($benchB)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['packing']));
-        $this->screensAt($benchA)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation', 'packing']));
+        $this->screensAt($benchB)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['packing']));
+        $this->screensAt($benchA)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation', 'packing']));
     }
 
     public function test_a_cancelled_batch_no_longer_gives_its_bench_a_tab(): void
@@ -126,17 +126,17 @@ class OperatorScreensTest extends TestCase
         $wo = WorkOrder::factory()->create(['line_id' => $this->line->id, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
         $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'status' => Batch::STATUS_IN_PROGRESS]);
         BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 1, 'status' => BatchStep::STATUS_PENDING, 'workstation_id' => $bench->id, 'kind' => TemplateStep::KIND_PACKING]);
-        $this->screensAt($bench)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['packing']));
+        $this->screensAt($bench)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['packing']));
 
         $batch->update(['status' => Batch::STATUS_CANCELLED]);
-        $this->screensAt($bench)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation']));
+        $this->screensAt($bench)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation']));
     }
 
     public function test_an_admin_can_pin_a_benchs_tabs(): void
     {
         $this->tester->update(['operator_screens' => ['queue', 'workstation']]);
 
-        $this->screensAt($this->tester)->assertInertia(fn (Assert $page) => $page->where('operatorScreens', ['queue', 'workstation']));
+        $this->screensAt($this->tester)->assertInertia(fn (Assert $page) => $page->where('operatorTabs', fn ($tabs) => collect($tabs)->pluck('key')->all() === ['queue', 'workstation']));
     }
 
     public function test_picking_a_packing_bench_lands_on_packing(): void

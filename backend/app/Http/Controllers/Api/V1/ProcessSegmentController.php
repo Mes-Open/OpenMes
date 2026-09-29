@@ -10,6 +10,11 @@ use Illuminate\Validation\Rule;
 
 class ProcessSegmentController extends Controller
 {
+    private function workforce(): \App\Extension\Contracts\WorkforceProvider
+    {
+        return app(\App\Extension\Contracts\WorkforceProvider::class);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = ProcessSegment::query()
@@ -121,7 +126,10 @@ class ProcessSegmentController extends Controller
             'required_operators'         => ['nullable', 'integer', 'min:1', 'max:50'],
             'standard_instruction'       => ['nullable', 'string'],
             'required_skill_ids'         => ['nullable', 'array'],
-            'required_skill_ids.*'       => ['integer', 'exists:skills,id'],
+            // Skills come with an optional module, so `exists:` would query a
+            // table this installation may not have. The web twin of this
+            // endpoint has always asked the contract instead; this one did not.
+            'required_skill_ids.*'       => ['integer', Rule::in(array_column($this->workforce()->skillOptions(), 'id'))],
             'parameters'                 => ['nullable', 'array'],
             'is_active'                  => ['sometimes', 'boolean'],
         ];

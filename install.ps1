@@ -51,6 +51,15 @@ function Confirm-Proceed([string]$Prompt) {
     return $true
 }
 
+function Confirm-OptIn([string]$Prompt) {
+    # Default is NO. An unattended run is not an answer: reporting is opt-in, so
+    # nobody being there to say yes means no — the same rule the application
+    # applies to a setting nobody ever set.
+    if (-not $Interactive) { return $false }
+    $reply = Read-Host "  $Prompt [y/N]"
+    return ($reply -match '^(y|yes)$')
+}
+
 function New-Password {
     # 24 alphanumeric chars from a CSPRNG (~143 bits). No symbols: the value is
     # written to .env and passed through docker compose; alphanumeric avoids '#'
@@ -131,6 +140,21 @@ $domain        = Read-Default "Domain (e.g. demo.example.com)" "localhost"
 $adminUsername = Read-Default "Admin username" "admin"
 $adminEmail    = Read-Default "Admin email" "admin@example.com"
 
+# Reporting is opt-in. The web setup wizard asks this on its admin step, but a
+# Docker install never reaches that wizard — the entrypoint creates the admin and
+# marks the application installed — so without asking here nobody using this
+# script is ever asked at all.
+if ($Interactive) {
+    Write-Host ""
+    Write-Host "  Anonymous usage reports"
+    Write-Host "  OpenMES can send information about the software: version, which"
+    Write-Host "  features are switched on, rough size bands, and where errors occur."
+    Write-Host "  It never sends anything entered into the system - no order, product,"
+    Write-Host "  customer or personal data. You can change this later in"
+    Write-Host "  Settings -> System."
+}
+$telemetry = if (Confirm-OptIn "Send anonymous usage reports?") { 'true' } else { 'false' }
+
 # ── Pick free host ports (80/443 preferred, auto-fallback if taken) ───────────
 
 Write-Info "Selecting host ports..."
@@ -206,6 +230,12 @@ POSTGRES_USER=openmmes_user
 POSTGRES_PASSWORD=$dbPassword
 
 # Admin account (created automatically on first run)
+# ── Anonymous usage reports ───────────────────────────────────────────────────
+# Read before the database exists, and passed to the container by
+# docker-compose.yml. false here also stops the entrypoint recording a choice,
+# which is what keeps an unattended install silent rather than opted in.
+OPENMES_TELEMETRY=$telemetry
+
 ADMIN_USERNAME=$adminUsername
 ADMIN_EMAIL=$adminEmail
 ADMIN_PASSWORD=$adminPassword

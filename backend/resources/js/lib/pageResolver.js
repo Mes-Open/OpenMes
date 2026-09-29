@@ -1,11 +1,17 @@
 /**
  * Which component renders a given Inertia page name.
  *
- * Pages come from two places: this app, and any module installed under
- * `backend/modules/` — the same directory PHP resolves as base_path('modules'),
- * which is where ModuleManager looks and what the dev overlay bind-mounts. Both
- * maps are produced by `import.meta.glob` in app.jsx; a glob that matches
- * nothing yields {}, so an install with no modules passes an empty second map.
+ * Pages reach the browser from three places, in order of precedence:
+ *
+ *   1. this app, globbed at build time;
+ *   2. a module that was present when the app was built, globbed the same way —
+ *      `backend/modules/`, the directory PHP resolves as base_path('modules');
+ *   3. a module installed afterwards, which registered itself at runtime.
+ *
+ * The first two maps are produced by `import.meta.glob` in app.jsx, so Vite
+ * decides them while compiling; a glob that matches nothing yields {}. That is
+ * why the third exists: a module installed through the panel is invisible to
+ * both, and nothing rebuilds the bundle on a running system.
  *
  * Plain JS and dependency-free on purpose: the lookup is the part worth testing,
  * and app.jsx cannot be imported in a test (it boots the whole app on import).
@@ -28,18 +34,25 @@ export function moduleKey(modulePages, name) {
 }
 
 /**
- * The page component, or null when no build contains it.
+ * The page component, or null when nothing provides it.
  *
  * Core wins over a module: a module must not be able to shadow a core screen by
- * naming a file after it.
+ * naming a file after it. A compiled-in module wins over a runtime-registered
+ * one for the same reason — if both are present, the one the operator built
+ * into their image is the one they meant.
  */
-export function resolvePage(name, corePages, modulePages = {}) {
+export function resolvePage(name, corePages, modulePages = {}, runtimePages = {}) {
     const core = corePages[coreKey(name)];
     if (core) {
         return core;
     }
 
     const key = moduleKey(modulePages, name);
+    if (key) {
+        return modulePages[key];
+    }
 
-    return key ? modulePages[key] : null;
+    // A module installed after this build: its pages are not in either glob, so
+    // it registers them itself when its script runs (see lib/moduleLoader.js).
+    return runtimePages[name] ?? null;
 }

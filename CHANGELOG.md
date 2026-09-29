@@ -157,6 +157,237 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   product, where the height allows, instead of cutting the line off under the
   QR code on small labels.
 
+### Added
+
+- **The install scripts now ask about anonymous usage reports.** The web setup wizard has
+  asked since reporting became opt-in, but a Docker install never reaches that wizard — the
+  entrypoint creates the admin and marks the application installed — so nobody installing with
+  `install.sh` or `install.ps1` was ever asked. The prompt defaults to **no**, and an
+  unattended run is treated as no rather than as consent. The answer is written to
+  `OPENMES_TELEMETRY` in `.env`, passed to the container, and recorded once by the entrypoint
+  before the install is marked complete, so it can never overwrite a later choice made in
+  Settings → System.
+
+### Fixed
+
+- **The release package no longer ships without the Modules admin screen.** The rsync rules
+  that keep locally installed modules out of a release were unanchored, so they matched any
+  directory called `modules` — and this repository has a second one,
+  `resources/js/Pages/admin/modules`. Three files were dropped from every package, which left
+  the one screen that installs a module answering "Page unavailable" with no way to tell why.
+  The rules are anchored to `backend/modules`, and the release now fails if any tracked file
+  under `backend/resources` is missing from the package.
+
+### Fixed
+
+- **The Docker build no longer downloads the RoadRunner binary from GitHub.** `vendor/bin/rr
+  get-binary` asked api.github.com for the release list on every build, and five services in
+  `docker-compose.yml` build from this Dockerfile — so one `up --build` made that call several
+  times over, in parallel. A resolver that answered NODATA under that burst failed the whole
+  install with an error that pointed at RoadRunner rather than at the network. The binary now
+  comes from the official image, pinned to the `spiral/roadrunner` release in `composer.lock`.
+
+### Added
+
+- **A module can reach the operator's station screen**: a display region on the workstation
+  page, and the same rule filter the user and worker forms use, so a module's own key
+  survives `validated()` when a step is started or completed. Nothing else was needed —
+  `StepStarted` and `StepCompleted` are already dispatched from the model observer, inside
+  the service transaction and on every path that moves a step.
+
+- **A module's `requires_core` is now enforced.** Every manifest has carried it and nothing
+  read it, so a module built against extension points this core does not have installed
+  cleanly and then quietly did nothing. Installing or enabling one now says so instead,
+  naming both versions. A module that declares no requirement is unaffected, and an
+  unreadable one is refused rather than treated as "any version".
+- **A module can add its own fields to the user and worker forms** — shown by core,
+  validated server-side, stored by the module. Three pieces: `HookRegistry` (complete but
+  until now unused) carries the field's description to the page, where `ModuleFields` draws
+  it; the Form Request rule sets pass through a `FilterRegistry` filter, which is what makes
+  the module's key survive `validated()` — without a declared rule it was dropped between the
+  browser and the controller, silently; and a new `persist.*` hook tells the module, inside
+  the controller's transaction, that the record was saved, so a failed write there rolls the
+  whole save back rather than leaving the field lost. With no module listening none of it
+  costs anything: the page is sent `{}` and the rule set comes back untouched.
+
+  A module distributed as a ZIP cannot ship working React into a released install — the page
+  globs are expanded when core is built — so contributing data that core renders is the only
+  arrangement that works at all.
+- Module seams: `MenuRegistry::addOperatorItem()` puts a module's screen on the operator top bar as a tab; `modules/<Name>/lang/<locale>.json` strings are merged into the frontend translations; `ImportRegistry` accepts module importers through the `import.entities` filter; `Tests\Support\ModuleTestCase` migrates a module's tables inside the test transaction. Module-contributed nav entries are tinted with the accent colour and highlight on their own pages (they registered absolute URLs, which the path-based active check never matched).
+
+### Fixed
+
+- **Uninstalling a module now runs the module's own uninstall hook**, while its classes are
+  still on disk — afterwards there is nothing left to call, so the hook never ran at all. It
+  is a module's only chance to undo what it did outside its own tables. A hook that fails
+  leaves the module in place to be retried, and the success message now says plainly that the
+  module's database tables are kept.
+- **The scanner mode setting now does something.** Settings → System has offered a choice
+  between a keyboard-wedge reader and manual entry since it was merged, and its own
+  description promised the operator "a visible field" — but the packing station never read
+  the setting, and no such field existed. Picking `manual` therefore left the station with
+  no way to enter a code at all. The station now honours the setting: `hid` keeps the
+  document-level capture, `manual` detaches it and shows the field.
+
+### Changed
+
+- User administration validates through Form Requests. The rule set lived inline in the
+  controller in two near-identical copies, one per action, which the project's own conventions
+  forbid and which is how the two copies drifted apart. Behaviour is unchanged with one
+  deliberate exception: editing somebody whose crew or wage group has since been deactivated
+  now saves, where before their own stored value was refused because the pickers no longer
+  offered it. The same fix the worker screen already carries.
+- The reader capture moved out of the packing station into `useScanBuffer`, unchanged in
+  behaviour and now covered by unit tests, so the pages that need it next do not each grow
+  their own copy.
+
+## [0.24.3] - 2026-09-25
+
+### Changed
+
+- **Telemetry is off until you turn it on.** It shipped in 0.24.0 as opt-out: a migration
+  seeded the setting to true, and an absent row meant the same, which put every installation
+  on the reporting side of a question nobody had been asked. Reporting is now opt-in, and this
+  release turns it off once for everybody — there is no way to tell a deliberate yes from the
+  seeded one, and between those two mistakes the safe one is asking again. Nothing about what
+  is collected changes: the payload describes the software and never anything entered into it,
+  and that boundary is held by tests rather than by convention. `OPENMES_TELEMETRY` still
+  overrides in both directions and is read before the database exists.
+- A stop drawn with no downtime record behind it is now recorded in the log, once an hour per
+  station. It is harmless to the screen and always has been, which is exactly why nobody could
+  say how often it happens or what produces it.
+
+### Fixed
+
+- **A stop with no downtime record no longer offers a cause picker that cannot work.** The
+  shift monitor draws a stop for every DOWN slice on the state timeline, but the downtime
+  record behind it is a separate row and can be missing. The drawer decided what to show
+  from the segment's kind alone, so such a stop got the full cause picker and the escalate
+  button — and clicking either sent the missing id as the literal string `null`, which
+  PostgreSQL refuses with a type error rather than a refusal. The segment keeps its place,
+  because the machine really was down, and loses only what it cannot carry out. Two smaller
+  lies in the same panel go with it: the drawer opened with no heading at all, and the status
+  chip said the stop was classified when there was no record to have classified.
+- **A malformed id in a stop's URL is refused before it reaches the database.** Constraining
+  the route parameter closes the whole class of input rather than the one string that was
+  reported, on both the supervisor and admin trees and on the operator's own stop endpoint,
+  which took the same parameter and had the same hole.
+- **Screens and endpoints that reach into the optional workforce module no longer fail on an
+  installation without it** (#308). The worker edit form returned a server error, and so did
+  the team-day activity feed and the production cost report over the API; saving a worker, a
+  line or a process segment with a crew, division or skill answered with a server error
+  instead of a validation message. The worker detail page also offered to add and remove
+  certifications through endpoints that are not installed. Everything degrades the way the
+  rest of the module boundary already did: the fields are simply absent, and what cannot be
+  offered cannot be submitted.
+- **Sample data loaded before the first shift is usable straight away.** The demo seeders
+  marked orders as running while planning their start for later the same day — a row that
+  contradicts itself, which the work-order rules rightly refuse to save again. Loading an
+  example company early in the morning produced orders nobody could start until the shift
+  they were nominally already working in, and reseeding failed outright. One generated
+  order was worse still: in progress, planned to start tomorrow.
+- **Loading the sample data can no longer collide with replacing it.** A demo install
+  deadlocked when one administrator was seeding an example company while another was
+  replacing it — the replacement empties the tables and then runs `migrate`, and the two met
+  in the middle. Onboarding, Settings → Data and the nightly demo refresh now take one lock
+  between them, and the "already loaded" check happens while it is held, so it cannot go
+  stale between being read and being acted on. A second request is told to wait rather than
+  failing.
+
+## [0.24.2] - 2026-09-21
+
+### Security
+
+- **Enforce a required password change on every request, not once at login.** An administrator who
+  ticked "require password change at next login" got a control that looked like it worked: the user
+  was redirected to the form once, then typed any other address and carried on. The session was
+  already authenticated, so nothing stopped them. Reported privately by Maxwell Jones.
+- **Restrict the API token issued to an account that owes a password change.** Login handed out a
+  full-scope token regardless and merely reported the flag in the response body, leaving enforcement
+  to the client's good manners — a mobile app, an integration or curl had no reason to honour it.
+  Such a login now yields a token that can do one thing: change the password.
+- **End sessions and revoke tokens whenever a password changes**, including when an administrator
+  sets one on a user's behalf. Previously neither happened outside the API's own reset endpoint, so
+  resetting a compromised account left the attacker's session and token working — the remediation
+  looked complete and changed nothing. Found while checking whether administrators had a working
+  alternative to the forced change; it is the more dangerous of the two, because unlike the bypass
+  no procedure worked around it.
+
+### Changed
+
+- Loading a different example company no longer rebuilds the database schema. It was dropping every
+  table and replaying 249 migrations in order to delete rows from a schema that was already correct;
+  it now empties the tables instead. The cost of the old approach grew with the size of the database,
+  which is why it was felt most on large installations. Emptying tables is also transaction-safe, so
+  the tests covering this path now exercise it for real rather than mocking it away.
+
+## [0.24.1] - 2026-09-20
+
+> **Read before upgrading.** This release introduces outbound network traffic.
+> OpenMES now reports on itself once a day to `getopenmes.com` — software only,
+> never your data. It is on by default. Switch it off in **Settings → System →
+> Usage reporting**, or set `OPENMES_TELEMETRY=false` before starting. Full
+> detail in [docs/telemetry.md](docs/telemetry.md).
+
+### Added
+
+- Usage reporting. OpenMES now reports on **itself** once a day — versions, which features are
+  switched on, rough size bands, and where errors occur (class, file and line) — so we can see
+  which releases break and which features matter without waiting for somebody to email us.
+  It never sends anything entered into OpenMES: no material or product codes, no lot numbers, no
+  order data, no recipes, no personal data, and no error message text. Error *messages* are
+  excluded entirely rather than redacted, because redaction cannot be made reliable here:
+  `InsufficientStockException` names the material and its code, and a `QueryException` carries the
+  SQL together with its bound values. The boundary is enforced by a test that builds the real
+  payload from a seeded database and fails if any value from it appears.
+  On by default and switchable off in Settings → System, or with `OPENMES_TELEMETRY=false` before
+  the database exists. The installer says so plainly and offers the choice up front, and the
+  settings page will print the exact payload on request. An installation with no route out behaves
+  exactly like a connected one: nothing fails, nothing slows down, nothing reaches `failed_jobs`,
+  and only the first failure in a run is logged — at debug level.
+
+### Fixed
+
+- Stop `storage/installed` and the new `storage/telemetry-id` from being committable. Neither was
+  ignored; a committed installation id would have made every clone of the repository report as the
+  same installation.
+- Do not treat a missing telemetry endpoint as a blocked network. An upgrade whose config cache
+  predates this feature resolves the endpoint to an empty string; that was being counted as a
+  failed delivery and backed the installation off for weeks over a missing setting.
+- Stop the Android APK build asking the SDK for `tools`, a package Google has withdrawn. The
+  action's v3 default requested it and the step died on something we never needed, which is why
+  v0.24.0 shipped without an APK.
+
+## [0.24.0] - 2026-09-20
+
+### Fixed
+
+- Pin every GitHub Action to a commit SHA. The repository requires it, so since 14 September each
+  workflow was rejected before it ran — which is why v0.23.0 and v0.23.1 were published with no
+  downloadable assets and no container image was pushed for either.
+- Answer, rather than crash, when an inspection cannot be completed. Completing one with no
+  recorded criteria — or completing it twice — is correctly refused, but the refusal reached the
+  user as a 500. It now renders as a 422 for API clients and a flash message on the web. An
+  inspection started without a plan has no criteria and never will, so the screen no longer offers
+  a Complete button it cannot honour.
+- Say where the stock went when a material shortage is caused by reservations. Availability is
+  on-hand minus what other batches have reserved, so a full store could report "have 0" — which
+  reads as the system having lost the stock. The shortage line now carries on-hand and reserved
+  alongside it, and names them when there is a reservation to explain.
+- Explain an order that has no production steps instead of rendering nothing. A work order keeps
+  the process configuration it was created with, so steps added to the template afterwards never
+  reach an order that predates them — previously the operator screen simply showed no step list at
+  all, which reads as a broken page rather than as the consequence it is.
+- File process-template checklist items and operator outputs against the step that is actually
+  open. The step card was reused across steps rather than remounted, so both forms kept the step
+  they were first rendered with — normally step 1 — and everything added from any later step was
+  filed there instead. Work-instruction media and step photos were unaffected; they already read
+  the step at submit time.
+- Ship the root `modules/` and `packages/` directories in the release ZIP. The Dockerfile copies
+  both out of the build context, and `packages/ui` is what `backend/package.json` resolves
+  `file:../packages/ui` to, so the published package could not run the `docker compose up -d`
+  its own release notes prescribe — the build failed on every machine. Releases now also fail
+  if any path the Dockerfile copies is absent from the package, so this cannot recur unnoticed.
 - Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
 - Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
 

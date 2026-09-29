@@ -60,6 +60,8 @@ use Spatie\Permission\Models\Role;
  */
 class MachineShopDemoSeeder extends Seeder
 {
+    use \Database\Seeders\Concerns\PlansStartedWorkInThePast;
+
     public function run(): void
     {
         $this->seedIssueTypes();
@@ -461,9 +463,7 @@ class MachineShopDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 4,
                 'due_date' => now()->addDays(2)->setTime(14, 0),
-                // Running, so already started: seeded before 06:00 the shift start
-                // would still be ahead, and a re-run touching the counters is refused.
-                'planned_start_at' => now()->setTime(6, 0)->min(now()->subHour()),
+                'planned_start_at' => $this->shiftStartAlreadyPast(6),
                 'planned_end_at' => now()->addDay()->setTime(14, 0),
                 'description' => 'Drive shafts — HydroMax frame contract, batch 3 of 8.',
             ],

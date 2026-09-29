@@ -15,6 +15,8 @@ use App\Models\WorkstationState;
 use App\Support\ShiftWindow;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Read model behind the shift monitor: one workstation, one shift, resolved
@@ -76,7 +78,7 @@ class ShiftMonitorService
         $idealPerHour = (float) ($workstation->ideal_rate_per_hour ?? 0);
         $idealPerMin = $idealPerHour / 60;
 
-        $segments = $this->buildSegments($slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+        $segments = $this->buildSegments($workstation, $slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
         $hours = $this->buildHours($segments, $counters, $window, $asOf, $idealPerMin);
         $totals = $this->totals($segments, $counters, $window, $asOf);
         $oee = $this->oee($totals, $idealPerMin);
@@ -180,7 +182,7 @@ class ShiftMonitorService
             $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
 
             $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
-            $segments = $this->buildSegments($slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+            $segments = $this->buildSegments($workstation, $slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
             $totals = $this->totals($segments, $counters, $window, $asOf);
             $oee = $this->oee($totals, $idealPerMin);
 
@@ -268,7 +270,7 @@ class ShiftMonitorService
             $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
 
             $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
-            $segments = $this->buildSegments($slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+            $segments = $this->buildSegments($workstation, $slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
             $totals = $this->totals($segments, $counters, $window, $asOf);
             $oee = $this->oee($totals, $idealPerMin);
             $elapsed = max(1, (int) floor($window->start->diffInSeconds($asOf) / 60));
@@ -506,6 +508,7 @@ class ShiftMonitorService
      * @return array<int, array<string, mixed>>
      */
     private function buildSegments(
+        Workstation $workstation,
         Collection $slices,
         array $counters,
         Collection $downtimes,
@@ -527,6 +530,10 @@ class ShiftMonitorService
 
             $kind = self::SEGMENT_KIND[$slice['state']] ?? 'idle';
             $downtime = $kind === 'down' ? $this->downtimeFor($downtimes, $slice) : null;
+
+            if ($kind === 'down' && ! $downtime) {
+                $this->reportStopWithNoRecord($workstation, $slice, $downtimes);
+            }
 
             // RUNNING is not uniform: minutes below nameplate are a speed loss.
             $runs = $kind === 'run' && $idealPerMin > 0
@@ -601,6 +608,43 @@ class ShiftMonitorService
      * @param  Collection<int, ProductionDowntime>  $downtimes
      * @param  array{state: string, from: Carbon, to: Carbon, id: int}  $slice
      */
+    /**
+     * A DOWN slice the downtime records do not account for.
+     *
+     * The screen copes — the stop is drawn and simply cannot be classified —
+     * but it should not happen, and until this was recorded nobody could say
+     * how it arose. Every writer that puts a state row in without going through
+     * WorkstationStateMachine leaves one of these behind; the demo seeder does,
+     * and whether anything on a real plant does is the open question.
+     *
+     * Throttled to once an hour per station: the monitor rebuilds this snapshot
+     * every few seconds, and a station with one orphan slice has it all shift.
+     * Wrapped because diagnostics must never cost the screen they diagnose.
+     *
+     * @param  array{state: string, from: Carbon, to: Carbon, id: int}  $slice
+     * @param  Collection<int, ProductionDowntime>  $downtimes
+     */
+    private function reportStopWithNoRecord(Workstation $workstation, array $slice, Collection $downtimes): void
+    {
+        try {
+            if (! Cache::add("shift-monitor:stop-with-no-record:{$workstation->id}", true, 3600)) {
+                return;
+            }
+
+            Log::warning('Shift monitor: a stop was drawn from a state slice with no downtime record behind it.', [
+                'workstation_id' => $workstation->id,
+                'state' => $slice['state'],
+                'from' => $slice['from']->toIso8601String(),
+                'to' => $slice['to']->toIso8601String(),
+                // How many rows were in scope at all separates "none were read"
+                // from "none of the ones read covered this slice".
+                'downtimes_in_window' => $downtimes->count(),
+            ]);
+        } catch (\Throwable) {
+            // Nothing here is worth breaking a shift monitor for.
+        }
+    }
+
     private function downtimeFor(Collection $downtimes, array $slice): ?ProductionDowntime
     {
         $overlapping = $downtimes->filter(function (ProductionDowntime $d) use ($slice) {

@@ -60,12 +60,30 @@ class HandleInertiaRequests extends Middleware
             'moduleNav' => [
                 'items' => fn () => app(\App\Services\MenuRegistry::class)->getAllItems(),
                 'groups' => fn () => app(\App\Services\MenuRegistry::class)->getGroups(),
+                //   operator: [{label,url,order,prefix}] extra tabs on the operator
+                //           panel's top bar (OperatorLayout), Inertia links.
+                'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
             ],
-            // The operator tabs this bench needs (queue, workstation, unit_labels,
-            // packing); OperatorLayout shows only these. Staff and whole-line views
-            // get every tab.
-            // Only the operator shell reads it, so other pages skip the queries.
-            'operatorScreens' => fn () => $user && $request->routeIs('operator.*') ? app(\App\Services\Production\OperatorScreens::class)->forRequest($request) : [],
+            // Compiled frontends of modules installed after this app was built.
+            // Their pages are not in the bundle — nothing rebuilds it on a
+            // running system — so the browser fetches each module's own file and
+            // the module registers its pages before the first render.
+            // Plain closure, not Inertia::lazy: app.jsx reads this off the initial
+            // payload on a cold load, which a lazy prop would omit.
+            'moduleAssets' => fn () => app(\App\Services\ModuleManager::class)->frontendAssets(),
+            // Operator chrome (OperatorLayout). Each is a seam a module can bend
+            // without core knowing which module, or why:
+            //   operatorTabs:      the top bar's own tabs, through filter `operator.tabs`
+            //   operatorCanLogout: whether the logout button shows, filter `operator.can_logout`
+            //                      (UX only — a module that forbids logout refuses the POST itself)
+            //   operatorHooks:     display hook `display.operator.layout`, rendered at the
+            //                      top of every operator screen
+            // With no module listening these are the defaults, `true` and `{}`.
+            'operatorTabs' => fn () => $this->operatorTabs($user, $request),
+            'operatorCanLogout' => fn () => (bool) app(\App\Extension\FilterRegistry::class)
+                ->filter('operator.can_logout', true, ['user' => $user]),
+            'operatorHooks' => fn () => app(\App\Extension\HookRegistry::class)
+                ->renderMany(['display.operator.layout'], ['user' => $user]),
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend
@@ -117,6 +135,32 @@ class HandleInertiaRequests extends Middleware
             // and both this and the `accessibleTabs` prop need it.
             $this->accessibleTabs($user),
         );
+    }
+
+    /**
+     * The operator top bar's core tabs, as data a module may filter. Labels are
+     * English keys; the frontend translates them. A tab is active while the path
+     * starts with any of its `prefixes`.
+     *
+     * @return list<array{key: string, label: string, url: string, prefixes: list<string>}>
+     */
+    private function operatorTabs($user, Request $request): array
+    {
+        $tabs = [
+            ['key' => 'queue', 'label' => 'Queue', 'url' => '/operator/queue', 'prefixes' => ['/operator/queue', '/operator/work-order']],
+            ['key' => 'workstation', 'label' => 'Workstation', 'url' => '/operator/workstation', 'prefixes' => ['/operator/workstation']],
+            ['key' => 'unit_labels', 'label' => 'SN labels', 'url' => '/operator/unit-labels/station', 'prefixes' => ['/operator/unit-labels']],
+            ['key' => 'packing', 'label' => 'Packing', 'url' => '/operator/packaging', 'prefixes' => ['/operator/packaging']],
+        ];
+        // Only the screens this bench's step needs (a packing bench sees Packing
+        // only); staff and the whole-line view keep every tab. Worked out on the
+        // operator shell only - other pages skip the queries.
+        if ($user && $request->routeIs('operator.*')) {
+            $screens = app(\App\Services\Production\OperatorScreens::class)->forRequest($request);
+            $tabs = array_values(array_filter($tabs, fn ($tab) => in_array($tab['key'], $screens, true)));
+        }
+
+        return array_values(app(\App\Extension\FilterRegistry::class)->filter('operator.tabs', $tabs, ['user' => $user]));
     }
 
     private function alertCount($user): int

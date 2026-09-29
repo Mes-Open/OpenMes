@@ -3,6 +3,7 @@ import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
 import { useState } from 'react';
 import { nameControl } from '../../../lib/fieldName';
+import ModuleFields from '../../../components/ModuleFields';
 
 /**
  * Bespoke create/edit form for user accounts. Conditional on `account_type`:
@@ -13,7 +14,7 @@ import { nameControl } from '../../../lib/fieldName';
  * password is confirmed (password + password_confirmation). On edit, leaving
  * password blank keeps the current one.
  */
-export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], isEdit, onSubmit, bare = false, onCancel }) {
+export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks, isEdit, onSubmit, bare = false, onCancel }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
 
@@ -175,6 +176,14 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                     )}
                 </div>
             )}
+
+            <ModuleFields
+                hooks={hooks}
+                name="display.admin.users.form.fields"
+                values={data}
+                onChange={setData}
+                errors={errors}
+            />
 
             <div className={bare ? "sticky -bottom-4 z-10 -mx-[18px] -mb-4 flex items-center gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]" : "flex items-center gap-3 pt-2"}>
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>

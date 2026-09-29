@@ -5,8 +5,10 @@ namespace Tests\Feature\Settings;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Support\DemoDatasetRegistry;
+use App\Support\SampleDataLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -72,31 +74,21 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_wipes_the_database_then_installs_the_chosen_company(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        // Artisan is faked here rather than letting the wipe run: migrate:fresh
-        // drops the schema mid-test, which breaks the transaction RefreshDatabase
-        // is holding and takes every later test with it. What matters is the
-        // sequence — wipe, reference data, then the chosen plant.
+        // The wipe empties tables rather than dropping the schema, so it is
+        // transaction-safe and runs for real here. Which Artisan command it
+        // uses is an implementation detail; what matters is that the old plant
+        // is gone and the new one is present.
         $called = [];
-        Artisan::shouldReceive('call')->andReturnUsing(function ($command, $params = []) use (&$called) {
-            $called[] = $command.' '.($params['--class'] ?? '');
-
-            return 0;
-        });
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)
             ->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1'])
             ->assertSessionHas('success');
 
-        $this->assertContains('migrate:fresh ', $called, 'The database was not wiped before reinstalling.');
         $this->assertContains('db:seed ', $called, 'Reference data was not reseeded after the wipe.');
 
         foreach (DemoDatasetRegistry::seedersFor('bakery') as $seeder) {
@@ -107,16 +99,12 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_records_the_new_company(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        Artisan::shouldReceive('call')->andReturn(0);
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1']);
 
@@ -128,16 +116,12 @@ class LoadSampleDataTest extends TestCase
     public function test_replacing_leaves_an_admin_able_to_sign_in(): void
     {
         $this->configureAdminCredentials();
-        // These tests fake migrate:fresh/seeding. Keep the matching connection
-        // lifecycle fake too: a real purge rolls back RefreshDatabase fixtures.
-        $database = \Mockery::mock(DB::getFacadeRoot());
-        $database->shouldReceive('purge', 'reconnect')->andReturnNull();
-        DB::swap($database);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
 
-        Artisan::shouldReceive('call')->andReturn(0);
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
 
         $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'bakery', 'replace' => '1']);
 
@@ -286,5 +270,120 @@ class LoadSampleDataTest extends TestCase
             json_decode(DB::table('system_settings')->where('key', 'modules_enabled')->value('value'), true),
             'Loading an example company uninstalled the modules.',
         );
+    }
+
+    public function test_a_second_load_is_refused_while_one_is_running(): void
+    {
+        // The reported deadlock: one request was replacing the sample data —
+        // which empties the tables and then runs migrate, taking DDL locks —
+        // while another was seeding into them.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $held = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($held->get(), 'the test needs to hold the lock itself');
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('info');
+
+        $held->release();
+
+        // The session message is the smaller half of this. What matters is that
+        // no seeder ran: a refusal that still seeds would deadlock exactly as
+        // before while looking like it had been handled.
+        $this->assertSame([], $called, 'nothing may be seeded while another load holds the lock');
+    }
+
+    public function test_the_lock_is_released_after_a_successful_load(): void
+    {
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $this->actingAs($admin)->post('/settings/sample-data', ['dataset' => 'print_shop']);
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'a finished load must leave the lock free');
+        $lock->release();
+    }
+
+    public function test_the_lock_is_released_when_seeding_throws(): void
+    {
+        // The one failure mode a lock introduces that nothing else does: held
+        // and never given back, the button is dead until the TTL expires.
+        //
+        // This covers the realistic path only — the controller catches its own
+        // exceptions, so nothing escapes the locked callable here. Whether the
+        // lock survives an exception passing through it is settled in
+        // Tests\Unit\Support\SampleDataLockTest, which can arrange that.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        Artisan::shouldReceive('call')->andThrow(new \RuntimeException('the seeder fell over'));
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('error');
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'a failed load must still give the lock back');
+        $lock->release();
+    }
+
+    public function test_the_already_loaded_check_happens_under_the_lock(): void
+    {
+        // Settings used to read `sample_data_loaded` and then act on it minutes
+        // later, by which time a parallel request could have changed the answer.
+        // The read belongs inside the lock; this is the regression guard for it
+        // ever drifting back out.
+        $this->configureAdminCredentials();
+        $admin = $this->admin();
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'sample_data_loaded'],
+            ['value' => json_encode('bakery'), 'updated_at' => now()],
+        );
+
+        $called = [];
+        $this->fakeSeedingKeepingRoles($called);
+
+        $this->actingAs($admin)
+            ->post('/settings/sample-data', ['dataset' => 'print_shop'])
+            ->assertSessionHas('info');
+
+        $this->assertSame([], $called, 'an unconfirmed second load must not seed anything');
+
+        $lock = Cache::lock(SampleDataLock::KEY, SampleDataLock::TTL);
+        $this->assertTrue($lock->get(), 'and must not walk away holding the lock either');
+        $lock->release();
+    }
+
+    /**
+     * Fake the seeding, but really put the roles back.
+     *
+     * The wipe now empties tables instead of dropping them, so it runs for real
+     * in these tests — which means the roles table is genuinely empty
+     * afterwards, and the admin the handler recreates has a role to be given.
+     * Faking that away would make the test pass on a path production never takes.
+     *
+     * @param  array<int, string>  $called  filled with each command invoked
+     */
+    private function fakeSeedingKeepingRoles(array &$called): void
+    {
+        Artisan::shouldReceive('call')->andReturnUsing(function ($command, $params = []) use (&$called) {
+            $called[] = $command.' '.($params['--class'] ?? '');
+
+            if ($command === 'db:seed' && empty($params['--class'])) {
+                (new \Database\Seeders\RolesAndPermissionsSeeder)->run();
+            }
+
+            return 0;
+        });
     }
 }

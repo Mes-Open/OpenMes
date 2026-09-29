@@ -17,6 +17,11 @@ backend/storage/framework/sessions/*
 backend/storage/framework/testing/*
 backend/storage/framework/views/*
 backend/storage/logs/*
+# Per-installation runtime markers. The telemetry id in particular must never be
+# committed: every clone of the repository would then report as the same
+# installation, and the counts would be meaningless.
+backend/storage/installed
+backend/storage/telemetry-id
 backend/bootstrap/cache/*
 backend/public/hot
 backend/public/storage

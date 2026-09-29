@@ -6,6 +6,9 @@ import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
 import { useToast } from '@openmes/ui';
 import { __ } from '../../lib/i18n';
+import { Hook } from '../../lib/hooks';
+
+const SYSTEM_TABS_HOOK = 'display.settings.system.tabs';
 
 // Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
 const CURRENCIES = [
@@ -88,14 +91,99 @@ function TimezonePicker({ groups, value, onChange }) {
     );
 }
 
+/**
+ * Usage reporting, stated plainly and shown rather than described.
+ *
+ * The promise — software only, never the customer's data — is the same
+ * sentence the installer shows and the same one the tests enforce. The
+ * "show me" button fetches the real payload from the same builder the
+ * scheduled job uses, so an admin who does not believe the paragraph can read
+ * the bytes instead. For an open-source project that is the difference between
+ * telemetry people tolerate and telemetry they resent.
+ */
+function TelemetryCard({ enabled, onChange, lastSentAt }) {
+    const [payload, setPayload] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const reveal = async () => {
+        if (payload) {
+            setPayload(null);
+
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/settings/telemetry/preview', { headers: { Accept: 'application/json' } });
+            setPayload(JSON.stringify(await res.json(), null, 2));
+        } catch {
+            setPayload(__('The preview could not be loaded.'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className={CARD_CLASS}>
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Usage reporting')}</h2>
+            <p className={`${HELP_CLASS} mb-4`}>
+                {__('OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.')}
+            </p>
+
+            <div className="flex items-start gap-3">
+                <Switch checked={enabled} onChange={onChange} />
+                <div>
+                    <p className="text-[13px] font-medium text-om-ink">{__('Send usage reports')}</p>
+                    <p className={HELP_CLASS}>
+                        {__('Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.')}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="secondary" onClick={reveal} loading={loading}>
+                    {payload ? __('Hide the report') : __('Show exactly what is sent')}
+                </Button>
+                <Link
+                    href="/settings/telemetry/reset-id"
+                    method="post"
+                    as="button"
+                    type="button"
+                    className="text-[12.5px] text-om-muted hover:text-om-ink underline"
+                >
+                    {__('Reset installation ID')}
+                </Link>
+                <span className={HELP_CLASS}>
+                    {lastSentAt ? `${__('Last sent')}: ${lastSentAt}` : __('Nothing has been sent yet.')}
+                </span>
+            </div>
+
+            {payload && (
+                <pre className="mt-3 max-h-80 overflow-auto rounded-om-sm border border-om-line2 bg-om-panel p-3 text-[11.5px] text-om-ink">
+                    {payload}
+                </pre>
+            )}
+        </div>
+    );
+}
+
 export default function System() {
     const toast = useToast();
     const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
-        demoDatasets = [], loadedDemoDataset = null } = usePage().props;
+        demoDatasets = [], loadedDemoDataset = null, hooks = {} } = usePage().props;
+
+    // Tabs an installed module adds (display.settings.system.tabs): one per
+    // contribution, keyed `ext-<slot>` so it is linkable as ?tab=ext-<slot>.
+    // The module's component saves through its own route, so these panels sit
+    // outside the core form and carry no core Save button.
+    const extTabs = (hooks[SYSTEM_TABS_HOOK] ?? [])
+        .filter((c) => c.slot)
+        .map((c) => ({ value: `ext-${c.slot}`, label: c.title ? __(c.title) : c.slot, contribution: c }));
+    const activeExtTab = (t) => extTabs.find((e) => e.value === t);
 
     // The sidebar links each panel directly (/settings/system?tab=security), so
     // the opening panel comes from the URL rather than always being General.
-    const TABS = ['general', 'production', 'schedule', 'security', 'modules', 'data'];
+    const TABS = ['general', 'production', 'schedule', 'security', 'modules', 'data', ...extTabs.map((e) => e.value)];
     const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
     const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
     // …and a click writes it back, so a refresh or a shared link reopens the
@@ -129,6 +217,8 @@ export default function System() {
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
         block_negative_stock: settings.block_negative_stock ?? false,
+        // Opt-out: an installation that was never asked reports.
+        telemetry_enabled: settings.telemetry_enabled ?? true,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
@@ -369,6 +459,7 @@ export default function System() {
                         { value: 'security', label: __('Security') },
                         { value: 'modules', label: __('Modules') },
                         { value: 'data', label: __('Data') },
+                        ...extTabs.map(({ value, label }) => ({ value, label })),
                     ]}
                     value={tab}
                     onChange={selectTab}
@@ -378,199 +469,201 @@ export default function System() {
 
             {/* One panel, whose identity follows the active tab: only the selected
                 tab's sections are mounted, so the form *is* the current panel. */}
-            <form
-                id={`${tab}-panel`}
-                role="tabpanel"
-                aria-labelledby={`${tab}-tab`}
-                onSubmit={handleSubmit}
-                className="space-y-6"
-            >
-                {/* ═══ Modules — enable only the feature areas you need (#144) ═══ */}
-                {tab === 'modules' && (
-                    <div className={CARD_CLASS}>
-                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Modules')}</h2>
-                        <p className={`${HELP_CLASS} mb-4`}>
-                            {__('Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.')}
-                        </p>
-                        <div className="space-y-3">
-                            {modules.map((m) => (
-                                <div key={m.key} className="flex items-start gap-3 border border-om-line rounded-om-sm p-3">
-                                    <Checkbox
-                                        checked={data.enabled_modules.includes(m.key)}
-                                        onChange={(next) => toggleModule(m.key, next)}
-                                        label={__(m.label)}
-                                    />
-                                    <span className="text-[12.5px] text-om-muted">{__(m.description)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* ═══ General ═══ */}
-                {tab === 'general' && (
-                    <div className={CARD_CLASS}>
-                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
-                        <div className="mb-2">
-                            <div className={LABEL_CLASS}>{__('Select language')}</div>
-                            <Dropdown
-                                aria-label={__('Select language')}
-                                options={Object.entries(availableLocales ?? { en: 'English' }).map(([code, name]) => ({ value: String(code), label: name }))}
-                                value={data.language == null ? '' : String(data.language)}
-                                onChange={(v) => setData('language', v)}
-                                className="w-full max-w-xs"
-                            />
-                            <p className={`${HELP_CLASS} mt-2`}>
-                                {__('Want to add a new language? Create a JSON file in')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/</code> {__('directory.')}
-                                {' '}{__('See')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/en.json</code> {__('as reference.')}
-                            </p>
-                        </div>
-
-                        <div className="border-t border-om-line pt-4 mt-4">
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Timezone')}</h2>
-                            <p className={`${HELP_CLASS} mb-2`}>
-                                {__('Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.')}
-                            </p>
-                            <TimezonePicker
-                                groups={timezones}
-                                value={data.app_timezone}
-                                onChange={(v) => setData('app_timezone', v)}
-                            />
-                            {errors.app_timezone && <p className="text-om-blocked text-[12px] mt-1">{errors.app_timezone}</p>}
-                            <p className={`${HELP_CLASS} mt-2`}>
-                                {__('Changing the timezone reloads the page so every displayed time switches over at once.')}
-                            </p>
-                        </div>
-
-                        <div className="border-t border-om-line pt-4 mt-2">
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Currency')}</h2>
-                            <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
-                            <Dropdown
-                                options={[
-                                    ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
-                                        ? [{ value: String(data.default_currency), label: data.default_currency }]
-                                        : []),
-                                    ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
-                                ]}
-                                value={data.default_currency == null ? '' : String(data.default_currency)}
-                                onChange={(v) => setData('default_currency', v)}
-                                className="w-64 max-w-full"
-                            />
-                            {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
-                        </div>
-                    </div>
-                )}
-
-                {/* ═══ Production ═══ */}
-                {tab === 'production' && (
-                    <div className="space-y-6">
-                        {/* Production Period */}
+            {!activeExtTab(tab) && (
+                <form
+                    id={`${tab}-panel`}
+                    role="tabpanel"
+                    aria-labelledby={`${tab}-tab`}
+                    onSubmit={handleSubmit}
+                    className="space-y-6"
+                >
+                    {/* ═══ Modules — enable only the feature areas you need (#144) ═══ */}
+                    {tab === 'modules' && (
                         <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Planning')}</h2>
-                            <div className="mb-4">
-                                <span className={LABEL_CLASS}>{__('Production Period Split')}</span>
-                                <p className={`${HELP_CLASS} mb-2`}>{__('Determines how work orders are grouped for planning.')}</p>
-                                <div className="grid grid-cols-3 gap-3">
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Modules')}</h2>
+                            <p className={`${HELP_CLASS} mb-4`}>
+                                {__('Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.')}
+                            </p>
+                            <div className="space-y-3">
+                                {modules.map((m) => (
+                                    <div key={m.key} className="flex items-start gap-3 border border-om-line rounded-om-sm p-3">
+                                        <Checkbox
+                                            checked={data.enabled_modules.includes(m.key)}
+                                            onChange={(next) => toggleModule(m.key, next)}
+                                            label={__(m.label)}
+                                        />
+                                        <span className="text-[12.5px] text-om-muted">{__(m.description)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ General ═══ */}
+                    {tab === 'general' && (
+                        <div className={CARD_CLASS}>
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
+                            <div className="mb-2">
+                                <div className={LABEL_CLASS}>{__('Select language')}</div>
+                                <Dropdown
+                                    aria-label={__('Select language')}
+                                    options={Object.entries(availableLocales ?? { en: 'English' }).map(([code, name]) => ({ value: String(code), label: name }))}
+                                    value={data.language == null ? '' : String(data.language)}
+                                    onChange={(v) => setData('language', v)}
+                                    className="w-full max-w-xs"
+                                />
+                                <p className={`${HELP_CLASS} mt-2`}>
+                                    {__('Want to add a new language? Create a JSON file in')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/</code> {__('directory.')}
+                                    {' '}{__('See')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/en.json</code> {__('as reference.')}
+                                </p>
+                            </div>
+
+                            <div className="border-t border-om-line pt-4 mt-4">
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Timezone')}</h2>
+                                <p className={`${HELP_CLASS} mb-2`}>
+                                    {__('Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.')}
+                                </p>
+                                <TimezonePicker
+                                    groups={timezones}
+                                    value={data.app_timezone}
+                                    onChange={(v) => setData('app_timezone', v)}
+                                />
+                                {errors.app_timezone && <p className="text-om-blocked text-[12px] mt-1">{errors.app_timezone}</p>}
+                                <p className={`${HELP_CLASS} mt-2`}>
+                                    {__('Changing the timezone reloads the page so every displayed time switches over at once.')}
+                                </p>
+                            </div>
+
+                            <div className="border-t border-om-line pt-4 mt-2">
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Currency')}</h2>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
+                                <Dropdown
+                                    options={[
+                                        ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
+                                            ? [{ value: String(data.default_currency), label: data.default_currency }]
+                                            : []),
+                                        ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
+                                    ]}
+                                    value={data.default_currency == null ? '' : String(data.default_currency)}
+                                    onChange={(v) => setData('default_currency', v)}
+                                    className="w-64 max-w-full"
+                                />
+                                {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ Production ═══ */}
+                    {tab === 'production' && (
+                        <div className="space-y-6">
+                            {/* Production Period */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Planning')}</h2>
+                                <div className="mb-4">
+                                    <span className={LABEL_CLASS}>{__('Production Period Split')}</span>
+                                    <p className={`${HELP_CLASS} mb-2`}>{__('Determines how work orders are grouped for planning.')}</p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[
+                                            { value: 'none', label: __('None'), desc: __('No period grouping') },
+                                            { value: 'weekly', label: __('Weekly'), desc: __('Group by ISO week (1-53)') },
+                                            { value: 'monthly', label: __('Monthly'), desc: __('Group by month (1-12)') },
+                                        ].map((opt) => (
+                                            <SelectCard
+                                                key={opt.value}
+                                                value={opt.value}
+                                                current={data.production_period}
+                                                onChange={(v) => setData('production_period', v)}
+                                                label={opt.label}
+                                                desc={opt.desc}
+                                            />
+                                        ))}
+                                    </div>
+                                    {errors.production_period && <p className={ERROR_CLASS}>{errors.production_period}</p>}
+                                </div>
+                            </div>
+
+                            {/* Workflow Mode */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Workflow Mode')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Defines how work order completion is tracked.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {[
-                                        { value: 'none', label: __('None'), desc: __('No period grouping') },
-                                        { value: 'weekly', label: __('Weekly'), desc: __('Group by ISO week (1-53)') },
-                                        { value: 'monthly', label: __('Monthly'), desc: __('Group by month (1-12)') },
+                                        { value: 'status', label: __('Status'), desc: __('Work order status is changed manually. Board statuses are visual labels.') },
+                                        { value: 'board_status', label: __('Board Status'), desc: __('Moving to a Done status automatically closes the work order.') },
                                     ].map((opt) => (
                                         <SelectCard
                                             key={opt.value}
                                             value={opt.value}
-                                            current={data.production_period}
-                                            onChange={(v) => setData('production_period', v)}
+                                            current={data.workflow_mode}
+                                            onChange={(v) => setData('workflow_mode', v)}
                                             label={opt.label}
                                             desc={opt.desc}
                                         />
                                     ))}
                                 </div>
-                                {errors.production_period && <p className={ERROR_CLASS}>{errors.production_period}</p>}
+                                {errors.workflow_mode && <p className={ERROR_CLASS}>{errors.workflow_mode}</p>}
                             </div>
-                        </div>
 
-                        {/* Workflow Mode */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Workflow Mode')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Defines how work order completion is tracked.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {[
-                                    { value: 'status', label: __('Status'), desc: __('Work order status is changed manually. Board statuses are visual labels.') },
-                                    { value: 'board_status', label: __('Board Status'), desc: __('Moving to a Done status automatically closes the work order.') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.workflow_mode}
-                                        onChange={(v) => setData('workflow_mode', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
+                            {/* Production Rules */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold mb-2">{__('Material availability')}</h2>
+                                {/* One choice over two settings: blocking a step that lacks stock, and
+                                    holding a whole batch until stock covers its order (which blocks steps too). */}
+                                {(() => {
+                                    const current = data.hold_on_material_shortage ? 'hold' : (data.block_negative_stock ? 'block' : 'warn');
+                                    const choose = (v) => setData((d) => ({ ...d, block_negative_stock: v !== 'warn', hold_on_material_shortage: v === 'hold' }));
+                                    return [
+                                        { value: 'warn', label: __('Warn and allow production'), desc: __('Missing receipts may result in a negative stock balance. Operators can continue working.') },
+                                        { value: 'block', label: __('Block production when stock is insufficient'), desc: __('Record a material receipt before starting a step that needs more stock.') },
+                                        { value: 'hold', label: __('Hold the batch until stock covers the order'), desc: __('A batch does not start while stock does not cover its whole work order; the operator sees what is missing, the planner shows it in advance. Steps are blocked as above too.') },
+                                    ].map((opt) => <SelectCard key={opt.value} value={opt.value} current={current} onChange={choose} label={opt.label} desc={opt.desc} />);
+                                })()}
                             </div>
-                            {errors.workflow_mode && <p className={ERROR_CLASS}>{errors.workflow_mode}</p>}
-                        </div>
-
-                        {/* Production Rules */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold mb-2">{__('Material availability')}</h2>
-                            {/* One choice over two settings: blocking a step that lacks stock, and
-                                holding a whole batch until stock covers its order (which blocks steps too). */}
-                            {(() => {
-                                const current = data.hold_on_material_shortage ? 'hold' : (data.block_negative_stock ? 'block' : 'warn');
-                                const choose = (v) => setData((d) => ({ ...d, block_negative_stock: v !== 'warn', hold_on_material_shortage: v === 'hold' }));
-                                return [
-                                    { value: 'warn', label: __('Warn and allow production'), desc: __('Missing receipts may result in a negative stock balance. Operators can continue working.') },
-                                    { value: 'block', label: __('Block production when stock is insufficient'), desc: __('Record a material receipt before starting a step that needs more stock.') },
-                                    { value: 'hold', label: __('Hold the batch until stock covers the order'), desc: __('A batch does not start while stock does not cover its whole work order; the operator sees what is missing, the planner shows it in advance. Steps are blocked as above too.') },
-                                ].map((opt) => <SelectCard key={opt.value} value={opt.value} current={current} onChange={choose} label={opt.label} desc={opt.desc} />);
-                            })()}
-                        </div>
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Rules')}</h2>
-                            <div className="space-y-4">
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.allow_overproduction}
-                                        onChange={(v) => setData('allow_overproduction', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Allow overproduction')}</p>
-                                        <p className={HELP_CLASS}>{__('Allow operators to record more units than the planned quantity.')}</p>
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Rules')}</h2>
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-3">
+                                        <Switch
+                                            checked={data.allow_overproduction}
+                                            onChange={(v) => setData('allow_overproduction', v)}
+                                        />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Allow overproduction')}</p>
+                                            <p className={HELP_CLASS}>{__('Allow operators to record more units than the planned quantity.')}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.force_sequential_steps}
-                                        onChange={(v) => setData('force_sequential_steps', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Force sequential steps')}</p>
-                                        <p className={HELP_CLASS}>{__('Require production steps to be completed in defined order.')}</p>
+                                    <div className="flex items-start gap-3">
+                                        <Switch
+                                            checked={data.force_sequential_steps}
+                                            onChange={(v) => setData('force_sequential_steps', v)}
+                                        />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Force sequential steps')}</p>
+                                            <p className={HELP_CLASS}>{__('Require production steps to be completed in defined order.')}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.workstation_routing_enabled}
-                                        onChange={(v) => setData('workstation_routing_enabled', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Workstation routing')}</p>
-                                        <p className={HELP_CLASS}>{__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}</p>
+                                    <div className="flex items-start gap-3">
+                                        <Switch
+                                            checked={data.workstation_routing_enabled}
+                                            onChange={(v) => setData('workstation_routing_enabled', v)}
+                                        />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Workstation routing')}</p>
+                                            <p className={HELP_CLASS}>{__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.backflush_on_pallet_creation}
-                                        onChange={(v) => setData('backflush_on_pallet_creation', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
-                                        <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
+                                    <div className="flex items-start gap-3">
+                                        <Switch
+                                            checked={data.backflush_on_pallet_creation}
+                                            onChange={(v) => setData('backflush_on_pallet_creation', v)}
+                                        />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
+                                            <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -626,496 +719,510 @@ export default function System() {
                                     </div>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Serialised units: identifiers, binding and test verdicts */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Unit serialisation')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('How serialised units are identified: the serial number on the product, the process serial number the line works with, and what a failed test does to a unit.')}</p>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={LABEL_CLASS} htmlFor="unit_serial_pattern">{__('Serial number pattern')}</label>
-                                        <input
-                                            id="unit_serial_pattern"
-                                            type="text"
-                                            value={data.unit_serial_pattern}
-                                            onChange={(e) => setData('unit_serial_pattern', e.target.value)}
-                                            className={`${INPUT_BASE} w-full font-mono`}
-                                            placeholder={__('e.g. ^SN-[0-9]{4}-[0-9]{4}$')}
-                                        />
-                                        <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a unit serial number must match. Leave empty to accept any.')}</p>
-                                        {errors.unit_serial_pattern && <p className={ERROR_CLASS}>{errors.unit_serial_pattern}</p>}
-                                    </div>
-                                    <div>
-                                        <label className={LABEL_CLASS} htmlFor="unit_psn_pattern">{__('Process serial pattern')}</label>
-                                        <input
-                                            id="unit_psn_pattern"
-                                            type="text"
-                                            value={data.unit_psn_pattern}
-                                            onChange={(e) => setData('unit_psn_pattern', e.target.value)}
-                                            className={`${INPUT_BASE} w-full font-mono`}
-                                            placeholder={__('e.g. ^[0-9]{3}-[0-9]{2}-[0-9]+$')}
-                                        />
-                                        <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a process serial number must match. Leave empty to accept any.')}</p>
-                                        {errors.unit_psn_pattern && <p className={ERROR_CLASS}>{errors.unit_psn_pattern}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <Switch checked={data.unit_identifier_normalize} onChange={(v) => setData('unit_identifier_normalize', v)} />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Normalise scanned identifiers')}</p>
-                                        <p className={HELP_CLASS}>{__('Strip whitespace and uppercase before storing or matching, so a label printed with spaces and one read by a scanner are the same identifier.')}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3">
-                                    <Switch checked={data.unit_psn_required} onChange={(v) => setData('unit_psn_required', v)} />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Process serial required')}</p>
-                                        <p className={HELP_CLASS}>{__('A unit cannot be registered at a station without its process serial number.')}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3">
-                                    <Switch checked={data.unit_psn_unique} onChange={(v) => setData('unit_psn_unique', v)} />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Process serial identifies one unit')}</p>
-                                        <p className={HELP_CLASS}>{__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-[13px] font-medium text-om-ink mb-2">{__('After a failed test')}</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        {[
-                                            { value: 'block', label: __('Block the unit'), desc: __('Hold it after the number of failed tests below. A later passed test releases it.') },
-                                            { value: 'scrap', label: __('Scrap it'), desc: __('The first failed test scraps the unit. Final.') },
-                                            { value: 'record', label: __('Only record the result'), desc: __('The verdict is kept in the history; the unit is not held.') },
-                                        ].map((opt) => (
-                                            <SelectCard
-                                                key={opt.value}
-                                                value={opt.value}
-                                                current={data.unit_test_fail_policy}
-                                                onChange={(v) => setData('unit_test_fail_policy', v)}
-                                                label={opt.label}
-                                                desc={opt.desc}
-                                            />
-                                        ))}
-                                    </div>
-                                    {errors.unit_test_fail_policy && <p className={ERROR_CLASS}>{errors.unit_test_fail_policy}</p>}
-                                    {data.unit_test_fail_policy === 'block' && (
-                                        <div className="mt-3">
-                                            <label className={LABEL_CLASS} htmlFor="unit_test_max_attempts">{__('Failed tests before the unit is blocked')}</label>
+                            {/* Serialised units: identifiers, binding and test verdicts */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Unit serialisation')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How serialised units are identified: the serial number on the product, the process serial number the line works with, and what a failed test does to a unit.')}</p>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={LABEL_CLASS} htmlFor="unit_serial_pattern">{__('Serial number pattern')}</label>
                                             <input
-                                                id="unit_test_max_attempts"
-                                                type="number"
-                                                min={1}
-                                                max={99}
-                                                value={data.unit_test_max_attempts}
-                                                onChange={(e) => setData('unit_test_max_attempts', e.target.value)}
-                                                className={`${INPUT_BASE} w-32`}
+                                                id="unit_serial_pattern"
+                                                type="text"
+                                                value={data.unit_serial_pattern}
+                                                onChange={(e) => setData('unit_serial_pattern', e.target.value)}
+                                                className={`${INPUT_BASE} w-full font-mono`}
+                                                placeholder={__('e.g. ^SN-[0-9]{4}-[0-9]{4}$')}
                                             />
-                                            <p className={`${HELP_CLASS} mt-1`}>{__('1 = the first failed test blocks the unit.')}</p>
-                                            {errors.unit_test_max_attempts && <p className={ERROR_CLASS}>{errors.unit_test_max_attempts}</p>}
-                                            <p className="text-[13px] font-medium text-om-ink mt-4 mb-2">{__('Which failed tests count')}</p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {[
-                                                    { value: 'test', label: __('Per test, since its last pass'), desc: __('Failed tests at the same test station after it last passed there. A retest that passes starts the count over.') },
-                                                    { value: 'unit', label: __('All failed tests of the unit'), desc: __('Every failed test at any station counts, and a pass does not reset them.') },
-                                                ].map((opt) => (
-                                                    <SelectCard
-                                                        key={opt.value}
-                                                        value={opt.value}
-                                                        current={data.unit_test_attempts_scope}
-                                                        onChange={(v) => setData('unit_test_attempts_scope', v)}
-                                                        label={opt.label}
-                                                        desc={opt.desc}
-                                                    />
-                                                ))}
-                                            </div>
-                                            {errors.unit_test_attempts_scope && <p className={ERROR_CLASS}>{errors.unit_test_attempts_scope}</p>}
+                                            <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a unit serial number must match. Leave empty to accept any.')}</p>
+                                            {errors.unit_serial_pattern && <p className={ERROR_CLASS}>{errors.unit_serial_pattern}</p>}
                                         </div>
-                                    )}
+                                        <div>
+                                            <label className={LABEL_CLASS} htmlFor="unit_psn_pattern">{__('Process serial pattern')}</label>
+                                            <input
+                                                id="unit_psn_pattern"
+                                                type="text"
+                                                value={data.unit_psn_pattern}
+                                                onChange={(e) => setData('unit_psn_pattern', e.target.value)}
+                                                className={`${INPUT_BASE} w-full font-mono`}
+                                                placeholder={__('e.g. ^[0-9]{3}-[0-9]{2}-[0-9]+$')}
+                                            />
+                                            <p className={`${HELP_CLASS} mt-1`}>{__('Regular expression a process serial number must match. Leave empty to accept any.')}</p>
+                                            {errors.unit_psn_pattern && <p className={ERROR_CLASS}>{errors.unit_psn_pattern}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_identifier_normalize} onChange={(v) => setData('unit_identifier_normalize', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Normalise scanned identifiers')}</p>
+                                            <p className={HELP_CLASS}>{__('Strip whitespace and uppercase before storing or matching, so a label printed with spaces and one read by a scanner are the same identifier.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_psn_required} onChange={(v) => setData('unit_psn_required', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial required')}</p>
+                                            <p className={HELP_CLASS}>{__('A unit cannot be registered at a station without its process serial number.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_psn_unique} onChange={(v) => setData('unit_psn_unique', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial identifies one unit')}</p>
+                                            <p className={HELP_CLASS}>{__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink mb-2">{__('After a failed test')}</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            {[
+                                                { value: 'block', label: __('Block the unit'), desc: __('Hold it after the number of failed tests below. A later passed test releases it.') },
+                                                { value: 'scrap', label: __('Scrap it'), desc: __('The first failed test scraps the unit. Final.') },
+                                                { value: 'record', label: __('Only record the result'), desc: __('The verdict is kept in the history; the unit is not held.') },
+                                            ].map((opt) => (
+                                                <SelectCard
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                    current={data.unit_test_fail_policy}
+                                                    onChange={(v) => setData('unit_test_fail_policy', v)}
+                                                    label={opt.label}
+                                                    desc={opt.desc}
+                                                />
+                                            ))}
+                                        </div>
+                                        {errors.unit_test_fail_policy && <p className={ERROR_CLASS}>{errors.unit_test_fail_policy}</p>}
+                                        {data.unit_test_fail_policy === 'block' && (
+                                            <div className="mt-3">
+                                                <label className={LABEL_CLASS} htmlFor="unit_test_max_attempts">{__('Failed tests before the unit is blocked')}</label>
+                                                <input
+                                                    id="unit_test_max_attempts"
+                                                    type="number"
+                                                    min={1}
+                                                    max={99}
+                                                    value={data.unit_test_max_attempts}
+                                                    onChange={(e) => setData('unit_test_max_attempts', e.target.value)}
+                                                    className={`${INPUT_BASE} w-32`}
+                                                />
+                                                <p className={`${HELP_CLASS} mt-1`}>{__('1 = the first failed test blocks the unit.')}</p>
+                                                {errors.unit_test_max_attempts && <p className={ERROR_CLASS}>{errors.unit_test_max_attempts}</p>}
+                                                <p className="text-[13px] font-medium text-om-ink mt-4 mb-2">{__('Which failed tests count')}</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {[
+                                                        { value: 'test', label: __('Per test, since its last pass'), desc: __('Failed tests at the same test station after it last passed there. A retest that passes starts the count over.') },
+                                                        { value: 'unit', label: __('All failed tests of the unit'), desc: __('Every failed test at any station counts, and a pass does not reset them.') },
+                                                    ].map((opt) => (
+                                                        <SelectCard
+                                                            key={opt.value}
+                                                            value={opt.value}
+                                                            current={data.unit_test_attempts_scope}
+                                                            onChange={(v) => setData('unit_test_attempts_scope', v)}
+                                                            label={opt.label}
+                                                            desc={opt.desc}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                {errors.unit_test_attempts_scope && <p className={ERROR_CLASS}>{errors.unit_test_attempts_scope}</p>}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Barcode Scanner */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Barcode Scanner')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('How the workstation receives input from a barcode scanner.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {[
-                                    { value: 'hid', label: __('HID / Keyboard wedge'), desc: __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') },
-                                    { value: 'manual', label: __('Manual entry'), desc: __('Operator typed the code into a visible field and confirms with Enter. Use when no scanner is available.') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.scanner_mode}
-                                        onChange={(v) => setData('scanner_mode', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
+                            {/* Barcode Scanner */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Barcode Scanner')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How the workstation receives input from a barcode scanner.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {[
+                                        { value: 'hid', label: __('HID / Keyboard wedge'), desc: __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') },
+                                        { value: 'manual', label: __('Manual entry'), desc: __('Operator typed the code into a visible field and confirms with Enter. Use when no scanner is available.') },
+                                    ].map((opt) => (
+                                        <SelectCard
+                                            key={opt.value}
+                                            value={opt.value}
+                                            current={data.scanner_mode}
+                                            onChange={(v) => setData('scanner_mode', v)}
+                                            label={opt.label}
+                                            desc={opt.desc}
+                                        />
+                                    ))}
+                                </div>
+                                {errors.scanner_mode && <p className={ERROR_CLASS}>{errors.scanner_mode}</p>}
                             </div>
-                            {errors.scanner_mode && <p className={ERROR_CLASS}>{errors.scanner_mode}</p>}
-                        </div>
 
-                        {/* Production Tracking Mode */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Tracking Mode')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('How operators register production progress on the shop floor.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {[
-                                    { value: 'per_operation', label: __('Per Operation'), desc: __('Operator clicks Start/Complete on each step at each workstation. Full traceability.') },
-                                    { value: 'cumulative', label: __('Cumulative'), desc: __('Operator enters total produced quantity at the end. No step tracking.') },
-                                    { value: 'hybrid', label: __('Hybrid'), desc: __('Key steps tracked per-operation, quantity entry also available. Best of both.') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.production_tracking_mode}
-                                        onChange={(v) => setData('production_tracking_mode', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
+                            {/* Production Tracking Mode */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Tracking Mode')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How operators register production progress on the shop floor.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {[
+                                        { value: 'per_operation', label: __('Per Operation'), desc: __('Operator clicks Start/Complete on each step at each workstation. Full traceability.') },
+                                        { value: 'cumulative', label: __('Cumulative'), desc: __('Operator enters total produced quantity at the end. No step tracking.') },
+                                        { value: 'hybrid', label: __('Hybrid'), desc: __('Key steps tracked per-operation, quantity entry also available. Best of both.') },
+                                    ].map((opt) => (
+                                        <SelectCard
+                                            key={opt.value}
+                                            value={opt.value}
+                                            current={data.production_tracking_mode}
+                                            onChange={(v) => setData('production_tracking_mode', v)}
+                                            label={opt.label}
+                                            desc={opt.desc}
+                                        />
+                                    ))}
+                                </div>
+                                {errors.production_tracking_mode && <p className={ERROR_CLASS}>{errors.production_tracking_mode}</p>}
                             </div>
-                            {errors.production_tracking_mode && <p className={ERROR_CLASS}>{errors.production_tracking_mode}</p>}
-                        </div>
 
-                        {/* Production Flow (whole batch vs transfer between stations) */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Flow')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('How pieces move between the steps of a batch.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {[
-                                    { value: 'whole_batch', label: __('Whole batch'), desc: __('A station opens only after the previous one has finished the whole batch. Finishing a step passes everything not scrapped.') },
-                                    { value: 'transfer', label: __('Transfer'), desc: __('Pieces move on as soon as they are logged as good, so stations work at the same time. A step finishes once nothing is left waiting.') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.production_flow_mode}
-                                        onChange={(v) => setData('production_flow_mode', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
+                            {/* Production Flow (whole batch vs transfer between stations) */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Flow')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How pieces move between the steps of a batch.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {[
+                                        { value: 'whole_batch', label: __('Whole batch'), desc: __('A station opens only after the previous one has finished the whole batch. Finishing a step passes everything not scrapped.') },
+                                        { value: 'transfer', label: __('Transfer'), desc: __('Pieces move on as soon as they are logged as good, so stations work at the same time. A step finishes once nothing is left waiting.') },
+                                    ].map((opt) => (
+                                        <SelectCard
+                                            key={opt.value}
+                                            value={opt.value}
+                                            current={data.production_flow_mode}
+                                            onChange={(v) => setData('production_flow_mode', v)}
+                                            label={opt.label}
+                                            desc={opt.desc}
+                                        />
+                                    ))}
+                                </div>
+                                {errors.production_flow_mode && <p className={ERROR_CLASS}>{errors.production_flow_mode}</p>}
                             </div>
-                            {errors.production_flow_mode && <p className={ERROR_CLASS}>{errors.production_flow_mode}</p>}
-                        </div>
 
-                        {/* Production Quantity Corrections */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Quantity Corrections')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Defines whether and when operators can correct previously reported quantities.')}</p>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Transfer step totals require Full edit. Timed windows apply only to individual shift entries.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {[
-                                    { value: 'none', label: __('No corrections'), desc: __('Operators cannot edit reported quantities. All entries are final.') },
-                                    { value: 'timed', label: __('Timed window'), desc: __('Operators can correct quantities within a configurable time window after submission.') },
-                                    { value: 'full', label: __('Full edit'), desc: __('Operators can edit reported quantities at any time.') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.production_qty_edit_policy}
-                                        onChange={(v) => setData('production_qty_edit_policy', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
+                            {/* Production Quantity Corrections */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Production Quantity Corrections')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Defines whether and when operators can correct previously reported quantities.')}</p>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Transfer step totals require Full edit. Timed windows apply only to individual shift entries.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {[
+                                        { value: 'none', label: __('No corrections'), desc: __('Operators cannot edit reported quantities. All entries are final.') },
+                                        { value: 'timed', label: __('Timed window'), desc: __('Operators can correct quantities within a configurable time window after submission.') },
+                                        { value: 'full', label: __('Full edit'), desc: __('Operators can edit reported quantities at any time.') },
+                                    ].map((opt) => (
+                                        <SelectCard
+                                            key={opt.value}
+                                            value={opt.value}
+                                            current={data.production_qty_edit_policy}
+                                            onChange={(v) => setData('production_qty_edit_policy', v)}
+                                            label={opt.label}
+                                            desc={opt.desc}
+                                        />
+                                    ))}
+                                </div>
+                                {errors.production_qty_edit_policy && <p className={ERROR_CLASS}>{errors.production_qty_edit_policy}</p>}
+
+                                {data.production_qty_edit_policy === 'timed' && (
+                                    <div className="mt-4">
+                                        <label className={LABEL_CLASS} htmlFor="production_qty_edit_window_minutes">{__('Correction time window')}</label>
+                                        <p className={`${HELP_CLASS} mb-2`}>{__('How many minutes after submission an operator can still correct the quantity.')}</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                id="production_qty_edit_window_minutes"
+                                                value={data.production_qty_edit_window_minutes}
+                                                onChange={(e) => setData('production_qty_edit_window_minutes', parseInt(e.target.value, 10) || 1)}
+                                                className={`${INPUT_BASE} w-24`}
+                                                min={1}
+                                                max={60}
+                                            />
+                                            <span className="text-[13px] text-om-muted">{__('minutes')}</span>
+                                        </div>
+                                        {errors.production_qty_edit_window_minutes && (
+                                            <p className={ERROR_CLASS}>{errors.production_qty_edit_window_minutes}</p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                            {errors.production_qty_edit_policy && <p className={ERROR_CLASS}>{errors.production_qty_edit_policy}</p>}
 
-                            {data.production_qty_edit_policy === 'timed' && (
-                                <div className="mt-4">
-                                    <label className={LABEL_CLASS} htmlFor="production_qty_edit_window_minutes">{__('Correction time window')}</label>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('How many minutes after submission an operator can still correct the quantity.')}</p>
-                                    <div className="flex items-center gap-2">
+                            {/* Labor Costing */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Labor costing')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Defaults used by the Production Cost report when a worker has no compensation of their own.')}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="default_pay_type">{__('Default pay type')}</label>
+                                        <p className={`${HELP_CLASS} mb-2`}>{__('Fallback mode for workers with no pay type set.')}</p>
+                                        <Dropdown
+                                            options={[
+                                                { value: 'hourly', label: __('Hourly') },
+                                                { value: 'weekly', label: __('Weekly') },
+                                                { value: 'piece_rate', label: __('Piece rate') },
+                                            ]}
+                                            value={data.default_pay_type == null ? '' : String(data.default_pay_type)}
+                                            onChange={(v) => setData('default_pay_type', v)}
+                                            className="w-full"
+                                        />
+                                        {errors.default_pay_type && <p className={ERROR_CLASS}>{errors.default_pay_type}</p>}
+                                    </div>
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="standard_weekly_hours">{__('Standard weekly hours')}</label>
+                                        <p className={`${HELP_CLASS} mb-2`}>{__('Converts a weekly salary into an hourly cost (salary / hours).')}</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                id="standard_weekly_hours"
+                                                value={data.standard_weekly_hours}
+                                                onChange={(e) => setData('standard_weekly_hours', parseFloat(e.target.value) || 0)}
+                                                className={`${INPUT_BASE} w-28`}
+                                                min={1}
+                                                max={168}
+                                                step="0.5"
+                                            />
+                                            <span className="text-[13px] text-om-muted">{__('hours/week')}</span>
+                                        </div>
+                                        {errors.standard_weekly_hours && <p className={ERROR_CLASS}>{errors.standard_weekly_hours}</p>}
+                                    </div>
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="default_pay_rate">{__('Default pay rate')}</label>
+                                        <p className={`${HELP_CLASS} mb-2`}>{__('Fallback rate used when a worker has no rate of their own (applied per the worker\'s pay type). Leave blank for none.')}</p>
                                         <input
                                             type="number"
-                                            id="production_qty_edit_window_minutes"
-                                            value={data.production_qty_edit_window_minutes}
-                                            onChange={(e) => setData('production_qty_edit_window_minutes', parseInt(e.target.value, 10) || 1)}
-                                            className={`${INPUT_BASE} w-24`}
-                                            min={1}
-                                            max={60}
+                                            id="default_pay_rate"
+                                            value={data.default_pay_rate ?? ''}
+                                            onChange={(e) => setData('default_pay_rate', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                            className={`${INPUT_BASE} w-32`}
+                                            min={0}
+                                            step="0.0001"
                                         />
-                                        <span className="text-[13px] text-om-muted">{__('minutes')}</span>
+                                        {errors.default_pay_rate && <p className={ERROR_CLASS}>{errors.default_pay_rate}</p>}
                                     </div>
-                                    {errors.production_qty_edit_window_minutes && (
-                                        <p className={ERROR_CLASS}>{errors.production_qty_edit_window_minutes}</p>
-                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
+                    )}
 
-                        {/* Labor Costing */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Labor costing')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Defaults used by the Production Cost report when a worker has no compensation of their own.')}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="default_pay_type">{__('Default pay type')}</label>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('Fallback mode for workers with no pay type set.')}</p>
-                                    <Dropdown
-                                        options={[
-                                            { value: 'hourly', label: __('Hourly') },
-                                            { value: 'weekly', label: __('Weekly') },
-                                            { value: 'piece_rate', label: __('Piece rate') },
-                                        ]}
-                                        value={data.default_pay_type == null ? '' : String(data.default_pay_type)}
-                                        onChange={(v) => setData('default_pay_type', v)}
-                                        className="w-full"
-                                    />
-                                    {errors.default_pay_type && <p className={ERROR_CLASS}>{errors.default_pay_type}</p>}
-                                </div>
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="standard_weekly_hours">{__('Standard weekly hours')}</label>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('Converts a weekly salary into an hourly cost (salary / hours).')}</p>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="number"
-                                            id="standard_weekly_hours"
-                                            value={data.standard_weekly_hours}
-                                            onChange={(e) => setData('standard_weekly_hours', parseFloat(e.target.value) || 0)}
-                                            className={`${INPUT_BASE} w-28`}
-                                            min={1}
-                                            max={168}
-                                            step="0.5"
+                    {/* ═══ Schedule ═══ */}
+                    {tab === 'schedule' && (
+                        <div className={`${CARD_CLASS} space-y-6`}>
+                            <div>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Schedule / Planner')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Configure how the production schedule planner displays data.')}</p>
+                            </div>
+
+                            {/* View mode */}
+                            <div>
+                                <div className={LABEL_CLASS}>{__('View mode')}</div>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('Default time scale for the schedule view.')}</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { value: 'weekly', label: __('Weekly'), desc: __('Plan by week') },
+                                        { value: 'daily', label: __('Daily'), desc: __('Plan by day') },
+                                        { value: 'monthly', label: __('Monthly'), desc: __('Plan by month') },
+                                    ].map((opt) => (
+                                        <SelectCard
+                                            key={opt.value}
+                                            value={opt.value}
+                                            current={data.schedule_view_mode}
+                                            onChange={(v) => setData('schedule_view_mode', v)}
+                                            label={opt.label}
+                                            desc={opt.desc}
                                         />
-                                        <span className="text-[13px] text-om-muted">{__('hours/week')}</span>
-                                    </div>
-                                    {errors.standard_weekly_hours && <p className={ERROR_CLASS}>{errors.standard_weekly_hours}</p>}
+                                    ))}
                                 </div>
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="default_pay_rate">{__('Default pay rate')}</label>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('Fallback rate used when a worker has no rate of their own (applied per the worker\'s pay type). Leave blank for none.')}</p>
+                                {errors.schedule_view_mode && <p className={ERROR_CLASS}>{errors.schedule_view_mode}</p>}
+                            </div>
+
+                            {/* Shifts per day */}
+                            <div>
+                                <div className={LABEL_CLASS}>{__('Shifts per day')}</div>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('Number of production shifts in a 24-hour period.')}</p>
+                                <div className="grid grid-cols-4 gap-3">
+                                    {[1, 2, 3, 4].map((n) => (
+                                        <div
+                                            key={n}
+                                            onClick={() => setData('schedule_shifts_per_day', n)}
+                                            className={`flex flex-col items-center gap-1 border rounded-om-sm p-3 cursor-pointer transition-colors
+                                                ${data.schedule_shifts_per_day === n
+                                                    ? 'border-om-accent bg-[rgba(234,90,43,.06)]'
+                                                    : 'border-om-line hover:border-om-faint'}`}
+                                        >
+                                            <span className="font-medium text-[13px] text-om-ink">{n}</span>
+                                            <span className="text-[11.5px] text-om-muted">{__(':hours h', { hours: Math.floor(24 / n) })}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {errors.schedule_shifts_per_day && <p className={ERROR_CLASS}>{errors.schedule_shifts_per_day}</p>}
+                                <Link href="/admin/shifts" className="inline-flex items-center gap-1.5 mt-3 text-[13px] text-om-accent hover:underline font-medium">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {__('Manage Shifts')} &rarr;
+                                </Link>
+                            </div>
+
+                            {/* Planning horizon */}
+                            <div>
+                                <label className={LABEL_CLASS} htmlFor="schedule_horizon_weeks">{__('Planning horizon')}</label>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('How many weeks ahead the planner displays.')}</p>
+                                <div className="flex items-center gap-2">
                                     <input
                                         type="number"
-                                        id="default_pay_rate"
-                                        value={data.default_pay_rate ?? ''}
-                                        onChange={(e) => setData('default_pay_rate', e.target.value === '' ? null : parseFloat(e.target.value))}
-                                        className={`${INPUT_BASE} w-32`}
-                                        min={0}
-                                        step="0.0001"
+                                        id="schedule_horizon_weeks"
+                                        value={data.schedule_horizon_weeks}
+                                        onChange={(e) => setData('schedule_horizon_weeks', parseInt(e.target.value, 10) || 1)}
+                                        className={`${INPUT_BASE} w-24`}
+                                        min={1}
+                                        max={52}
                                     />
-                                    {errors.default_pay_rate && <p className={ERROR_CLASS}>{errors.default_pay_rate}</p>}
+                                    <span className="text-[13px] text-om-muted">{__('weeks')}</span>
                                 </div>
+                                {errors.schedule_horizon_weeks && <p className={ERROR_CLASS}>{errors.schedule_horizon_weeks}</p>}
                             </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* ═══ Schedule ═══ */}
-                {tab === 'schedule' && (
-                    <div className={`${CARD_CLASS} space-y-6`}>
-                        <div>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Schedule / Planner')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Configure how the production schedule planner displays data.')}</p>
-                        </div>
-
-                        {/* View mode */}
-                        <div>
-                            <div className={LABEL_CLASS}>{__('View mode')}</div>
-                            <p className={`${HELP_CLASS} mb-2`}>{__('Default time scale for the schedule view.')}</p>
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    { value: 'weekly', label: __('Weekly'), desc: __('Plan by week') },
-                                    { value: 'daily', label: __('Daily'), desc: __('Plan by day') },
-                                    { value: 'monthly', label: __('Monthly'), desc: __('Plan by month') },
-                                ].map((opt) => (
-                                    <SelectCard
-                                        key={opt.value}
-                                        value={opt.value}
-                                        current={data.schedule_view_mode}
-                                        onChange={(v) => setData('schedule_view_mode', v)}
-                                        label={opt.label}
-                                        desc={opt.desc}
-                                    />
-                                ))}
-                            </div>
-                            {errors.schedule_view_mode && <p className={ERROR_CLASS}>{errors.schedule_view_mode}</p>}
-                        </div>
-
-                        {/* Shifts per day */}
-                        <div>
-                            <div className={LABEL_CLASS}>{__('Shifts per day')}</div>
-                            <p className={`${HELP_CLASS} mb-2`}>{__('Number of production shifts in a 24-hour period.')}</p>
-                            <div className="grid grid-cols-4 gap-3">
-                                {[1, 2, 3, 4].map((n) => (
-                                    <div
-                                        key={n}
-                                        onClick={() => setData('schedule_shifts_per_day', n)}
-                                        className={`flex flex-col items-center gap-1 border rounded-om-sm p-3 cursor-pointer transition-colors
-                                            ${data.schedule_shifts_per_day === n
-                                                ? 'border-om-accent bg-[rgba(234,90,43,.06)]'
-                                                : 'border-om-line hover:border-om-faint'}`}
-                                    >
-                                        <span className="font-medium text-[13px] text-om-ink">{n}</span>
-                                        <span className="text-[11.5px] text-om-muted">{__(':hours h', { hours: Math.floor(24 / n) })}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            {errors.schedule_shifts_per_day && <p className={ERROR_CLASS}>{errors.schedule_shifts_per_day}</p>}
-                            <Link href="/admin/shifts" className="inline-flex items-center gap-1.5 mt-3 text-[13px] text-om-accent hover:underline font-medium">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {__('Manage Shifts')} &rarr;
-                            </Link>
-                        </div>
-
-                        {/* Planning horizon */}
-                        <div>
-                            <label className={LABEL_CLASS} htmlFor="schedule_horizon_weeks">{__('Planning horizon')}</label>
-                            <p className={`${HELP_CLASS} mb-2`}>{__('How many weeks ahead the planner displays.')}</p>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    id="schedule_horizon_weeks"
-                                    value={data.schedule_horizon_weeks}
-                                    onChange={(e) => setData('schedule_horizon_weeks', parseInt(e.target.value, 10) || 1)}
-                                    className={`${INPUT_BASE} w-24`}
-                                    min={1}
-                                    max={52}
-                                />
-                                <span className="text-[13px] text-om-muted">{__('weeks')}</span>
-                            </div>
-                            {errors.schedule_horizon_weeks && <p className={ERROR_CLASS}>{errors.schedule_horizon_weeks}</p>}
-                        </div>
-
-                        {/* Show weekends */}
-                        <div>
-                            <div className="flex items-start gap-3">
-                                <Switch
-                                    checked={data.schedule_show_weekends}
-                                    onChange={(v) => setData('schedule_show_weekends', v)}
-                                />
-                                <div>
-                                    <p className="text-[13px] font-medium text-om-ink">{__('Show weekends')}</p>
-                                    <p className={HELP_CLASS}>{__('Display Saturday and Sunday columns in the schedule view.')}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Realtime updates */}
-                        <div>
-                            <div className={LABEL_CLASS}>{__('Realtime updates')}</div>
-                            <p className={`${HELP_CLASS} mb-2`}>{__('How the planner receives live updates from other users.')}</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <SelectCard
-                                    value="polling"
-                                    current={data.realtime_mode}
-                                    onChange={(v) => setData('realtime_mode', v)}
-                                    label={__('Polling')}
-                                    desc={__('Checks for changes every few seconds (default)')}
-                                />
-                                <SelectCard
-                                    value="off"
-                                    current={data.realtime_mode}
-                                    onChange={(v) => setData('realtime_mode', v)}
-                                    label={__('Off')}
-                                    desc={__('No automatic refresh — reload the page to see changes')}
-                                />
-                            </div>
-                            {errors.realtime_mode && <p className={ERROR_CLASS}>{errors.realtime_mode}</p>}
-                        </div>
-                    </div>
-                )}
-
-                {/* ═══ Security ═══ */}
-                {tab === 'security' && (
-                    <div className="space-y-6">
-                        {/* Authentication */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Authentication')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>{__('Additional login methods for operators.')}</p>
-                            <div className="space-y-4">
+                            {/* Show weekends */}
+                            <div>
                                 <div className="flex items-start gap-3">
                                     <Switch
-                                        checked={data.pin_login_enabled}
-                                        onChange={(v) => setData('pin_login_enabled', v)}
+                                        checked={data.schedule_show_weekends}
+                                        onChange={(v) => setData('schedule_show_weekends', v)}
                                     />
                                     <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Enable PIN login')}</p>
-                                        <p className={HELP_CLASS}>
-                                            {__('Allow users to set a 4–6 digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Show weekends')}</p>
+                                        <p className={HELP_CLASS}>{__('Display Saturday and Sunday columns in the schedule view.')}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Realtime updates */}
+                            <div>
+                                <div className={LABEL_CLASS}>{__('Realtime updates')}</div>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('How the planner receives live updates from other users.')}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <SelectCard
+                                        value="polling"
+                                        current={data.realtime_mode}
+                                        onChange={(v) => setData('realtime_mode', v)}
+                                        label={__('Polling')}
+                                        desc={__('Checks for changes every few seconds (default)')}
+                                    />
+                                    <SelectCard
+                                        value="off"
+                                        current={data.realtime_mode}
+                                        onChange={(v) => setData('realtime_mode', v)}
+                                        label={__('Off')}
+                                        desc={__('No automatic refresh — reload the page to see changes')}
+                                    />
+                                </div>
+                                {errors.realtime_mode && <p className={ERROR_CLASS}>{errors.realtime_mode}</p>}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ Security ═══ */}
+                    {tab === 'security' && (
+                        <div className="space-y-6">
+                            {/* Authentication */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Authentication')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('Additional login methods for operators.')}</p>
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-3">
+                                        <Switch
+                                            checked={data.pin_login_enabled}
+                                            onChange={(v) => setData('pin_login_enabled', v)}
+                                        />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Enable PIN login')}</p>
+                                            <p className={HELP_CLASS}>
+                                                {__('Allow users to set a 4–6 digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Telemetry */}
+                            <TelemetryCard
+                                enabled={data.telemetry_enabled}
+                                onChange={(v) => setData('telemetry_enabled', v)}
+                                lastSentAt={settings.telemetry_last_sent_at}
+                            />
+
+                            {/* CORS */}
+                            <div className={CARD_CLASS}>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('CORS (Cross-Origin Requests)')}</h2>
+                                <p className={`${HELP_CLASS} mb-4`}>
+                                    {__('Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).')}
+                                </p>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="cors_allowed_origins">{__('Allowed Origins')}</label>
+                                        <textarea
+                                            id="cors_allowed_origins"
+                                            rows={3}
+                                            value={data.cors_allowed_origins}
+                                            onChange={(e) => setData('cors_allowed_origins', e.target.value)}
+                                            className={`${INPUT_BASE} w-full`}
+                                            placeholder={__('https://erp.yourcompany.com')}
+                                        />
+                                        <p className={`${HELP_CLASS} mt-1`}>
+                                            {__('Comma-separated list of allowed origins. Only HTTPS URLs recommended. Leave empty to block all cross-origin requests.')}
+                                        </p>
+                                        {errors.cors_allowed_origins && <p className={ERROR_CLASS}>{errors.cors_allowed_origins}</p>}
+                                    </div>
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="cors_allowed_methods">{__('Allowed Methods')}</label>
+                                        <input
+                                            type="text"
+                                            id="cors_allowed_methods"
+                                            value={data.cors_allowed_methods}
+                                            onChange={(e) => setData('cors_allowed_methods', e.target.value)}
+                                            className={`${INPUT_BASE} w-full`}
+                                            placeholder="GET, POST"
+                                        />
+                                        <p className={`${HELP_CLASS} mt-1`}>
+                                            {__('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).')}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className={LABEL_CLASS} htmlFor="cors_max_age">{__('Preflight Cache (seconds)')}</label>
+                                        <input
+                                            type="number"
+                                            id="cors_max_age"
+                                            value={data.cors_max_age}
+                                            onChange={(e) => setData('cors_max_age', parseInt(e.target.value, 10) || 0)}
+                                            className={`${INPUT_BASE} w-32`}
+                                            min={0}
+                                            max={86400}
+                                            placeholder="0"
+                                        />
+                                        <p className={`${HELP_CLASS} mt-1`}>
+                                            {__('How long browsers cache preflight responses. 0 = no caching (strictest).')}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    )}
 
-                        {/* CORS */}
-                        <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('CORS (Cross-Origin Requests)')}</h2>
-                            <p className={`${HELP_CLASS} mb-4`}>
-                                {__('Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).')}
-                            </p>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="cors_allowed_origins">{__('Allowed Origins')}</label>
-                                    <textarea
-                                        id="cors_allowed_origins"
-                                        rows={3}
-                                        value={data.cors_allowed_origins}
-                                        onChange={(e) => setData('cors_allowed_origins', e.target.value)}
-                                        className={`${INPUT_BASE} w-full`}
-                                        placeholder={__('https://erp.yourcompany.com')}
-                                    />
-                                    <p className={`${HELP_CLASS} mt-1`}>
-                                        {__('Comma-separated list of allowed origins. Only HTTPS URLs recommended. Leave empty to block all cross-origin requests.')}
-                                    </p>
-                                    {errors.cors_allowed_origins && <p className={ERROR_CLASS}>{errors.cors_allowed_origins}</p>}
-                                </div>
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="cors_allowed_methods">{__('Allowed Methods')}</label>
-                                    <input
-                                        type="text"
-                                        id="cors_allowed_methods"
-                                        value={data.cors_allowed_methods}
-                                        onChange={(e) => setData('cors_allowed_methods', e.target.value)}
-                                        className={`${INPUT_BASE} w-full`}
-                                        placeholder="GET, POST"
-                                    />
-                                    <p className={`${HELP_CLASS} mt-1`}>
-                                        {__('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <label className={LABEL_CLASS} htmlFor="cors_max_age">{__('Preflight Cache (seconds)')}</label>
-                                    <input
-                                        type="number"
-                                        id="cors_max_age"
-                                        value={data.cors_max_age}
-                                        onChange={(e) => setData('cors_max_age', parseInt(e.target.value, 10) || 0)}
-                                        className={`${INPUT_BASE} w-32`}
-                                        min={0}
-                                        max={86400}
-                                        placeholder="0"
-                                    />
-                                    <p className={`${HELP_CLASS} mt-1`}>
-                                        {__('How long browsers cache preflight responses. 0 = no caching (strictest).')}
-                                    </p>
-                                </div>
-                            </div>
+                    {/* Save button — visible on all tabs except data */}
+                    {tab !== 'data' && (
+                        <div className="flex justify-end">
+                            <Button type="submit" variant="accent" loading={processing}>
+                                {__('Save')}
+                            </Button>
                         </div>
-                    </div>
-                )}
+                    )}
+                </form>
+            )}
 
-                {/* Save button — visible on all tabs except data */}
-                {tab !== 'data' && (
-                    <div className="flex justify-end">
-                        <Button type="submit" variant="accent" loading={processing}>
-                            {__('Save')}
-                        </Button>
-                    </div>
-                )}
-            </form>
+            {/* ═══ Module tabs (outside form — the module saves itself) ═══ */}
+            {activeExtTab(tab) && (
+                <div id={`${tab}-panel`} role="tabpanel" aria-labelledby={`${tab}-tab`} className="space-y-6">
+                    <Hook name={SYSTEM_TABS_HOOK} hooks={{ [SYSTEM_TABS_HOOK]: [activeExtTab(tab).contribution] }} />
+                </div>
+            )}
 
             {/* ═══ Data tab (outside form — has its own forms) ═══ */}
             {tab === 'data' && (

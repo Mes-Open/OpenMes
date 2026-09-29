@@ -111,6 +111,30 @@ if [ "$IS_PRIMARY" = "1" ]; then
         echo "[OpenMES] Admin already exists, skipping default user creation."
     fi
 
+    # ── Anonymous usage reports ──────────────────────────────────────────────
+    # The stored setting is what decides this; the env var on its own only ever
+    # forces reporting off. So an install that answered "yes" in install.sh has
+    # to have that answer recorded here — the web wizard would have recorded it,
+    # and the next block is about to skip that wizard entirely.
+    #
+    # Only when OPENMES_TELEMETRY says something, and only while the application
+    # is not yet marked installed, so this can never overwrite a choice an
+    # administrator later made in Settings -> System.
+    if [ ! -f storage/installed ] && [ -n "${OPENMES_TELEMETRY:-}" ]; then
+        case "$(printf '%s' "${OPENMES_TELEMETRY}" | tr '[:upper:]' '[:lower:]')" in
+            1 | true | yes | on) export TELEMETRY_CHOICE=true ;;
+            *)                   export TELEMETRY_CHOICE=false ;;
+        esac
+        echo "[OpenMES] Recording usage-report choice: ${TELEMETRY_CHOICE}"
+        # Read through getenv rather than interpolated, like the admin block above.
+        php artisan tinker --execute="
+            \App\Support\TelemetrySettings::put(
+                \App\Support\TelemetrySettings::SETTING_KEY,
+                getenv('TELEMETRY_CHOICE') === 'true',
+            );
+        " || echo "[OpenMES] Could not record the usage-report choice; reporting stays off."
+    fi
+
     # ── Mark as installed (skip web installer) ───────────────────────────────
     if [ ! -f storage/installed ]; then
         echo "[OpenMES] Marking application as installed..."

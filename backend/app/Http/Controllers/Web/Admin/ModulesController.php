@@ -46,6 +46,19 @@ class ModulesController extends Controller
             return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
+        // The install-time check does not cover a module that was already on
+        // disk — shipped with the image, or installed before core was rolled
+        // back. Enabling is the other moment it matters, and the one that runs
+        // its migrations.
+        $requiresCore = $this->manager->manifest($name)['requires_core'] ?? null;
+
+        if (! $this->manager->coreSatisfies($requiresCore)) {
+            return redirect()->route('admin.modules.index')->with('error', __(
+                'Module ":name" requires OpenMES :required; this installation is :current.',
+                ['name' => $module['display_name'], 'required' => $requiresCore, 'current' => config('version.current')],
+            ));
+        }
+
         $this->manager->enable($name);
         $this->clearCache();
 
@@ -133,11 +146,25 @@ class ModulesController extends Controller
             return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
-        $this->manager->uninstall($name);
+        try {
+            $this->manager->uninstall($name);
+        } catch (\Throwable $e) {
+            report($e);
+
+            // The module is still on disk, so this can be retried once whatever
+            // its uninstall hook tripped over is dealt with.
+            return redirect()->route('admin.modules.index')->with('error', __(
+                'Module ":name" could not be uninstalled: :msg',
+                ['name' => $module['display_name'], 'msg' => $e->getMessage()],
+            ));
+        }
+
         $this->clearCache();
 
-        return redirect()->route('admin.modules.index')
-            ->with('success', __('Module ":name" uninstalled.', ['name' => $module['display_name']]));
+        return redirect()->route('admin.modules.index')->with('success', __(
+            'Module ":name" uninstalled. Its database tables were left in place; reinstalling keeps the data.',
+            ['name' => $module['display_name']],
+        ));
     }
 
     protected function clearCache(): void

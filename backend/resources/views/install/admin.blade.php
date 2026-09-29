@@ -185,6 +185,42 @@
                     </p>
                 </div>
 
+                {{--
+                    Usage reporting is on unless switched off here. Told plainly
+                    at the moment of installation rather than buried in settings:
+                    an administrator who later discovers outbound traffic on a
+                    firewall they were never told about is entitled to call it a
+                    leak, and on a factory network they would be right.
+                --}}
+                <div class="border border-gray-200 rounded-lg p-4 mb-6">
+                    {{--
+                        The hidden field carries the "no" an unticked checkbox
+                        would otherwise leave unsaid. Without it, unticking the
+                        box would be indistinguishable from an unattended
+                        install that never showed this form — and the setting
+                        would silently stay on.
+                    --}}
+                    <input type="hidden" name="telemetry_enabled" value="0">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            name="telemetry_enabled"
+                            value="1"
+                            {{ old('telemetry_enabled', true) ? 'checked' : '' }}
+                            class="mt-1"
+                        >
+                        <span class="text-sm text-gray-700">
+                            <strong class="text-gray-900">Send anonymous usage reports</strong><br>
+                            OpenMES sends information <strong>about the software</strong> — versions, which
+                            features are switched on, rough size bands, and where errors occur (class, file
+                            and line). It never sends anything you entered into OpenMES: no material or
+                            product codes, no lot numbers, no order data, no recipes, no personal data, and
+                            no error message text.<br>
+                            <span class="text-gray-500">You can change this at any time in Settings → System.</span>
+                        </span>
+                    </label>
+                </div>
+
                 <div class="flex justify-end">
                     <button
                         type="submit"

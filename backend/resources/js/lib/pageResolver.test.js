@@ -58,4 +58,37 @@ describe('resolvePage', () => {
     it('keys core pages the way the glob does', () => {
         expect(coreKey('admin/lines/Index')).toBe('./Pages/admin/lines/Index.jsx');
     });
+
+    // A module installed through the panel after this build: its pages are in
+    // neither glob, so it registers them itself when its script runs. Without
+    // this source such a page rendered the missing-page card despite the module
+    // being installed and its routes working.
+    describe('pages registered at runtime', () => {
+        const RuntimePage = () => null;
+        const runtimePages = { 'admin/plant-reports/Index': RuntimePage };
+
+        it('finds a page an installed module registered', () => {
+            expect(resolvePage('admin/plant-reports/Index', corePages, modulePages, runtimePages))
+                .toBe(RuntimePage);
+        });
+
+        it('still lets core win over a runtime registration', () => {
+            const shadowing = { 'admin/lines/Index': RuntimePage };
+
+            expect(resolvePage('admin/lines/Index', corePages, {}, shadowing)).toBe(CorePage);
+        });
+
+        it('prefers a compiled-in module over a runtime one', () => {
+            // Both present means the operator built the module into their image
+            // and also installed it; the built-in copy is the one they meant.
+            const shadowing = { 'admin/widgets/Index': RuntimePage };
+
+            expect(resolvePage('admin/widgets/Index', corePages, modulePages, shadowing))
+                .toBe(ModulePage);
+        });
+
+        it('defaults to no runtime pages, so an install without modules is unchanged', () => {
+            expect(resolvePage('admin/plant-reports/Index', corePages, modulePages)).toBeNull();
+        });
+    });
 });

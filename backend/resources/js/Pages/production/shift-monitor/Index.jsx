@@ -224,6 +224,16 @@ export default function ShiftMonitorIndex() {
     }, []);
 
     const classify = useCallback(async (segment, reason, notes) => {
+        // A stop drawn from a state slice with no downtime row has no id to
+        // classify against. The drawer no longer offers the buttons, but these
+        // two are the only places that build this URL and the next caller will
+        // not know that — a missing id used to become the literal string "null"
+        // in the path.
+        if (segment?.downtimeId == null) {
+            fire(__('This stop has no linked downtime record, so it cannot be classified or escalated.'));
+            return;
+        }
+
         try {
             const json = await post(`${basePath}/downtimes/${segment.downtimeId}/classify`, {
                 downtime_reason_id: reason.id,
@@ -243,6 +253,11 @@ export default function ShiftMonitorIndex() {
     }, [post, basePath, refresh, fire]);
 
     const escalate = useCallback(async (segment, notes) => {
+        if (segment?.downtimeId == null) {
+            fire(__('This stop has no linked downtime record, so it cannot be classified or escalated.'));
+            return;
+        }
+
         try {
             const json = await post(`${basePath}/downtimes/${segment.downtimeId}/escalate`, {
                 note: notes || null,

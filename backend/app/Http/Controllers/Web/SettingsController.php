@@ -70,8 +70,18 @@ class SettingsController extends Controller
             'force_password_change' => false,
         ]);
 
+        // Everything issued against the old password goes with it: API tokens
+        // here, and other browser sessions via AuthenticateSession, which keys
+        // off the hash this update just changed. Without both, a password
+        // changed after a compromise leaves the attacker exactly where he was.
+        $user->tokens()->delete();
+
+        // Keep this session alive — it is the one that just proved knowledge of
+        // the old password — by re-storing the hash the guard now compares against.
+        auth()->guard('web')->logoutOtherDevices($validated['password']);
+
         return redirect()->route('settings.index')
-            ->with('success', 'Password changed successfully.');
+            ->with('success', __('Password changed successfully.'));
     }
 
     /**
@@ -111,6 +121,10 @@ class SettingsController extends Controller
             'production_period' => json_decode($rows['production_period']?->value ?? '"none"', true) ?? 'none',
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
             'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
+            // Opt-out: an installation that was never asked reports.
+            'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'false', true) ?? false,
+            'telemetry_last_sent_at' => json_decode($rows['telemetry_last_sent_at']?->value ?? 'null', true),
+            'telemetry_last_status' => json_decode($rows['telemetry_last_status']?->value ?? 'null', true),
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
@@ -188,6 +202,9 @@ class SettingsController extends Controller
                 DB::table('system_settings')->where('key', 'sample_data_loaded')->value('value') ?? 'null',
                 true,
             ),
+            // Tabs a module adds to this page: {slot, title, component} each.
+            // The module's component saves through its own route. `{}` when none.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
         ]);
     }
 
@@ -322,6 +339,22 @@ class SettingsController extends Controller
      */
     public function loadSampleData(\App\Http\Requests\LoadSampleDataRequest $request)
     {
+        return \App\Support\SampleDataLock::run(
+            fn () => $this->loadSampleDataUnderLock($request),
+            fn () => redirect()->route('settings.system')
+                ->with('info', __('Sample data is already being loaded. Please wait for it to finish.')),
+        );
+    }
+
+    /**
+     * The body of the above, with the lock held.
+     *
+     * Reading `sample_data_loaded` is part of the work, not a preamble to it:
+     * checked outside the lock it could be minutes stale by the time the wipe
+     * acts on it.
+     */
+    private function loadSampleDataUnderLock(\App\Http\Requests\LoadSampleDataRequest $request)
+    {
         $alreadyLoaded = DB::table('system_settings')->where('key', 'sample_data_loaded')->exists();
         $replace = (bool) ($request->validated()['replace'] ?? false);
 
@@ -373,6 +406,72 @@ class SettingsController extends Controller
      * credentials and signed straight back in, so switching companies does not
      * also mean losing the session.
      */
+    /**
+     * Empty every table except the migration ledger.
+     *
+     * The ledger has to survive: it is the record of which migrations have run,
+     * and clearing it would make Laravel try to replay them all against tables
+     * that already exist.
+     *
+     * PostgreSQL does the whole thing in one statement — one lock, one pass,
+     * sequences reset, foreign keys followed. SQLite has no TRUNCATE, so it
+     * gets DELETE with the key checks suspended for the duration; that path
+     * exists for the test suite, which runs in memory.
+     */
+    private function truncateAllTables(): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        $tables = collect(DB::connection()->getSchemaBuilder()->getTables())
+            ->pluck('name')
+            ->reject(fn (string $name) => in_array($name, ['migrations', 'sqlite_sequence'], true))
+            ->values();
+
+        if ($tables->isEmpty()) {
+            return;
+        }
+
+        if ($driver === 'pgsql') {
+            $quoted = $tables->map(fn (string $t) => '"'.str_replace('"', '""', $t).'"')->implode(', ');
+            DB::statement("TRUNCATE TABLE {$quoted} RESTART IDENTITY CASCADE");
+
+            return;
+        }
+
+        if ($driver === 'sqlite') {
+            // Two pragmas because they cover different situations and only one
+            // of them works in each. `foreign_keys` cannot be changed inside a
+            // transaction and is silently ignored there; `defer_foreign_keys`
+            // is made for exactly that case and resets itself at the end of the
+            // transaction. The test suite runs inside one, so without the
+            // second the deletes fail on the first table with a dependent row.
+            DB::statement('PRAGMA foreign_keys = OFF');
+            DB::statement('PRAGMA defer_foreign_keys = ON');
+
+            try {
+                $tables->each(fn (string $t) => DB::table($t)->delete());
+                // Identity columns restart from 1, matching the PostgreSQL path
+                // so a test cannot pass on one driver and fail on the other.
+                if (DB::connection()->getSchemaBuilder()->hasTable('sqlite_sequence')) {
+                    DB::table('sqlite_sequence')->delete();
+                }
+            } finally {
+                DB::statement('PRAGMA foreign_keys = ON');
+            }
+
+            return;
+        }
+
+        // MySQL/MariaDB: no multi-table TRUNCATE, so one each with the key
+        // checks off.
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            $tables->each(fn (string $t) => DB::table($t)->truncate());
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
+    }
+
     private function wipeForReplacement(): void
     {
         $username = config('openmmes.admin.username');
@@ -383,14 +482,12 @@ class SettingsController extends Controller
             throw new \RuntimeException(__('Cannot replace the sample data: ADMIN_USERNAME, ADMIN_EMAIL or ADMIN_PASSWORD is not configured.'));
         }
 
-        // Octane keeps connections and query plans between requests, so the
-        // schema has to be dropped on a connection that is then thrown away.
-        //
-        // Never on an in-memory SQLite database, though: there the connection
-        // *is* the database, so purging it discards every table rather than
-        // refreshing a handle.
-        $inMemory = DB::connection()->getDriverName() === 'sqlite'
-            && DB::connection()->getDatabaseName() === ':memory:';
+        // No connection juggling any more. It was here because the schema was
+        // being dropped and Octane would otherwise reuse a handle and query
+        // plans pointing at tables that no longer existed. Emptying tables
+        // leaves the schema alone, so the connection stays valid — which also
+        // means this whole operation is now transaction-safe and the tests can
+        // exercise it for real instead of mocking it away.
 
         // Which modules are installed is not sample data — it is how this
         // installation is put together. migrate:fresh drops the settings table
@@ -400,12 +497,17 @@ class SettingsController extends Controller
             ->whereIn('key', ['modules_enabled', 'enabled_modules'])
             ->pluck('value', 'key');
 
-        if (! $inMemory) {
-            DB::purge();
-            DB::reconnect();
-        }
+        // Empty the tables rather than drop and rebuild them. migrate:fresh was
+        // doing this by tearing the whole schema down and replaying 249
+        // migrations — to delete rows from a schema that was already correct.
+        // On the demo database, 2.4 GB across 144 tables, that is the
+        // difference between a click and a coffee break.
+        $this->truncateAllTables();
 
-        Artisan::call('migrate:fresh', ['--force' => true]);
+        // Cheap insurance, and a no-op on an up-to-date schema: migrate:fresh
+        // used to guarantee the schema matched the code, and dropping that
+        // guarantee silently would be a poor trade for the speed.
+        Artisan::call('migrate', ['--force' => true]);
         Artisan::call('db:seed', ['--force' => true]);
 
         foreach ($installation as $key => $value) {
@@ -413,11 +515,6 @@ class SettingsController extends Controller
                 ['key' => $key],
                 ['value' => $value, 'updated_at' => now()],
             );
-        }
-
-        if (! $inMemory) {
-            DB::purge();
-            DB::reconnect();
         }
 
         $admin = \App\Models\User::create([
@@ -448,6 +545,10 @@ class SettingsController extends Controller
 
         $map = [
             ...($request->has('block_negative_stock') ? ['block_negative_stock' => (bool) $validated['block_negative_stock']] : []),
+            // Guarded by has() like the one above: saving an unrelated tab must
+            // never quietly switch reporting back on for somebody who turned it
+            // off.
+            ...($request->has('telemetry_enabled') ? ['telemetry_enabled' => (bool) $validated['telemetry_enabled']] : []),
             'production_period' => $validated['production_period'],
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
@@ -528,6 +629,43 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');
+    }
+
+    /**
+     * The exact report this installation would send, for the admin to read.
+     *
+     * Built through the same snapshot the job uses, deliberately: a preview
+     * assembled by a second code path would be a description of our intentions
+     * rather than evidence of what happens. Answers even when telemetry is
+     * switched off — "show me what you would send" is most often asked by the
+     * person who has just turned it off and wants to know what they stopped.
+     */
+    public function previewTelemetry()
+    {
+        return response()->json(
+            (new \App\Services\Telemetry\TelemetrySnapshot)->build(),
+            200,
+            [],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+        );
+    }
+
+    /**
+     * Forget this installation's pseudonymous id; a new one is minted next time.
+     *
+     * For the case of a production box cloned to staging, where both copies
+     * would otherwise report as the same installation.
+     */
+    public function resetTelemetryId()
+    {
+        $ok = \App\Support\TelemetryIdentity::reset();
+
+        return redirect()->route('settings.system')->with(
+            $ok ? 'success' : 'error',
+            $ok
+                ? __('Installation ID reset. A new one will be created on the next report.')
+                : __('The installation ID could not be reset.'),
+        );
     }
 
     /**

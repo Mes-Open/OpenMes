@@ -30,6 +30,8 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- The suite must never be able to phone home, whatever APP_ENV says. -->
+        <env name="OPENMES_TELEMETRY" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
     </php>
 </phpunit>

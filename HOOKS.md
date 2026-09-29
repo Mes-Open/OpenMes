@@ -29,6 +29,7 @@ Three reference modules ship in the repo (all disabled by default):
   - [Scheduling hook — `WorkOrderScheduled`](#scheduling-hook--workorderscheduled)
 - [2. Menu hooks](#2-menu-hooks)
 - [3. Dashboard widget hooks](#3-dashboard-widget-hooks)
+- [4. Page display hooks and filters](#4-page-display-hooks-and-filters)
 - [Enabling a module](#enabling-a-module)
 - [Best practices](#best-practices)
 - [Complete hook reference](#complete-hook-reference)
@@ -227,6 +228,63 @@ $menu->addGroupItem('yourmod', 'Overview', url('/modules/your-module'), order: 1
 Resolve URLs with `url()` (not `route()`) so registration never depends on route
 load order or a cached route table.
 
+Every entry a module contributes is tinted with the accent colour in the sidebar,
+and lights up as active on its own pages (the registered URL is matched by path).
+
+### Operator panel tabs
+
+A module that ships an operator screen registers it as a tab on the operator
+top bar, next to Queue / Workstation:
+
+```php
+// label, url, order (built-in tabs are 10 and 20), optional path prefix that
+// keeps the tab highlighted (defaults to the link's own path).
+$menu->addOperatorItem('Team', url('/operator/team'), order: 30);
+```
+
+Operator tabs are Inertia links — the page behind them is a React page under the
+module's `resources/js/Pages/`. They arrive in the browser as `moduleNav.operator`
+and render tinted like sidebar entries.
+
+### Translations
+
+A module's own strings live in `modules/<Name>/lang/<locale>.json` (the same
+source-string-keyed shape as core's `lang/*.json`). The frontend merges them
+under the core file at bootstrap — a module can add strings, never redefine a
+core one — and the provider loads the same directory for PHP:
+
+```php
+$this->loadJsonTranslationsFrom(__DIR__.'/../lang');
+```
+
+### Import entities
+
+`ImportRegistry` (Admin → Import) accepts importers from modules through the
+`import.entities` filter:
+
+```php
+app(FilterRegistry::class)->addFilter('import.entities', fn ($e) => [...$e, MyImporter::class]);
+```
+
+`MyImporter` extends `App\Import\AbstractEntityImporter`; the screen, the queued
+job, the sample file and the routes pick it up.
+
+### Testing a module
+
+`Tests\Support\ModuleTestCase` registers the module's provider on each test's
+fresh application and migrates the module's directory inside the test
+transaction (the suite's `migrate:fresh` runs before any provider boots, so a
+module's tables are never part of that schema):
+
+```php
+class MyModuleTest extends \Tests\Support\ModuleTestCase
+{
+    protected string $module = 'MyModule';
+    protected string $provider = \Modules\MyModule\Providers\MyModuleServiceProvider::class;
+    protected string $probeTable = 'my_module_things';
+}
+```
+
 ## 3. Dashboard widget hooks
 
 `App\Services\WidgetRegistry` lets a module add cards to the admin dashboard.
@@ -248,6 +306,81 @@ $widgets->register('kpi', [
 
 Zones: `kpi` and `sidebar` render as compact cards in the grid under the core
 KPIs; `main` renders as a full-width card at the bottom of the dashboard column.
+
+---
+
+## 4. Page display hooks and filters
+
+`App\Extension\HookRegistry` carries contributions to named points on a page; the
+controller that owns the page resolves its points with `renderMany()` and hands them
+over as the `hooks` prop, and the page renders `<Hook name=… hooks={hooks} …context />`
+from `resources/js/lib/hooks.jsx`. `App\Extension\FilterRegistry` lets a module
+change a value core computed. With no module listening, a page is sent `{}` and every
+filter returns its default — a community install renders exactly what it did before.
+
+A point that **replaces** a core control (marked below) checks `hasHook()` first and
+skips its own control when a module contributed.
+
+```php
+app(HookRegistry::class)->listen('display.operator.work_order.sections', fn (array $ctx) => [
+    'title' => 'Recipe vs weighed',
+    'body'  => Recipe::summary($ctx['workOrderId']),
+]);
+
+app(FilterRegistry::class)->addFilter('operator.can_logout', fn (bool $can, array $ctx) => $can && ! Panel::isShared($ctx['user']));
+```
+
+> A `component` (`ext:<Dir>/<Name>`, resolved under
+> `modules/<Name>/resources/js/Components/`) only exists in a build that contained
+> the module. A module installed from a ZIP into a released install must contribute
+> the plain card fields instead.
+
+### Display hooks
+
+```
+display.operator.workstation.shift_cell   context: entry, workOrder, shift, canCorrect   (replaces the whole shift cell)
+display.operator.work_order.sections      context: workOrder                 (rendered after the BOM section)
+display.operator.quantity_field           props: value, onChange, variant     (replaces the operator's number input, page-wide)
+display.operator.layout                   (no context)                        (rendered at the top of every operator screen)
+display.settings.system.tabs              contribution: slot, title, component (one tab each on Settings → System)
+```
+
+The PHP-side context a listener receives:
+
+| Hook | Resolved by | PHP context |
+|---|---|---|
+| `display.operator.workstation.shift_cell` | `Operator\WorkstationController::index` | `line`, `workstation`, `lineId`, `workstationId` |
+| `display.operator.work_order.sections` | `Operator\WorkOrderController::show` | `workOrderId`, `workstationId` |
+| `display.operator.quantity_field` | `WorkstationController::index`, `WorkOrderController::show` + `::queue` | same as the page's other points |
+| `display.operator.layout` | `HandleInertiaRequests` (shared `operatorHooks`) | `user` |
+| `display.settings.system.tabs` | `SettingsController::showSystemSettings` | — |
+
+Notes:
+
+- **`quantity_field`** — `QuantityField.jsx` renders the first contribution's
+  component with `value`, `onChange(value)` (the value, not an event), `variant`
+  (`big` for a modal's single field, `compact` inline) and every other input prop
+  (`min`, `max`, `step`, `aria-label`, …) passed through.
+- **`settings.system.tabs`** — each contribution becomes a tab with value
+  `ext-<slot>` (linkable as `?tab=ext-<slot>`) labelled `title`. Its component
+  renders outside the core settings form, so core's Save button is not shown
+  there: the module saves through its own route.
+- **`operator.layout`** is resolved on every Inertia response, like any shared
+  prop — a listener should return `null` cheaply where it has nothing to show.
+
+### Filters
+
+```
+operator.tabs          list of {key, label, url, prefixes}   the operator top bar's core tabs
+operator.module_tabs   list of {label, url, order, prefix}   module tabs, per request
+operator.can_logout    bool (default true)                   whether the operator chrome shows its logout button
+```
+
+`operator.tabs` and `operator.can_logout` receive `['user' => $user]` as context.
+`operator.module_tabs` runs over what `addOperatorItem()` registered, on every
+request, so a module can show a tab only where it applies without re-registering.
+`operator.can_logout` hides the button only — a module that forbids logout must
+still refuse the `POST /logout` itself.
 
 ---
 
@@ -310,6 +443,14 @@ class SyncToErp implements ShouldQueue
 
 **Widgets** (`App\Services\WidgetRegistry`): `register` — zones `kpi`, `main`,
 `sidebar`.
+
+**Display hooks** (`App\Extension\HookRegistry`): `display.operator.workstation.actor`,
+`display.operator.workstation.shift_cell`, `display.operator.work_order.sections`,
+`display.operator.quantity_field`, `display.operator.layout`,
+`display.settings.system.tabs`.
+
+**Filters** (`App\Extension\FilterRegistry`): `operator.tabs`,
+`operator.module_tabs`, `operator.can_logout`, `import.entities`.
 
 ---
 

@@ -30,6 +30,9 @@ class CreateAdminRequest extends FormRequest
             'admin_password' => 'required|string|min:8|confirmed',
             'site_name' => [$isPreset ? 'nullable' : 'required', 'string', 'max:255'],
             'site_url' => [$isPreset ? 'nullable' : 'required', 'url'],
+            // Absent means the box was unticked; an unattended install that
+            // never renders the form keeps the opt-out default.
+            'telemetry_enabled' => 'sometimes|boolean',
         ];
     }
 }

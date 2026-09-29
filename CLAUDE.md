@@ -30,7 +30,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 
 ## Hard rules
 
-1. **English-first** — all code, Blade/JSX text, validation messages, seeders, comments are English. Other languages exist only as translations in `backend/lang/*.json`.
+1. **English-first** — all code, Blade/JSX text, validation messages, seeders, comments are English. Other languages exist only as translations in `backend/lang/*.json`. This covers **everything published to this repository**, not only code: pull request titles *and* descriptions, issue comments, commit messages, README and docs. This repo is public and read by people who do not share your first language.
 2. **i18n parity** — `lang/en.json` and `lang/pl.json` must contain the same key set. Adding a UI string means adding the key to **both** files (English value = key itself in `en.json`). These are strict JSON: **no trailing comma** on the last entry, or `json_decode` fails and the whole UI silently falls back to English. New keys are appended, so the files conflict on almost every merge — resolve with `.claude/skills/i18n-lang-files/`, never by hand-editing the conflict markers (a text-level union resurrects deliberately deleted keys and duplicates others).
 3. **Form Requests for validation** — never validate inline in controllers. Frontend validation is UX only; the backend rule set is authoritative.
 4. **Never rename migration filenames after merge** — the filename is the migration's identity; renaming breaks every existing database on upgrade (duplicate-table crash in the entrypoint migrate).

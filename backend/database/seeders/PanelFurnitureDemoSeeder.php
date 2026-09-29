@@ -59,6 +59,8 @@ use Spatie\Permission\Models\Role;
  */
 class PanelFurnitureDemoSeeder extends Seeder
 {
+    use \Database\Seeders\Concerns\PlansStartedWorkInThePast;
+
     public function run(): void
     {
         $this->seedIssueTypes();
@@ -479,7 +481,7 @@ class PanelFurnitureDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 5,
                 'due_date' => now()->addDays(2)->setTime(14, 0),
-                'planned_start_at' => now()->setTime(6, 0),
+                'planned_start_at' => $this->shiftStartAlreadyPast(6),
                 'planned_end_at' => now()->addDay()->setTime(14, 0),
                 'description' => 'Wardrobes — Habitas EDI order, single decor batch required.',
             ],

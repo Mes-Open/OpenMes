@@ -1,0 +1,21 @@
+{
+    "name": "@openmes/module",
+    "version": "0.1.0",
+    "description": "Build-time contract between OpenMES core and installed modules: the shared runtime core publishes, and the Vite plugin a module builds with.",
+    "license": "AGPL-3.0-only",
+    "type": "module",
+    "main": "./index.js",
+    "exports": {
+        ".": "./index.js",
+        "./contract": "./contract.js"
+    },
+    "files": [
+        "index.js",
+        "contract.js",
+        "core.js",
+        "module.js"
+    ],
+    "peerDependencies": {
+        "vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+    }
+}

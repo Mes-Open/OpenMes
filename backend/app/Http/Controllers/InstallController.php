@@ -474,6 +474,15 @@ class InstallController extends Controller
         // where it can be answered once the shop knows what it uses.
         \App\Support\ModuleRegistry::save(\App\Support\ModuleRegistry::optionalKeys());
 
+        // Whatever the admin decided on the form they just read. An unattended
+        // install never renders it and keeps the migration's default.
+        if (array_key_exists('telemetry_enabled', $validated)) {
+            \App\Support\TelemetrySettings::put(
+                \App\Support\TelemetrySettings::SETTING_KEY,
+                (bool) $validated['telemetry_enabled'],
+            );
+        }
+
         file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
 
         session()->forget([

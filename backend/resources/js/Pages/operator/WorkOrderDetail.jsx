@@ -9,6 +9,8 @@ import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import Tooltip from '../../components/Tooltip';
 import RoutingGraph from '../../components/flow/RoutingGraph';
+import QuantityField from '../../components/QuantityField';
+import { Hook } from '../../lib/hooks';
 import EngineeringViewerModal from '../../components/EngineeringViewerModal';
 import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
 import { apiGet, apiCall } from '../../lib/http';
@@ -434,12 +436,11 @@ function QualityCheckForm({ batch, onClose }) {
             <form onSubmit={submit}>
                 <div className="mb-3">
                     <div className={fieldLabelCls}>{__('Production Quantity')}</div>
-                    <input
+                    <QuantityField
                         aria-label={__('Production Quantity')}
-                        type="number"
                         step="0.01"
                         value={productionQty}
-                        onChange={(e) => setProductionQty(e.target.value)}
+                        onChange={setProductionQty}
                         className={`${inputCls} font-mono`}
                         placeholder={__('Current production qty')}
                     />
@@ -562,13 +563,12 @@ function ReleaseForm({ batch, onClose }) {
                 <div className={fieldLabelCls}>
                     {__('Scrap quantity (optional)')}
                 </div>
-                <input
+                <QuantityField
                     aria-label={__('Scrap quantity (optional)')}
-                    type="number"
                     step="0.01"
                     min="0"
                     value={form.data.scrap_qty}
-                    onChange={(e) => form.setData('scrap_qty', e.target.value)}
+                    onChange={(v) => form.setData('scrap_qty', v)}
                     className={`${inputCls} w-32 font-mono`}
                     placeholder="0"
                 />
@@ -854,7 +854,7 @@ function QuantityCorrection({ step }) {
         <summary className="cursor-pointer text-sm text-om-accent">{__('Correct good quantity')}</summary>
         <form className="space-y-2 pt-2" onSubmit={e => { e.preventDefault(); form.post(`/operator/batch-step/${step.id}/quantity-correction`, { preserveScroll: true }); }}>
             <p className="text-sm text-om-muted">{__('Enter the corrected total, not an increment. The original and corrected values are retained in the audit history.')}</p>
-            <label className="block">{__('Corrected good total')}<input aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" type="number" min="0" step="0.01" required value={form.data.good_qty} onChange={e => form.setData('good_qty', e.target.value)} /></label>
+            <label className="block">{__('Corrected good total')}<QuantityField aria-label={__('Corrected good total')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" min="0" step="0.01" required value={form.data.good_qty} onChange={v => form.setData('good_qty', v)} /></label>
             <label className="block">{__('Correction reason')}<input aria-label={__('Correction reason')} className="w-full border border-om-line bg-om-bg text-om-ink rounded-om-sm px-2 py-2" required maxLength={1000} value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} /></label>
             {Object.entries(form.errors).map(([key, value]) => <p key={key} role="alert" className="text-sm text-om-blocked">{value}</p>)}
             <Button type="submit" variant="outline" disabled={form.processing}>{__('Save correction')}</Button>
@@ -885,11 +885,11 @@ function QuantityLogForm({ step, throughStation = false, inflight, error, onSubm
         <form onSubmit={submit} className={`flex flex-wrap items-end gap-3 px-3 pb-3 ${throughStation ? 'pt-3' : ''}`} data-testid={`log-${throughStation ? 'station' : 'step'}-${step.step_number}`}>
             <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
                 {__('Good')}
-                <input type="number" min="0" step="0.01" max={available} value={good} onChange={(e) => setGood(e.target.value)} className={inputCls} aria-label={__('Good')} />
+                <QuantityField min="0" step="0.01" max={available} value={good} onChange={setGood} className={inputCls} aria-label={__('Good')} />
             </label>
             <label className="flex flex-col gap-1 text-[11px] font-mono text-om-muted">
                 {__('Scrap')}
-                <input type="number" min="0" step="0.01" max={available} value={scrap} onChange={(e) => setScrap(e.target.value)} className={inputCls} aria-label={__('Scrap')} />
+                <QuantityField min="0" step="0.01" max={available} value={scrap} onChange={setScrap} className={inputCls} aria-label={__('Scrap')} />
             </label>
             <Button type="button" variant="accent" disabled={available < 1 || inflight} onClick={() => onSubmit({ good_qty: 1, scrap_qty: 0, through_station: throughStation }, () => {})} aria-label={__('Add one good piece')}>+1</Button>
             <Button type="submit" variant={throughStation ? 'accent' : 'primary'} disabled={!valid || inflight} className="px-5 py-2.5 text-[14px] whitespace-nowrap">
@@ -953,7 +953,21 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
     const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
 
-    if (!steps || steps.length === 0) return null;
+    // An order with no steps used to render as nothing at all, which reads as a
+    // broken screen rather than as the consequence it is: a work order keeps the
+    // configuration it was created with, so steps added to the template later
+    // never reach an order that predates them. Say that, and say what to do
+    // about it — the operator cannot fix it from here, but whoever they ask can.
+    if (!steps || steps.length === 0) {
+        return (
+            <div className="rounded-om border border-om-line2 bg-om-panel px-4 py-3">
+                <p className="font-medium text-om-ink text-[13px]">{__('No production steps on this order')}</p>
+                <p className="mt-1 text-sm text-om-muted">
+                    {__('A work order keeps the process configuration it was created with, so steps added to the template afterwards do not appear here. Ask a supervisor to apply a change request to this order, or to raise a new one.')}
+                </p>
+            </div>
+        );
+    }
 
     const handleStepAction = (step, action) => {
         setInflightStepId(step.id);
@@ -1800,13 +1814,12 @@ function LotPickModal({ step, materials, onClose }) {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                    <input
-                                                        type="number"
+                                                    <QuantityField
                                                         step="0.0001"
                                                         min="0"
                                                         inputMode="decimal"
                                                         value={ln.picked_qty}
-                                                        onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
+                                                        onChange={(v) => setLineQty(m.material_id, idx, v)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
                                                     <Tooltip label="Remove lot">
@@ -1901,14 +1914,13 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         <div className={fieldLabelCls}>
                             {__('Quantity')}
                         </div>
-                        <input
+                        <QuantityField
                             aria-label={__('Quantity')}
-                            type="number"
                             step="0.01"
                             min="0.01"
                             max={remaining}
                             value={form.data.target_qty}
-                            onChange={(e) => form.setData('target_qty', e.target.value)}
+                            onChange={(v) => form.setData('target_qty', v)}
                             className={`${inputCls} font-mono text-[15px]`}
                             required
                         />
@@ -2143,13 +2155,12 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                         <div className={fieldLabelCls}>
                             {__('Quantity')} <span className="text-om-blocked">*</span>
                         </div>
-                        <input
+                        <QuantityField
                             aria-label={__('Quantity')}
-                            type="number"
                             step="0.01"
                             min="0.01"
                             value={form.data.quantity}
-                            onChange={(e) => form.setData('quantity', e.target.value)}
+                            onChange={(v) => form.setData('quantity', v)}
                             className={`${inputCls} font-mono text-[15px]`}
                             placeholder="0"
                             required
@@ -2265,7 +2276,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] } } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {} } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2360,6 +2371,17 @@ export default function WorkOrderDetail() {
                                     {m.material_exists
                                         ? ` · ${__('need')} ${fmtQty(m.required_qty)} · ${__('have')} ${fmtQty(m.available_qty)} · ${__('missing')} ${fmtQty(m.missing_qty)} ${m.unit_of_measure || ''}`
                                         : ` · ${__('not in stock list')}`}
+                                    {/*
+                                        "have 0" next to a full store reads as a fault in the
+                                        system. It is not: the stock is reserved by other
+                                        batches. Say so, but only when there is a reservation
+                                        to explain — otherwise this is noise on every line.
+                                    */}
+                                    {m.material_exists && m.reserved_qty > 0 && (
+                                        <span className="text-om-muted">
+                                            {` (${__('on hand')} ${fmtQty(m.on_hand_qty)} · ${__('reserved by other batches')} ${fmtQty(m.reserved_qty)})`}
+                                        </span>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -2434,6 +2456,9 @@ export default function WorkOrderDetail() {
 
                         {/* Recipe / BOM */}
                         <BomSection workOrder={workOrder} />
+
+                        {/* Sections an installed module adds after the BOM — nothing on a community install */}
+                        <Hook name="display.operator.work_order.sections" hooks={hooks} workOrder={workOrder} />
 
                         {/* Process reference photos (work instructions) */}
                         <ProcessPhotosSection photos={processPhotos} />

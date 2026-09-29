@@ -75,21 +75,25 @@ use Illuminate\Support\Facades\Route;
 if (! function_exists('registerImportRoutes')) {
     function registerImportRoutes(): void
     {
+        // `{entity}` is only shape-checked here. The slug list cannot be read at
+        // this point: routes are defined before module providers boot, so a
+        // module importer added through the `import.entities` filter would 404.
+        // An unknown slug still 404s in DataImportController::resolve().
         Route::get('/import/runs/{import}', [DataImportController::class, 'show'])->name('import.show');
         Route::get('/import/runs/{import}/errors.csv', [DataImportController::class, 'errors'])->name('import.errors');
         Route::delete('/import/profiles/{mapping}', [DataImportController::class, 'destroyProfile'])->name('import.profiles.destroy');
         Route::get('/import/samples/{entity}', [DataImportController::class, 'sample'])->name('import.sample')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::post('/import/{entity}/upload', [DataImportController::class, 'upload'])->name('import.upload')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::get('/import/{entity}/map/{token}', [DataImportController::class, 'map'])->name('import.map')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+            ->where('entity', '[a-z0-9-]+')->where('token', '[A-Za-z0-9]{32}');
         Route::post('/import/{entity}/preview/{token}', [DataImportController::class, 'preview'])->name('import.preview')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs())->where('token', '[A-Za-z0-9]{32}');
+            ->where('entity', '[a-z0-9-]+')->where('token', '[A-Za-z0-9]{32}');
         Route::post('/import/{entity}/process', [DataImportController::class, 'process'])->name('import.process')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
         Route::get('/import/{entity?}', [DataImportController::class, 'index'])->name('import.index')
-            ->whereIn('entity', \App\Import\ImportRegistry::slugs());
+            ->where('entity', '[a-z0-9-]+');
     }
 
 }
@@ -208,6 +212,10 @@ Route::middleware('auth')->group(function () {
         // Admin-only system settings
         Route::get('/system', [\App\Http\Controllers\Web\SettingsController::class, 'showSystemSettings'])->name('system')->middleware('role:Admin');
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
+        // Telemetry: the admin can read the exact report before deciding, and
+        // can make a cloned installation a stranger again.
+        Route::get('/telemetry/preview', [\App\Http\Controllers\Web\SettingsController::class, 'previewTelemetry'])->name('telemetry.preview')->middleware('role:Admin');
+        Route::post('/telemetry/reset-id', [\App\Http\Controllers\Web\SettingsController::class, 'resetTelemetryId'])->name('telemetry.reset-id')->middleware('role:Admin');
         // Admin-only sample data
         Route::post('/sample-data', [\App\Http\Controllers\Web\SettingsController::class, 'loadSampleData'])->name('sample-data')->middleware('role:Admin');
         // Admin-only settings export/import
@@ -296,7 +304,7 @@ Route::middleware('auth')->group(function () {
 
         // Production downtime (replaces the old Livewire DowntimeReporter).
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
-        Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop');
+        Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
@@ -358,8 +366,8 @@ Route::middleware('auth')->group(function () {
         // stops still waiting on a cause.
         Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
         Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
-        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
-        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify')->whereNumber('downtime');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate')->whereNumber('downtime');
 
         // Line overview — every machine on one line for the running shift, as a
         // way in to the monitor above rather than a second copy of it.
@@ -450,8 +458,8 @@ Route::middleware('auth')->group(function () {
         // Live shift monitor — same screen the supervisor section serves.
         Route::get('/shift-monitor', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'index'])->name('shift-monitor.index');
         Route::get('/shift-monitor/check', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'check'])->name('shift-monitor.check');
-        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify');
-        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate');
+        Route::post('/shift-monitor/downtimes/{downtime}/classify', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'classify'])->name('shift-monitor.classify')->whereNumber('downtime');
+        Route::post('/shift-monitor/downtimes/{downtime}/escalate', [\App\Http\Controllers\Web\Production\ShiftMonitorController::class, 'escalate'])->name('shift-monitor.escalate')->whereNumber('downtime');
 
         // Line overview — same screen the supervisor section serves.
         Route::get('/shift-overview', [\App\Http\Controllers\Web\Production\ShiftOverviewController::class, 'index'])->name('shift-overview.index');

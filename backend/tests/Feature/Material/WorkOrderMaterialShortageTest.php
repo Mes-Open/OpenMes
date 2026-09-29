@@ -103,6 +103,47 @@ class WorkOrderMaterialShortageTest extends TestCase
         $this->assertSame(50.0, $short[0]['missing_qty']);
     }
 
+    public function test_a_shortage_carries_the_stock_it_was_derived_from(): void
+    {
+        // Availability is on-hand minus reservations, so a store that is full can
+        // still report nothing available. Reported on its own, that number looks
+        // like the system having lost the stock; the operator walks to a shelf
+        // that is visibly not empty and stops trusting the screen. Both halves
+        // travel with the shortage so the message can say where it went.
+        $part = $this->material('PART', 500);
+        $part->update(['reserved_quantity' => 500]);
+
+        $order = $this->order([$this->line($part, 1)]);
+
+        $short = $this->service->shortagesForWorkOrders(collect([$order]))[$order->id] ?? null;
+
+        $this->assertNotNull($short);
+        $this->assertSame(0.0, $short[0]['available_qty']);
+        $this->assertSame(500.0, $short[0]['on_hand_qty']);
+        $this->assertSame(500.0, $short[0]['reserved_qty']);
+    }
+
+    public function test_a_missing_material_reports_zero_stock_rather_than_omitting_it(): void
+    {
+        // Nothing to read the figures off, so they must still be present and zero
+        // — the screen keys its explanatory note off `reserved_qty`, and a null
+        // there would throw rather than stay quiet.
+        $order = $this->order([[
+            'material_code' => 'GONE',
+            'material_name' => 'Gone',
+            'quantity_per_unit' => 1,
+            'scrap_percentage' => 0,
+            'consumed_at' => 'start',
+        ]]);
+
+        $short = $this->service->shortagesForWorkOrders(collect([$order]))[$order->id] ?? null;
+
+        $this->assertNotNull($short);
+        $this->assertFalse($short[0]['material_exists']);
+        $this->assertSame(0.0, $short[0]['on_hand_qty']);
+        $this->assertSame(0.0, $short[0]['reserved_qty']);
+    }
+
     public function test_a_bom_line_whose_material_is_gone_is_flagged_not_skipped(): void
     {
         $order = $this->order([[

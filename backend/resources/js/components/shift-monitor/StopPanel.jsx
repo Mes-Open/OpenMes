@@ -28,6 +28,12 @@ export default function StopPanel({ segment, reasonGroups, idealRatePerMinute, o
     if (!segment) return null;
 
     const isStop = segment.kind === 'down';
+    // A stop the timeline drew from a state slice with no downtime row behind
+    // it. The two endpoints take that row's id, so there is nothing to send:
+    // interpolating the missing id is how this panel used to ask the server to
+    // look up a downtime called "null". The segment stays — the machine really
+    // was down — and loses only the actions it cannot carry out.
+    const canAct = isStop && segment.downtimeId != null;
     // Rendered in the plant timezone (lib/i18n), so the drawer's times match the
     // hour row the segment was clicked in.
     const startedAt = Date.parse(segment.startsAt);
@@ -62,7 +68,9 @@ export default function StopPanel({ segment, reasonGroups, idealRatePerMinute, o
                             <StatusChip segment={segment} />
                             <div className="text-xl font-semibold tracking-[-0.015em] text-om-ink">
                                 {isStop
-                                    ? segment.needsCause ? __('Unclassified stop') : segment.reason
+                                    ? canAct
+                                        ? segment.needsCause ? __('Unclassified stop') : segment.reason
+                                        : __('Stop with no record')
                                     : segment.kind === 'slow' ? __('Speed loss') : __('Running interval')}
                             </div>
                             <div className="mt-[3px] font-mono text-[10.5px] text-om-faint">
@@ -104,7 +112,11 @@ export default function StopPanel({ segment, reasonGroups, idealRatePerMinute, o
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-[22px] pt-4">
-                    {isStop ? (
+                    {isStop && ! canAct ? (
+                        <p className="py-2 text-[12.5px] leading-relaxed text-om-muted">
+                            {__('This stop has no linked downtime record, so it cannot be classified or escalated.')}
+                        </p>
+                    ) : isStop ? (
                         <>
                             <div className="mb-[11px] font-mono text-[9px] uppercase tracking-[0.12em] text-om-faint">
                                 {segment.needsCause ? __('Pick a cause') : __('Change the cause')}
@@ -183,7 +195,7 @@ export default function StopPanel({ segment, reasonGroups, idealRatePerMinute, o
                 </div>
 
                 <footer className="border-t border-om-line2 px-[22px] pb-5 pt-4">
-                    {isStop ? (
+                    {canAct ? (
                         <>
                             <label className="sr-only" htmlFor="stop-note">{__('Add a note for maintenance…')}</label>
                             <input
@@ -224,9 +236,11 @@ function StatusChip({ segment }) {
         ? segment.kind === 'slow'
             ? [__('REDUCED SPEED'), 'var(--om-downtime)', 'var(--om-downtime-bg)']
             : [__('RUNNING'), 'var(--om-running)', 'var(--om-running-bg)']
-        : segment.needsCause
-            ? [__('NEEDS A CAUSE'), 'var(--om-blocked)', 'var(--om-blocked-bg)']
-            : [__('CLASSIFIED'), 'var(--om-muted)', 'var(--om-chip)'];
+        : segment.downtimeId == null
+            ? [__('NO RECORD'), 'var(--om-muted)', 'var(--om-chip)']
+            : segment.needsCause
+                ? [__('NEEDS A CAUSE'), 'var(--om-blocked)', 'var(--om-blocked-bg)']
+                : [__('CLASSIFIED'), 'var(--om-muted)', 'var(--om-chip)'];
 
     return (
         <span

@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Extension\HookRegistry;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWorkerRequest;
 use App\Http\Requests\UpdateWorkerRequest;
 use App\Models\Worker;
 use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkerController extends Controller
 {
+    private const FIELDS_HOOK = 'display.admin.workers.form.fields';
+
+    private const SAVED_HOOK = 'persist.admin.workers';
+
     /**
      * Display a listing of workers.
      */
@@ -86,8 +92,26 @@ class WorkerController extends Controller
             'certifications' => $certifications,
             'skills' => $skills,
             'levels' => $this->workforce()->certificationLevels(),
+            // Whether this installation can record certifications at all. The
+            // endpoints behind the buttons belong to the module, so without it
+            // the screen must not offer them — an empty list is not the same
+            // question, since a module with no skills defined is still able to.
+            'canManageCertifications' => \App\Models\Worker::hasModuleRelation('skills'),
             'customFields' => $cf->clientConfig('worker'),
         ]);
+    }
+
+    /**
+     * Fields an installed module contributes to this form.
+     *
+     * Empty on a community install, where the prop is `{}` and ModuleFields
+     * renders nothing. A module ships no JSX of its own — see HookRegistry.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function moduleFields(?Worker $worker = null): array
+    {
+        return app(HookRegistry::class)->renderMany([self::FIELDS_HOOK], ['worker' => $worker]);
     }
 
     /**
@@ -96,6 +120,7 @@ class WorkerController extends Controller
     public function create(CustomFieldService $cf)
     {
         return Inertia::render('admin/workers/Create', [
+            'hooks' => $this->moduleFields(),
             'crews' => $this->workforce()->crewOptions(),
             'wageGroups' => $this->workforce()->wageGroupOptions(),
             'personnelClasses' => $this->workforce()->personnelClassOptions(),
@@ -120,15 +145,25 @@ class WorkerController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'worker') ?: null;
         }
 
-        $worker = Worker::create($validated);
+        DB::transaction(function () use ($request, $validated) {
+            $worker = Worker::create($validated);
 
-        // The skills pivot belongs to the optional workforce module; without it
-        // there is no relation to sync and nothing was submitted anyway.
-        if (Worker::hasModuleRelation('skills')) {
-            $worker->skills()->sync(
-                collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-            );
-        }
+            // The skills pivot belongs to the optional workforce module; without it
+            // there is no relation to sync and nothing was submitted anyway.
+            if (Worker::hasModuleRelation('skills')) {
+                $worker->skills()->sync(
+                    collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                );
+            }
+
+            // Inside the transaction on purpose: a module's write belongs to the
+            // same unit of work as the record it hangs off.
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'store',
+                'worker' => $worker,
+                'input' => $validated,
+            ]);
+        });
 
         return redirect()->route('admin.workers.index')
             ->with('success', 'Worker created successfully.');
@@ -139,9 +174,16 @@ class WorkerController extends Controller
      */
     public function edit(Worker $worker, CustomFieldService $cf)
     {
-        $worker->load('skills');
+        // skills is attached by an optional module; show() above guards the same
+        // load and this one was missed. Without the module the relation does not
+        // exist and `load` is a fatal — reported as a 500 on the edit form of the
+        // one workforce screen core keeps.
+        if (\App\Models\Worker::hasModuleRelation('skills')) {
+            $worker->load('skills');
+        }
 
         return Inertia::render('admin/workers/Edit', [
+            'hooks' => $this->moduleFields($worker),
             'worker' => [
                 'id' => $worker->id,
                 'code' => $worker->code,
@@ -157,7 +199,9 @@ class WorkerController extends Controller
                 'is_active' => $worker->is_active,
                 'is_logistics' => $worker->is_logistics,
                 'custom_fields' => $worker->custom_fields,
-                'skills' => $worker->skills->map(fn ($s) => [
+                // relationLoaded rather than a second hasModuleRelation: one
+                // question, asked once, is what show() does too.
+                'skills' => ! $worker->relationLoaded('skills') ? [] : $worker->skills->map(fn ($s) => [
                     'id' => $s->id,
                     'level' => $s->pivot->level ?? 1,
                 ]),
@@ -184,15 +228,23 @@ class WorkerController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'worker', $worker->custom_fields) ?: null;
         }
 
-        $worker->update($validated);
+        DB::transaction(function () use ($request, $worker, $validated) {
+            $worker->update($validated);
 
-        // Preserve certification metadata: update the legacy proficiency level
-        // without detaching existing rows (which would wipe cert_level etc.).
-        if (Worker::hasModuleRelation('skills')) {
-            $worker->skills()->syncWithoutDetaching(
-                collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
-            );
-        }
+            // Preserve certification metadata: update the legacy proficiency level
+            // without detaching existing rows (which would wipe cert_level etc.).
+            if (Worker::hasModuleRelation('skills')) {
+                $worker->skills()->syncWithoutDetaching(
+                    collect($request->input('skills', []))->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                );
+            }
+
+            app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => 'update',
+                'worker' => $worker,
+                'input' => $validated,
+            ]);
+        });
 
         return redirect()->route('admin.workers.index')
             ->with('success', 'Worker updated successfully.');

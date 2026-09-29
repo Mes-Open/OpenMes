@@ -6,6 +6,7 @@ import AppDataTable from '../../components/AppDataTable';
 import AppLayout from '../../layouts/AppLayout';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LabelPreviewModal from '../../components/LabelPreviewModal';
+import useScanBuffer from '../../lib/useScanBuffer';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import { __, formatTime } from '../../lib/i18n';
 import { readParam, writeParams } from '../../lib/urlState';
@@ -32,7 +33,7 @@ function ShiftLabel() {
 }
 
 export default function Station() {
-    const { auth, labelTemplates = [], currentShift = null, packingSteps: initialPackingSteps = [] } = usePage().props;
+    const { auth, labelTemplates = [], currentShift = null, packingSteps: initialPackingSteps = [], scannerMode = 'hid' } = usePage().props;
     // Staff get the shift and login line under the title; the operator shell
     // already names the line and the user in its header.
     const staff = (auth?.user?.roles ?? []).some((r) => r === 'Admin' || r === 'Supervisor');
@@ -199,8 +200,7 @@ export default function Station() {
     const [palletBatchId, setPalletBatchId] = useState(''); // selected batch (when the WO has several)
     const [palletBusy, setPalletBusy] = useState(false);
     const lastHistoryIdRef = useRef(0);
-    const bufferRef = useRef('');
-    const bufferTimerRef = useRef(null);
+    const [manualCode, setManualCode] = useState('');
     const activePalletRef = useRef(null);
     useEffect(() => { activePalletRef.current = activePallet; }, [activePallet]);
 
@@ -571,34 +571,30 @@ export default function Station() {
         }
     }, [palletBusy, fetchOpenPallets, toast]);
 
-    const onKey = useCallback((e) => {
-        const tag = e.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-        if (e.key === 'Enter') {
-            const ean = bufferRef.current.trim();
-            bufferRef.current = '';
-            if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
-            if (ean) handleScan(ean);
-        } else if (e.key.length === 1) {
-            bufferRef.current += e.key;
-            if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
-            bufferTimerRef.current = setTimeout(() => { bufferRef.current = ''; }, 500);
-        }
-    }, [handleScan]);
-
     useEffect(() => {
         Promise.all([fetchItems(), fetchHistory(), fetchStats(), fetchOpenPallets()]);
         const interval = setInterval(poll, 3000);
         // Refresh the open-pallets list on a slower cadence so a pallet opened on
         // another device/shift shows up here too.
         const palletInterval = setInterval(() => { fetchOpenPallets(); loadPackingSteps(); }, 5000);
-        document.addEventListener('keydown', onKey);
         return () => {
             clearInterval(interval);
             clearInterval(palletInterval);
-            document.removeEventListener('keydown', onKey);
         };
-    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, loadPackingSteps, poll, onKey]);
+    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, loadPackingSteps, poll]);
+
+    // A reader in `hid` mode types into the page; in `manual` mode the operator
+    // types into the field below, so the global listener would only get in the
+    // way. Settings → System decides which.
+    useScanBuffer(handleScan, { enabled: scannerMode !== 'manual' });
+
+    const submitManualCode = useCallback((e) => {
+        e.preventDefault();
+        const code = manualCode.trim();
+        if (! code) return;
+        setManualCode('');
+        handleScan(code);
+    }, [manualCode, handleScan]);
 
     // Work order selected for a new pallet + its batches (one lookup, reused by
     // the batch picker and the create-button guard). A single batch auto-links
@@ -627,7 +623,7 @@ export default function Station() {
                             {' · '}{__('Logged in')}: <span className="font-medium text-om-ink">{auth?.user?.name}</span>
                         </p>}
                     </div>
-                    <StatusPill status={flash === 'error' ? 'blocked' : 'running'} label={flash === 'error' ? __('Scan error') : flash === 'success' ? __('Scanned!') : __('Scanning active')} />
+                    <StatusPill status={flash === 'error' ? 'blocked' : 'running'} label={flash === 'error' ? __('Scan error') : flash === 'success' ? __('Scanned!') : scannerMode === 'manual' ? __('Manual entry') : __('Scanning active')} />
                 </div>
 
                 {/* KPIs */}
@@ -750,6 +746,21 @@ export default function Station() {
                     {/* Scanning: EAN wedge scans land here without a field; the last one stays on screen.
                         Shown when the plant packs by EAN at all - a serialised line has no use for it. */}
                     {usesEan && <Card title={__('Last scan')} action={<Badge variant="neutral">EAN</Badge>}>
+                        {/* `manual` scanner mode (Settings → System): the operator types the EAN here. */}
+                        {scannerMode === 'manual' && (
+                            <form onSubmit={submitManualCode} className="mb-3 flex items-end gap-2">
+                                <TextField
+                                    mono
+                                    label={__('Enter EAN code')}
+                                    value={manualCode}
+                                    onChange={setManualCode}
+                                    placeholder={__('Enter EAN code')}
+                                    autoFocus
+                                    className="flex-1"
+                                />
+                                <Button type="submit" disabled={!manualCode.trim()}>{__('Confirm')}</Button>
+                            </form>
+                        )}
                         {!lastScan ? (
                             <div className="flex flex-col items-center justify-center py-8 text-center text-om-faint">
                                 <Icon name="scan-line" size={36} className="mb-2 opacity-40" />

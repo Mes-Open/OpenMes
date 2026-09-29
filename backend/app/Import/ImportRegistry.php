@@ -35,13 +35,35 @@ class ImportRegistry
     /** @var array<string, EntityImporter>|null key => instance */
     private ?array $instances = null;
 
+    /** The class list the cached instances were built from. */
+    private array $instancesFor = [];
+
+    /**
+     * Every importer, including any an installed module registered.
+     *
+     * The constant stays the definition; this is the one seam through which a
+     * module adds an entity to the Import screen, from its provider's boot():
+     *   app(FilterRegistry::class)->addFilter('import.entities', fn ($e) => [...$e, MyImporter::class]);
+     *
+     * @return list<class-string<EntityImporter>>
+     */
+    public static function entities(): array
+    {
+        return app(\App\Extension\FilterRegistry::class)->filter('import.entities', self::ENTITIES);
+    }
+
     /** @return array<string, EntityImporter> key => importer */
     public function all(): array
     {
-        if ($this->instances === null) {
-            $this->instances = [];
+        // Rebuilt whenever the entity list changes — a module registered after
+        // the first call (tests, a late-booting provider) must still appear.
+        $entities = self::entities();
 
-            foreach (self::ENTITIES as $class) {
+        if ($this->instances === null || $this->instancesFor !== $entities) {
+            $this->instances = [];
+            $this->instancesFor = $entities;
+
+            foreach ($entities as $class) {
                 $importer = app($class);
                 $this->instances[$importer->key()] = $importer;
             }

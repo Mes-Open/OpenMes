@@ -2,9 +2,10 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import UserForm from './UserForm';
+import { moduleFieldInitial } from '../../../lib/moduleFields';
 
 export default function UserEdit() {
-    const { user, assignments = {}, roles = [], workstations = [], crews = [], wageGroups = [], skills = [] } = usePage().props;
+    const { user, assignments = {}, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks = {} } = usePage().props;
     const w = user.worker;
 
     const form = useForm({
@@ -21,6 +22,7 @@ export default function UserEdit() {
         worker_crew_id: w?.crew_id != null ? String(w.crew_id) : '',
         worker_wage_group_id: w?.wage_group_id != null ? String(w.wage_group_id) : '',
         skills: w?.skills ?? [],
+        ...moduleFieldInitial(hooks, 'display.admin.users.form.fields'),
     });
 
     const submit = (e) => {
@@ -39,7 +41,7 @@ export default function UserEdit() {
                 <div>{__('Regular workstation')}: {assignments.station ? <Link className="underline" href={`/admin/lines/${assignments.station.line_id}/workstations/${assignments.station.id}/edit`}>{assignments.station.name}</Link> : <Link className="underline" href="/admin/lines">{__('Create a worker profile below, then assign it to a workstation.')}</Link>}</div>
                 <p className="text-sm text-om-muted">{__('The operator selects the working station after login using Change line.')}</p>
             </section>}
-            <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} isEdit onSubmit={submit} />
+            <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} hooks={hooks} isEdit onSubmit={submit} />
         </div>
     );
 }

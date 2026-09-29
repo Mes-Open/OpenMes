@@ -12,7 +12,7 @@ Schedule::command('tenants:prune')->everyMinute();
 // Demo-only: roll OEE/production forward to today so the report never shows N/A
 // on a long-running demo. No-op unless DEMO_MODE=true (the command self-guards).
 // Runs before oee:calculate so today's production exists first.
-Schedule::command('demo:refresh-oee')->dailyAt('00:30');
+Schedule::command('demo:refresh-oee')->dailyAt('00:30')->withoutOverlapping(30);
 Schedule::command('oee:calculate')->dailyAt('01:00');
 Schedule::command('maintenance:generate-events')->hourly();
 Schedule::command('quality:fire-due-triggers')->everyMinute()->withoutOverlapping();
@@ -21,3 +21,7 @@ Schedule::command('quality:notify-overdue-actions')->dailyAt('07:00');
 Schedule::command('priority:recalculate')->hourly()->withoutOverlapping();
 // Uploads the importer abandoned (previewed but never run, validated and left).
 Schedule::command('imports:prune-uploads')->dailyAt('03:20');
+// Hourly, but the command sends at most once a day and only in the hour its own
+// installation id maps to — a fixed time would have every OpenMES in the world
+// arrive at getopenmes.com within the same minute.
+Schedule::command('telemetry:send')->hourly()->withoutOverlapping();

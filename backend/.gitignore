@@ -15,11 +15,16 @@
 /auth.json
 /node_modules
 /public/build
+# Compiled frontends of installed modules, copied here by ModuleManager when a
+# module is enabled. Belongs to the installation, not to the repository.
+/public/modules
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
 /vendor
+# Generated on every Vite build by openmesRuntime() from packages/module/contract.js.
+/resources/js/runtime.generated.js
 Homestead.json
 Homestead.yaml
 Thumbs.db
