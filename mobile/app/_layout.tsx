@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { UILabelsProvider } from '@openmes/ui';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -77,7 +78,10 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RootLayoutNav />
+      {/* Words the shared controls need (Dropdown search box), translated once here. */}
+      <UILabelsProvider labels={{ searchPlaceholder: i18n.t('Search…'), noResultsLabel: i18n.t('No matches'), clearLabel: i18n.t('Clear') }}>
+        <RootLayoutNav />
+      </UILabelsProvider>
     </QueryClientProvider>
   );
 }

@@ -9,6 +9,7 @@ use App\Sync\Shapes\LinesActiveShape;
 use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
+use App\Sync\Shapes\SerialUnitsRecentShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
 /**
@@ -139,7 +140,7 @@ class ShapeRegistry
         ],
         'lot_sequences' => [
             'table' => 'lot_sequences',
-            'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'product_type_id', 'purpose', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
         ],
         'pallets' => [
             'table' => 'pallets',
@@ -149,6 +150,8 @@ class ShapeRegistry
         // Rolling recent window (see the class) so the append-only ledger can't
         // grow the synced payload without bound.
         'pallet_movements' => PalletMovementsRecentShape::class,
+        // Units on the floor plus recently finished ones - the table grows by one row per product.
+        'serial_units' => SerialUnitsRecentShape::class,
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
             'table' => 'integration_configs',
@@ -208,7 +211,7 @@ class ShapeRegistry
         ],
         'label_templates' => [
             'table' => 'label_templates',
-            'columns' => ['id', 'name', 'type', 'size', 'barcode_format', 'is_default', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'type', 'size', 'barcode_format', 'fields_config', 'is_default', 'is_active', 'created_at', 'updated_at'],
         ],
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [

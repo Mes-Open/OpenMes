@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SetWorkstationStateRequest;
+use App\Models\Batch;
 use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\Shift;
@@ -23,18 +24,11 @@ class WorkstationController extends Controller
      */
     public function index(Request $request)
     {
-        $lineId = $request->session()->get('selected_line_id')
-            ?? $request->query('line');
-
-        if (! $lineId && auth()->user()->account_type === 'workstation') {
-            $lineId = auth()->user()->workstation?->line_id;
-        }
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
 
         if (! $lineId) {
             return redirect()->route('operator.select-line');
         }
-
-        $request->session()->put('selected_line_id', $lineId);
 
         $line = Line::with(['viewColumns', 'viewTemplate'])->findOrFail($lineId);
 
@@ -92,9 +86,22 @@ class WorkstationController extends Controller
             }
         }
 
-        $workOrders->loadMissing('batches.steps');
+        $workOrders->loadMissing('batches.steps.workstation');
         foreach ($workOrders as $order) {
             $targets = collect();
+            // The routing graph of the batch being worked (the first one not
+            // finished, else the last): step status per node, for the row's
+            // fold-out graph.
+            $current = $order->batches->first(fn ($b) => $b->status !== Batch::STATUS_DONE) ?? $order->batches->last();
+            $order->setAttribute('routing', $order->uses_step_ledger && $current ? $current->steps->sortBy('step_number')->values()->map(fn ($step) => [
+                'id' => $step->id,
+                'batch_id' => $current->id,
+                'step_number' => $step->step_number,
+                'name' => $step->name,
+                'status' => $step->status,
+                'workstation_id' => $step->workstation_id,
+                'workstation' => $step->workstation ? ['id' => $step->workstation->id, 'name' => $step->workstation->name] : null,
+            ])->all() : []);
             if ($order->uses_step_ledger && $order->counting_source !== 'machine') {
                 foreach ($order->batches as $batch) {
                     $batch->setRelation('workOrder', $order);

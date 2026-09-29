@@ -55,7 +55,7 @@ export default function ModulesIndex() {
                         {modules.map((module) => (
                             <div
                                 key={module.name}
-                                className={`bg-om-card border rounded-om p-4 flex flex-col gap-4 ${module.enabled ? 'border-l-[3px] border-l-om-accent border-y-om-line border-r-om-line' : 'border-om-line'}`}
+                                className="bg-om-card border border-om-line rounded-om p-4 flex flex-col gap-4"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">

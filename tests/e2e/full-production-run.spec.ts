@@ -192,7 +192,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
   // ── 10. Packaging station: open a pallet, scan a piece, close it ────────
   let palletNo = '';
   await test.step('operator packages a piece onto a pallet', async () => {
-    await op.goto('/packaging/station');
+    await op.goto('/operator/packaging');
     await pickDropdown(op.locator('button[aria-haspopup="listbox"]').first(), new RegExp(WO));
     await op.getByRole('button', { name: /Create pallet/ }).click();
     await expect(op.getByText('Active pallet')).toBeVisible({ timeout: 15_000 });

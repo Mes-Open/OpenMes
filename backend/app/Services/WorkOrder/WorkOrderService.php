@@ -769,6 +769,8 @@ class WorkOrderService
                 'batch_id' => $batch->id,
                 'step_number' => $stepData['step_number'],
                 'name' => $stepData['name'],
+                'kind' => $stepData['kind'] ?? \App\Models\TemplateStep::KIND_PRODUCTION,
+                'config' => $stepData['config'] ?? null,
                 'instruction' => $stepData['instruction'] ?? null,
                 'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
                 'workstation_id' => $stepData['workstation_id'] ?? null,

@@ -8,6 +8,7 @@ use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\Pallet;
 use App\Models\SerialUnit;
+use App\Models\SerialUnitComponent;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -469,6 +470,7 @@ class TraceabilityService
 
         return [
             'pallet' => [
+                'id' => $pallet->id,
                 'pallet_no' => $pallet->pallet_no,
                 'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
                 'qty' => (int) $pallet->qty,
@@ -482,6 +484,18 @@ class TraceabilityService
                 'product' => $pallet->workOrder->productType?->name,
             ] : null,
             'batch' => $pallet->batch ? $this->batchChain($pallet->batch) : null,
+            // Serialised units on the pallet, by carton - the shipment's exact contents.
+            'units' => SerialUnit::where('pallet_id', $pallet->id)
+                ->with('carton:id,carton_no')
+                ->orderBy('carton_id')->orderBy('serial_no')
+                ->get()
+                ->map(fn (SerialUnit $u) => [
+                    'serial_no' => $u->serial_no,
+                    'psn' => $u->psn,
+                    'status' => $u->status,
+                    'carton_no' => $u->carton?->carton_no,
+                    'packed_at' => $u->packed_at?->format('Y-m-d H:i'),
+                ])->values(),
         ];
     }
 
@@ -699,5 +713,66 @@ class TraceabilityService
         }
 
         return null;
+    }
+
+    /**
+     * Where a component identifier ended up: every unit it was scanned into,
+     * installed or since removed. This is the recall question for a bought-in
+     * part the system knows only by the serial on its label.
+     *
+     * @return array{identifier: string, units: Collection<int, array<string, mixed>>}
+     */
+    public function componentTrace(string $identifier): array
+    {
+        $bindings = SerialUnitComponent::where('identifier', $identifier)
+            ->with(['unit:id,serial_no,psn,status,work_order_id', 'unit.workOrder:id,order_no,product_type_id', 'unit.workOrder.productType:id,name', 'material:id,code,name', 'workstation:id,name', 'boundBy:id,name'])
+            ->orderByDesc('bound_at')->orderByDesc('id')
+            ->get();
+
+        return [
+            'identifier' => $identifier,
+            'material' => $bindings->first()?->material?->only(['code', 'name']),
+            'units' => $bindings->map(fn (SerialUnitComponent $c) => [
+                'serial_no' => $c->unit?->serial_no,
+                'psn' => $c->unit?->psn,
+                'status' => $c->unit?->status,
+                'work_order' => $c->unit?->workOrder?->order_no,
+                'product' => $c->unit?->workOrder?->productType?->name,
+                'installed' => $c->unbound_at === null,
+                'bound_at' => $c->bound_at?->format('Y-m-d H:i'),
+                'unbound_at' => $c->unbound_at?->format('Y-m-d H:i'),
+                'workstation' => $c->workstation?->name,
+                'bound_by' => $c->boundBy?->name,
+            ])->values(),
+        ];
+    }
+
+    /**
+     * The components inside a unit, as scanned: what each one resolved to, and
+     * the ones taken out since, so the trace shows the unit as built and as it is.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function installedComponents(SerialUnit $unit): Collection
+    {
+        return $unit->components()
+            ->with(['material:id,code,name', 'componentUnit:id,serial_no,status', 'materialLot:id,lot_number,supplier_lot_no', 'workstation:id,name', 'boundBy:id,name'])
+            ->orderBy('bound_at')
+            ->get()
+            ->map(fn (SerialUnitComponent $c) => [
+                'identifier' => $c->identifier,
+                'kind' => $c->component_serial_unit_id ? 'serial_unit' : ($c->material_lot_id ? 'material_lot' : 'identifier'),
+                'material' => $c->material?->name,
+                'material_code' => $c->material?->code,
+                'quantity' => (float) $c->quantity,
+                'component_status' => $c->componentUnit?->status,
+                'supplier_lot_no' => $c->materialLot?->supplier_lot_no,
+                'installed' => $c->unbound_at === null,
+                'bound_at' => $c->bound_at?->format('Y-m-d H:i'),
+                'unbound_at' => $c->unbound_at?->format('Y-m-d H:i'),
+                'unbind_reason' => $c->unbind_reason,
+                'workstation' => $c->workstation?->name,
+                'bound_by' => $c->boundBy?->name,
+            ]);
     }
 }

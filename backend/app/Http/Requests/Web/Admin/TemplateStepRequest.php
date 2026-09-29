@@ -24,6 +24,17 @@ abstract class TemplateStepRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'kind' => ['nullable', Rule::in(TemplateStep::KINDS)],
+            // Kind-specific configuration. Packing: what the station fills and how much fits.
+            'config' => ['nullable', 'array'],
+            'config.unit' => ['nullable', Rule::in(TemplateStep::PACKING_UNITS)],
+            'config.carton_capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'config.pallet_capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'config.label_template_id' => ['nullable', 'integer', 'exists:label_templates,id'],
+            // Same as the API: a typo must not switch the scale check on at 0 g.
+            'config.unit_label' => ['nullable', 'boolean'],
+            'config.weight_expected_g' => ['nullable', 'numeric', 'gt:0', 'max:1000000'],
+            'config.weight_tolerance_g' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'instruction' => 'nullable|string',
             'requires_confirmation' => 'boolean',
             'estimated_duration_minutes' => 'nullable|integer|min:0',

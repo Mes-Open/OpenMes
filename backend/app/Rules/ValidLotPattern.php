@@ -11,7 +11,7 @@ class ValidLotPattern implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! is_string($value)) {
-            $fail('The :attribute must be a string.');
+            $fail(__('The :attribute must be a string.'));
 
             return;
         }

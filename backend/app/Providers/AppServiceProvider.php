@@ -25,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
+        // Request-scoped: reads its settings once per request, so Octane sees a fresh copy each time.
+        $this->app->scoped(\App\Support\UnitSerialisation::class);
+        // Request-scoped too: its per-bench cache is shared by the shared prop and the controllers.
+        $this->app->scoped(\App\Services\Production\OperatorScreens::class);
         $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
         $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
         // Singletons, like the two registries above, and for the same Octane

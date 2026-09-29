@@ -14,11 +14,22 @@ class LotService
      */
     public function generateLot(?ProductType $productType = null): string
     {
-        $sequence = $this->findSequence($productType);
+        return $this->generate($productType, LotSequence::PURPOSE_LOT);
+    }
+
+    /**
+     * The next number from the sequence serving this purpose: the product's
+     * own, else the global one for that purpose.
+     *
+     * @throws \RuntimeException when no sequence serves the purpose
+     */
+    public function generate(?ProductType $productType, string $purpose): string
+    {
+        $sequence = $this->findSequence($productType, $purpose);
 
         if (! $sequence) {
             throw new \RuntimeException(
-                'No LOT sequence configured'.($productType ? " for product type: {$productType->name}" : '')
+                'No '.self::purposeLabel($purpose).' sequence configured'.($productType ? " for product type: {$productType->name}" : '')
             );
         }
 
@@ -26,13 +37,20 @@ class LotService
     }
 
     /**
-     * Preview the next LOT number without incrementing.
+     * Preview the next number without incrementing.
      */
-    public function previewNext(?ProductType $productType = null): ?string
+    public function previewNext(?ProductType $productType = null, string $purpose = LotSequence::PURPOSE_LOT): ?string
     {
-        $sequence = $this->findSequence($productType);
+        return $this->findSequence($productType, $purpose)?->previewNext();
+    }
 
-        return $sequence?->previewNext();
+    public static function purposeLabel(string $purpose): string
+    {
+        return match ($purpose) {
+            LotSequence::PURPOSE_PROCESS_SERIAL => 'process serial',
+            LotSequence::PURPOSE_UNIT_SERIAL => 'unit serial',
+            default => 'LOT',
+        };
     }
 
     /**
@@ -72,16 +90,16 @@ class LotService
     /**
      * Find the LOT sequence for a product type, falling back to default.
      */
-    private function findSequence(?ProductType $productType): ?LotSequence
+    private function findSequence(?ProductType $productType, string $purpose = LotSequence::PURPOSE_LOT): ?LotSequence
     {
         if ($productType) {
-            $seq = LotSequence::where('product_type_id', $productType->id)->first();
+            $seq = LotSequence::where('product_type_id', $productType->id)->where('purpose', $purpose)->first();
             if ($seq) {
                 return $seq;
             }
         }
 
-        // Fall back to default sequence (null product_type_id)
-        return LotSequence::whereNull('product_type_id')->first();
+        // Fall back to the global sequence for this purpose (null product_type_id)
+        return LotSequence::whereNull('product_type_id')->where('purpose', $purpose)->first();
     }
 }

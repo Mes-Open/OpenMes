@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BatchStepLotConsumption;
 use App\Models\Line;
+use App\Models\LotSequence;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialType;
@@ -45,7 +46,10 @@ class TraceabilityDemoSeeder extends Seeder
     public function run(): void
     {
         if (WorkOrder::where('order_no', self::MARKER_ORDER)->exists()) {
-            $this->command?->info('Traceability demo already present - nothing to do.');
+            // The sequences came later than the rest of the demo; add them to an
+            // install that already has it. firstOrCreate keeps this a no-op after that.
+            $this->seedSequences();
+            $this->command?->info('Traceability demo already present - sequences ensured, nothing else to do.');
 
             return;
         }
@@ -63,6 +67,7 @@ class TraceabilityDemoSeeder extends Seeder
             $materials = $this->seedMaterials();
             $lots = $this->seedRawLots($materials);
 
+            $this->seedSequences();
             $frameLot = $this->seedFrameOrder($line, $stations, $materials, $lots);
             $this->seedFinishedBikeOrder($line, $stations, $materials, $lots, $frameLot);
             $this->seedRunningBikeOrder($line, $stations, $lots, $frameLot);
@@ -70,6 +75,25 @@ class TraceabilityDemoSeeder extends Seeder
         });
 
         $this->command?->info('Traceability demo seeded - open /admin/traceability and look for TR-.');
+    }
+
+    /**
+     * The two serial sequences of the demo product: a process serial the line
+     * works with (day of year - year - daily count) and the unit serial printed
+     * on the product (fixed prefix, year/ISO week/weekday, daily 4-digit count).
+     */
+    private function seedSequences(): void
+    {
+        $bike = ProductType::firstOrCreate(['code' => 'TR-PT-BIKE'], ['name' => 'TR - City bike', 'is_active' => true]);
+
+        LotSequence::firstOrCreate(
+            ['name' => 'TR - Process serial'],
+            ['product_type_id' => $bike->id, 'purpose' => LotSequence::PURPOSE_PROCESS_SERIAL, 'pattern' => '[doy]-[year2]-[seq]', 'prefix' => '', 'pad_size' => 1, 'reset_period' => 'daily', 'year_prefix' => false],
+        );
+        LotSequence::firstOrCreate(
+            ['name' => 'TR - Unit serial'],
+            ['product_type_id' => $bike->id, 'purpose' => LotSequence::PURPOSE_UNIT_SERIAL, 'pattern' => '[year1][week][weekday][seq]', 'prefix' => '', 'pad_size' => 4, 'reset_period' => 'daily', 'year_prefix' => false],
+        );
     }
 
     /** @return array{0: Line, 1: array<string, Workstation>} */
@@ -225,7 +249,8 @@ class TraceabilityDemoSeeder extends Seeder
             $failed = $n === 5;
             $unit = SerialUnit::create([
                 'serial_no' => sprintf('TR-SN-%04d', $n),
-                'psn' => sprintf('%s-%02d-%03d', now()->format('z'), now()->format('y'), $n),
+                // A demo process serial: day of year (1-based), two-digit year, daily sequence.
+                'psn' => sprintf('%03d-%02d-%d', now()->dayOfYear, (int) now()->format('y'), $n),
                 'work_order_id' => $order->id,
                 'batch_id' => $batch->id,
                 'material_id' => $materials['bike']->id,

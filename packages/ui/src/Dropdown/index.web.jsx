@@ -12,12 +12,30 @@
  * `size="sm"` is the compact trigger used by DataTable's column-filter row —
  * mono 10.5px in a 6px-radius field, matching the design's filter controls. The
  * menu itself stays full size; only the trigger shrinks.
+ *
+ * Search: a long list gets a search box pinned at the top of the menu that
+ * narrows the rows as the operator types (case- and accent-insensitive, on the
+ * label). `searchable` is `'auto'` by default — the box appears once the list
+ * is longer than `searchThreshold` rows — or `true`/`false` to force it. The
+ * box takes focus when the menu opens; ↑/↓/Enter keep working from inside it.
+ * The placeholder and the "nothing matches" note come from the props, else
+ * from the app's `UILabelsProvider`.
  */
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
+import { useUILabels } from '../lib/labels';
 import { Icon } from '../Icon';
+
+/** Lower-case, accents stripped (é→e, ł→l), so "lodz" finds "Łódź". */
+export function foldForSearch(text) {
+    return String(text ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ł/g, 'l');
+}
 
 const TRIGGER_SIZE = {
     md: 'rounded-om-sm px-[13px] py-[10px] gap-[10px]',
@@ -47,6 +65,12 @@ export function Dropdown({
     className = '',
     // Named the trigger, not the wrapper — an aria-label on a plain div is ignored.
     'aria-label': ariaLabel,
+    /** `'auto'` (search box once the list is longer than `searchThreshold`), `true` or `false`. */
+    searchable = 'auto',
+    searchThreshold = 4,
+    /** Search box placeholder / empty-result note; default from `UILabelsProvider`. */
+    searchPlaceholder,
+    noResultsLabel,
     ...props
 }) {
     const [open, setOpen] = useState(false);
@@ -57,7 +81,27 @@ export function Dropdown({
     const triggerId = `${uid}-trigger`;
     const optionId = (i) => `${uid}-opt-${i}`;
     const rootRef = useRef(null);
+    const searchRef = useRef(null);
     const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 320 });
+
+    const uiLabels = useUILabels();
+    const searchText = searchPlaceholder ?? uiLabels.searchPlaceholder ?? '';
+    const noResultsText = noResultsLabel ?? uiLabels.noResultsLabel ?? '—';
+    const showSearch = searchable === true || (searchable === 'auto' && options.length > searchThreshold);
+
+    // The rows on screen: every option, or those whose label contains the query.
+    const [query, setQuery] = useState('');
+    const visible = useMemo(() => {
+        const q = foldForSearch(query.trim());
+        if (!showSearch || !q) return options;
+        return options.filter((o) => foldForSearch(o.label).includes(q));
+    }, [options, query, showSearch]);
+    const search = (text) => {
+        setQuery(text);
+        // Highlight the first match so Enter picks it straight from the box.
+        const q = foldForSearch(text.trim());
+        setActive(q ? (options.some((o) => foldForSearch(o.label).includes(q)) ? 0 : -1) : -1);
+    };
 
     const selectedValues = multiple ? (values ?? []) : [];
     const single = !multiple ? options.find((o) => o.value === value) : undefined;
@@ -84,10 +128,20 @@ export function Dropdown({
         });
     };
 
+    // A fresh box every time the menu opens. It takes focus as it mounts (the
+    // menu is portaled once its position is known, a render after `open`
+    // flips, so an effect keyed on `open` would run before the box exists).
+    useEffect(() => { if (!open) setQuery(''); }, [open]);
+    // Not on touch screens: focusing raises the soft keyboard over the menu.
+    const attachSearch = useCallback((el) => {
+        searchRef.current = el;
+        if (el && (typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(pointer: fine)').matches)) el.focus();
+    }, []);
+
     // Latest-props box so the document listeners below can stay registered for
     // the whole open lifetime instead of being re-bound on every render.
     const liveRef = useRef(null);
-    liveRef.current = { options, active, pick };
+    liveRef.current = { options: visible, active, pick };
 
     useEffect(() => {
         if (!open) return undefined;
@@ -98,6 +152,8 @@ export function Dropdown({
         };
         const onKey = (e) => {
             const { options: opts, active: i, pick: choose } = liveRef.current;
+            // Inside the search box, Space is a character and Home/End move the caret.
+            const typing = searchRef.current != null && e.target === searchRef.current;
             if (e.key === 'Escape') {
                 setOpen(false);
                 anchorRef.current?.focus();
@@ -108,11 +164,11 @@ export function Dropdown({
                 if (!opts.length) return;
                 e.preventDefault();
                 setActive((prev) => (prev + step + opts.length) % opts.length);
-            } else if (e.key === 'Home' || e.key === 'End') {
+            } else if (!typing && (e.key === 'Home' || e.key === 'End')) {
                 if (!opts.length) return;
                 e.preventDefault();
                 setActive(e.key === 'Home' ? 0 : opts.length - 1);
-            } else if (e.key === 'Enter' || e.key === ' ') {
+            } else if (e.key === 'Enter' || (e.key === ' ' && !typing)) {
                 if (!opts[i]) return;
                 // Also stops the focused trigger's Enter/Space from re-toggling.
                 e.preventDefault();
@@ -187,20 +243,53 @@ export function Dropdown({
             {open && style && createPortal(
                 <div
                     ref={popRef}
-                    id={listboxId}
-                    role="listbox"
-                    aria-label={ariaLabel}
-                    aria-labelledby={ariaLabel ? undefined : triggerId}
-                    aria-multiselectable={multiple || undefined}
                     style={style}
-                    className="max-h-[320px] w-max max-w-[min(22rem,calc(100vw-2rem))] origin-top overflow-auto rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] motion-safe:animate-om-menu-in"
+                    className="flex max-h-[320px] w-max max-w-[min(22rem,calc(100vw-2rem))] origin-top flex-col overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] motion-safe:animate-om-menu-in"
                 >
+                    {showSearch && (
+                        // Pinned above the scrolling rows, so it stays put while the list scrolls.
+                        <div className="flex shrink-0 items-center gap-2 border-b border-om-line2 px-[12px] py-[8px]">
+                            <Icon name="search" size={13} className="shrink-0 text-om-faint" />
+                            <input
+                                ref={attachSearch}
+                                type="text"
+                                value={query}
+                                onChange={(e) => search(e.target.value)}
+                                placeholder={searchText}
+                                aria-label={searchText || undefined}
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded
+                                aria-controls={listboxId}
+                                aria-activedescendant={active >= 0 ? optionId(active) : undefined}
+                                autoComplete="off"
+                                spellCheck={false}
+                                className="min-w-0 flex-1 bg-transparent text-[13px] text-om-ink outline-none placeholder:text-om-faint"
+                            />
+                            {query !== '' && (
+                                <button type="button" onClick={() => search('')} className="shrink-0 text-om-faint hover:text-om-ink" aria-label={uiLabels.clearLabel ?? 'Clear'}>
+                                    <Icon name="x" size={12} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    <div
+                        id={listboxId}
+                        role="listbox"
+                        aria-label={ariaLabel}
+                        aria-labelledby={ariaLabel ? undefined : triggerId}
+                        aria-multiselectable={multiple || undefined}
+                        className="min-h-0 flex-1 overflow-auto p-[6px]"
+                    >
                     {header != null && (
                         <div className="px-[9px] pt-[7px] pb-[5px] font-mono text-[9px] tracking-[0.1em] text-om-faint uppercase">
                             {header}
                         </div>
                     )}
-                    {options.map((o, i) => {
+                    {showSearch && visible.length === 0 && (
+                        <div className="px-[11px] py-[9px] text-[13px] text-om-faint">{noResultsText}</div>
+                    )}
+                    {visible.map((o, i) => {
                         const onRowHover = () => setActive(i);
                         if (multiple) {
                             const on = selectedValues.includes(o.value);
@@ -245,6 +334,7 @@ export function Dropdown({
                             </div>
                         );
                     })}
+                    </div>
                 </div>,
                 document.body,
             )}

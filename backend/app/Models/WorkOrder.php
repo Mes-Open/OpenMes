@@ -559,6 +559,12 @@ class WorkOrder extends Model
         return $this->hasMany(MaterialAllocation::class);
     }
 
+    /** Serialised units built for this order (unit-level tracking). */
+    public function serialUnits(): HasMany
+    {
+        return $this->hasMany(SerialUnit::class);
+    }
+
     /** Pallets packed for this work order. */
     public function pallets(): HasMany
     {

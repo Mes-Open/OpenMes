@@ -107,6 +107,10 @@ class ProcessTemplateManagementController extends Controller
             ->get();
 
         return Inertia::render('admin/process-templates/Show', [
+            // Packing steps may name the label they print; only label types packing prints.
+            'labelTemplates' => \App\Models\LabelTemplate::where('is_active', true)
+                ->whereIn('type', [\App\Models\LabelTemplate::TYPE_SERIAL_UNIT, \App\Models\LabelTemplate::TYPE_CARTON, \App\Models\LabelTemplate::TYPE_PALLET])
+                ->orderBy('type')->orderBy('name')->get(['id', 'name', 'type', 'size']),
             'productType' => $processTemplate->productType->only('id', 'name'),
             'processTemplate' => [
                 'id' => $processTemplate->id,
@@ -132,6 +136,8 @@ class ProcessTemplateManagementController extends Controller
                     'is_optional' => (bool) $s->is_optional,
                     'variant_group' => $s->variant_group,
                     'is_default_variant' => (bool) $s->is_default_variant,
+                    'kind' => $s->kind,
+                    'config' => $s->config,
                     'workstation' => $s->workstation ? [
                         'id' => $s->workstation->id,
                         'name' => $s->workstation->name,
@@ -342,6 +348,11 @@ class ProcessTemplateManagementController extends Controller
         $data['is_optional'] = $request->boolean('is_optional');
         $data['variant_group'] = $request->filled('variant_group') ? $request->input('variant_group') : null;
         $data['is_default_variant'] = $data['variant_group'] !== null && $request->boolean('is_default_variant');
+        // A production step carries no config; a packing step keeps only what it declares.
+        $data['kind'] = $data['kind'] ?? TemplateStep::KIND_PRODUCTION;
+        $data['config'] = $data['kind'] === TemplateStep::KIND_PACKING
+            ? TemplateStep::normalisePackingConfig($data['config'] ?? [])
+            : null;
 
         return $data;
     }
@@ -358,7 +369,7 @@ class ProcessTemplateManagementController extends Controller
             'id', 'step_number', 'name', 'instruction', 'workstation_id',
             'workstation_type_id', 'process_segment_id', 'estimated_duration_minutes',
             'setup_time_minutes', 'run_time_per_unit_minutes', 'parameters',
-            'is_optional', 'variant_group', 'is_default_variant',
+            'is_optional', 'variant_group', 'is_default_variant', 'kind', 'config',
         ]);
     }
 

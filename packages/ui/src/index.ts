@@ -3,6 +3,7 @@
  * Native-only patterns live in '@openmes/ui/native'; the web-only DataTable in '@openmes/ui/table'.
  */
 export * from './tokens';
+export * from './lib/labels';
 
 export * from './ActionMenu';
 export * from './Badge';

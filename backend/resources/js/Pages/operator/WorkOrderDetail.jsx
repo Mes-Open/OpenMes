@@ -1,17 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Badge, Button, Checkbox, Dropdown, Icon, ProgressBar, StatusPill } from '@openmes/ui';
+import { Badge, Button, Checkbox, Dropdown, Icon, ProgressBar, StatusBadge, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
+import AppDataTable from '../../components/AppDataTable';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import Tooltip from '../../components/Tooltip';
+import RoutingGraph from '../../components/flow/RoutingGraph';
 import EngineeringViewerModal from '../../components/EngineeringViewerModal';
 import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
 import { apiGet, apiCall } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
+import { readParam, writeParams } from '../../lib/urlState';
+import { serialStatusBadge, serialStatusLabel } from '../../lib/serialStatus';
+import { historyTitle } from '../admin/traceability/results';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
 
@@ -62,6 +67,40 @@ function bomTypeBadge(type) {
 // Shared Geist White idiom classes
 const cardCls = 'bg-om-card border border-om-line rounded-om p-6';
 const sectionLabelCls = 'font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint';
+
+/**
+ * The order's serialised units: PSN, serial number, status and the last thing
+ * that happened to each (started at the first bench, label applied, tested, packed ...).
+ * The step counters above are quantities the benches log; this is the pieces.
+ */
+function SerialUnitsSection({ data }) {
+    const units = data?.units ?? [];
+    const columns = useMemo(() => [
+        { id: 'serial_no', accessorKey: 'serial_no', header: __('Serial number'), cell: ({ row }) => <span className="whitespace-nowrap font-mono text-[12.5px] font-semibold text-om-ink">{row.original.serial_no ?? '—'}</span> },
+        { id: 'psn', accessorKey: 'psn', header: __('PSN'), cell: ({ row }) => <span className="whitespace-nowrap font-mono text-[12px] text-om-muted">{row.original.psn ?? '—'}</span> },
+        { id: 'status', accessorFn: (r) => serialStatusLabel(r.status), header: __('Status'), cell: ({ row }) => <StatusBadge size="sm" {...serialStatusBadge(row.original.status)} /> },
+        { id: 'last', accessorFn: (r) => (r.last ? historyTitle(r.last) : ''), header: __('Last event'), cell: ({ row }) => {
+            const l = row.original.last;
+            return l ? (
+                <span className="flex flex-col">
+                    <span className="text-[12.5px] text-om-ink">{historyTitle(l)}</span>
+                    <span className="font-mono text-[11px] text-om-faint">{formatDateTime(l.at)}</span>
+                </span>
+            ) : '—';
+        } },
+        { id: 'packed', accessorFn: (r) => [r.carton, r.pallet].filter(Boolean).join(' · '), header: __('Carton / pallet'), cell: ({ row }) => <span className="whitespace-nowrap font-mono text-[11.5px] text-om-muted">{[row.original.carton, row.original.pallet].filter(Boolean).join(' · ') || '—'}</span> },
+    ], []);
+    if (!data?.total) return null;
+    return (
+        <div className={cardCls}>
+            <div className="mb-4 flex items-center justify-between">
+                <h2 className={sectionLabelCls}>{__('Units in this order')}</h2>
+                <Badge variant="neutral">{data.total > units.length ? __(':shown of :total', { shown: units.length, total: data.total }) : data.total}</Badge>
+            </div>
+            <AppDataTable data={units} columns={columns} searchable columnToggle={false} paginated />
+        </div>
+    );
+}
 const fieldLabelCls = 'block mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint';
 const inputCls =
     'w-full text-[13px] text-om-ink placeholder:text-om-faint bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]';
@@ -445,7 +484,7 @@ function QualityCheckForm({ batch, onClose }) {
                         {__('Submit QC')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                 </div>
             </form>
@@ -495,7 +534,7 @@ function PackagingChecklistForm({ batch, onClose }) {
                         {__('Submit Checklist')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                 </div>
             </form>
@@ -872,6 +911,28 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
     const stationScoped = !!selectedWorkstation;
     const [showAll, setShowAll] = useState(false);
 
+    // Routing graph as the station filter: clicking a step shows only its
+    // station's steps and scrolls to it; clicking it again lifts the filter.
+    // The focused step travels in the address (`?step=`) so a link from the
+    // workstation table, or a reload, lands on it.
+    const [focusStepId, setFocusStepId] = useState(() => {
+        const fromUrl = Number(readParam('step'));
+        return fromUrl && (steps ?? []).some((st) => st.id === fromUrl) ? fromUrl : null;
+    });
+    const focusStep = focusStepId != null ? (steps ?? []).find((st) => st.id === focusStepId) ?? null : null;
+    const focusWorkstationId = focusStep ? (focusStep.workstation_id ?? null) : undefined;
+    const scrollToStep = (id) => window.setTimeout(() => document.getElementById(`batch-step-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    useEffect(() => { if (focusStepId != null) scrollToStep(focusStepId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const focusOn = (next) => {
+        setFocusStepId(next);
+        writeParams({ step: next });
+        if (next != null) scrollToStep(next);
+    };
+    const handleGraphSelect = (id) => focusOn(id === focusStepId ? null : id);
+    const groupVisible = (group) => (focusStep
+        ? group.workstationId === focusWorkstationId
+        : !stationScoped || showAll || group.workstationId === selectedWorkstation.id);
+
     // Quantity log (transfer flow): posts to the ledger route; a rule violation
     // comes back as a `good_qty` error shown under the form that sent it.
     const [logTarget, setLogTarget] = useState(null);
@@ -1005,7 +1066,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const productionBlocker = transfer ? step.production_blocker : null;
                     const ledgerBlocker = productionBlocker || (transfer ? step.completion_blocker : null);
                     return (
-                        <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
+                        <div key={step.id} id={`batch-step-${step.id}`} className={`bg-om-panel border rounded-om-sm ${focusStepId === step.id ? 'border-om-accent ring-1 ring-om-accent' : 'border-om-line2'}`}>
                         <div className="flex flex-wrap items-center gap-3 p-3">
                             <span className="min-w-7 px-1 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
                                 {step.step_number}/{steps.length}
@@ -1173,14 +1234,25 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className={`${sectionLabelCls} m-0`}>{__('Steps')}</h4>
-                {stationScoped && (
+                {stationScoped && !focusStep && (
                     <button type="button" onClick={() => setShowAll((v) => !v)} className="font-mono text-[11px] text-om-accent underline-offset-2 hover:underline cursor-pointer">
                         {showAll ? __('Show my station only') : __('Show all steps')}
                     </button>
                 )}
+                {focusStep && (
+                    <button type="button" onClick={() => focusOn(null)} className="font-mono text-[11px] text-om-accent underline-offset-2 hover:underline cursor-pointer" data-testid="graph-filter-clear">
+                        {__('Filter: :station', { station: focusStep.workstation?.name ?? __('No station') })} ×
+                    </button>
+                )}
             </div>
+            {steps.length > 1 && (
+                <div className="rounded-om border border-om-line2 overflow-hidden mb-3" data-testid="routing-graph">
+                    <RoutingGraph compact height={200} steps={steps} selectedId={focusStepId} onSelectStep={handleGraphSelect} />
+                    <p className="px-3 py-1.5 text-[11px] text-om-muted border-t border-om-line2 m-0">{__('Click a step to show only its station and jump to it; click it again to show everything.')}</p>
+                </div>
+            )}
             <div className="space-y-3">
-                {groups.filter(group => !stationScoped || showAll || group.workstationId === selectedWorkstation.id).map((group, gi) => {
+                {groups.filter(groupVisible).map((group, gi) => {
                     const mine = stationScoped && group.workstationId === selectedWorkstation.id;
                     const last = group.steps[group.steps.length - 1];
                     const done = group.steps.filter((st) => st.status === 'DONE' || st.status === 'SKIPPED').length;
@@ -2193,9 +2265,15 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] } } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
+
+    // A link carrying `?step=` opens the batch that owns that step.
+    const [urlStepBatchId] = useState(() => {
+        const id = Number(readParam('step'));
+        return id ? (workOrder.batches ?? []).find((b) => (b.steps ?? []).some((st) => st.id === id))?.id ?? null : null;
+    });
 
     async function openEngViewer(doc) {
         try {
@@ -2389,7 +2467,7 @@ export default function WorkOrderDetail() {
                                         <BatchCard
                                             key={batch.id}
                                             batch={batch}
-                                            defaultOpen={idx === 0}
+                                            defaultOpen={urlStepBatchId ? batch.id === urlStepBatchId : idx === 0}
                                             labelTemplates={labelTemplates}
                                             stepPhotos={stepPhotos}
                                             stepMedia={stepMedia}
@@ -2402,6 +2480,9 @@ export default function WorkOrderDetail() {
                                 </div>
                             )}
                         </div>
+
+                        {/* The pieces this order is made of: each unit's numbers and where it was last seen. */}
+                        <SerialUnitsSection data={serialUnits} />
                     </div>
 
                     {/* Sidebar */}

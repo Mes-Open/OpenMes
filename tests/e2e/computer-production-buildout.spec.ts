@@ -202,7 +202,7 @@ test('build a Desktop PC production configuration from zero and run it', async (
   // ── 9. Packaging: open pallet, scan a PC, close ─────────────────────────
   let palletNo = '';
   await test.step('package a PC onto a pallet', async () => {
-    await op.goto('/packaging/station');
+    await op.goto('/operator/packaging');
     await pickDropdown(op.locator('button[aria-haspopup="listbox"]').first(), new RegExp(WO));
     await op.getByRole('button', { name: /Create pallet/ }).click();
     await expect(op.getByText('Active pallet')).toBeVisible({ timeout: 15_000 });

@@ -112,8 +112,8 @@ export function woFields(lines, productTypes, { withStatus = false, customers = 
     }
 
     fields.push(
-        { name: 'planned_qty', label: __('Planned Qty'), type: 'number', required: true },
-        { name: 'unit_price', label: __('Unit Price'), type: 'number', help: __('Price per produced unit. Adds to the customer\'s revenue when the order completes.') },
+        { name: 'planned_qty', label: __('Planned Qty'), type: 'number', required: true, min: 0.01, max: 99999999, step: 'any' },
+        { name: 'unit_price', label: __('Unit Price'), type: 'number', min: 0, max: 99999999, step: 'any', help: __('Price per produced unit. Adds to the customer\'s revenue when the order completes.') },
         {
             name: 'counting_source', label: __('Counting Source'), type: 'select',
             options: [
@@ -123,7 +123,7 @@ export function woFields(lines, productTypes, { withStatus = false, customers = 
             ],
             help: __('Where produced quantity comes from. Machine-counted orders are driven by machine counter signals and block manual operator entry.'),
         },
-        { name: 'priority', label: __('Priority'), type: 'number', help: __('Auto-calculated from priority rules when any are active; otherwise set manually.') },
+        { name: 'priority', label: __('Priority'), type: 'number', min: 0, max: 100, step: 1, help: __('Auto-calculated from priority rules when any are active; otherwise set manually.') },
         { name: 'planned_start_at', label: 'Planned start', type: 'datetime', help: 'Plant local time. Until this time, the order is unavailable for production. Leave empty for immediate availability.' },
         { name: 'due_date', label: __('Due Date'), type: 'date' },
         { name: 'description', label: __('Description'), type: 'textarea' },

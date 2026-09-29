@@ -2,26 +2,31 @@
 
 namespace App\Console\Commands;
 
-use App\Models\SerialUnit;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
-use App\Services\Traceability\SerialTraceService;
+use App\Services\Traceability\TestLog\TestLogImporter;
+use App\Services\Traceability\TestLog\TestLogParser;
+use App\Services\Traceability\TestLog\TestRun;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
 use Throwable;
 
+/**
+ * Loads test-station JSONL logs onto serial-unit history. Which file layouts
+ * are understood is configuration (config/traceability.php); runs are applied
+ * in the order they happened, so a retest after a failure lands after it.
+ */
 class ImportTestStationJsonl extends Command
 {
     protected $signature = 'traceability:import-jsonl
-        {paths* : Path to a .jsonl file or a directory of .jsonl files (e.g. the pass/fail folders)}
-        {--work-order= : Work order to attach units to (order_no, or id if numeric)}
-        {--workstation= : Workstation code for the test station (falls back to the station from the log)}
-        {--operator= : Operator email or name (defaults to the first user)}';
+        {paths* : .jsonl files or directories of them (e.g. the pass/ and fail/ folders)}
+        {--work-order= : Work order to attach new units to (order_no, or id if numeric)}
+        {--workstation= : Workstation code to attribute every run to (default: the station named in the log)}
+        {--operator= : User name, e-mail or username to attribute runs to (default: the operator named in the log)}';
 
-    protected $description = 'Import test-station JSONL logs (cycle/step/verdict lines) into serial traceability';
+    protected $description = 'Import test-station JSONL logs into serial traceability';
 
-    public function handle(SerialTraceService $serials): int
+    public function handle(TestLogParser $parser, TestLogImporter $importer): int
     {
         $files = $this->collectFiles();
         if ($files === []) {
@@ -30,126 +35,46 @@ class ImportTestStationJsonl extends Command
             return self::FAILURE;
         }
 
-        $workOrder = $this->resolveWorkOrder();
-        $operator = $this->resolveOperator();
-        if ($operator === null) {
-            $this->error('No user found for the operator. Create a user first.');
+        $options = array_filter([
+            'work_order' => $this->resolveWorkOrder(),
+            'workstation' => $this->resolveWorkstation(),
+            'operator' => $this->resolveOperator(),
+        ]);
 
-            return self::FAILURE;
+        // Parse everything first so runs can be applied in time order.
+        $runs = [];
+        $errors = 0;
+        foreach ($files as $file) {
+            try {
+                $run = $parser->parseFile($file);
+                if ($run === null) {
+                    $this->warn("[SKIP] {$file}: no complete run in file");
+
+                    continue;
+                }
+                $runs[] = [$file, $run];
+            } catch (Throwable $e) {
+                $this->error("[ERROR] {$file}: {$e->getMessage()}");
+                $errors++;
+            }
         }
+        usort($runs, fn ($a, $b) => ($a[1]->processedAt()?->getTimestamp() ?? 0) <=> ($b[1]->processedAt()?->getTimestamp() ?? 0));
 
         $imported = 0;
         $skipped = 0;
-        $errors = 0;
-
-        foreach ($files as $file) {
+        foreach ($runs as [$file, $run]) {
             try {
-                $lines = array_values(array_filter(
-                    array_map('trim', File::lines($file)->all()),
-                    fn ($l) => $l !== ''
-                ));
-
-                $cycle = null;
-                $steps = [];
-                $verdict = null;
-                foreach ($lines as $line) {
-                    $row = json_decode($line, true);
-                    if (!is_array($row)) {
-                        continue;
-                    }
-                    $t = $row['t'] ?? null;
-                    if ($t === 'cycle') {
-                        $cycle = $row;
-                    } elseif ($t === 's') {
-                        $steps[] = $row;
-                    } elseif ($t === 'v') {
-                        $verdict = $row;
-                    }
-                }
-
-                if ($cycle === null || empty($cycle['sn'])) {
-                    $this->warn("[SKIP] {$file}: no cycle line with sn");
+                $result = $importer->import($run, [...$options, 'source' => basename($file)]);
+                if ($result['status'] === TestLogImporter::DUPLICATE) {
+                    $this->line("[SKIP] {$file}: run {$run->runId} already imported");
                     $skipped++;
+
                     continue;
                 }
-
-                $sn = trim((string) $cycle['sn']);
-                $cycleId = (string) ($cycle['id'] ?? '');
-                $psn = isset($cycle['psn']) && $cycle['psn'] !== '' ? trim((string) $cycle['psn']) : null;
-                $stationCode = $this->option('workstation') ?: ($cycle['station'] ?? null);
-
-                $unit = SerialUnit::where('serial_no', $sn)->first();
-                if ($unit === null) {
-                    $unit = $serials->registerUnit($sn, [
-                        'psn' => $psn,
-                        'work_order_id' => $workOrder?->id,
-                        'status' => SerialUnit::STATUS_IN_PRODUCTION,
-                    ]);
-                } else {
-                    $update = [];
-                    if ($psn !== null && empty($unit->psn)) {
-                        $update['psn'] = $psn;
-                    }
-                    if ($workOrder !== null && empty($unit->work_order_id)) {
-                        $update['work_order_id'] = $workOrder->id;
-                    }
-                    if ($update !== []) {
-                        $unit->update($update);
-                    }
-                }
-
-                // Idempotency: skip when this exact test cycle was already imported.
-                $alreadyImported = $cycleId !== '' && $unit->history()
-                    ->get()
-                    ->contains(fn ($h) => ($h->parameters['cycle_id'] ?? null) === $cycleId);
-
-                if ($alreadyImported) {
-                    $this->line("[SKIP] {$file}: cycle {$cycleId} already imported");
-                    $skipped++;
-                    continue;
-                }
-
-                $workstation = $stationCode
-                    ? Workstation::where('code', $stationCode)->first()
-                    : null;
-
-                $failedSteps = array_values(array_map(
-                    fn ($s) => $s['n'] ?? null,
-                    array_filter($steps, fn ($s) => ($s['r'] ?? 'P') === 'F')
-                ));
-
-                $verdictR = $verdict['r'] ?? 'P';
-                $result = $verdictR === 'F' ? 'fail' : ($verdictR === 'R' ? 'rework' : 'pass');
-
-                $serials->recordStep($unit, $operator, null, [
-                    'workstation_id' => $workstation?->id,
-                    'parameters' => [
-                        'cycle_id' => $cycleId,
-                        'file' => basename($file),
-                        'station' => $cycle['station'] ?? null,
-                        'line' => $cycle['line'] ?? null,
-                        'operator' => $cycle['op'] ?? null,
-                        'software' => $cycle['sw'] ?? null,
-                        'limits' => $cycle['lim'] ?? null,
-                        'sfr' => $cycle['sfr'] ?? null,
-                        'dut' => $cycle['dut'] ?? null,
-                        'start' => $cycle['start'] ?? null,
-                        'steps' => $steps,
-                        'failed_steps' => $failedSteps,
-                    ],
-                    'result' => $result,
-                    'notes' => $result === 'fail'
-                        ? 'Test station verdict FAIL, steps: ' . implode(', ', $failedSteps)
-                        : "Test station verdict {$verdictR}",
-                ]);
-
-                $this->line(sprintf(
-                    '[OK] %s: unit %s (station %s) verdict %s%s',
-                    $file,
-                    $sn,
-                    $stationCode ?? 'n/a',
-                    strtoupper($result),
-                    $failedSteps !== [] ? ', failed steps: ' . implode(', ', $failedSteps) : ''
+                $this->line(sprintf('[OK] %s: unit %s (%s) verdict %s%s -> %s',
+                    $file, $result['unit']->serial_no, $run->station ?? 'n/a', strtoupper($run->verdict),
+                    $run->verdict === TestRun::FAIL && $run->failedSteps ? ', failed steps: '.implode(', ', $run->failedSteps) : '',
+                    $result['unit']->status,
                 ));
                 $imported++;
             } catch (Throwable $e) {
@@ -163,15 +88,13 @@ class ImportTestStationJsonl extends Command
         return $errors > 0 ? self::FAILURE : self::SUCCESS;
     }
 
-    /**
-     * @return string[]
-     */
+    /** @return string[] */
     private function collectFiles(): array
     {
         $files = [];
         foreach ((array) $this->argument('paths') as $path) {
             if (is_dir($path)) {
-                $found = glob($path . '/*.jsonl') ?: [];
+                $found = glob(rtrim($path, '/').'/*.jsonl') ?: [];
                 sort($found);
                 $files = array_merge($files, $found);
             } elseif (is_file($path)) {
@@ -190,11 +113,7 @@ class ImportTestStationJsonl extends Command
         if ($value === null || $value === '') {
             return null;
         }
-
-        $workOrder = ctype_digit((string) $value)
-            ? WorkOrder::whereKey($value)->first()
-            : WorkOrder::where('order_no', $value)->first();
-
+        $workOrder = ctype_digit((string) $value) ? WorkOrder::find($value) : WorkOrder::where('order_no', $value)->first();
         if ($workOrder === null) {
             $this->warn("Work order not found: {$value} (continuing without work order)");
         }
@@ -202,17 +121,31 @@ class ImportTestStationJsonl extends Command
         return $workOrder;
     }
 
+    private function resolveWorkstation(): ?Workstation
+    {
+        $value = $this->option('workstation');
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $workstation = Workstation::where('code', $value)->first();
+        if ($workstation === null) {
+            $this->warn("Workstation not found: {$value} (using the station named in each log)");
+        }
+
+        return $workstation;
+    }
+
     private function resolveOperator(): ?User
     {
         $value = $this->option('operator');
-        if ($value !== null && $value !== '') {
-            $user = User::where('email', $value)->orWhere('name', $value)->first();
-            if ($user !== null) {
-                return $user;
-            }
-            $this->warn("Operator not found: {$value} (falling back to first user)");
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $user = User::where('email', $value)->orWhere('name', $value)->orWhere('username', $value)->first();
+        if ($user === null) {
+            $this->warn("Operator not found: {$value} (using the operator named in each log)");
         }
 
-        return User::orderBy('id')->first();
+        return $user;
     }
 }

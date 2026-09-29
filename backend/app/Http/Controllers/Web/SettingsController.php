@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImportSettingsRequest;
 use App\Http\Requests\UpdateRoleTabAccessRequest;
 use App\Http\Requests\UpdateSystemSettingsRequest;
+use App\Services\Settings\ConfigurationImporter;
+use App\Services\Settings\ProductionScenarioImporter;
+use App\Services\Settings\ScenarioException;
 use App\Support\TabRegistry;
 use App\Support\TimezoneRegistry;
 use Illuminate\Http\Request;
@@ -110,6 +114,10 @@ class SettingsController extends Controller
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
+            'hold_on_material_shortage' => json_decode($rows['hold_on_material_shortage']?->value ?? 'false', true) ?? false,
+            'pallet_stock_documents' => \App\Services\Warehouse\PalletStockDocumentService::mode(),
+            'lot_tracking_enabled' => json_decode($rows['lot_tracking_enabled']?->value ?? 'false', true) ?? false,
+            'lot_picking_strategy' => json_decode($rows['lot_picking_strategy']?->value ?? '"fefo"', true) ?? 'fefo',
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
             // The currently effective locale (session override applied by SetLocale,
@@ -128,6 +136,7 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']?->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']?->value ?? '1', true) ?? 1,
             'scanner_mode' => json_decode($rows['scanner_mode']?->value ?? '"hid"', true) ?? 'hid',
+            ...app(\App\Support\UnitSerialisation::class)->all(),
             'standard_weekly_hours' => json_decode($rows['standard_weekly_hours']?->value ?? '40', true) ?? 40,
             'default_currency' => json_decode($rows['default_currency']?->value ?? '"PLN"', true) ?? 'PLN',
             'default_pay_type' => json_decode($rows['default_pay_type']?->value ?? '"hourly"', true) ?? 'hourly',
@@ -444,6 +453,10 @@ class SettingsController extends Controller
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
             'workstation_routing_enabled' => (bool) ($validated['workstation_routing_enabled'] ?? false),
             'backflush_on_pallet_creation' => (bool) ($validated['backflush_on_pallet_creation'] ?? false),
+            'hold_on_material_shortage' => (bool) ($validated['hold_on_material_shortage'] ?? false),
+            'pallet_stock_documents' => $validated['pallet_stock_documents'] ?? \App\Services\Warehouse\PalletStockDocumentService::mode(),
+            'lot_tracking_enabled' => (bool) ($validated['lot_tracking_enabled'] ?? false),
+            'lot_picking_strategy' => $validated['lot_picking_strategy'] ?? 'fefo',
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
@@ -461,6 +474,14 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],
+            'unit_identifier_normalize' => (bool) ($validated['unit_identifier_normalize'] ?? false),
+            'unit_serial_pattern' => trim($validated['unit_serial_pattern'] ?? ''),
+            'unit_psn_pattern' => trim($validated['unit_psn_pattern'] ?? ''),
+            'unit_psn_required' => (bool) ($validated['unit_psn_required'] ?? false),
+            'unit_psn_unique' => (bool) ($validated['unit_psn_unique'] ?? false),
+            'unit_test_fail_policy' => $validated['unit_test_fail_policy'] ?? \App\Support\UnitSerialisation::FAIL_BLOCK,
+            'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
+            'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,
             'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
             'default_currency' => strtoupper($validated['default_currency'] ?? 'PLN'),
             'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
@@ -483,6 +504,7 @@ class SettingsController extends Controller
 
         // The flow mode is cached per request; this save bypasses ProductionFlow::set().
         \App\Support\ProductionFlow::forget();
+        app(\App\Support\UnitSerialisation::class)->forget();
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.
@@ -519,32 +541,18 @@ class SettingsController extends Controller
             'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
         ];
 
-        $tables = [
-            'lines', 'workstations', 'product_types', 'process_templates',
-            'template_steps', 'material_types', 'materials', 'bom_items',
-            'issue_types', 'shifts', 'line_statuses', 'dashboard_widgets',
-            'maintenance_schedules', 'sites', 'areas', 'skills',
-            'personnel_classes', 'process_segments',
-        ];
+        // Everything the import reads back (its table list), so a file round-trips.
+        $tables = array_keys(ConfigurationImporter::TABLES);
 
         foreach ($tables as $table) {
-            try {
-                $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
-            } catch (\Exception $e) {
-                // table may not exist yet
+            if (! Schema::hasTable($table)) {
+                continue;
             }
-        }
-
-        // Add optional tables only if they exist
-        $optionalTables = ['inspection_plans', 'view_templates', 'label_templates'];
-        foreach ($optionalTables as $table) {
-            try {
-                if (Schema::hasTable($table)) {
-                    $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
-                }
-            } catch (\Exception $e) {
-                // table may not exist yet
+            $query = DB::table($table);
+            if (Schema::hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at'); // the trash stays here
             }
+            $export[$table] = $query->get()->map(fn ($r) => (array) $r)->toArray();
         }
 
         return response()->json($export, 200, [
@@ -553,148 +561,30 @@ class SettingsController extends Controller
     }
 
     /**
-     * Import system configuration from JSON file
+     * Import a JSON file: configuration, and/or a production scenario (the
+     * `scenario` section) replayed on top of it. One transaction - a scenario
+     * event that fails leaves nothing from the file behind.
      */
-    public function importSettings(Request $request)
+    public function importSettings(ImportSettingsRequest $request, ConfigurationImporter $importer, ProductionScenarioImporter $scenario)
     {
-        $request->validate([
-            'settings_file' => 'required|file|mimes:json,txt|max:10240',
-        ]);
+        $data = json_decode((string) file_get_contents($request->file('settings_file')->getRealPath()), true);
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($data)) {
+            return back()->with('error', __('Invalid JSON file.'));
+        }
 
         try {
-            $content = file_get_contents($request->file('settings_file')->getRealPath());
-            $data = json_decode($content, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return back()->with('error', __('Invalid JSON file.'));
-            }
-
-            // Backward compat: old format with just 'settings' key
-            if (isset($data['settings']) && ! isset($data['system_settings'])) {
-                $data['system_settings'] = $data['settings'];
-            }
-
-            $allowedTables = [
-                'system_settings', 'lines', 'workstations', 'product_types',
-                'process_templates', 'template_steps', 'material_types', 'materials',
-                'bom_items', 'issue_types', 'shifts', 'line_statuses',
-                'dashboard_widgets', 'maintenance_schedules',
-                'sites', 'areas', 'skills', 'personnel_classes', 'process_segments',
-                'inspection_plans', 'view_templates', 'label_templates',
-            ];
-
-            $skipColumns = ['id', 'created_at', 'updated_at', 'tenant_id'];
-
-            // Forbidden system_settings keys
-            $forbiddenSettings = [
-                'app_key', 'app_debug', 'app_env',
-                'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
-                'mail_host', 'mail_port', 'mail_username', 'mail_password',
-                'cors_allowed_origins', 'cors_allowed_methods',
-                'modules_enabled',
-                'production_flow_mode',
-            ];
-
-            $imported = 0;
-
-            DB::beginTransaction();
-
-            foreach ($data as $tableName => $rows) {
-                if (! in_array($tableName, $allowedTables, true)) {
-                    continue;
-                }
-                if (! is_array($rows)) {
-                    continue;
-                }
-                if (! Schema::hasTable($tableName)) {
-                    continue;
-                }
-
-                if ($tableName === 'system_settings') {
-                    // Special handling: key-value update, not replace
-                    $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
-
-                    foreach ($rows as $key => $value) {
-                        if (in_array(strtolower($key), $forbiddenSettings, true)) {
-                            continue;
-                        }
-                        if (! is_string($value) && ! is_numeric($value)) {
-                            continue;
-                        }
-                        if (strlen((string) $value) > 1000) {
-                            continue;
-                        }
-                        if (! in_array($key, $existingKeys, true)) {
-                            continue;
-                        }
-
-                        DB::table('system_settings')->where('key', $key)->update(['value' => (string) $value]);
-                        $imported++;
-                    }
-
-                    continue;
-                }
-
-                // For all other tables: upsert by unique key (code or name)
-                if (empty($rows)) {
-                    continue;
-                }
-
-                // Determine unique key for upsert
-                $uniqueKey = match ($tableName) {
-                    'lines', 'workstations', 'product_types', 'material_types',
-                    'materials', 'issue_types', 'shifts', 'skills',
-                    'personnel_classes', 'process_segments', 'sites', 'areas' => 'code',
-                    'line_statuses', 'process_templates', 'maintenance_schedules',
-                    'inspection_plans', 'label_templates' => 'name',
-                    'dashboard_widgets' => 'widget_id',
-                    default => null,
-                };
-
-                foreach ($rows as $row) {
-                    if (! is_array($row)) {
-                        continue;
-                    }
-
-                    $originalId = $row['id'] ?? null;
-
-                    // Remove auto-generated columns
-                    foreach ($skipColumns as $col) {
-                        unset($row[$col]);
-                    }
-                    // Remove null values for columns that might not accept null
-                    $row = array_filter($row, fn ($v) => $v !== null);
-
-                    if (empty($row)) {
-                        continue;
-                    }
-
-                    try {
-                        DB::statement('SAVEPOINT row_insert');
-                        if ($uniqueKey && isset($row[$uniqueKey])) {
-                            DB::table($tableName)->updateOrInsert(
-                                [$uniqueKey => $row[$uniqueKey]],
-                                $row
-                            );
-                        } else {
-                            DB::table($tableName)->insert($row);
-                        }
-                        DB::statement('RELEASE SAVEPOINT row_insert');
-                        $imported++;
-                    } catch (\Exception $e) {
-                        DB::statement('ROLLBACK TO SAVEPOINT row_insert');
-
-                        continue;
-                    }
-                }
-            }
-
-            DB::commit();
+            [$imported, $events] = DB::transaction(fn () => [
+                $importer->import($data),
+                is_array($data['scenario'] ?? null) ? $scenario->import($data['scenario'], $request->user()) : null,
+            ]);
             Cache::flush();
 
-            return back()->with('success', __(':count configuration items imported successfully.', ['count' => $imported]));
-        } catch (\Exception $e) {
-            DB::rollBack();
+            return back()->with('success', $events === null
+                ? __(':count configuration items imported successfully.', ['count' => $imported])
+                : __('Imported :count configuration items and replayed :events production events.', ['count' => $imported, 'events' => $events]));
+        } catch (ScenarioException $e) {
+            return back()->with('error', __('The production scenario was not imported - nothing from the file was saved. :message', ['message' => $e->getMessage()]));
+        } catch (\Throwable $e) {
             report($e);
 
             return back()->with('error', __('Failed to import settings. Please check the file and try again.'));

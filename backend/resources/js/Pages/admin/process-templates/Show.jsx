@@ -8,7 +8,7 @@ import AppLayout from '../../../layouts/AppLayout';
 // Explicit extension: the helper module `engineeringDocuments.js` differs only in
 // case and would resolve wrong on case-insensitive filesystems.
 import EngineeringDocuments from '../../../components/EngineeringDocuments.jsx';
-import RoutingGraph from './RoutingGraph';
+import RoutingGraph from '../../../components/flow/RoutingGraph';
 import { __ } from '../../../lib/i18n';
 import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
@@ -84,6 +84,121 @@ function OptionalVariantFields({ data, setData, errors }) {
  * the Level-4 standard times (setup + run-per-unit) that flow down from an ERP
  * BOM. Shared by the add- and edit-step forms.
  */
+/**
+ * What kind of step this is. A packing step is executed by the packing
+ * station rather than a production bench, and says what it packs into what:
+ * units into cartons, cartons onto pallets, how many fit, which label prints.
+ */
+/** Which label type each packing level prints, so the template list only offers the fitting ones. */
+const LEVEL_LABEL_TYPE = { unit: 'serial_unit', carton: 'carton', pallet: 'pallet' };
+const LEVEL_LABEL_HINT = {
+    unit: 'Printed for every unit scanned at the packing station.',
+    carton: 'Printed when a carton closes.',
+    pallet: 'Printed when a pallet closes.',
+};
+
+function StepKindFields({ data, setData, labelTemplates = [] }) {
+    const cfg = data.config ?? {};
+    const setCfg = (key, value) => setData('config', { ...cfg, [key]: value });
+    const isPacking = data.kind === 'packing';
+    const level = cfg.unit ?? 'carton';
+    const applicableTemplates = labelTemplates.filter((t) => t.type === LEVEL_LABEL_TYPE[level]);
+    return (
+        <div className={`md:col-span-2 grid grid-cols-1 gap-4 rounded-om-sm border border-om-line p-3 ${isPacking ? 'bg-om-panel md:grid-cols-4' : 'md:grid-cols-1'}`}>
+            <div>
+                <div className="form-label">{__('Step kind')}</div>
+                <Dropdown
+                    aria-label={__('Step kind')}
+                    value={data.kind ?? 'production'}
+                    onChange={(v) => setData('kind', v)}
+                    options={[
+                        { value: 'production', label: __('Production') },
+                        { value: 'packing', label: __('Packing') },
+                    ]}
+                    className="w-full"
+                />
+                <p className="text-xs text-om-muted mt-1">
+                    {isPacking ? __('Done at the packing station: units are scanned into cartons and onto pallets here.') : __('Done at a production workstation.')}
+                </p>
+            </div>
+            {isPacking && (
+                <>
+                    <div>
+                        <div className="form-label">{__('Packs into')}</div>
+                        <Dropdown
+                            aria-label={__('Packs into')}
+                            value={level}
+                            onChange={(v) => setData('config', { ...cfg, unit: v, label_template_id: null })}
+                            options={[
+                                { value: 'unit', label: __('Single unit (label only)') },
+                                { value: 'carton', label: __('Carton of units') },
+                                { value: 'pallet', label: __('Pallet (cartons or units)') },
+                            ]}
+                            className="w-full"
+                        />
+                    </div>
+                    <TextField
+                        label={__('Units per carton')}
+                        type="number"
+                        min="1"
+                        value={cfg.carton_capacity ?? ''}
+                        onChange={(v) => setCfg('carton_capacity', v)}
+                        placeholder={__('closes the carton when reached')}
+                    />
+                    <TextField
+                        label={__('Cartons per pallet')}
+                        type="number"
+                        min="1"
+                        value={cfg.pallet_capacity ?? ''}
+                        onChange={(v) => setCfg('pallet_capacity', v)}
+                        placeholder={__('optional')}
+                    />
+                    <TextField
+                        label={__('Expected weight (g)')}
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={cfg.weight_expected_g ?? ''}
+                        onChange={(v) => setCfg('weight_expected_g', v === '' ? null : v)}
+                        placeholder={__('empty = no weight check')}
+                    />
+                    <TextField
+                        label={__('Weight tolerance (± g)')}
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={cfg.weight_tolerance_g ?? ''}
+                        onChange={(v) => setCfg('weight_tolerance_g', v === '' ? null : v)}
+                        disabled={!cfg.weight_expected_g}
+                    />
+                    <div className="md:col-span-4">
+                        <Checkbox
+                            checked={cfg.unit_label !== false}
+                            onChange={(on) => setCfg('unit_label', on ? null : false)}
+                            label={__('Print a label for each unit when it is scanned')}
+                        />
+                        <p className="text-xs text-om-muted mt-1">{__('Off: the label prints only for a unit that has no label yet.')}</p>
+                    </div>
+                    <div className="md:col-span-4">
+                        <div className="form-label">{__('Label template')}</div>
+                        <Dropdown
+                            aria-label={__('Label template')}
+                            value={cfg.label_template_id != null ? String(cfg.label_template_id) : ''}
+                            onChange={(v) => setCfg('label_template_id', v ? Number(v) : null)}
+                            options={[
+                                { value: '', label: __('Default for the label type') },
+                                ...applicableTemplates.map((t) => ({ value: String(t.id), label: `${t.name} · ${t.size} mm` })),
+                            ]}
+                            className="w-full md:w-96"
+                        />
+                        <p className="text-xs text-om-muted mt-1">{__(LEVEL_LABEL_HINT[level])}</p>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
 function Isa95StepFields({ data, setData, workstationTypes = [] }) {
     return (
         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
@@ -258,6 +373,8 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         is_optional: false,
         variant_group: '',
         is_default_variant: false,
+        kind: 'production',
+        config: {},
     });
 
     const { data, setData, errors, processing } = form;
@@ -368,6 +485,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                     />
                 </div>
 
+                <StepKindFields data={data} setData={setData} labelTemplates={usePage().props.labelTemplates ?? []} />
                 <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                 <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
@@ -400,6 +518,8 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         is_optional: !!step.is_optional,
         variant_group: step.variant_group ?? '',
         is_default_variant: !!step.is_default_variant,
+        kind: step.kind ?? 'production',
+        config: step.config ?? {},
     });
 
     const { data, setData, errors, processing } = form;
@@ -496,6 +616,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                     />
                 </div>
 
+                <StepKindFields data={data} setData={setData} labelTemplates={usePage().props.labelTemplates ?? []} />
                 <Isa95StepFields data={data} setData={setData} workstationTypes={workstationTypes} />
                 <ParametersEditor value={data.parameters} onChange={(v) => setData('parameters', v)} />
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
@@ -839,6 +960,11 @@ function StepCard({
                             <div className="flex-1">
                                 <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
                                     {step.name}
+                                    {step.kind === 'packing' && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
+                                            {__('Packing')}
+                                        </span>
+                                    )}
                                     {step.is_optional && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
                                             {__('Optional')}
@@ -1002,6 +1128,7 @@ export default function ProcessTemplatesShow() {
     const railSubline = (st) => [
         st.workstation?.name ?? st.workstation_type?.name ?? null,
         st.estimated_duration_minutes != null ? `${st.estimated_duration_minutes}m` : null,
+        st.kind === 'packing' ? __('packing') : null,
         st.variant_group ? __('variant') : null,
         st.is_optional ? __('optional') : null,
     ].filter(Boolean).join(' · ');

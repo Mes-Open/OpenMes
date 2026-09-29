@@ -8,15 +8,23 @@ use App\Http\Requests\PalletRequest;
 use App\Models\LabelTemplate;
 use App\Models\Pallet;
 use App\Models\WorkOrder;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PalletController extends Controller
 {
     use \App\Http\Controllers\Concerns\StaysOnList;
 
-    public function index()
+    public function index(Request $request)
     {
+        // /admin/pallets/{id}/edit lands here with ?edit={id}: the record is
+        // handed over so the page opens its drawer on it, like every other list.
+        $editPallet = $request->integer('edit')
+            ? Pallet::find($request->integer('edit'))?->only('id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'destination', 'erp_reference')
+            : null;
+
         return Inertia::render('admin/pallets/Index', [
+            'editPallet' => $editPallet,
             // Closures so the drawer's partial reload (only=[workOrders,statuses])
             // doesn't compute these just for Inertia to discard them.
             'workOrderNumbers' => fn () => WorkOrder::pluck('order_no', 'id'),
@@ -43,16 +51,10 @@ class PalletController extends Controller
         return $this->saved($request, redirect()->route('admin.pallets.index'), __('Pallet created.'));
     }
 
+    /** Editing happens in the list's drawer; a deep link to the old page opens it there. */
     public function edit(Pallet $pallet)
     {
-        return Inertia::render('admin/pallets/Edit', [
-            'pallet' => $pallet->only(
-                'id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'destination', 'erp_reference',
-            ),
-            'workOrders' => $this->workOrderOptions(),
-            'statuses' => PalletStatus::options(),
-            'labelTemplates' => $this->activeLabelTemplates(),
-        ]);
+        return redirect()->route('admin.pallets.index', ['edit' => $pallet->id]);
     }
 
     public function update(PalletRequest $request, Pallet $pallet)

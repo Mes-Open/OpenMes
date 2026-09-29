@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { __ } from '../../lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, Checkbox, Dropdown, IconButton, StatusPill } from '@openmes/ui';
+import { Button, Dropdown, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import Tooltip from '../../components/Tooltip';
+import AppDataTable from '../../components/AppDataTable';
+import usePrompt from '../../components/usePrompt';
+import RoutingGraph from '../../components/flow/RoutingGraph';
 import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
 
@@ -79,44 +82,6 @@ const inputCls =
     'w-full text-[13px] text-om-ink placeholder:text-om-faint bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]';
 const modalFooterCls = 'flex gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]';
 
-// ─── column visibility hook ──────────────────────────────────────────────────
-
-function useVisibleColumns(allColumns, lineId) {
-    const storageKey = `ws_cols_${lineId}`;
-    const defaultVisible = allColumns.filter((c) => c.default).map((c) => c.key);
-
-    const [visibleKeys, setVisibleKeys] = useState(() => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            return saved ? JSON.parse(saved) : defaultVisible;
-        } catch {
-            return defaultVisible;
-        }
-    });
-
-    const toggleColumn = useCallback(
-        (key) => {
-            setVisibleKeys((prev) => {
-                const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify(next));
-                } catch {}
-                return next;
-            });
-        },
-        [storageKey],
-    );
-
-    const resetColumns = useCallback(() => {
-        setVisibleKeys(defaultVisible);
-        try {
-            localStorage.removeItem(storageKey);
-        } catch {}
-    }, [storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    return { visibleKeys, toggleColumn, resetColumns };
-}
-
 // ─── timed-correction link ───────────────────────────────────────────────────
 
 function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
@@ -182,9 +147,9 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
 
     if (isDone || wo.uses_step_ledger) {
         return (
-            <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center" onClick={(e) => e.stopPropagation()}>
                 <span className="font-mono text-[13px] text-om-faint">{entryQty > 0 ? Math.round(entryQty) : 0}</span>
-            </td>
+            </div>
         );
     }
 
@@ -197,7 +162,7 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
                 new Date(firstEntry.updated_at).getTime() + qtyEditWindowMinutes * 60 * 1000 > Date.now()));
 
     return (
-        <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="text-center" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-center gap-1">
                 <input
                     type="number"
@@ -232,7 +197,7 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
                     />
                 )}
             </div>
-        </td>
+        </div>
     );
 }
 
@@ -552,85 +517,6 @@ function ReportModal({ report, issueTypes, onClose }) {
     );
 }
 
-// ─── column picker dropdown ───────────────────────────────────────────────────
-
-function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    const systemCols = allColumns.filter((c) => c.source !== 'extra_data');
-    const extraCols = allColumns.filter((c) => c.source === 'extra_data');
-
-    return (
-        <div className="relative" ref={ref}>
-            <Tooltip label="Configure columns">
-                <button
-                    type="button"
-                    onClick={() => setOpen((v) => !v)}
-                    className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
-                    aria-label="Configure columns"
-                >
-                    <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </button>
-            </Tooltip>
-
-            {open && (
-                <div className="absolute right-0 mt-2 w-64 bg-om-card rounded-om shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] border border-om-line z-50 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-om-ink">{__("Columns")}</span>
-                        <button
-                            type="button"
-                            onClick={resetColumns}
-                            className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-accent hover:underline cursor-pointer"
-                        >
-                            {__("Reset")}
-                        </button>
-                    </div>
-
-                    <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-2">{__('System fields')}</div>
-                    {systemCols.map((col) => (
-                        <div key={col.key} className="py-1 px-1 rounded-[6px] hover:bg-om-chip">
-                            <Checkbox
-                                checked={visibleKeys.includes(col.key)}
-                                onChange={() => toggleColumn(col.key)}
-                                label={__(col.label)}
-                            />
-                        </div>
-                    ))}
-
-                    {extraCols.length > 0 && (
-                        <>
-                            <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-3">{__('Import data')}</div>
-                            {extraCols.map((col) => (
-                                <div key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip">
-                                    <Checkbox
-                                        checked={visibleKeys.includes(col.key)}
-                                        onChange={() => toggleColumn(col.key)}
-                                        label={__(col.label)}
-                                    />
-                                    <span className="font-mono text-[10px] text-om-faint ml-auto">{col.key}</span>
-                                </div>
-                            ))}
-                        </>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
 // ─── status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -646,7 +532,7 @@ function StatusBadge({ status }) {
     return <StatusPill status="pending" label={statusLabel(status)} />;
 }
 
-// ─── row ─────────────────────────────────────────────────────────────────────
+// ─── quick step count ───────────────────────────────────────────────────────
 
 function QuickStepCount({ order }) {
     const targets = order.quick_count_targets ?? [];
@@ -672,170 +558,165 @@ function QuickStepCount({ order }) {
     </div>;
 }
 
-function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, onStart, onComplete, onInfo, onReport, labelTemplates = [] }) {
+// ─── table columns ───────────────────────────────────────────────────────────
+
+/** Whole-row tint for the order's state (the design's done / running / blocked surfaces). */
+function rowClassFor(wo) {
+    if (wo.status === 'DONE') return 'bg-om-done-bg/60';
+    if (wo.status === 'IN_PROGRESS') return 'bg-om-running-bg/50';
+    if (wo.status === 'BLOCKED') return 'bg-om-blocked-bg/50';
+    return '';
+}
+
+/** The plain text behind a configurable column — what search, filters and sorting see. */
+function textValue(wo, col) {
+    if (col.source === 'extra_data') return formatExtraValue(wo.extra_data?.[col.key]) || '';
+    if (col.source === 'product_type') return wo.product_type?.name ?? '';
+    if (col.key === 'status') return statusLabel(wo.status);
+    if (col.key === 'week_number') return wo.week_number ? weekLabel(wo.week_number) : '';
+    const v = wo[col.key];
+    return v == null ? '' : String(v);
+}
+
+function RowActions({ wo, labelTemplates, routingOpen, onToggleRouting, onComplete, onInfo, onReport }) {
     const isDone = wo.status === 'DONE';
-    const isActive = wo.status === 'IN_PROGRESS';
     const planned = parseFloat(wo.planned_qty ?? 0);
     const produced = parseFloat(wo.produced_qty ?? 0);
     const remaining = Math.max(0, planned - produced);
-
-    const handleRowClick = () => {
-        if (wo.uses_step_ledger) {
-            router.visit(`/operator/work-order/${wo.id}`);
-            return;
-        }
-        if (isDone) return;
-        if (!isActive) {
-            onStart({
-                open: true,
-                id: wo.id,
-                orderNo: wo.order_no,
-                product: wo.product_type?.name ?? wo.order_no,
-                qty: planned,
-            });
-        } else {
-            onComplete({
-                open: true,
-                id: wo.id,
-                orderNo: wo.order_no,
-                product: wo.product_type?.name ?? wo.order_no,
-                planned,
-                produced,
-            });
-        }
-    };
-
-    const rowClass = [
-        'border-b border-om-line2 transition-colors border-l-[3px]',
-        isDone
-            ? 'bg-om-done-bg/60 border-l-om-done'
-            : isActive
-            ? 'bg-om-running-bg/50 border-l-om-running'
-            : wo.status === 'BLOCKED'
-            ? 'bg-om-blocked-bg/50 border-l-om-blocked'
-            : 'hover:bg-om-panel border-l-transparent',
-        !isDone ? 'cursor-pointer active:bg-om-chip' : '',
-    ]
-        .join(' ')
-        .trim();
-
     return (
-        <tr className={rowClass} onClick={handleRowClick}>
-            {allColumns.map((col) =>
-                visibleKeys.includes(col.key) ? (
-                    <td key={col.key} className="px-3 py-3 text-sm text-om-ink">
-                        {col.key === 'status' ? (
-                            <StatusBadge status={wo.status} />
-                        ) : (
-                            getCellValue(wo, col)
-                        )}
-                    </td>
-                ) : null,
+        // The actions are not the row: a click here never starts or completes the order.
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            {wo.uses_step_ledger && <QuickStepCount order={wo} />}
+            {wo.uses_step_ledger && (
+                <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent">
+                    {__('Record output')}
+                </Link>
             )}
-
-            {/* To Produce */}
-            <td className="px-3 py-3 text-center font-mono text-[15px] font-medium text-om-ink border-l border-om-line">
-                {fmt(planned)}
-            </td>
-
-            {/* Produced */}
-            <td className="px-3 py-3 text-center font-mono text-[15px] text-om-muted">
-                {fmt(produced)}
-            </td>
-
-            {/* Remaining */}
-            <td className={`px-3 py-3 text-center font-mono text-[15px] font-semibold ${
-                remaining <= 0
-                    ? 'bg-om-running-bg text-om-running'
-                    : 'bg-om-accent text-white'
-            }`}>
-                {fmt(remaining)}
-            </td>
-
-            {/* Shift cells */}
-            {lineShifts.map((shift) => (
-                <ShiftCell
-                    key={shift.id}
-                    wo={wo}
-                    shift={shift}
-                    shiftEntries={shiftEntries}
-                    qtyEditPolicy={qtyEditPolicy}
-                    qtyEditWindowMinutes={qtyEditWindowMinutes}
-                />
-            ))}
-
-            {/* Actions */}
-            <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-1">
-                    {wo.uses_step_ledger && <QuickStepCount order={wo} />}
-                    {wo.uses_step_ledger && (
-                        <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent">
-                            {__('Record output')}
-                        </Link>
-                    )}
-                    {!isDone && !wo.uses_step_ledger && (
-                        <Tooltip label="Add produced quantity">
-                            <IconButton
-                                variant="primary"
-                                onClick={() =>
-                                    onComplete({
-                                        open: true,
-                                        id: wo.id,
-                                        orderNo: wo.order_no,
-                                        product: wo.product_type?.name ?? wo.order_no,
-                                        planned,
-                                        produced,
-                                    })
-                                }
-                                className="bg-om-accent hover:bg-om-accent hover:brightness-95"
-                                aria-label="Add produced quantity"
-                            >
-                                +
-                            </IconButton>
-                        </Tooltip>
-                    )}
-                    <Tooltip label="Report problem">
-                        <IconButton
-                            variant="danger"
-                            onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                            aria-label="Report problem"
-                        >
-                            !
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip label="Details">
-                        <IconButton
-                            variant="default"
-                            onClick={() =>
-                                onInfo({
-                                    orderNo: wo.order_no,
-                                    product: wo.product_type?.name ?? '-',
-                                    line: wo.line?.name ?? '-',
-                                    status: statusLabel(wo.status),
-                                    planned: fmt(planned),
-                                    produced: fmt(produced),
-                                    remaining: fmt(remaining),
-                                    priority: wo.priority ?? '-',
-                                    dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
-                                    // Raw value too, so the details modal can put
-                                    // the countdown beside the date it prints.
-                                    dueRaw: wo.due_date ?? null,
-                                    settled: SETTLED_STATUSES.includes(wo.status),
-                                    description: wo.description ?? '-',
-                                })
-                            }
-                            aria-label="Details"
-                        >
-                            ?
-                        </IconButton>
-                    </Tooltip>
-                    {labelTemplates.some((t) => t.type === 'work_order') && (
-                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
-                    )}
-                </div>
-            </td>
-        </tr>
+            {!isDone && !wo.uses_step_ledger && (
+                <Tooltip label="Add produced quantity">
+                    <IconButton
+                        variant="primary"
+                        onClick={() => onComplete({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned, produced })}
+                        className="bg-om-accent hover:bg-om-accent hover:brightness-95"
+                        aria-label="Add produced quantity"
+                    >
+                        +
+                    </IconButton>
+                </Tooltip>
+            )}
+            <Tooltip label="Report problem">
+                <IconButton variant="danger" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} aria-label="Report problem">
+                    !
+                </IconButton>
+            </Tooltip>
+            <Tooltip label="Details">
+                <IconButton
+                    variant="default"
+                    onClick={() =>
+                        onInfo({
+                            orderNo: wo.order_no,
+                            product: wo.product_type?.name ?? '-',
+                            line: wo.line?.name ?? '-',
+                            status: statusLabel(wo.status),
+                            planned: fmt(planned),
+                            produced: fmt(produced),
+                            remaining: fmt(remaining),
+                            priority: wo.priority ?? '-',
+                            dueDate: wo.due_date ? wo.due_date.substring(0, 10) : '-',
+                            // Raw value too, so the details modal can put
+                            // the countdown beside the date it prints.
+                            dueRaw: wo.due_date ?? null,
+                            settled: SETTLED_STATUSES.includes(wo.status),
+                            description: wo.description ?? '-',
+                        })
+                    }
+                    aria-label="Details"
+                >
+                    ?
+                </IconButton>
+            </Tooltip>
+            {labelTemplates.some((t) => t.type === 'work_order') && (
+                <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
+            )}
+            {(wo.routing ?? []).length > 0 && (
+                <Tooltip label={routingOpen ? __('Hide routing') : __('Show routing')}>
+                    <IconButton
+                        variant={routingOpen ? 'primary' : 'default'}
+                        onClick={() => onToggleRouting(wo.id)}
+                        aria-label={routingOpen ? __('Hide routing') : __('Show routing')}
+                        aria-expanded={routingOpen}
+                        data-testid={`routing-toggle-${wo.id}`}
+                    >
+                        ⇢
+                    </IconButton>
+                </Tooltip>
+            )}
+        </div>
     );
+}
+
+/**
+ * The table's columns: the line's configurable ones (system fields and
+ * extra_data keys, hideable) and then the fixed production block — to produce,
+ * produced, remaining, one input column per shift, the actions.
+ */
+function buildColumns({ allColumns, lineShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates, openRouting, onToggleRouting, onComplete, onInfo, onReport }) {
+    const configurable = allColumns.map((col) => ({
+        id: col.key,
+        accessorFn: (wo) => textValue(wo, col),
+        // A string header, not a render function: the column picker names the column by it.
+        header: __(col.label),
+        meta: col.key === 'due_date' ? { filter: 'date' } : col.key === 'status' ? { filter: 'select' } : {},
+        cell: ({ row }) => (col.key === 'status' ? <StatusBadge status={row.original.status} /> : getCellValue(row.original, col)),
+    }));
+    const qty = (accessor, cls) => ({ cell: ({ getValue }) => <span className={`font-mono text-[15px] ${cls}`}>{fmt(getValue())}</span> });
+    const fixed = [
+        { id: 'to_produce', accessorFn: (wo) => parseFloat(wo.planned_qty ?? 0) || 0, header: __('To Produce'), enableHiding: false, meta: { align: 'center', filter: false }, ...qty('planned', 'font-medium text-om-ink') },
+        { id: 'produced', accessorFn: (wo) => parseFloat(wo.produced_qty ?? 0) || 0, header: __('Produced'), enableHiding: false, meta: { align: 'center', filter: false }, ...qty('produced', 'text-om-muted') },
+        {
+            id: 'remaining',
+            accessorFn: (wo) => Math.max(0, (parseFloat(wo.planned_qty ?? 0) || 0) - (parseFloat(wo.produced_qty ?? 0) || 0)),
+            header: __('Remaining'),
+            enableHiding: false,
+            meta: { align: 'center', filter: false },
+            cell: ({ getValue }) => {
+                const r = getValue();
+                return (
+                    <span className={`inline-block min-w-12 rounded-om-sm px-2 py-1 font-mono text-[15px] font-semibold ${r <= 0 ? 'bg-om-running-bg text-om-running' : 'bg-om-accent text-white'}`}>
+                        {fmt(r)}
+                    </span>
+                );
+            },
+        },
+        ...lineShifts.map((shift) => ({
+            id: `shift_${shift.id}`,
+            accessorFn: (wo) => { const e = shiftEntries[`${wo.id}_${shift.id}`]?.[0]; return e ? parseFloat(e.quantity) || 0 : 0; },
+            header: () => <span title={`${shift.name} (${(shift.start_time ?? '').substring(0, 5)}–${(shift.end_time ?? '').substring(0, 5)})`}>{shift.code}</span>,
+            enableSorting: false,
+            enableHiding: false,
+            meta: { align: 'center', filter: false },
+            cell: ({ row }) => <ShiftCell wo={row.original} shift={shift} shiftEntries={shiftEntries} qtyEditPolicy={qtyEditPolicy} qtyEditWindowMinutes={qtyEditWindowMinutes} />,
+        })),
+        {
+            id: '_actions',
+            header: __('Actions'),
+            enableSorting: false,
+            enableHiding: false,
+            meta: { align: 'right', chrome: true, filter: false },
+            cell: ({ row }) => (
+                <RowActions
+                    wo={row.original}
+                    labelTemplates={labelTemplates}
+                    routingOpen={openRouting.has(row.original.id)}
+                    onToggleRouting={onToggleRouting}
+                    onComplete={onComplete}
+                    onInfo={onInfo}
+                    onReport={onReport}
+                />
+            ),
+        },
+    ];
+    return [...configurable, ...fixed];
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
@@ -859,27 +740,58 @@ export default function Workstation() {
         selectedWorkstation = null,
     } = usePage().props;
 
-    const { visibleKeys, toggleColumn, resetColumns } = useVisibleColumns(allColumns, line?.id ?? 0);
-
-    const [searchVal, setSearchVal] = useState(searchProp ?? '');
+    // Which configurable columns the reader keeps on, remembered per line in
+    // the browser (as the list of visible keys; `default` decides the first time).
+    const storageKey = `ws_cols_${line?.id ?? 0}`;
+    const [savedVisibility] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
+            if (Array.isArray(saved)) return Object.fromEntries(allColumns.map((c) => [c.key, saved.includes(c.key)]));
+        } catch { /* fall through to the defaults */ }
+        return Object.fromEntries(allColumns.filter((c) => !c.default).map((c) => [c.key, false]));
+    });
+    const rememberColumns = (visibility) => {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(allColumns.filter((c) => visibility[c.key] !== false).map((c) => c.key)));
+        } catch { /* private mode etc. — the choice just doesn't survive a reload */ }
+    };
 
     // Modals
     const [startModal, setStartModal] = useState({ open: false });
     const [completeModal, setCompleteModal] = useState({ open: false });
     const [infoModal, setInfoModal] = useState(null);   // null = closed, obj = open
     const [reportModal, setReportModal] = useState(null); // null = closed, obj = open
+    // Routing graphs folded out under orders: the header button opens every
+    // ledger order's, the row button just that one.
+    const [openRouting, setOpenRouting] = useState(() => new Set());
+    const routingIds = workOrders.filter((wo) => (wo.routing ?? []).length > 0).map((wo) => wo.id);
+    const anyRouting = routingIds.length > 0;
+    const showRouting = anyRouting && routingIds.every((id) => openRouting.has(id));
+    const toggleRouting = (id) => setOpenRouting((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    const toggleAllRouting = () => setOpenRouting(showRouting ? new Set() : new Set(routingIds));
+    const openStep = (wo, stepId) => {
+        const params = new URLSearchParams(window.location.search);
+        const ctx = ['line', 'workstation'].filter((k) => params.has(k)).map((k) => `${k}=${encodeURIComponent(params.get(k))}`);
+        router.visit(`/operator/work-order/${wo.id}?${[...ctx, `step=${stepId}`].join('&')}`);
+    };
+
+    // Clicking a row: an order with a step ledger opens its page; otherwise
+    // the start / add-quantity dialog, as before.
+    const handleRowClick = (wo) => {
+        if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
+        if (wo.status === 'DONE') return;
+        const planned = parseFloat(wo.planned_qty ?? 0);
+        const produced = parseFloat(wo.produced_qty ?? 0);
+        if (wo.status !== 'IN_PROGRESS') {
+            setStartModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, qty: planned });
+        } else {
+            setCompleteModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned, produced });
+        }
+    };
 
     // Only show shift columns for shifts belonging to this line
     const lineShifts = shifts.filter((s) => s.line_id === line?.id || String(s.line_id) === String(line?.id));
     const hasShifts = lineShifts.length > 0;
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-        const params = {};
-        if (searchVal) params.search = searchVal;
-        if (weekFilter && weekFilter !== 'all') params.week = weekFilter;
-        router.get('/operator/workstation', params);
-    };
 
     const weekUrl = (wk) => {
         const params = new URLSearchParams();
@@ -896,6 +808,11 @@ export default function Workstation() {
         if (searchProp) params.set('search', searchProp);
         return `/operator/workstation?${params}`;
     };
+
+    const columns = useMemo(() => buildColumns({
+        allColumns, lineShifts: hasShifts ? lineShifts : [], shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates,
+        openRouting, onToggleRouting: toggleRouting, onComplete: setCompleteModal, onInfo: setInfoModal, onReport: setReportModal,
+    }), [allColumns, lineShifts, hasShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates, openRouting]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <>
@@ -940,12 +857,11 @@ export default function Workstation() {
                                 </span>
                             </div>
 
-                            <ColumnPicker
-                                allColumns={allColumns}
-                                visibleKeys={visibleKeys}
-                                toggleColumn={toggleColumn}
-                                resetColumns={resetColumns}
-                            />
+                            {anyRouting && (
+                                <Button variant={showRouting ? 'primary' : 'secondary'} onClick={toggleAllRouting} aria-pressed={showRouting} data-testid="routing-toggle-all">
+                                    {showRouting ? __('Hide routing') : __('Show routing')}
+                                </Button>
+                            )}
 
                             <Link
                                 href="/operator/select-line"
@@ -992,40 +908,10 @@ export default function Workstation() {
                         </div>
                     )}
 
-                    {/* Action buttons (disabled stubs) */}
-                    <div className="flex gap-2 mb-3">
-                        <button
-                            type="button"
-                            disabled
-                            className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-downtime-bg text-om-downtime opacity-60 cursor-not-allowed"
-                        >
-                            {__("Cleaning")}
-                        </button>
-                        <button
-                            type="button"
-                            disabled
-                            className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-blocked-bg text-om-blocked opacity-60 cursor-not-allowed"
-                        >
-                            {__("Failure")}
-                        </button>
-                    </div>
-
                     <p className="text-xs text-om-faint mb-2">
                         {__('Click a row to change production status. Use "Z1" or "Z2" columns to enter produced quantities per shift.')}
                     </p>
                 </div>
-
-                {/* Search */}
-                <form onSubmit={handleSearch} className="mb-4">
-                    <input
-                        type="text"
-                        value={searchVal}
-                        onChange={(e) => setSearchVal(e.target.value)}
-                        placeholder={__('Search by order number, product or data...')}
-                        className={`${inputCls} sm:w-96`}
-                        autoComplete="off"
-                    />
-                </form>
 
                 {/* Table */}
                 {workOrders.length === 0 ? (
@@ -1033,65 +919,23 @@ export default function Workstation() {
                         <p className="text-om-faint text-lg">{__('No work orders found')}</p>
                     </div>
                 ) : (
-                    <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm border-collapse">
-                                <thead>
-                                    <tr className="bg-om-panel border-b border-om-line">
-                                        {allColumns.map((col) =>
-                                            visibleKeys.includes(col.key) ? (
-                                                <th
-                                                    key={col.key}
-                                                    className="px-3 py-3 text-left font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint whitespace-nowrap"
-                                                >
-                                                    {__(col.label)}
-                                                </th>
-                                            ) : null,
-                                        )}
-                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint border-l border-om-line">
-                                            {__('To Produce')}
-                                        </th>
-                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint">
-                                            {__('Produced')}
-                                        </th>
-                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] bg-om-accent text-white">
-                                            {__('Remaining')}
-                                        </th>
-                                        {hasShifts &&
-                                            lineShifts.map((shift) => (
-                                                <th
-                                                    key={shift.id}
-                                                    className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint"
-                                                    title={`${shift.name} (${(shift.start_time ?? '').substring(0, 5)}–${(shift.end_time ?? '').substring(0, 5)})`}
-                                                >
-                                                    {shift.code}
-                                                </th>
-                                            ))}
-                                        <th className="px-3 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {workOrders.map((wo) => (
-                                        <WorkOrderRow
-                                            key={wo.id}
-                                            wo={wo}
-                                            allColumns={allColumns}
-                                            visibleKeys={visibleKeys}
-                                            lineShifts={hasShifts ? lineShifts : []}
-                                            shiftEntries={shiftEntries}
-                                            qtyEditPolicy={qtyEditPolicy}
-                                            qtyEditWindowMinutes={qtyEditWindowMinutes}
-                                            onStart={setStartModal}
-                                            onComplete={setCompleteModal}
-                                            onInfo={setInfoModal}
-                                            onReport={setReportModal}
-                                            labelTemplates={labelTemplates}
-                                        />
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <AppDataTable
+                        data={workOrders}
+                        columns={columns}
+                        getRowId={(wo) => String(wo.id)}
+                        columnVisibility={savedVisibility}
+                        onColumnVisibilityChange={rememberColumns}
+                        paginated={false}
+                        striped={false}
+                        rowClassName={rowClassFor}
+                        onRowClick={handleRowClick}
+                        rowDetail={(wo) => (openRouting.has(wo.id) && (wo.routing ?? []).length > 0 ? (
+                            <div data-testid={`routing-row-${wo.id}`}>
+                                <RoutingGraph compact height={170} steps={wo.routing} onSelectStep={(id) => openStep(wo, id)} />
+                                <p className="px-3 py-1.5 text-[11px] text-om-muted border-t border-om-line2 m-0">{__('Click a step to open the order on it.')}</p>
+                            </div>
+                        ) : null)}
+                    />
                 )}
             </div>
 
@@ -1122,9 +966,22 @@ const MACHINE_STATE_DOT = {
     WAITING: 'bg-yellow-400', CLEANING: 'bg-purple-400', MAINTENANCE: 'bg-orange-400',
 };
 
+// States that open a downtime — the ones worth a word of explanation.
+const DOWNTIME_STATES = ['STOPPED', 'FAULT', 'WAITING', 'CLEANING', 'MAINTENANCE'];
+
 function MachineStatePanel({ machines, options, label }) {
-    const setState = (workstationId, state) => {
-        router.post(`/operator/workstation/machine-state/${workstationId}`, { state }, { preserveScroll: true });
+    const { prompt, dialog } = usePrompt();
+    const post = (workstationId, state, note = '') => {
+        router.post(`/operator/workstation/machine-state/${workstationId}`, note ? { state, note } : { state }, { preserveScroll: true });
+    };
+    // A stop gets an optional note (what happened), stored with the state and
+    // shown on the shift monitor; running/idle/setup post straight away.
+    const setState = (machine, state) => {
+        if (!DOWNTIME_STATES.includes(state)) { post(machine.id, state); return; }
+        prompt(
+            { title: `${machine.name}: ${MACHINE_STATE_LABELS[state] ? __(MACHINE_STATE_LABELS[state]) : state}`, label: __('Note (optional)'), placeholder: __('What happened?'), required: false, maxLength: 255 },
+            (note) => post(machine.id, state, note),
+        );
     };
 
     return (
@@ -1139,7 +996,7 @@ function MachineStatePanel({ machines, options, label }) {
                             className="min-w-[140px]"
                             value={m.state ?? undefined}
                             placeholder="—"
-                            onChange={(state) => state !== m.state && setState(m.id, state)}
+                            onChange={(state) => state !== m.state && setState(m, state)}
                             aria-label={`${label}: ${m.name}`}
                             options={[
                                 // A state outside the settable list (e.g. from a machine feed) stays visible.
@@ -1150,6 +1007,7 @@ function MachineStatePanel({ machines, options, label }) {
                     </div>
                 ))}
             </div>
+            {dialog}
         </div>
     );
 }

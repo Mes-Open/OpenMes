@@ -27,13 +27,13 @@ class WorkstationViewSelectionTest extends TestCase
 
     private Line $line;
 
-    private Workstation $exposure;
+    private Workstation $stationB;
 
-    private Workstation $pretest;
+    private Workstation $stationA;
 
-    private WorkOrder $atExposure;
+    private WorkOrder $atStationB;
 
-    private WorkOrder $atPretest;
+    private WorkOrder $atStationA;
 
     protected function setUp(): void
     {
@@ -43,11 +43,11 @@ class WorkstationViewSelectionTest extends TestCase
         $this->operator->assignRole('Operator');
 
         $this->line = Line::factory()->create();
-        $this->exposure = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'FT-2 Exposure']);
-        $this->pretest = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'FT-1 Pretest']);
+        $this->stationB = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'Station B']);
+        $this->stationA = Workstation::factory()->create(['line_id' => $this->line->id, 'name' => 'Station A']);
 
-        $this->atExposure = $this->workOrderAt($this->exposure);
-        $this->atPretest = $this->workOrderAt($this->pretest);
+        $this->atStationB = $this->workOrderAt($this->stationB);
+        $this->atStationA = $this->workOrderAt($this->stationA);
 
         $this->setTrackingMode('per_operation');
     }
@@ -85,13 +85,13 @@ class WorkstationViewSelectionTest extends TestCase
     public function test_quick_count_targets_require_available_manual_work_at_the_selected_station(): void
     {
         \App\Support\ProductionFlow::set(\App\Support\ProductionFlow::TRANSFER);
-        $this->atExposure->update(['counting_source' => 'operator']);
-        $batch = $this->atExposure->batches()->first();
+        $this->atStationB->update(['counting_source' => 'operator']);
+        $batch = $this->atStationB->batches()->first();
         $batch->update(['status' => Batch::STATUS_IN_PROGRESS]);
         $batch->steps()->where('step_number', 1)->update(['passed_qty' => 4]);
         $step = $batch->steps()->where('step_number', 2)->first();
         $step->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'passed_qty' => 0, 'scrap_qty' => 0]);
-        $this->workstationView('?workstation='.$this->exposure->id)
+        $this->workstationView('?workstation='.$this->stationB->id)
             ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->has('workOrders', 1)->has('workOrders.0.quick_count_targets', 1)
             ->where('workOrders.0.quick_count_targets.0.id', $step->id));
@@ -99,12 +99,33 @@ class WorkstationViewSelectionTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertEquals(1, $step->fresh()->passed_qty);
         $step->update(['passed_qty' => 4]);
-        $this->workstationView('?workstation='.$this->exposure->id)
+        $this->workstationView('?workstation='.$this->stationB->id)
             ->assertInertia(fn (AssertableInertia $page) => $page->has('workOrders.0.quick_count_targets', 0));
         $step->update(['passed_qty' => 0]);
-        $this->atExposure->update(['counting_source' => 'machine']);
-        $this->workstationView('?workstation='.$this->exposure->id)
+        $this->atStationB->update(['counting_source' => 'machine']);
+        $this->workstationView('?workstation='.$this->stationB->id)
             ->assertInertia(fn (AssertableInertia $page) => $page->has('workOrders.0.quick_count_targets', 0));
+    }
+
+    public function test_each_ledger_order_carries_its_current_batch_routing_for_the_graph(): void
+    {
+        \App\Support\ProductionFlow::set(\App\Support\ProductionFlow::TRANSFER);
+        $batch = $this->atStationB->batches()->first();
+        $batch->update(['status' => Batch::STATUS_IN_PROGRESS]);
+        $second = $batch->steps()->where('step_number', 2)->first();
+
+        $this->workstationView('?workstation='.$this->stationB->id)
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('workOrders.0.routing', 2)
+            ->where('workOrders.0.routing.0.status', BatchStep::STATUS_DONE)
+            ->where('workOrders.0.routing.1.id', $second->id)
+            ->where('workOrders.0.routing.1.batch_id', $batch->id)
+            ->where('workOrders.0.routing.1.workstation.name', $this->stationB->name));
+
+        // Whole-batch flow has no step ledger: no routing to draw.
+        \App\Support\ProductionFlow::set(\App\Support\ProductionFlow::WHOLE_BATCH);
+        $this->workstationView('?workstation='.$this->stationB->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('workOrders.0.routing', 0));
     }
 
     public function test_without_a_selection_the_whole_line_is_shown(): void
@@ -121,7 +142,7 @@ class WorkstationViewSelectionTest extends TestCase
 
     public function test_workstation_account_is_not_filtered_by_its_assignment_alone(): void
     {
-        $account = User::factory()->create(['account_type' => 'workstation', 'workstation_id' => $this->exposure->id]);
+        $account = User::factory()->create(['account_type' => 'workstation', 'workstation_id' => $this->stationB->id]);
         $account->assignRole('Operator');
 
         $this->actingAs($account)
@@ -134,24 +155,24 @@ class WorkstationViewSelectionTest extends TestCase
             );
 
         // An actual selection still filters it.
-        $this->get("/operator/workstation?workstation={$this->exposure->id}")
+        $this->get("/operator/workstation?workstation={$this->stationB->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('selectedWorkstation.id', $this->exposure->id)
+                ->where('selectedWorkstation.id', $this->stationB->id)
                 ->has('workOrders', 1)
             );
     }
 
     public function test_selected_workstation_filters_orders_and_machine_states(): void
     {
-        $this->workstationView("?workstation={$this->exposure->id}")
+        $this->workstationView("?workstation={$this->stationB->id}")
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('selectedWorkstation.id', $this->exposure->id)
+                ->where('selectedWorkstation.id', $this->stationB->id)
                 ->has('workOrders', 1)
-                ->where('workOrders.0.id', $this->atExposure->id)
+                ->where('workOrders.0.id', $this->atStationB->id)
                 ->missing('workOrders.0.batches')
                 ->has('machineStates', 1)
-                ->where('machineStates.0.id', $this->exposure->id)
+                ->where('machineStates.0.id', $this->stationB->id)
             );
     }
 
@@ -191,52 +212,52 @@ class WorkstationViewSelectionTest extends TestCase
     {
         // Listed out of order on purpose: the first step is the lowest step_number.
         $startsHere = $this->notStartedOrder([
-            $this->snapshotStep(2, $this->pretest),
-            $this->snapshotStep(1, $this->exposure),
+            $this->snapshotStep(2, $this->stationA),
+            $this->snapshotStep(1, $this->stationB),
         ]);
         $passesLater = $this->notStartedOrder([
-            $this->snapshotStep(1, $this->pretest),
-            $this->snapshotStep(2, $this->exposure),
+            $this->snapshotStep(1, $this->stationA),
+            $this->snapshotStep(2, $this->stationB),
         ]);
 
-        $this->assertSame([$this->atExposure->id, $startsHere->id], $this->orderIdsAt($this->exposure));
-        $this->assertNotContains($passesLater->id, $this->orderIdsAt($this->exposure));
-        $this->assertContains($passesLater->id, $this->orderIdsAt($this->pretest));
+        $this->assertSame([$this->atStationB->id, $startsHere->id], $this->orderIdsAt($this->stationB));
+        $this->assertNotContains($passesLater->id, $this->orderIdsAt($this->stationB));
+        $this->assertContains($passesLater->id, $this->orderIdsAt($this->stationA));
     }
 
     public function test_any_variant_of_a_first_step_group_counts(): void
     {
         $variant = $this->notStartedOrder([
-            $this->snapshotStep(1, $this->pretest, 'start'),
-            $this->snapshotStep(2, $this->exposure, 'start'),
+            $this->snapshotStep(1, $this->stationA, 'start'),
+            $this->snapshotStep(2, $this->stationB, 'start'),
             $this->snapshotStep(3, null),
         ]);
 
-        $this->assertContains($variant->id, $this->orderIdsAt($this->exposure));
-        $this->assertContains($variant->id, $this->orderIdsAt($this->pretest));
+        $this->assertContains($variant->id, $this->orderIdsAt($this->stationB));
+        $this->assertContains($variant->id, $this->orderIdsAt($this->stationA));
     }
 
     public function test_order_with_only_cancelled_batches_counts_as_not_started(): void
     {
-        $restarted = $this->notStartedOrder([$this->snapshotStep(1, $this->exposure)], WorkOrder::STATUS_ACCEPTED);
+        $restarted = $this->notStartedOrder([$this->snapshotStep(1, $this->stationB)], WorkOrder::STATUS_ACCEPTED);
         Batch::factory()->create(['work_order_id' => $restarted->id, 'status' => Batch::STATUS_CANCELLED]);
 
-        $this->assertContains($restarted->id, $this->orderIdsAt($this->exposure));
+        $this->assertContains($restarted->id, $this->orderIdsAt($this->stationB));
     }
 
     public function test_finished_or_unrouted_orders_without_batches_are_not_shown(): void
     {
-        $done = $this->notStartedOrder([$this->snapshotStep(1, $this->exposure)], WorkOrder::STATUS_DONE);
+        $done = $this->notStartedOrder([$this->snapshotStep(1, $this->stationB)], WorkOrder::STATUS_DONE);
         $unrouted = $this->notStartedOrder([]);
 
-        $ids = $this->orderIdsAt($this->exposure);
+        $ids = $this->orderIdsAt($this->stationB);
         $this->assertNotContains($done->id, $ids);
         $this->assertNotContains($unrouted->id, $ids);
     }
 
     public function test_component_specification_is_not_offered_as_a_column(): void
     {
-        $this->atExposure->update(['extra_data' => [
+        $this->atStationB->update(['extra_data' => [
             'component_specification' => ['material_code' => 'EX-FRAME'],
             'customer_ref' => 'PO-7',
         ]]);
@@ -251,17 +272,17 @@ class WorkstationViewSelectionTest extends TestCase
 
     public function test_queue_lists_not_started_orders_separately_from_ready_ones(): void
     {
-        $startsHere = $this->notStartedOrder([$this->snapshotStep(1, $this->exposure)]);
-        $this->notStartedOrder([$this->snapshotStep(1, $this->pretest)]); // starts elsewhere
+        $startsHere = $this->notStartedOrder([$this->snapshotStep(1, $this->stationB)]);
+        $this->notStartedOrder([$this->snapshotStep(1, $this->stationA)]); // starts elsewhere
 
         $this->actingAs($this->operator)
             ->withSession(['selected_line_id' => $this->line->id])
-            ->get("/operator/queue?workstation={$this->exposure->id}")
+            ->get("/operator/queue?workstation={$this->stationB->id}")
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('operator/Queue')
                 ->has('workstationQueue', 1)
-                ->where('workstationQueue.0.id', $this->atExposure->id)
+                ->where('workstationQueue.0.id', $this->atStationB->id)
                 ->has('workstationNotStarted', 1)
                 ->where('workstationNotStarted.0.id', $startsHere->id)
             );
@@ -270,7 +291,7 @@ class WorkstationViewSelectionTest extends TestCase
 
     public function test_queue_without_a_selection_has_no_workstation_lists(): void
     {
-        $this->notStartedOrder([$this->snapshotStep(1, $this->exposure)]);
+        $this->notStartedOrder([$this->snapshotStep(1, $this->stationB)]);
 
         $this->actingAs($this->operator)
             ->withSession(['selected_line_id' => $this->line->id])
@@ -283,11 +304,11 @@ class WorkstationViewSelectionTest extends TestCase
 
     public function test_queue_check_counts_ready_and_not_started_orders(): void
     {
-        $this->notStartedOrder([$this->snapshotStep(1, $this->exposure)]);
-        $this->notStartedOrder([$this->snapshotStep(1, $this->pretest)]);
+        $this->notStartedOrder([$this->snapshotStep(1, $this->stationB)]);
+        $this->notStartedOrder([$this->snapshotStep(1, $this->stationA)]);
 
         $this->actingAs($this->operator)
-            ->withSession(['selected_line_id' => $this->line->id, 'selected_workstation_id' => $this->exposure->id])
+            ->withSession(['selected_line_id' => $this->line->id, 'selected_workstation_id' => $this->stationB->id])
             ->getJson('/operator/queue/check')
             ->assertOk()
             ->assertJson(['active' => 4, 'workstation' => 2]);
@@ -338,20 +359,20 @@ class WorkstationViewSelectionTest extends TestCase
     {
         $this->actingAs($this->operator)
             ->withSession(['selected_line_id' => $this->line->id])
-            ->get("/operator/queue?workstation={$this->pretest->id}")
+            ->get("/operator/queue?workstation={$this->stationA->id}")
             ->assertOk();
 
         $this->get('/operator/workstation')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('selectedWorkstation.id', $this->pretest->id)
+                ->where('selectedWorkstation.id', $this->stationA->id)
                 ->has('workOrders', 1)
-                ->where('workOrders.0.id', $this->atPretest->id)
+                ->where('workOrders.0.id', $this->atStationA->id)
             );
     }
 
     public function test_all_clears_the_selection_for_both_views(): void
     {
-        $this->workstationView("?workstation={$this->exposure->id}")->assertOk();
+        $this->workstationView("?workstation={$this->stationB->id}")->assertOk();
 
         $this->get('/operator/workstation?workstation=all')
             ->assertInertia(fn (AssertableInertia $page) => $page
@@ -378,7 +399,7 @@ class WorkstationViewSelectionTest extends TestCase
     {
         $this->setTrackingMode('per_line');
 
-        $this->workstationView("?workstation={$this->exposure->id}")
+        $this->workstationView("?workstation={$this->stationB->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('selectedWorkstation', null)
                 ->has('workOrders', 2)
@@ -388,7 +409,7 @@ class WorkstationViewSelectionTest extends TestCase
 
     public function test_guest_is_redirected_to_login(): void
     {
-        $this->get("/operator/workstation?workstation={$this->exposure->id}")
+        $this->get("/operator/workstation?workstation={$this->stationB->id}")
             ->assertRedirect('/login');
     }
 
@@ -396,14 +417,14 @@ class WorkstationViewSelectionTest extends TestCase
     {
         $this->actingAs(User::factory()->create())
             ->withSession(['selected_line_id' => $this->line->id])
-            ->get("/operator/workstation?workstation={$this->exposure->id}")
+            ->get("/operator/workstation?workstation={$this->stationB->id}")
             ->assertForbidden();
     }
 
     public function test_order_detail_only_accepts_cross_line_station_when_routing_is_enabled(): void
     {
         $foreign = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
-        $url = "/operator/work-order/{$this->atExposure->id}?workstation={$foreign->id}";
+        $url = "/operator/work-order/{$this->atStationB->id}?workstation={$foreign->id}";
         foreach ([false, true] as $enabled) {
             DB::table('system_settings')->updateOrInsert(['key' => 'workstation_routing_enabled'], ['value' => json_encode($enabled)]);
             $this->actingAs($this->operator)->withSession(['selected_line_id' => $this->line->id])->get($url)

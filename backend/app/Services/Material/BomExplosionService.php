@@ -120,7 +120,8 @@ class BomExplosionService
         return $items->map(function (BomItem $item) use ($quantity, $depth, $stack) {
             $material = $item->material;
 
-            $baseQty = round((float) $item->quantity_per_unit * $quantity, 4);
+            // Per finished unit: a per-carton or per-pallet line divides by the packing step's size.
+            $baseQty = round($item->perUnitQuantity() * $quantity, 4);
             $scrapQty = round($baseQty * ((float) $item->scrap_percentage / 100), 4);
             $requiredQty = round($baseQty + $scrapQty, 4);
 

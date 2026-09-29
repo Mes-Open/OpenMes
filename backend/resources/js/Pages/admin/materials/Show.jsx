@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { Button, Modal, TextField } from '@openmes/ui';
+import { Button, Modal, StatusBadge, TextField } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { materialFields, materialInitial } from './fields';
+import { materialLotStatusBadge } from '../material-lots/fields';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
@@ -20,12 +21,6 @@ const MOVEMENT_TYPE_COLORS = {
     consume:    'text-om-muted',
     scrap:      'text-om-blocked',
     adjustment: 'text-purple-700',
-};
-
-const LOT_STATUS_COLORS = {
-    released:   'bg-om-running-bg text-om-running',
-    quarantine: 'bg-om-blocked-bg text-om-blocked',
-    expired:    'bg-om-downtime-bg text-om-downtime',
 };
 
 function fmt(val, decimals = 3) {
@@ -49,13 +44,13 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'lot_number',
             accessorKey: 'lot_number',
-            header: 'Lot',
+            header: __('Lot'),
             cell: ({ row }) => <span className="font-mono">{row.original.lot_number}</span>,
         },
         {
             id: 'supplier_lot_no',
             accessorKey: 'supplier_lot_no',
-            header: 'Supplier ref',
+            header: __('Supplier ref'),
             cell: ({ row }) => (
                 <span className="text-om-muted font-mono text-xs">{row.original.supplier_lot_no ?? '—'}</span>
             ),
@@ -63,14 +58,14 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'quantity_received',
             accessorKey: 'quantity_received',
-            header: 'Received',
+            header: __('Received'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="font-mono">{fmt(row.original.quantity_received)}</span>,
         },
         {
             id: 'quantity_available',
             accessorKey: 'quantity_available',
-            header: 'Available',
+            header: __('Available'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className={`font-mono ${row.original.quantity_available <= 0 ? 'text-om-faint' : 'font-bold'}`}>
@@ -81,7 +76,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'expiry_date',
             accessorKey: 'expiry_date',
-            header: 'Expiry',
+            header: __('Expiry'),
             cell: ({ row }) => {
                 const lot = row.original;
                 const expiringSoon = lot.expiry_date && isExpiringSoon(lot.expiry_date);
@@ -96,15 +91,8 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
-            cell: ({ row }) => {
-                const badge = LOT_STATUS_COLORS[row.original.status] ?? 'bg-om-chip text-om-muted';
-                return (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge}`}>
-                        {ucFirst(row.original.status)}
-                    </span>
-                );
-            },
+            header: __('Status'),
+            cell: ({ row }) => <StatusBadge size="sm" {...materialLotStatusBadge(row.original.status)} />,
         },
     ], []);
 
@@ -112,7 +100,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'performed_at',
             accessorKey: 'performed_at',
-            header: 'When',
+            header: __('When'),
             cell: ({ row }) => (
                 <span className="text-xs font-mono text-om-muted">
                     {row.original.performed_at ? row.original.performed_at.substring(0, 16).replace('T', ' ') : '—'}
@@ -122,16 +110,16 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'movement_type',
             accessorKey: 'movement_type',
-            header: 'Type',
+            header: __('Type'),
             cell: ({ row }) => {
                 const typeColor = MOVEMENT_TYPE_COLORS[row.original.movement_type] ?? 'text-om-muted';
-                return <span className={`font-medium ${typeColor}`}>{row.original.movement_type}</span>;
+                return <span className={`font-medium ${typeColor}`}>{__(MOVEMENT_LABELS[row.original.movement_type] ?? row.original.movement_type)}</span>;
             },
         },
         {
             id: 'delta',
             accessorKey: 'quantity',
-            header: 'Delta',
+            header: __('Delta'),
             meta: { align: 'right' },
             cell: ({ row }) => {
                 const qty = Number(row.original.quantity ?? 0);
@@ -146,34 +134,34 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'balance_after',
             accessorKey: 'balance_after',
-            header: 'Balance',
+            header: __('Balance'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="font-mono">{fmt(row.original.balance_after)}</span>,
         },
         {
             id: 'source',
-            accessorFn: (r) => (r.source_type ? `${r.source_type === 'manual_receipt' ? __('Manual receipt') : r.source_type}${r.source_id == null ? '' : ' #' + r.source_id}` : '—'),
-            header: 'Source',
+            accessorFn: (r) => movementSource(r),
+            header: __('Source'),
             cell: ({ row }) => (
                 <span className="text-xs text-om-muted">
-                    {row.original.source_type ? `${row.original.source_type === 'manual_receipt' ? __('Manual receipt') : row.original.source_type}${row.original.source_id == null ? '' : ' #' + row.original.source_id}` : '—'}
+                    {movementSource(row.original)}
                 </span>
             ),
         },
         {
             id: 'reason',
-            accessorKey: 'reason',
-            header: 'Reason',
+            accessorFn: (r) => movementReason(r),
+            header: __('Reason'),
             cell: ({ row }) => (
-                <span className="text-xs text-om-muted truncate max-w-xs block" title={row.original.reason ?? ''}>
-                    {(row.original.reason ?? '').substring(0, 60)}
+                <span className="text-xs text-om-muted truncate max-w-xs block" title={movementReason(row.original)}>
+                    {movementReason(row.original).substring(0, 60)}
                 </span>
             ),
         },
         {
             id: 'performed_by',
             accessorFn: (r) => r.performed_by?.name ?? '—',
-            header: 'By',
+            header: __('By'),
             cell: ({ row }) => <span className="text-xs text-om-muted">{row.original.performed_by?.name ?? '—'}</span>,
         },
     ], []);
@@ -182,26 +170,26 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         {
             id: 'template',
             accessorFn: (r) => r.process_template?.name ?? '—',
-            header: 'Template',
+            header: __('Template'),
             cell: ({ row }) => <span className="text-sm">{row.original.process_template?.name ?? '—'}</span>,
         },
         {
             id: 'product',
             accessorFn: (r) => r.process_template?.product_type?.name ?? '-',
-            header: 'Product',
+            header: __('Product'),
             cell: ({ row }) => <span className="text-sm">{row.original.process_template?.product_type?.name ?? '-'}</span>,
         },
         {
             id: 'quantity_per_unit',
             accessorKey: 'quantity_per_unit',
-            header: 'Qty/Unit',
+            header: __('Qty/Unit'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="text-sm">{row.original.quantity_per_unit}</span>,
         },
         {
             id: 'scrap_percentage',
             accessorKey: 'scrap_percentage',
-            header: 'Scrap %',
+            header: __('Scrap %'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="text-sm">{row.original.scrap_percentage}%</span>,
         },
@@ -209,7 +197,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
 
     return (
         <>
-            <Head title={`Material — ${material.name}`} />
+            <Head title={`${__('Material')} — ${material.name}`} />
             <Modal open={receiving} onClose={() => setReceiving(false)} title={__('Receive material')}>
                 <form onSubmit={receive} className="space-y-4">
                     <p>{material.name} · {material.unit_of_measure}</p>
@@ -241,9 +229,9 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold text-om-ink">{material.name}</h1>
                             {material.is_active ? (
-                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">Active</span>
+                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__('Active')}</span>
                             ) : (
-                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">Inactive</span>
+                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">{__('Inactive')}</span>
                             )}
                         </div>
                         <p className="text-sm text-om-muted mt-1 font-mono">{material.code}</p>
@@ -258,12 +246,12 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     {/* Details */}
                     <div className="card">
-                        <h3 className="text-lg font-semibold mb-4">Details</h3>
+                        <h3 className="text-lg font-semibold mb-4">{__('Details')}</h3>
                         <dl className="space-y-3">
-                            <Row label="Type"     value={material.material_type?.name ?? '—'} />
-                            <Row label="Unit"     value={material.unit_of_measure ?? '—'} />
-                            <Row label="Tracking" value={ucFirst(material.tracking_type)} />
-                            <Row label="Default Scrap %" value={`${material.default_scrap_percentage}%`} />
+                            <Row label={__('Type')}     value={material.material_type?.name ?? '—'} />
+                            <Row label={__('Unit')}     value={material.unit_of_measure ?? '—'} />
+                            <Row label={__('Tracking')} value={__(ucFirst(material.tracking_type))} />
+                            <Row label={__('Default Scrap %')} value={`${material.default_scrap_percentage}%`} />
                         </dl>
                     </div>
 
@@ -287,13 +275,13 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                             </div>
                             {material.min_stock_level != null && (
                                 <div className="flex justify-between text-xs text-om-faint">
-                                    <dt>Min stock level</dt>
+                                    <dt>{__('Min stock level')}</dt>
                                     <dd className="font-mono">{fmt(material.min_stock_level)} {material.unit_of_measure}</dd>
                                 </div>
                             )}
                             {material.unit_price != null && (
                                 <div className="flex justify-between text-xs text-om-faint">
-                                    <dt>Stock value</dt>
+                                    <dt>{__('Stock value')}</dt>
                                     <dd className="font-mono">
                                         {Number(material.stock_quantity * material.unit_price).toFixed(2)} {material.price_currency}
                                     </dd>
@@ -308,22 +296,22 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                     </div>
                     {/* External System */}
                     <div className="card">
-                        <h3 className="text-lg font-semibold mb-4">External System</h3>
+                        <h3 className="text-lg font-semibold mb-4">{__('External System')}</h3>
                         {material.external_code ? (
                             <dl className="space-y-3">
-                                <Row label="System"        value={material.external_system} />
-                                <Row label="External Code" value={<span className="font-mono">{material.external_code}</span>} />
+                                <Row label={__('System')}        value={material.external_system} />
+                                <Row label={__('External Code')} value={<span className="font-mono">{material.external_code}</span>} />
                             </dl>
                         ) : (
-                            <p className="text-sm text-om-muted">No external system linked.</p>
+                            <p className="text-sm text-om-muted">{__('No external system linked.')}</p>
                         )}
 
                         {material.sources && material.sources.length > 0 && (
                             <>
-                                <h4 className="text-sm font-semibold mt-4 mb-2">Additional Sources</h4>
+                                <h4 className="text-sm font-semibold mt-4 mb-2">{__('Additional Sources')}</h4>
                                 {material.sources.map((src) => (
                                     <div key={src.id} className="p-2 bg-om-panel rounded mb-2 text-sm">
-                                        <span className="font-medium">{src.integration_config?.system_name ?? 'Unknown'}</span>:{' '}
+                                        <span className="font-medium">{src.integration_config?.system_name ?? __('Unknown')}</span>:{' '}
                                         <span className="font-mono">{src.external_code}</span>
                                     </div>
                                 ))}
@@ -341,7 +329,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 {lots.length > 0 && (
                     <div className="card mb-6">
                         <h3 className="text-lg font-semibold mb-4">
-                            Lots <span className="text-sm font-normal text-om-faint">({lots.length})</span>
+                            {__('Lots')} <span className="text-sm font-normal text-om-faint">({lots.length})</span>
                         </h3>
                         <AppDataTable
                             data={lots}
@@ -356,7 +344,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 {/* Recent stock movements */}
                 {recentMovements.length > 0 && (
                     <div className="card mb-6">
-                        <h3 className="text-lg font-semibold mb-4">Recent stock movements</h3>
+                        <h3 className="text-lg font-semibold mb-4">{__('Recent stock movements')}</h3>
                         <AppDataTable
                             filterable={false}
                             data={recentMovements}
@@ -369,7 +357,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                 {material.bom_items && material.bom_items.length > 0 && (
                     <div className="card">
                         <h3 className="text-lg font-semibold mb-4">
-                            Used in BOM ({material.bom_items.length} templates)
+                            {__('Used in BOM (:count templates)', { count: material.bom_items.length })}
                         </h3>
                         <AppDataTable
                             data={material.bom_items}
@@ -410,4 +398,25 @@ function Row({ label, value }) {
             <dd className="text-sm font-medium">{value}</dd>
         </div>
     );
+}
+
+const MOVEMENT_LABELS = {
+    receipt: 'Stock receipt', return: 'Stock return', allocation: 'Material allocation',
+    consume: 'Consumption', scrap: 'Scrap', adjustment: 'Stock adjustment',
+    transfer: 'Stock transfer', reclassify: 'Reclassification',
+};
+const SOURCE_LABELS = {
+    batch: 'Batch', batch_step: 'Batch step', inspection: 'Inspection',
+    manual_adjust: 'Manual adjustment', manual_receipt: 'Manual receipt', receipt: 'Stock receipt',
+    pallet: 'Pallet', stock_document: 'Stock document', erp_sync: 'ERP sync',
+    reclassification: 'Reclassification',
+};
+function movementSource(row) {
+    if (!row.source_type) return '—';
+    return __(SOURCE_LABELS[row.source_type] ?? row.source_type) + (row.source_id == null ? '' : ` #${row.source_id}`);
+}
+// System-written notes arrive translated by the server (`reason_display`);
+// a user's own note is shown as typed.
+function movementReason(row) {
+    return row.reason_display ?? row.reason ?? '';
 }

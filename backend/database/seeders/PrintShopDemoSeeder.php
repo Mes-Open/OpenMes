@@ -380,7 +380,9 @@ class PrintShopDemoSeeder extends Seeder
                 'status' => WorkOrder::STATUS_IN_PROGRESS,
                 'priority' => 3,
                 'due_date' => now()->addDays(2),
-                'planned_start_at' => now()->setTime(8, 0),
+                // Running, so already started: seeded before 08:00 the shift start
+                // would still be ahead, and a re-run touching the counters is refused.
+                'planned_start_at' => now()->setTime(8, 0)->min(now()->subHour()),
                 'planned_end_at' => now()->addDays(1)->setTime(14, 0),
                 'description' => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],

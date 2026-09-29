@@ -21,6 +21,15 @@
                 @if($template->hasField('quantity') && !empty($label['fields']['quantity']))
                     <div class="line">Qty: <strong>{{ $label['fields']['quantity'] }}</strong></div>
                 @endif
+                @if($template->hasField('material') && !empty($label['fields']['material']))
+                    <div class="line product">{{ $label['fields']['material'] }}</div>
+                @endif
+                @if($template->hasField('status') && !empty($label['fields']['status']))
+                    <div class="line"><strong>{{ $label['fields']['status'] }}</strong></div>
+                @endif
+                @if($template->hasField('supplier_lot') && !empty($label['fields']['supplier_lot']))
+                    <div class="line muted">{{ $label['fields']['supplier_lot'] }}</div>
+                @endif
                 @if($template->hasField('lot') && !empty($label['fields']['lot']))
                     <div class="line lot">{{ $label['fields']['lot'] }}</div>
                 @endif

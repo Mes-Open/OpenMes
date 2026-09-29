@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Fragment } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
@@ -20,6 +20,7 @@ export function lotSequenceInitial(r) {
     return {
         name: r?.name ?? '',
         product_type_id: r?.product_type_id != null ? String(r.product_type_id) : '',
+        purpose: r?.purpose ?? 'lot',
         pattern: r?.pattern ?? '',
         prefix: r?.prefix ?? '',
         suffix: r?.suffix ?? '',
@@ -86,20 +87,22 @@ export default function LotSequenceForm({ action, method, initial, submitLabel, 
         return () => clearTimeout(t);
     }, [mode, data.pattern, data.pad_size, data.product_type_id, csrf_token]);
 
+    // A token dropped straight after another gets a dash between them: two
+    // dates run together ("[year][month]") are legal but rarely meant, and the
+    // dash is one keystroke to delete when they are.
     const insertToken = (token) => {
-        const tag = `[${token}]`;
         const el = patternInputRef.current;
         const current = data.pattern ?? '';
-        if (el && document.activeElement === el) {
-            const start = el.selectionStart ?? current.length;
-            const end = el.selectionEnd ?? current.length;
-            setData('pattern', current.slice(0, start) + tag + current.slice(end));
+        const focused = el && document.activeElement === el;
+        const start = focused ? (el.selectionStart ?? current.length) : current.length;
+        const end = focused ? (el.selectionEnd ?? current.length) : current.length;
+        const tag = (current.slice(0, start).endsWith(']') ? '-' : '') + `[${token}]`;
+        setData('pattern', current.slice(0, start) + tag + current.slice(end));
+        if (focused) {
             requestAnimationFrame(() => {
                 el.focus();
                 el.setSelectionRange(start + tag.length, start + tag.length);
             });
-        } else {
-            setData('pattern', current + tag);
         }
     };
 
@@ -130,6 +133,23 @@ export default function LotSequenceForm({ action, method, initial, submitLabel, 
                     className="w-full"
                 />
                 {errors.product_type_id && <p className="mt-1 text-xs text-om-blocked">{errors.product_type_id}</p>}
+            </div>
+
+            <div>
+                <div className="block text-sm font-medium text-om-muted mb-1">{__('Numbers')}</div>
+                <Dropdown
+                    aria-label={__('Numbers')}
+                    value={data.purpose ?? 'lot'}
+                    onChange={(v) => setData('purpose', v)}
+                    options={[
+                        { value: 'lot', label: __('Batch LOT numbers') },
+                        { value: 'process_serial', label: __('Process serial numbers (PSN)') },
+                        { value: 'unit_serial', label: __('Unit serial numbers') },
+                    ]}
+                    className="w-full"
+                />
+                <p className="mt-1 text-xs text-om-muted">{__('LOT numbers go onto batches when they start or are released. Process and unit serials are issued at the SN Label Station for single units. A product may have one sequence of each kind.')}</p>
+                {errors.purpose && <p className="mt-1 text-xs text-om-blocked">{errors.purpose}</p>}
             </div>
 
             {/* Mode toggle */}
@@ -171,23 +191,34 @@ export default function LotSequenceForm({ action, method, initial, submitLabel, 
                         )}
                     </div>
 
-                    {/* Token palette */}
+                    {/* Token palette: click to insert. Each chip shows its meaning
+                        and today's value on hover, and the legend below spells them out. */}
                     <div className="flex flex-wrap gap-1.5">
                         {patternTokens.map((t) => (
                             <button
-                                key={t}
+                                key={t.token}
                                 type="button"
+                                title={`${t.label} · ${t.example}`}
                                 onMouseDown={(e) => e.preventDefault() /* keep input focus/cursor */}
-                                onClick={() => insertToken(t)}
+                                onClick={() => insertToken(t.token)}
                                 className="px-2 py-0.5 rounded-full bg-om-chip hover:bg-om-chip text-xs font-mono text-om-muted border border-om-line2"
                             >
-                                [{t}]
+                                [{t.token}]
                             </button>
                         ))}
                     </div>
                     <p className="text-xs text-om-muted">
-                        {__('Click a token to insert it. Pattern must contain exactly one')} <code>[seq]</code>. {__('Use [date:y-m-d] for a custom date format.')}
+                        {__('Click a token to insert it. Pattern must contain exactly one')} <code>[seq]</code>. {__('Anything outside the brackets is printed as typed.')}
                     </p>
+                    <dl className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-0.5 rounded-om-sm border border-om-line2 bg-om-bg px-3 py-2 text-[11.5px]">
+                        {patternTokens.map((t) => (
+                            <Fragment key={t.token}>
+                                <dt className="font-mono text-om-ink">[{t.token}]</dt>
+                                <dd className="text-om-muted">{t.label}</dd>
+                                <dd className="font-mono text-om-faint text-right">{t.example}</dd>
+                            </Fragment>
+                        ))}
+                    </dl>
 
                     {preview && (
                         <div className="rounded-om-sm bg-om-panel border border-om-line2 px-3 py-2 text-sm">
@@ -210,9 +241,9 @@ export default function LotSequenceForm({ action, method, initial, submitLabel, 
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Counter digits')}</div>
                     <input
-                        aria-label={__('Pad Size')}
+                        aria-label={__('Counter digits')}
                         type="number"
                         min={1}
                         max={10}
@@ -220,17 +251,19 @@ export default function LotSequenceForm({ action, method, initial, submitLabel, 
                         onChange={(e) => setData('pad_size', e.target.value)}
                         className="form-input w-full"
                     />
+                    <p className="mt-1 text-xs text-om-muted">{__('How many digits [seq] is padded to: 4 gives 0001, 0002…; 1 gives 1, 2… with no leading zeros.')}</p>
                     {errors.pad_size && <p className="mt-1 text-xs text-om-blocked">{errors.pad_size}</p>}
                 </div>
                 <div>
-                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</div>
+                    <div className="block text-sm font-medium text-om-muted mb-1">{__('Counter starts over')}</div>
                     <Dropdown
-                        aria-label={__('Counter Reset')}
+                        aria-label={__('Counter starts over')}
                         value={data.reset_period == null ? 'none' : String(data.reset_period)}
                         onChange={(v) => setData('reset_period', v)}
                         options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: __(o.label) }))}
                         className="w-full"
                     />
+                    <p className="mt-1 text-xs text-om-muted">{__('When [seq] goes back to 1. Daily: the first number each day is 1 again, so a pattern with the date in it stays unique.')}</p>
                     {errors.reset_period && <p className="mt-1 text-xs text-om-blocked">{errors.reset_period}</p>}
                 </div>
             </div>

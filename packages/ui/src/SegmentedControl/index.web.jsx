@@ -37,7 +37,7 @@ export function SegmentedControl({ options, value, onChange, label, className = 
                         aria-checked={active}
                         {...itemProps(i)}
                         onClick={() => onChange?.(option.value)}
-                        className={`flex-1 rounded-[6px] py-[7px] text-center text-[12.5px] font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-om-accent ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}
+                        className={`flex-1 whitespace-nowrap rounded-[6px] px-3 py-[7px] text-center text-[12.5px] font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-om-accent ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}
                     >
                         {option.label}
                     </button>

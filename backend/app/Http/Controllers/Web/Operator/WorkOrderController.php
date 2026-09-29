@@ -27,20 +27,11 @@ class WorkOrderController extends Controller
      */
     public function queue(Request $request)
     {
-        $lineId = $request->session()->get('selected_line_id')
-            ?? $request->query('line');
-
-        // Workstation accounts auto-select their assigned line
-        if (! $lineId && auth()->user()->account_type === 'workstation') {
-            $lineId = auth()->user()->workstation?->line_id;
-        }
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
 
         if (! $lineId) {
             return redirect()->route('operator.select-line');
         }
-
-        // Persist in session for subsequent requests
-        $request->session()->put('selected_line_id', $lineId);
 
         // Get active and completed work orders for this line
         $activeWorkOrders = WorkOrder::availableForProduction()->where('line_id', $lineId)
@@ -214,7 +205,7 @@ class WorkOrderController extends Controller
      */
     public function show(Request $request, WorkOrder $workOrder)
     {
-        $lineId = $request->session()->get('selected_line_id');
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
 
         // Verify work order belongs to selected line
         if ($workOrder->line_id != $lineId) {
@@ -408,6 +399,50 @@ class WorkOrderController extends Controller
             ->resolve($request, (int) $workOrder->line_id, allowOtherLines: (bool) json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false', true));
         $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation'));
+        // The order's serialised units - PSN, serial number, status and where each
+        // was last seen - so the order shows which pieces it is made of, not only counts.
+        $serialUnits = $this->serialUnitsOf($workOrder);
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+    }
+
+    /**
+     * The order's serial units, newest first (at most 500), each with its last
+     * history row: two queries whatever the count.
+     *
+     * @return array{total: int, units: array<int, array<string, mixed>>}
+     */
+    private function serialUnitsOf(WorkOrder $workOrder): array
+    {
+        $query = \App\Models\SerialUnit::where('work_order_id', $workOrder->id);
+        $total = (clone $query)->count();
+        if ($total === 0) {
+            return ['total' => 0, 'units' => []];
+        }
+        $units = $query->with(['carton:id,carton_no', 'pallet:id,pallet_no', 'material:id,code,name'])
+            ->orderByDesc('id')->limit(500)->get();
+        $lastIds = \App\Models\UnitStepHistory::whereIn('serial_unit_id', $units->pluck('id'))
+            ->selectRaw('MAX(id) as id')->groupBy('serial_unit_id')->pluck('id');
+        $last = \App\Models\UnitStepHistory::whereIn('id', $lastIds)->with('workstation:id,code,name')->get()->keyBy('serial_unit_id');
+
+        return ['total' => $total, 'units' => $units->map(function (\App\Models\SerialUnit $u) use ($last) {
+            $h = $last->get($u->id);
+
+            return [
+                'id' => $u->id,
+                'serial_no' => $u->serial_no,
+                'psn' => $u->psn,
+                'status' => $u->status,
+                'material' => $u->material?->name,
+                'carton' => $u->carton?->carton_no,
+                'pallet' => $u->pallet?->pallet_no,
+                'last' => $h ? [
+                    'parameters' => $h->parameters,
+                    'result' => $h->result,
+                    'workstation' => $h->workstation?->name,
+                    'at' => $h->processed_at?->toIso8601String(),
+                ] : null,
+            ];
+        })->values()->all()];
     }
 }

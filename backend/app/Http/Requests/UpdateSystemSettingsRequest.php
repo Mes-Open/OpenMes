@@ -48,6 +48,10 @@ class UpdateSystemSettingsRequest extends FormRequest
             'force_sequential_steps' => 'nullable|boolean',
             'workstation_routing_enabled' => 'nullable|boolean',
             'backflush_on_pallet_creation' => 'nullable|boolean',
+            'hold_on_material_shortage' => 'nullable|boolean',
+            'pallet_stock_documents' => ['nullable', Rule::in(\App\Services\Warehouse\PalletStockDocumentService::MODES)],
+            'lot_tracking_enabled' => 'nullable|boolean',
+            'lot_picking_strategy' => 'nullable|in:fefo,fifo,lifo,manual',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
             // Single source of truth — the language switcher's configured locales.
@@ -68,6 +72,15 @@ class UpdateSystemSettingsRequest extends FormRequest
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
             'scanner_mode' => 'required|in:hid,manual',
+            // Serialised units (UnitSerialisation) - patterns are bare regexes.
+            'unit_identifier_normalize' => 'nullable|boolean',
+            'unit_serial_pattern' => ['nullable', 'string', 'max:200', $this->validRegex()],
+            'unit_psn_pattern' => ['nullable', 'string', 'max:200', $this->validRegex()],
+            'unit_psn_required' => 'nullable|boolean',
+            'unit_psn_unique' => 'nullable|boolean',
+            'unit_test_fail_policy' => ['nullable', Rule::in(\App\Support\UnitSerialisation::FAIL_POLICIES)],
+            'unit_test_max_attempts' => 'nullable|integer|min:1|max:99',
+            'unit_test_attempts_scope' => ['nullable', Rule::in(\App\Support\UnitSerialisation::ATTEMPT_SCOPES)],
             'standard_weekly_hours' => 'nullable|numeric|min:1|max:168',
             'default_currency' => 'nullable|string|size:3',
             'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
@@ -76,5 +89,15 @@ class UpdateSystemSettingsRequest extends FormRequest
             'enabled_modules' => 'nullable|array',
             'enabled_modules.*' => ['string', Rule::in(ModuleRegistry::optionalKeys())],
         ];
+    }
+
+    /** A pattern the settings page accepts is one PCRE can compile. */
+    private function validRegex(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! \App\Support\UnitSerialisation::validPattern((string) $value)) {
+                $fail(__('The :attribute is not a valid regular expression.', ['attribute' => $attribute]));
+            }
+        };
     }
 }

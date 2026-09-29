@@ -24,6 +24,7 @@ This guide covers installation, configuration, and administration of OpenMES.
   - [Production Period](#production-period)
   - [Overproduction](#overproduction)
   - [Sequential Steps](#sequential-steps)
+  - [Configuration and Scenario Files (Settings → System → Data)](#configuration-and-scenario-files-settings--system--data)
 - [Warehouses](#warehouses)
   - [Setting Up Warehouses](#setting-up-warehouses)
   - [Stock Documents](#stock-documents)
@@ -268,6 +269,113 @@ Controls whether work orders must specify a week or month number:
 ### Sequential Steps
 
 `force_sequential_steps`: if enabled, operators must complete steps in defined order. If disabled, steps can be completed in any order.
+
+### Configuration and Scenario Files (Settings → System → Data)
+
+**Import** on the Data tab (Admin only) takes a JSON file with a plant's configuration,
+an example production history, or both. The file is applied in one transaction: if
+anything in its `scenario` fails, nothing from the file is saved and the message names
+the entry that failed. **Export** writes the configuration in the same shape.
+
+A clean start for testing a file is **Reset system** on the same tab, then the
+configuration file, then the production flow mode the scenario needs (Settings →
+Production), then the scenario file.
+
+**Configuration.** One array per table (`warehouses`, `lines`, `workstations`, `material_types`,
+`materials`, `product_types`, `line_product_type`, `process_templates`, `template_steps`,
+`bom_items`, `lot_sequences`, `label_templates`, `scrap_reasons`, `shifts`, …) plus
+`system_settings` as `key: value`.
+
+- A row's `id` is the file's own reference. Foreign keys point at those ids, for
+  example a workstation's `line_id` or a BOM item's `template_step_id`. They are
+  remapped to the ids the rows get in this database, so the file never depends on the
+  database's numbering.
+- Rows are matched on their natural key: a code, a name, or a combination such as a
+  routing's product and name, or a step's routing and number. Importing the same file
+  again updates rows instead of duplicating them.
+- Tables are applied in dependency order, whatever order the file uses. Unknown columns
+  are ignored.
+- Settings take the settings form's own keys. Infrastructure and security keys are
+  never read from a file, and neither is the production flow mode: switch it under
+  **Settings → Production**, where its checks run. A timezone is taken only when it is a
+  valid zone.
+
+```json
+{
+  "system_settings": { "language": "pl", "app_timezone": "Europe/Warsaw" },
+  "lines": [{ "id": 1, "code": "L1", "name": "Line 1" }],
+  "workstations": [{ "id": 1, "code": "ST-A", "name": "Assembly", "line_id": 1,
+                     "operator_screens": ["queue", "workstation", "unit_labels"] }],
+  "product_types": [{ "id": 1, "code": "PRD-A", "name": "Product A" }],
+  "process_templates": [{ "id": 1, "product_type_id": 1, "name": "Routing A", "is_active": true }],
+  "template_steps": [{ "id": 1, "process_template_id": 1, "step_number": 1,
+                       "name": "Assemble", "workstation_id": 1 }]
+}
+```
+
+**Production scenario.** A `scenario` section replays shop-floor work on top of the
+configuration. Each event goes through the same service the operator screens use, so
+statuses, quantities, consumption and unit history come out as the line would produce
+them. The clock is set to each event's time, so durations and waiting times look like a
+real shift.
+
+- `requires.production_flow_mode` makes the import refuse to run under the other
+  flow mode.
+- `users` creates accounts: `username`, `name`, `role`, `lines`, `workstation` and
+  `password`; `"account_type": "workstation"` makes a bench's own terminal login, locked
+  to its `workstation`. An existing account is used as it is and never changed.
+- `material_lots` adds lots: `material` is the code, plus `lot_number`, `quantity`
+  and `received`.
+- `events` is the timeline. Each event has `do` and `at`. The acting user is `by`, and
+  the importing admin acts when `by` is left out. Configuration is referenced by code.
+
+Event times are relative to the import and must be in time order:
+
+| `at` | Meaning |
+|---|---|
+| `-2d 07:30` | two days before the import, at 07:30 |
+| `-3h20m` | 3 h 20 min before the import |
+| `+4m` | 4 minutes after the previous event |
+| *(omitted)* | 10 seconds after the previous event |
+
+Events happen in the past. Only a schedule window and a due date may lie ahead, for
+example `+1d 06:00`.
+
+| `do` | Fields | Does what the screen does |
+|---|---|---|
+| `work_order` | `order_no`, `product`, `line`, `quantity`, `due`, `customer_order_no`, `description` | creates the order |
+| `schedule` | `order`, `start`, `end`, `line`, `shift`, `force` | places it on the planner; an overlap on the line is refused unless `force` |
+| `batch` | `order`, `quantity`, `lot` (`auto` draws one), `workstation` | issues a batch |
+| `step_start` / `step_log` / `step_complete` | `order`, `batch` (default 1), `step`; `good`, `scrap`, `note` for a log | starts, logs and closes a step |
+| `unit_start` | `order`, `ref`, `psn` (`auto` draws one), `workstation` | starts a unit on its PSN |
+| `subassembly` | `order`, `material`, `sn`, `ref`, `workstation` | registers a sub-assembly by its own serial where it is made |
+| `unit_serial` | `unit`, `sn` (`auto`), `workstation` | binds the SN label to the unit |
+| `component` | `unit`, `identifier`, `material`, `step`, `workstation` | scans a component into the unit |
+| `test` | `unit`, `workstation`, `result`, `steps` (`name`, `value`, `unit`, `low`, `high`, `verdict`), `duration_s` | files a tester's run; the failed-test policy applies |
+| `block` / `unblock` / `scrap` | `unit`, `reason` (an error code for `block`), `note`, `workstation` | holds, releases or scraps a unit |
+| `pack` | `unit`, `workstation`, `weight_g`, `pallet` | scans the unit at the packing bench; a carton opens by itself |
+| `carton_close` | `order`, `pallet`, `workstation` | closes the open carton and puts it on the pallet |
+| `pallet_open` / `pallet_close` / `pallet_ship` | `order`, `ref`, `pallet`, `workstation` | creates, closes or ships a pallet |
+
+`unit` and `pallet` take the `ref` given when the unit or pallet was created, or its
+real number.
+
+```json
+{
+  "scenario": {
+    "requires": { "production_flow_mode": "transfer" },
+    "users": [{ "username": "op-a", "name": "Operator A", "role": "Operator", "lines": ["L1"], "password": "…" }],
+    "events": [
+      { "at": "-1d 07:00", "do": "work_order", "order_no": "WO-1", "product": "PRD-A", "line": "L1", "quantity": 2 },
+      { "at": "+1m", "do": "batch", "order": "WO-1", "quantity": 2 },
+      { "at": "+2m", "do": "step_start", "order": "WO-1", "step": 1, "by": "op-a" },
+      { "at": "+1m", "do": "unit_start", "order": "WO-1", "ref": "u1", "workstation": "ST-A", "by": "op-a" },
+      { "at": "+5m", "do": "step_log", "order": "WO-1", "step": 1, "good": 1, "by": "op-a" },
+      { "do": "schedule", "order": "WO-1", "start": "-1d 07:00", "end": "-1d 15:00" }
+    ]
+  }
+}
+```
 
 ---
 

@@ -61,6 +61,11 @@ class HandleInertiaRequests extends Middleware
                 'items' => fn () => app(\App\Services\MenuRegistry::class)->getAllItems(),
                 'groups' => fn () => app(\App\Services\MenuRegistry::class)->getGroups(),
             ],
+            // The operator tabs this bench needs (queue, workstation, unit_labels,
+            // packing); OperatorLayout shows only these. Staff and whole-line views
+            // get every tab.
+            // Only the operator shell reads it, so other pages skip the queries.
+            'operatorScreens' => fn () => $user && $request->routeIs('operator.*') ? app(\App\Services\Production\OperatorScreens::class)->forRequest($request) : [],
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend

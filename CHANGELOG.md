@@ -9,9 +9,153 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- SN label station per workstation: the workstation form picks what the station offers there - start units on PSN, bind the serial label, issue numbers, components, sub-assemblies - so the first bench shows only "Start unit on PSN" and the labelling bench only the two scans. Nothing ticked keeps everything; supervisors, admins and the whole-line view always see everything.
+- The operator's work order view lists the order's serial units - serial number, PSN, status, last event and carton/pallet - next to the step quantities.
+- Packing station: on "auto" a unit of another order than the bench's open carton goes into a carton of its own order (the operator's open one, else a new one) instead of being refused; the scan field reads "PSN or serial number", and the EAN cards show only when EAN packing is in use.
+- Packing station: rescanning a unit that is already packed says so ("already packed - nothing changed", with its carton, pallet and packing time) instead of repeating the green confirmation; on "auto" such a rescan no longer aims at the bench's own box, so it is neither refused nor leaves an empty carton open.
+- Unit hold: a blocked unit no longer gets its serial label at the label station (it read as the next step done); it waits for a passing retest or a supervisor's release. A supervisor's PSN re-binding still goes through.
+- Packing station: the carton size is enforced by the server (a full box is refused, "auto" starts the next one) and the station closes a full box whichever carton the unit went into, also without a pallet on the bench; a box with no pallet goes onto the bench's pallet with the unit, and a box already on another pallet is refused; "auto" no longer takes over a box another packer is filling; a refused scan leaves no empty carton behind; closing a box or a pallet twice (a double click, two stations) books its packaging once; a unit already packed is not weighed again; each unit counts on its own batch's packing step; the "Pack into" choice falls back to "auto" when its carton or pallet closes.
+- Tester API: a run is booked on the token that sent it (the log's operator name is kept, it no longer picks the account); a run with a blank serial number is refused instead of landing on a unit still waiting for its label; an unknown station stays unknown rather than taking the account's own bench; only a test's pass lifts a test hold, and an older pass arriving late does not.
+- Components: a held, scrapped or shipped sub-assembly is not installed; a shipped or scrapped product keeps its parts (no unbinding); two benches scanning the same board at once cannot both install it.
+- Label station: the actions pinned to a workstation are enforced by the server too; a supervisor can re-bind the PSN of a blocked unit from the station.
+- BOM: per-carton and per-pallet lines are divided by the packing step's size in BOM explosion, net requirements and the requirements endpoint too; editing a line without sending its basis keeps it; BOM validation moved into Form Requests; the web step form validates the weight check like the API.
+- Configuration import: BOM lines are matched with their component product type, and lot sequences from older files (no purpose) import as LOT sequences; a scenario file can no longer create administrator accounts.
+- Migrations: the lot-sequence uniqueness is partial (a deleted sequence frees its slot) and the new migrations roll back on SQLite and PostgreSQL.
+- Traceability console: the serial-units list syncs units on the floor plus those finished in the last 30 days, not the whole table.
+- UI: dropdown search no longer raises the keyboard on touch screens and its clear button has a label; the active-orders table's column picker shows column names; pallet actions wrap on phones; failed pallet and label-station actions say so.
+- Unit hold: a hold put on by failed tests is now a moment in the unit's history ("Blocked after 3 failed tests", right after the fail that caused it), and so is its release by a passing retest; before, only the status changed and the history showed no reason.
+- Demo data: the print-shop and machine-shop demos can be re-seeded before the shift starts (their running orders no longer start in the future), which failed the seeder tests every night.
+- Traceability: a unit's process-history rows show test parameters under the caption and wrap long titles, so the result chip and the date are no longer cut off.
+- Test attempts can be counted per test: a new setting (Settings → Production → Unit serialisation) counts only the failed verdicts at the same test station since its last pass, so a retest loop per tester holds the unit after N attempts. The default keeps counting every failed verdict of the unit.
+- Sub-assemblies registered by their own serial where they are made: the SN label station gets a Sub-assemblies mode listing the serial-tracked materials the order's routing produces; scanning one into a product later links the product to that unit and its history. Benches that make such parts get the label-station tab automatically. Production scenarios can replay it (`subassembly` event).
+- Finished goods by pallet (setting, off by default): a closed pallet is received into the finished-goods warehouse and a shipped one issued from it, as drafts or posted at once; the work-order completion receipt is skipped then. Stock documents record their pallet.
+- IQC label: a Material lot (IQC) label template type with the lot, material, quantity, inspection status and supplier lot, printed from the material lot page (PDF/ZPL); a default template is seeded and an install without one prints the built-in layout.
+- Production hold on material shortage: Settings → Production → Material availability gains a third choice, holding a batch until stock covers its whole work order (the planner's shortage check, enforced at the batch start, with the operator told what is missing); the choice also blocks steps like the existing option. The card now sets both switches from one choice.
+- Settings → Import carries warehouses too, so a plant file can set up its finished-goods warehouse and link lines to it.
 - Traceability console: browse work orders, material lots and pallets in searchable, filterable tables and open a trace from the row instead of pasting a number; work orders are now traceable by their own order number.
+- Traceability results redesigned on the shared components: identifier and status chip header, routing drawn as the step list with per-step duration and consumed lots, ingredient lots as a table, translated statuses throughout; batch status and step durations added to the trace payload.
+- Stepper gains a `body` slot for block content under a step's caption.
+- Serialised units: identifier formats, normalisation, process-serial requirement and uniqueness, and the failed-test policy (block after N attempts, or scrap) are now system settings (Settings → System → Unit serialisation) instead of fixed behaviour. Binding a label records who, where and when in the unit's history; a re-bind needs a supervisor and a reason; packing refuses scrapped or blocked units and records the packing event.
+- Components: scan sub-assemblies, lots or bare vendor serials into a serialised unit at the SN Label Station (Components mode) or via `POST /api/v1/serial-units/{unit}/components`; the traceability console shows a unit's installed and removed components and traces a component identifier to every unit it went into.
+- Test-station log import (`traceability:import-jsonl`) understands more than one file layout, detected by structure and listed in `config/traceability.php`; runs are stamped with the tester's own time, applied in time order, and de-duplicated by run id.
+- Lot pattern tokens: `[doy]` (1-based, 3-digit day of year) and `[date:o1]` (last digit of the ISO week-numbering year); a plain `[date]` no longer errors.
+- Default label templates include a Serial Unit label; its barcode and QR carry the serial number itself.
+- Settings → Import accepts a configuration file prepared by hand for a new plant, not only an export: tables are applied in dependency order whatever order the file uses, a row's `id` is the file's own reference (foreign keys such as a workstation's line, a step's workstation or a BOM item's step and material are remapped to the rows the import created), rows are upserted by their natural key so a re-import updates instead of duplicating, and label templates, lot sequences, product–line links and system settings not yet stored (from the settings form's own keys) are imported too. Each setting from a file is checked against the settings form's own rule (a serial pattern must compile, attempt counts stay in range) and invalid ones are skipped; the plant timezone applies at once; the production flow mode is never taken from a file. A reference into a table the file carries but that did not land is dropped instead of borrowing whatever row has that id here, other `*_id` columns (users and the like) are never copied, and a live row wins over a deleted one with the same key. The export writes the same table set and leaves soft-deleted rows out.
+- Settings → Import replays an optional production scenario (`scenario` section): operator accounts, material lots and a timed list of shop-floor events — work orders, schedule placements, batches, step starts/logs/completions, units started on a PSN, SN labels, components, tester runs, holds, scrap, packing, cartons and pallets — each through the same service the operator screens use, with the clock set to the event's time. One transaction with the configuration: a failing event saves nothing and names the event. Format in the admin guide.
+
+### Changed
+
+- Operators see only the tabs their bench needs. The tabs follow the steps the
+  routing sends to the selected workstation: a packing step gives "Packing", a
+  production step gives the queue and the workstation table, plus "SN labels"
+  when the product has a serial or process-serial sequence. Picking a packing
+  bench opens straight on the packing station. An admin can pin a bench's tabs
+  by hand (Lines, Workstations, "Operator screens"; the default is "Automatic"). Supervisors, admins and the
+  whole-line view keep every tab; a hidden screen still opens from a link. The
+  workstation create/update validation moved to Form Requests.
+- `Dropdown` (`@openmes/ui`, web and native) gets a search box: on any list
+  longer than 4 rows (or with `searchable`), the menu opens with a focused
+  search field that narrows the rows as you type, case- and accent-insensitive;
+  ↑/↓/Enter pick from the matches, Escape closes. The placeholder and the
+  "no matches" note come from the app root through the new `UILabelsProvider`,
+  so every dropdown (DataTable's column filters included) is translated without
+  per-call props.
+- The operator's line and bench travel in the address (`?line=…&workstation=…`)
+  on every operator screen (including a work order's detail page) and in the
+  top links, so a bookmarked or shared link to the queue, a station or an order
+  opens on that line and bench; a line the operator is not assigned to is ignored.
+- The operator workstation table is the app's data table too: search, filters
+  on the configurable columns, the column picker (still remembered per line),
+  sorting; the production block (to produce / produced / remaining, a column per
+  shift, the actions) is fixed. `DataTable` gained `rowDetail` (a fold-out row,
+  used for the routing graph) and `columnVisibility` /
+  `onColumnVisibilityChange` so a page can remember the reader's columns.
+- The operator queue's "Active work orders" list is the app's data table
+  (search, per-column filters, column picker, paging) instead of a hand-built
+  table; double-click opens the order, the board-status badge still cycles on
+  tap. The label station stacks its scan fields (process serial over serial
+  label; unit over component) with the action button below them.
+- The operator's work order page shows the routing graph above the batch
+  steps, each node carrying the step's live status. Clicking a step shows only
+  its station's steps and jumps to it; clicking it again shows every step. The
+  graph component moved to `components/flow/RoutingGraph.jsx` (shared with the
+  process template editor) and operator screens now have a toast provider.
+- The operator's workstation table folds a routing graph out under every order
+  that tracks steps ("Show routing" for all of them, or the arrow button on one
+  row); clicking a step opens the order on that step (`?step=`), which the
+  order page also writes to the address as the step filter changes.
+- The order chosen on the unit label station and for a new pallet on the
+  packing station is kept in the address (`?work_order=`), so a reload or a
+  shared link comes back to it.
+- Packing station, fewer clicks per box: with the bench on "auto" and no
+  carton open, the first scan of an order that packs into cartons opens one
+  (the operator's own open carton is reused), so "New carton" is no longer a
+  step between boxes and no unit lands loose on the pallet by mistake. A packing
+  step can turn off the per-unit label ("Print a label for each unit when it
+  is scanned", on by default for a box label read off the unit's serial); off,
+  the label dialog shows only for a unit that has no label yet (`label_needed`
+  in the scan response).
+- The packing station has an operator address, `/operator/packaging`, beside
+  the other operator screens; an operator opening `/packaging/station` is
+  redirected there with the same query. Supervisors and admins keep
+  `/packaging/station` in the sidebar. The operator view drops the
+  shift / logged-in line under the title (the header already shows both).
+- The colour stripe at the left edge of rows and cards (operator queue and
+  workstation view, machine monitor tiles, module cards) is gone; the status
+  stays in the row tint, the badge or the switch.
+- Label templates show "Default for its type" in words with a yes/no filter
+  instead of a bare star.
 
 ### Fixed
+
+- The first scan or save after signing in no longer fails with 419: screens that post with fetch read the CSRF token from the page head, which an Inertia visit did not refresh after login regenerated it. The head now follows the token every page carries.
+- Printing a label (work order, finished goods, pallet, carton, unit, IQC), a packing list or a batch report no longer fails with a server error when the order, lot or pallet number contains a slash: download names are made safe.
+- A held unit no longer leaves as shipped with its pallet (nor counts in its finished-goods documents), and the scrap-on-failed-test policy leaves units that already shipped alone.
+- Tester logs in the one-cycle layout: a step's `lo`/`hi` limits are kept with its measurement, a run that crosses midnight ends the next day instead of before it started, the closing verdict letter decides the run as documented, and a failed step numbered 0 is no longer dropped.
+- Putting a carton on a pallet judged the pallet's quality before the carton's units were on it, so a pallet of tested units stayed "pending" and could not be shipped.
+- The "Batch created" message on the operator's order page was not translated.
+- Putting a carton on a pallet counts each unit once (a unit scanned straight
+  onto the pallet before its box was placed is no longer counted twice), refuses
+  another order's pallet and a box whose unit already sits on a different pallet.
+- Packing history rows (packed, palletised) and cartons opened at the bench are
+  attributed to the bench the operator picked for the session, not only to the
+  account's default workstation.
+- A scanned component lot matches its material lot whatever the identifier
+  normalise setting says (both sides are folded for the comparison).
+- The tester event-stream parser skips a `step_start` without `step_id` and a
+  `run_start` without `station` instead of failing the whole import.
+- Blocked serialised units show a red "Blocked" chip on the label station and
+  in traceability instead of a neutral chip with the raw status key.
+- The operator workstation page drops the two dead "Cleaning" / "Failure"
+  buttons under the line name (disabled stubs; the machine-state panel above
+  them does that job). Setting a stop state there (stopped, fault, waiting,
+  cleaning, maintenance) now asks for an optional note, stored with the state.
+- The operator header no longer overflows on tablet widths (iPad Mini and
+  narrower): the links drop to their own row and the bar grows with them.
+
+- Number fields in the admin forms carry the same bounds the server enforces
+  (a planned quantity cannot be typed as negative or zero, a price or priority
+  as negative), so the browser refuses the value instead of a failed round trip.
+- Lot tracking of materials and its picking strategy can be switched from
+  Settings → System → Production; before, the setting existed only in the
+  database.
+- A unit blocked after failed tests is released by a later passing verdict, as
+  the fail policy always said; before, the only way out of a block was scrap.
+- A pallet's quality gate now reads each unit's latest verdict; it used to read
+  the oldest, so a unit that passed and later failed could still ship.
+- Rescanning a unit's label at the packing station no longer counts it on the
+  packing step again, a unit does not go into a carton or onto a pallet of
+  another work order, and a unit already on a pallet is not moved to another
+  one by a scan (which left the first pallet's count wrong).
+- Carton numbers come from a database sequence on Postgres, like pallet
+  numbers, so two benches opening a carton at once no longer collide.
+- The traceability search normalises the typed identifier the way scanning
+  does, so a serial typed with spaces or in lower case is found.
+- Compact tester logs without a run id are no longer recorded twice when the
+  same file is imported again.
+- The unit label puts the production date on its own line under the order and
+  product, where the height allows, instead of cutting the line off under the
+  QR code on small labels.
 
 - Prune expired demo tenants on PostgreSQL without conflicting checklist/user cascades; retain atomic rollback when production audit records prevent deletion.
 - Make installer and sample-data tests database-independent, and verify real sample-data replacement with admin recreation and module preservation.
@@ -50,6 +194,93 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- Units can start on their process serial alone. The first station starts the
+  unit ("Start unit on PSN": the PSN scanned off a label, or the next one from
+  the product's sequence, with its PSN label) or issues a PSN-only batch;
+  components bind to the unit by its PSN; the product label later puts the
+  serial number onto that same unit, and a tester run carrying both numbers
+  does the same. Units without an SN yet are shown and labelled by their PSN.
+- Holding a non-conforming unit with an error code (the plant's scrap reasons):
+  "Block" on the label station (unit list and component view) and
+  `POST /api/v1/serial-units/{id}/block`. A held unit is not packed and fails its
+  pallet's quality gate; a passing retest no longer lifts a hold put on by hand
+  (it still lifts the tests' own hold). Supervisors and admins release it with a
+  reason ("Release", `/unblock`).
+- Weight check at packing: a packing step can set an expected weight and a
+  tolerance (grams). The station then asks for the unit's weight after the scan
+  (a keyboard-wedge scale types it), refuses a reading outside the tolerance
+  (kept on the unit's history) and records the weight on the "packed" event.
+  A held or scrapped unit is refused before it is weighed.
+- Traceability shows timings. A batch's steps carry start → end, the run time
+  and how long the batch waited since the previous step, plus a lead time for
+  the batch. A serialised unit's history shows how long after the previous
+  record each event came, a test's own run time (from the tester's start/end
+  stamps) and the unit's lead time from its first record to shipping (or so
+  far). Presentation of stamps already stored; nothing new is recorded.
+
+- Packaging comes from the BOM. A BOM line on a packing step can be counted
+  per carton or per pallet ("1 carton per carton"); the packing step's own
+  capacities convert it to a per-unit figure when the order freezes, so
+  planning, reservation and backflush stay correct. The packing station lists
+  the packaging each packing step takes with what the batch needs, what is
+  reserved (and from which lots) and what has been used; with lot tracking on,
+  the operator picks the packaging lots before the first unit goes into the
+  box - a scan before that is refused and opens the pick. Closing a carton
+  books one of every per-carton line, a closing pallet one of every
+  per-pallet line.
+- Label templates have a preview on sample data: an action on the list, a
+  button in the drawer, and a live preview under the form that follows the
+  fields. Each template type offers only the fields its layout prints, the
+  unit and carton layouts respect what is ticked, the carton label is always
+  one page (units beyond the space are counted as "+N more"), and a barcode
+  format that cannot encode the value (EAN-13 for an order number) falls back
+  to CODE 128 instead of failing the print.
+- A material lot's own trace lists the serialised units it was scanned into
+  as a component (with the ones it was taken out of), so a recall on a lot
+  that never went through batch consumption still finds every unit.
+- Packing list per pallet: a PDF with every carton and the serial numbers in
+  it (and units packed loose), totals, quality and signature lines - from the
+  pallets list, the packing station's active pallet and the pallet's trace.
+- Numbers issued in batches ahead of the line: "Issue batch…" at the label
+  station registers N units on the order with their serial and process
+  serial and prints all their labels in one file; the pre-printed label is
+  then applied by scanning it.
+- A component can be taken out of a unit at the label station (a repair, a
+  wrong scan), with a reason kept on the unit's history; the lot or
+  sub-assembly is free to go into another unit.
+- Testers post their results to the API: `POST /api/v1/test-runs` takes the
+  station's own JSONL log (the lines it writes to file), OpenMES's native JSON
+  shape, or the decoded records, and records the run the way the file import
+  does - unit registered on first sight, fail policy applied, pallet quality
+  re-read, duplicate runs ignored. `GET /api/v1/serial-units` looks units up by
+  exact serial number or process serial. Documented in `docs/API_DOCUMENTATION.md`.
+- An end-to-end walkthrough of the serialised-unit flow
+  (`tests/e2e/traceability-flow/`): a Playwright spec that drives configuration,
+  label station, component binding, packing and shipping through the real UI
+  with a screenshot of every step, and an `index.html` that describes the
+  process step by step around those screenshots.
+- Pallets are reachable from the menu (Warehouses → Pallets); the page existed
+  but no menu entry led to it. The list's label column opens the same label
+  preview (print, ZPL, template choice) the stations use instead of PDF and ZPL
+  links that left the page, and no longer shows a pointless filter box.
+- Label templates are reachable from the menu (Production → Label Templates) and
+  are created and edited in a drawer on the list, like the other admin lists;
+  the old create/edit pages redirect into it. The type, size, barcode format and
+  field names in the form and the list are translated instead of shown in
+  English, and a new template starts with the usual fields for its type.
+- Packing is a routing step. A process-template step has a kind (production or
+  packing); a packing step carries what it packs into (unit, carton or pallet),
+  units per carton, cartons per pallet and an optional label template. The kind
+  and its config are frozen into the work order's snapshot and copied onto the
+  batch steps, so the packing station lists each order's packing step with its
+  progress, starts it on the first scanned unit and counts every packed unit on
+  it. A carton closes itself (and prints its list) when it reaches the
+  configured size, and a pallet closes itself (and prints its label) when it
+  holds the configured number of closed cartons, or of units when the step packs
+  straight onto pallets; a closed pallet takes nothing more. The label template
+  a packing step names is the one the station prints for that level (unit, carton
+  or pallet). Each scan can be aimed at a target: the operator's carton or
+  pallet, another open carton or pallet, or none.
 - Plan work-order availability with a plant-local start date and time in creation,
   editing and scheduling. Preserve delivery deadlines when moving orders; keep
   undated orders available and guard early production and postponement of started
