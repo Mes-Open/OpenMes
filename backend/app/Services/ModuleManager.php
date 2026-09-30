@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Support\CoreVersionConstraint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ModuleManager
 {
@@ -41,6 +42,24 @@ class ModuleManager
 
             $manifest = json_decode(file_get_contents($manifestPath), true);
             if (! $manifest || empty($manifest['name'])) {
+                continue;
+            }
+
+            // A module lives in a directory named after itself — that is how
+            // installFromZip() puts it there and how loadEnabled() finds it.
+            // Anything else carrying a module.json is a leftover: a backup an
+            // updater parked next to the module, a half-finished copy, an
+            // unpacked archive. Those used to show up here as a second, also
+            // "enabled" install of the same module, because enablement matches
+            // on the manifest name and the copy carries the same one — two
+            // cards, two directories, the same provider class, and no way for
+            // the operator to tell which is which.
+            if ($manifest['name'] !== $entry) {
+                Log::warning('module.directory_name_mismatch', [
+                    'directory' => $entry,
+                    'declares' => $manifest['name'],
+                ]);
+
                 continue;
             }
 
