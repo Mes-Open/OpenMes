@@ -33,7 +33,7 @@ class BomManagementController extends Controller
             ->where('id', '!=', $productType->id)
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'unit_of_measure']);
-        $steps = $processTemplate->steps()->orderBy('step_number')->get();
+        $steps = $processTemplate->steps()->with('workstation')->orderBy('step_number')->get();
 
         return Inertia::render('admin/process-templates/Bom', [
             'productType' => $productType->only('id', 'name'),
@@ -88,6 +88,10 @@ class BomManagementController extends Controller
                 'name' => $s->name,
                 'kind' => $s->kind,
                 'config' => $s->config,
+                // Node captions for the routing graph above the table.
+                'is_optional' => (bool) $s->is_optional,
+                'variant_group' => $s->variant_group,
+                'workstation' => $s->workstation ? ['id' => $s->workstation->id, 'name' => $s->workstation->name] : null,
             ]),
         ]);
     }

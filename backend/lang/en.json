@@ -6876,5 +6876,6 @@
     "Module \":name\" requires OpenMES :required; this installation is :current.": "Module \":name\" requires OpenMES :required; this installation is :current.",
     "Module \":name\" could not be uninstalled: :msg": "Module \":name\" could not be uninstalled: :msg",
     "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.": "Module \":name\" uninstalled. Its database tables were left in place; reinstalling keeps the data.",
-    "Failed to import settings - nothing from the file was saved. :message": "Failed to import settings - nothing from the file was saved. :message"
+    "Failed to import settings - nothing from the file was saved. :message": "Failed to import settings - nothing from the file was saved. :message",
+    "Click a step to show only its components; click it again to show all. The number on a step is how many components it consumes.": "Click a step to show only its components; click it again to show all. The number on a step is how many components it consumes."
 }

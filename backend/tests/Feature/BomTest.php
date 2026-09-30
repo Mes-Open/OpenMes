@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\BomItem;
+use App\Models\Line;
 use App\Models\Material;
 use App\Models\MaterialType;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\User;
+use App\Models\Workstation;
 use App\Services\Material\BomService;
 use App\Services\Material\MaterialSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -126,6 +128,30 @@ class BomTest extends TestCase
         );
 
         $response->assertStatus(200);
+    }
+
+    public function test_bom_page_sends_step_captions_for_the_routing_graph(): void
+    {
+        $productType = ProductType::factory()->create();
+        $template = ProcessTemplate::factory()->create(['product_type_id' => $productType->id]);
+        $workstation = Workstation::factory()->create(['name' => 'Press 1', 'line_id' => Line::factory()]);
+        $step = TemplateStep::factory()->create([
+            'process_template_id' => $template->id,
+            'step_number' => 1,
+            'workstation_id' => $workstation->id,
+            'is_optional' => true,
+            'variant_group' => 'A',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.product-types.process-templates.bom', [$productType, $template]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/process-templates/Bom')
+                ->where('steps.0.id', $step->id)
+                ->where('steps.0.workstation.name', 'Press 1')
+                ->where('steps.0.is_optional', true)
+                ->where('steps.0.variant_group', 'A'));
     }
 
     public function test_admin_can_add_bom_item(): void
