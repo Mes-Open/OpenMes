@@ -110,4 +110,54 @@ class OperatorContextInUrlTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('line.id', $this->line->id));
         $this->assertSame($this->line->id, (int) session('selected_line_id'));
     }
+
+    public function test_an_operator_with_one_line_skips_the_line_picker(): void
+    {
+        $solo = User::factory()->create();
+        $solo->assignRole('Operator');
+        $solo->lines()->attach($this->otherLine->id);
+
+        $this->actingAs($solo)->get(route('operator.select-line'))
+            ->assertRedirect(route('operator.queue', ['line' => $this->otherLine->id, 'workstation' => 'all']));
+        $this->assertSame($this->otherLine->id, (int) session('selected_line_id'));
+    }
+
+    public function test_skipping_the_picker_keeps_the_bench_already_chosen_on_that_line(): void
+    {
+        $solo = User::factory()->create();
+        $solo->assignRole('Operator');
+        $solo->lines()->attach($this->line->id);
+        $retired = Workstation::create(['line_id' => $this->line->id, 'code' => 'OLD-1', 'name' => 'Old', 'is_active' => false]);
+
+        $this->actingAs($solo)
+            ->withSession(['selected_line_id' => $this->line->id, 'selected_workstation_id' => $this->bench->id])
+            ->get(route('operator.select-line'))
+            ->assertRedirectContains("workstation={$this->bench->id}");
+
+        // A bench that is no longer active, or belongs to another line, is dropped.
+        $this->actingAs($solo)
+            ->withSession(['selected_line_id' => $this->line->id, 'selected_workstation_id' => $retired->id])
+            ->get(route('operator.select-line'))
+            ->assertRedirect(route('operator.queue', ['line' => $this->line->id, 'workstation' => 'all']));
+        $this->assertNull(session('selected_workstation_id'));
+    }
+
+    public function test_an_operator_with_several_lines_still_picks_one(): void
+    {
+        $this->actingAs($this->operator)->get(route('operator.select-line'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('operator/SelectLine')
+                ->has('lines', 2)
+                ->where('operatorCanSwitchLine', true));
+    }
+
+    public function test_the_switch_line_button_is_hidden_when_there_is_only_one_line(): void
+    {
+        $this->operator->lines()->detach($this->otherLine->id);
+
+        $this->actingAs($this->operator)->get("/operator/queue?line={$this->line->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('operatorCanSwitchLine', false));
+    }
 }

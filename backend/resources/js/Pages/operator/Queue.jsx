@@ -685,6 +685,7 @@ export default function Queue() {
         lineWorkstations = [],
         downtimeReasons = [],
         activeDowntime = null,
+        operatorCanSwitchLine = true,
     } = usePage().props;
 
     // Persist view preference in localStorage
@@ -799,10 +800,12 @@ export default function Queue() {
                             </button>
                         </div>
 
-                        <Link href="/operator/select-line"
-                              className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink bg-om-card border border-om-line hover:bg-om-chip transition-colors">
-                            {__("Change Line")}
-                        </Link>
+                        {operatorCanSwitchLine && (
+                            <Link href="/operator/select-line"
+                                  className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink bg-om-card border border-om-line hover:bg-om-chip transition-colors">
+                                {__("Change Line")}
+                            </Link>
+                        )}
                     </div>
                 </div>
 
