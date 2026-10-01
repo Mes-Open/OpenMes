@@ -44,7 +44,7 @@ const STATUS_DOT = {
 };
 
 function StepNode({ data, selected, isConnectable }) {
-    const { step } = data;
+    const { step, badge } = data;
     const status = step.status ? STATUS_DOT[step.status] ?? STATUS_DOT.PENDING : null;
     return (
         <div
@@ -55,7 +55,7 @@ function StepNode({ data, selected, isConnectable }) {
             <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="!bg-om-faint !w-2.5 !h-2.5 !border-2 !border-om-card hover:!bg-om-accent" />
             <div className="flex items-center gap-2">
                 <span className={`shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${selected ? 'bg-om-accent text-white' : 'bg-om-chip text-om-accent'}`}>{step.step_number}</span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-om-ink truncate">{step.name}</p>
                     <p className="text-[11px] text-om-muted truncate">
                         {status && <span className={`inline-block w-2 h-2 rounded-full mr-1 align-middle ${status[0]}`} />}
@@ -65,6 +65,9 @@ function StepNode({ data, selected, isConnectable }) {
                         {step.is_optional ? ` · ${__('Optional')}` : ''}
                     </p>
                 </div>
+                {badge != null && (
+                    <span className="shrink-0 rounded-full bg-om-chip px-2 py-0.5 text-[11px] font-semibold text-om-muted">{badge}</span>
+                )}
             </div>
         </div>
     );
@@ -91,7 +94,21 @@ function firstError(json) {
     return json.message ?? null;
 }
 
-export default function RoutingGraph({ steps, links: initialLinks, baseUrl, compact = false, height = 340, selectedId = null, onSelectStep }) {
+// How many steps a focused view frames: the selected one plus its neighbours.
+const FOCUS_WINDOW = 3;
+
+/**
+ * The steps to frame around `selectedId` — a run of FOCUS_WINDOW in step order,
+ * shifted at either end so the first step shows 1–2–3, not an empty left half.
+ */
+function focusNodeIds(steps, selectedId) {
+    const i = steps.findIndex((s) => s.id === selectedId);
+    if (i < 0) return null;
+    const start = Math.max(0, Math.min(i - 1, steps.length - FOCUS_WINDOW));
+    return steps.slice(start, start + FOCUS_WINDOW).map((s) => ({ id: String(s.id) }));
+}
+
+export default function RoutingGraph({ steps, links: initialLinks, baseUrl, compact = false, height = 340, selectedId = null, onSelectStep, nodeBadge, focusSelected = false }) {
     // The backend advertises the link editor by sending a links array; while it
     // doesn't (the DAG-routing backend hasn't shipped), the graph is read-only:
     // the implicit chain renders, but nothing can be drawn or removed.
@@ -113,6 +130,24 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
     const positions = useMemo(() => layout(steps, pairs), [structureKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
+
+    // Opt-in: zoom to the selected step's neighbourhood instead of the whole
+    // routing, which on a long line shrinks every node past readability.
+    // Clearing the selection zooms back out to everything.
+    const flowRef = useRef(null);
+    const fitOptions = useMemo(() => {
+        const focus = focusSelected ? focusNodeIds(steps, selectedId) : null;
+        return focus ? { nodes: focus, padding: 0.15, maxZoom: 1.5 } : { padding: 0.2, maxZoom: 1.1 };
+    }, [focusSelected, steps, selectedId]);
+    const firstFitRef = useRef(true);
+    useEffect(() => {
+        if (!focusSelected) return;
+        // The first frame is ReactFlow's own `fitView` on mount; after that,
+        // follow the selection with a short pan so it's clear where you went.
+        if (firstFitRef.current) { firstFitRef.current = false; return; }
+        const id = requestAnimationFrame(() => flowRef.current?.fitView({ ...fitOptions, duration: 300 }));
+        return () => cancelAnimationFrame(id);
+    }, [fitOptions, focusSelected]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
     useEffect(() => {
@@ -132,7 +167,9 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
                 deletable: false,
                 position: (structureChanged ? null : prevById[String(s.id)]?.position) ?? positions[s.id] ?? { x: 0, y: 0 },
                 selected: selectedId != null && s.id === selectedId,
-                data: { step: s },
+                // Optional per-page annotation in the node's corner (e.g. the
+                // BOM page's component count); null hides it.
+                data: { step: s, badge: nodeBadge ? nodeBadge(s) : null },
             }));
         });
         setEdges((prev) => {
@@ -163,7 +200,7 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
                     data: { tone: 'muted', dashed: true },
                 }));
         });
-    }, [steps, links, pairs, explicit, positions, structureKey, selectedId, setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [steps, links, pairs, explicit, positions, structureKey, selectedId, nodeBadge, setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const onConnect = useCallback(async ({ source, target }) => {
         if (!source || !target) return;
@@ -222,7 +259,8 @@ export default function RoutingGraph({ steps, links: initialLinks, baseUrl, comp
             deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
             elementsSelectable
             fitView
-            fitViewOptions={{ padding: 0.2, maxZoom: 1.1 }}
+            fitViewOptions={fitOptions}
+            onInit={(instance) => { flowRef.current = instance; }}
             proOptions={{ hideAttribution: true }}
             minZoom={0.2}
         >

@@ -84,6 +84,10 @@ class HandleInertiaRequests extends Middleware
                 ->filter('operator.can_logout', true, ['user' => $user]),
             'operatorHooks' => fn () => app(\App\Extension\HookRegistry::class)
                 ->renderMany(['display.operator.layout'], ['user' => $user]),
+            // With a single line, select-line opens it directly, so a "switch
+            // line" button would only land back where the operator already is.
+            'operatorCanSwitchLine' => fn () => $user !== null
+                && $user->lines()->where('is_active', true)->count() > 1,
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend

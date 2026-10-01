@@ -21,7 +21,7 @@ export default function OperatorLayout({ children }) {
     const props = usePage().props;
     const {
         auth, line, selectedWorkstation, csrf_token, moduleNav,
-        operatorTabs = [], operatorCanLogout = true, operatorHooks = {},
+        operatorTabs = [], operatorCanLogout = true, operatorHooks = {}, operatorCanSwitchLine = true,
     } = props;
     // Tabs an enabled module registered via MenuRegistry::addOperatorItem().
     const moduleTabs = moduleNav?.operator ?? [];
@@ -73,12 +73,14 @@ export default function OperatorLayout({ children }) {
                                     {__(tab.label)}
                                 </TopLink>
                             ))}
-                            <Link
-                                href="/operator/select-line"
-                                className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
-                            >
-                                {__('Switch Line')}
-                            </Link>
+                            {operatorCanSwitchLine && (
+                                <Link
+                                    href="/operator/select-line"
+                                    className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
+                                >
+                                    {__('Switch Line')}
+                                </Link>
+                            )}
                         </nav>
                     )}
 

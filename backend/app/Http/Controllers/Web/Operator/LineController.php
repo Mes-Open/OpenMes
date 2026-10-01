@@ -32,7 +32,23 @@ class LineController extends Controller
         }
 
         // Operators see only assigned lines
-        $lines = $user->lines()->where('is_active', true)->with('workstations')->get()
+        $assigned = $user->lines()->where('is_active', true)->with('workstations')->get();
+
+        // One line leaves nothing to choose: open it straight away. The bench stays
+        // switchable from the queue, so keep the one already picked on this line.
+        if ($assigned->count() === 1) {
+            $line = $assigned->first();
+            $keep = $request->session()->get('selected_line_id') == $line->id
+                ? $request->session()->get('selected_workstation_id')
+                : null;
+            $workstationId = $keep && $line->workstations->where('is_active', true)->contains('id', $keep)
+                ? $keep
+                : null;
+
+            return $this->land($request, $line, $workstationId);
+        }
+
+        $lines = $assigned
             ->map(fn ($line) => [
                 'id' => $line->id,
                 'name' => $line->name,
@@ -76,21 +92,27 @@ class LineController extends Controller
             }
         }
 
-        // Store selected line and workstation in session
-        $request->session()->put('selected_line_id', $lineId);
+        return $this->land($request, Line::find($lineId), $workstationId);
+    }
+
+    /**
+     * Remember the line and bench in the session and open the bench's first screen.
+     */
+    private function land(Request $request, Line $line, $workstationId)
+    {
+        $request->session()->put('selected_line_id', $line->id);
         $request->session()->put('selected_workstation_id', $workstationId);
 
-        $line = Line::find($lineId);
         // The bench's first screen: a packing bench opens on packing, an assembly
         // bench on the line's default production view.
         $screens = app(\App\Services\Production\OperatorScreens::class);
         $route = $screens->landingRoute(
             $screens->for($request->user(), $workstationId ? \App\Models\Workstation::find($workstationId) : null),
-            $line?->default_operator_view ?? 'queue',
+            $line->default_operator_view ?? 'queue',
         );
 
         // The choice rides in the address, so the page can be bookmarked or
         // shared and opens on this line and bench.
-        return redirect()->route($route, ['line' => $lineId, 'workstation' => $workstationId ?: 'all']);
+        return redirect()->route($route, ['line' => $line->id, 'workstation' => $workstationId ?: 'all']);
     }
 }

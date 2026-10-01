@@ -135,6 +135,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- Operator line selection: an operator assigned to a single line goes straight to it (keeping the bench already picked on that line) instead of a picker with one card, and the "Switch line" / "Change line" buttons are hidden since they would only land back on the same line. The bench is still chosen from the queue's workstation filter.
 - Settings → Import no longer sends a live update per imported row. A plant file with its production scenario touches a thousand rows or more, each update a synchronous call to the websocket server after the commit; on a slower host that ran the request past its time limit and answered an empty error 500, although the data had been saved. Open screens pick the new data up when they next load, as after a data import. A failed import now names its reason on the page (the screen is admin-only) instead of a generic message, and a log that cannot be written no longer turns that answer into an empty 500.
 - The audit log page no longer trips a PHP deprecation on rows that name no entity (a login, a settings change), and the `deprecations` log channel is declared in `config/logging.php`: under Octane the channel the framework added at runtime never reached the log manager, so every deprecation notice ended in "Log [deprecations] is not defined" through the emergency logger.
 

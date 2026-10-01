@@ -765,6 +765,7 @@ export default function Workstation() {
         machineStateOptions = [],
         selectedWorkstation = null,
         hooks = {},
+        operatorCanSwitchLine = true,
     } = usePage().props;
 
     // Which configurable columns the reader keeps on, remembered per line in
@@ -890,12 +891,14 @@ export default function Workstation() {
                                 </Button>
                             )}
 
-                            <Link
-                                href="/operator/select-line"
-                                className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
-                            >
-                                {__("Change Line")}
-                            </Link>
+                            {operatorCanSwitchLine && (
+                                <Link
+                                    href="/operator/select-line"
+                                    className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
+                                >
+                                    {__("Change Line")}
+                                </Link>
+                            )}
                         </div>
                     </div>
 

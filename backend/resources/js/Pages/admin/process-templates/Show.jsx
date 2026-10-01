@@ -1391,6 +1391,7 @@ export default function ProcessTemplatesShow() {
                                     baseUrl={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`}
                                     selectedId={selectedStep?.id ?? null}
                                     onSelectStep={setSelectedStepId}
+                                    focusSelected
                                 />
                             </div>
                             <div className="flex-1 bg-om-card p-4 overflow-y-auto [&_.drag-handle]:hidden" style={{ maxHeight: 560 }}>

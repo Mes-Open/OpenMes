@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { __ } from '../../../lib/i18n';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Dropdown, Modal, SegmentedControl } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import RoutingGraph from '../../../components/flow/RoutingGraph';
 
 const TYPE_COLORS = {
     raw_material:  'bg-om-downtime-bg text-om-downtime',
@@ -13,6 +14,11 @@ const TYPE_COLORS = {
 
 function trackingLabel(value) {
     const labels = { none: 'None', batch: 'Batch', serial: 'Serial' };
+    return value == null ? '—' : __(labels[value] ?? value);
+}
+
+function consumedAtLabel(value) {
+    const labels = { start: 'Start of step', during: 'During step', end: 'End of step' };
     return value == null ? '—' : __(labels[value] ?? value);
 }
 
@@ -314,6 +320,24 @@ export default function ProcessTemplatesBom() {
 
     const remove = (row) => router.delete(`${templateHref}/bom/${row.id}`, { preserveScroll: true });
 
+    // The dropdown and the graph drive the same filter, and both keep it in the
+    // URL so a link to one step's components (?step_id=) survives a reload.
+    const applyStepFilter = (value) => {
+        setStepFilter(value);
+        router.get(`${templateHref}/bom`, value ? { step_id: value } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    };
+
+    // Components per step, shown on each node so the graph doubles as an
+    // overview of where material enters the routing.
+    const countByStep = useMemo(() => {
+        const counts = {};
+        bomItems.forEach((row) => {
+            if (row.template_step_id != null) counts[row.template_step_id] = (counts[row.template_step_id] ?? 0) + 1;
+        });
+        return counts;
+    }, [bomItems]);
+    const nodeBadge = useCallback((step) => countByStep[step.id] ?? 0, [countByStep]);
+
     const columns = useMemo(() => [
         {
             key: 'component_name',
@@ -378,7 +402,9 @@ export default function ProcessTemplatesBom() {
         {
             key: 'consumed_at',
             label: 'Consumed At',
-            render: (row) => <span className="text-sm text-om-muted capitalize">{row.consumed_at}</span>,
+            // Search and the column filter match the translated label, not the stored enum.
+            value: (row) => consumedAtLabel(row.consumed_at),
+            render: (row) => <span className="text-sm text-om-muted">{consumedAtLabel(row.consumed_at)}</span>,
         },
         {
             key: 'tracking_type',
@@ -429,6 +455,24 @@ export default function ProcessTemplatesBom() {
         <>
             <Head title={`BOM - ${processTemplate.name}`} />
 
+            {steps.length > 0 && (
+                <div className="mb-4 rounded-om border border-om-line2 overflow-hidden" data-testid="bom-routing-graph">
+                    <RoutingGraph
+                        compact
+                        height={200}
+                        steps={steps}
+                        selectedId={stepFilter ? Number(stepFilter) : null}
+                        // Clicking the selected step again clears the filter.
+                        onSelectStep={(id) => applyStepFilter(String(id) === stepFilter ? '' : String(id))}
+                        nodeBadge={nodeBadge}
+                        focusSelected
+                    />
+                    <p className="px-3 py-1.5 text-[11px] text-om-muted border-t border-om-line2 m-0">
+                        {__('Click a step to show only its components; click it again to show all. The number on a step is how many components it consumes.')}
+                    </p>
+                </div>
+            )}
+
             <ResourceTable
                 // Not a synced shape: a BOM belongs to one process template and
                 // nothing broadcasts it, so the rows come from this page's props.
@@ -438,10 +482,7 @@ export default function ProcessTemplatesBom() {
                     <Dropdown
                         aria-label={__('Filter by step')}
                         value={stepFilter}
-                        onChange={(value) => {
-                            setStepFilter(value);
-                            router.get(`${templateHref}/bom`, value ? { step_id: value } : {}, { preserveState: true, preserveScroll: true, replace: true });
-                        }}
+                        onChange={applyStepFilter}
                         options={[
                             { value: '', label: __('All steps') },
                             ...steps.map(step => ({ value: String(step.id), label: `#${step.step_number} ${step.name}` })),
