@@ -195,7 +195,15 @@ services:
       DB_DATABASE: ${POSTGRES_DB:-openmmes}
       DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
-      BROADCAST_CONNECTION: log
+      # Live sync: CollectionChanged is ShouldBroadcastNow, so it is sent by the
+      # process that writes the row — here, machine counts arriving over MQTT.
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
     depends_on:
       postgres:
         condition: service_healthy
