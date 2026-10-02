@@ -30,6 +30,40 @@ RUN docker-php-ext-install \
     pcntl \
     sockets
 
+# ionCube Loader — required to run modules distributed as encoded PHP.
+#
+# Inert without encoded files: the extension loads, costs a couple of MB, and
+# does nothing until something actually asks it to run an encoded file. It is
+# here rather than in a separate image because a module is installed into a
+# running OpenMES through the admin panel, so the stock image has to be able to
+# run whatever a licensed module ships — otherwise installing one would mean
+# first swapping the whole installation for a different image.
+#
+# The base image is Alpine, so this is the musl build. ionCube publishes no
+# musl loader for arm64; on that platform the step below is skipped and encoded
+# modules will not run, while everything else is unaffected.
+RUN set -eux; \
+    arch="$(apk --print-arch)"; \
+    if [ "$arch" = "x86_64" ]; then \
+        curl -fsSL -o /tmp/ioncube.tar.gz \
+            https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin-musl_x86-64.tar.gz; \
+        tar -xzf /tmp/ioncube.tar.gz -C /tmp; \
+        # The image exposes PHP_VERSION but not its major/minor parts, so the
+        # loader's name is derived here rather than assumed.
+        abi="$(php -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"; \
+        cp "/tmp/ioncube/ioncube_loader_lin-musl_${abi}.so" \
+            "$(php -r 'echo ini_get("extension_dir");')/"; \
+        # Loaded as a zend_extension and prefixed 00- so it comes before the
+        # other ini files: ionCube must be in place before anything tries to
+        # include an encoded file.
+        echo "zend_extension=ioncube_loader_lin-musl_${abi}.so" \
+            > /usr/local/etc/php/conf.d/00-ioncube.ini; \
+        rm -rf /tmp/ioncube /tmp/ioncube.tar.gz; \
+        php -v | grep -q 'ionCube'; \
+    else \
+        echo "ionCube: no musl loader for $arch, skipping"; \
+    fi
+
 # PHP upload / memory limits
 COPY backend/docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
