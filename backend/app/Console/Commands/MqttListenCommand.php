@@ -245,20 +245,20 @@ class MqttListenCommand extends Command
             ->setReconnectAutomatically(false);
 
         if ($cfg->username) {
-            $settings->setUsername($cfg->username);
+            $settings = $settings->setUsername($cfg->username);
         }
 
         $password = $cfg->getPassword();
         if ($password) {
-            $settings->setPassword($password);
+            $settings = $settings->setPassword($password);
         }
 
         if ($cfg->use_tls) {
-            $settings->setUseTls(true);
+            $settings = $settings->setUseTls(true);
             if ($cfg->ca_cert) {
                 $caFile = tempnam(sys_get_temp_dir(), 'mqtt_ca_');
                 file_put_contents($caFile, $cfg->ca_cert);
-                $settings->setTlsCertificateAuthorityFile($caFile);
+                $settings = $settings->setTlsCertificateAuthorityFile($caFile);
             }
         }
 
