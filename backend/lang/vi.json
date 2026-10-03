@@ -6670,7 +6670,7 @@
     "Put on pallet :pallet": "Đặt lên pallet :pallet",
     "Carton": "Thùng carton",
     "Pack unit": "Đóng gói đơn vị",
-    "Pallet :no is not open.": "Pallet :no chưa mở.",
+    "Pallet :no is not open.": "Pallet :no hiện không ở trạng thái mở.",
     "Serial units on the pallet": "Các đơn vị theo số seri trên pallet",
     "Serial units - carton": "Các đơn vị theo số seri - thùng carton",
     "Carton :no is empty.": "Thùng carton :no đang trống.",
