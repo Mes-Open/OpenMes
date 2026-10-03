@@ -4613,5 +4613,6 @@
     "Gold": "Vàng",
     "VIP": "VIP",
     "Long-press a bar to move it · drag its edges to resize · snaps to {{n}} min": "Nhấn giữ thanh để di chuyển · kéo mép để thay đổi kích thước · bám theo bước {{n}} phút",
-    "Long-press a block to move it across shifts, days or lines · drag its edges to stretch · drag an edge onto another line to continue the order there · tap it for actions": "Nhấn giữ khối để di chuyển qua các ca, ngày hoặc dây chuyền · kéo mép để kéo giãn · kéo một mép sang dây chuyền khác để tiếp tục lệnh ở đó · chạm để xem thao tác"
+    "Long-press a block to move it across shifts, days or lines · drag its edges to stretch · drag an edge onto another line to continue the order there · tap it for actions": "Nhấn giữ khối để di chuyển qua các ca, ngày hoặc dây chuyền · kéo mép để kéo giãn · kéo một mép sang dây chuyền khác để tiếp tục lệnh ở đó · chạm để xem thao tác",
+    "No matches": "Không tìm thấy kết quả phù hợp"
 }
