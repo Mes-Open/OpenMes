@@ -251,6 +251,17 @@ services:
       DB_DATABASE: ${POSTGRES_DB:-openmmes}
       DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      # Live sync: same reason as mqtt-listener — this process writes the
+      # counter readings, so it is the one that has to reach Reverb. Without
+      # these the default connection is still reverb, but with no host it
+      # dials https://:443 and the delta is silently dropped.
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
     depends_on:
       postgres:
         condition: service_healthy
@@ -322,6 +333,15 @@ services:
       DB_DATABASE: ${POSTGRES_DB:-openmmes}
       DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      # Live sync: queued ShouldBroadcast events are sent from this process,
+      # not from backend. Same defaulting trap as the listeners above.
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
     depends_on:
       postgres:
         condition: service_healthy
