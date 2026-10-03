@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
-import { formatNumber, formatTime } from '../../../../lib/i18n';
+import { __, formatNumber, formatTime } from '../../../../lib/i18n';
 import useConfirm from '../../../../components/useConfirm';
 import { nameControl } from '../../../../lib/fieldName';
 
@@ -460,7 +460,7 @@ function CountStepFields({ value, onChange }) {
                 <Checkbox
                     checked={!!p.also_count_work_order}
                     onChange={(next) => set({ also_count_work_order: next })}
-                    label="Also count as finished goods (feeds the work order's produced qty)"
+                    label={__("Also count as finished goods (feeds the work order's produced qty)")}
                 />
             </div>
         </div>
@@ -520,8 +520,8 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                     <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
                 <div className="flex gap-2">
-                    <Button variant="primary" type="submit" loading={form.processing}>Save</Button>
-                    <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
+                    <Button variant="primary" type="submit" loading={form.processing}>{__('Save')}</Button>
+                    <Button variant="secondary" type="button" onClick={onClose}>{__('Cancel')}</Button>
                 </div>
             </form>
         </div>
@@ -550,14 +550,14 @@ function AddTopicForm({ connectionId }) {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Add topic
+                {__('Add topic')}
             </button>
             {open && (
                 <form onSubmit={submit} className="mt-4 space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="col-span-2">
                             <div className="block text-xs font-medium text-om-muted mb-1">
-                                Topic pattern <span className="text-om-faint font-normal">(supports + and # wildcards)</span>
+                                {__('Topic pattern')} <span className="text-om-faint font-normal">{__('(supports + and # wildcards)')}</span>
                             </div>
                             <input
                                 type="text"
@@ -569,9 +569,9 @@ function AddTopicForm({ connectionId }) {
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Payload format</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Payload format')}</div>
                             <Dropdown
-                                aria-label="Payload format"
+                                aria-label={__('Payload format')}
                                 value={form.data.payload_format}
                                 onChange={(v) => form.setData('payload_format', v)}
                                 options={[
@@ -585,22 +585,22 @@ function AddTopicForm({ connectionId }) {
                         </div>
                     </div>
                     <div>
-                        <div className="block text-xs font-medium text-om-muted mb-1">Description (optional)</div>
+                        <div className="block text-xs font-medium text-om-muted mb-1">{__('Description (optional)')}</div>
                         <input
-                            aria-label="Description (optional)"
+                            aria-label={__('Description (optional)')}
                             type="text"
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
-                            placeholder="e.g. Production count from Line 1"
+                            placeholder={__('e.g. Production count from Line 1')}
                             className="w-full px-3 py-2 text-sm border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
                         />
                     </div>
                     <div className="flex gap-2">
                         <Button variant="primary" type="submit" loading={form.processing}>
-                            Add Topic
+                            {__('Add Topic')}
                         </Button>
                         <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
-                            Cancel
+                            {__('Cancel')}
                         </Button>
                     </div>
                 </form>
@@ -637,7 +637,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                     <Dropdown
                         value={form.data.action_type}
                         onChange={(v) => form.setData('action_type', v)}
-                        options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                        options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: __(lbl) }))}
                         className="w-full"
                     />
                 </MiniField>
@@ -658,11 +658,11 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                 </MiniField>
             )}
             <MiniField label="Description">
-                <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder="e.g. Update produced qty from machine counter" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
+                <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder={__('e.g. Update produced qty from machine counter')} className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
             <div className="flex gap-2">
-                <Button variant="primary" type="submit" loading={form.processing}>Add Mapping</Button>
-                <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
+                <Button variant="primary" type="submit" loading={form.processing}>{__('Add Mapping')}</Button>
+                <Button variant="secondary" type="button" onClick={onClose}>{__('Cancel')}</Button>
             </div>
         </form>
     );
@@ -671,8 +671,8 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
 function MiniField({ label, children }) {
     return (
         <div>
-            <div className="block text-xs text-om-muted mb-0.5">{label}</div>
-            {nameControl(children, label)}
+            <div className="block text-xs text-om-muted mb-0.5">{__(label)}</div>
+            {nameControl(children, __(label))}
         </div>
     );
 }

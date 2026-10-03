@@ -314,25 +314,25 @@ function CompleteModal({ modal, onClose }) {
                 className="relative w-full max-w-sm overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Add Produced Quantity" subtitle={modal.orderNo} onClose={onClose} />
+                <ModalHeader title={__('Add Produced Quantity')} subtitle={modal.orderNo} onClose={onClose} />
                 <form onSubmit={handleSubmit}>
                     <div className="px-[18px] py-4">
                         <p className="text-om-ink mb-1 text-[17px] font-semibold tracking-[-0.01em]">
                             {modal.product}
                         </p>
                         <p className="text-sm text-om-muted mb-1">
-                            Order: <span className="font-mono text-om-ink">{modal.orderNo}</span>
+                            {__('Order')}: <span className="font-mono text-om-ink">{modal.orderNo}</span>
                         </p>
                         <p className="text-sm text-om-muted mb-4">
-                            Planned: <strong className="font-mono text-om-ink">{fmt(modal.planned)}</strong> | Already produced: <strong className="font-mono text-om-ink">{fmt(modal.produced)}</strong>
+                            {__('Planned')}: <strong className="font-mono text-om-ink">{fmt(modal.planned)}</strong> | {__('Already produced')}: <strong className="font-mono text-om-ink">{fmt(modal.produced)}</strong>
                         </p>
                         <div>
                             <div className={fieldLabelCls}>
-                                Quantity <span className="text-om-blocked">*</span>
+                                {__('Quantity')} <span className="text-om-blocked">*</span>
                             </div>
                             <QuantityField
                                 variant="big"
-                                aria-label="Quantity"
+                                aria-label={__('Quantity')}
                                 value={qty}
                                 onChange={setQty}
                                 className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-4 font-mono text-[30px] font-medium tracking-[-0.02em] text-center text-om-ink placeholder:text-om-faintest outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]"

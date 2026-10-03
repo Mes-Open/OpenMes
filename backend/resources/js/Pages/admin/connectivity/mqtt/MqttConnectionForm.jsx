@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { Field, Section } from '../ui';
+import { __ } from '../../../../lib/i18n';
 
 /**
  * Shared create/edit form for MachineConnection (protocol=mqtt) + MqttConnection config.
@@ -68,20 +69,19 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         value={data.line_id}
                         onChange={(v) => setData('line_id', v)}
                         options={[
-                            { value: '', label: '— None —' },
+                            { value: '', label: __('— None —') },
                             ...lines.map((l) => ({ value: String(l.id), label: l.name })),
                         ]}
                         className="w-full"
                     />
                     <p className="mt-1 text-xs text-om-faint">
-                        The production line this device feeds — the default target for its
-                        topic mappings (e.g. a sensor counting units on this line).
+                        {__('The production line this device feeds — the default target for its topic mappings (e.g. a sensor counting units on this line).')}
                     </p>
                 </Field>
                 <Checkbox
                     checked={data.is_active}
                     onChange={(next) => setData('is_active', next)}
-                    label="Active (start listening on daemon start)"
+                    label={__('Active (start listening on daemon start)')}
                 />
             </Section>
 
@@ -119,7 +119,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         type="text"
                         value={data.client_id}
                         onChange={(e) => setData('client_id', e.target.value)}
-                        placeholder="Auto-generated if empty"
+                        placeholder={__('Auto-generated if empty')}
                         className="form-input w-full font-mono"
                     />
                 </Field>
@@ -140,9 +140,9 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                     <Field
                         label={
                             <>
-                                Password
+                                {__('Password')}
                                 {mqtt?.has_password && (
-                                    <span className="text-xs text-om-faint font-normal ml-1">(leave blank to keep current)</span>
+                                    <span className="text-xs text-om-faint font-normal ml-1">({__('leave blank to keep current')})</span>
                                 )}
                             </>
                         }
@@ -164,7 +164,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                 <Checkbox
                     checked={data.use_tls}
                     onChange={(next) => setData('use_tls', next)}
-                    label="Enable TLS (port 8883)"
+                    label={__('Enable TLS (port 8883)')}
                 />
                 {data.use_tls && (
                     <Field label="CA Certificate (PEM)" error={errors.ca_cert}>
@@ -187,9 +187,9 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                             value={data.qos_default == null ? '' : String(data.qos_default)}
                             onChange={(v) => setData('qos_default', v)}
                             options={[
-                                { value: '0', label: 'QoS 0 — At most once' },
-                                { value: '1', label: 'QoS 1 — At least once' },
-                                { value: '2', label: 'QoS 2 — Exactly once' },
+                                { value: '0', label: __('QoS 0 — At most once') },
+                                { value: '1', label: __('QoS 1 — At least once') },
+                                { value: '2', label: __('QoS 2 — Exactly once') },
                             ]}
                             className="w-full"
                         />
@@ -228,20 +228,20 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                 <Checkbox
                     checked={data.clean_session}
                     onChange={(next) => setData('clean_session', next)}
-                    label="Clean session (recommended for stateless connections)"
+                    label={__('Clean session (recommended for stateless connections)')}
                 />
             </Section>
 
             {/* Actions */}
             <div className="flex gap-3 pt-2">
                 <Button type="submit" variant="primary" loading={processing}>
-                    {processing ? 'Saving…' : submitLabel}
+                    {processing ? __('Saving…') : submitLabel}
                 </Button>
                 <a
                     href={cancelHref}
                     className="px-5 py-2 bg-om-chip text-om-muted text-sm font-medium rounded-om-sm hover:bg-om-line2 transition-colors"
                 >
-                    Cancel
+                    {__('Cancel')}
                 </a>
                 {onDelete && (
                     <Button
@@ -250,7 +250,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         onClick={onDelete}
                         className="ml-auto"
                     >
-                        Delete Connection
+                        {__('Delete Connection')}
                     </Button>
                 )}
             </div>

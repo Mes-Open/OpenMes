@@ -787,19 +787,19 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                     <div className="flex flex-wrap gap-4 text-sm bg-om-panel border border-om-line2 p-3 rounded-om-sm">
                         {batch.lot_number && (
                             <span className="font-medium text-om-ink">
-                                LOT: <span className="font-mono text-om-accent">{batch.lot_number}</span>
+                                {__('LOT')}: <span className="font-mono text-om-accent">{batch.lot_number}</span>
                             </span>
                         )}
                         {batch.workstation && (
-                            <span className="font-medium text-om-ink">Workstation: {batch.workstation.name}</span>
+                            <span className="font-medium text-om-ink">{__('Workstation')}: {batch.workstation.name}</span>
                         )}
                         {isReleased && (
                             <span className="text-om-running font-medium">
-                                Released ({releaseLabel})
+                                {__('Released')} ({releaseLabel})
                             </span>
                         )}
                         {batch.expiry_date && (
-                            <span className="font-mono text-[13px] text-om-muted">Expiry: {batch.expiry_date}</span>
+                            <span className="font-mono text-[13px] text-om-muted">{__('Expiry')}: {batch.expiry_date}</span>
                         )}
                     </div>
 

@@ -72,12 +72,12 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
   return (
     <View style={{ gap: 14 }}>
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Sequence</SectionLabel>
-        <ControlledField control={control} name="name" label="Name" placeholder="e.g. default, EU-PROD" />
+        <SectionLabel>{t('Sequence')}</SectionLabel>
+        <ControlledField control={control} name="name" label={t('Name')} placeholder="e.g. default, EU-PROD" />
         <ControlledField
           control={control}
           name="prefix"
-          label="Prefix"
+          label={t('Prefix')}
           autoCapitalize="characters"
           autoCorrect={false}
           placeholder="e.g. LOT"
@@ -85,14 +85,14 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
         <ControlledField
           control={control}
           name="suffix"
-          label="Suffix (optional)"
+          label={t('Suffix (optional)')}
           autoCapitalize="characters"
           autoCorrect={false}
         />
         <ControlledField
           control={control}
           name="pad_size"
-          label="Pad size"
+          label={t('Pad size')}
           keyboardType="number-pad"
           placeholder="4"
         />
@@ -122,7 +122,7 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Product type (optional)</SectionLabel>
+        <SectionLabel>{t('Product type (optional)')}</SectionLabel>
         <ChipRow>
           <SelectionChip
             label={t('Default fallback')}
@@ -144,7 +144,7 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
       </Card>
 
       <Button
-        title={mode === 'create' ? 'Create sequence' : 'Save changes'}
+        title={mode === 'create' ? t('Create sequence') : t('Save changes')}
         size="lg"
         loading={!!submitting}
         disabled={!isValid}

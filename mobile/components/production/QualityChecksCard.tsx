@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function QualityChecksCard({ batchId }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -98,12 +100,12 @@ export function QualityChecksCard({ batchId }: Props) {
             {required ? ' REQUIRED' : ''}
           </Mono>
         }>
-        Quality checks
+        {t('Quality checks')}
       </SectionLabel>
 
       {template ? (
         <Mono size={11} color={palette.textFaint}>
-          TEMPLATE · {template.name.toUpperCase()} · {template.parameters.length} PARAM
+          {t('TEMPLATE ·')} {template.name.toUpperCase()} · {template.parameters.length} PARAM
           {template.parameters.length === 1 ? '' : 'S'}
         </Mono>
       ) : null}
@@ -111,7 +113,7 @@ export function QualityChecksCard({ batchId }: Props) {
       {open ? (
         <View style={{ gap: 10 }}>
           <Field
-            label="Production qty (optional)"
+            label={t('Production qty (optional)')}
             value={productionQty}
             onChangeText={setProductionQty}
             keyboardType="decimal-pad"
@@ -128,7 +130,7 @@ export function QualityChecksCard({ batchId }: Props) {
               </View>
               {s.parameter_type === 'measurement' ? (
                 <Field
-                  label="Value"
+                  label={t('Value')}
                   value={s.value_numeric != null ? String(s.value_numeric) : ''}
                   onChangeText={(v) =>
                     updateSample(idx, { value_numeric: v === '' ? null : Number(v) })
@@ -137,7 +139,7 @@ export function QualityChecksCard({ batchId }: Props) {
                 />
               ) : (
                 <View style={styles.passFailRow}>
-                  <Mono size={11} color={palette.textMuted}>PASS</Mono>
+                  <Mono size={11} color={palette.textMuted}>{t('PASS')}</Mono>
                   <Switch
                     value={!!s.is_passed}
                     onValueChange={(v) => updateSample(idx, { is_passed: v, value_boolean: v })}
@@ -147,7 +149,7 @@ export function QualityChecksCard({ batchId }: Props) {
             </View>
           ))}
           <Field
-            label="Notes (optional)"
+            label={t('Notes (optional)')}
             value={notes}
             onChangeText={setNotes}
             multiline
@@ -156,18 +158,18 @@ export function QualityChecksCard({ batchId }: Props) {
           />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button
-              title="Submit"
+              title={t('Submit')}
               onPress={submit}
               loading={create.isPending}
               style={{ flex: 1 }}
               leftIcon={<FontAwesome name="check" size={13} color="#1a1208" />}
             />
-            <Button title="Cancel" variant="outline" onPress={reset} style={{ flex: 1 }} />
+            <Button title={t('Cancel')} variant="outline" onPress={reset} style={{ flex: 1 }} />
           </View>
         </View>
       ) : (
         <Button
-          title="Record QC"
+          title={t('Record QC')}
           variant="outline"
           onPress={() => setOpen(true)}
           leftIcon={<FontAwesome name="check-square-o" size={13} color={palette.text} />}

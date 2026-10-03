@@ -65,26 +65,26 @@ export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
   return (
     <View style={{ gap: 14 }}>
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Shift</SectionLabel>
-        <ControlledField control={control} name="name" label="Name" placeholder="e.g. Morning, Night" />
+        <SectionLabel>{t('Shift')}</SectionLabel>
+        <ControlledField control={control} name="name" label={t('Name')} placeholder="e.g. Morning, Night" />
         <ControlledField
           control={control}
           name="start_time"
-          label="Start time"
+          label={t('Start time')}
           placeholder="HH:mm"
           autoCorrect={false}
         />
         <ControlledField
           control={control}
           name="end_time"
-          label="End time"
+          label={t('End time')}
           placeholder="HH:mm"
           autoCorrect={false}
         />
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Days of week</SectionLabel>
+        <SectionLabel>{t('Days of week')}</SectionLabel>
         <Controller
           control={control}
           name="days_of_week"
@@ -110,7 +110,7 @@ export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Line (optional)</SectionLabel>
+        <SectionLabel>{t('Line (optional)')}</SectionLabel>
         <Controller
           control={control}
           name="line_id"
@@ -137,7 +137,7 @@ export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
       <ActiveToggleCard control={control} name="is_active" />
 
       <Button
-        title={mode === 'create' ? 'Create shift' : 'Save changes'}
+        title={mode === 'create' ? t('Create shift') : t('Save changes')}
         size="lg"
         loading={!!submitting}
         disabled={!isValid}

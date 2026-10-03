@@ -222,7 +222,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
 
       {mode === 'create' ? (
         <>
-          <SectionLabel>Credentials</SectionLabel>
+          <SectionLabel>{t('Credentials')}</SectionLabel>
           <View style={[styles.tempPwCard, { backgroundColor: '#FAF0DD', borderColor: '#e8c179' }]}>
             <FontAwesome name="key" size={16} color="#a8650a" style={{ marginTop: 2 }} />
             <View style={{ flex: 1 }}>
@@ -232,10 +232,10 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
               <ControlledField
                 control={control}
                 name="password"
-                label="TEMP_PASSWORD"
+                label={t('TEMP_PASSWORD')}
                 mono
                 secureTextEntry
-                placeholder="At least 8 characters"
+                placeholder={t('At least 8 characters')}
               />
             </View>
           </View>
