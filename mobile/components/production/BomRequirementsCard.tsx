@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/Card';
 import { Mono, SectionLabel } from '@/components/ui/Mono';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function BomRequirementsCard({ processTemplateId, quantity }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -25,15 +27,15 @@ export function BomRequirementsCard({ processTemplateId, quantity }: Props) {
     <Card style={{ gap: 12 }}>
       <SectionLabel
         right={<Mono size={11} color={palette.textFaint}>{`FOR ${quantity} UNITS`}</Mono>}>
-        Material requirements
+        {t('Material requirements')}
       </SectionLabel>
 
       {query.isLoading ? (
-        <Mono size={11} color={palette.textFaint}>CALCULATING…</Mono>
+        <Mono size={11} color={palette.textFaint}>{t('CALCULATING…')}</Mono>
       ) : query.isError ? (
-        <Mono size={11} color={palette.danger}>COULD NOT LOAD BOM</Mono>
+        <Mono size={11} color={palette.danger}>{t('COULD NOT LOAD BOM')}</Mono>
       ) : items.length === 0 ? (
-        <Mono size={11} color={palette.textFaint}>NO MATERIALS DEFINED FOR THIS TEMPLATE</Mono>
+        <Mono size={11} color={palette.textFaint}>{t('NO MATERIALS DEFINED FOR THIS TEMPLATE')}</Mono>
       ) : (
         items.map((item, i) => {
           const isLast = i === items.length - 1;

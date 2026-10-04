@@ -189,17 +189,17 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     {live ? (
                         <>
                             <span className="w-2 h-2 rounded-full bg-om-blocked animate-pulse" aria-hidden="true" />
-                            Live &mdash; stop
+                            {__('Live — stop')}
                         </>
                     ) : (
-                        <>&#9654; Live tail</>
+                        <>&#9654; {__('Live tail')}</>
                     )}
                 </button>
                 {live && (
                     <span className="text-xs text-om-muted">
                         {liveError
                             ? <span className="text-om-blocked">{liveError}</span>
-                            : 'Auto-refreshing every 5s'}
+                            : __('Auto-refreshing every 5s')}
                     </span>
                 )}
             </div>

@@ -176,11 +176,11 @@ export default function BatchReport() {
                             {qualityChecks.map((qc, qi) => (
                                 <div key={qc.id ?? qi} className="border border-om-line2 rounded-om-sm overflow-hidden">
                                     <div className="bg-om-panel px-4 py-2 flex flex-wrap gap-3 items-center text-sm">
-                                        <span className="font-bold">Check #{qi + 1}</span>
+                                        <span className="font-bold">{__('Check')} #{qi + 1}</span>
                                         <span className="text-om-muted font-mono text-xs">{qc.checked_at}</span>
-                                        <span className="text-om-muted">By: {qc.checked_by?.name ?? '—'}</span>
+                                        <span className="text-om-muted">{__('By')}: {qc.checked_by?.name ?? '—'}</span>
                                         {qc.production_quantity != null && (
-                                            <span className="text-om-muted">Production: {Number(qc.production_quantity).toFixed(0)} pcs</span>
+                                            <span className="text-om-muted">{__('Production')}: {Number(qc.production_quantity).toFixed(0)} {__('pcs')}</span>
                                         )}
                                         <PassBadge pass={qc.all_passed} />
                                     </div>

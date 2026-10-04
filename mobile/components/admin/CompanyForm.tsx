@@ -59,14 +59,14 @@ export function CompanyForm({ initial, mode, onSubmit, submitting }: Props) {
   return (
     <View style={{ gap: 14 }}>
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Company</SectionLabel>
-        <ControlledField control={control} name="code" label="Code" autoCapitalize="characters" autoCorrect={false} />
-        <ControlledField control={control} name="name" label="Name" />
-        <ControlledField control={control} name="tax_id" label="Tax ID" />
+        <SectionLabel>{t('Company')}</SectionLabel>
+        <ControlledField control={control} name="code" label={t('Code')} autoCapitalize="characters" autoCorrect={false} />
+        <ControlledField control={control} name="name" label={t('Name')} />
+        <ControlledField control={control} name="tax_id" label={t('Tax ID')} />
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Type</SectionLabel>
+        <SectionLabel>{t('Type')}</SectionLabel>
         <Controller
           control={control}
           name="type"
@@ -86,13 +86,13 @@ export function CompanyForm({ initial, mode, onSubmit, submitting }: Props) {
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Contact</SectionLabel>
-        <ControlledField control={control} name="email" label="Email" keyboardType="email-address" autoCapitalize="none" />
-        <ControlledField control={control} name="phone" label="Phone" keyboardType="phone-pad" />
+        <SectionLabel>{t('Contact')}</SectionLabel>
+        <ControlledField control={control} name="email" label={t('Email')} keyboardType="email-address" autoCapitalize="none" />
+        <ControlledField control={control} name="phone" label={t('Phone')} keyboardType="phone-pad" />
         <ControlledField
           control={control}
           name="address"
-          label="Address"
+          label={t('Address')}
           multiline
           numberOfLines={3}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
@@ -102,7 +102,7 @@ export function CompanyForm({ initial, mode, onSubmit, submitting }: Props) {
       <ActiveToggleCard control={control} name="is_active" />
 
       <Button
-        title={mode === 'create' ? 'Create company' : 'Save changes'}
+        title={mode === 'create' ? t('Create company') : t('Save changes')}
         size="lg"
         loading={!!submitting}
         disabled={!isValid}

@@ -79,12 +79,12 @@ export default function ScheduleIndex() {
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">Production Schedule</h1>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Production Schedule')}</h1>
                         <p className="text-sm text-om-muted mt-0.5">
-                            Week {weekStartFmt} &ndash; {weekEndFmt}
+                            {__('Week')} {weekStartFmt} &ndash; {weekEndFmt}
                             {currentShift && (
                                 <span className="text-om-running font-medium">
-                                    &nbsp;&middot;&nbsp;Current shift: {currentShift.name} ({currentShift.start_time?.slice(0, 5)}&ndash;{currentShift.end_time?.slice(0, 5)})
+                                    &nbsp;&middot;&nbsp;{__('Current shift')}: {currentShift.name} ({currentShift.start_time?.slice(0, 5)}&ndash;{currentShift.end_time?.slice(0, 5)})
                                 </span>
                             )}
                         </p>
@@ -92,11 +92,11 @@ export default function ScheduleIndex() {
 
                     {/* Filters */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <Tooltip label="Previous week">
+                        <Tooltip label={__('Previous week')}>
                             <button
                                 onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
                                 className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                                aria-label="Previous week"
+                                aria-label={__('Previous week')}
                             >
                                 &larr;
                             </button>
@@ -113,17 +113,17 @@ export default function ScheduleIndex() {
                             value={lineId == null ? '' : String(lineId)}
                             onChange={(v) => navigate({ week: weekStart ? fmtWeek(new Date(weekStart)) : '', line_id: v })}
                             options={[
-                                { value: '', label: 'All Lines' },
+                                { value: '', label: __('All Lines') },
                                 ...lines.map((l) => ({ value: String(l.id), label: l.name })),
                             ]}
                             className="w-full"
                         />
 
-                        <Tooltip label="Next week">
+                        <Tooltip label={__('Next week')}>
                             <button
                                 onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
                                 className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                                aria-label="Next week"
+                                aria-label={__('Next week')}
                             >
                                 &rarr;
                             </button>

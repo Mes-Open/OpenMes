@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { z } from 'zod';
 
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function CostSourceForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const { control, handleSubmit, formState: { isValid } } = useForm<CostSourceFormValues>({
     resolver: zodResolver(costSourceSchema),
     mode: 'onChange',
@@ -48,26 +50,26 @@ export function CostSourceForm({ initial, mode, onSubmit, submitting }: Props) {
   return (
     <View style={{ gap: 14 }}>
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Cost source</SectionLabel>
-        <ControlledField control={control} name="code" label="Code" autoCapitalize="characters" autoCorrect={false} />
-        <ControlledField control={control} name="name" label="Name" />
+        <SectionLabel>{t('Cost source')}</SectionLabel>
+        <ControlledField control={control} name="code" label={t('Code')} autoCapitalize="characters" autoCorrect={false} />
+        <ControlledField control={control} name="name" label={t('Name')} />
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Pricing</SectionLabel>
+        <SectionLabel>{t('Pricing')}</SectionLabel>
         <ControlledField
           control={control}
           name="unit_cost"
-          label="Unit cost"
+          label={t('Unit cost')}
           keyboardType="decimal-pad"
           placeholder="e.g. 0.20"
         />
-        <ControlledField control={control} name="unit" label="Unit" placeholder="e.g. kWh, hour" />
-        <ControlledField control={control} name="currency" label="Currency" autoCapitalize="characters" placeholder="EUR" />
+        <ControlledField control={control} name="unit" label={t('Unit')} placeholder="e.g. kWh, hour" />
+        <ControlledField control={control} name="currency" label={t('Currency')} autoCapitalize="characters" placeholder="EUR" />
         <ControlledField
           control={control}
           name="description"
-          label="Description"
+          label={t('Description')}
           multiline
           numberOfLines={3}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
@@ -77,7 +79,7 @@ export function CostSourceForm({ initial, mode, onSubmit, submitting }: Props) {
       <ActiveToggleCard control={control} name="is_active" />
 
       <Button
-        title={mode === 'create' ? 'Create cost source' : 'Save changes'}
+        title={mode === 'create' ? t('Create cost source') : t('Save changes')}
         size="lg"
         loading={!!submitting}
         disabled={!isValid}

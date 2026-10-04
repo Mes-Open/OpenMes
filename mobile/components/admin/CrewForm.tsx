@@ -49,13 +49,13 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
   return (
     <View style={{ gap: 14 }}>
       <Card style={{ gap: 12 }}>
-        <SectionLabel>Crew</SectionLabel>
-        <ControlledField control={control} name="code" label="Code" autoCapitalize="characters" autoCorrect={false} />
-        <ControlledField control={control} name="name" label="Name" />
+        <SectionLabel>{t('Crew')}</SectionLabel>
+        <ControlledField control={control} name="code" label={t('Code')} autoCapitalize="characters" autoCorrect={false} />
+        <ControlledField control={control} name="name" label={t('Name')} />
         <ControlledField
           control={control}
           name="description"
-          label="Description"
+          label={t('Description')}
           multiline
           numberOfLines={3}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
@@ -65,7 +65,7 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
       <Card style={{ gap: 12 }}>
         <SectionLabel
           right={<Mono size={11} color="#9B9892">{t('PICK A SUPERVISOR')}</Mono>}>
-          Leader (optional)
+          {t('Leader (optional)')}
         </SectionLabel>
         <Controller
           control={control}
@@ -89,7 +89,7 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
       <ActiveToggleCard control={control} name="is_active" />
 
       <Button
-        title={mode === 'create' ? 'Create crew' : 'Save changes'}
+        title={mode === 'create' ? t('Create crew') : t('Save changes')}
         size="lg"
         loading={!!submitting}
         disabled={!isValid}

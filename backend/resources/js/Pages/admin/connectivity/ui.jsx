@@ -3,6 +3,7 @@
  * "All" overview). Extracted to avoid copy-pasting the status dot, stat card,
  * and form section/field helpers across every page.
  */
+import { __ } from '../../../lib/i18n';
 import { nameControl } from '../../../lib/fieldName';
 
 export const STATUS_DOT = {
@@ -23,7 +24,7 @@ export function StatCard({ value, label, capitalize = false }) {
     return (
         <div className="bg-om-card rounded-om border border-om-line2 p-4 text-center">
             <p className={`text-2xl font-bold text-om-ink ${capitalize ? 'capitalize' : ''}`}>{value}</p>
-            <p className="text-xs text-om-muted mt-1">{label}</p>
+            <p className="text-xs text-om-muted mt-1">{__(label)}</p>
         </div>
     );
 }
@@ -32,7 +33,7 @@ export function StatCard({ value, label, capitalize = false }) {
 export function Section({ title, children }) {
     return (
         <div className="bg-om-card rounded-om border border-om-line2 p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wider">{title}</h2>
+            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wider">{__(title)}</h2>
             {children}
         </div>
     );
@@ -43,9 +44,9 @@ export function Field({ label, required, error, children }) {
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
-                {label} {required && <span className="text-om-blocked">*</span>}
+                {__(label)} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(children, __(label))}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

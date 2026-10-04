@@ -91,37 +91,37 @@ function DetailModal({ log, onClose }) {
                 </div>
                 <div className="p-4 space-y-3 text-sm">
                     <div>
-                        <strong className="text-om-muted">Timestamp:</strong>{' '}
+                        <strong className="text-om-muted">{__('Timestamp')}:</strong>{' '}
                         <span className="font-mono text-xs">{formatTs(log.created_at)}</span>
                     </div>
                     <div>
-                        <strong className="text-om-muted">Source:</strong>{' '}
+                        <strong className="text-om-muted">{__('Source')}:</strong>{' '}
                         <span className={`px-2 py-0.5 rounded text-xs uppercase ${log.source === 'audit' ? 'bg-om-chip text-purple-700' : 'bg-om-chip text-om-muted'}`}>
                             {log.source || '—'}
                         </span>
                     </div>
                     <div>
-                        <strong className="text-om-muted">User:</strong>{' '}
+                        <strong className="text-om-muted">{__('User')}:</strong>{' '}
                         <span>{log.user?.name ?? 'Guest'}</span>
                     </div>
                     <div>
-                        <strong className="text-om-muted">IP address:</strong>{' '}
+                        <strong className="text-om-muted">{__('IP address')}:</strong>{' '}
                         <span className="font-mono text-xs">{log.ip_address || '—'}</span>
                     </div>
 
                     {log.source === 'audit' && (
                         <div className="space-y-2 border-t pt-3">
                             <div>
-                                <strong className="text-om-muted">Action:</strong>{' '}
+                                <strong className="text-om-muted">{__('Action')}:</strong>{' '}
                                 <span>{log.action || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Entity:</strong>{' '}
+                                <strong className="text-om-muted">{__('Entity')}:</strong>{' '}
                                 <span>{entityLabel(log) || '—'}</span>
                             </div>
                             {log.before_state && (
                                 <details className="mt-2">
-                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">Before state</summary>
+                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">{__('Before state')}</summary>
                                     <pre className="bg-om-panel p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
                                         {prettyJson(log.before_state)}
                                     </pre>
@@ -129,7 +129,7 @@ function DetailModal({ log, onClose }) {
                             )}
                             {log.after_state && (
                                 <details className="mt-2" open>
-                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">After state</summary>
+                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">{__('After state')}</summary>
                                     <pre className="bg-om-panel p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
                                         {prettyJson(log.after_state)}
                                     </pre>
@@ -141,28 +141,28 @@ function DetailModal({ log, onClose }) {
                     {log.source === 'request' && (
                         <div className="space-y-2 border-t pt-3">
                             <div>
-                                <strong className="text-om-muted">Method:</strong>{' '}
+                                <strong className="text-om-muted">{__('Method')}:</strong>{' '}
                                 <span className="font-mono px-2 py-0.5 rounded bg-om-chip text-xs">{log.method || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Path:</strong>{' '}
+                                <strong className="text-om-muted">{__('Path')}:</strong>{' '}
                                 <span className="font-mono text-xs break-all">{log.path || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Route name:</strong>{' '}
+                                <strong className="text-om-muted">{__('Route name')}:</strong>{' '}
                                 <span className="font-mono text-xs">{log.route_name || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Status:</strong>{' '}
+                                <strong className="text-om-muted">{__('Status')}:</strong>{' '}
                                 <span>{log.status ?? '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Duration:</strong>{' '}
+                                <strong className="text-om-muted">{__('Duration')}:</strong>{' '}
                                 <span>{log.duration_ms != null ? `${log.duration_ms} ms` : '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-om-muted">Sampled:</strong>{' '}
-                                <span>{log.sampled ? 'yes' : 'no'}</span>
+                                <strong className="text-om-muted">{__('Sampled')}:</strong>{' '}
+                                <span>{log.sampled ? __('yes') : __('no')}</span>
                             </div>
                         </div>
                     )}

@@ -228,7 +228,7 @@ export default function MaterialLotShow({ lot }) {
                 {lot.sublots && lot.sublots.length > 0 && (
                     <div className="card mb-6">
                         <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">
-                            Sublots ({lot.sublots.length})
+                            {__('Sublots')} ({lot.sublots.length})
                         </h2>
                         <DataTable
                             data={lot.sublots}
@@ -294,9 +294,9 @@ export default function MaterialLotShow({ lot }) {
                         </dl>
                         {sourceBatchId && (
                             <p className="mt-3 text-xs text-om-muted">
-                                Upstream source batch:{' '}
+                                {__('Upstream source batch')}:{' '}
                                 <span className="font-mono">#{sourceBatchId}</span>
-                                {' '}— see backward genealogy API for full chain.
+                                {' '}— {__('see backward genealogy API for full chain.')}
                             </p>
                         )}
                     </div>
