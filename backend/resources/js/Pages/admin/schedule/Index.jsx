@@ -96,7 +96,7 @@ export default function ScheduleIndex() {
                             <button
                                 onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
                                 className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                                aria-label="Previous week"
+                                aria-label={__('Previous week')}
                             >
                                 &larr;
                             </button>
@@ -113,17 +113,17 @@ export default function ScheduleIndex() {
                             value={lineId == null ? '' : String(lineId)}
                             onChange={(v) => navigate({ week: weekStart ? fmtWeek(new Date(weekStart)) : '', line_id: v })}
                             options={[
-                                { value: '', label: 'All Lines' },
+                                { value: '', label: __('All Lines') },
                                 ...lines.map((l) => ({ value: String(l.id), label: l.name })),
                             ]}
                             className="w-full"
                         />
 
-                        <Tooltip label="Next week">
+                        <Tooltip label={__('Next week')}>
                             <button
                                 onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
                                 className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
-                                aria-label="Next week"
+                                aria-label={__('Next week')}
                             >
                                 &rarr;
                             </button>

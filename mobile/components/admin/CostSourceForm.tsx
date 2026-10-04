@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { z } from 'zod';
 
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function CostSourceForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const { control, handleSubmit, formState: { isValid } } = useForm<CostSourceFormValues>({
     resolver: zodResolver(costSourceSchema),
     mode: 'onChange',

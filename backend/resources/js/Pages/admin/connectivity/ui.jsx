@@ -46,7 +46,7 @@ export function Field({ label, required, error, children }) {
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {__(label)} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(children, __(label))}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
