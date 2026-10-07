@@ -89,4 +89,26 @@ class PruneExpiredTenantsTest extends TestCase
         $this->assertDatabaseHas('machine_counters', ['id' => $counter->id]);
         $this->assertDatabaseMissing('tenants', ['id' => $other->id]);
     }
+
+    /**
+     * The command exists for the public demo, where an account is meant to
+     * disappear. Anywhere else nothing sets an expiry, and a job that deletes a
+     * tenant within a minute of somebody setting one by hand is not something
+     * to leave running.
+     */
+    public function test_it_is_only_scheduled_in_demo_mode(): void
+    {
+        Artisan::call('schedule:list');
+
+        $event = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->first(fn ($event) => str_contains((string) $event->command, 'tenants:prune'));
+
+        $this->assertNotNull($event, 'tenants:prune is no longer on the schedule');
+
+        config(['openmmes.demo_mode' => false]);
+        $this->assertFalse($event->filtersPass($this->app));
+
+        config(['openmmes.demo_mode' => true]);
+        $this->assertTrue($event->filtersPass($this->app));
+    }
 }

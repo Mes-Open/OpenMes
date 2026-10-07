@@ -8,7 +8,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('tenants:prune')->everyMinute();
+// Demo-only: a tenant with an `expires_at` is a throwaway demo account, and this
+// deletes it once the time has passed. Scheduled only when DEMO_MODE=true. On
+// any other installation nothing sets an expiry, so the run found nothing --
+// but it ran every minute all the same, and a tenant given an expiry by hand
+// would lose its registry row and everything cascading from it within sixty
+// seconds. The command can still be run by hand.
+Schedule::command('tenants:prune')->everyMinute()->when(fn () => (bool) config('openmmes.demo_mode'));
 // Demo-only: roll OEE/production forward to today so the report never shows N/A
 // on a long-running demo. No-op unless DEMO_MODE=true (the command self-guards).
 // Runs before oee:calculate so today's production exists first.

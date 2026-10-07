@@ -6,6 +6,7 @@ RUN apk add --no-cache \
     libzip-dev \
     libpng-dev \
     libjpeg-turbo-dev \
+    libwebp-dev \
     freetype-dev \
     zip \
     unzip \
@@ -16,8 +17,9 @@ RUN apk add --no-cache \
     nodejs \
     npm
 
-# Configure GD extension
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+# Configure GD extension. WebP too: uploads of image/webp are accepted and
+# re-encoded through GD, which without it has no imagewebp() to do that with.
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
 
 # Install PHP extensions
 RUN docker-php-ext-install \
@@ -63,6 +65,11 @@ RUN set -eux; \
     else \
         echo "ionCube: no musl loader for $arch, skipping"; \
     fi
+
+# Fail the build, not an upload, if GD came out without a format the
+# application accepts. The test suite runs on the CI runner's PHP rather than
+# in this image, so nothing else would notice.
+RUN php -r 'foreach (["imagejpeg", "imagepng", "imagewebp"] as $f) { if (! function_exists($f)) { fwrite(STDERR, "GD is missing $f()\n"); exit(1); } }'
 
 # PHP upload / memory limits
 COPY backend/docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini

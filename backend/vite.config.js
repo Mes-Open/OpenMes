@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { openmesRuntime, RUNTIME_ENTRY } from '@openmes/module';
+import { openmesModuleSources, openmesRuntime, RUNTIME_ENTRY } from '@openmes/module';
 
 export default defineConfig({
     plugins: [
@@ -21,6 +21,10 @@ export default defineConfig({
         tailwindcss(),
         react(),
         openmesRuntime(),
+        // Writes resources/css/modules.generated.css, which app.css imports:
+        // Tailwind scans the pages of installed modules only when told where
+        // each one is.
+        openmesModuleSources(),
     ],
     // The dev-overlay watcher (`npm run watch`) sets WATCH_POLL=1: poll for
     // changes because inotify misses newly-created files across the bind mount.

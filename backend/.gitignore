@@ -25,6 +25,9 @@
 /vendor
 # Generated on every Vite build by openmesRuntime() from packages/module/contract.js.
 /resources/js/runtime.generated.js
+# Generated on every Vite build by openmesModuleSources(): which module
+# directories Tailwind should scan.
+/resources/css/modules.generated.css
 Homestead.json
 Homestead.yaml
 Thumbs.db

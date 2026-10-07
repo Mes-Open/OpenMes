@@ -54,6 +54,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **A page from a compiled-in module now gets its own styles.** Pages under
+  `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
+  build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which
+  lists `modules/`. Such a page rendered with every utility class core happens to use and
+  none of its own. The build now writes one `@source` per module that ships pages
+  (`openmesModuleSources()` in `@openmes/module`), because an ignored directory is only
+  scanned when it is named outright — a glob across it is skipped all the same.
+- **WebP uploads work in the Docker image.** The image built GD without WebP, so re-encoding
+  an uploaded `image/webp` failed with an undefined `imagewebp()`. The test suite did not
+  catch it because it runs on the CI runner's PHP, not in the image; the build now fails
+  outright if GD is missing a format the application accepts.
+- **`tenants:prune` is scheduled only in demo mode.** It was written for the public demo,
+  where an account is meant to disappear, and ran every minute on every installation. Nothing
+  outside the demo sets a tenant's `expires_at`, so it found nothing — but a tenant given an
+  expiry by hand would have been deleted, with everything cascading from it, within a minute.
+  The command can still be run by hand.
 - **A failing module no longer takes the whole application down.** Providers were registered
   inside a try/catch, but Laravel calls `boot()` later, outside it — so a module throwing
   there took every route with it, including the admin screen needed to disable the module.
