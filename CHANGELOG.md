@@ -59,6 +59,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   a key inside each container — a different key per service and a new one on every recreate,
   which breaks sessions and login. The installers now generate the key into `.env` and keep the
   existing one on re-run.
+- **Two installs no longer share one database.** Compose names volumes after the project,
+  which defaulted to the folder name — so a second checkout in a folder with the same name
+  attached to the first install's postgres volume, whose password didn't match the newly
+  generated one, and the backend crashed on boot with `password authentication failed`. A fresh
+  install now gets a unique `COMPOSE_PROJECT_NAME` (folder name plus a short random suffix,
+  e.g. `openmes-k3x`) written to `.env`, also used as the container-name prefix. Re-runs keep
+  it, and an existing `.env` without one keeps the old default so its data stays attached.
 - **A page from a compiled-in module now gets its own styles.** Pages under
   `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
   build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which

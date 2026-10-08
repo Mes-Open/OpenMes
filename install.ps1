@@ -183,22 +183,39 @@ if ($domain -eq 'localhost') {
 
 # ── Passwords + container-name prefix (reuse on re-run) ───────────────────────
 
-$dbPassword = ''; $adminPassword = ''; $namePrefix = ''; $appKey = ''
+$dbPassword = ''; $adminPassword = ''; $namePrefix = ''; $appKey = ''; $projectName = ''
 if ($reuseEnv) {
     $appKey        = Get-EnvValue 'APP_KEY'
     $dbPassword    = Get-EnvValue 'POSTGRES_PASSWORD'
     $adminPassword = Get-EnvValue 'ADMIN_PASSWORD'
     $namePrefix    = Get-EnvValue 'OPENMES_NAME_PREFIX'
+    $projectName   = Get-EnvValue 'COMPOSE_PROJECT_NAME'
 }
 if (-not $dbPassword)    { $dbPassword    = New-Password }
 if (-not $adminPassword) { $adminPassword = New-Password }
 # Keep an existing key: rotating it logs everyone out.
 if ($appKey -notmatch '^base64:.+') { $appKey = New-AppKey }
 
-if (-not $namePrefix) {
-    $namePrefix = ((Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9_.-]','-') -replace '^[^a-z0-9]+','' -replace '-+$',''
-    if (-not $namePrefix) { $namePrefix = 'openmmes' }
+# Unique compose project + container-name prefix per install. Compose names
+# volumes after the project, so two checkouts in same-named folders would share
+# one postgres volume (and the second install's new DB password is rejected).
+# A fresh install gets the folder name plus a short random suffix; re-runs keep
+# what .env has, and an older .env without COMPOSE_PROJECT_NAME keeps the
+# folder-name default so its volumes stay attached (see install.sh).
+$dirSlug = ((Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9_-]','-') -replace '^[^a-z0-9]+','' -replace '-+$',''
+if (-not $dirSlug) { $dirSlug = 'openmmes' }
+if (-not $reuseEnv -and -not $projectName) {
+    $suffixChars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    do {
+        $bytes = New-Object 'System.Byte[]' 3
+        $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+        $projectName = "$dirSlug-" + (-join ($bytes | ForEach-Object { $suffixChars[$_ % $suffixChars.Length] }))
+        docker volume inspect "${projectName}_postgres_data" *> $null
+    } while ($LASTEXITCODE -eq 0)
+    $namePrefix = $projectName
 }
+if (-not $namePrefix) { $namePrefix = $dirSlug }
 Write-Ok "Container name prefix: $namePrefix (containers: $namePrefix-backend, ...)"
 
 Write-Host ""
@@ -229,6 +246,7 @@ HTTPS_PORT=$httpsPort
 # Container-name prefix - unique per install dir so multiple local instances
 # don't clash on container names (default is "openmmes" when unset).
 OPENMES_NAME_PREFIX=$namePrefix
+$(if ($projectName) { "`n# Compose project name - volumes are named after it, so changing it detaches`n# this install from its database.`nCOMPOSE_PROJECT_NAME=$projectName`n" })
 
 # Mode
 APP_ENV=production
