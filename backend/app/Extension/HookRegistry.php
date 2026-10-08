@@ -41,6 +41,9 @@ use Illuminate\Support\Facades\Log;
  *
  * Deliberately NOT shared from HandleInertiaRequests: resolving every hook on
  * every request would run a module's queries on pages that never use them.
+ * The two layout points are the exception, because a layout has no controller
+ * of its own: `display.operator.layout` and `display.admin.layout` are resolved
+ * there, lazily, and rendered at the top of every screen of that layout.
  *
  * The same registry also carries `persist.<page>` points, resolved with
  * dispatch() rather than render(): those are called for their effect, inside the

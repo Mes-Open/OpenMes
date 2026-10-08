@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module can now say something on every admin screen.** The operator panel has had a
+  layout hook since the workstation seams went in; the admin layout had none, so a module with
+  news for an administrator — a licence about to lapse, a maintenance window — could only put
+  it on its own pages, which is where nobody is when it matters. Display hook
+  `display.admin.layout` is resolved with the signed-in user and rendered above the page
+  wherever `AppLayout` is used. With no module listening it is `{}` and renders nothing.
 - **A module installed after the fact now has a working frontend.** Its React pages were
   never in the bundle — the bundle is compiled before the module exists, and the production
   image deletes `node_modules` right after building — so every page of an uploaded module
@@ -54,18 +60,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **Docker installs get a stable `APP_KEY`.** `install.sh` / `install.ps1` never wrote one, so
-  compose passed an empty `APP_KEY` to every service and the entrypoint fell back to generating
-  a key inside each container — a different key per service and a new one on every recreate,
-  which breaks sessions and login. The installers now generate the key into `.env` and keep the
-  existing one on re-run.
-- **A fresh install no longer shares a database with another install.** Compose names volumes after the project,
-  which defaulted to the folder name — so a second checkout in a folder with the same name
-  attached to the first install's postgres volume, whose password didn't match the newly
-  generated one, and the backend crashed on boot with `password authentication failed`. A fresh
-  install now gets a unique `COMPOSE_PROJECT_NAME` (folder name plus a short random suffix,
-  e.g. `openmes-k3x`) written to `.env`, also used as the container-name prefix. Re-runs keep
-  it, and an existing `.env` without one keeps the old default so its data stays attached.
+- **An unhandled error is written to the log again.** The exception handler counts faults for
+  telemetry in a `report` callback that ended in `return false`, which Laravel reads as "handled,
+  skip the default logger". Since that callback was added, a request that failed with a 500
+  left nothing in `laravel.log` — the System Logs screen and anyone reading the file saw a
+  system with nothing wrong. The callback now returns nothing and logging is as it was.
+- **Warnings and notices sent with a redirect are now shown.** The server shares four kinds
+  of flash message and the admin layout rendered two of them, so a redirect explained with
+  `->with('warning', …)` or `->with('info', …)` landed the user on a page they had not asked
+  for with no word why. All four are rendered now, warnings and errors announced as alerts.
+- **A work order can be raised for a product whose bill of materials holds a material with
+  no type.** Material types became optional, and the snapshot taken when an order is raised
+  still read the type's code unconditionally — one typeless material in the BOM and every order
+  for that product failed with a server error. The snapshot now records no type for it.
+- **The installer no longer runs over an installation that is in use.** What shuts the wizard
+  is a marker file in `storage/`, which is lost with the volume (`down -v`, a move to another
+  host). Its steps need no session, so with the marker gone the first visitor could rewrite the
+  environment file, run `migrate:fresh` or create themselves an administrator. The three steps
+  that write now check for existing accounts first; finding any, they put the marker back and
+  send the visitor to sign in, as a preset install joining an existing database already did.
 - **A page from a compiled-in module now gets its own styles.** Pages under
   `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
   build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which

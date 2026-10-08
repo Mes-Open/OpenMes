@@ -84,6 +84,13 @@ class HandleInertiaRequests extends Middleware
                 ->filter('operator.can_logout', true, ['user' => $user]),
             'operatorHooks' => fn () => app(\App\Extension\HookRegistry::class)
                 ->renderMany(['display.operator.layout'], ['user' => $user]),
+            // The same seam for the admin chrome (AppLayout): display hook
+            // `display.admin.layout`, rendered above the page on every screen
+            // that uses it. For something an administrator has to see wherever
+            // they are -- a licence about to lapse, a maintenance window -- and
+            // `{}` with no module listening.
+            'adminHooks' => fn () => app(\App\Extension\HookRegistry::class)
+                ->renderMany(['display.admin.layout'], ['user' => $user]),
             // With a single line, select-line opens it directly, so a "switch
             // line" button would only land back where the operator already is.
             'operatorCanSwitchLine' => fn () => $user !== null

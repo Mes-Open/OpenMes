@@ -72,7 +72,10 @@ class SnapshotService
                     'product_type_id' => null,
                     'material_code' => $item->material->code,
                     'material_name' => $item->material->name,
-                    'material_type' => $item->material->materialType->code,
+                    // Nullable since materials stopped requiring a type; a
+                    // material without one must not stop a work order being
+                    // raised, which is what dereferencing it did.
+                    'material_type' => $item->material->materialType?->code,
                     'tracking_type' => $item->material->tracking_type,
                     'unit_of_measure' => $item->material->unit_of_measure,
                     'quantity_per_unit' => (float) $item->quantity_per_unit,
