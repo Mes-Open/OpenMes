@@ -193,8 +193,9 @@ if ($reuseEnv) {
 }
 if (-not $dbPassword)    { $dbPassword    = New-Password }
 if (-not $adminPassword) { $adminPassword = New-Password }
-# Keep an existing key: rotating it logs everyone out.
-if ($appKey -notmatch '^base64:.+') { $appKey = New-AppKey }
+# Keep any existing key, prefixed or not (Laravel accepts both): rotating it
+# logs everyone out and makes anything already encrypted with it unreadable.
+if (-not $appKey) { $appKey = New-AppKey }
 
 # Unique compose project + container-name prefix per install. Compose names
 # volumes after the project, so two checkouts in same-named folders would share
@@ -211,8 +212,21 @@ if (-not $reuseEnv -and -not $projectName) {
         $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
         try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
         $projectName = "$dirSlug-" + (-join ($bytes | ForEach-Object { $suffixChars[$_ % $suffixChars.Length] }))
-        docker volume inspect "${projectName}_postgres_data" *> $null
-    } while ($LASTEXITCODE -eq 0)
+        # A missing volume is reported on stderr. Under the script-wide 'Stop'
+        # preference, Windows PowerShell 5.1 turns redirected native stderr into
+        # a terminating error, so probe with a scoped 'Continue' instead.
+        $prevPreference = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $probe = docker volume inspect "${projectName}_postgres_data" 2>&1 | Out-String
+            $volumeExists = ($LASTEXITCODE -eq 0)
+        } finally {
+            $ErrorActionPreference = $prevPreference
+        }
+        if (-not $volumeExists -and $probe -notmatch 'no such volume') {
+            Fail "Could not query Docker volumes: $($probe.Trim())"
+        }
+    } while ($volumeExists)
     $namePrefix = $projectName
 }
 if (-not $namePrefix) { $namePrefix = $dirSlug }

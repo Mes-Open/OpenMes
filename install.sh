@@ -205,9 +205,9 @@ if [ "$REUSE_ENV" = "1" ]; then
 fi
 DB_PASSWORD="${DB_PASSWORD:-$(gen_pass)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
-# Keep an existing key: rotating it logs everyone out and makes anything
-# already encrypted with it unreadable.
-case "$APP_KEY" in base64:?*) ;; *) APP_KEY="$(gen_app_key)" ;; esac
+# Keep any existing key, prefixed or not (Laravel accepts both): rotating it
+# logs everyone out and makes anything already encrypted with it unreadable.
+if [ -z "$APP_KEY" ]; then APP_KEY="$(gen_app_key)"; fi
 
 # Unique compose project + container-name prefix per install, so several local
 # instances can run at once. The project name is what compose names volumes
