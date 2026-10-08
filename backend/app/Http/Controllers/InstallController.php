@@ -29,6 +29,42 @@ class InstallController extends Controller
     }
 
     /**
+     * Stop a step that writes when accounts already exist.
+     *
+     * The wizard needs no session and is exempt from CSRF, and the only thing
+     * that normally keeps it away from a running installation is the marker
+     * file in `storage/` -- a mounted volume that goes with `down -v`, a move
+     * to another host, or anyone clearing the directory. With the marker gone
+     * the wizard would rewrite the environment file, drop every table and
+     * create a new administrator for whoever asked first.
+     *
+     * Accounts in the configured database are the fact that matters, and they
+     * do not go with the volume. Finding them means there is nothing to
+     * install: the marker is put back and the visitor sent to sign in, which
+     * is what a preset install does when it joins an existing database. A
+     * database that cannot be reached, or has no users table yet, is the
+     * state the installer exists for.
+     */
+    private function refuseOnALiveInstallation(): ?\Illuminate\Http\RedirectResponse
+    {
+        try {
+            $inUse = \Illuminate\Support\Facades\Schema::hasTable('users') && User::query()->exists();
+        } catch (\Throwable) {
+            $inUse = false;
+        }
+
+        if (! $inUse) {
+            return null;
+        }
+
+        \Illuminate\Support\Facades\Log::warning('Installer refused: this installation already holds accounts. Restoring the installed marker.');
+
+        file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
+
+        return redirect('/');
+    }
+
+    /**
      * Check if .env exists and has APP_KEY
      */
     protected function needsEnvironmentSetup()
@@ -170,6 +206,10 @@ class InstallController extends Controller
             return redirect('/');
         }
 
+        if ($inUse = $this->refuseOnALiveInstallation()) {
+            return $inUse;
+        }
+
         $validated = $request->validated();
 
         $envPath = base_path('.env');
@@ -231,6 +271,11 @@ class InstallController extends Controller
     {
         if ($this->isInstalled()) {
             return redirect('/');
+        }
+
+        // This step ends in `migrate:fresh`, which drops every table.
+        if ($inUse = $this->refuseOnALiveInstallation()) {
+            return $inUse;
         }
 
         $driver = $request->input('db_driver', 'pgsql');
@@ -393,6 +438,12 @@ class InstallController extends Controller
      */
     public function createAdmin(CreateAdminRequest $request)
     {
+        // Otherwise anybody who finds the wizard open makes themselves an
+        // administrator of an installation that already has one.
+        if ($inUse = $this->refuseOnALiveInstallation()) {
+            return $inUse;
+        }
+
         if (! session('install_step_1_completed')) {
             return redirect()->route('install.database')
                 ->with('error', 'Please complete database configuration first.');

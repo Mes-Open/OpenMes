@@ -54,6 +54,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **A work order can be raised for a product whose bill of materials holds a material with
+  no type.** Material types became optional, and the snapshot taken when an order is raised
+  still read the type's code unconditionally — one typeless material in the BOM and every order
+  for that product failed with a server error. The snapshot now records no type for it.
+- **The installer no longer runs over an installation that is in use.** What shuts the wizard
+  is a marker file in `storage/`, which is lost with the volume (`down -v`, a move to another
+  host). Its steps need no session, so with the marker gone the first visitor could rewrite the
+  environment file, run `migrate:fresh` or create themselves an administrator. The three steps
+  that write now check for existing accounts first; finding any, they put the marker back and
+  send the visitor to sign in, as a preset install joining an existing database already did.
 - **A page from a compiled-in module now gets its own styles.** Pages under
   `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
   build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which
