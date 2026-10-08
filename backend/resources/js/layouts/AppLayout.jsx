@@ -9,6 +9,7 @@ import Tooltip from '../components/Tooltip';
 import HoverPanel from '../components/HoverPanel';
 import { ToastProvider } from '@openmes/ui';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
+import { Hook } from '../lib/hooks';
 import { __, formatDate, formatTime } from '../lib/i18n';
 import { Breadcrumbs, Icon as UiIcon } from '@openmes/ui';
 
@@ -297,7 +298,7 @@ function useNavTree() {
 
 export default function AppLayout({ children }) {
     const page = usePage();
-    const { auth, nav, csrf_token, appVersion } = page.props;
+    const { auth, nav, csrf_token, appVersion, adminHooks = {} } = page.props;
     // usePage().url is reactive across SPA navigation; strip the query string
     // so prefix matching for active-state works (e.g. /admin/work-orders?status=).
     const path = (page.url || '').split('?')[0];
@@ -400,6 +401,9 @@ export default function AppLayout({ children }) {
                 />
 
                 <main className="flex-1 overflow-auto">
+                    {/* Whatever an installed module has to say on every admin
+                        screen. Renders nothing when no module listens. */}
+                    <Hook name="display.admin.layout" hooks={adminHooks} />
                     <FlashMessages />
                     {children}
                 </main>
@@ -422,22 +426,28 @@ export default function AppLayout({ children }) {
  */
 function FlashMessages() {
     const { flash } = usePage().props;
-    if (!flash?.success && !flash?.error) return null;
+    // All four kinds the server shares. `warning` and `info` are the ones that
+    // explain a redirect ("you were sent here because…"), and dropping them
+    // left the user on a page they had not asked for with no word why.
+    const shown = FLASH_KINDS.filter(([kind]) => flash?.[kind]);
+    if (shown.length === 0) return null;
     return (
         <div className="mb-4 space-y-2">
-            {flash.success && (
-                <div className="p-3 rounded-om-sm bg-om-running-bg border border-om-line text-om-running text-[13px]">
-                    {__(flash.success)}
+            {shown.map(([kind, tone, role]) => (
+                <div key={kind} role={role} className={`p-3 rounded-om-sm border border-om-line text-[13px] ${tone}`}>
+                    {__(flash[kind])}
                 </div>
-            )}
-            {flash.error && (
-                <div className="p-3 rounded-om-sm bg-om-blocked-bg border border-om-line text-om-blocked text-[13px]">
-                    {__(flash.error)}
-                </div>
-            )}
+            ))}
         </div>
     );
 }
+
+const FLASH_KINDS = [
+    ['success', 'bg-om-running-bg text-om-running', 'status'],
+    ['error', 'bg-om-blocked-bg text-om-blocked', 'alert'],
+    ['warning', 'bg-om-downtime-bg text-om-downtime', 'alert'],
+    ['info', 'bg-om-chip text-om-ink', 'status'],
+];
 
 /**
  * Desktop-only live clock shown top-right on every page (parity with the

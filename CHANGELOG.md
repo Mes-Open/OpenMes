@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module can now say something on every admin screen.** The operator panel has had a
+  layout hook since the workstation seams went in; the admin layout had none, so a module with
+  news for an administrator — a licence about to lapse, a maintenance window — could only put
+  it on its own pages, which is where nobody is when it matters. Display hook
+  `display.admin.layout` is resolved with the signed-in user and rendered above the page
+  wherever `AppLayout` is used. With no module listening it is `{}` and renders nothing.
 - **A module installed after the fact now has a working frontend.** Its React pages were
   never in the bundle — the bundle is compiled before the module exists, and the production
   image deletes `node_modules` right after building — so every page of an uploaded module
@@ -54,6 +60,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **An unhandled error is written to the log again.** The exception handler counts faults for
+  telemetry in a `report` callback that ended in `return false`, which Laravel reads as "handled,
+  skip the default logger". Since that callback was added, a request that failed with a 500
+  left nothing in `laravel.log` — the System Logs screen and anyone reading the file saw a
+  system with nothing wrong. The callback now returns nothing and logging is as it was.
+- **Warnings and notices sent with a redirect are now shown.** The server shares four kinds
+  of flash message and the admin layout rendered two of them, so a redirect explained with
+  `->with('warning', …)` or `->with('info', …)` landed the user on a page they had not asked
+  for with no word why. All four are rendered now, warnings and errors announced as alerts.
 - **A page from a compiled-in module now gets its own styles.** Pages under
   `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
   build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which
