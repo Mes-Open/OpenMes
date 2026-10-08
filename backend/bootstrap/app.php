@@ -85,12 +85,13 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // Count faults so we can tell whether a release broke somebody's plant
         // without waiting for them to email us. Only the class, file and line
         // are kept — never the message, which in this system routinely names
-        // materials, lots and customers. Returning false leaves Laravel's own
-        // logging exactly as it was.
-        $exceptions->report(function (\Throwable $e): bool {
+        // materials, lots and customers.
+        //
+        // Returns nothing, on purpose. Laravel reads `false` from a report
+        // callback as "dealt with" and skips the default logger, so returning
+        // it here kept every unhandled error out of laravel.log.
+        $exceptions->report(function (\Throwable $e): void {
             \App\Services\Telemetry\TelemetryErrorBuffer::record($e);
-
-            return false;
         });
 
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
