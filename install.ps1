@@ -71,6 +71,16 @@ function New-Password {
     -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
 }
 
+function New-AppKey {
+    # Laravel key format: base64 of 32 random bytes. Generated here rather than
+    # by the container entrypoint so every service shares one key that survives
+    # container rebuilds (see install.sh gen_app_key).
+    $bytes = New-Object 'System.Byte[]' 32
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    'base64:' + [Convert]::ToBase64String($bytes)
+}
+
 function Test-PortInUse([int]$Port) {
     # A successful TCP connect to loopback means something is already listening.
     $client = [System.Net.Sockets.TcpClient]::new()
@@ -173,14 +183,17 @@ if ($domain -eq 'localhost') {
 
 # ── Passwords + container-name prefix (reuse on re-run) ───────────────────────
 
-$dbPassword = ''; $adminPassword = ''; $namePrefix = ''
+$dbPassword = ''; $adminPassword = ''; $namePrefix = ''; $appKey = ''
 if ($reuseEnv) {
+    $appKey        = Get-EnvValue 'APP_KEY'
     $dbPassword    = Get-EnvValue 'POSTGRES_PASSWORD'
     $adminPassword = Get-EnvValue 'ADMIN_PASSWORD'
     $namePrefix    = Get-EnvValue 'OPENMES_NAME_PREFIX'
 }
 if (-not $dbPassword)    { $dbPassword    = New-Password }
 if (-not $adminPassword) { $adminPassword = New-Password }
+# Keep an existing key: rotating it logs everyone out.
+if ($appKey -notmatch '^base64:.+') { $appKey = New-AppKey }
 
 if (-not $namePrefix) {
     $namePrefix = ((Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9_.-]','-') -replace '^[^a-z0-9]+','' -replace '-+$',''
@@ -220,6 +233,10 @@ OPENMES_NAME_PREFIX=$namePrefix
 # Mode
 APP_ENV=production
 APP_DEBUG=false
+
+# Encryption key for sessions/cookies - shared by every service. Changing it
+# logs everyone out.
+APP_KEY=$appKey
 
 # SPA stateful hosts (must cover the host:port the app is served on).
 SANCTUM_STATEFUL_DOMAINS=$sanctum

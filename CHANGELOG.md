@@ -54,6 +54,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Docker installs get a stable `APP_KEY`.** `install.sh` / `install.ps1` never wrote one, so
+  compose passed an empty `APP_KEY` to every service and the entrypoint fell back to generating
+  a key inside each container — a different key per service and a new one on every recreate,
+  which breaks sessions and login. The installers now generate the key into `.env` and keep the
+  existing one on re-run.
 - **A page from a compiled-in module now gets its own styles.** Pages under
   `modules/<Name>/resources/js/Pages` are compiled into the bundle when they are present at
   build time, but Tailwind never scanned them: it takes what to scan from `.gitignore`, which

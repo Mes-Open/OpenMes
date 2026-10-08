@@ -117,6 +117,17 @@ gen_pass() {
     LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c24
 }
 
+gen_app_key() {
+    # Laravel key format (what `artisan key:generate` writes): base64 of 32 random
+    # bytes. Generated here, not by the container entrypoint, because the
+    # entrypoint writes its key into the container's own .env — every service
+    # (backend, reverb, queue…) ends up with a different key, a recreated
+    # container gets a new one, and compose still passes an empty APP_KEY that
+    # overrides it. One key in this .env is shared by all services and survives
+    # rebuilds.
+    echo "base64:$(head -c32 /dev/urandom | base64 | tr -d '\n')"
+}
+
 port_in_use() {
     # Portable check (macOS + Linux, no external tools, no privilege needed): a
     # successful bash /dev/tcp connect to loopback means something is already
@@ -189,9 +200,13 @@ if [ "$REUSE_ENV" = "1" ]; then
     DB_PASSWORD="$(env_get POSTGRES_PASSWORD)"
     ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
     NAME_PREFIX="$(env_get OPENMES_NAME_PREFIX)"
+    APP_KEY="$(env_get APP_KEY)"
 fi
 DB_PASSWORD="${DB_PASSWORD:-$(gen_pass)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
+# Keep an existing key: rotating it logs everyone out and makes anything
+# already encrypted with it unreadable.
+case "$APP_KEY" in base64:?*) ;; *) APP_KEY="$(gen_app_key)" ;; esac
 
 # Unique container-name prefix per install directory, so several local
 # instances can run at once (container_name must be globally unique). Derived
@@ -241,6 +256,10 @@ OPENMES_NAME_PREFIX=${NAME_PREFIX}
 # ── Mode ──────────────────────────────────────────────────────────────────────
 APP_ENV=production
 APP_DEBUG=false
+
+# Encryption key for sessions/cookies — shared by every service. Changing it
+# logs everyone out.
+APP_KEY=${APP_KEY}
 
 # SPA stateful hosts (must cover the host:port the app is served on, or the
 # live-sync /api requests 401 and lists render empty).
