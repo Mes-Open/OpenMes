@@ -2,8 +2,8 @@
  * Supervisor sidebar navigation.
  *
  * A supervisor has their own route tree under `/supervisor`, and this is the
- * only menu they see — the admin nav (`adminNav.js`) belongs to `/admin`, which
- * supervisors cannot reach. Keeping the two apart is the point: a shift
+ * base menu they see. Admin-panel tabs explicitly granted through Settings
+ * Access are appended separately. Keeping the two apart is the point: a shift
  * supervisor's job is the floor in front of them, not the plant's configuration,
  * and a menu that mixed the two would keep sending them somewhere they'd be
  * refused.
@@ -95,3 +95,25 @@ export const SUPERVISOR_GROUPS = [
         ],
     },
 ];
+
+/** Add only server-authorized admin destinations; native supervisor routes stay intact. */
+export function withGrantedAdminTabs(groups, grants = []) {
+    const children = grants
+        .filter((grant) => grant.url?.startsWith('/admin/'))
+        .map((grant) => ({
+            key: `supervisor-admin-${grant.key}`,
+            label: grant.label,
+            href: grant.url,
+            match: [grant.url],
+        }));
+
+    if (!children.length) return groups;
+
+    return [...groups, {
+        key: 'supervisor-admin-panel',
+        label: 'Admin Panel',
+        lucide: 'layout-grid',
+        match: children.flatMap((child) => child.match),
+        children,
+    }];
+}
