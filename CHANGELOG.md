@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Simplified Chinese interface.** Added the `zh` language option and an initial translation catalog; untranslated strings fall back to English.
+
 - **A module can now say something on every admin screen.** The operator panel has had a
   layout hook since the workstation seams went in; the admin layout had none, so a module with
   news for an administrator — a licence about to lapse, a maintenance window — could only put
