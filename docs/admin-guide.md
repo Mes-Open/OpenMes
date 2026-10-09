@@ -559,3 +559,11 @@ The update process pulls the latest release ZIP and applies it. A changelog is s
 # Manual backup
 docker compose exec postgres pg_dump -U openmmes_user openmmes > backup_$(date +%Y%m%d).sql
 ```
+
+## Scope of Settings → Access
+
+The role × tab matrix grants access to **admin-panel pages**. The Admin role always has full access. Unmapped admin routes remain Admin-only, and disabled optional modules remain unavailable.
+
+Native `/supervisor/*` and `/operator/*` pages use their existing role and module rules. Removing an admin-tab grant does not revoke a native page that serves a similar purpose.
+
+A page grant is not a read-only grant. It may expose forms and actions; some actions also require their own policies or Form Request authorization. Review the role's permitted operations before granting a tab. Use action-specific authorization when you need a read-only role rather than assuming a checked box grants view access alone.

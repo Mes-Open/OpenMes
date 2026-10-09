@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Access settings explain their scope.** Clarified admin-page grants, independent native role-based pages, and the distinction from read-only access.
+
 - **A module can now say something on every admin screen.** The operator panel has had a
   layout hook since the workstation seams went in; the admin layout had none, so a module with
   news for an administrator — a licence about to lapse, a maintenance window — could only put

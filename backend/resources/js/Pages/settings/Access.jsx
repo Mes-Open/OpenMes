@@ -46,6 +46,10 @@ export default function Access() {
                 {__('Grant each role access to individual admin-panel tabs. The Admin role always has full access.')}
             </p>
 
+            <p className="mb-6 text-sm text-om-muted">
+                {__('This matrix controls admin-panel pages only. Native Supervisor and Operator pages keep their role-based access. A page grant is not a read-only grant; actions may have separate authorization checks.')}
+            </p>
+
             <form onSubmit={submit} className="overflow-x-auto rounded-om border border-om-line bg-om-card p-5">
                 <table className="w-full text-sm">
                     <thead>
