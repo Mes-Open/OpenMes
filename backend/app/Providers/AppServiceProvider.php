@@ -294,6 +294,7 @@ class AppServiceProvider extends ServiceProvider
             'tr' => 'Türkçe',
             'de' => 'Deutsch',
             'vi' => 'Tiếng Việt',
+            'zh' => '简体中文',
         ];
     }
 }
