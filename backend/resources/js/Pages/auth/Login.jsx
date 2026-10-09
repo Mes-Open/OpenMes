@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { Button, Checkbox, TextField } from '@openmes/ui';
 import AuthLayout from '../../layouts/AuthLayout';
+import { Hook } from '../../lib/hooks';
 import { __ } from '../../lib/i18n';
 
 /**
@@ -10,13 +11,15 @@ import { __ } from '../../lib/i18n';
  * Props (from AuthController::showLoginForm):
  *   pinEnabled  (bool) — show the Password / Quick PIN tab switcher
  *   regEnabled  (bool) — show "Create account" link
+ *   hooks       (object) — what modules contributed to `display.auth.login.before`
+ *                          (above the form) and `display.auth.login.after` (below it)
  *
  * POST /login   → AuthController::login  (password auth)
  * POST /login/pin → AuthController::loginWithPin  (PIN auth)
  *
  * Geist White restyle: light-only v1 — @openmes/ui fields/buttons, om-* tokens.
  */
-export default function Login({ pinEnabled = false, regEnabled = false }) {
+export default function Login({ pinEnabled = false, regEnabled = false, hooks = {} }) {
     const [tab, setTab] = useState('password');
 
     const passwordForm = useForm({
@@ -48,6 +51,11 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
 
     return (
         <div>
+            {/* Whatever an installed module has to say before anybody signs
+                in — which installation this is, a notice. Nothing when no
+                module listens. */}
+            <Hook name="display.auth.login.before" hooks={hooks} />
+
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-6 text-center">{__('Sign in')}</h2>
 
             {/* Tab switcher — only when PIN login is enabled */}
@@ -184,6 +192,10 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                     </p>
                 </form>
             )}
+
+            {/* A module's own ways in or back in: single sign-on, a forgotten
+                password. Under whichever form is showing. */}
+            <Hook name="display.auth.login.after" hooks={hooks} />
 
             {/* Register link */}
             {regEnabled && (

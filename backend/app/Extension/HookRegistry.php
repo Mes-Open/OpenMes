@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Log;
  * /admin/plant-reports; do not walk into it again.
  *
  * Naming a hook point: `display.<page>.<region>`, e.g.
+ *   display.auth.login.before
  *   display.admin.lines.form.fields
  *   display.admin.lines.table.columns
  *   display.admin.users.form.fields
