@@ -71,6 +71,16 @@ function New-Password {
     -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
 }
 
+function New-AppKey {
+    # Laravel key format: base64 of 32 random bytes. Generated here rather than
+    # by the container entrypoint so every service shares one key that survives
+    # container rebuilds (see install.sh gen_app_key).
+    $bytes = New-Object 'System.Byte[]' 32
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    'base64:' + [Convert]::ToBase64String($bytes)
+}
+
 function Test-PortInUse([int]$Port) {
     # A successful TCP connect to loopback means something is already listening.
     $client = [System.Net.Sockets.TcpClient]::new()
@@ -173,19 +183,53 @@ if ($domain -eq 'localhost') {
 
 # ── Passwords + container-name prefix (reuse on re-run) ───────────────────────
 
-$dbPassword = ''; $adminPassword = ''; $namePrefix = ''
+$dbPassword = ''; $adminPassword = ''; $namePrefix = ''; $appKey = ''; $projectName = ''
 if ($reuseEnv) {
+    $appKey        = Get-EnvValue 'APP_KEY'
     $dbPassword    = Get-EnvValue 'POSTGRES_PASSWORD'
     $adminPassword = Get-EnvValue 'ADMIN_PASSWORD'
     $namePrefix    = Get-EnvValue 'OPENMES_NAME_PREFIX'
+    $projectName   = Get-EnvValue 'COMPOSE_PROJECT_NAME'
 }
 if (-not $dbPassword)    { $dbPassword    = New-Password }
 if (-not $adminPassword) { $adminPassword = New-Password }
+# Keep any existing key, prefixed or not (Laravel accepts both): rotating it
+# logs everyone out and makes anything already encrypted with it unreadable.
+if (-not $appKey) { $appKey = New-AppKey }
 
-if (-not $namePrefix) {
-    $namePrefix = ((Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9_.-]','-') -replace '^[^a-z0-9]+','' -replace '-+$',''
-    if (-not $namePrefix) { $namePrefix = 'openmmes' }
+# Unique compose project + container-name prefix per install. Compose names
+# volumes after the project, so two checkouts in same-named folders would share
+# one postgres volume (and the second install's new DB password is rejected).
+# A fresh install gets the folder name plus a short random suffix; re-runs keep
+# what .env has, and an older .env without COMPOSE_PROJECT_NAME keeps the
+# folder-name default so its volumes stay attached (see install.sh).
+$dirSlug = ((Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9_-]','-') -replace '^[^a-z0-9]+','' -replace '-+$',''
+if (-not $dirSlug) { $dirSlug = 'openmmes' }
+if (-not $reuseEnv -and -not $projectName) {
+    $suffixChars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    do {
+        $bytes = New-Object 'System.Byte[]' 3
+        $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+        $projectName = "$dirSlug-" + (-join ($bytes | ForEach-Object { $suffixChars[$_ % $suffixChars.Length] }))
+        # A missing volume is reported on stderr. Under the script-wide 'Stop'
+        # preference, Windows PowerShell 5.1 turns redirected native stderr into
+        # a terminating error, so probe with a scoped 'Continue' instead.
+        $prevPreference = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $probe = docker volume inspect "${projectName}_postgres_data" 2>&1 | Out-String
+            $volumeExists = ($LASTEXITCODE -eq 0)
+        } finally {
+            $ErrorActionPreference = $prevPreference
+        }
+        if (-not $volumeExists -and $probe -notmatch 'no such volume') {
+            Fail "Could not query Docker volumes: $($probe.Trim())"
+        }
+    } while ($volumeExists)
+    $namePrefix = $projectName
 }
+if (-not $namePrefix) { $namePrefix = $dirSlug }
 Write-Ok "Container name prefix: $namePrefix (containers: $namePrefix-backend, ...)"
 
 Write-Host ""
@@ -216,10 +260,15 @@ HTTPS_PORT=$httpsPort
 # Container-name prefix - unique per install dir so multiple local instances
 # don't clash on container names (default is "openmmes" when unset).
 OPENMES_NAME_PREFIX=$namePrefix
+$(if ($projectName) { "`n# Compose project name - volumes are named after it, so changing it detaches`n# this install from its database.`nCOMPOSE_PROJECT_NAME=$projectName`n" })
 
 # Mode
 APP_ENV=production
 APP_DEBUG=false
+
+# Encryption key for sessions/cookies - shared by every service. Changing it
+# logs everyone out.
+APP_KEY=$appKey
 
 # SPA stateful hosts (must cover the host:port the app is served on).
 SANCTUM_STATEFUL_DOMAINS=$sanctum

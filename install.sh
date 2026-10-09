@@ -117,6 +117,17 @@ gen_pass() {
     LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c24
 }
 
+gen_app_key() {
+    # Laravel key format (what `artisan key:generate` writes): base64 of 32 random
+    # bytes. Generated here, not by the container entrypoint, because the
+    # entrypoint writes its key into the container's own .env — every service
+    # (backend, reverb, queue…) ends up with a different key, a recreated
+    # container gets a new one, and compose still passes an empty APP_KEY that
+    # overrides it. One key in this .env is shared by all services and survives
+    # rebuilds.
+    echo "base64:$(head -c32 /dev/urandom | base64 | tr -d '\n')"
+}
+
 port_in_use() {
     # Portable check (macOS + Linux, no external tools, no privilege needed): a
     # successful bash /dev/tcp connect to loopback means something is already
@@ -189,15 +200,37 @@ if [ "$REUSE_ENV" = "1" ]; then
     DB_PASSWORD="$(env_get POSTGRES_PASSWORD)"
     ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
     NAME_PREFIX="$(env_get OPENMES_NAME_PREFIX)"
+    APP_KEY="$(env_get APP_KEY)"
+    PROJECT_NAME="$(env_get COMPOSE_PROJECT_NAME)"
 fi
 DB_PASSWORD="${DB_PASSWORD:-$(gen_pass)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
+# Keep any existing key, prefixed or not (Laravel accepts both): rotating it
+# logs everyone out and makes anything already encrypted with it unreadable.
+if [ -z "$APP_KEY" ]; then APP_KEY="$(gen_app_key)"; fi
 
-# Unique container-name prefix per install directory, so several local
-# instances can run at once (container_name must be globally unique). Derived
-# from the folder name and stable across re-runs.
+# Unique compose project + container-name prefix per install, so several local
+# instances can run at once. The project name is what compose names volumes
+# after: without a unique one, two checkouts in folders with the same name share
+# one postgres volume, and the second install's fresh DB password is rejected by
+# the first install's database. A fresh install therefore gets the folder name
+# plus a short random suffix (e.g. "openmes-k3x"); re-runs keep what .env has.
+# An older .env without COMPOSE_PROJECT_NAME keeps the folder-name default so
+# its existing volumes stay attached.
+dir_slug() {
+    basename "$PWD" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -c 'a-z0-9_-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//'
+}
+if [ "$REUSE_ENV" != "1" ] && [ -z "$PROJECT_NAME" ]; then
+    BASE_NAME="$(dir_slug)"
+    [ -z "$BASE_NAME" ] && BASE_NAME="openmmes"
+    while :; do
+        PROJECT_NAME="${BASE_NAME}-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c3)"
+        docker volume inspect "${PROJECT_NAME}_postgres_data" &>/dev/null || break
+    done
+    NAME_PREFIX="$PROJECT_NAME"
+fi
 if [ -z "$NAME_PREFIX" ]; then
-    NAME_PREFIX="$(basename "$PWD" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -c 'a-z0-9_.-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//')"
+    NAME_PREFIX="$(dir_slug)"
     [ -z "$NAME_PREFIX" ] && NAME_PREFIX="openmmes"
 fi
 ok "Container name prefix: ${NAME_PREFIX} (containers: ${NAME_PREFIX}-backend, …)"
@@ -237,10 +270,18 @@ HTTPS_PORT=${HTTPS_PORT}
 # Container-name prefix — unique per install dir so multiple local instances
 # don't clash on container names (default is "openmmes" when unset).
 OPENMES_NAME_PREFIX=${NAME_PREFIX}
-
+${PROJECT_NAME:+
+# Compose project name — volumes are named after it, so changing it detaches
+# this install from its database.
+COMPOSE_PROJECT_NAME=${PROJECT_NAME}
+}
 # ── Mode ──────────────────────────────────────────────────────────────────────
 APP_ENV=production
 APP_DEBUG=false
+
+# Encryption key for sessions/cookies — shared by every service. Changing it
+# logs everyone out.
+APP_KEY=${APP_KEY}
 
 # SPA stateful hosts (must cover the host:port the app is served on, or the
 # live-sync /api requests 401 and lists render empty).
