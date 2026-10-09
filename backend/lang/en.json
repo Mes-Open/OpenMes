@@ -6900,5 +6900,6 @@
     "Identity": "Identity",
     "Pricing": "Pricing",
     "Sequence": "Sequence",
-    "Credentials": "Credentials"
+    "Credentials": "Credentials",
+    "This matrix controls admin-panel pages only. Native Supervisor and Operator pages keep their role-based access. A page grant is not a read-only grant; actions may have separate authorization checks.": "This matrix controls admin-panel pages only. Native Supervisor and Operator pages keep their role-based access. A page grant is not a read-only grant; actions may have separate authorization checks."
 }
