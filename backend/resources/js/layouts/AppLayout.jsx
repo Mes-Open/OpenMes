@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
-import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
+import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS, withGrantedAdminTabs } from './supervisorNav';
 import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
 import LiveAlertCount from '../components/LiveAlertCount';
 import LatestAlerts from '../components/LatestAlerts';
@@ -272,6 +272,7 @@ function useNavTree() {
     // Which admin tabs this user may open (#144) — role grants and enabled
     // modules, resolved server-side.
     const allowedTabs = page.props.auth?.user?.accessibleTabs;
+    const grantedTabLinks = page.props.auth?.user?.accessibleTabLinks;
     // Optional feature modules this install has switched on.
     const enabledModules = page.props.enabledModules;
 
@@ -279,11 +280,14 @@ function useNavTree() {
         if (! isAdmin && isSupervisor) {
             return {
                 links: withEnabledModules(SUPERVISOR_LINKS, enabledModules),
-                groups: withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
+                groups: withGrantedAdminTabs(
+                    withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
+                    grantedTabLinks,
+                ),
                 // The supervisor tree carries no tab keys: its gate is the route
                 // group's role middleware, not the admin access matrix. Filtering
                 // it through that matrix would hide every entry, since a
-                // supervisor holds no tab:* grants.
+                // native routes remain available independently of tab:* grants.
                 showTab: () => true,
             };
         }
@@ -293,7 +297,7 @@ function useNavTree() {
             groups: mergeModuleNav(moduleNav),
             showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
         };
-    }, [isAdmin, isSupervisor, moduleNav, allowedTabs, enabledModules]);
+    }, [isAdmin, isSupervisor, moduleNav, allowedTabs, grantedTabLinks, enabledModules]);
 }
 
 export default function AppLayout({ children }) {

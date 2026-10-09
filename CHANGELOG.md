@@ -9,6 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Supervisor navigation reflects explicit admin-tab grants.** Authorized admin destinations now appear in an Admin Panel group alongside the native supervisor menu.
+
 - **A module can now say something on every admin screen.** The operator panel has had a
   layout hook since the workstation seams went in; the admin layout had none, so a module with
   news for an administrator — a licence about to lapse, a maintenance window — could only put

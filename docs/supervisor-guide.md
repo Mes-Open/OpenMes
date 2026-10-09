@@ -18,6 +18,10 @@ This guide is for supervisors and team leads who manage production lines and mon
 
 ---
 
+## Admin-panel access
+
+An administrator can grant your role additional admin-panel tabs in **Settings → Access**. These appear under **Admin Panel** in the supervisor sidebar. Removing a grant removes its entry on the next page response. Optional modules disabled for the installation are excluded by the server. Your native supervisor menu remains available under its existing role and module rules.
+
 ## Dashboard Overview
 
 The Supervisor Dashboard is your real-time view of the shop floor. It shows:
