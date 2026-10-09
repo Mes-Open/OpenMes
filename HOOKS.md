@@ -342,7 +342,10 @@ display.operator.workstation.shift_cell   context: entry, workOrder, shift, canC
 display.operator.work_order.sections      context: workOrder                 (rendered after the BOM section)
 display.operator.quantity_field           props: value, onChange, variant     (replaces the operator's number input, page-wide)
 display.operator.layout                   (no context)                        (rendered at the top of every operator screen)
+display.admin.layout                      (no context)                        (rendered above the page on every admin screen)
 display.settings.system.tabs              contribution: slot, title, component (one tab each on Settings → System)
+display.auth.login.before                 (no context)                        (rendered above the sign-in form)
+display.auth.login.after                  (no context)                        (rendered below the sign-in form)
 ```
 
 The PHP-side context a listener receives:
@@ -353,7 +356,9 @@ The PHP-side context a listener receives:
 | `display.operator.work_order.sections` | `Operator\WorkOrderController::show` | `workOrderId`, `workstationId` |
 | `display.operator.quantity_field` | `WorkstationController::index`, `WorkOrderController::show` + `::queue` | same as the page's other points |
 | `display.operator.layout` | `HandleInertiaRequests` (shared `operatorHooks`) | `user` |
+| `display.admin.layout` | `HandleInertiaRequests` (shared `adminHooks`) | `user` |
 | `display.settings.system.tabs` | `SettingsController::showSystemSettings` | — |
+| `display.auth.login.before`, `display.auth.login.after` | `AuthController::showLoginForm` | — |
 
 Notes:
 
@@ -365,8 +370,14 @@ Notes:
   `ext-<slot>` (linkable as `?tab=ext-<slot>`) labelled `title`. Its component
   renders outside the core settings form, so core's Save button is not shown
   there: the module saves through its own route.
-- **`operator.layout`** is resolved on every Inertia response, like any shared
-  prop — a listener should return `null` cheaply where it has nothing to show.
+- **`operator.layout`** and **`admin.layout`** are resolved on every Inertia
+  response, like any shared prop — a listener should return `null` cheaply where
+  it has nothing to show.
+- **`auth.login.before`** / **`auth.login.after`** are resolved for a visitor who
+  has not signed in: the context carries no user, and what is contributed is
+  shown to anybody who can reach the page. They are for a notice or a link — which
+  installation this is, single sign-on, a forgotten password — and the form
+  between them stays core's own, posting to core's own routes.
 
 ### Filters
 
@@ -447,7 +458,8 @@ class SyncToErp implements ShouldQueue
 **Display hooks** (`App\Extension\HookRegistry`): `display.operator.workstation.actor`,
 `display.operator.workstation.shift_cell`, `display.operator.work_order.sections`,
 `display.operator.quantity_field`, `display.operator.layout`,
-`display.settings.system.tabs`.
+`display.admin.layout`, `display.settings.system.tabs`,
+`display.auth.login.before`, `display.auth.login.after`.
 
 **Filters** (`App\Extension\FilterRegistry`): `operator.tabs`,
 `operator.module_tabs`, `operator.can_logout`, `import.entities`.

@@ -36,6 +36,12 @@ class AuthController extends Controller
         return Inertia::render('auth/Login', [
             'pinEnabled' => $pinEnabled,
             'regEnabled' => $regEnabled,
+            // What a module adds around the form: above it and below it. No
+            // context, because nobody is signed in yet. `{}` when none.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany([
+                'display.auth.login.before',
+                'display.auth.login.after',
+            ]),
         ]);
     }
 

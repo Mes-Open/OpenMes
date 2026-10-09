@@ -9,6 +9,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module can now add to the sign-in page.** A module with something to say before
+  anybody is signed in — which installation this is, a link to single sign-on or to a
+  forgotten password — had one way to say it: replace the page, form and all, and then
+  follow every change core made to signing in. Display hooks `display.auth.login.before`
+  and `display.auth.login.after` are rendered above and below the form, which stays core's
+  own. They are resolved without a user, since there is none yet, and with no module
+  listening they are `{}` and render nothing.
 - **A module can now say something on every admin screen.** The operator panel has had a
   layout hook since the workstation seams went in; the admin layout had none, so a module with
   news for an administrator — a licence about to lapse, a maintenance window — could only put
