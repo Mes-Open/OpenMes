@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import DueCountdown from '../../../components/DueCountdown';
+import PageTrail from '../../../components/PageTrail';
 import { __ } from '../../../lib/i18n';
 import { loadBarClass, loadPercClass } from '../../../lib/load';
 import { apiCall, apiGet } from '../../../lib/http';
@@ -157,6 +158,7 @@ export default function Capacity() {
     return (
         <AppLayout>
             <Head title={__('Schedule Capacity')} />
+            <PageTrail append={[{ label: __('Capacity') }]} />
 
             <div className="p-4 space-y-4">
                 {/* Header */}

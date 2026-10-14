@@ -44,6 +44,14 @@ export function changeoverRuleFields({ attributes = [], workstationTypes = [], w
     ];
 }
 
+/** Where the rule pages sit under Schedule — the sidebar has one entry for all of it. */
+export function changeoverTrail({ withList = true } = {}) {
+    return [
+        { label: __('Automatic scheduling'), href: '/admin/schedule/auto', icon: 'calendar-cog' },
+        ...(withList ? [{ label: __('Changeover Rules'), href: '/admin/schedule/changeover-rules', icon: 'repeat' }] : []),
+    ];
+}
+
 /** A record as form values, and with no record an empty form. */
 export function changeoverRuleInitial(record) {
     if (!record) {

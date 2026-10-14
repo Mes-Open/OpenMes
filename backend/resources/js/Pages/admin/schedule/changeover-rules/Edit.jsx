@@ -1,7 +1,8 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import ResourceForm from '../../../../components/ResourceForm';
-import { changeoverRuleFields, changeoverRuleInitial } from './fields';
+import PageTrail from '../../../../components/PageTrail';
+import { changeoverRuleFields, changeoverRuleInitial, changeoverTrail } from './fields';
 import { __ } from '../../../../lib/i18n';
 
 export default function ChangeoverRuleEdit() {
@@ -10,6 +11,7 @@ export default function ChangeoverRuleEdit() {
     return (
         <>
             <Head title={__('Edit Changeover Rule')} />
+            <PageTrail append={[...changeoverTrail(), { label: __('Edit Changeover Rule') }]} />
             <ResourceForm
                 title={__('Edit Changeover Rule')}
                 action={`/admin/schedule/changeover-rules/${props.rule.id}`}

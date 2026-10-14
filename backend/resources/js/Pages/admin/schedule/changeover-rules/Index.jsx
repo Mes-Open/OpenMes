@@ -1,12 +1,15 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import AppLayout from '../../../../layouts/AppLayout';
+import { useContext } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout, { PageTitleContext } from '../../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../../components/ResourceFormDrawer';
-import { changeoverRuleFields, changeoverRuleInitial } from './fields';
+import { changeoverRuleFields, changeoverRuleInitial, changeoverTrail } from './fields';
 import { __ } from '../../../../lib/i18n';
 
 export default function ChangeoverRulesIndex() {
     const drawer = useResourceDrawer();
+    // The sidebar knows this only as "Schedule"; the list adds where it really sits.
+    const { navTrail = [] } = useContext(PageTitleContext);
     const props = usePage().props;
     const { attributes = [], workstationTypes = [], workstations = [] } = props;
 
@@ -59,12 +62,11 @@ export default function ChangeoverRulesIndex() {
     return (
         <>
             <Head title={__('Changeover Rules')} />
-            <div className="px-4 pt-4 text-xs">
-                <Link href="/admin/schedule/auto" className="text-om-accent hover:underline">&larr; {__('Automatic scheduling')}</Link>
-            </div>
             <ResourceTable
                 shape="changeover_rules"
                 title={__('Changeover Rules')}
+                titleIcon="repeat"
+                breadcrumbs={[...navTrail, ...changeoverTrail({ withList: false })]}
                 createHref="/admin/schedule/changeover-rules/create"
                 onCreate={drawer.create}
                 createLabel={__('New Rule')}

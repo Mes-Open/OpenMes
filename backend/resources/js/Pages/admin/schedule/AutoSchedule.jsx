@@ -4,6 +4,7 @@ import { Button, Checkbox, Dropdown, Icon, InlineAlert, StatusPill } from '@open
 import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import Tooltip from '../../../components/Tooltip';
+import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
 import { __, formatDate, formatNumber } from '../../../lib/i18n';
 
@@ -587,6 +588,7 @@ export default function AutoSchedule() {
     return (
         <>
             <Head title={__('Automatic scheduling')} />
+            <PageTrail append={[{ label: __('Automatic scheduling') }]} />
 
             <div className="space-y-5 p-4 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
