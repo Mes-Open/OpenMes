@@ -7012,7 +7012,6 @@
     "Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.": "Zaplanowana praca, zmiany, konserwacje lub reguły przezbrojeń zmieniły się po wygenerowaniu tego harmonogramu. Wygeneruj go ponownie.",
     ":m min": ":m min",
     ":material: :missing :unit missing (needs :required, :available in stock)": ":material: brakuje :missing :unit (potrzeba :required, na stanie :available)",
-    "Plan ends": "Koniec planu",
     "incl. :time changeover": "w tym :time przezbrojenia",
     "incl. :time set-up": "w tym :time przygotowania",
     "simulation ready for review": "symulacja do przejrzenia",

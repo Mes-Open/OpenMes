@@ -7012,7 +7012,6 @@
     "Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.": "Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.",
     ":m min": ":m min",
     ":material: :missing :unit missing (needs :required, :available in stock)": ":material: :missing :unit missing (needs :required, :available in stock)",
-    "Plan ends": "Plan ends",
     "incl. :time changeover": "incl. :time changeover",
     "incl. :time set-up": "incl. :time set-up",
     "simulation ready for review": "simulation ready for review",
