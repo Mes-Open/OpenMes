@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-14
+
 ### Added
 
 - **Finite-capacity scheduling.** Until now the planner showed overload but left every
@@ -28,6 +30,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   be placed carries a machine-readable reason. The capacity view now shows calendar capacity
   beside effective capacity. Drag & drop is unchanged. See
   `docs/finite-capacity-scheduling.md`.
+
+## [0.26.1] - 2026-10-14
 
 ### Fixed
 
