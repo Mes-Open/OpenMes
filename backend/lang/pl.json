@@ -7029,5 +7029,7 @@
     "12 weeks": "12 tygodni",
     ":days days": ":days dni",
     "Take into account": "Uwzględniaj",
-    "Operator availability": "Dostępność operatorów"
+    "Operator availability": "Dostępność operatorów",
+    "Capacity axis": "Oś wykorzystania",
+    "Granularity": "Szczegółowość"
 }

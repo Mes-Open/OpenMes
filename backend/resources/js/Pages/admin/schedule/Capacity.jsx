@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Button, Dropdown, Icon, SegmentedControl } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import AppDatePicker from '../../../components/AppDatePicker';
 import DueCountdown from '../../../components/DueCountdown';
 import PageTrail from '../../../components/PageTrail';
 import { __ } from '../../../lib/i18n';
 import { loadBarClass, loadPercClass } from '../../../lib/load';
 import { apiCall, apiGet } from '../../../lib/http';
+
+const NAV_LINK = 'inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold text-om-ink hover:bg-om-chip';
 
 // ─── Drill-down row: a single work order with inline reschedule ──────────────
 
@@ -65,39 +69,28 @@ function OrderRow({ order, lines, onSaved }) {
                 </div>
             ) : (
                 <div className="flex items-end gap-2 flex-wrap">
-                    <label className="text-[10px] text-om-muted">
-                        {__('Line')}
-                        <select
-                            value={lineId}
-                            onChange={(e) => setLineId(e.target.value)}
-                            className="block mt-0.5 text-xs border border-om-line rounded-om-sm px-1.5 py-1 bg-om-panel"
-                        >
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>{l.name}</option>
-                            ))}
-                        </select>
-                    </label>
+                    <div className="min-w-[160px]">
+                        <div className="mb-1 text-[10px] text-om-muted">{__('Line')}</div>
+                        <Dropdown
+                            size="sm"
+                            className="w-full"
+                            options={lines.map((l) => ({ value: String(l.id), label: l.name }))}
+                            value={String(lineId)}
+                            onChange={setLineId}
+                            aria-label={__('Line')}
+                        />
+                    </div>
                     <label className="text-[10px] text-om-muted">
                         {/* The countdown reads the value being edited, not the
                             saved one, so a date typed here answers "how much room
                             does that leave?" before Move is pressed. */}
                         {__('Due date')}
                         {dueDate && <DueCountdown due={dueDate} className="ml-1.5" />}
-                        <input
-                            type="date"
-                            value={dueDate ?? ''}
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="block mt-0.5 text-xs border border-om-line rounded-om-sm px-1.5 py-1 bg-om-panel"
-                        />
+                        <AppDatePicker className="mt-1 w-[170px]" value={dueDate || null} onChange={(d) => setDueDate(d ?? '')} aria-label={__('Due date')} />
                     </label>
-                    <button
-                        type="button"
-                        disabled={!dirty || saving}
-                        onClick={save}
-                        className={`text-xs px-2 py-1 rounded-om-sm ${dirty && !saving ? 'bg-om-ink text-om-on-ink' : 'bg-om-line2 text-om-muted'}`}
-                    >
+                    <Button size="sm" disabled={!dirty || saving} onClick={save}>
                         {saving ? __('Saving…') : __('Move')}
-                    </button>
+                    </Button>
                 </div>
             )}
             {error && <div className="text-[11px] text-om-blocked">{error}</div>}
@@ -160,41 +153,46 @@ export default function Capacity() {
             <Head title={__('Schedule Capacity')} />
             <PageTrail append={[{ label: __('Capacity') }]} />
 
-            <div className="p-4 space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-lg font-bold text-om-ink">{__('Schedule Capacity')}</h1>
-                        <Link href="/admin/schedule" className="text-xs text-om-accent hover:underline">
-                            {__('Planner')} &rarr;
-                        </Link>
-                        <Link href="/admin/schedule/auto" className="text-xs text-om-accent hover:underline">
-                            {__('Automatic scheduling')} &rarr;
-                        </Link>
+            <div className="p-4 sm:p-6 space-y-4">
+                {/* Header — same anatomy as the planner and automatic scheduling */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-om-faint">
+                            {__('Schedule')} · {{ line: __('Line'), crew: __('Crew'), workstation: __('Workstation') }[axis]}
+                        </div>
+                        <h2 className="m-0 text-[24px] font-semibold tracking-[-0.022em] text-om-ink">{__('Schedule Capacity')}</h2>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link href="/admin/schedule" className={NAV_LINK}><Icon name="calendar-range" size={14} />{__('Planner')}</Link>
+                        <Link href="/admin/schedule/auto" className={NAV_LINK}><Icon name="calendar-cog" size={14} />{__('Automatic scheduling')}</Link>
+                    </div>
+                </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="inline-flex rounded-om-sm border border-om-line overflow-hidden">
-                            <button type="button" onClick={() => setAxis('line')} className={`px-3 py-1 text-xs ${axis === 'line' ? 'bg-om-ink text-om-on-ink' : 'bg-om-panel text-om-muted'}`}>
-                                {__('Line')}
-                            </button>
-                            <button type="button" onClick={() => setAxis('crew')} className={`px-3 py-1 text-xs ${axis === 'crew' ? 'bg-om-ink text-om-on-ink' : 'bg-om-panel text-om-muted'}`}>
-                                {__('Crew')}
-                            </button>
-                            <button type="button" onClick={() => setAxis('workstation')} className={`px-3 py-1 text-xs ${axis === 'workstation' ? 'bg-om-ink text-om-on-ink' : 'bg-om-panel text-om-muted'}`}>
-                                {__('Workstation')}
-                            </button>
-                        </div>
-                        <div className="inline-flex rounded-om-sm border border-om-line overflow-hidden">
-                            <button type="button" onClick={() => setGranularity('week')} className={`px-3 py-1 text-xs ${granularity === 'week' ? 'bg-om-ink text-om-on-ink' : 'bg-om-panel text-om-muted'}`}>
-                                {__('Weekly')}
-                            </button>
-                            <button type="button" onClick={() => setGranularity('day')} className={`px-3 py-1 text-xs ${granularity === 'day' ? 'bg-om-ink text-om-on-ink' : 'bg-om-panel text-om-muted'}`}>
-                                {__('Daily')}
-                            </button>
-                        </div>
-                        <button type="button" onClick={() => goTo(navPrev)} className="px-2 py-1 text-xs rounded-om-sm border border-om-line bg-om-panel">&larr;</button>
-                        <button type="button" onClick={() => goTo(navNext)} className="px-2 py-1 text-xs rounded-om-sm border border-om-line bg-om-panel">&rarr;</button>
+                <div className="flex flex-wrap items-center gap-3">
+                    <SegmentedControl
+                        label={__('Capacity axis')}
+                        className="w-full sm:w-[340px]"
+                        value={axis}
+                        onChange={setAxis}
+                        options={[
+                            { value: 'line', label: __('Line') },
+                            { value: 'crew', label: __('Crew') },
+                            { value: 'workstation', label: __('Workstation') },
+                        ]}
+                    />
+                    <SegmentedControl
+                        label={__('Granularity')}
+                        className="w-full sm:w-[220px]"
+                        value={granularity}
+                        onChange={setGranularity}
+                        options={[
+                            { value: 'week', label: __('Weekly') },
+                            { value: 'day', label: __('Daily') },
+                        ]}
+                    />
+                    <div className="flex items-center gap-1">
+                        <Button variant="outline" size="sm" className="p-2" onClick={() => goTo(navPrev)} aria-label={__('Previous')}><Icon name="chevron-left" size={16} /></Button>
+                        <Button variant="outline" size="sm" className="p-2" onClick={() => goTo(navNext)} aria-label={__('Next')}><Icon name="chevron-right" size={16} /></Button>
                     </div>
                 </div>
 

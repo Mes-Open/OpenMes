@@ -7142,5 +7142,7 @@
     "12 weeks": "12 tuần",
     ":days days": ":days ngày",
     "Take into account": "Tính đến",
-    "Operator availability": "Nhân sự sẵn có"
+    "Operator availability": "Nhân sự sẵn có",
+    "Capacity axis": "Trục công suất",
+    "Granularity": "Mức chi tiết"
 }
