@@ -23,7 +23,7 @@ export default function ProcessSegmentShow() {
     const usageCount = usingSteps.length;
 
     const handleDelete = () => {
-        confirm({ title: 'Delete this process segment?' }, () => {
+        confirm({ title: __('Delete this process segment?') }, () => {
             router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
         });
     };
@@ -32,13 +32,13 @@ export default function ProcessSegmentShow() {
         {
             id: 'product',
             accessorFn: (r) => r.product_type_name,
-            header: 'Product',
+            header: __('Product'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.product_type_name ?? '—'}</span>,
         },
         {
             id: 'template',
             accessorFn: (r) => r.template_name,
-            header: 'Template',
+            header: __('Template'),
             cell: ({ row }) => (
                 row.original.template_url ? (
                     <a href={row.original.template_url} className="text-om-accent hover:underline">
@@ -52,27 +52,27 @@ export default function ProcessSegmentShow() {
         {
             id: 'step_number',
             accessorKey: 'step_number',
-            header: 'Step #',
+            header: __('Step #'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="text-om-muted">{row.original.step_number}</span>,
         },
         {
             id: 'name',
             accessorKey: 'name',
-            header: 'Step name',
+            header: __('Step name'),
             cell: ({ row }) => <span className="text-om-ink">{row.original.name}</span>,
         },
         {
             id: 'workstation',
             accessorFn: (r) => r.workstation_name,
-            header: 'Workstation',
+            header: __('Workstation'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.workstation_name ?? '—'}</span>,
         },
     ], []);
 
     return (
         <>
-            <Head title={`Process Segment — ${segment.name}`} />
+            <Head title={`${__('Process Segment')} — ${segment.name}`} />
 
             <div className="max-w-5xl mx-auto">
                 {/* Header */}
@@ -81,12 +81,12 @@ export default function ProcessSegmentShow() {
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-sm text-om-muted">{segment.code}</span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColor}`}>
-                                {capitalize(segment.segment_type)}
+                                {__(capitalize(segment.segment_type))}
                             </span>
                             {segment.is_active ? (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">Active</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">{__('Active')}</span>
                             ) : (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-chip text-om-muted">Inactive</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-chip text-om-muted">{__('Inactive')}</span>
                             )}
                         </div>
                         <h1 className="text-3xl font-bold text-om-ink mt-1">{segment.name}</h1>
@@ -96,7 +96,7 @@ export default function ProcessSegmentShow() {
                     </div>
                     <div className="flex gap-2">
                         <a href={`/admin/process-segments/${segment.id}/edit`} className="btn-touch btn-secondary">
-                            Edit
+                            {__('Edit')}
                         </a>
                         <button
                             type="button"
@@ -104,7 +104,7 @@ export default function ProcessSegmentShow() {
                             disabled={usageCount > 0}
                             className={`btn-touch ${usageCount > 0 ? 'bg-om-chip text-om-faint cursor-not-allowed' : 'bg-om-blocked-bg text-om-blocked hover:bg-om-blocked-bg'}`}
                         >
-                            Delete
+                            {__('Delete')}
                         </button>
                     </div>
                 </div>
@@ -114,29 +114,29 @@ export default function ProcessSegmentShow() {
 
                         {/* Definition */}
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">Definition</h2>
+                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">{__('Definition')}</h2>
                             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide">Code</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Code')}</dt>
                                     <dd className="mt-1 font-mono text-om-ink">{segment.code}</dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide">Type</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Type')}</dt>
                                     <dd className="mt-1">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColor}`}>
-                                            {capitalize(segment.segment_type)}
+                                            {__(capitalize(segment.segment_type))}
                                         </span>
                                     </dd>
                                 </div>
                                 {segment.description && (
                                     <div className="sm:col-span-2">
-                                        <dt className="text-xs text-om-muted uppercase tracking-wide">Description</dt>
+                                        <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Description')}</dt>
                                         <dd className="mt-1 text-om-muted whitespace-pre-wrap">{segment.description}</dd>
                                     </div>
                                 )}
                                 {segment.standard_instruction && (
                                     <div className="sm:col-span-2">
-                                        <dt className="text-xs text-om-muted uppercase tracking-wide">Standard instruction</dt>
+                                        <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Standard instruction')}</dt>
                                         <dd className="mt-1 text-om-muted whitespace-pre-wrap p-3 bg-om-panel rounded">
                                             {segment.standard_instruction}
                                         </dd>
@@ -147,30 +147,30 @@ export default function ProcessSegmentShow() {
 
                         {/* Execution */}
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">Execution</h2>
+                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">{__('Execution')}</h2>
                             <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide">Workstation type</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Workstation type')}</dt>
                                     <dd className="mt-1 text-om-ink">{segment.workstation_type_name ?? '—'}</dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide">Estimated duration</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Estimated duration')}</dt>
                                     <dd className="mt-1 text-om-ink">
                                         {segment.estimated_duration_minutes != null
-                                            ? `${segment.estimated_duration_minutes} min`
+                                            ? `${segment.estimated_duration_minutes} ${__('min')}`
                                             : '—'}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide">Required operators</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide">{__('Required operators')}</dt>
                                     <dd className="mt-1 text-om-ink">{segment.required_operators}</dd>
                                 </div>
 
                                 <div className="sm:col-span-3">
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide mb-1">Required skills</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide mb-1">{__('Required skills')}</dt>
                                     <dd>
                                         {requiredSkills.length === 0 ? (
-                                            <span className="text-sm text-om-faint">— None —</span>
+                                            <span className="text-sm text-om-faint">{__('— None —')}</span>
                                         ) : (
                                             <div className="flex flex-wrap gap-1">
                                                 {requiredSkills.map((skill) => (
@@ -184,10 +184,10 @@ export default function ProcessSegmentShow() {
                                 </div>
 
                                 <div className="sm:col-span-3">
-                                    <dt className="text-xs text-om-muted uppercase tracking-wide mb-1">Parameters</dt>
+                                    <dt className="text-xs text-om-muted uppercase tracking-wide mb-1">{__('Parameters')}</dt>
                                     <dd>
                                         {!segment.parameters ? (
-                                            <span className="text-sm text-om-faint">— None —</span>
+                                            <span className="text-sm text-om-faint">{__('— None —')}</span>
                                         ) : (
                                             <pre className="text-xs bg-om-ink text-gray-100 p-3 rounded overflow-x-auto">
                                                 {JSON.stringify(segment.parameters, null, 2)}
@@ -200,8 +200,8 @@ export default function ProcessSegmentShow() {
 
                         {/* Usage */}
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-1">Usage</h2>
-                            <p className="text-xs text-om-muted mb-3">Template steps that reference this segment.</p>
+                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-1">{__('Usage')}</h2>
+                            <p className="text-xs text-om-muted mb-3">{__('Template steps that reference this segment.')}</p>
                             <AppDataTable
                                 data={usingSteps}
                                 columns={usageColumns}
@@ -216,24 +216,24 @@ export default function ProcessSegmentShow() {
                     {/* Metadata sidebar */}
                     <div className="space-y-4">
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-3">Metadata</h2>
+                            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-3">{__('Metadata')}</h2>
                             <ul className="space-y-2 text-sm">
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-om-muted">Used by</span>
-                                    <span className="font-medium text-om-ink">{usageCount} step(s)</span>
+                                    <span className="text-om-muted">{__('Used by')}</span>
+                                    <span className="font-medium text-om-ink">{usageCount} {__('step(s)')}</span>
                                 </li>
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-om-muted">Created</span>
+                                    <span className="text-om-muted">{__('Created')}</span>
                                     <span className="text-om-muted">{segment.created_at}</span>
                                 </li>
                                 {segment.created_by_name && (
                                     <li className="flex justify-between gap-2">
-                                        <span className="text-om-muted">Created by</span>
+                                        <span className="text-om-muted">{__('Created by')}</span>
                                         <span className="text-om-muted">{segment.created_by_name}</span>
                                     </li>
                                 )}
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-om-muted">Updated</span>
+                                    <span className="text-om-muted">{__('Updated')}</span>
                                     <span className="text-om-muted">{segment.updated_at}</span>
                                 </li>
                             </ul>

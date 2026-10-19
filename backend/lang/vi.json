@@ -7133,5 +7133,19 @@
     "Operator availability": "Nhân sự sẵn có",
     "Capacity axis": "Trục công suất",
     "Granularity": "Mức chi tiết",
-    "Every operation is scheduled on time.": "Mọi thao tác đều được lên lịch đúng hạn."
+    "Every operation is scheduled on time.": "Mọi thao tác đều được lên lịch đúng hạn.",
+    ":count entries shown (most recent first). Older entries beyond the 2 MB tail window are not displayed.": "Hiển thị :count mục (mới nhất trước). Các mục cũ hơn vượt quá phạm vi 2 MB cuối không được hiển thị.",
+    "Required Operators": "Người vận hành bắt buộc",
+    "Auto-generated": "Tự động tạo",
+    "Batch actions": "Thao tác hàng loạt",
+    "By product type": "Theo loại sản phẩm",
+    "Finished work orders": "Lệnh sản xuất đã hoàn thành",
+    "Linked work order": "Lệnh sản xuất liên kết",
+    "New Process Segment": "Phân đoạn quy trình mới",
+    "Transport": "Vận chuyển",
+    "Connection / Queue": "Kết nối / Hàng đợi",
+    "Command / Job": "Lệnh / Tác vụ",
+    "Hide payload": "Ẩn dữ liệu tải",
+    "Hide stack trace": "Ẩn dấu vết ngăn xếp",
+    "Hide output": "Ẩn đầu ra"
 }
