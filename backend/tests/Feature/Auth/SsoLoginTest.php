@@ -442,4 +442,19 @@ class SsoLoginTest extends TestCase
         $this->actingAs($user)->get('/auth/sso/redirect')->assertRedirect();
         Http::assertNothingSent();
     }
+
+    public function test_sso_round_trips_do_not_use_up_password_login_attempts(): void
+    {
+        $admin = User::factory()->create(['username' => 'plant-admin', 'password' => 'Password123!']);
+        $admin->assignRole('Admin');
+
+        // More SSO requests from one address than password login allows (10/min).
+        for ($i = 0; $i < 12; $i++) {
+            $this->get('/auth/sso/redirect')->assertRedirect();
+        }
+
+        $this->post('/login', ['username' => 'plant-admin', 'password' => 'Password123!'])
+            ->assertStatus(302);
+        $this->assertAuthenticatedAs($admin);
+    }
 }

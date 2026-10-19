@@ -118,10 +118,11 @@ test.afterAll(async () => {
   idp?.server.close();
 });
 
-test('issue #123: users sign in with the company identity provider (OpenID Connect SSO)', async ({ page, context }, testInfo) => {
+test('issue #123: users sign in with the company identity provider (OpenID Connect SSO)', async ({ browser, page, context }, testInfo) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1400, height: 1000 });
-  const shot = (name: string) => page.screenshot({ path: testInfo.outputPath(name), fullPage: true });
+  const shotOf = (p: typeof page, name: string) => p.screenshot({ path: testInfo.outputPath(name), fullPage: true });
+  const shot = (name: string) => shotOf(page, name);
 
   // --- Admin signs in with a password and gets past the first-run screen.
   await context.clearCookies();
@@ -160,38 +161,37 @@ test('issue #123: users sign in with the company identity provider (OpenID Conne
   await expect(page.getByText('A secret is stored. Leave empty to keep it.')).toBeVisible();
   await shot('03-sso-settings-saved.png');
 
-  // --- Signed out: the login screen offers "Sign in with Plant Keycloak".
-  await context.clearCookies();
-  await page.goto('/login');
-  const ssoButton = page.getByTestId('sso-login');
+  // --- A colleague on another computer (a separate browser, no session):
+  //     the login screen offers "Sign in with Plant Keycloak". The admin
+  //     stays signed in in the first browser.
+  const userContext = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    viewport: { width: 1400, height: 1000 },
+  });
+  const userPage = await userContext.newPage();
+  await userPage.goto('/login');
+  const ssoButton = userPage.getByTestId('sso-login');
   await expect(ssoButton).toHaveText(/Sign in with Plant Keycloak/);
-  await shot('04-login-with-sso-button.png');
+  await shotOf(userPage, '04-login-with-sso-button.png');
 
   // --- The browser goes to the identity provider's own login page.
   await ssoButton.click();
-  await page.waitForURL((url) => url.href.startsWith(idp.issuer));
-  await expect(page.getByText('Plant Identity Provider')).toBeVisible();
-  await shot('05-identity-provider-login.png');
+  await userPage.waitForURL((url) => url.href.startsWith(idp.issuer));
+  await expect(userPage.getByText('Plant Identity Provider')).toBeVisible();
+  await shotOf(userPage, '05-identity-provider-login.png');
 
   // --- Back in OpenMES, signed in as a newly provisioned account.
   await Promise.all([
-    page.waitForURL((url) => url.pathname.startsWith('/operator')),
-    page.click('#idp-submit'),
+    userPage.waitForURL((url) => url.pathname.startsWith('/operator')),
+    userPage.click('#idp-submit'),
   ]);
-  await page.waitForLoadState('networkidle');
-  expect(page.url()).not.toContain('/login');
-  expect(page.url()).toContain('/operator/select-line');
-  await shot('06-signed-in-via-sso.png');
+  await userPage.waitForLoadState('networkidle');
+  expect(userPage.url()).toContain('/operator/select-line');
+  await expect(userPage.getByText('Jane Doe')).toBeVisible();
+  await shotOf(userPage, '06-signed-in-via-sso.png');
+  await userContext.close();
 
   // --- The admin sees the account the first SSO sign-in created.
-  await context.clearCookies();
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN);
-  await page.fill('input[name="password"]', PASS);
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login')),
-    page.click('button[type="submit"]'),
-  ]);
   await page.goto('/admin/users');
   await page.waitForLoadState('networkidle');
   await expect(page.getByText('jane.doe@plant.example').first()).toBeVisible({ timeout: 15_000 });

@@ -162,8 +162,10 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
     // Single sign-on through the company's OpenID Connect provider (#123).
-    Route::get('/auth/sso/redirect', [\App\Http\Controllers\Web\SsoController::class, 'redirect'])->name('sso.redirect')->middleware('throttle:20,1');
-    Route::get('/auth/sso/callback', [\App\Http\Controllers\Web\SsoController::class, 'callback'])->name('sso.callback')->middleware('throttle:20,1');
+    // Own throttle prefix: un-prefixed limits share one per-IP counter, so SSO
+    // round trips would otherwise use up the password-login attempts.
+    Route::get('/auth/sso/redirect', [\App\Http\Controllers\Web\SsoController::class, 'redirect'])->name('sso.redirect')->middleware('throttle:20,1,sso');
+    Route::get('/auth/sso/callback', [\App\Http\Controllers\Web\SsoController::class, 'callback'])->name('sso.callback')->middleware('throttle:20,1,sso');
 });
 
 // 2FA challenge routes (no auth middleware — user is mid-login)
