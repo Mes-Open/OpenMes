@@ -106,6 +106,8 @@ class ConfigurationImporter
         'modules_enabled',
         // Switched only on its own form, with its own checks.
         'production_flow_mode',
+        // Where logins go, and a client secret: never from a file.
+        'sso_oidc',
     ];
 
     private const SKIP_COLUMNS = ['id', 'created_at', 'updated_at', 'tenant_id', 'deleted_at', 'deleted_by_id'];

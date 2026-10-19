@@ -161,6 +161,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login/pin', [AuthController::class, 'loginWithPin'])->name('login.pin')->middleware('throttle:5,1');
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
+    // Single sign-on through the company's OpenID Connect provider (#123).
+    Route::get('/auth/sso/redirect', [\App\Http\Controllers\Web\SsoController::class, 'redirect'])->name('sso.redirect')->middleware('throttle:20,1');
+    Route::get('/auth/sso/callback', [\App\Http\Controllers\Web\SsoController::class, 'callback'])->name('sso.callback')->middleware('throttle:20,1');
 });
 
 // 2FA challenge routes (no auth middleware — user is mid-login)
@@ -245,6 +248,9 @@ Route::middleware('auth')->group(function () {
         // Admin-only role × tab access matrix
         Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
         Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');
+        // Admin-only single sign-on (OpenID Connect) configuration
+        Route::get('/sso', [\App\Http\Controllers\Web\SsoSettingsController::class, 'show'])->name('sso')->middleware('role:Admin');
+        Route::post('/sso', [\App\Http\Controllers\Web\SsoSettingsController::class, 'update'])->name('update-sso')->middleware('role:Admin');
     });
 
     // Legacy change password route (redirect to settings)
