@@ -7,6 +7,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Single sign-on with your company identity provider (OpenID Connect).** People can now
+  sign in with the account they already use at work. This works with Keycloak, Microsoft
+  Entra ID / ADFS, Google Workspace, Authentik, Okta, or any other standard OpenID Connect
+  provider, including one that is only reachable inside the plant network. Set it up under
+  *Settings → Single Sign-On*: enter the issuer URL, the client ID and the client secret,
+  and register the redirect URI shown on that page with your provider. The login screen
+  then shows a **Sign in with …** button. Password sign-in stays available alongside it.
+  - Uses the authorization-code flow with PKCE, state and nonce. OpenMES checks the ID
+    token's signature against the provider's published keys (RS256/384/512, or HS256 with
+    the client secret) and checks its issuer, audience and expiry. Unsigned tokens are
+    rejected.
+  - Accounts are matched by the provider's stable user ID, never by username. On the first
+    SSO sign-in, an existing account with the same verified email can be linked to that
+    identity (optional). New accounts can be created automatically with a role of your
+    choice (any role except Admin). You can limit SSO to certain email domains.
+  - If a user has turned on two-factor authentication in OpenMES, SSO sign-in still asks for
+    the code. Failed SSO sign-ins are recorded in the audit log.
+  - The client secret is stored encrypted and is never sent to the browser. The SSO setup
+    is not included in configuration export and import. (#123)
+
 ## [0.27.0] - 2026-10-14
 
 ### Added

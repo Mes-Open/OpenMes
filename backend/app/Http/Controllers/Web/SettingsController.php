@@ -677,7 +677,11 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // Without the single sign-on connection: it carries a client secret
+            // and decides where every login goes, so it stays on this installation.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\SsoSettings::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.

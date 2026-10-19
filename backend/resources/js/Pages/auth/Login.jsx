@@ -11,15 +11,17 @@ import { __ } from '../../lib/i18n';
  * Props (from AuthController::showLoginForm):
  *   pinEnabled  (bool) — show the Password / Quick PIN tab switcher
  *   regEnabled  (bool) — show "Create account" link
+ *   sso         ({name}|null) — show "Sign in with {name}" (single sign-on, OpenID Connect)
  *   hooks       (object) — what modules contributed to `display.auth.login.before`
  *                          (above the form) and `display.auth.login.after` (below it)
  *
  * POST /login   → AuthController::login  (password auth)
  * POST /login/pin → AuthController::loginWithPin  (PIN auth)
+ * GET  /auth/sso/redirect → SsoController::redirect (full page load: it leaves for the identity provider)
  *
  * Geist White restyle: light-only v1 — @openmes/ui fields/buttons, om-* tokens.
  */
-export default function Login({ pinEnabled = false, regEnabled = false, hooks = {} }) {
+export default function Login({ pinEnabled = false, regEnabled = false, sso = null, hooks = {} }) {
     const [tab, setTab] = useState('password');
 
     const passwordForm = useForm({
@@ -57,6 +59,28 @@ export default function Login({ pinEnabled = false, regEnabled = false, hooks = 
             <Hook name="display.auth.login.before" hooks={hooks} />
 
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-6 text-center">{__('Sign in')}</h2>
+
+            {/* Single sign-on — a plain link, not an Inertia visit: the browser
+                has to leave for the identity provider's own login page. */}
+            {sso && (
+                <>
+                    <a
+                        href="/auth/sso/redirect"
+                        data-testid="sso-login"
+                        className="flex w-full items-center justify-center gap-2 rounded-om-sm border border-om-line bg-om-card px-4 py-2.5 text-sm font-medium text-om-ink transition-colors hover:border-om-faint hover:bg-om-chip"
+                    >
+                        <svg className="w-4 h-4 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        {__('Sign in with :name', { name: sso.name })}
+                    </a>
+                    <div className="my-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.08em] text-om-faint">
+                        <span className="h-px flex-1 bg-om-line" />
+                        {__('or')}
+                        <span className="h-px flex-1 bg-om-line" />
+                    </div>
+                </>
+            )}
 
             {/* Tab switcher — only when PIN login is enabled */}
             {pinEnabled && (

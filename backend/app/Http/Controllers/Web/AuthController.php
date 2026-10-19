@@ -36,6 +36,10 @@ class AuthController extends Controller
         return Inertia::render('auth/Login', [
             'pinEnabled' => $pinEnabled,
             'regEnabled' => $regEnabled,
+            // The "Sign in with …" button, when single sign-on is configured.
+            'sso' => \App\Support\SsoSettings::enabled()
+                ? ['name' => \App\Support\SsoSettings::all()['provider_name']]
+                : null,
             // What a module adds around the form: above it and below it. No
             // context, because nobody is signed in yet. `{}` when none.
             'hooks' => app(\App\Extension\HookRegistry::class)->renderMany([
@@ -191,9 +195,10 @@ class AuthController extends Controller
     }
 
     /**
-     * Redirect user to appropriate dashboard based on their role.
+     * Redirect user to appropriate dashboard based on their role. Public so
+     * the single sign-on callback lands people in the same place.
      */
-    protected function redirectToDashboard()
+    public function redirectToDashboard()
     {
         $user = auth()->user();
 
