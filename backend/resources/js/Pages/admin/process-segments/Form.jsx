@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { nameControl } from '../../../lib/fieldName';
+import { __ } from '../../../lib/i18n';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -39,7 +40,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
 
             <Field label="Segment Type" error={errors.segment_type} required>
                 <Dropdown
-                    options={segmentTypes.map((t) => ({ value: String(t), label: cap(t) }))}
+                    options={segmentTypes.map((t) => ({ value: String(t), label: __(cap(t)) }))}
                     value={data.segment_type == null ? '' : String(data.segment_type)}
                     onChange={(v) => setData('segment_type', v)}
                     className="w-full"
@@ -51,7 +52,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                     options={workstationTypes.map((w) => ({ value: String(w.id), label: w.name }))}
                     value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
                     onChange={(v) => setData('workstation_type_id', v)}
-                    placeholder="— None —"
+                    placeholder={__('— None —')}
                     className="w-full"
                 />
             </Field>
@@ -64,14 +65,14 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                 <input type="number" value={data.required_operators ?? ''} onChange={(e) => setData('required_operators', e.target.value)} className="form-input w-full" />
             </Field>
 
-            <Field label="Standard Instruction" error={errors.standard_instruction}>
+            <Field label="Standard instruction" error={errors.standard_instruction}>
                 <textarea value={data.standard_instruction ?? ''} onChange={(e) => setData('standard_instruction', e.target.value)} rows={3} className="form-input w-full" />
             </Field>
 
             <div>
-                <div className="block text-sm font-medium text-om-muted mb-2">Required skills</div>
+                <div className="block text-sm font-medium text-om-muted mb-2">{__('Required skills')}</div>
                 <div className="border border-om-line2 rounded-om-sm divide-y">
-                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">No skills defined.</p>}
+                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">{__('No skills defined.')}</p>}
                     {skills.map((skill) => (
                         <div key={skill.id} className="flex items-center gap-2 px-3 py-2 text-sm text-om-muted">
                             <Checkbox checked={selected.has(Number(skill.id))} onChange={(next) => toggleSkill(skill.id, next)} label={skill.name} />
@@ -92,9 +93,9 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
 
             <div className="flex items-center gap-3 pt-2">
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>
-                    {processing ? 'Saving…' : submitLabel}
+                    {processing ? __('Saving…') : __(submitLabel)}
                 </Button>
-                <Link href="/admin/process-segments" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
+                <Link href="/admin/process-segments" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );
@@ -104,9 +105,9 @@ function Field({ label, error, required, children }) {
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
-                {label} {required && <span className="text-om-blocked">*</span>}
+                {__(label)} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(children, __(label))}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

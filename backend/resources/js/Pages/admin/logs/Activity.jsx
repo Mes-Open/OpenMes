@@ -334,71 +334,71 @@ export default function Activity() {
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">From</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('From')}</div>
                             <AppDatePicker
-                                aria-label="From"
+                                aria-label={__('From')}
                                 value={form.from || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">To</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('To')}</div>
                             <AppDatePicker
-                                aria-label="To"
+                                aria-label={__('To')}
                                 value={form.to || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">User</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('User')}</div>
                             <Dropdown
-                                aria-label="User"
+                                aria-label={__('User')}
                                 value={form.user_id == null ? '' : String(form.user_id)}
                                 onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
                                 options={[
-                                    { value: '', label: 'All users' },
+                                    { value: '', label: __('All users') },
                                     ...users.map((u) => ({ value: String(u.id), label: u.name })),
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Source</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Source')}</div>
                             <Dropdown
-                                aria-label="Source"
+                                aria-label={__('Source')}
                                 value={form.source == null ? '' : String(form.source)}
                                 onChange={(v) => setForm((f) => ({ ...f, source: v }))}
                                 options={[
-                                    { value: '', label: 'All sources' },
-                                    { value: 'audit', label: 'Entity changes' },
-                                    { value: 'request', label: 'Navigation' },
+                                    { value: '', label: __('All sources') },
+                                    { value: 'audit', label: __('Entity changes') },
+                                    { value: 'request', label: __('Navigation') },
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Entity</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Entity')}</div>
                             <Dropdown
-                                aria-label="Entity"
+                                aria-label={__('Entity')}
                                 value={form.entity_type == null ? '' : String(form.entity_type)}
                                 onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
                                 options={[
-                                    { value: '', label: 'All entities' },
+                                    { value: '', label: __('All entities') },
                                     ...entityTypes.map((et) => ({ value: String(et), label: String(et).split('\\').pop() })),
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Action</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Action')}</div>
                             <Dropdown
-                                aria-label="Action"
+                                aria-label={__('Action')}
                                 value={form.action == null ? '' : String(form.action)}
                                 onChange={(v) => setForm((f) => ({ ...f, action: v }))}
                                 options={[
-                                    { value: '', label: 'All actions' },
+                                    { value: '', label: __('All actions') },
                                     ...actions.map((a) => ({ value: String(a), label: a })),
                                 ]}
                                 className="w-full"
@@ -411,20 +411,20 @@ export default function Activity() {
                             onClick={() => apply()}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                         >
-                            Apply
+                            {__('Apply')}
                         </button>
                         <button
                             type="button"
                             onClick={clear}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Clear
+                            {__('Clear')}
                         </button>
                         <a
                             href={exportUrl()}
                             className="sm:ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Export CSV
+                            {__('Export CSV')}
                         </a>
                     </div>
                 </div>

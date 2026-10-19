@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ProcessSegmentForm from './Form';
+import { __ } from '../../../lib/i18n';
 
 export default function ProcessSegmentEdit() {
     const { segment, parameters_raw = '', workstationTypes = [], skills = [], segmentTypes = [] } = usePage().props;
@@ -24,8 +25,8 @@ export default function ProcessSegmentEdit() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${segment.name}`} />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Process Segment</h1>
+            <Head title={`${__('Edit')} ${segment.name}`} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Process Segment')}</h1>
             <ProcessSegmentForm
                 form={form}
                 workstationTypes={workstationTypes}
