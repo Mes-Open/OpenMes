@@ -7142,5 +7142,10 @@
     "Finished work orders": "Lệnh sản xuất đã hoàn thành",
     "Linked work order": "Lệnh sản xuất liên kết",
     "New Process Segment": "Phân đoạn quy trình mới",
-    "Transport": "Vận chuyển"
+    "Transport": "Vận chuyển",
+    "Connection / Queue": "Kết nối / Hàng đợi",
+    "Command / Job": "Lệnh / Tác vụ",
+    "Hide payload": "Ẩn dữ liệu tải",
+    "Hide stack trace": "Ẩn dấu vết ngăn xếp",
+    "Hide output": "Ẩn đầu ra"
 }

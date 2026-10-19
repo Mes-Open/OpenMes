@@ -7030,5 +7030,10 @@
     "Finished work orders": "Finished work orders",
     "Linked work order": "Linked work order",
     "New Process Segment": "New Process Segment",
-    "Transport": "Transport"
+    "Transport": "Transport",
+    "Connection / Queue": "Connection / Queue",
+    "Command / Job": "Command / Job",
+    "Hide payload": "Hide payload",
+    "Hide stack trace": "Hide stack trace",
+    "Hide output": "Hide output"
 }

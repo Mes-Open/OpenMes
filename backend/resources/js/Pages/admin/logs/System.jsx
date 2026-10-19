@@ -266,7 +266,7 @@ function FailedJobsTab({ entries, missing }) {
         {
             id: 'id',
             accessorKey: 'id',
-            header: 'ID',
+            header: __('ID'),
             cell: ({ row }) => (
                 <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.id}</span>
             ),
@@ -274,7 +274,7 @@ function FailedJobsTab({ entries, missing }) {
         {
             id: 'connection',
             accessorKey: 'connection',
-            header: 'Connection',
+            header: __('Connection'),
             cell: ({ row }) => (
                 <span className="text-xs text-om-muted whitespace-nowrap">{row.original.connection}</span>
             ),
@@ -282,21 +282,21 @@ function FailedJobsTab({ entries, missing }) {
         {
             id: 'queue',
             accessorKey: 'queue',
-            header: 'Queue',
+            header: __('Queue'),
             cell: ({ row }) => (
                 <span className="text-xs text-om-muted whitespace-nowrap">{row.original.queue}</span>
             ),
         },
         {
             id: 'payload',
-            header: 'Payload',
+            header: __('Payload'),
             enableSorting: false,
             cell: ({ row }) => <FailedJobPayloadCell job={row.original} />,
         },
         {
             id: 'exception',
             accessorFn: (r) => r.exception,
-            header: 'Exception',
+            header: __('Exception'),
             enableSorting: false,
             meta: { flex: true },
             cell: ({ row }) => <FailedJobExceptionCell job={row.original} />,
@@ -304,14 +304,14 @@ function FailedJobsTab({ entries, missing }) {
         {
             id: 'failed_at',
             accessorKey: 'failed_at',
-            header: 'Failed at',
+            header: __('Failed at'),
             cell: ({ row }) => (
                 <span className="text-xs text-om-muted whitespace-nowrap font-mono">{row.original.failed_at}</span>
             ),
         },
         {
             id: 'actions',
-            header: 'Actions',
+            header: __('Actions'),
             enableSorting: false,
             cell: ({ row }) => (
                 <form method="POST" action={`/admin/logs/system/retry-failed-job/${row.original.uuid}`} className="inline">
@@ -320,7 +320,7 @@ function FailedJobsTab({ entries, missing }) {
                         type="submit"
                         className="px-3 py-1 text-xs rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                     >
-                        Retry
+                        {__('Retry')}
                     </button>
                 </form>
             ),
@@ -330,8 +330,8 @@ function FailedJobsTab({ entries, missing }) {
     if (missing) {
         return (
             <div className="rounded-om-sm border border-om-line bg-om-downtime-bg text-amber-900 p-5">
-                <p className="font-medium">Failed jobs table is missing.</p>
-                <p className="text-sm mt-1">Run the Laravel queue migrations to enable the failed_jobs table.</p>
+                <p className="font-medium">{__('Failed jobs table is missing.')}</p>
+                <p className="text-sm mt-1">{__('Run the Laravel queue migrations to enable the failed_jobs table.')}</p>
             </div>
         );
     }
@@ -359,7 +359,7 @@ function FailedJobPayloadCell({ job }) {
     return (
         <div className="text-xs text-om-muted">
             <button type="button" onClick={() => setShowPayload((v) => !v)} className="text-om-accent hover:underline">
-                {showPayload ? 'Hide payload' : 'View payload'}
+                {showPayload ? __('Hide payload') : __('View payload')}
             </button>
             {showPayload && (
                 <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
@@ -377,7 +377,7 @@ function FailedJobExceptionCell({ job }) {
         <div className="text-xs text-om-muted max-w-md">
             <div className="text-om-blocked break-words">{firstLine}</div>
             <button type="button" onClick={() => setShowTrace((v) => !v)} className="mt-1 text-om-accent hover:underline text-xs">
-                {showTrace ? 'Hide stack trace' : 'Show stack trace'}
+                {showTrace ? __('Hide stack trace') : __('Show stack trace')}
             </button>
             {showTrace && (
                 <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words text-om-muted">
@@ -402,14 +402,12 @@ function DeploymentsTab({ entries, missing }) {
     if (missing) {
         return (
             <div className="rounded-om-sm border border-om-line bg-om-chip text-om-ink p-5">
-                <p className="font-medium">Deployment audit log is not available on this build.</p>
+                <p className="font-medium">{__('Deployment audit log is not available on this build.')}</p>
                 <p className="text-sm mt-1">
-                    Deployments log requires v0.12+ schema (system_updates table). This table was introduced by the
-                    updater hardening work and has not been merged into this branch yet.
+                    {__('Deployments log requires v0.12+ schema (system_updates table). This table was introduced by the updater hardening work and has not been merged into this branch yet.')}
                 </p>
                 <p className="text-xs mt-2 text-om-accent">
-                    Once the system_updates migration lands, this tab will surface start/end timestamps, the upgraded
-                    version, success/failure status, and any error output from each deployment.
+                    {__('Once the system_updates migration lands, this tab will surface start/end timestamps, the upgraded version, success/failure status, and any error output from each deployment.')}
                 </p>
             </div>
         );
@@ -419,7 +417,7 @@ function DeploymentsTab({ entries, missing }) {
         {
             id: 'started_at',
             accessorKey: 'started_at',
-            header: 'Started',
+            header: __('Started'),
             cell: ({ row }) => (
                 <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.started_at ?? '—'}</span>
             ),
@@ -427,7 +425,7 @@ function DeploymentsTab({ entries, missing }) {
         {
             id: 'finished_at',
             accessorKey: 'finished_at',
-            header: 'Finished',
+            header: __('Finished'),
             cell: ({ row }) => (
                 <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.finished_at ?? '—'}</span>
             ),
@@ -435,7 +433,7 @@ function DeploymentsTab({ entries, missing }) {
         {
             id: 'version',
             accessorFn: (r) => `${r.from_version ?? ''} ${r.to_version ?? ''}`,
-            header: 'Version',
+            header: __('Version'),
             cell: ({ row }) => (
                 <span className="text-xs text-om-ink whitespace-nowrap font-mono">
                     {row.original.from_version ?? '—'} &rarr; {row.original.to_version ?? '—'}
@@ -445,7 +443,7 @@ function DeploymentsTab({ entries, missing }) {
         {
             id: 'status',
             accessorFn: (r) => r.state ?? 'unknown',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => {
                 const state = row.original.state ?? 'unknown';
                 const badgeCls = DEPLOYMENT_STATE_BADGE[state] ?? 'bg-om-chip text-om-muted';
@@ -498,7 +496,7 @@ function DeploymentOutputCell({ row }) {
             {row.error ? (
                 <>
                     <button type="button" onClick={() => setShowOutput((v) => !v)} className="text-om-accent hover:underline">
-                        {showOutput ? 'Hide output' : 'View output'}
+                        {showOutput ? __('Hide output') : __('View output')}
                     </button>
                     {showOutput && (
                         <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
@@ -530,12 +528,12 @@ export default function System() {
 
     return (
         <>
-            <Head title="System Logs" />
+            <Head title={__('System Logs')} />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">System Logs</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('System Logs')}</h1>
                     <p className="text-om-muted mt-1">
-                        Application errors, failed jobs, and deployment events — for diagnostics.
+                        {__('Application errors, failed jobs, and deployment events — for diagnostics.')}
                     </p>
                 </div>
 
@@ -552,7 +550,7 @@ export default function System() {
                                     : 'border-transparent text-om-muted hover:text-om-ink'
                             }`}
                         >
-                            {label}
+                            {__(label)}
                         </button>
                     ))}
                 </div>
