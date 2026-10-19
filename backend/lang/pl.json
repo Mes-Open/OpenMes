@@ -7066,5 +7066,20 @@
     "Which claim becomes the username of a new account, e.g. preferred_username or upn.": "Który claim staje się nazwą użytkownika nowego konta, np. preferred_username lub upn.",
     "Your account is not allowed to sign in to OpenMES.": "Twoje konto nie ma uprawnień do logowania w OpenMES.",
     "Your identity provider did not share a verified email address, so no account can be created.": "Dostawca tożsamości nie udostępnił zweryfikowanego adresu e-mail, więc nie można utworzyć konta.",
-    "Your sign-in attempt expired. Please try again.": "Próba logowania wygasła. Spróbuj ponownie."
+    "Your sign-in attempt expired. Please try again.": "Próba logowania wygasła. Spróbuj ponownie.",
+    ":count entries shown (most recent first). Older entries beyond the 2 MB tail window are not displayed.": ":count wpisów (najnowsze najpierw). Starsze wpisy spoza ostatnich 2 MB pliku nie są wyświetlane.",
+    "Segment Type": "Typ segmentu",
+    "Required Operators": "Wymagani operatorzy",
+    "Auto-generated": "Generowane automatycznie",
+    "Batch actions": "Akcje zbiorcze",
+    "By product type": "Według typu produktu",
+    "Finished work orders": "Zakończone zlecenia produkcyjne",
+    "Linked work order": "Powiązane zlecenie produkcyjne",
+    "New Process Segment": "Nowy segment procesu",
+    "Transport": "Transport",
+    "Connection / Queue": "Połączenie / Kolejka",
+    "Command / Job": "Polecenie / Zadanie",
+    "Hide payload": "Ukryj dane (payload)",
+    "Hide stack trace": "Ukryj stos wywołań",
+    "Hide output": "Ukryj wynik"
 }
