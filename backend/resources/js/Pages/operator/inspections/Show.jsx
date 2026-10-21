@@ -115,7 +115,7 @@ export default function InspectionShow() {
 
             {!pending && can.disposition && (
                 <section className="bg-om-card rounded-om-sm shadow-sm p-5 space-y-3">
-                    <h2 className="text-lg font-semibold text-om-ink">{__('Disposition')}</h2>
+                    <h2 className="text-lg font-semibold text-om-ink">{decided ? __('Change disposition') : __('Disposition')}</h2>
                     <textarea
                         aria-label={__('Disposition notes')}
                         placeholder={__('Disposition notes')}
