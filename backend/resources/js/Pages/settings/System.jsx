@@ -1,6 +1,6 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
@@ -256,7 +256,14 @@ export default function System() {
             || data.app_timezone !== settings.app_timezone;
         post('/settings/system', {
             onSuccess: () => {
-                if (needsReload) window.location.reload();
+                if (needsReload) {
+                    window.location.reload();
+                    return;
+                }
+                // Sidebar links prefetch pages and keep them for ~30s. A saved
+                // setting (e.g. the currency) changes what those pages render,
+                // so drop the cache or the next click shows the old values.
+                router.flushAll();
             },
         });
     }
