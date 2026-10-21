@@ -17,6 +17,15 @@ test('Quality inspector permission: grant to an operator, operator inspects, can
   await expect(page.getByText('Welcome to OpenMES')).toHaveCount(0, { timeout: 120_000 });
   await page.screenshot({ path: testInfo.outputPath('01-installed.png'), fullPage: true });
 
+  // Enable lot tracking so a released inspection creates a material lot
+  await page.getByRole('button', { name: /^Settings$/i }).click();
+  await page.getByRole('button', { name: 'System Settings' }).click();
+  await page.getByRole('link', { name: 'Production', exact: true }).last().click();
+  await page.getByText('Lot tracking of materials').locator('xpath=ancestor::div[2]').getByRole('switch').click();
+  await page.screenshot({ path: testInfo.outputPath('01b-lot-tracking.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForTimeout(1500);
+
   // Admin → Users → operator
   await page.getByRole('button', { name: /^Admin$/i }).click();
   await page.getByRole('link', { name: 'Users & Accounts' }).first().click();
@@ -55,6 +64,11 @@ test('Quality inspector permission: grant to an operator, operator inspects, can
   await expect(page.getByText('Inspection started.')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('09-inspection-started.png'), fullPage: true });
 
+  for (const c of ['Mill certificate', 'Diameter tolerance', 'Straightness', 'Surface defects']) {
+    await page.getByText(c).locator('xpath=ancestor::*[.//button[normalize-space()="Pass"]][1]').getByRole('button', { name: 'Pass', exact: true }).click();
+    await page.waitForTimeout(500);
+  }
+  await page.screenshot({ path: testInfo.outputPath('09b-results-recorded.png'), fullPage: true });
   await page.getByRole('button', { name: 'Complete inspection' }).click();
   await page.screenshot({ path: testInfo.outputPath('10-confirm.png'), fullPage: true });
   await page.getByRole('button', { name: 'Complete inspection' }).last().click();
@@ -63,4 +77,47 @@ test('Quality inspector permission: grant to an operator, operator inspects, can
   await expect(page.getByRole('button', { name: 'Quarantine' })).toHaveCount(0);
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('11-completed-no-disposition.png'), fullPage: true });
+
+  // Disposition side: admin also grants disposition, the operator accepts the lot
+  const logout = () => page.getByRole('button', { name: /log ?out|sign out/i }).or(page.getByRole('link', { name: /log ?out|sign out/i })).first().click();
+  const login = async (u: string, pw: string) => {
+    await page.getByLabel(/username/i).fill(u);
+    await page.getByLabel(/password/i).fill(pw);
+    await page.getByRole('button', { name: /sign in|log in|login/i }).click();
+  };
+  await logout();
+  await login(process.env.ADMIN_USERNAME!, process.env.ADMIN_PASSWORD!);
+  await page.getByRole('button', { name: /^Warehouses$/i }).click();
+  await page.getByRole('link', { name: 'Material Lots' }).first().click();
+  await expect(page.getByText('LOT-QA-001')).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('12-no-lot-yet.png'), fullPage: true });
+
+  await page.getByRole('button', { name: /^Admin$/i }).click();
+  await page.getByRole('link', { name: 'Users & Accounts' }).first().click();
+  await page.getByRole('row', { name: /Ewa Baran/ }).getByRole('link', { name: 'Edit' }).click();
+  await page.getByRole('checkbox', { name: 'Quality disposition' }).click();
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(page.getByText('Account updated successfully.')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('13-disposition-granted.png'), fullPage: true });
+  await logout();
+  await login('ewa.baran', 'Operator1!');
+  await page.getByText(/Inspection & Packing/).first().click();
+  await page.getByRole('link', { name: 'Inspections' }).click();
+  await expect(page.getByRole('heading', { name: 'Awaiting disposition' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('14-awaiting-list.png'), fullPage: true });
+  await page.getByText('LOT-QA-001').first().click();
+  await page.getByRole('button', { name: 'Accept', exact: true }).click();
+  const confirm = page.getByRole('button', { name: 'Accept', exact: true }).last();
+  if (await confirm.count() > 1) await confirm.click();
+  await expect(page.getByText('Disposition applied.')).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('15-disposition-applied.png'), fullPage: true });
+
+  await logout();
+  await login(process.env.ADMIN_USERNAME!, process.env.ADMIN_PASSWORD!);
+  await page.getByRole('button', { name: /^Warehouses$/i }).click();
+  await page.getByRole('link', { name: 'Material Lots' }).first().click();
+  await expect(page.getByRole('row', { name: /LOT-QA-001.*Released/ })).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('16-lot-released.png'), fullPage: true });
 });
