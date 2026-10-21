@@ -154,7 +154,8 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                         </div>
                     ) : (
                         <div>
-                            <div className="block text-sm font-medium text-om-muted mb-1">{__('Worker profile')}</div>
+                            {/* The section bar above already captions this; the
+                                group keeps an aria label of its own. */}
                             <RadioGroup
                                 label={__('Worker profile')}
                                 options={[

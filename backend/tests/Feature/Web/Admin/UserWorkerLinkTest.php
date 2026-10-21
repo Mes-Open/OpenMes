@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -258,6 +260,80 @@ class UserWorkerLinkTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['username' => 'jnowak']);
         $this->assertNotNull($linked->fresh()->worker_id);
+    }
+
+    public function test_editing_a_linked_account_leaves_the_hr_name_and_email_alone(): void
+    {
+        $worker = Worker::factory()->create(['code' => 'W-77', 'name' => 'Kowalska Anna', 'email' => 'anna.k@firma.pl']);
+        $user = User::factory()->create(['worker_id' => $worker->id]);
+
+        // What the edit form sends for a linked account: its own fields plus
+        // the worker fields it shows, prefilled.
+        $this->actingAs($this->admin())
+            ->put(route('admin.users.update', $user), $this->payload([
+                'name' => 'Ops Account',
+                'email' => 'ops@firma.pl',
+                'password' => '', 'password_confirmation' => '',
+                'worker_code' => 'W-77',
+                'worker_phone' => '555000111',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('workers', [
+            'id' => $worker->id,
+            'name' => 'Kowalska Anna',
+            'email' => 'anna.k@firma.pl',
+            'phone' => '555000111',
+        ]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Ops Account', 'email' => 'ops@firma.pl']);
+    }
+
+    public function test_a_concurrent_link_of_the_same_worker_is_a_validation_error(): void
+    {
+        $worker = Worker::factory()->create();
+        $user = User::factory()->create();
+        $rival = User::factory()->create();
+
+        // Another admin links the worker after this request passed validation,
+        // just before it writes.
+        User::updating(function (User $u) use ($user, $rival, $worker) {
+            if ($u->is($user) && $u->worker_id === $worker->id) {
+                DB::table('users')->where('id', $rival->id)->update(['worker_id' => $worker->id]);
+            }
+        });
+
+        $this->actingAs($this->admin())
+            ->putJson(route('admin.users.update', $user), $this->payload([
+                'password' => '', 'password_confirmation' => '',
+                'worker_id' => $worker->id,
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['worker_id' => 'This worker already has a user account.']);
+
+        $this->assertNull($user->fresh()->worker_id);
+    }
+
+    public function test_linking_and_unlinking_are_audited(): void
+    {
+        $worker = Worker::factory()->create();
+        $user = User::factory()->create();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), $this->payload([
+                'password' => '', 'password_confirmation' => '',
+                'worker_id' => $worker->id,
+            ]))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->delete(route('admin.users.worker.unlink', $user));
+
+        $entries = AuditLog::where('entity_type', User::class)->where('entity_id', $user->id)
+            ->orderBy('id')->get();
+        $this->assertSame(['worker_linked', 'worker_unlinked'], $entries->pluck('action')->all());
+        $this->assertSame($admin->id, $entries[0]->user_id);
+        $this->assertSame(['worker_id' => $worker->id], $entries[0]->after_state);
+        $this->assertSame(['worker_id' => $worker->id], $entries[1]->before_state);
+        $this->assertSame(['worker_id' => null], $entries[1]->after_state);
     }
 
     public function test_the_database_refuses_two_live_accounts_on_one_worker(): void

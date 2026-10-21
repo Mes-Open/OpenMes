@@ -12,6 +12,8 @@ export default function UsersIndex({ initiallyCreating = false }) {
     const drawer = useResourceDrawer();
     useEffect(() => { if (initiallyCreating) drawer.create(); }, [initiallyCreating]);
 
+    const workerCode = (r) => (r.worker_id != null ? (workerCodes[r.worker_id] ?? '—') : '—');
+
     const columns = [
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'username', label: __('Username'), className: 'font-mono text-om-muted' },
@@ -43,8 +45,8 @@ export default function UsersIndex({ initiallyCreating = false }) {
             key: 'worker_id',
             label: __('Worker'),
             className: 'font-mono text-om-muted',
-            value: (r) => (r.worker_id != null ? (workerCodes[r.worker_id] ?? '—') : '—'),
-            render: (r) => (r.worker_id != null ? (workerCodes[r.worker_id] ?? '—') : '—'),
+            value: workerCode,
+            render: workerCode,
         },
         { key: 'last_login_at', filter: 'date', label: __('Last Login'), className: 'text-om-muted', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
     ];

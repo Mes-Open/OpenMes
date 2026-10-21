@@ -6,11 +6,14 @@ use App\Extension\HookRegistry;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workstation;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
@@ -121,7 +124,7 @@ class UserManagementController extends Controller
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $validated) {
+        $this->guardWorkerLinkRace(fn () => DB::transaction(function () use ($request, $validated) {
             $user = User::create([
                 'name' => $validated['name'],
                 'username' => $validated['username'],
@@ -141,7 +144,7 @@ class UserManagementController extends Controller
             // Link a worker that already exists in HR; the worker row is HR's
             // and stays as it is.
             if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
-                $user->update(['worker_id' => (int) $validated['worker_id']]);
+                $this->linkWorker($user, (int) $validated['worker_id']);
             } elseif (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
                 // Create worker profile when code is provided and account is personal
                 $worker = Worker::create([
@@ -172,7 +175,7 @@ class UserManagementController extends Controller
                 'worker' => $user->worker,
                 'input' => $validated,
             ]);
-        });
+        }));
 
         return redirect()->route('admin.users.index')
             ->with('success', __('Account created successfully.'));
@@ -236,7 +239,7 @@ class UserManagementController extends Controller
             $updateData['password'] = Hash::make($validated['password']);
         }
 
-        DB::transaction(function () use ($request, $user, $validated, $updateData, $passwordChanged) {
+        $this->guardWorkerLinkRace(fn () => DB::transaction(function () use ($request, $user, $validated, $updateData, $passwordChanged) {
             $user->update($updateData);
 
             // An administrator setting somebody's password is almost always a
@@ -258,22 +261,30 @@ class UserManagementController extends Controller
             }
 
             if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
-                $user->update(['worker_id' => (int) $validated['worker_id']]);
+                if ((int) $validated['worker_id'] !== $user->worker_id) {
+                    $this->linkWorker($user, (int) $validated['worker_id']);
+                }
             } elseif ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
                 $workerData = [
                     'code' => $validated['worker_code'],
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
                     'phone' => $validated['worker_phone'] ?? null,
                     'crew_id' => $validated['worker_crew_id'] ?? null,
                     'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
                 ];
 
                 if ($user->worker) {
+                    // Only the fields this form shows. Name and email belong to
+                    // the worker record in HR — it may well predate the account
+                    // and have been linked to it — so editing the account must
+                    // not rename the person or replace their email there.
                     $user->worker->update($workerData);
                     $worker = $user->worker;
                 } else {
-                    $worker = Worker::create(array_merge($workerData, ['is_active' => true]));
+                    $worker = Worker::create(array_merge($workerData, [
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'is_active' => true,
+                    ]));
                     $user->update(['worker_id' => $worker->id]);
                 }
 
@@ -291,7 +302,7 @@ class UserManagementController extends Controller
                 'worker' => $user->fresh()->worker,
                 'input' => $validated,
             ]);
-        });
+        }));
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Account updated successfully.');
@@ -308,10 +319,64 @@ class UserManagementController extends Controller
                 ->with('error', __('This account has no worker profile.'));
         }
 
+        $workerId = $user->worker_id;
         $user->update(['worker_id' => null]);
+        $this->recordWorkerLink($user, 'worker_unlinked', $workerId, null);
 
         return redirect()->route('admin.users.edit', $user)
             ->with('success', __('Worker profile unlinked. The worker record was kept.'));
+    }
+
+    /**
+     * Point the account at an existing worker. The worker row is HR's and stays
+     * as it is; only the link changes, and that is recorded.
+     */
+    private function linkWorker(User $user, int $workerId): void
+    {
+        $previous = $user->worker_id;
+        $user->update(['worker_id' => $workerId]);
+        $this->recordWorkerLink($user, 'worker_linked', $previous, $workerId);
+    }
+
+    /**
+     * Linking decides whose actions a worker's records are attributed to, so
+     * every change goes to the audit log — ids only, no personal data.
+     */
+    private function recordWorkerLink(User $user, string $action, ?int $before, ?int $after): void
+    {
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'entity_type' => User::class,
+            'entity_id' => $user->id,
+            'action' => $action,
+            'before_state' => ['worker_id' => $before],
+            'after_state' => ['worker_id' => $after],
+        ]);
+    }
+
+    /**
+     * Two admins linking the same worker at once both pass validation; the
+     * partial unique index then refuses the second write. Report that as the
+     * same validation error the Form Request gives, not as a server error.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $write
+     * @return T
+     */
+    private function guardWorkerLinkRace(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException $e) {
+            if (! str_contains($e->getMessage(), 'worker_id')) {
+                throw $e;
+            }
+
+            throw ValidationException::withMessages([
+                'worker_id' => __('This worker already has a user account.'),
+            ]);
+        }
     }
 
     /**
