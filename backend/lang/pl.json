@@ -7020,5 +7020,20 @@
     "Operator availability": "Dostępność operatorów",
     "Capacity axis": "Widok według",
     "Granularity": "Szczegółowość",
-    "Every operation is scheduled on time.": "Wszystkie operacje są zaplanowane w terminie."
+    "Every operation is scheduled on time.": "Wszystkie operacje są zaplanowane w terminie.",
+    ":count entries shown (most recent first). Older entries beyond the 2 MB tail window are not displayed.": "Wyświetlono wpisy: :count (najnowsze najpierw). Starsze wpisy poza oknem ostatnich 2 MB nie są wyświetlane.",
+    "Segment Type": "Typ segmentu",
+    "Required Operators": "Wymagani operatorzy",
+    "Auto-generated": "Wygenerowano automatycznie",
+    "Batch actions": "Akcje zbiorcze",
+    "By product type": "Według typu produktu",
+    "Finished work orders": "Zakończone zlecenia produkcyjne",
+    "Linked work order": "Powiązane zlecenie produkcyjne",
+    "New Process Segment": "Nowy segment procesu",
+    "Transport": "Transport",
+    "Connection / Queue": "Połączenie / kolejka",
+    "Command / Job": "Polecenie / zadanie",
+    "Hide payload": "Ukryj dane",
+    "Hide stack trace": "Ukryj ślad stosu",
+    "Hide output": "Ukryj wynik"
 }
