@@ -94,12 +94,14 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                 <p className="mt-1 text-xs text-om-faint">{__('Hourly/weekly: rate per hour/week. Piece rate: amount per produced piece. Currency is set system-wide in Settings.')}</p>
             </div>
 
-            <Checkbox checked={!!data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active')} />
-            <Checkbox
-                checked={!!data.is_logistics}
-                onChange={(next) => setData('is_logistics', next)}
-                label={__('Logistics operator (can move pallets)')}
-            />
+            <div className="flex flex-col items-start gap-3">
+                <Checkbox checked={!!data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active')} />
+                <Checkbox
+                    checked={!!data.is_logistics}
+                    onChange={(next) => setData('is_logistics', next)}
+                    label={__('Logistics operator (can move pallets)')}
+                />
+            </div>
 
             <div>
                 <div className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1-5)')}</div>
@@ -110,7 +112,7 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                         const on = selectedSkills.has(id);
                         return (
                             <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                <Checkbox className="flex-1" checked={on} onChange={(next) => toggleSkill(skill.id, next)} label={skill.name} />
+                                <Checkbox className="flex-1 min-w-0" checked={on} onChange={(next) => toggleSkill(skill.id, next)} label={skill.name} />
                                 {on && (
                                     <Dropdown
                                         options={[1, 2, 3, 4, 5].map((l) => ({ value: String(l), label: String(l) }))}
