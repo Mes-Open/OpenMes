@@ -1,27 +1,53 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
 import { useState } from 'react';
 import { nameControl } from '../../../lib/fieldName';
 import ModuleFields from '../../../components/ModuleFields';
+import useConfirm from '../../../components/useConfirm';
 
 /**
  * Bespoke create/edit form for user accounts. Conditional on `account_type`:
  *  - 'user'        → role select + optional worker profile (crew/wage-group/skills matrix)
  *  - 'workstation' → workstation select (role auto-assigned Operator server-side)
  *
+ * The worker profile is either created here (`worker_code` and friends) or an
+ * existing HR worker without an account is linked (`worker_id`). An account
+ * that already has one shows it with an Unlink action instead of the chooser.
+ *
  * `form` is an Inertia useForm() instance. Non-optimistic write-through; the
  * password is confirmed (password + password_confirmation). On edit, leaving
  * password blank keeps the current one.
  */
-export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks, isEdit, onSubmit, bare = false, onCancel }) {
+export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks, isEdit, onSubmit, bare = false, onCancel, linkableWorkers = [], linkedWorker = null, userId = null }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
+    const { confirm, dialog } = useConfirm();
+
+    // 'create' a new worker profile or 'link' an existing one. Local only —
+    // the server tells the two apart by which of worker_code / worker_id is set.
+    const [workerMode, setWorkerMode] = useState(() => (data.worker_id ? 'link' : 'create'));
+    const chooseWorkerMode = (mode) => {
+        setWorkerMode(mode);
+        if (mode === 'link') {
+            setData((d) => ({ ...d, worker_code: '', worker_phone: '', worker_crew_id: '', worker_wage_group_id: '', skills: [] }));
+        } else {
+            setData('worker_id', '');
+        }
+    };
+
+    const unlinkWorker = () => confirm(
+        {
+            title: __('Unlink the worker profile from this account? The worker record stays in HR.'),
+            confirmLabel: __('Unlink worker profile'),
+        },
+        () => router.delete(`/admin/users/${userId}/worker`, { preserveScroll: true }),
+    );
 
     // Worker profile is optional and only relevant for shop-floor staff, so it
     // starts collapsed to keep the form focused — auto-expanded when editing an
     // account that already has a worker profile.
-    const [showWorker, setShowWorker] = useState(() => isEdit && !!data.worker_code);
+    const [showWorker, setShowWorker] = useState(() => isEdit && (!!data.worker_code || !!linkedWorker));
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
 
@@ -118,6 +144,51 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                     </button>
                     {showWorker && (
                 <div className="border-t border-om-line2 p-4 space-y-4">
+                    {linkedWorker ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <p className="text-sm text-om-ink">
+                                {__('Linked worker profile')}: <span className="font-medium">{linkedWorker.code} — {linkedWorker.name}</span>
+                            </p>
+                            <Link href={`/admin/workers/${linkedWorker.id}`} className="text-sm underline text-om-accent">{__('Open in HR')}</Link>
+                            <Button type="button" variant="outline" onClick={unlinkWorker}>{__('Unlink worker profile')}</Button>
+                        </div>
+                    ) : (
+                        <div>
+                            <div className="block text-sm font-medium text-om-muted mb-1">{__('Worker profile')}</div>
+                            <RadioGroup
+                                label={__('Worker profile')}
+                                options={[
+                                    { value: 'create', label: __('Create new profile') },
+                                    { value: 'link', label: __('Link existing worker') },
+                                ]}
+                                value={workerMode}
+                                onChange={chooseWorkerMode}
+                            />
+                        </div>
+                    )}
+                    {!linkedWorker && workerMode === 'link' ? (
+                        <>
+                            <p className="text-xs text-om-faint">{__('Only workers without a user account are listed. Linking does not change the worker record.')}</p>
+                            {linkableWorkers.length === 0 ? (
+                                <p className="text-sm text-om-faint">{__('No workers without an account.')}</p>
+                            ) : (
+                                <Field label={__('Worker')} error={errors.worker_id}>
+                                    <Dropdown
+                                        options={linkableWorkers.map((w) => ({ value: String(w.id), label: `${w.code} — ${w.name}` }))}
+                                        value={data.worker_id == null ? '' : String(data.worker_id)}
+                                        onChange={(v) => setData('worker_id', v)}
+                                        placeholder={__('— Select worker —')}
+                                        searchable
+                                        searchPlaceholder={__('Search…')}
+                                        noResultsLabel={__('No workers without an account.')}
+                                        className="w-full"
+                                    />
+                                </Field>
+                            )}
+                        </>
+                    ) : (
+                    <>
+                    {errors.worker_id && <p className="text-xs text-om-blocked">{errors.worker_id}</p>}
                     <p className="text-xs text-om-faint">{__('Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.')}</p>
                     <div className="grid grid-cols-2 gap-4">
                         <Field label={__('Worker Code')} error={errors.worker_code}>
@@ -172,6 +243,8 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                             })}
                         </div>
                     </div>
+                    </>
+                    )}
                 </div>
                     )}
                 </div>
@@ -191,6 +264,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                 </Button>
                 {onCancel ? <Button type="button" variant="outline" onClick={onCancel}>{__('Cancel')}</Button> : <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>}
             </div>
+            {dialog}
         </form>
     );
 }

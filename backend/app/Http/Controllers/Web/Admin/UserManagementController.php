@@ -31,6 +31,7 @@ class UserManagementController extends Controller
         return Inertia::render('admin/users/Index', [
             'userRoles' => $users->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
             'workstationNames' => Workstation::pluck('name', 'id'),
+            'workerCodes' => $this->linkedWorkerCodes(),
             'currentUserId' => auth()->id(),
             'formOptions' => Inertia::optional(fn () => $this->formData()),
         ]);
@@ -48,6 +49,7 @@ class UserManagementController extends Controller
             'currentUserId' => auth()->id(),
             'userRoles' => User::with('roles')->get(['id'])->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
             'workstationNames' => Workstation::pluck('name', 'id'),
+            'workerCodes' => $this->linkedWorkerCodes(),
         ]));
     }
 
@@ -98,7 +100,18 @@ class UserManagementController extends Controller
             'crews' => $this->workforce()->crewOptions(),
             'wageGroups' => $this->workforce()->wageGroupOptions(),
             'skills' => $this->workforce()->skillOptions(),
+            // Workers an account can be linked to: those without a live one.
+            'linkableWorkers' => Worker::whereDoesntHave('user')->orderBy('name')->get(['id', 'code', 'name']),
         ];
+    }
+
+    /**
+     * Worker codes of linked accounts, keyed by worker id, for the list's
+     * Worker column. The synced `users` rows carry only the id.
+     */
+    private function linkedWorkerCodes(): \Illuminate\Support\Collection
+    {
+        return Worker::whereIn('id', User::whereNotNull('worker_id')->select('worker_id'))->pluck('code', 'id');
     }
 
     /**
@@ -125,8 +138,12 @@ class UserManagementController extends Controller
                 $user->assignRole('Operator');
             }
 
-            // Create worker profile when code is provided and account is personal
-            if (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+            // Link a worker that already exists in HR; the worker row is HR's
+            // and stays as it is.
+            if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
+                $user->update(['worker_id' => (int) $validated['worker_id']]);
+            } elseif (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+                // Create worker profile when code is provided and account is personal
                 $worker = Worker::create([
                     'code' => $validated['worker_code'],
                     'name' => $validated['name'],
@@ -183,7 +200,9 @@ class UserManagementController extends Controller
                 'force_password_change' => (bool) $user->force_password_change,
                 'role' => $user->roles->pluck('name')->first(),
                 'worker' => $user->worker ? [
+                    'id' => $user->worker->id,
                     'code' => $user->worker->code,
+                    'name' => $user->worker->name,
                     'phone' => $user->worker->phone,
                     'crew_id' => $user->worker->crew_id,
                     'wage_group_id' => $user->worker->wage_group_id,
@@ -238,7 +257,9 @@ class UserManagementController extends Controller
                 $user->syncRoles([]);
             }
 
-            if ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
+            if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
+                $user->update(['worker_id' => (int) $validated['worker_id']]);
+            } elseif ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
                 $workerData = [
                     'code' => $validated['worker_code'],
                     'name' => $validated['name'],
@@ -274,6 +295,23 @@ class UserManagementController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Account updated successfully.');
+    }
+
+    /**
+     * Detach the worker profile from this account. The worker stays in HR,
+     * only without an account.
+     */
+    public function unlinkWorker(User $user)
+    {
+        if ($user->worker_id === null) {
+            return redirect()->route('admin.users.edit', $user)
+                ->with('error', __('This account has no worker profile.'));
+        }
+
+        $user->update(['worker_id' => null]);
+
+        return redirect()->route('admin.users.edit', $user)
+            ->with('success', __('Worker profile unlinked. The worker record was kept.'));
     }
 
     /**

@@ -7,7 +7,7 @@ import ResourceTable from '../../../components/ResourceTable';
 import { __ } from '../../../lib/i18n';
 
 export default function UsersIndex({ initiallyCreating = false }) {
-    const { userRoles = {}, workstationNames = {}, currentUserId, formOptions } = usePage().props;
+    const { userRoles = {}, workstationNames = {}, workerCodes = {}, currentUserId, formOptions } = usePage().props;
 
     const drawer = useResourceDrawer();
     useEffect(() => { if (initiallyCreating) drawer.create(); }, [initiallyCreating]);
@@ -38,6 +38,13 @@ export default function UsersIndex({ initiallyCreating = false }) {
             render: (r) => r.account_type === 'workstation'
                 ? (workstationNames[r.workstation_id] ?? '—')
                 : (userRoles[r.id] ?? '—'),
+        },
+        {
+            key: 'worker_id',
+            label: __('Worker'),
+            className: 'font-mono text-om-muted',
+            value: (r) => (r.worker_id != null ? (workerCodes[r.worker_id] ?? '—') : '—'),
+            render: (r) => (r.worker_id != null ? (workerCodes[r.worker_id] ?? '—') : '—'),
         },
         { key: 'last_login_at', filter: 'date', label: __('Last Login'), className: 'text-om-muted', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
     ];

@@ -5,7 +5,7 @@ import UserForm from './UserForm';
 import { moduleFieldInitial } from '../../../lib/moduleFields';
 
 export default function UserEdit() {
-    const { user, assignments = {}, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks = {} } = usePage().props;
+    const { user, assignments = {}, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks = {}, linkableWorkers = [] } = usePage().props;
     const w = user.worker;
 
     const form = useForm({
@@ -17,6 +17,7 @@ export default function UserEdit() {
         force_password_change: !!user.force_password_change,
         role: user.role ?? '',
         workstation_id: user.workstation_id != null ? String(user.workstation_id) : '',
+        worker_id: '',
         worker_code: w?.code ?? '',
         worker_phone: w?.phone ?? '',
         worker_crew_id: w?.crew_id != null ? String(w.crew_id) : '',
@@ -41,7 +42,7 @@ export default function UserEdit() {
                 <div>{__('Regular workstation')}: {assignments.station ? <Link className="underline" href={`/admin/lines/${assignments.station.line_id}/workstations/${assignments.station.id}/edit`}>{assignments.station.name}</Link> : <Link className="underline" href="/admin/lines">{__('Create a worker profile below, then assign it to a workstation.')}</Link>}</div>
                 <p className="text-sm text-om-muted">{__('The operator selects the working station after login using Change line.')}</p>
             </section>}
-            <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} hooks={hooks} isEdit onSubmit={submit} />
+            <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} hooks={hooks} linkableWorkers={linkableWorkers} linkedWorker={w} userId={user.id} isEdit onSubmit={submit} />
         </div>
     );
 }

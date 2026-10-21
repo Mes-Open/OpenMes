@@ -7035,5 +7035,19 @@
     "Command / Job": "Command / Job",
     "Hide payload": "Hide payload",
     "Hide stack trace": "Hide stack trace",
-    "Hide output": "Hide output"
+    "Hide output": "Hide output",
+    "Create new profile": "Create new profile",
+    "Link existing worker": "Link existing worker",
+    "— Select worker —": "— Select worker —",
+    "No workers without an account.": "No workers without an account.",
+    "Only workers without a user account are listed. Linking does not change the worker record.": "Only workers without a user account are listed. Linking does not change the worker record.",
+    "Linked worker profile": "Linked worker profile",
+    "Open in HR": "Open in HR",
+    "Unlink worker profile": "Unlink worker profile",
+    "Unlink the worker profile from this account? The worker record stays in HR.": "Unlink the worker profile from this account? The worker record stays in HR.",
+    "Worker profile unlinked. The worker record was kept.": "Worker profile unlinked. The worker record was kept.",
+    "This account has no worker profile.": "This account has no worker profile.",
+    "This worker already has a user account.": "This worker already has a user account.",
+    "Choose either a new worker code or an existing worker, not both.": "Choose either a new worker code or an existing worker, not both.",
+    "The selected worker does not exist.": "The selected worker does not exist."
 }

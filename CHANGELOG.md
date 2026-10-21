@@ -7,6 +7,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Link an account to an existing worker.** The *Worker profile* section of the account
+  form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
+  worker*: a searchable list of HR workers that have no account yet. Linking does not
+  change the worker record. An account's worker profile can be unlinked from the edit
+  page; the worker stays in HR. The users list gains a *Worker* column. A worker can
+  hold only one live account — enforced in the form, the API and a new partial unique
+  index on `users.worker_id`. On upgrade, if several live accounts already shared one
+  worker, only the oldest keeps the link; the others are unlinked.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added
