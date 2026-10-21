@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\AllowsModuleFields;
 use App\Http\Requests\Concerns\ValidatesWorkforceIds;
+use App\Support\InspectionPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -46,6 +47,10 @@ class StoreUserRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', Rule::in($this->offeredWorkforceIds('skillOptions'))],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
+            // Permissions granted to this one person on top of their role — only
+            // the ones this form offers (InspectionPermissions), nothing else.
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'distinct', Rule::in(InspectionPermissions::ALL)],
         ]);
     }
 

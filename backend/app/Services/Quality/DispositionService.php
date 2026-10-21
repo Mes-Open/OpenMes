@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\DB;
  * ISA-95 Quality Disposition service.
  *
  * Records a quality decision against an Inspection and propagates the
- * corresponding state change to any MaterialLot linked through inspection_id.
+ * corresponding state change to any MaterialLot linked through inspection_id,
+ * creating that lot when the inspection has none yet (lot tracking on).
  *
  * Disposition vocabulary (ISA-95 Part 4):
  *   accept                 → lot released
@@ -24,6 +25,13 @@ use Illuminate\Support\Facades\DB;
  */
 class DispositionService
 {
+    private InspectionLotCreator $lots;
+
+    public function __construct(?InspectionLotCreator $lots = null)
+    {
+        $this->lots = $lots ?? new InspectionLotCreator;
+    }
+
     /**
      * Apply a disposition to the inspection and re-sync linked material lots.
      *
@@ -31,7 +39,7 @@ class DispositionService
      * is rolled back so the two never disagree.
      *
      * @throws \InvalidArgumentException when the disposition is not a known value
-     * @throws \DomainException          when the caller tries to reset to 'pending'
+     * @throws \DomainException when the caller tries to reset to 'pending'
      */
     public function apply(Inspection $inspection, string $disposition, ?string $notes, User $by): Inspection
     {
@@ -51,9 +59,17 @@ class DispositionService
             ]);
 
             $lotStatus = $this->mapDispositionToLotStatus($disposition);
-            if ($lotStatus !== null) {
-                MaterialLot::where('inspection_id', $inspection->id)
-                    ->update(['status' => $lotStatus]);
+            if ($lotStatus === null) {
+                return;
+            }
+
+            // An inspector without the disposition right completes an
+            // inspection without stocking anything in; the lot comes into
+            // being here, with the decision.
+            $updated = MaterialLot::where('inspection_id', $inspection->id)
+                ->update(['status' => $lotStatus]);
+            if ($updated === 0) {
+                $this->lots->ensureFromInspection($inspection, $lotStatus);
             }
         });
 

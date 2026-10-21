@@ -111,6 +111,8 @@ class LotPickingTenantIsolationTest extends TestCase
         ]);
 
         $inspector = User::factory()->create();
+        // Only someone who may decide on the lot puts it on record by completing.
+        $inspector->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate(\App\Support\InspectionPermissions::DISPOSITION, 'web'));
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'lot_tracking_enabled'],
@@ -147,7 +149,7 @@ class LotPickingTenantIsolationTest extends TestCase
 
         $svc = app(InboundInspectionService::class);
         $svc->recordResult($inspection->results->first(), ['value_boolean' => true]);
-        $svc->complete($inspection->fresh('results'));
+        $svc->complete($inspection->fresh('results'), null, $inspector);
 
         $lot = MaterialLot::firstWhere('inspection_id', $inspection->id);
         $this->assertNotNull($lot, 'Expected a MaterialLot to be created on complete().');

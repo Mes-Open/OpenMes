@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Quality\CompleteInspectionRequest;
+use App\Http\Requests\Quality\InspectionDispositionRequest;
+use App\Http\Requests\Quality\RecordInspectionResultRequest;
+use App\Http\Requests\Quality\StoreInspectionRequest;
 use App\Models\Inspection;
 use App\Models\InspectionPlan;
 use App\Models\InspectionResult;
@@ -13,12 +17,20 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Inbound inspections over the API. Every action is authorised by
+ * InspectionPolicy — through the Form Requests for writes, authorize() for
+ * reads — the same policy the operator screen uses, so a token cannot do
+ * anything the panel would refuse.
+ */
 class InspectionController extends Controller
 {
     public function __construct(private InboundInspectionService $service) {}
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Inspection::class);
+
         $request->validate([
             'material_id' => 'nullable|integer|exists:materials,id',
             'lot_number' => 'nullable|string|max:100',
@@ -53,21 +65,16 @@ class InspectionController extends Controller
 
     public function show(Inspection $inspection): JsonResponse
     {
+        $this->authorize('view', $inspection);
+
         return response()->json([
             'data' => $inspection->load(['results', 'material', 'plan', 'inspector', 'issue']),
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreInspectionRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'material_id' => 'required|integer|exists:materials,id',
-            'lot_number' => 'required|string|max:100',
-            'quantity_received' => 'nullable|numeric|min:0',
-            'supplier_lot_ref' => 'nullable|string|max:100',
-            'source_container_no' => 'nullable|string|max:100',
-            'inspection_plan_id' => 'nullable|integer|exists:inspection_plans,id',
-        ]);
+        $validated = $request->validated();
 
         $material = Material::findOrFail($validated['material_id']);
         $plan = isset($validated['inspection_plan_id'])
@@ -87,7 +94,7 @@ class InspectionController extends Controller
         return response()->json(['message' => 'Inspection started', 'data' => $inspection], 201);
     }
 
-    public function recordResult(Request $request, Inspection $inspection, InspectionResult $result): JsonResponse
+    public function recordResult(RecordInspectionResultRequest $request, Inspection $inspection, InspectionResult $result): JsonResponse
     {
         if ($result->inspection_id !== $inspection->id) {
             abort(404);
@@ -96,50 +103,33 @@ class InspectionController extends Controller
             abort(422, 'Cannot edit results of a completed inspection.');
         }
 
-        $validated = $request->validate([
-            'value_numeric' => 'nullable|numeric',
-            'value_boolean' => 'nullable|boolean',
-            'value_text' => 'nullable|string|max:1000',
-            'notes' => 'nullable|string|max:1000',
-        ]);
-
-        $updated = $this->service->recordResult($result, $validated);
+        $updated = $this->service->recordResult($result, $request->validated());
 
         return response()->json(['data' => $updated]);
     }
 
-    public function complete(Request $request, Inspection $inspection): JsonResponse
+    public function complete(CompleteInspectionRequest $request, Inspection $inspection): JsonResponse
     {
-        $validated = $request->validate([
-            'notes' => 'nullable|string|max:2000',
-        ]);
+        $validated = $request->validated();
 
-        $completed = $this->service->complete($inspection, $validated['notes'] ?? null);
+        // The user decides whether completing also puts the lot on record:
+        // only someone holding the disposition right releases material.
+        $completed = $this->service->complete($inspection, $validated['notes'] ?? null, $request->user());
 
         return response()->json(['message' => 'Inspection completed', 'data' => $completed]);
     }
 
     /**
-     * Apply a quality disposition to a (typically completed) inspection. Mirrors
-     * the web `Web/InspectionController::disposition` route so mobile + tablet
-     * can release / scrap / quarantine without leaving the app.
+     * Apply a quality disposition to a (typically completed) inspection, so
+     * mobile + tablet can release / scrap / quarantine without leaving the
+     * app. Needs the disposition right (InspectionPolicy::disposition).
      */
     public function disposition(
-        Request $request,
+        InspectionDispositionRequest $request,
         Inspection $inspection,
         DispositionService $disposition,
     ): JsonResponse {
-        if (! $request->user()?->hasAnyRole(['Admin', 'Supervisor'])) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $validated = $request->validate([
-            'disposition' => ['required', 'string', \Illuminate\Validation\Rule::in(array_filter(
-                Inspection::DISPOSITIONS,
-                fn ($d) => $d !== Inspection::DISPOSITION_PENDING,
-            ))],
-            'notes' => 'nullable|string|max:2000',
-        ]);
+        $validated = $request->validated();
 
         try {
             $updated = $disposition->apply(
@@ -160,6 +150,8 @@ class InspectionController extends Controller
 
     public function stats(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Inspection::class);
+
         $request->validate([
             'days' => 'nullable|integer|min:1|max:365',
             'material_id' => 'nullable|integer|exists:materials,id',

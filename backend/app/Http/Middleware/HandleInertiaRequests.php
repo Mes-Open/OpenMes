@@ -170,6 +170,11 @@ class HandleInertiaRequests extends Middleware
             $screens = app(\App\Services\Production\OperatorScreens::class)->forRequest($request);
             $tabs = array_values(array_filter($tabs, fn ($tab) => in_array($tab['key'], $screens, true)));
         }
+        // Inbound inspections follow the person, not the bench: whoever holds
+        // an inspection permission (InspectionPolicy) sees the tab everywhere.
+        if ($user?->can('viewAny', \App\Models\Inspection::class)) {
+            $tabs[] = ['key' => 'inspections', 'label' => 'Inspections', 'url' => '/operator/inspections', 'prefixes' => ['/operator/inspections']];
+        }
 
         return array_values(app(\App\Extension\FilterRegistry::class)->filter('operator.tabs', $tabs, ['user' => $user]));
     }

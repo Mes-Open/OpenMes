@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateSystemSettingsRequest;
 use App\Services\Settings\ConfigurationImporter;
 use App\Services\Settings\ProductionScenarioImporter;
 use App\Services\Settings\ScenarioException;
+use App\Support\InspectionPermissions;
 use App\Support\TabRegistry;
 use App\Support\TimezoneRegistry;
 use App\Sync\CollectionBroadcaster;
@@ -760,12 +761,19 @@ class SettingsController extends Controller
                 ->all();
         }
 
+        // The same matrix for the quality permissions (inspector / disposition).
+        $grantMatrix = $roles->mapWithKeys(fn ($role) => [
+            $role->name => $role->permissions->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
+        ]);
+
         return Inertia::render('settings/Access', [
             'tabs' => collect(TabRegistry::labels())
                 ->map(fn ($label, $key) => ['key' => $key, 'label' => $label])
                 ->values(),
             'roles' => $roles->pluck('name')->values(),
             'matrix' => $matrix,
+            'grants' => InspectionPermissions::options(),
+            'grantMatrix' => $grantMatrix,
             'lockedRole' => 'Admin',
         ]);
     }
@@ -773,12 +781,15 @@ class SettingsController extends Controller
     /**
      * Persist the matrix: for each role (except the always-full Admin) replace
      * its tab:* permissions with the submitted set, preserving non-tab perms.
+     * The quality grants work the same way, for the roles the form sent them for.
      */
     public function updateAccess(UpdateRoleTabAccessRequest $request)
     {
-        $access = $request->validated()['access'] ?? [];
+        $validated = $request->validated();
+        $access = $validated['access'] ?? [];
+        $grants = $validated['grants'] ?? [];
 
-        foreach ($access as $roleName => $tabKeys) {
+        foreach (array_unique([...array_keys($access), ...array_keys($grants)]) as $roleName) {
             if ($roleName === 'Admin') {
                 continue; // Admin always keeps full access
             }
@@ -790,14 +801,24 @@ class SettingsController extends Controller
                 continue;
             }
 
-            $nonTab = $role->permissions->pluck('name')
-                ->reject(fn ($p) => str_starts_with($p, 'tab:'));
+            $names = $role->permissions->pluck('name');
 
-            $tabPerms = collect($tabKeys)
-                ->filter(fn ($k) => TabRegistry::exists($k))
-                ->map(fn ($k) => TabRegistry::permission($k));
+            if (array_key_exists($roleName, $access)) {
+                $names = $names->reject(fn ($p) => str_starts_with($p, 'tab:'))
+                    ->merge(collect($access[$roleName])
+                        ->filter(fn ($k) => TabRegistry::exists($k))
+                        ->map(fn ($k) => TabRegistry::permission($k)));
+            }
 
-            $role->syncPermissions($nonTab->merge($tabPerms)->unique()->all());
+            if (array_key_exists($roleName, $grants)) {
+                foreach ($grants[$roleName] as $name) {
+                    \Spatie\Permission\Models\Permission::findOrCreate($name, 'web');
+                }
+                $names = $names->reject(fn ($p) => in_array($p, InspectionPermissions::ALL, true))
+                    ->merge($grants[$roleName]);
+            }
+
+            $role->syncPermissions($names->unique()->values()->all());
         }
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();

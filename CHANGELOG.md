@@ -7,6 +7,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Quality inspector and Quality disposition permissions.** Inbound inspections can now be given to
+  named people instead of only Supervisors and Admins. *Quality inspector* lets someone start,
+  fill in and complete an inspection; *Quality disposition* also lets them decide on the inspected
+  lot. Grant them to one person on Admin → Users → Edit, or to a whole role on Settings → Access.
+  Operators who hold either permission get an **Inspections** tab on the operator tablet.
+
+### Security
+
+- **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
+  operator token could start, fill in and complete an inspection, and with lot tracking on,
+  completing one put a released lot into stock. Every inspection endpoint, including the read
+  endpoints, now requires one of the two permissions above, through the same policy the operator
+  screen uses. Completing an inspection now creates the lot only when the person completing it
+  holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
+  Supervisors and Admins keep their current access.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added

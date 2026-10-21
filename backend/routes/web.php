@@ -46,6 +46,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
+use App\Http\Controllers\Web\Operator\InspectionController as OperatorInspectionController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
@@ -305,6 +306,16 @@ Route::middleware('auth')->group(function () {
         // Production downtime (replaces the old Livewire DowntimeReporter).
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
         Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
+
+        // Inbound inspections — for holders of the "Quality inspector" /
+        // "Quality disposition" permissions. InspectionPolicy authorises every
+        // action, the same policy as /api/v1/inspections.
+        Route::get('/inspections', [OperatorInspectionController::class, 'index'])->name('inspections.index');
+        Route::post('/inspections', [OperatorInspectionController::class, 'store'])->name('inspections.store');
+        Route::get('/inspections/{inspection}', [OperatorInspectionController::class, 'show'])->name('inspections.show')->whereNumber('inspection');
+        Route::patch('/inspections/{inspection}/results/{result}', [OperatorInspectionController::class, 'recordResult'])->name('inspections.results.update')->whereNumber(['inspection', 'result']);
+        Route::post('/inspections/{inspection}/complete', [OperatorInspectionController::class, 'complete'])->name('inspections.complete')->whereNumber('inspection');
+        Route::post('/inspections/{inspection}/disposition', [OperatorInspectionController::class, 'disposition'])->name('inspections.disposition')->whereNumber('inspection');
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
