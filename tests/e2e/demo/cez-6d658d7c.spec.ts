@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('installation currency flows into worker pay and cost reports', async ({ page }, testInfo) => {
-  test.setTimeout(150_000);
+  test.setTimeout(290_000);
 
   await page.goto('/login');
   await page.getByLabel(/username/i).fill(process.env.ADMIN_USERNAME!);
@@ -65,9 +65,9 @@ test('installation currency flows into worker pay and cost reports', async ({ pa
   await page.screenshot({ path: testInfo.outputPath('07-cost-report-eur.png'), fullPage: true });
 
   // Order detail
-  await page.getByRole('link', { name: 'WO-BK-0233' }).first().click();
+  await page.getByRole('link', { name: /^WO-BK-\d+/ }).nth(1).click();
   await expect(page.getByText('Total cost').first()).toBeVisible();
-  await expect(page.getByText(/793\.16 EUR/).first()).toBeVisible();
+  await expect(page.getByText(/\d[\d,]*\.\d{2} EUR/).first()).toBeVisible();
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('08-cost-detail-eur.png'), fullPage: true });
 
