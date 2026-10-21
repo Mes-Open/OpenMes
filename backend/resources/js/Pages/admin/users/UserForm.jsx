@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
-import { useState } from 'react';
+import { cloneElement, isValidElement, useId, useState } from 'react';
 import { nameControl } from '../../../lib/fieldName';
 import ModuleFields from '../../../components/ModuleFields';
 
@@ -200,13 +200,15 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
 }
 
 function Field({ label, error, required, help, children }) {
+    const helpId = useId();
+    const control = help && isValidElement(children) ? cloneElement(children, { 'aria-describedby': helpId }) : children;
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
-            {help && <p className="mt-1 text-xs text-om-faint">{help}</p>}
+            {nameControl(control, label)}
+            {help && <p id={helpId} className="mt-1 text-xs text-om-faint">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

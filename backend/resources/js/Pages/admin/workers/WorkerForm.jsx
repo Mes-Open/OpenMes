@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { cloneElement, isValidElement, useId } from 'react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import CustomFields from '../../../components/CustomFields';
@@ -151,13 +152,15 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
 }
 
 function Field({ label, error, required, help, children }) {
+    const helpId = useId();
+    const control = help && isValidElement(children) ? cloneElement(children, { 'aria-describedby': helpId }) : children;
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
-            {help && <p className="mt-1 text-xs text-om-faint">{help}</p>}
+            {nameControl(control, label)}
+            {help && <p id={helpId} className="mt-1 text-xs text-om-faint">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
