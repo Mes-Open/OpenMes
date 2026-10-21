@@ -108,6 +108,15 @@ class Material extends Model
 
     protected static function booted(): void
     {
+        // One currency per installation: a price nobody labelled (the material
+        // form has no currency field) is in the installation currency, not in
+        // the column's historical PLN default.
+        static::creating(function (self $material): void {
+            if (blank($material->price_currency)) {
+                $material->price_currency = \App\Support\CurrencyRegistry::current();
+            }
+        });
+
         // The other way to close a BOM loop: point an item at a producing
         // template that already consumes it, at any depth. Enforced on the
         // model so every write path is covered (the BOM-line side is gated in

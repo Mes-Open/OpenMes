@@ -171,7 +171,7 @@ export default function CostReportsIndex() {
 
                 {summary.mixed_currency && (
                     <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
-                        {__('Mixed currencies - totals are summed without conversion.')}
+                        {__('Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.', { currency })}
                     </div>
                 )}
 

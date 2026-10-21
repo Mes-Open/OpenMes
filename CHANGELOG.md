@@ -16,6 +16,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   a new **Compensation** card with the rate in that currency, and every amount in the
   Production Cost Report reads with it (labor rates as `… EUR/h`). Amounts are now always
   shown with two decimals.
+- New materials take the installation currency instead of a hardcoded PLN. On the cost
+  report detail, lines recorded in another currency are highlighted and the mixed-currency
+  warning names that currency.
 - Shared money formatting: `App\Support\Money::format()` on the server and `formatMoney()`
   (`resources/js/lib/money.js`) in the browser, for core and modules alike.
 

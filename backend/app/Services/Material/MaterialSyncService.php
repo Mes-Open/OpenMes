@@ -79,7 +79,7 @@ class MaterialSyncService
                         'stock_quantity' => $row['stock_quantity'] ?? 0,
                         'min_stock_level' => $row['min_stock_level'] ?? null,
                         'unit_price' => $row['unit_price'] ?? null,
-                        'price_currency' => $row['price_currency'] ?? 'PLN',
+                        'price_currency' => $row['price_currency'] ?? \App\Support\CurrencyRegistry::current(),
                         'ean' => $row['ean'] ?? null,
                         'supplier_name' => $row['supplier_name'] ?? null,
                         'supplier_code' => $row['supplier_code'] ?? null,
