@@ -52,7 +52,7 @@ class InspectionController extends Controller
                 ->orderByDesc('completed_at')
                 ->limit(50)
                 ->get(),
-            'materials' => Material::active()->orderBy('name')->get(['id', 'code', 'name', 'unit_of_measure']),
+            'materials' => $this->materialOptions(),
             'can' => $this->abilities($request->user()),
         ]);
     }
@@ -137,6 +137,32 @@ class InspectionController extends Controller
         }
 
         return back()->with('success', __('Disposition applied.'));
+    }
+
+    /**
+     * Active materials for the start form, each flagged with whether a
+     * published plan applies to it — without one the inspection would have no
+     * criteria to fill in, so the form says so up front.
+     *
+     * @return list<array{id: int, code: string, name: string, unit_of_measure: ?string, has_plan: bool}>
+     */
+    private function materialOptions(): array
+    {
+        $plans = InspectionPlan::active()->published()->get(['material_id', 'material_type_id']);
+        $generic = $plans->contains(fn ($p) => $p->material_id === null && $p->material_type_id === null);
+        $materialIds = $plans->pluck('material_id')->filter()->flip();
+        $typeIds = $plans->pluck('material_type_id')->filter()->flip();
+
+        return Material::active()->orderBy('name')
+            ->get(['id', 'code', 'name', 'unit_of_measure', 'material_type_id'])
+            ->map(fn (Material $m) => [
+                'id' => $m->id,
+                'code' => $m->code,
+                'name' => $m->name,
+                'unit_of_measure' => $m->unit_of_measure,
+                'has_plan' => $generic || $materialIds->has($m->id) || ($m->material_type_id && $typeIds->has($m->material_type_id)),
+            ])
+            ->all();
     }
 
     /**

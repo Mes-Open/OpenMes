@@ -28,6 +28,32 @@ class InspectionPlan extends Model
         'tenant_id',
     ];
 
+    /**
+     * Criteria in the structured shape inspections snapshot: a list of
+     * {name, type, required, unit?, spec_min?, spec_max?}. A bare string —
+     * how the example-company seeders used to store them — becomes a required
+     * pass/fail check with a readable name ("mill_certificate" → "Mill
+     * certificate"), so an older plan still yields rows an inspector can fill in.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function normalizeCriteria(?array $criteria): array
+    {
+        return array_values(array_filter(array_map(function ($criterion) {
+            if (is_string($criterion)) {
+                $name = trim(str_replace(['_', '-'], ' ', $criterion));
+
+                return $name === '' ? null : [
+                    'name' => ucfirst($name),
+                    'type' => InspectionResult::TYPE_PASS_FAIL,
+                    'required' => true,
+                ];
+            }
+
+            return is_array($criterion) ? $criterion : null;
+        }, $criteria ?? [])));
+    }
+
     protected function casts(): array
     {
         return [

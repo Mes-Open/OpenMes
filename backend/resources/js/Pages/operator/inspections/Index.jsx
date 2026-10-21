@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Dropdown, StatusPill } from '@openmes/ui';
+import { Button, Dropdown, InlineAlert, StatusPill } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import OperatorLayout from '../../../layouts/OperatorLayout';
 
@@ -20,6 +20,7 @@ export default function InspectionsIndex() {
         source_container_no: '',
     });
     const { data, setData, errors, processing } = form;
+    const selectedMaterial = materials.find((m) => String(m.id) === data.material_id);
 
     const submit = (e) => {
         e.preventDefault();
@@ -38,7 +39,10 @@ export default function InspectionsIndex() {
                         <Field label={__('Material')} error={errors.material_id} required>
                             <Dropdown
                                 aria-label={__('Material')}
-                                options={materials.map((m) => ({ value: String(m.id), label: `${m.code} — ${m.name}` }))}
+                                options={materials.map((m) => ({
+                                    value: String(m.id),
+                                    label: `${m.code} — ${m.name}${m.has_plan ? '' : ` (${__('no inspection plan')})`}`,
+                                }))}
                                 value={data.material_id}
                                 onChange={(v) => setData('material_id', v)}
                                 placeholder={__('— Select material —')}
@@ -82,6 +86,11 @@ export default function InspectionsIndex() {
                             />
                         </Field>
                     </div>
+                    {selectedMaterial && !selectedMaterial.has_plan && (
+                        <InlineAlert severity="warning" title={__('No inspection plan for this material.')}>
+                            {__('The inspection will have no criteria to record, so it cannot be completed. Ask quality to publish a plan for this material.')}
+                        </InlineAlert>
+                    )}
                     <Button type="submit" variant="primary" loading={processing} disabled={processing || !data.material_id || !data.lot_number.trim()}>
                         {__('Start inspection')}
                     </Button>

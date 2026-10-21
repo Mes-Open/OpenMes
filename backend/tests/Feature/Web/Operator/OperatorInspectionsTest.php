@@ -135,7 +135,8 @@ class OperatorInspectionsTest extends TestCase
                 ->where('can.perform', true)
                 ->where('can.disposition', false)
                 ->where('line.id', $this->line->id)
-                ->has('materials', 1));
+                ->has('materials', 1)
+                ->where('materials.0.has_plan', true));
 
         // No plan chosen: the one that applies to the material is used.
         $this->post('/operator/inspections', [
@@ -215,5 +216,28 @@ class OperatorInspectionsTest extends TestCase
             ->patch("/operator/inspections/{$inspection->id}/results/{$result->id}", ['value_boolean' => false])
             ->assertRedirect()->assertSessionHas('error');
         $this->assertTrue($result->fresh()->value_boolean);
+    }
+
+    public function test_a_material_without_a_published_plan_is_flagged(): void
+    {
+        $this->plan->update(['published_at' => null]);
+
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM))->get('/operator/inspections')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('materials.0.has_plan', false));
+    }
+
+    public function test_a_plan_with_bare_string_criteria_still_gives_rows_to_fill_in(): void
+    {
+        // How the example companies stored criteria before they were structured.
+        $this->plan->update(['criteria' => ['mill_certificate', 'surface_defects']]);
+
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM))
+            ->post('/operator/inspections', ['material_id' => $this->material->id, 'lot_number' => 'LOT-STR'])
+            ->assertRedirect();
+
+        $inspection = Inspection::where('lot_number', 'LOT-STR')->firstOrFail();
+        $this->assertSame(['Mill certificate', 'Surface defects'], $inspection->results->pluck('criterion_name')->all());
+        $this->assertSame(['pass_fail', 'pass_fail'], $inspection->results->pluck('criterion_type')->all());
     }
 }

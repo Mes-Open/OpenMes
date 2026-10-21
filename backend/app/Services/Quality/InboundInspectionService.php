@@ -54,7 +54,7 @@ class InboundInspectionService
             ]);
 
             if ($plan) {
-                foreach ($plan->criteria as $criterion) {
+                foreach (InspectionPlan::normalizeCriteria($plan->criteria) as $criterion) {
                     InspectionResult::create([
                         'inspection_id' => $inspection->id,
                         'criterion_name' => $criterion['name'] ?? 'Unnamed',

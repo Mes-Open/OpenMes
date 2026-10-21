@@ -7056,5 +7056,8 @@
     "Command / Job": "Polecenie / Zadanie",
     "Hide payload": "Ukryj dane",
     "Hide stack trace": "Ukryj stos wywołań",
-    "Hide output": "Ukryj wynik"
+    "Hide output": "Ukryj wynik",
+    "no inspection plan": "brak planu kontroli",
+    "No inspection plan for this material.": "Brak planu kontroli dla tego materiału.",
+    "The inspection will have no criteria to record, so it cannot be completed. Ask quality to publish a plan for this material.": "Kontrola nie będzie miała kryteriów do zapisania, więc nie da się jej zakończyć. Poproś dział jakości o opublikowanie planu dla tego materiału."
 }
