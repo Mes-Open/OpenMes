@@ -57,6 +57,20 @@ test('link an HR worker to a user account, then unlink', async ({ page }, testIn
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('06-edit-linked.png'), fullPage: true });
 
+  // 3b. A linked worker is no longer offered for another account
+  await page.getByRole('link', { name: 'Users & Accounts' }).first().click();
+  await page.getByRole('button', { name: /New Account/ }).or(page.getByRole('link', { name: /New Account/ })).first().click();
+  const dlg2 = page.getByRole('dialog');
+  await dlg2.getByRole('button', { name: /Worker profile/ }).click();
+  await dlg2.getByText('Link existing worker').click();
+  await expect(dlg2.getByText('No workers without an account.')).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('06b-worker-not-offered.png'), fullPage: true });
+  await dlg2.getByRole('button', { name: 'Cancel' }).click();
+  await page.reload();
+  await page.getByRole('row', { name: /jnowak/ }).getByRole('link', { name: /Edit/ }).click();
+  await expect(page.getByRole('link', { name: 'Open in HR' })).toBeVisible();
+
   // 4. Unlink
   await page.getByRole('button', { name: 'Unlink worker profile' }).click();
   await page.screenshot({ path: testInfo.outputPath('07-confirm.png'), fullPage: true });
