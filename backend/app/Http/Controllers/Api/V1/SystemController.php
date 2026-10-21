@@ -62,6 +62,7 @@ class SystemController extends Controller
             'updated_at' => now(),
         ]);
         \App\Support\ProductionFlow::forget();
+        \App\Support\CurrencyRegistry::forget();
 
         return response()->json([
             'message' => 'Setting updated',

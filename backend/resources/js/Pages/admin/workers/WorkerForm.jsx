@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import CustomFields from '../../../components/CustomFields';
@@ -15,6 +15,8 @@ import { nameControl } from '../../../lib/fieldName';
  */
 export default function WorkerForm({ form, crews, wageGroups, personnelClasses, skills, customFields = [], hooks, isEdit, onSubmit }) {
     const { data, setData, errors, processing } = form;
+    // One currency per installation (Settings → System); pay rates are in it.
+    const { currency } = usePage().props;
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
 
@@ -88,10 +90,13 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                         />
                     </Field>
                     <Field label={__('Pay rate')} error={errors.pay_rate}>
-                        <input type="number" step="0.0001" min="0" value={data.pay_rate ?? ''} onChange={(e) => setData('pay_rate', e.target.value)} className="form-input w-full" />
+                        <div className="flex items-center gap-2">
+                            <input type="number" step="0.0001" min="0" value={data.pay_rate ?? ''} onChange={(e) => setData('pay_rate', e.target.value)} className="form-input w-full" />
+                            <span className="font-mono text-sm text-om-muted" data-testid="pay-rate-currency">{currency}</span>
+                        </div>
                     </Field>
                 </div>
-                <p className="mt-1 text-xs text-om-faint">{__('Hourly/weekly: rate per hour/week. Piece rate: amount per produced piece. Currency is set system-wide in Settings.')}</p>
+                <p className="mt-1 text-xs text-om-faint">{__('Rate in the system currency (:currency). Hourly/weekly: per hour/week. Piece rate: per produced piece.', { currency })}</p>
             </div>
 
             <Checkbox checked={!!data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active')} />

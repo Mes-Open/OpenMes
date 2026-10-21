@@ -124,6 +124,23 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(80.0, $this->svc->laborCost($wo)['total']);
     }
 
+    public function test_labor_is_in_the_installation_currency_not_the_workers(): void
+    {
+        \App\Support\CurrencyRegistry::save('EUR');
+        $svc = app(ProductionCostService::class);
+        $wo = $this->workOrder();
+        // A legacy per-worker currency is ignored: one currency per installation.
+        $worker = Worker::factory()->paidHourly(40, 'PLN')->create();
+        $this->workActivity($wo, $worker, 2);
+
+        $labor = $svc->laborCost($wo);
+
+        $this->assertSame('EUR', $svc->defaultCurrency());
+        $this->assertSame('EUR', $labor['currency']);
+        $this->assertSame('EUR', $labor['items'][0]['currency']);
+        $this->assertFalse($labor['mixed_currency']);
+    }
+
     public function test_labor_cost_weekly_uses_effective_hourly(): void
     {
         $wo = $this->workOrder();
@@ -240,6 +257,8 @@ class ProductionCostServiceTest extends TestCase
     {
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'standard_weekly_hours'], ['value' => json_encode(20)]);
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'default_currency'], ['value' => json_encode('EUR')]);
+        // A raw write bypasses CurrencyRegistry::save(), so drop its cache like the settings controller does.
+        \App\Support\CurrencyRegistry::forget();
         $svc = app(ProductionCostService::class); // reads settings in constructor
 
         $wo = $this->workOrder();

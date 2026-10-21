@@ -7,6 +7,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **One currency per installation for pay and production costs.** *Settings → System →
+  General → Currency* now validates against a fixed ISO 4217 list (web form and
+  `PUT /api/v1/system/settings/default_currency`); an unknown code is a 422 instead of being
+  stored. The worker form shows the currency beside the pay rate, the worker detail page has
+  a new **Compensation** card with the rate in that currency, and every amount in the
+  Production Cost Report reads with it (labor rates as `… EUR/h`). Amounts are now always
+  shown with two decimals.
+- Shared money formatting: `App\Support\Money::format()` on the server and `formatMoney()`
+  (`resources/js/lib/money.js`) in the browser, for core and modules alike.
+
+### Changed
+
+- The per-worker `pay_currency` field is no longer accepted by the worker forms — pay is
+  always in the installation currency. The column and its data are kept.
+- An upgrade migration uppercases the stored currency and resets a code outside the
+  supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
+  to `CurrencyRegistry`).
+
 ## [0.27.0] - 2026-10-14
 
 ### Added

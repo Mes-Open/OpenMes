@@ -60,6 +60,48 @@ class WorkerScreenTest extends TestCase
         $this->assertDatabaseHas('workers', ['code' => 'W-9', 'name' => 'Jan Nowak']);
     }
 
+    public function test_the_detail_page_shows_pay_in_the_installation_currency(): void
+    {
+        \App\Support\CurrencyRegistry::save('EUR');
+        $worker = Worker::factory()->paidHourly(40)->create();
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.workers.show', $worker))
+            ->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('admin/workers/Show')
+                ->where('currency', 'EUR')
+                ->where('worker.pay_type', 'hourly')
+                ->where('worker.pay_rate', '40.0000')
+                ->where('defaultPayType', 'hourly'));
+    }
+
+    public function test_the_edit_form_gets_the_currency_and_no_per_worker_currency(): void
+    {
+        \App\Support\CurrencyRegistry::save('USD');
+        $worker = Worker::factory()->paidHourly(40)->create();
+
+        $response = $this->actingAs($this->admin())->get(route('admin.workers.edit', $worker));
+
+        $response->assertOk();
+        $props = $response->viewData('page')['props'];
+        $this->assertSame('USD', $props['currency']);
+        $this->assertSame('40.0000', $props['worker']['pay_rate']);
+        $this->assertArrayNotHasKey('pay_currency', $props['worker']);
+    }
+
+    public function test_a_submitted_pay_currency_is_ignored(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.workers.store'), [
+                'code' => 'W-7', 'name' => 'Ewa Nowak', 'is_active' => true,
+                'pay_type' => 'hourly', 'pay_rate' => 35, 'pay_currency' => 'EUR',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('workers', ['code' => 'W-7', 'pay_rate' => 35, 'pay_currency' => null]);
+    }
+
     public function test_the_detail_page_lists_no_certifications(): void
     {
         // Renamed: the section is still rendered, only its contents are empty.

@@ -99,6 +99,50 @@ class ProductionCostReportControllerTest extends TestCase
         $response->assertSee('Total cost');
     }
 
+    private function useEuro(): void
+    {
+        \App\Support\CurrencyRegistry::save('EUR');
+    }
+
+    public function test_index_carries_the_installation_currency(): void
+    {
+        $this->useEuro();
+        $this->costedWorkOrder();
+
+        $this->actingAs($this->admin)->get(route('admin.cost-reports.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('currency', 'EUR')
+                ->where('summary.currency', 'EUR')
+                ->where('orders.data.0.currency', 'EUR')
+            );
+    }
+
+    public function test_show_carries_the_installation_currency_on_every_amount(): void
+    {
+        $this->useEuro();
+        $wo = $this->costedWorkOrder();
+
+        $this->actingAs($this->admin)->get(route('admin.cost-reports.show', $wo))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('currency', 'EUR')
+                ->where('breakdown.currency', 'EUR')
+                ->where('breakdown.labor.currency', 'EUR')
+                ->where('breakdown.labor.items.0.currency', 'EUR')
+            );
+    }
+
+    public function test_export_carries_the_installation_currency(): void
+    {
+        $this->useEuro();
+        $this->costedWorkOrder();
+
+        $csv = $this->actingAs($this->admin)->get(route('admin.cost-reports.export'))->getContent();
+
+        $this->assertStringContainsString('Currency', $csv);
+        $this->assertStringContainsString('EUR', $csv);
+        $this->assertStringNotContainsString('PLN', $csv);
+    }
+
     public function test_invalid_custom_date_range_is_rejected(): void
     {
         $response = $this->actingAs($this->admin)->get(route('admin.cost-reports.index', [

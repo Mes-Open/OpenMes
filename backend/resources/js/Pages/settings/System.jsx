@@ -10,23 +10,6 @@ import { Hook } from '../../lib/hooks';
 
 const SYSTEM_TABS_HOOK = 'display.settings.system.tabs';
 
-// Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
-const CURRENCIES = [
-    ['PLN', 'Polish Złoty'],
-    ['EUR', 'Euro'],
-    ['USD', 'US Dollar'],
-    ['GBP', 'British Pound'],
-    ['CHF', 'Swiss Franc'],
-    ['CZK', 'Czech Koruna'],
-    ['SEK', 'Swedish Krona'],
-    ['NOK', 'Norwegian Krone'],
-    ['DKK', 'Danish Krone'],
-    ['HUF', 'Hungarian Forint'],
-    ['RON', 'Romanian Leu'],
-    ['UAH', 'Ukrainian Hryvnia'],
-    ['VND', 'Vietnamese Đồng'],
-];
-
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
 const HELP_CLASS = 'text-om-muted text-[12.5px]';
@@ -169,7 +152,7 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
 
 export default function System() {
     const toast = useToast();
-    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
+    const { settings, availableLocales, timezones = {}, currencies = [], appUrl, modules = [], backups,
         demoDatasets = [], loadedDemoDataset = null, hooks = {} } = usePage().props;
 
     // Tabs an installed module adds (display.settings.system.tabs): one per
@@ -539,10 +522,11 @@ export default function System() {
                                 <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
                                 <Dropdown
                                     options={[
-                                        ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
+                                        ...(!currencies.some((c) => c.code === data.default_currency) && data.default_currency
                                             ? [{ value: String(data.default_currency), label: data.default_currency }]
                                             : []),
-                                        ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
+                                        // Server-side allowlist (CurrencyRegistry) — the same list the save validates against.
+                                        ...currencies.map((c) => ({ value: c.code, label: `${c.code} - ${__(c.name)}` })),
                                     ]}
                                     value={data.default_currency == null ? '' : String(data.default_currency)}
                                     onChange={(v) => setData('default_currency', v)}
