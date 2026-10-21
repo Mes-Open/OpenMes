@@ -7020,5 +7020,7 @@
     "Operator availability": "Dostępność operatorów",
     "Capacity axis": "Widok według",
     "Granularity": "Szczegółowość",
-    "Every operation is scheduled on time.": "Wszystkie operacje są zaplanowane w terminie."
+    "Every operation is scheduled on time.": "Wszystkie operacje są zaplanowane w terminie.",
+    "Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.": "Unikalny identyfikator pracownika w całym systemie, np. W-201. Dwóch pracowników nie może mieć tego samego kodu.",
+    "Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code.": "Unikalny identyfikator profilu pracownika powiązanego z tym kontem, np. W-201. Zapisanie tworzy profil z tym kodem (lub aktualizuje powiązany); dwóch pracowników nie może mieć tego samego kodu."
 }

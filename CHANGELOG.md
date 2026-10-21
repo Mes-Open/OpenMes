@@ -7,6 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Worker code is explained in the forms.** The *Code* field on the worker form and the
+  *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
+  code identifies, an example (`W-201`), and that it must be unique (English and Polish).
+
 ## [0.27.0] - 2026-10-14
 
 ### Added
