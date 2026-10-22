@@ -7049,5 +7049,7 @@
     "This account has no worker profile.": "This account has no worker profile.",
     "This worker already has a user account.": "This worker already has a user account.",
     "Choose either a new worker code or an existing worker, not both.": "Choose either a new worker code or an existing worker, not both.",
-    "The selected worker does not exist.": "The selected worker does not exist."
+    "The selected worker does not exist.": "The selected worker does not exist.",
+    "Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.": "Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.",
+    "Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code.": "Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code."
 }

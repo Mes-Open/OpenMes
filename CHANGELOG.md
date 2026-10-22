@@ -20,6 +20,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Worker code is explained in the forms.** The *Code* field on the worker form and the
+  *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
+  code identifies, an example (`W-201`), and that it must be unique (English and Polish).
 - Saving an account that has a worker profile no longer overwrites the worker's name and
   email with the account's. Those belong to the HR record, which may now predate the
   account. A new profile created from the account form still takes them from the account.
