@@ -104,6 +104,9 @@ class HandleInertiaRequests extends Middleware
             // Plant timezone — the frontend formats all dates/times in this zone
             // (config/app.php → APP_TIMEZONE) instead of the viewer's browser zone.
             'timezone' => fn () => config('app.timezone'),
+            // Installation currency (ISO 4217) — lib/money.js formats every
+            // pay and cost amount with it.
+            'currency' => fn () => \App\Support\CurrencyRegistry::current(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

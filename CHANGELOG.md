@@ -17,6 +17,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   hold only one live account — enforced in the form, the API and a new partial unique
   index on `users.worker_id`. On upgrade, if several live accounts already shared one
   worker, only the oldest keeps the link; the others are unlinked.
+- **One currency per installation for pay and production costs.** *Settings → System →
+  General → Currency* now validates against a fixed ISO 4217 list (web form and
+  `PUT /api/v1/system/settings/default_currency`); an unknown code is a 422 instead of being
+  stored. The worker form shows the currency beside the pay rate, the worker detail page has
+  a new **Compensation** card with the rate in that currency, and every amount in the
+  Production Cost Report reads with it (labor rates as `… EUR/h`). Amounts are now always
+  shown with two decimals.
+- Switching the installation currency relabels material prices, consumption price snapshots
+  and additional costs that were recorded in the previous installation currency (the numbers
+  are kept, not converted), so the cost report no longer shows old-currency lines under a
+  new-currency total. Amounts explicitly recorded in another currency are left as they are.
+  The settings page says so before you save.
+- New materials and additional costs without a currency take the installation currency instead of a hardcoded PLN. On the cost
+  report detail, lines recorded in another currency are highlighted and the mixed-currency
+  warning names that currency.
+- Shared money formatting: `App\Support\Money::format()` on the server and `formatMoney()`
+  (`resources/js/lib/money.js`) in the browser, for core and modules alike.
 
 ### Changed
 
@@ -26,6 +43,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Saving an account that has a worker profile no longer overwrites the worker's name and
   email with the account's. Those belong to the HR record, which may now predate the
   account. A new profile created from the account form still takes them from the account.
+- The per-worker `pay_currency` field is no longer accepted by the worker forms — pay is
+  always in the installation currency. The column and its data are kept.
+- An upgrade migration uppercases the stored currency and resets a code outside the
+  supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
+  to `CurrencyRegistry`).
 
 ## [0.27.0] - 2026-10-14
 

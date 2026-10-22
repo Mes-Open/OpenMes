@@ -2,6 +2,7 @@ import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { UILabelsProvider } from '@openmes/ui';
 import { __, loadLocale, setTimezone } from './lib/i18n';
+import { setCurrency } from './lib/money';
 import { loadModules } from './lib/moduleLoader';
 import { resolvePage } from './lib/pageResolver';
 import './lib/echo'; // opens the single Reverb WebSocket
@@ -61,6 +62,8 @@ function syncCsrfToken(token) {
     meta.setAttribute('content', token);
 }
 router.on('navigate', (event) => syncCsrfToken(event.detail.page.props?.csrf_token));
+// Keep formatMoney()'s default in step with Settings → System after an SPA visit.
+router.on('navigate', (event) => setCurrency(event.detail.page.props?.currency));
 
 createInertiaApp({
     resolve: async (name) => {
@@ -90,6 +93,8 @@ createInertiaApp({
         await loadLocale(props.initialPage.props.locale ?? 'en');
         // Set the active timezone from the Inertia prop.
         setTimezone(props.initialPage.props.timezone);
+        // Installation currency for every pay/cost amount (lib/money).
+        setCurrency(props.initialPage.props.currency);
         // Tenant key for Reverb channel names (null-safe → 'g'), mirrors TenantScope.
         window.__TENANT__ = props.initialPage.props.auth?.user?.tenant_id ?? 'g';
         syncCsrfToken(props.initialPage.props.csrf_token);

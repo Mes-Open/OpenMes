@@ -1,6 +1,6 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
@@ -9,23 +9,6 @@ import { __ } from '../../lib/i18n';
 import { Hook } from '../../lib/hooks';
 
 const SYSTEM_TABS_HOOK = 'display.settings.system.tabs';
-
-// Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
-const CURRENCIES = [
-    ['PLN', 'Polish Złoty'],
-    ['EUR', 'Euro'],
-    ['USD', 'US Dollar'],
-    ['GBP', 'British Pound'],
-    ['CHF', 'Swiss Franc'],
-    ['CZK', 'Czech Koruna'],
-    ['SEK', 'Swedish Krona'],
-    ['NOK', 'Norwegian Krone'],
-    ['DKK', 'Danish Krone'],
-    ['HUF', 'Hungarian Forint'],
-    ['RON', 'Romanian Leu'],
-    ['UAH', 'Ukrainian Hryvnia'],
-    ['VND', 'Vietnamese Đồng'],
-];
 
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
@@ -169,7 +152,7 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
 
 export default function System() {
     const toast = useToast();
-    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
+    const { settings, availableLocales, timezones = {}, currencies = [], appUrl, modules = [], backups,
         demoDatasets = [], loadedDemoDataset = null, hooks = {} } = usePage().props;
 
     // Tabs an installed module adds (display.settings.system.tabs): one per
@@ -273,7 +256,14 @@ export default function System() {
             || data.app_timezone !== settings.app_timezone;
         post('/settings/system', {
             onSuccess: () => {
-                if (needsReload) window.location.reload();
+                if (needsReload) {
+                    window.location.reload();
+                    return;
+                }
+                // Sidebar links prefetch pages and keep them for ~30s. A saved
+                // setting (e.g. the currency) changes what those pages render,
+                // so drop the cache or the next click shows the old values.
+                router.flushAll();
             },
         });
     }
@@ -539,16 +529,22 @@ export default function System() {
                                 <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
                                 <Dropdown
                                     options={[
-                                        ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
+                                        ...(!currencies.some((c) => c.code === data.default_currency) && data.default_currency
                                             ? [{ value: String(data.default_currency), label: data.default_currency }]
                                             : []),
-                                        ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
+                                        // Server-side allowlist (CurrencyRegistry) — the same list the save validates against.
+                                        ...currencies.map((c) => ({ value: c.code, label: `${c.code} - ${__(c.name)}` })),
                                     ]}
                                     value={data.default_currency == null ? '' : String(data.default_currency)}
                                     onChange={(v) => setData('default_currency', v)}
                                     className="w-64 max-w-full"
                                 />
                                 {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
+                                {data.default_currency !== settings.default_currency && (
+                                    <p className={`${HELP_CLASS} mt-2`} data-testid="currency-change-note">
+                                        {__('Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted.', { from: settings.default_currency, to: data.default_currency })}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}

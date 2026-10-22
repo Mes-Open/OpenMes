@@ -31,7 +31,8 @@ class ProductionCostService
     {
         // Editable in Settings → System (stored in system_settings); the
         // config/env values are the fallback default.
-        $this->defaultCurrency = (string) $this->setting('default_currency', config('openmmes.default_currency', 'PLN'));
+        // The one installation currency; CurrencyRegistry owns its fallbacks.
+        $this->defaultCurrency = \App\Support\CurrencyRegistry::current();
         $this->standardWeeklyHours = (float) $this->setting('standard_weekly_hours', config('openmmes.standard_weekly_hours', 40));
         $this->defaultPayType = (string) $this->setting('default_pay_type', config('openmmes.default_pay_type', 'hourly'));
         $rate = $this->setting('default_pay_rate', config('openmmes.default_pay_rate'));

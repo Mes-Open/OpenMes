@@ -57,10 +57,15 @@ class SystemController extends Controller
         if (! $row) {
             return response()->json(['message' => 'Setting not found'], 404);
         }
-        DB::table('system_settings')->where('key', $key)->update([
-            'value' => json_encode($request->input('value')),
-            'updated_at' => now(),
-        ]);
+        if ($key === \App\Support\CurrencyRegistry::SETTING_KEY) {
+            // Same path as Settings → System: relabels amounts in the old currency.
+            \App\Support\CurrencyRegistry::change($request->input('value'));
+        } else {
+            DB::table('system_settings')->where('key', $key)->update([
+                'value' => json_encode($request->input('value')),
+                'updated_at' => now(),
+            ]);
+        }
         \App\Support\ProductionFlow::forget();
 
         return response()->json([

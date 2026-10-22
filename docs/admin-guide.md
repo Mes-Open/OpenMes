@@ -270,6 +270,23 @@ Controls whether work orders must specify a week or month number:
 
 `force_sequential_steps`: if enabled, operators must complete steps in defined order. If disabled, steps can be completed in any order.
 
+### Currency
+
+**General → Currency** sets the one currency (ISO 4217 code) of the installation. New
+installations start on PLN. Every pay rate (HR → Workers, form and detail page) and every
+amount in the Production Cost Report (list, detail and CSV export) is shown in it. Changing
+it relabels amounts; it does not convert them — there is no exchange-rate conversion.
+
+Material prices, additional costs and cost sources keep the currency they were recorded
+in (new materials get the installation currency). When such an amount is in a different
+currency — for example sample-data materials priced in PLN on an EUR installation — the
+cost report highlights those lines, names the currency in its warning and adds them to the
+totals without conversion. Update the prices to the installation currency to clear it.
+
+Only the codes listed in the dropdown are accepted (the same list applies to
+`PUT /api/v1/system/settings/default_currency`). To support another code, add it to
+`App\Support\CurrencyRegistry::CURRENCIES`.
+
 ### Configuration and Scenario Files (Settings → System → Data)
 
 **Import** on the Data tab (Admin only) takes a JSON file with a plant's configuration,
