@@ -95,6 +95,15 @@ class SystemApiTest extends TestCase
         $this->assertSame('EUR', \App\Support\CurrencyRegistry::current());
     }
 
+    public function test_setting_the_currency_through_the_api_relabels_the_old_one(): void
+    {
+        $material = \App\Models\Material::factory()->create(['price_currency' => 'PLN']);
+
+        $this->authAdmin()->putJson('/api/v1/system/settings/default_currency', ['value' => 'EUR'])->assertOk();
+
+        $this->assertSame('EUR', $material->fresh()->price_currency);
+    }
+
     public function test_api_rejects_an_unsupported_currency(): void
     {
         $this->authAdmin()->putJson('/api/v1/system/settings/default_currency', ['value' => 'XYZ'])

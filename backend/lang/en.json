@@ -7055,5 +7055,6 @@
     "Mexican Peso": "Mexican Peso",
     "Recorded in :code, not converted to :currency.": "Recorded in :code, not converted to :currency.",
     "The highlighted lines are recorded in :codes, not in the installation currency (:currency). Totals add them without conversion — update those prices to :currency to remove this warning.": "The highlighted lines are recorded in :codes, not in the installation currency (:currency). Totals add them without conversion — update those prices to :currency to remove this warning.",
-    "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.": "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines."
+    "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.": "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.",
+    "Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted.": "Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted."
 }

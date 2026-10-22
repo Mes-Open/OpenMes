@@ -540,6 +540,11 @@ export default function System() {
                                     className="w-64 max-w-full"
                                 />
                                 {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
+                                {data.default_currency !== settings.default_currency && (
+                                    <p className={`${HELP_CLASS} mt-2`} data-testid="currency-change-note">
+                                        {__('Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted.', { from: settings.default_currency, to: data.default_currency })}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}

@@ -588,7 +588,6 @@ class SettingsController extends Controller
             'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
             'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,
             'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
-            'default_currency' => $validated['default_currency'] ?? \App\Support\CurrencyRegistry::current(),
             'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
             'default_pay_rate' => isset($validated['default_pay_rate']) && $validated['default_pay_rate'] !== null
                 ? (float) $validated['default_pay_rate']
@@ -609,8 +608,12 @@ class SettingsController extends Controller
 
         // The flow mode is cached per request; this save bypasses ProductionFlow::set().
         \App\Support\ProductionFlow::forget();
-        \App\Support\CurrencyRegistry::forget();
         app(\App\Support\UnitSerialisation::class)->forget();
+
+        // Installation currency — relabels amounts recorded in the old one.
+        if (! empty($validated['default_currency'])) {
+            \App\Support\CurrencyRegistry::change($validated['default_currency']);
+        }
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.

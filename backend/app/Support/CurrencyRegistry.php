@@ -141,6 +141,51 @@ class CurrencyRegistry
         self::forget();
     }
 
+    /**
+     * Amount columns that hold the installation currency unless a record was
+     * explicitly priced in another one (e.g. imported from an ERP).
+     *
+     * @var array<string, string> table => currency column
+     */
+    public const RELABELLED_COLUMNS = [
+        'materials' => 'price_currency',
+        'material_allocations' => 'price_currency_snapshot',
+        'additional_costs' => 'currency',
+    ];
+
+    /**
+     * Switch the installation to another currency.
+     *
+     * One currency per installation: amounts recorded in the previous
+     * installation currency are relabelled to the new one (the numbers are
+     * kept — there is no FX conversion), so the cost report does not read
+     * "PLN" lines under an "EUR" total. Amounts recorded in any other
+     * currency are left alone and stay flagged as foreign.
+     */
+    public static function change(string $code): void
+    {
+        if (! self::isValid($code)) {
+            throw new \InvalidArgumentException("Unsupported currency code: {$code}");
+        }
+
+        self::forget();
+        $previous = self::current();
+
+        DB::transaction(function () use ($code, $previous): void {
+            self::save($code);
+
+            if ($previous === $code) {
+                return;
+            }
+
+            foreach (self::RELABELLED_COLUMNS as $table => $column) {
+                DB::table($table)->where($column, $previous)->update([$column => $code]);
+            }
+        });
+
+        self::forget();
+    }
+
     /** Drop the cached code, e.g. after the setting was written some other way. */
     public static function forget(): void
     {

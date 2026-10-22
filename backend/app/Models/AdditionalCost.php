@@ -28,6 +28,17 @@ class AdditionalCost extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // An unlabelled amount is in the installation currency, not in the
+        // column's historical PLN default.
+        static::creating(function (self $cost): void {
+            if (blank($cost->currency)) {
+                $cost->currency = \App\Support\CurrencyRegistry::current();
+            }
+        });
+    }
+
     /**
      * Get the work order this cost belongs to.
      */

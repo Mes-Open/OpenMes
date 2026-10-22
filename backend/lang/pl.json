@@ -7055,5 +7055,6 @@
     "Hide output": "Ukryj wynik",
     "Recorded in :code, not converted to :currency.": "Zapisano w :code, bez przeliczenia na :currency.",
     "The highlighted lines are recorded in :codes, not in the installation currency (:currency). Totals add them without conversion — update those prices to :currency to remove this warning.": "Wyróżnione pozycje są zapisane w :codes, a nie w walucie instalacji (:currency). Sumy dodają je bez przeliczania — zmień te ceny na :currency, aby usunąć to ostrzeżenie.",
-    "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.": "Niektóre zlecenia zawierają kwoty zapisane w walucie innej niż :currency (np. ceny materiałów). Sumy dodają je bez przeliczania — otwórz zlecenie, aby zobaczyć, których pozycji to dotyczy."
+    "Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.": "Niektóre zlecenia zawierają kwoty zapisane w walucie innej niż :currency (np. ceny materiałów). Sumy dodają je bez przeliczania — otwórz zlecenie, aby zobaczyć, których pozycji to dotyczy.",
+    "Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted.": "Istniejące ceny i koszty zapisane w :from będą wyświetlane w :to. Kwoty nie są przeliczane."
 }
