@@ -27,7 +27,8 @@ test('HR form checkboxes line up with their labels on desktop and mobile', async
     await workers.click();
     const backdrop = page.locator('div.fixed.inset-0.bg-black\\/50');
     if (await backdrop.isVisible()) {
-      await backdrop.click({ position: { x: 5, y: 5 } });
+      const box = await backdrop.boundingBox();
+      await backdrop.click({ position: { x: (box?.width ?? 390) - 10, y: 10 } });
     }
   };
   const newWorker = page.getByRole('link', { name: /New Worker/i }).or(page.getByRole('button', { name: /New Worker/i })).first();
