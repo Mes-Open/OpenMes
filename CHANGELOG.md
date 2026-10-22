@@ -25,6 +25,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
   Supervisors and Admins keep their current access.
 
+### Fixed
+
+- **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
+  and the material lot page linked to `/inspections`, which does not exist; they now open the
+  inspection screens.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added

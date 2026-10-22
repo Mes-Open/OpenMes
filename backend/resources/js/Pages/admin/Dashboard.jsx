@@ -372,7 +372,7 @@ function InboundQcOverview({ stats }) {
         <div className="bg-om-card border border-om-line rounded-om p-5">
             <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[14px] font-semibold text-om-ink">{__('Inbound QC (30 days)')}</h2>
-                <a href="/inspections" className="text-[12.5px] text-om-accent hover:underline">{__('View all')} →</a>
+                <a href="/operator/inspections" className="text-[12.5px] text-om-accent hover:underline">{__('View all')} →</a>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
                 <Stat label={__('Pending')} value={stats.pending} />
