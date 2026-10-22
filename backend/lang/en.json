@@ -7035,5 +7035,17 @@
     "Command / Job": "Command / Job",
     "Hide payload": "Hide payload",
     "Hide stack trace": "Hide stack trace",
-    "Hide output": "Hide output"
+    "Hide output": "Hide output",
+    "Column": "Column",
+    "Status created.": "Status created.",
+    "Status updated.": "Status updated.",
+    "Status deleted.": "Status deleted.",
+    "Status created for line.": "Status created for line.",
+    "LOT sequence deleted successfully.": "LOT sequence deleted successfully.",
+    "Photo uploaded.": "Photo uploaded.",
+    "Photo deleted.": "Photo deleted.",
+    "View template \":name\" created.": "View template \":name\" created.",
+    "View template \":name\" updated.": "View template \":name\" updated.",
+    "View template \":name\" deleted.": "View template \":name\" deleted.",
+    "pcs on open pallets": "pcs on open pallets"
 }

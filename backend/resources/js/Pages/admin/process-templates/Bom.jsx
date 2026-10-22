@@ -164,7 +164,7 @@ function MaterialForm({ productType, processTemplate, materials, productTypes = 
                             aria-label={__("Material")}
                             value={data.material_id == null ? '' : String(data.material_id)}
                             onChange={(v) => onMaterialChange(v)}
-                            placeholder="Select material..."
+                            placeholder={__('Select material...')}
                             options={materials.map((m) => ({
                                 value: String(m.id),
                                 label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name ?? __('No type')})`,

@@ -144,7 +144,7 @@ export default function ShiftHandoverIndex() {
                 <Metric
                     label={__('WIP')}
                     value={balance?.wip_total_qty ?? 0}
-                    sub={`${balance?.wip_open_pallets_qty ?? 0} ${__('Open pallets')} + ${balance?.wip_unpacked_qty ?? 0} ${__('Unpacked')}`}
+                    sub={`${balance?.wip_open_pallets_qty ?? 0} ${__('pcs on open pallets')} + ${balance?.wip_unpacked_qty ?? 0} ${__('unpacked')}`}
                     accent="text-om-downtime"
                 />
                 <Metric label={__('Shipped')} value={balance?.shipped_qty ?? 0} accent="text-om-muted" />
