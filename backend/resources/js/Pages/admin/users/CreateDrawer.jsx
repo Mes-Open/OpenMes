@@ -12,6 +12,7 @@ export default function CreateUserForm({ options, finish, dismiss }) {
         role: '', workstation_id: '',
         worker_id: '', worker_code: '', worker_phone: '', worker_crew_id: '', worker_wage_group_id: '',
         skills: [],
+        permissions: [],
     });
 
     return <UserForm form={form} {...formOptions.current} bare onCancel={dismiss} onSubmit={e => {

@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workstation;
+use App\Support\InspectionPermissions;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -105,6 +106,12 @@ class UserManagementController extends Controller
             'skills' => $this->workforce()->skillOptions(),
             // Workers an account can be linked to: those without a live one.
             'linkableWorkers' => Worker::whereDoesntHave('user')->orderBy('name')->get(['id', 'code', 'name']),
+            // Per-person permissions the form can grant, and which of them each
+            // role already carries (so the form can show them as inherited).
+            'grantablePermissions' => InspectionPermissions::options(),
+            'rolePermissions' => Role::with('permissions')->get()->mapWithKeys(fn (Role $role) => [
+                $role->name => $role->permissions->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
+            ]),
         ];
     }
 
@@ -115,6 +122,32 @@ class UserManagementController extends Controller
     private function linkedWorkerCodes(): \Illuminate\Support\Collection
     {
         return Worker::whereIn('id', User::whereNotNull('worker_id')->select('worker_id'))->pluck('code', 'id');
+    }
+
+    /**
+     * Replace the person's direct grants of the permissions this form manages.
+     *
+     * Revoke-then-give rather than syncPermissions(): the latter would also
+     * drop any direct permission a module granted that this form knows nothing
+     * about.
+     *
+     * @param  list<string>  $permissions
+     */
+    private function syncGrantedPermissions(User $user, array $permissions): void
+    {
+        $user->revokePermissionTo(
+            $user->getDirectPermissions()->pluck('name')->intersect(InspectionPermissions::ALL)->all()
+        );
+        if ($permissions !== []) {
+            // findOrCreate: the seeder creates them on boot, but a grant must
+            // not fail on an installation that has not re-seeded yet.
+            $user->givePermissionTo(array_map(
+                fn (string $name) => \Spatie\Permission\Models\Permission::findOrCreate($name, 'web'),
+                $permissions,
+            ));
+        }
+
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**
@@ -140,6 +173,8 @@ class UserManagementController extends Controller
             } elseif ($validated['account_type'] === 'workstation') {
                 $user->assignRole('Operator');
             }
+
+            $this->syncGrantedPermissions($user, $validated['permissions'] ?? []);
 
             // Link a worker that already exists in HR; the worker row is HR's
             // and stays as it is.
@@ -202,6 +237,7 @@ class UserManagementController extends Controller
                 'workstation_id' => $user->workstation_id,
                 'force_password_change' => (bool) $user->force_password_change,
                 'role' => $user->roles->pluck('name')->first(),
+                'permissions' => $user->getDirectPermissions()->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
                 'worker' => $user->worker ? [
                     'id' => $user->worker->id,
                     'code' => $user->worker->code,
@@ -258,6 +294,12 @@ class UserManagementController extends Controller
                 $user->syncRoles(['Operator']);
             } else {
                 $user->syncRoles([]);
+            }
+
+            // Only when the form sent the field, so a client that does not know
+            // about it cannot silently revoke a grant.
+            if (array_key_exists('permissions', $validated)) {
+                $this->syncGrantedPermissions($user, $validated['permissions'] ?? []);
             }
 
             if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
