@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
-import { useState } from 'react';
+import { cloneElement, isValidElement, useId, useState } from 'react';
 import { nameControl } from '../../../lib/fieldName';
 import ModuleFields from '../../../components/ModuleFields';
 
@@ -120,7 +120,11 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                 <div className="border-t border-om-line2 p-4 space-y-4">
                     <p className="text-xs text-om-faint">{__('Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.')}</p>
                     <div className="grid grid-cols-2 gap-4">
-                        <Field label={__('Worker Code')} error={errors.worker_code}>
+                        <Field
+                            label={__('Worker Code')}
+                            error={errors.worker_code}
+                            help={__('Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code.')}
+                        >
                             <input type="text" value={data.worker_code} onChange={(e) => setData('worker_code', e.target.value)} className="form-input w-full" />
                         </Field>
                         <Field label={__('Phone')} error={errors.worker_phone}>
@@ -195,13 +199,16 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
     );
 }
 
-function Field({ label, error, required, children }) {
+function Field({ label, error, required, help, children }) {
+    const helpId = useId();
+    const control = help && isValidElement(children) ? cloneElement(children, { 'aria-describedby': helpId }) : children;
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(control, label)}
+            {help && <p id={helpId} className="mt-1 text-xs text-om-faint">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

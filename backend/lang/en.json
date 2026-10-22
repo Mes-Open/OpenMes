@@ -7035,5 +7035,7 @@
     "Command / Job": "Command / Job",
     "Hide payload": "Hide payload",
     "Hide stack trace": "Hide stack trace",
-    "Hide output": "Hide output"
+    "Hide output": "Hide output",
+    "Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.": "Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.",
+    "Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code.": "Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code."
 }

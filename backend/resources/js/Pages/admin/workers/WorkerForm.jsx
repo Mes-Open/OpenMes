@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { cloneElement, isValidElement, useId } from 'react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 import CustomFields from '../../../components/CustomFields';
@@ -33,7 +34,12 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <div className="grid grid-cols-2 gap-4">
-                <Field label={__('Code')} error={errors.code} required>
+                <Field
+                    label={__('Code')}
+                    error={errors.code}
+                    required
+                    help={__('Unique identifier of this worker across the whole system, e.g. W-201. No two workers can share a code.')}
+                >
                     <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" />
                 </Field>
                 <Field label={__('Name')} error={errors.name} required>
@@ -145,13 +151,16 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
     );
 }
 
-function Field({ label, error, required, children }) {
+function Field({ label, error, required, help, children }) {
+    const helpId = useId();
+    const control = help && isValidElement(children) ? cloneElement(children, { 'aria-describedby': helpId }) : children;
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(control, label)}
+            {help && <p id={helpId} className="mt-1 text-xs text-om-faint">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
