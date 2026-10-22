@@ -99,11 +99,12 @@ class InspectionController extends Controller
         if ($result->inspection_id !== $inspection->id) {
             abort(404);
         }
-        if (! $inspection->isPending()) {
-            abort(422, 'Cannot edit results of a completed inspection.');
-        }
 
-        $updated = $this->service->recordResult($result, $request->validated());
+        try {
+            $updated = $this->service->recordResult($result, $request->validated());
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
 
         return response()->json(['data' => $updated]);
     }

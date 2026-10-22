@@ -62,7 +62,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   endpoints, now requires one of the two permissions above, through the same policy the operator
   screen uses. Completing an inspection now creates the lot only when the person completing it
   holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
-  Supervisors and Admins keep their current access.
+  Supervisors and Admins keep their current access: the seeder grants them both permissions. The
+  Docker image runs it on start; on an installation upgraded without Docker, run
+  `php artisan db:seed --class=RolesAndPermissionsSeeder --force` after migrating, or Supervisors
+  lose access to inspections until you do. A shared workstation login cannot hold either permission.
 - **A disposition needs a completed inspection.** Accepting a lot before its inspection was completed
   released the material, and a later fail did not hold it again. A decision on a pending inspection
   is now refused, and concurrent decisions no longer create a second lot.

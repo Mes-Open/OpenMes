@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\Line;
 use App\Models\User;
+use App\Models\Workstation;
 use App\Support\InspectionPermissions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -124,6 +126,36 @@ class UserQualityPermissionsTest extends TestCase
         $this->actingAs($supervisor)
             ->put(route('admin.users.update', $this->operator), $this->payload(['permissions' => [InspectionPermissions::DISPOSITION]]))
             ->assertForbidden();
+
+        $this->assertFalse($this->operator->fresh()->hasDirectPermission(InspectionPermissions::DISPOSITION));
+    }
+
+    public function test_a_shared_workstation_login_cannot_be_granted_quality_permissions(): void
+    {
+        $station = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.users.store'), $this->payload([
+                'account_type' => 'workstation', 'role' => null, 'workstation_id' => $station->id,
+                'name' => 'Press 1', 'username' => 'press1', 'email' => 'press1@example.test',
+                'password' => 'Station-Pass-123!', 'password_confirmation' => 'Station-Pass-123!',
+                'permissions' => [InspectionPermissions::PERFORM],
+            ]))
+            ->assertSessionHasErrors('permissions');
+
+        $this->assertDatabaseMissing('users', ['username' => 'press1']);
+    }
+
+    public function test_turning_a_person_into_a_workstation_login_drops_their_grants(): void
+    {
+        $this->operator->givePermissionTo(InspectionPermissions::DISPOSITION);
+        $station = Workstation::factory()->create(['line_id' => Line::factory()->create()->id]);
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.users.update', $this->operator), $this->payload([
+                'account_type' => 'workstation', 'role' => null, 'workstation_id' => $station->id,
+            ]))
+            ->assertSessionHasNoErrors();
 
         $this->assertFalse($this->operator->fresh()->hasDirectPermission(InspectionPermissions::DISPOSITION));
     }

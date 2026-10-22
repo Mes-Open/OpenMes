@@ -7099,5 +7099,6 @@
     "The inspection will have no criteria to record, so it cannot be completed. Ask quality to publish a plan for this material.": "The inspection will have no criteria to record, so it cannot be completed. Ask quality to publish a plan for this material.",
     "Change disposition": "Change disposition",
     "Complete the inspection before applying a disposition.": "Complete the inspection before applying a disposition.",
-    "This inspection plan does not apply to the selected material.": "This inspection plan does not apply to the selected material."
+    "This inspection plan does not apply to the selected material.": "This inspection plan does not apply to the selected material.",
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login."
 }

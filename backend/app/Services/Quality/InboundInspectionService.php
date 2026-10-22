@@ -89,20 +89,32 @@ class InboundInspectionService
     /**
      * Record / update a single criterion's result. Pass/fail is auto-evaluated
      * by InspectionResult::evaluate() based on the criterion type and spec.
+     *
+     * Takes the same row lock as complete(), so a save racing a completion
+     * either lands before the verdict is computed or is refused after it.
+     *
+     * @throws \DomainException when the inspection is no longer pending
      */
     public function recordResult(InspectionResult $result, array $data): InspectionResult
     {
-        $result->fill([
-            'value_numeric' => $data['value_numeric'] ?? $result->value_numeric,
-            'value_boolean' => $data['value_boolean'] ?? $result->value_boolean,
-            'value_text' => $data['value_text'] ?? $result->value_text,
-            'notes' => $data['notes'] ?? $result->notes,
-        ]);
+        return DB::transaction(function () use ($result, $data) {
+            $inspection = Inspection::whereKey($result->inspection_id)->lockForUpdate()->firstOrFail();
+            if (! $inspection->isPending()) {
+                throw new \DomainException(__('Cannot edit results of a completed inspection.'));
+            }
 
-        $result->is_passed = $result->evaluate();
-        $result->save();
+            $result->fill([
+                'value_numeric' => $data['value_numeric'] ?? $result->value_numeric,
+                'value_boolean' => $data['value_boolean'] ?? $result->value_boolean,
+                'value_text' => $data['value_text'] ?? $result->value_text,
+                'notes' => $data['notes'] ?? $result->notes,
+            ]);
 
-        return $result;
+            $result->is_passed = $result->evaluate();
+            $result->save();
+
+            return $result;
+        });
     }
 
     /**

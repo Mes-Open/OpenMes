@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserManagementController extends Controller
 {
@@ -142,12 +144,12 @@ class UserManagementController extends Controller
             // findOrCreate: the seeder creates them on boot, but a grant must
             // not fail on an installation that has not re-seeded yet.
             $user->givePermissionTo(array_map(
-                fn (string $name) => \Spatie\Permission\Models\Permission::findOrCreate($name, 'web'),
+                fn (string $name) => Permission::findOrCreate($name, 'web'),
                 $permissions,
             ));
         }
 
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**
@@ -298,7 +300,11 @@ class UserManagementController extends Controller
 
             // Only when the form sent the field, so a client that does not know
             // about it cannot silently revoke a grant.
-            if (array_key_exists('permissions', $validated)) {
+            // A workstation login never keeps personal quality grants, also
+            // when an existing personal account is turned into one.
+            if ($validated['account_type'] === 'workstation') {
+                $this->syncGrantedPermissions($user, []);
+            } elseif (array_key_exists('permissions', $validated)) {
                 $this->syncGrantedPermissions($user, $validated['permissions'] ?? []);
             }
 

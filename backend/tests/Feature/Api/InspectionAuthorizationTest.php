@@ -321,4 +321,34 @@ class InspectionAuthorizationTest extends TestCase
         }
         $this->assertDatabaseMissing('inspections', ['lot_number' => 'LOT-NEW']);
     }
+
+    public function test_an_untyped_material_never_borrows_another_materials_plan(): void
+    {
+        // materials.material_type_id is nullable; the plan lookup must not read
+        // a missing type as "matches every plan whose type is also empty".
+        $untyped = Material::create(['code' => 'U', 'name' => 'Flour', 'unit_of_measure' => 'kg']);
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM), 'sanctum');
+
+        $this->postJson('/api/v1/inspections', ['material_id' => $untyped->id, 'lot_number' => 'LOT-U1', 'quantity_received' => 5])
+            ->assertCreated()
+            ->assertJsonPath('data.inspection_plan_id', null)
+            ->assertJsonCount(0, 'data.results');
+
+        $this->postJson('/api/v1/inspections', ['material_id' => $untyped->id, 'lot_number' => 'LOT-U2', 'inspection_plan_id' => $this->plan->id])
+            ->assertStatus(422)->assertJsonValidationErrors('inspection_plan_id');
+        $this->assertDatabaseMissing('inspections', ['lot_number' => 'LOT-U2']);
+    }
+
+    public function test_results_of_a_completed_inspection_cannot_be_changed(): void
+    {
+        $inspection = $this->recordedInspection();
+        app(InboundInspectionService::class)->complete($inspection);
+        $result = $inspection->results->first();
+
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM), 'sanctum')
+            ->patchJson("/api/v1/inspections/{$inspection->id}/results/{$result->id}", ['value_boolean' => false])
+            ->assertStatus(422);
+
+        $this->assertTrue((bool) $result->fresh()->value_boolean);
+    }
 }

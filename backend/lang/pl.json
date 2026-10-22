@@ -7099,5 +7099,6 @@
     "The inspection will have no criteria to record, so it cannot be completed. Ask quality to publish a plan for this material.": "Kontrola nie będzie miała kryteriów do zapisania, więc nie da się jej zakończyć. Poproś dział jakości o opublikowanie planu dla tego materiału.",
     "Change disposition": "Zmień dyspozycję",
     "Complete the inspection before applying a disposition.": "Zakończ kontrolę przed podjęciem decyzji o dyspozycji.",
-    "This inspection plan does not apply to the selected material.": "Ten plan kontroli nie dotyczy wybranego materiału."
+    "This inspection plan does not apply to the selected material.": "Ten plan kontroli nie dotyczy wybranego materiału.",
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska."
 }

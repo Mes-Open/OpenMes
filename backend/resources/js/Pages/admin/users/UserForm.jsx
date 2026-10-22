@@ -86,7 +86,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                         { value: 'workstation', label: __('Workstation') },
                     ]}
                     value={data.account_type}
-                    onChange={(v) => setData('account_type', v)}
+                    onChange={(v) => setData((d) => ({ ...d, account_type: v, ...(v === 'workstation' ? { permissions: [] } : {}) }))}
                 />
             </div>
 
@@ -264,7 +264,8 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                 </div>
             )}
 
-            {grantablePermissions.length > 0 && (
+            {/* Personal accounts only: a shared workstation login cannot answer for a quality decision. */}
+            {isUser && grantablePermissions.length > 0 && (
                 <section className="border border-om-line2 rounded-om-sm p-4 space-y-3">
                     <div>
                         <h2 className="text-sm font-semibold text-om-ink">{__('Quality permissions')}</h2>

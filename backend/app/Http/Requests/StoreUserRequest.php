@@ -55,7 +55,9 @@ class StoreUserRequest extends FormRequest
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
             // Permissions granted to this one person on top of their role — only
             // the ones this form offers (InspectionPermissions), nothing else.
-            'permissions' => ['nullable', 'array'],
+            // Never to a shared workstation login: these rights are for a named
+            // person who answers for the decision.
+            'permissions' => ['nullable', 'array', 'prohibited_if:account_type,workstation'],
             'permissions.*' => ['string', 'distinct', Rule::in(InspectionPermissions::ALL)],
         ]);
     }
@@ -65,6 +67,7 @@ class StoreUserRequest extends FormRequest
         return [
             'name.regex' => __('Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.'),
             'worker_id.unique' => __('This worker already has a user account.'),
+            'permissions.prohibited_if' => __('Quality permissions can only be granted to a personal account, not a shared workstation login.'),
             'worker_id.prohibits' => __('Choose either a new worker code or an existing worker, not both.'),
         ];
     }

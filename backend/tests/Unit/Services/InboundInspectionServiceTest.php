@@ -81,6 +81,27 @@ class InboundInspectionServiceTest extends TestCase
         $this->assertNull($completed->issue_id);
     }
 
+    public function test_a_result_save_that_lost_the_race_to_completion_is_refused(): void
+    {
+        $plan = $this->planWith([['name' => 'Visual', 'type' => 'pass_fail', 'required' => true]]);
+        $insp = $this->service->start($this->material, 'L-RACE', 10.0, $plan, $this->inspector);
+        // Loaded while the inspection was still pending, as a request that
+        // started just before somebody else completed it would have.
+        $stale = $insp->results[0];
+
+        $this->service->recordResult($insp->results[0], ['value_boolean' => true]);
+        $this->service->complete($insp);
+
+        try {
+            $this->service->recordResult($stale, ['value_boolean' => false]);
+            $this->fail('A result was changed after the verdict was fixed.');
+        } catch (\DomainException) {
+        }
+
+        $this->assertTrue((bool) InspectionResult::find($stale->id)->value_boolean);
+        $this->assertSame(Inspection::STATUS_PASS, $insp->fresh()->status);
+    }
+
     public function test_complete_creates_non_conformance_on_fail(): void
     {
         $plan = $this->planWith([

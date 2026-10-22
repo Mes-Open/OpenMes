@@ -141,7 +141,10 @@ class InspectionPlan extends Model
     {
         return $query->active()->published()->where(function ($q) use ($material) {
             $q->where('material_id', $material->id)
-                ->orWhere('material_type_id', $material->material_type_id)
+                // material_type_id is nullable: without the guard an untyped
+                // material would match `material_type_id IS NULL`, i.e. every
+                // other material's own plan.
+                ->when($material->material_type_id, fn ($q2) => $q2->orWhere('material_type_id', $material->material_type_id))
                 ->orWhere(function ($q2) {
                     $q2->whereNull('material_id')->whereNull('material_type_id');
                 });

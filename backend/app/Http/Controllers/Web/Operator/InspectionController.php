@@ -105,11 +105,12 @@ class InspectionController extends Controller
         if ($result->inspection_id !== $inspection->id) {
             abort(404);
         }
-        if (! $inspection->isPending()) {
-            return back()->with('error', __('Cannot edit results of a completed inspection.'));
-        }
 
-        $this->service->recordResult($result, $request->validated());
+        try {
+            $this->service->recordResult($result, $request->validated());
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('Result saved.'));
     }

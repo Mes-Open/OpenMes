@@ -125,6 +125,7 @@ export default function InspectionShow() {
                         className="form-input w-full"
                         rows={2}
                     />
+                    {dispositionForm.errors.notes && <p className="text-xs text-om-blocked">{dispositionForm.errors.notes}</p>}
                     {dispositionForm.errors.disposition && <p className="text-xs text-om-blocked">{dispositionForm.errors.disposition}</p>}
                     <div className="flex flex-wrap gap-2">
                         {dispositions.map((value) => (
