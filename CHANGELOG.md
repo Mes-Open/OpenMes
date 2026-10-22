@@ -29,6 +29,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Worker code is explained in the forms.** The *Code* field on the worker form and the
+  *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
+  code identifies, an example (`W-201`), and that it must be unique (English and Polish).
 - The per-worker `pay_currency` field is no longer accepted by the worker forms — pay is
   always in the installation currency. The column and its data are kept.
 - An upgrade migration uppercases the stored currency and resets a code outside the
