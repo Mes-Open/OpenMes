@@ -87,8 +87,12 @@ class WorkerController extends Controller
                 'crew' => $worker->crew ? ['name' => $worker->crew->name] : null,
                 'wageGroup' => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
                 'personnelClass' => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
+                'pay_type' => $worker->pay_type,
+                'pay_rate' => $worker->pay_rate,
                 'custom_fields' => $worker->custom_fields,
             ],
+            // What an empty pay type falls back to (Settings → System).
+            'defaultPayType' => $this->defaultPayType(),
             'certifications' => $certifications,
             'skills' => $skills,
             'levels' => $this->workforce()->certificationLevels(),
@@ -99,6 +103,13 @@ class WorkerController extends Controller
             'canManageCertifications' => \App\Models\Worker::hasModuleRelation('skills'),
             'customFields' => $cf->clientConfig('worker'),
         ]);
+    }
+
+    private function defaultPayType(): string
+    {
+        $type = json_decode((string) DB::table('system_settings')->where('key', 'default_pay_type')->value('value'), true);
+
+        return in_array($type, Worker::PAY_TYPES, true) ? $type : 'hourly';
     }
 
     /**
@@ -134,8 +145,8 @@ class WorkerController extends Controller
      */
     public function store(StoreWorkerRequest $request, CustomFieldService $cf)
     {
-        // StoreWorkerRequest validates the worker fields (incl. pay_type/pay_rate/
-        // pay_currency from develop) AND the custom fields (MergesCustomFieldRules).
+        // StoreWorkerRequest validates the worker fields (incl. pay_type/pay_rate;
+        // the currency is the installation's) AND the custom fields (MergesCustomFieldRules).
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -195,7 +206,6 @@ class WorkerController extends Controller
                 'personnel_class_id' => $worker->personnel_class_id,
                 'pay_type' => $worker->pay_type,
                 'pay_rate' => $worker->pay_rate,
-                'pay_currency' => $worker->pay_currency,
                 'is_active' => $worker->is_active,
                 'is_logistics' => $worker->is_logistics,
                 'custom_fields' => $worker->custom_fields,

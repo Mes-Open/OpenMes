@@ -29,6 +29,8 @@ class Worker extends Model
         'wage_group_id',
         'pay_type',
         'pay_rate',
+        // Kept for existing data only; pay is always in the installation
+        // currency (CurrencyRegistry) and the forms no longer submit it.
         'pay_currency',
         'workstation_id',
         'is_active',

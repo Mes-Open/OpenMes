@@ -10,8 +10,9 @@ export default function CreateUserForm({ options, finish, dismiss }) {
         password: '', password_confirmation: '',
         force_password_change: false,
         role: '', workstation_id: '',
-        worker_code: '', worker_phone: '', worker_crew_id: '', worker_wage_group_id: '',
+        worker_id: '', worker_code: '', worker_phone: '', worker_crew_id: '', worker_wage_group_id: '',
         skills: [],
+        permissions: [],
     });
 
     return <UserForm form={form} {...formOptions.current} bare onCancel={dismiss} onSubmit={e => {

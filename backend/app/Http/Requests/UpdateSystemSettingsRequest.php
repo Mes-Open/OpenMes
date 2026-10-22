@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\CurrencyRegistry;
 use App\Support\ModuleRegistry;
 use App\Support\TimezoneRegistry;
 use Illuminate\Foundation\Http\FormRequest;
@@ -21,6 +22,14 @@ class UpdateSystemSettingsRequest extends FormRequest
         // The route is already behind `auth` + `role:Admin`; repeated here so the
         // ruleset cannot be reused from an ungated route by accident.
         return $this->user()?->hasRole('Admin') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // "eur" is a typo, not a different currency.
+        if (is_string($this->input('default_currency'))) {
+            $this->merge(['default_currency' => CurrencyRegistry::normalise($this->input('default_currency'))]);
+        }
     }
 
     public function after(): array
@@ -83,12 +92,23 @@ class UpdateSystemSettingsRequest extends FormRequest
             'unit_test_max_attempts' => 'nullable|integer|min:1|max:99',
             'unit_test_attempts_scope' => ['nullable', Rule::in(\App\Support\UnitSerialisation::ATTEMPT_SCOPES)],
             'standard_weekly_hours' => 'nullable|numeric|min:1|max:168',
-            'default_currency' => 'nullable|string|size:3',
+            // One currency per installation, from the shared ISO 4217 allowlist.
+            'default_currency' => ['nullable', 'string', Rule::in(CurrencyRegistry::codes())],
             'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
             'default_pay_rate' => 'nullable|numeric|min:0',
             // Optional feature modules (#144).
             'enabled_modules' => 'nullable|array',
             'enabled_modules.*' => ['string', Rule::in(ModuleRegistry::optionalKeys())],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'default_currency.in' => __('The selected currency is not a supported ISO 4217 code.'),
         ];
     }
 

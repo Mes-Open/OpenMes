@@ -53,7 +53,7 @@ class StoreWorkerRequest extends FormRequest
             'personnel_class_id' => ['nullable', 'integer', Rule::in($this->offeredWorkforceIds('personnelClassOptions', $current?->personnel_class_id))],
             'pay_type' => ['nullable', Rule::in(Worker::PAY_TYPES)],
             'pay_rate' => ['nullable', 'numeric', 'min:0'],
-            'pay_currency' => ['nullable', 'string', 'size:3'],
+            // No pay_currency: one currency per installation (CurrencyRegistry).
             'is_active' => ['boolean'],
             'is_logistics' => ['boolean'],
             'skills' => ['nullable', 'array'],

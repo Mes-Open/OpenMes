@@ -7,6 +7,79 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Link an account to an existing worker.** The *Worker profile* section of the account
+  form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
+  worker*: a searchable list of HR workers that have no account yet. Linking does not
+  change the worker record. An account's worker profile can be unlinked from the edit
+  page; the worker stays in HR. The users list gains a *Worker* column. A worker can
+  hold only one live account — enforced in the form, the API and a new partial unique
+  index on `users.worker_id`. On upgrade, if several live accounts already shared one
+  worker, only the oldest keeps the link; the others are unlinked.
+- **One currency per installation for pay and production costs.** *Settings → System →
+  General → Currency* now validates against a fixed ISO 4217 list (web form and
+  `PUT /api/v1/system/settings/default_currency`); an unknown code is a 422 instead of being
+  stored. The worker form shows the currency beside the pay rate, the worker detail page has
+  a new **Compensation** card with the rate in that currency, and every amount in the
+  Production Cost Report reads with it (labor rates as `… EUR/h`). Amounts are now always
+  shown with two decimals.
+- Switching the installation currency relabels material prices, consumption price snapshots
+  and additional costs that were recorded in the previous installation currency (the numbers
+  are kept, not converted), so the cost report no longer shows old-currency lines under a
+  new-currency total. Amounts explicitly recorded in another currency are left as they are.
+  The settings page says so before you save.
+- New materials and additional costs without a currency take the installation currency instead of a hardcoded PLN. On the cost
+  report detail, lines recorded in another currency are highlighted and the mixed-currency
+  warning names that currency.
+- Shared money formatting: `App\Support\Money::format()` on the server and `formatMoney()`
+  (`resources/js/lib/money.js`) in the browser, for core and modules alike.
+- **Quality inspector and Quality disposition permissions.** Inbound inspections can now be given to
+  named people instead of only Supervisors and Admins. *Quality inspector* lets someone start,
+  fill in and complete an inspection; *Quality disposition* also lets them decide on the inspected
+  lot. Grant them to one person on Admin → Users → Edit, or to a whole role on Settings → Access.
+  Operators who hold either permission get an **Inspections** tab on the operator tablet.
+
+### Changed
+
+- **Worker code is explained in the forms.** The *Code* field on the worker form and the
+  *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
+  code identifies, an example (`W-201`), and that it must be unique (English and Polish).
+- Saving an account that has a worker profile no longer overwrites the worker's name and
+  email with the account's. Those belong to the HR record, which may now predate the
+  account. A new profile created from the account form still takes them from the account.
+- The per-worker `pay_currency` field is no longer accepted by the worker forms — pay is
+  always in the installation currency. The column and its data are kept.
+- An upgrade migration uppercases the stored currency and resets a code outside the
+  supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
+  to `CurrencyRegistry`).
+
+### Security
+
+- **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
+  operator token could start, fill in and complete an inspection, and with lot tracking on,
+  completing one put a released lot into stock. Every inspection endpoint, including the read
+  endpoints, now requires one of the two permissions above, through the same policy the operator
+  screen uses. Completing an inspection now creates the lot only when the person completing it
+  holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
+  Supervisors and Admins keep their current access: the seeder grants them both permissions. The
+  Docker image runs it on start; on an installation upgraded without Docker, run
+  `php artisan db:seed --class=RolesAndPermissionsSeeder --force` after migrating, or Supervisors
+  lose access to inspections until you do. A shared workstation login cannot hold either permission.
+- **A disposition needs a completed inspection.** Accepting a lot before its inspection was completed
+  released the material, and a later fail did not hold it again. A decision on a pending inspection
+  is now refused, and concurrent decisions no longer create a second lot.
+
+### Fixed
+
+- **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
+  and the material lot page linked to `/inspections`, which does not exist; they now open the
+  inspection screens.
+- **The API and the tablet start the same inspection.** Without a chosen plan the API now uses the
+  published plan for the material, as the tablet does; a draft plan or another material's plan is
+  refused. Releasing a lot that was held now makes its received quantity available, and a lot
+  created by a decision records the person who decided.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added

@@ -1476,13 +1476,16 @@ class PrintShopDemoSeeder extends Seeder
 
     private function seedInspectionPlans(array $materials): void
     {
+        // Published, so the plan is offered when an inspection of the material
+        // starts (InspectionPlan::applicableTo skips drafts).
         InspectionPlan::updateOrCreate(
             ['name' => 'Garment Incoming Inspection'],
             [
                 'description' => 'Quality inspection for incoming garment blanks',
                 'material_id' => $materials['MAT-GAR-TSH-W']->id,
-                'criteria' => ['fabric_weight', 'colour_consistency', 'stitching_quality'],
+                'criteria' => InspectionPlan::normalizeCriteria(['fabric_weight', 'colour_consistency', 'stitching_quality']),
                 'is_active' => true,
+                'published_at' => now(),
             ]
         );
 
@@ -1491,8 +1494,9 @@ class PrintShopDemoSeeder extends Seeder
             [
                 'description' => 'Quality verification for DTG ink batches',
                 'material_id' => $materials['MAT-INK-DTG-W']->id,
-                'criteria' => ['viscosity', 'colour_accuracy', 'expiry_check'],
+                'criteria' => InspectionPlan::normalizeCriteria(['viscosity', 'colour_accuracy', 'expiry_check']),
                 'is_active' => true,
+                'published_at' => now(),
             ]
         );
     }

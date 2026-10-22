@@ -6,13 +6,19 @@ use App\Extension\HookRegistry;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Workstation;
+use App\Support\InspectionPermissions;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserManagementController extends Controller
 {
@@ -31,6 +37,7 @@ class UserManagementController extends Controller
         return Inertia::render('admin/users/Index', [
             'userRoles' => $users->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
             'workstationNames' => Workstation::pluck('name', 'id'),
+            'workerCodes' => $this->linkedWorkerCodes(),
             'currentUserId' => auth()->id(),
             'formOptions' => Inertia::optional(fn () => $this->formData()),
         ]);
@@ -48,6 +55,7 @@ class UserManagementController extends Controller
             'currentUserId' => auth()->id(),
             'userRoles' => User::with('roles')->get(['id'])->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
             'workstationNames' => Workstation::pluck('name', 'id'),
+            'workerCodes' => $this->linkedWorkerCodes(),
         ]));
     }
 
@@ -98,7 +106,50 @@ class UserManagementController extends Controller
             'crews' => $this->workforce()->crewOptions(),
             'wageGroups' => $this->workforce()->wageGroupOptions(),
             'skills' => $this->workforce()->skillOptions(),
+            // Workers an account can be linked to: those without a live one.
+            'linkableWorkers' => Worker::whereDoesntHave('user')->orderBy('name')->get(['id', 'code', 'name']),
+            // Per-person permissions the form can grant, and which of them each
+            // role already carries (so the form can show them as inherited).
+            'grantablePermissions' => InspectionPermissions::options(),
+            'rolePermissions' => Role::with('permissions')->get()->mapWithKeys(fn (Role $role) => [
+                $role->name => $role->permissions->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
+            ]),
         ];
+    }
+
+    /**
+     * Worker codes of linked accounts, keyed by worker id, for the list's
+     * Worker column. The synced `users` rows carry only the id.
+     */
+    private function linkedWorkerCodes(): \Illuminate\Support\Collection
+    {
+        return Worker::whereIn('id', User::whereNotNull('worker_id')->select('worker_id'))->pluck('code', 'id');
+    }
+
+    /**
+     * Replace the person's direct grants of the permissions this form manages.
+     *
+     * Revoke-then-give rather than syncPermissions(): the latter would also
+     * drop any direct permission a module granted that this form knows nothing
+     * about.
+     *
+     * @param  list<string>  $permissions
+     */
+    private function syncGrantedPermissions(User $user, array $permissions): void
+    {
+        $user->revokePermissionTo(
+            $user->getDirectPermissions()->pluck('name')->intersect(InspectionPermissions::ALL)->all()
+        );
+        if ($permissions !== []) {
+            // findOrCreate: the seeder creates them on boot, but a grant must
+            // not fail on an installation that has not re-seeded yet.
+            $user->givePermissionTo(array_map(
+                fn (string $name) => Permission::findOrCreate($name, 'web'),
+                $permissions,
+            ));
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**
@@ -108,7 +159,7 @@ class UserManagementController extends Controller
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $validated) {
+        $this->guardWorkerLinkRace(fn () => DB::transaction(function () use ($request, $validated) {
             $user = User::create([
                 'name' => $validated['name'],
                 'username' => $validated['username'],
@@ -125,8 +176,14 @@ class UserManagementController extends Controller
                 $user->assignRole('Operator');
             }
 
-            // Create worker profile when code is provided and account is personal
-            if (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+            $this->syncGrantedPermissions($user, $validated['permissions'] ?? []);
+
+            // Link a worker that already exists in HR; the worker row is HR's
+            // and stays as it is.
+            if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
+                $this->linkWorker($user, (int) $validated['worker_id']);
+            } elseif (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+                // Create worker profile when code is provided and account is personal
                 $worker = Worker::create([
                     'code' => $validated['worker_code'],
                     'name' => $validated['name'],
@@ -155,7 +212,7 @@ class UserManagementController extends Controller
                 'worker' => $user->worker,
                 'input' => $validated,
             ]);
-        });
+        }));
 
         return redirect()->route('admin.users.index')
             ->with('success', __('Account created successfully.'));
@@ -182,8 +239,11 @@ class UserManagementController extends Controller
                 'workstation_id' => $user->workstation_id,
                 'force_password_change' => (bool) $user->force_password_change,
                 'role' => $user->roles->pluck('name')->first(),
+                'permissions' => $user->getDirectPermissions()->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
                 'worker' => $user->worker ? [
+                    'id' => $user->worker->id,
                     'code' => $user->worker->code,
+                    'name' => $user->worker->name,
                     'phone' => $user->worker->phone,
                     'crew_id' => $user->worker->crew_id,
                     'wage_group_id' => $user->worker->wage_group_id,
@@ -217,7 +277,7 @@ class UserManagementController extends Controller
             $updateData['password'] = Hash::make($validated['password']);
         }
 
-        DB::transaction(function () use ($request, $user, $validated, $updateData, $passwordChanged) {
+        $this->guardWorkerLinkRace(fn () => DB::transaction(function () use ($request, $user, $validated, $updateData, $passwordChanged) {
             $user->update($updateData);
 
             // An administrator setting somebody's password is almost always a
@@ -238,21 +298,41 @@ class UserManagementController extends Controller
                 $user->syncRoles([]);
             }
 
-            if ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
+            // Only when the form sent the field, so a client that does not know
+            // about it cannot silently revoke a grant.
+            // A workstation login never keeps personal quality grants, also
+            // when an existing personal account is turned into one.
+            if ($validated['account_type'] === 'workstation') {
+                $this->syncGrantedPermissions($user, []);
+            } elseif (array_key_exists('permissions', $validated)) {
+                $this->syncGrantedPermissions($user, $validated['permissions'] ?? []);
+            }
+
+            if ($validated['account_type'] === 'user' && ! empty($validated['worker_id'])) {
+                if ((int) $validated['worker_id'] !== $user->worker_id) {
+                    $this->linkWorker($user, (int) $validated['worker_id']);
+                }
+            } elseif ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
                 $workerData = [
                     'code' => $validated['worker_code'],
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
                     'phone' => $validated['worker_phone'] ?? null,
                     'crew_id' => $validated['worker_crew_id'] ?? null,
                     'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
                 ];
 
                 if ($user->worker) {
+                    // Only the fields this form shows. Name and email belong to
+                    // the worker record in HR — it may well predate the account
+                    // and have been linked to it — so editing the account must
+                    // not rename the person or replace their email there.
                     $user->worker->update($workerData);
                     $worker = $user->worker;
                 } else {
-                    $worker = Worker::create(array_merge($workerData, ['is_active' => true]));
+                    $worker = Worker::create(array_merge($workerData, [
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'is_active' => true,
+                    ]));
                     $user->update(['worker_id' => $worker->id]);
                 }
 
@@ -270,10 +350,81 @@ class UserManagementController extends Controller
                 'worker' => $user->fresh()->worker,
                 'input' => $validated,
             ]);
-        });
+        }));
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Account updated successfully.');
+    }
+
+    /**
+     * Detach the worker profile from this account. The worker stays in HR,
+     * only without an account.
+     */
+    public function unlinkWorker(User $user)
+    {
+        if ($user->worker_id === null) {
+            return redirect()->route('admin.users.edit', $user)
+                ->with('error', __('This account has no worker profile.'));
+        }
+
+        $workerId = $user->worker_id;
+        $user->update(['worker_id' => null]);
+        $this->recordWorkerLink($user, 'worker_unlinked', $workerId, null);
+
+        return redirect()->route('admin.users.edit', $user)
+            ->with('success', __('Worker profile unlinked. The worker record was kept.'));
+    }
+
+    /**
+     * Point the account at an existing worker. The worker row is HR's and stays
+     * as it is; only the link changes, and that is recorded.
+     */
+    private function linkWorker(User $user, int $workerId): void
+    {
+        $previous = $user->worker_id;
+        $user->update(['worker_id' => $workerId]);
+        $this->recordWorkerLink($user, 'worker_linked', $previous, $workerId);
+    }
+
+    /**
+     * Linking decides whose actions a worker's records are attributed to, so
+     * every change goes to the audit log — ids only, no personal data.
+     */
+    private function recordWorkerLink(User $user, string $action, ?int $before, ?int $after): void
+    {
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'entity_type' => User::class,
+            'entity_id' => $user->id,
+            'action' => $action,
+            'before_state' => ['worker_id' => $before],
+            'after_state' => ['worker_id' => $after],
+        ]);
+    }
+
+    /**
+     * Two admins linking the same worker at once both pass validation; the
+     * partial unique index then refuses the second write. Report that as the
+     * same validation error the Form Request gives, not as a server error.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $write
+     * @return T
+     */
+    private function guardWorkerLinkRace(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException $e) {
+            if (! str_contains($e->getMessage(), 'worker_id')) {
+                throw $e;
+            }
+
+            throw ValidationException::withMessages([
+                'worker_id' => __('This worker already has a user account.'),
+            ]);
+        }
     }
 
     /**

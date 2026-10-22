@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber, formatDateTime } from '../../../lib/i18n';
+import { formatMoney } from '../../../lib/money';
 import CostMethodology from './CostMethodology';
 
 const PAY_TYPE_LABELS = {
@@ -10,9 +11,23 @@ const PAY_TYPE_LABELS = {
     piece_rate: 'Piece rate',
 };
 
-function money(value, currency) {
-    if (value == null) return '—';
-    return `${formatNumber(value)} ${currency}`;
+/**
+ * A line amount in the currency it was recorded in. When that is not the
+ * installation currency (e.g. a material priced in PLN on an EUR install) the
+ * amount is highlighted: totals add it without conversion.
+ */
+function Amount({ value, code, suffix = null, opts }) {
+    const { currency } = usePage().props;
+    const foreign = !!code && !!currency && code !== currency;
+    return (
+        <span
+            className={`font-mono ${foreign ? 'text-om-downtime font-semibold' : ''}`}
+            title={foreign ? __('Recorded in :code, not converted to :currency.', { code, currency }) : undefined}
+            data-foreign-currency={foreign ? code : undefined}
+        >
+            {formatMoney(value, code, opts)}{suffix}
+        </span>
+    );
 }
 
 const MATERIAL_COLUMNS = [
@@ -56,14 +71,14 @@ const MATERIAL_COLUMNS = [
         id: 'unit_price',
         accessorFn: (r) => r.unit_price,
         header: __('Unit price'),
-        cell: ({ row }) => <span className="font-mono">{money(row.original.unit_price, row.original.currency)}</span>,
+        cell: ({ row }) => <Amount value={row.original.unit_price} code={row.original.currency} />,
         meta: { align: 'right' },
     },
     {
         id: 'line_total',
         accessorFn: (r) => r.line_total,
         header: __('Line total'),
-        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        cell: ({ row }) => <Amount value={row.original.line_total} code={row.original.currency} />,
         meta: { align: 'right' },
     },
 ];
@@ -107,14 +122,22 @@ const LABOR_COLUMNS = [
         id: 'rate',
         accessorFn: (r) => r.rate,
         header: __('Rate'),
-        cell: ({ row }) => <span className="font-mono">{money(row.original.rate, row.original.currency)}</span>,
+        // Weekly pay is already converted to an hourly rate by the service.
+        cell: ({ row }) => (
+            <Amount
+                value={row.original.rate}
+                code={row.original.currency}
+                opts={{ maximumFractionDigits: 4 }}
+                suffix={`/${row.original.basis_unit === 'pcs' ? __('pcs') : 'h'}`}
+            />
+        ),
         meta: { align: 'right' },
     },
     {
         id: 'line_total',
         accessorFn: (r) => r.line_total,
         header: __('Line total'),
-        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        cell: ({ row }) => <Amount value={row.original.line_total} code={row.original.currency} />,
         meta: { align: 'right' },
     },
 ];
@@ -130,7 +153,7 @@ const ADDITIONAL_COLUMNS = [
         id: 'line_total',
         accessorFn: (r) => r.line_total,
         header: __('Line total'),
-        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        cell: ({ row }) => <Amount value={row.original.line_total} code={row.original.currency} />,
         meta: { align: 'right' },
     },
 ];
@@ -139,6 +162,12 @@ export default function CostReportShow() {
     const { breakdown, meta = {} } = usePage().props;
     const b = breakdown;
     const currency = b.currency;
+    // Currencies other than the installation's that some line was recorded in.
+    const foreignCurrencies = [...new Set(
+        [...(b.materials?.items ?? []), ...(b.labor?.items ?? []), ...(b.additional?.items ?? [])]
+            .map((it) => it.currency)
+            .filter((code) => code && code !== currency),
+    )];
 
     return (
         <>
@@ -156,26 +185,28 @@ export default function CostReportShow() {
                 </div>
 
                 {b.mixed_currency && (
-                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
-                        {__('Mixed currencies - totals are summed without conversion.')}
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2" data-testid="mixed-currency-warning">
+                        {foreignCurrencies.length > 0
+                            ? __('The highlighted lines are recorded in :codes, not in the installation currency (:currency). Totals add them without conversion — update those prices to :currency to remove this warning.', { codes: foreignCurrencies.join(', '), currency })
+                            : __('Mixed currencies - totals are summed without conversion.')}
                     </div>
                 )}
 
                 {/* Headline */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Card label={__('Total cost')} value={money(b.total_cost, currency)} strong />
-                    <Card label={__('Cost per unit')} value={b.cost_per_unit == null ? '—' : money(b.cost_per_unit, currency)} />
+                    <Card label={__('Total cost')} value={formatMoney(b.total_cost, currency)} strong />
+                    <Card label={__('Cost per unit')} value={b.cost_per_unit == null ? '—' : formatMoney(b.cost_per_unit, currency)} />
                     <Card label={__('Produced')} value={formatNumber(b.produced_qty)} />
                     <Card
                         label={`${__('Materials')} / ${__('Labor')}`}
-                        value={`${money(b.materials.total, currency)} / ${money(b.labor.total, currency)}`}
+                        value={`${formatMoney(b.materials.total, currency)} / ${formatMoney(b.labor.total, currency)}`}
                     />
                 </div>
 
                 <CostMethodology />
 
                 {/* Materials */}
-                <Section title={__('Materials')} total={money(b.materials.total, currency)}>
+                <Section title={__('Materials')} total={formatMoney(b.materials.total, currency)}>
                     <DataTable
                         data={b.materials.items}
                         columns={MATERIAL_COLUMNS}
@@ -187,7 +218,7 @@ export default function CostReportShow() {
                 </Section>
 
                 {/* Labor */}
-                <Section title={__('Labor')} total={money(b.labor.total, currency)}>
+                <Section title={__('Labor')} total={formatMoney(b.labor.total, currency)}>
                     <DataTable
                         data={b.labor.items}
                         columns={LABOR_COLUMNS}
@@ -199,7 +230,7 @@ export default function CostReportShow() {
                 </Section>
 
                 {/* Additional costs */}
-                <Section title={__('Additional costs')} total={money(b.additional.total, currency)}>
+                <Section title={__('Additional costs')} total={formatMoney(b.additional.total, currency)}>
                     <DataTable
                         data={b.additional.items}
                         columns={ADDITIONAL_COLUMNS}
@@ -213,7 +244,7 @@ export default function CostReportShow() {
                 {/* Grand total */}
                 <div className="bg-om-ink text-om-on-ink rounded-om-sm p-4 flex items-center justify-between">
                     <span className="text-lg font-medium">{__('Total cost')}</span>
-                    <span className="text-2xl font-bold font-mono">{money(b.total_cost, currency)}</span>
+                    <span className="text-2xl font-bold font-mono">{formatMoney(b.total_cost, currency)}</span>
                 </div>
             </div>
         </>

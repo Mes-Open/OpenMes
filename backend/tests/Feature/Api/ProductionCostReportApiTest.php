@@ -33,6 +33,19 @@ class ProductionCostReportApiTest extends TestCase
             ]);
     }
 
+    public function test_report_is_in_the_installation_currency(): void
+    {
+        \App\Support\CurrencyRegistry::save('EUR');
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/reports/production-cost')
+            ->assertOk()
+            ->assertJsonPath('data.currency', 'EUR')
+            ->assertJsonPath('data.summary.currency', 'EUR');
+    }
+
     public function test_guest_cannot_access(): void
     {
         $this->getJson('/api/v1/reports/production-cost')->assertStatus(401);

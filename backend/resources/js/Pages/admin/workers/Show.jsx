@@ -5,9 +5,13 @@ import AppDatePicker from '../../../components/AppDatePicker';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
+import { formatMoney } from '../../../lib/money';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import Tooltip from '../../../components/Tooltip';
 import useConfirm from '../../../components/useConfirm';
+
+const PAY_TYPE_LABELS = { hourly: 'Hourly', weekly: 'Weekly', piece_rate: 'Piece rate' };
+const PAY_UNIT_LABELS = { hourly: 'per hour', weekly: 'per week', piece_rate: 'per piece' };
 
 export default function WorkerShow() {
     const {
@@ -17,7 +21,11 @@ export default function WorkerShow() {
         // to them — an empty certification list is a different question, since a
         // module with no skills recorded yet can still take one.
         canManageCertifications = false,
+        defaultPayType = 'hourly',
+        // Installation currency (Settings → System), shared by HandleInertiaRequests.
+        currency,
     } = usePage().props;
+    const effectivePayType = worker.pay_type || defaultPayType;
     const [showModal, setShowModal] = useState(false);
     const { confirm, dialog } = useConfirm();
     const [form, setForm] = useState({
@@ -149,6 +157,36 @@ export default function WorkerShow() {
                 <div className="mb-6">
                     <CustomFieldsDisplay definitions={customFields} values={worker.custom_fields ?? {}} />
                 </div>
+
+                {/* Compensation card — pay is always in the installation currency */}
+                <section className="card mb-6" data-testid="worker-compensation">
+                    <h2 className="text-lg font-semibold text-om-muted mb-3">{__('Compensation')}</h2>
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <dt className="text-xs text-om-faint">{__('Pay type')}</dt>
+                            <dd className="text-om-ink mt-1">
+                                {worker.pay_type
+                                    ? __(PAY_TYPE_LABELS[worker.pay_type] ?? worker.pay_type)
+                                    : __('System default (:type)', { type: __(PAY_TYPE_LABELS[defaultPayType] ?? defaultPayType) })}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-om-faint">{__('Pay rate')}</dt>
+                            <dd className="text-om-ink mt-1">
+                                {worker.pay_rate == null || worker.pay_rate === ''
+                                    ? <span className="text-om-muted">{__('No rate set — the system default applies.')}</span>
+                                    : (
+                                        <>
+                                            <span className="font-mono" data-testid="worker-pay-rate">
+                                                {formatMoney(worker.pay_rate, currency, { maximumFractionDigits: 4 })}
+                                            </span>{' '}
+                                            {__(PAY_UNIT_LABELS[effectivePayType] ?? '')}
+                                        </>
+                                    )}
+                            </dd>
+                        </div>
+                    </dl>
+                </section>
 
                 {/* Certifications card */}
                 <section className="card">

@@ -60,6 +60,7 @@ class InspectionApiTest extends TestCase
                 ['name' => 'Diameter', 'type' => 'measurement', 'spec_min' => 9.8, 'spec_max' => 10.2, 'required' => true],
             ],
             'is_active' => true,
+            'published_at' => now(),
         ]);
     }
 

@@ -104,6 +104,9 @@ class HandleInertiaRequests extends Middleware
             // Plant timezone — the frontend formats all dates/times in this zone
             // (config/app.php → APP_TIMEZONE) instead of the viewer's browser zone.
             'timezone' => fn () => config('app.timezone'),
+            // Installation currency (ISO 4217) — lib/money.js formats every
+            // pay and cost amount with it.
+            'currency' => fn () => \App\Support\CurrencyRegistry::current(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -169,6 +172,11 @@ class HandleInertiaRequests extends Middleware
         if ($user && $request->routeIs('operator.*')) {
             $screens = app(\App\Services\Production\OperatorScreens::class)->forRequest($request);
             $tabs = array_values(array_filter($tabs, fn ($tab) => in_array($tab['key'], $screens, true)));
+        }
+        // Inbound inspections follow the person, not the bench: whoever holds
+        // an inspection permission (InspectionPolicy) sees the tab everywhere.
+        if ($user?->can('viewAny', \App\Models\Inspection::class)) {
+            $tabs[] = ['key' => 'inspections', 'label' => 'Inspections', 'url' => '/operator/inspections', 'prefixes' => ['/operator/inspections']];
         }
 
         return array_values(app(\App\Extension\FilterRegistry::class)->filter('operator.tabs', $tabs, ['user' => $user]));
