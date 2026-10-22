@@ -61,14 +61,10 @@ class InspectionController extends Controller
     {
         $validated = $request->validated();
         $material = Material::findOrFail($validated['material_id']);
-        // No plan picked: use the published plan that applies to this
-        // material — its own before its type's before a generic one — so the
-        // inspector gets its criteria to fill in.
+        // No plan picked: the service uses the published plan that applies.
         $plan = isset($validated['inspection_plan_id'])
             ? InspectionPlan::findOrFail($validated['inspection_plan_id'])
-            : InspectionPlan::applicableTo($material)->get()
-                ->sortBy(fn (InspectionPlan $p) => $p->material_id ? 0 : ($p->material_type_id ? 1 : 2))
-                ->first();
+            : null;
 
         $inspection = $this->service->start(
             $material,

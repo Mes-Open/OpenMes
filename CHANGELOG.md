@@ -24,12 +24,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   screen uses. Completing an inspection now creates the lot only when the person completing it
   holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
   Supervisors and Admins keep their current access.
+- **A disposition needs a completed inspection.** Accepting a lot before its inspection was completed
+  released the material, and a later fail did not hold it again. A decision on a pending inspection
+  is now refused, and concurrent decisions no longer create a second lot.
 
 ### Fixed
 
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.
+- **The API and the tablet start the same inspection.** Without a chosen plan the API now uses the
+  published plan for the material, as the tablet does; a draft plan or another material's plan is
+  refused. Releasing a lot that was held now makes its received quantity available, and a lot
+  created by a decision records the person who decided.
 
 ## [0.27.0] - 2026-10-14
 

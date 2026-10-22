@@ -4,6 +4,7 @@ namespace App\Services\Quality;
 
 use App\Models\Inspection;
 use App\Models\MaterialLot;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,14 +22,19 @@ class InspectionLotCreator
      * Create the lot in the given status unless tracking is off or the
      * inspection already has one. A released lot has its whole received
      * quantity available; any other status has none.
+     *
+     * $createdBy is whoever puts the lot on record — the person deciding on
+     * it; the inspector when not given.
      */
-    public function ensureFromInspection(Inspection $inspection, string $lotStatus): ?MaterialLot
+    public function ensureFromInspection(Inspection $inspection, string $lotStatus, ?User $createdBy = null): ?MaterialLot
     {
         if (! $this->trackingEnabled()) {
             return null;
         }
 
-        // Avoid duplicating a lot if the inspection is processed twice for any reason.
+        // Avoid duplicating a lot if the inspection is processed twice for any
+        // reason. Callers hold a lock on the inspection row, so two requests
+        // cannot both pass this check.
         if (MaterialLot::where('inspection_id', $inspection->id)->exists()) {
             return null;
         }
@@ -47,7 +53,7 @@ class InspectionLotCreator
             'quantity_available' => $lotStatus === MaterialLot::STATUS_RELEASED ? $qty : 0,
             'received_at' => $inspection->started_at ?? now(),
             'inspection_id' => $inspection->id,
-            'created_by_id' => $inspection->inspector_id,
+            'created_by_id' => $createdBy?->id ?? $inspection->inspector_id,
             'status' => $lotStatus,
         ]);
     }

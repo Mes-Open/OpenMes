@@ -307,16 +307,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
         Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
 
-        // Inbound inspections — for holders of the "Quality inspector" /
-        // "Quality disposition" permissions. InspectionPolicy authorises every
-        // action, the same policy as /api/v1/inspections.
-        Route::get('/inspections', [OperatorInspectionController::class, 'index'])->name('inspections.index');
-        Route::post('/inspections', [OperatorInspectionController::class, 'store'])->name('inspections.store');
-        Route::get('/inspections/{inspection}', [OperatorInspectionController::class, 'show'])->name('inspections.show')->whereNumber('inspection');
-        Route::patch('/inspections/{inspection}/results/{result}', [OperatorInspectionController::class, 'recordResult'])->name('inspections.results.update')->whereNumber(['inspection', 'result']);
-        Route::post('/inspections/{inspection}/complete', [OperatorInspectionController::class, 'complete'])->name('inspections.complete')->whereNumber('inspection');
-        Route::post('/inspections/{inspection}/disposition', [OperatorInspectionController::class, 'disposition'])->name('inspections.disposition')->whereNumber('inspection');
-
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
         Route::get('/unit-labels/station', [UnitLabelStationController::class, 'index'])->name('unit-labels.station');
@@ -344,6 +334,19 @@ Route::middleware('auth')->group(function () {
         // Production quantity corrections
         Route::get('/shift-entry/{shiftEntry}/correct', [ProductionCorrectionController::class, 'edit'])->name('shift-entry.correct');
         Route::put('/shift-entry/{shiftEntry}/correct', [ProductionCorrectionController::class, 'update'])->name('shift-entry.correct.update');
+    });
+
+    // Inbound inspections on the operator tablet — for holders of the "Quality
+    // inspector" / "Quality disposition" permissions, whatever their role. No
+    // role gate here: InspectionPolicy alone authorises every action, the
+    // same policy as /api/v1/inspections, so the two let in the same people.
+    Route::prefix('operator')->name('operator.')->group(function () {
+        Route::get('/inspections', [OperatorInspectionController::class, 'index'])->name('inspections.index');
+        Route::post('/inspections', [OperatorInspectionController::class, 'store'])->name('inspections.store');
+        Route::get('/inspections/{inspection}', [OperatorInspectionController::class, 'show'])->name('inspections.show')->whereNumber('inspection');
+        Route::patch('/inspections/{inspection}/results/{result}', [OperatorInspectionController::class, 'recordResult'])->name('inspections.results.update')->whereNumber(['inspection', 'result']);
+        Route::post('/inspections/{inspection}/complete', [OperatorInspectionController::class, 'complete'])->name('inspections.complete')->whereNumber('inspection');
+        Route::post('/inspections/{inspection}/disposition', [OperatorInspectionController::class, 'disposition'])->name('inspections.disposition')->whereNumber('inspection');
     });
 
     // Supervisor routes (Supervisor and Admin)

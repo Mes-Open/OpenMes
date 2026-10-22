@@ -240,4 +240,35 @@ class OperatorInspectionsTest extends TestCase
         $this->assertSame(['Mill certificate', 'Surface defects'], $inspection->results->pluck('criterion_name')->all());
         $this->assertSame(['pass_fail', 'pass_fail'], $inspection->results->pluck('criterion_type')->all());
     }
+
+    public function test_disposition_on_a_pending_inspection_is_refused_and_creates_no_lot(): void
+    {
+        $inspection = app(InboundInspectionService::class)
+            ->start($this->material, 'LOT-OPEN', 10, $this->plan, $this->operator(InspectionPermissions::PERFORM));
+
+        $this->actingAs($this->operator(InspectionPermissions::DISPOSITION))
+            ->post("/operator/inspections/{$inspection->id}/disposition", ['disposition' => 'accept'])
+            ->assertRedirect()->assertSessionHas('error');
+
+        $this->assertSame(0, MaterialLot::count());
+        $this->assertSame(Inspection::DISPOSITION_PENDING, $inspection->fresh()->disposition);
+    }
+
+    public function test_a_grant_on_a_role_outside_the_shop_floor_reaches_the_tablet_like_the_api(): void
+    {
+        // The policy alone decides, as on /api/v1/inspections: someone in a
+        // custom role holding the inspector right is let in, not refused by a
+        // role gate the API does not have.
+        $role = \Spatie\Permission\Models\Role::create(['name' => 'Goods-in clerk', 'guard_name' => 'web']);
+        $role->givePermissionTo(InspectionPermissions::PERFORM);
+        $clerk = User::factory()->create();
+        $clerk->assignRole($role);
+
+        $this->actingAs($clerk)->get('/operator/inspections')->assertOk();
+        $this->post('/operator/inspections', ['material_id' => $this->material->id, 'lot_number' => 'LOT-CLERK'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('inspections', ['lot_number' => 'LOT-CLERK', 'inspection_plan_id' => $this->plan->id]);
+
+        $this->actingAs($clerk, 'sanctum')->getJson('/api/v1/inspections')->assertOk();
+    }
 }

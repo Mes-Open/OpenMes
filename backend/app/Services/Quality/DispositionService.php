@@ -39,7 +39,8 @@ class DispositionService
      * is rolled back so the two never disagree.
      *
      * @throws \InvalidArgumentException when the disposition is not a known value
-     * @throws \DomainException when the caller tries to reset to 'pending'
+     * @throws \DomainException when the caller tries to reset to 'pending', or
+     *                          the inspection is not completed yet
      */
     public function apply(Inspection $inspection, string $disposition, ?string $notes, User $by): Inspection
     {
@@ -51,7 +52,18 @@ class DispositionService
         }
 
         DB::transaction(function () use ($inspection, $disposition, $notes, $by) {
-            $inspection->update([
+            // Lock the inspection so two decisions taken at once queue up
+            // instead of each finding no lot and each creating one.
+            $locked = Inspection::whereKey($inspection->getKey())->lockForUpdate()->firstOrFail();
+
+            // A decision on material nobody has inspected yet would stock it
+            // in, and completing the inspection afterwards never revisits an
+            // existing lot — a later fail would leave it released.
+            if ($locked->isPending()) {
+                throw new \DomainException(__('Complete the inspection before applying a disposition.'));
+            }
+
+            $locked->update([
                 'disposition' => $disposition,
                 'disposition_notes' => $notes,
                 'disposition_by_id' => $by->id,
@@ -66,14 +78,41 @@ class DispositionService
             // An inspector without the disposition right completes an
             // inspection without stocking anything in; the lot comes into
             // being here, with the decision.
-            $updated = MaterialLot::where('inspection_id', $inspection->id)
-                ->update(['status' => $lotStatus]);
-            if ($updated === 0) {
-                $this->lots->ensureFromInspection($inspection, $lotStatus);
+            $lots = MaterialLot::where('inspection_id', $locked->id)->get();
+            if ($lots->isEmpty()) {
+                $this->lots->ensureFromInspection($locked, $lotStatus, $by);
+
+                return;
+            }
+
+            foreach ($lots as $lot) {
+                $this->moveLot($lot, $lotStatus);
             }
         });
 
         return $inspection->fresh();
+    }
+
+    /**
+     * Put a lot into the decided status. A lot recorded while held starts
+     * with nothing available; releasing it makes the received quantity
+     * available, unless something was already drawn from it — then its
+     * remaining quantity is left as it is. Holding a lot changes only its
+     * status: picking reads released lots only, and the remaining quantity is
+     * still there when the lot is released again.
+     */
+    private function moveLot(MaterialLot $lot, string $lotStatus): void
+    {
+        $attributes = ['status' => $lotStatus];
+
+        if ($lotStatus === MaterialLot::STATUS_RELEASED
+            && (float) $lot->quantity_available <= 0
+            && ! $lot->picks()->exists()
+            && ! $lot->consumptions()->exists()) {
+            $attributes['quantity_available'] = $lot->quantity_received;
+        }
+
+        $lot->update($attributes);
     }
 
     /**

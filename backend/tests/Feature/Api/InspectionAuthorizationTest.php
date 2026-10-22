@@ -42,6 +42,7 @@ class InspectionAuthorizationTest extends TestCase
             'material_id' => $this->material->id,
             'criteria' => [['name' => 'Visual', 'type' => 'pass_fail', 'required' => true]],
             'is_active' => true,
+            'published_at' => now(),
         ]);
 
         DB::table('system_settings')->updateOrInsert(
@@ -237,5 +238,87 @@ class InspectionAuthorizationTest extends TestCase
         $this->actingAs($this->operator(), 'sanctum')
             ->postJson('/api/v1/inspections', $this->startPayload())
             ->assertCreated();
+    }
+
+    public function test_disposition_on_a_pending_inspection_is_refused_and_creates_no_lot(): void
+    {
+        // Deciding before anyone completed the inspection would stock the
+        // material in, and a later fail never revisits an existing lot.
+        $inspection = $this->recordedInspection();
+
+        $this->actingAs($this->operator(InspectionPermissions::DISPOSITION), 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspection->id}/disposition", ['disposition' => 'accept'])
+            ->assertStatus(422);
+
+        $this->assertSame(0, MaterialLot::count());
+        $this->assertSame(Inspection::DISPOSITION_PENDING, $inspection->fresh()->disposition);
+    }
+
+    public function test_a_second_decision_moves_the_one_lot_and_releasing_a_held_lot_makes_it_available(): void
+    {
+        $inspector = $this->operator(InspectionPermissions::PERFORM);
+        $inspection = $this->recordedInspection($inspector);
+        $this->actingAs($inspector, 'sanctum')->postJson("/api/v1/inspections/{$inspection->id}/complete")->assertOk();
+
+        $decider = $this->operator(InspectionPermissions::DISPOSITION);
+        $this->actingAs($decider, 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspection->id}/disposition", ['disposition' => 'quarantine'])
+            ->assertOk();
+        $this->actingAs($decider, 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspection->id}/disposition", ['disposition' => 'accept'])
+            ->assertOk();
+
+        $lots = MaterialLot::where('inspection_id', $inspection->id)->get();
+        $this->assertCount(1, $lots);
+        $this->assertSame(MaterialLot::STATUS_RELEASED, $lots->first()->status);
+        $this->assertEqualsWithDelta(80.0, (float) $lots->first()->quantity_available, 0.0001);
+    }
+
+    public function test_a_lot_created_by_a_decision_records_the_person_who_decided(): void
+    {
+        $inspector = $this->operator(InspectionPermissions::PERFORM);
+        $inspection = $this->recordedInspection($inspector);
+        $this->actingAs($inspector, 'sanctum')->postJson("/api/v1/inspections/{$inspection->id}/complete")->assertOk();
+
+        $decider = $this->operator(InspectionPermissions::DISPOSITION);
+        $this->actingAs($decider, 'sanctum')
+            ->postJson("/api/v1/inspections/{$inspection->id}/disposition", ['disposition' => 'accept'])
+            ->assertOk();
+
+        $this->assertSame($decider->id, MaterialLot::firstWhere('inspection_id', $inspection->id)->created_by_id);
+    }
+
+    public function test_without_a_plan_the_api_uses_the_applicable_published_plan_like_the_tablet(): void
+    {
+        $payload = $this->startPayload();
+        unset($payload['inspection_plan_id']);
+
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM), 'sanctum')
+            ->postJson('/api/v1/inspections', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.inspection_plan_id', $this->plan->id)
+            ->assertJsonCount(1, 'data.results');
+    }
+
+    public function test_a_draft_plan_or_another_materials_plan_is_rejected(): void
+    {
+        $other = Material::create(['code' => 'N', 'name' => 'Nut', 'unit_of_measure' => 'pcs']);
+        $foreign = InspectionPlan::create([
+            'name' => 'Nut incoming', 'material_id' => $other->id,
+            'criteria' => [['name' => 'Visual', 'type' => 'pass_fail', 'required' => true]],
+            'is_active' => true, 'published_at' => now(),
+        ]);
+        $draft = InspectionPlan::create([
+            'name' => 'Bolt draft', 'material_id' => $this->material->id,
+            'criteria' => [['name' => 'Visual', 'type' => 'pass_fail', 'required' => true]],
+            'is_active' => true,
+        ]);
+        $this->actingAs($this->operator(InspectionPermissions::PERFORM), 'sanctum');
+
+        foreach ([$foreign, $draft] as $plan) {
+            $this->postJson('/api/v1/inspections', ['inspection_plan_id' => $plan->id] + $this->startPayload())
+                ->assertStatus(422)->assertJsonValidationErrors('inspection_plan_id');
+        }
+        $this->assertDatabaseMissing('inspections', ['lot_number' => 'LOT-NEW']);
     }
 }

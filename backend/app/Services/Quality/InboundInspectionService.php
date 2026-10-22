@@ -24,9 +24,11 @@ class InboundInspectionService
     }
 
     /**
-     * Start a new inspection. If a plan is provided, its criteria are
-     * snapshot-copied into inspection_results so later edits to the plan
-     * cannot retroactively alter past inspections.
+     * Start a new inspection. Its criteria are snapshot-copied from the plan
+     * into inspection_results so later edits to the plan cannot
+     * retroactively alter past inspections. With no plan given, the published
+     * plan that applies to the material is used (see applicablePlan()), so the
+     * API and the operator screen start the same inspection.
      */
     public function start(
         Material $material,
@@ -37,6 +39,8 @@ class InboundInspectionService
         ?string $supplierLotRef = null,
         ?string $sourceContainerNo = null,
     ): Inspection {
+        $plan ??= $this->applicablePlan($material);
+
         return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef, $sourceContainerNo) {
             $inspection = Inspection::create([
                 'inspection_plan_id' => $plan?->id,
@@ -72,6 +76,17 @@ class InboundInspectionService
     }
 
     /**
+     * The published plan for a material: its own before its type's before a
+     * generic one. Null when none applies.
+     */
+    public function applicablePlan(Material $material): ?InspectionPlan
+    {
+        return InspectionPlan::applicableTo($material)->get()
+            ->sortBy(fn (InspectionPlan $p) => $p->material_id ? 0 : ($p->material_type_id ? 1 : 2))
+            ->first();
+    }
+
+    /**
      * Record / update a single criterion's result. Pass/fail is auto-evaluated
      * by InspectionResult::evaluate() based on the criterion type and spec.
      */
@@ -102,19 +117,23 @@ class InboundInspectionService
      */
     public function complete(Inspection $inspection, ?string $notes = null, ?User $completedBy = null): Inspection
     {
-        if (! $inspection->isPending()) {
-            throw InspectionNotCompletableException::alreadyCompleted($inspection->status);
-        }
+        return DB::transaction(function () use ($inspection, $notes, $completedBy) {
+            // Lock the row so a concurrent completion or disposition waits
+            // and then sees this one's outcome instead of racing it.
+            $inspection = Inspection::whereKey($inspection->getKey())->lockForUpdate()->firstOrFail();
 
-        $inspection->loadMissing('results', 'material', 'inspector');
+            if (! $inspection->isPending()) {
+                throw InspectionNotCompletableException::alreadyCompleted($inspection->status);
+            }
 
-        if ($inspection->results->isEmpty()) {
-            throw InspectionNotCompletableException::withoutCriteria();
-        }
+            $inspection->load('results', 'material', 'inspector');
 
-        $overall = $this->evaluateOverall($inspection);
+            if ($inspection->results->isEmpty()) {
+                throw InspectionNotCompletableException::withoutCriteria();
+            }
 
-        return DB::transaction(function () use ($inspection, $overall, $notes, $completedBy) {
+            $overall = $this->evaluateOverall($inspection);
+
             $inspection->update([
                 'status' => $overall,
                 'completed_at' => now(),
@@ -130,6 +149,7 @@ class InboundInspectionService
                 $this->lots->ensureFromInspection(
                     $inspection,
                     $overall === Inspection::STATUS_FAIL ? MaterialLot::STATUS_QUARANTINE : MaterialLot::STATUS_RELEASED,
+                    $completedBy,
                 );
             }
 
