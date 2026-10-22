@@ -7,11 +7,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Link an account to an existing worker.** The *Worker profile* section of the account
+  form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
+  worker*: a searchable list of HR workers that have no account yet. Linking does not
+  change the worker record. An account's worker profile can be unlinked from the edit
+  page; the worker stays in HR. The users list gains a *Worker* column. A worker can
+  hold only one live account — enforced in the form, the API and a new partial unique
+  index on `users.worker_id`. On upgrade, if several live accounts already shared one
+  worker, only the oldest keeps the link; the others are unlinked.
+
 ### Changed
 
 - **Worker code is explained in the forms.** The *Code* field on the worker form and the
   *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
   code identifies, an example (`W-201`), and that it must be unique (English and Polish).
+- Saving an account that has a worker profile no longer overwrites the worker's name and
+  email with the account's. Those belong to the HR record, which may now predate the
+  account. A new profile created from the account form still takes them from the account.
 
 ## [0.27.0] - 2026-10-14
 

@@ -23,7 +23,7 @@ class UpdateUserRequest extends FormRequest
             'account_type' => ['sometimes', 'required', 'in:user,workstation'],
             'role' => ['sometimes', 'nullable', 'exists:roles,name'],
             'workstation_id' => ['sometimes', 'nullable', 'integer', 'exists:workstations,id'],
-            'worker_id' => ['sometimes', 'nullable', 'integer', 'exists:workers,id'],
+            'worker_id' => ['sometimes', 'nullable', 'integer', 'exists:workers,id', Rule::unique('users', 'worker_id')->whereNull('deleted_at')->ignore($userId)],
             'force_password_change' => ['sometimes', 'boolean'],
             'line_ids' => ['sometimes', 'nullable', 'array'],
             'line_ids.*' => ['integer', 'exists:lines,id'],
@@ -34,6 +34,7 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
+            'worker_id.unique' => 'This worker already has a user account.',
         ];
     }
 }
