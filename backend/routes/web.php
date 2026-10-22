@@ -617,6 +617,7 @@ Route::middleware('auth')->group(function () {
 
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
+        Route::delete('/users/{user}/worker', [\App\Http\Controllers\Web\Admin\UserManagementController::class, 'unlinkWorker'])->name('users.worker.unlink');
 
         // Production Lines Management
         Route::resource('lines', \App\Http\Controllers\Web\Admin\LineManagementController::class);
