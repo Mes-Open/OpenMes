@@ -161,7 +161,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                                             checked={on}
                                             onChange={(next) => toggleSkill(skill.id, next)}
                                             label={skill.name}
-                                            className="flex-1"
+                                            className="flex-1 min-w-0"
                                         />
                                         {on && (
                                             <Dropdown

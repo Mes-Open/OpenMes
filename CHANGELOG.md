@@ -13,6 +13,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
   code identifies, an example (`W-201`), and that it must be unique (English and Polish).
 
+### Fixed
+
+- **Checkboxes line up with their labels in the HR forms.** In the worker form, *Active* and
+  *Logistics operator* now sit on their own rows instead of side by side at different heights.
+  Checkbox labels everywhere stay level with the box and left-aligned when they wrap on narrow
+  screens. This covers the worker and user-account forms, including the worker-profile skills.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added
