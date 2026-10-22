@@ -22,6 +22,8 @@ backend/storage/logs/*
 # installation, and the counts would be meaningless.
 backend/storage/installed
 backend/storage/telemetry-id
+# Local E2E instance (SQLite database recreated by the demo runner)
+backend/storage/e2e-instance/
 backend/bootstrap/cache/*
 backend/public/hot
 backend/public/storage
