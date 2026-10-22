@@ -14,6 +14,7 @@ This guide is for production floor operators using OpenMES on workstations or ta
   - [Completing a Step](#completing-a-step)
   - [Reporting a Problem](#reporting-a-problem)
 - [Line Status Updates](#line-status-updates)
+- [Inbound Inspections](#inbound-inspections)
 - [Using OpenMES on a Tablet (PWA)](#using-openmes-on-a-tablet-pwa)
 - [Tips for the Shop Floor](#tips-for-the-shop-floor)
 
@@ -107,6 +108,21 @@ You can update the status of your line from the work order screen:
 - **Unplanned stop** — unexpected stoppage
 
 Keeping line status accurate helps supervisors monitor the shop floor in real time.
+
+---
+
+## Inbound Inspections
+
+If your administrator gave you the **Quality inspector** permission, the top bar shows an
+**Inspections** tab.
+
+1. Tap **Inspections**, pick the material, enter the lot number and quantity, and tap **Start inspection**.
+   The criteria come from the material's published inspection plan.
+2. For each criterion enter the measured value (or tap **Pass** / **Fail**) and tap **Record result**.
+3. Tap **Complete inspection**. The result is fixed from then on.
+
+Whether the lot is released, held or rejected is decided by someone with the **Quality disposition**
+permission. Until then the inspection shows **Awaiting disposition.** and the lot is not in stock.
 
 ---
 

@@ -9,16 +9,26 @@ use App\Models\InspectionResult;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\Material;
+use App\Models\MaterialLot;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class InboundInspectionService
 {
+    private InspectionLotCreator $lots;
+
+    public function __construct(?InspectionLotCreator $lots = null)
+    {
+        $this->lots = $lots ?? new InspectionLotCreator;
+    }
+
     /**
-     * Start a new inspection. If a plan is provided, its criteria are
-     * snapshot-copied into inspection_results so later edits to the plan
-     * cannot retroactively alter past inspections.
+     * Start a new inspection. Its criteria are snapshot-copied from the plan
+     * into inspection_results so later edits to the plan cannot
+     * retroactively alter past inspections. With no plan given, the published
+     * plan that applies to the material is used (see applicablePlan()), so the
+     * API and the operator screen start the same inspection.
      */
     public function start(
         Material $material,
@@ -29,6 +39,8 @@ class InboundInspectionService
         ?string $supplierLotRef = null,
         ?string $sourceContainerNo = null,
     ): Inspection {
+        $plan ??= $this->applicablePlan($material);
+
         return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef, $sourceContainerNo) {
             $inspection = Inspection::create([
                 'inspection_plan_id' => $plan?->id,
@@ -46,7 +58,7 @@ class InboundInspectionService
             ]);
 
             if ($plan) {
-                foreach ($plan->criteria as $criterion) {
+                foreach (InspectionPlan::normalizeCriteria($plan->criteria) as $criterion) {
                     InspectionResult::create([
                         'inspection_id' => $inspection->id,
                         'criterion_name' => $criterion['name'] ?? 'Unnamed',
@@ -64,44 +76,76 @@ class InboundInspectionService
     }
 
     /**
+     * The published plan for a material: its own before its type's before a
+     * generic one. Null when none applies.
+     */
+    public function applicablePlan(Material $material): ?InspectionPlan
+    {
+        return InspectionPlan::applicableTo($material)->get()
+            ->sortBy(fn (InspectionPlan $p) => $p->material_id ? 0 : ($p->material_type_id ? 1 : 2))
+            ->first();
+    }
+
+    /**
      * Record / update a single criterion's result. Pass/fail is auto-evaluated
      * by InspectionResult::evaluate() based on the criterion type and spec.
+     *
+     * Takes the same row lock as complete(), so a save racing a completion
+     * either lands before the verdict is computed or is refused after it.
+     *
+     * @throws \DomainException when the inspection is no longer pending
      */
     public function recordResult(InspectionResult $result, array $data): InspectionResult
     {
-        $result->fill([
-            'value_numeric' => $data['value_numeric'] ?? $result->value_numeric,
-            'value_boolean' => $data['value_boolean'] ?? $result->value_boolean,
-            'value_text' => $data['value_text'] ?? $result->value_text,
-            'notes' => $data['notes'] ?? $result->notes,
-        ]);
+        return DB::transaction(function () use ($result, $data) {
+            $inspection = Inspection::whereKey($result->inspection_id)->lockForUpdate()->firstOrFail();
+            if (! $inspection->isPending()) {
+                throw new \DomainException(__('Cannot edit results of a completed inspection.'));
+            }
 
-        $result->is_passed = $result->evaluate();
-        $result->save();
+            $result->fill([
+                'value_numeric' => $data['value_numeric'] ?? $result->value_numeric,
+                'value_boolean' => $data['value_boolean'] ?? $result->value_boolean,
+                'value_text' => $data['value_text'] ?? $result->value_text,
+                'notes' => $data['notes'] ?? $result->notes,
+            ]);
 
-        return $result;
+            $result->is_passed = $result->evaluate();
+            $result->save();
+
+            return $result;
+        });
     }
 
     /**
      * Mark the inspection complete, compute its overall result, and create a
      * non-conformance Issue if it failed. Idempotent — calling again on a
      * completed inspection throws to avoid silently reopening it.
+     *
+     * A lot is put on record only when $completedBy may also decide on it
+     * (InspectionPolicy::disposition): released on pass / conditional,
+     * quarantined on fail. An inspector without that right leaves the lot to
+     * whoever applies the disposition, and so does a caller passing no user.
      */
-    public function complete(Inspection $inspection, ?string $notes = null): Inspection
+    public function complete(Inspection $inspection, ?string $notes = null, ?User $completedBy = null): Inspection
     {
-        if (! $inspection->isPending()) {
-            throw InspectionNotCompletableException::alreadyCompleted($inspection->status);
-        }
+        return DB::transaction(function () use ($inspection, $notes, $completedBy) {
+            // Lock the row so a concurrent completion or disposition waits
+            // and then sees this one's outcome instead of racing it.
+            $inspection = Inspection::whereKey($inspection->getKey())->lockForUpdate()->firstOrFail();
 
-        $inspection->loadMissing('results', 'material', 'inspector');
+            if (! $inspection->isPending()) {
+                throw InspectionNotCompletableException::alreadyCompleted($inspection->status);
+            }
 
-        if ($inspection->results->isEmpty()) {
-            throw InspectionNotCompletableException::withoutCriteria();
-        }
+            $inspection->load('results', 'material', 'inspector');
 
-        $overall = $this->evaluateOverall($inspection);
+            if ($inspection->results->isEmpty()) {
+                throw InspectionNotCompletableException::withoutCriteria();
+            }
 
-        return DB::transaction(function () use ($inspection, $overall, $notes) {
+            $overall = $this->evaluateOverall($inspection);
+
             $inspection->update([
                 'status' => $overall,
                 'completed_at' => now(),
@@ -113,54 +157,16 @@ class InboundInspectionService
                 $inspection->update(['issue_id' => $issue->id]);
             }
 
-            // Create a MaterialLot for the inspected qty so production can
-            // pick from it via FEFO/FIFO. Quarantined on fail, available on
-            // pass / conditional. Opt-in via lot_tracking_enabled setting.
-            $this->ensureLotFromInspection($inspection, $overall);
+            if ($completedBy?->can('disposition', $inspection)) {
+                $this->lots->ensureFromInspection(
+                    $inspection,
+                    $overall === Inspection::STATUS_FAIL ? MaterialLot::STATUS_QUARANTINE : MaterialLot::STATUS_RELEASED,
+                    $completedBy,
+                );
+            }
 
             return $inspection->fresh('results', 'issue');
         });
-    }
-
-    private function ensureLotFromInspection(Inspection $inspection, string $overall): void
-    {
-        try {
-            $enabled = (bool) json_decode(
-                \DB::table('system_settings')->where('key', 'lot_tracking_enabled')->value('value') ?? 'false',
-                true,
-            );
-        } catch (\Throwable) {
-            $enabled = false;
-        }
-
-        if (! $enabled) {
-            return;
-        }
-
-        // Avoid duplicating a lot if the inspection completes twice for any reason.
-        if (\App\Models\MaterialLot::where('inspection_id', $inspection->id)->exists()) {
-            return;
-        }
-
-        $qty = $inspection->quantity_received ?? 0;
-        $status = $overall === Inspection::STATUS_FAIL
-            ? \App\Models\MaterialLot::STATUS_QUARANTINE
-            : \App\Models\MaterialLot::STATUS_RELEASED;
-
-        \App\Models\MaterialLot::create([
-            'tenant_id' => $inspection->tenant_id,
-            'material_id' => $inspection->material_id,
-            'lot_number' => $inspection->lot_number,
-            'unit_of_measure' => $inspection->material?->unit_of_measure ?? 'pcs',
-            'supplier_lot_no' => $inspection->supplier_lot_ref,
-            'source_container_no' => $inspection->source_container_no,
-            'quantity_received' => $qty,
-            'quantity_available' => $status === \App\Models\MaterialLot::STATUS_RELEASED ? $qty : 0,
-            'received_at' => $inspection->started_at ?? now(),
-            'inspection_id' => $inspection->id,
-            'created_by_id' => $inspection->inspector_id,
-            'status' => $status,
-        ]);
     }
 
     /**

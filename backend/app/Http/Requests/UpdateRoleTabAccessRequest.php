@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\InspectionPermissions;
 use App\Support\TabRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,6 +22,11 @@ class UpdateRoleTabAccessRequest extends FormRequest
             'access' => 'present|array',
             'access.*' => 'array',
             'access.*.*' => ['string', Rule::in(TabRegistry::keys())],
+            // grants = { "<roleName>": ["inspections.perform", ...] } — optional;
+            // a role left out keeps the quality permissions it has.
+            'grants' => 'sometimes|array',
+            'grants.*' => 'array',
+            'grants.*.*' => ['string', 'distinct', Rule::in(InspectionPermissions::ALL)],
         ];
     }
 }

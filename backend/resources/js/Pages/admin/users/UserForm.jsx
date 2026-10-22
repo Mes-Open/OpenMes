@@ -19,7 +19,7 @@ import useConfirm from '../../../components/useConfirm';
  * password is confirmed (password + password_confirmation). On edit, leaving
  * password blank keeps the current one.
  */
-export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks, isEdit, onSubmit, bare = false, onCancel, linkableWorkers = [], linkedWorker = null, userId = null }) {
+export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], grantablePermissions = [], rolePermissions = {}, hooks, isEdit, onSubmit, bare = false, onCancel, linkableWorkers = [], linkedWorker = null, userId = null }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
     const { confirm, dialog } = useConfirm();
@@ -57,6 +57,15 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
         else next.delete(String(id));
         setData('skills', [...next].map(([sid, level]) => ({ id: Number(sid), level })));
     };
+    // Per-person quality permissions. One the selected role already carries is
+    // shown ticked and locked — granting it again to the person changes nothing.
+    const effectiveRole = isUser ? data.role : 'Operator';
+    const roleGrants = rolePermissions[effectiveRole] ?? [];
+    const granted = data.permissions ?? [];
+    const togglePermission = (key, on) => {
+        setData('permissions', on ? [...new Set([...granted, key])] : granted.filter((k) => k !== key));
+    };
+
     const setSkillLevel = (id, level) => {
         const next = new Map(selectedSkills);
         next.set(String(id), Number(level));
@@ -77,7 +86,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                         { value: 'workstation', label: __('Workstation') },
                     ]}
                     value={data.account_type}
-                    onChange={(v) => setData('account_type', v)}
+                    onChange={(v) => setData((d) => ({ ...d, account_type: v, ...(v === 'workstation' ? { permissions: [] } : {}) }))}
                 />
             </div>
 
@@ -253,6 +262,33 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                 </div>
                     )}
                 </div>
+            )}
+
+            {/* Personal accounts only: a shared workstation login cannot answer for a quality decision. */}
+            {isUser && grantablePermissions.length > 0 && (
+                <section className="border border-om-line2 rounded-om-sm p-4 space-y-3">
+                    <div>
+                        <h2 className="text-sm font-semibold text-om-ink">{__('Quality permissions')}</h2>
+                        <p className="text-xs text-om-faint">{__('Granted to this person in addition to their role.')}</p>
+                    </div>
+                    {grantablePermissions.map((perm) => {
+                        const fromRole = roleGrants.includes(perm.key);
+                        return (
+                            <div key={perm.key}>
+                                <Checkbox
+                                    checked={fromRole || granted.includes(perm.key)}
+                                    disabled={fromRole}
+                                    onChange={(next) => togglePermission(perm.key, next)}
+                                    label={__(perm.label)}
+                                />
+                                <p className="ml-7 text-xs text-om-faint">
+                                    {fromRole ? __('Granted by the :role role.', { role: effectiveRole }) : __(perm.description)}
+                                </p>
+                            </div>
+                        );
+                    })}
+                    {errors.permissions && <p className="text-xs text-om-blocked">{errors.permissions}</p>}
+                </section>
             )}
 
             <ModuleFields

@@ -34,6 +34,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   warning names that currency.
 - Shared money formatting: `App\Support\Money::format()` on the server and `formatMoney()`
   (`resources/js/lib/money.js`) in the browser, for core and modules alike.
+- **Quality inspector and Quality disposition permissions.** Inbound inspections can now be given to
+  named people instead of only Supervisors and Admins. *Quality inspector* lets someone start,
+  fill in and complete an inspection; *Quality disposition* also lets them decide on the inspected
+  lot. Grant them to one person on Admin → Users → Edit, or to a whole role on Settings → Access.
+  Operators who hold either permission get an **Inspections** tab on the operator tablet.
 
 ### Changed
 
@@ -49,8 +54,31 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
   to `CurrencyRegistry`).
 
+### Security
+
+- **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
+  operator token could start, fill in and complete an inspection, and with lot tracking on,
+  completing one put a released lot into stock. Every inspection endpoint, including the read
+  endpoints, now requires one of the two permissions above, through the same policy the operator
+  screen uses. Completing an inspection now creates the lot only when the person completing it
+  holds *Quality disposition*; otherwise the lot is created when the disposition is applied.
+  Supervisors and Admins keep their current access: the seeder grants them both permissions. The
+  Docker image runs it on start; on an installation upgraded without Docker, run
+  `php artisan db:seed --class=RolesAndPermissionsSeeder --force` after migrating, or Supervisors
+  lose access to inspections until you do. A shared workstation login cannot hold either permission.
+- **A disposition needs a completed inspection.** Accepting a lot before its inspection was completed
+  released the material, and a later fail did not hold it again. A decision on a pending inspection
+  is now refused, and concurrent decisions no longer create a second lot.
+
 ### Fixed
 
+- **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
+  and the material lot page linked to `/inspections`, which does not exist; they now open the
+  inspection screens.
+- **The API and the tablet start the same inspection.** Without a chosen plan the API now uses the
+  published plan for the material, as the tablet does; a draft plan or another material's plan is
+  refused. Releasing a lot that was held now makes its received quantity available, and a lot
+  created by a decision records the person who decided.
 - **Checkboxes line up with their labels in the HR forms.** In the worker form, *Active* and
   *Logistics operator* now sit on their own rows instead of side by side at different heights.
   Checkbox labels everywhere stay level with the box and left-aligned when they wrap on narrow

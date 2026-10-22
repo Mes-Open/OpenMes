@@ -210,7 +210,7 @@ export default function MaterialLotShow({ lot }) {
                         <InfoCell label="Inspection">
                             {lot.inspection ? (
                                 <Link
-                                    href={`/inspections/${lot.inspection.id}`}
+                                    href={`/operator/inspections/${lot.inspection.id}`}
                                     className="text-om-accent hover:underline"
                                 >
                                     #{lot.inspection.id} ({lot.inspection.status})
@@ -277,7 +277,7 @@ export default function MaterialLotShow({ lot }) {
                                 <dd className="mt-1">
                                     {lot.inspection ? (
                                         <Link
-                                            href={`/inspections/${lot.inspection.id}`}
+                                            href={`/operator/inspections/${lot.inspection.id}`}
                                             className="text-om-accent hover:underline"
                                         >
                                             #{lot.inspection.id} — {ucFirst(lot.inspection.status)}
