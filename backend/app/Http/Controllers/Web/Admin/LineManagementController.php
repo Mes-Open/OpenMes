@@ -372,7 +372,7 @@ class LineManagementController extends Controller
             'columns' => 'nullable|array|max:20',
             'columns.*.label' => 'required|string|max:100',
             'columns.*.key' => 'required|string|max:100',
-            'columns.*.source' => 'required|in:extra_data,field',
+            'columns.*.source' => 'required|in:extra_data,field,product_type',
         ]);
 
         $line->viewColumns()->delete();

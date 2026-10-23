@@ -25,18 +25,18 @@ class ViewTemplateController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'                 => 'required|string|max:100|unique:view_templates,name',
-            'description'          => 'nullable|string|max:500',
-            'columns'              => 'required|array|min:1|max:20',
-            'columns.*.label'      => 'required|string|max:100',
-            'columns.*.key'        => 'required|string|max:100',
-            'columns.*.source'     => 'required|in:extra_data,field',
+            'name' => 'required|string|max:100|unique:view_templates,name',
+            'description' => 'nullable|string|max:500',
+            'columns' => 'required|array|min:1|max:20',
+            'columns.*.label' => 'required|string|max:100',
+            'columns.*.key' => 'required|string|max:100',
+            'columns.*.source' => 'required|in:extra_data,field,product_type',
         ]);
 
         ViewTemplate::create($validated);
 
         return redirect()->route('admin.view-templates.index')
-            ->with('success', "View template \"{$validated['name']}\" created.");
+            ->with('success', __('View template ":name" created.', ['name' => $validated['name']]));
     }
 
     public function edit(ViewTemplate $viewTemplate)
@@ -49,18 +49,18 @@ class ViewTemplateController extends Controller
     public function update(Request $request, ViewTemplate $viewTemplate)
     {
         $validated = $request->validate([
-            'name'                 => 'required|string|max:100|unique:view_templates,name,' . $viewTemplate->id,
-            'description'          => 'nullable|string|max:500',
-            'columns'              => 'required|array|min:1|max:20',
-            'columns.*.label'      => 'required|string|max:100',
-            'columns.*.key'        => 'required|string|max:100',
-            'columns.*.source'     => 'required|in:extra_data,field',
+            'name' => 'required|string|max:100|unique:view_templates,name,'.$viewTemplate->id,
+            'description' => 'nullable|string|max:500',
+            'columns' => 'required|array|min:1|max:20',
+            'columns.*.label' => 'required|string|max:100',
+            'columns.*.key' => 'required|string|max:100',
+            'columns.*.source' => 'required|in:extra_data,field,product_type',
         ]);
 
         $viewTemplate->update($validated);
 
         return redirect()->route('admin.view-templates.index')
-            ->with('success', "View template \"{$validated['name']}\" updated.");
+            ->with('success', __('View template ":name" updated.', ['name' => $validated['name']]));
     }
 
     public function destroy(ViewTemplate $viewTemplate)
@@ -69,6 +69,6 @@ class ViewTemplateController extends Controller
         $viewTemplate->delete();
 
         return redirect()->route('admin.view-templates.index')
-            ->with('success', "View template \"{$name}\" deleted.");
+            ->with('success', __('View template ":name" deleted.', ['name' => $name]));
     }
 }

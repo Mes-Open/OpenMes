@@ -7,7 +7,11 @@ const COLUMN_FIELDS = [
     { name: 'key', label: 'Key', placeholder: 'planned_qty' },
     {
         name: 'source', label: 'Source', type: 'select', width: 'w-40',
-        options: [{ value: 'field', label: 'Field' }, { value: 'extra_data', label: 'Extra data' }],
+        options: [
+            { value: 'field', label: 'Field' },
+            { value: 'extra_data', label: 'Extra data' },
+            { value: 'product_type', label: 'Product type' },
+        ],
     },
 ];
 
@@ -18,6 +22,9 @@ const COLUMN_FIELDS = [
  */
 export default function ViewTemplateForm({ form, submitLabel, onSubmit }) {
     const { data, setData, errors, processing } = form;
+    // Per-row 422s arrive keyed as `columns.N.field`; RepeatableRows has no slot
+    // for them, so without this list a rejected save looks like nothing happened.
+    const columnErrors = Object.entries(errors).filter(([key]) => key.startsWith('columns.'));
 
     const translatedFields = COLUMN_FIELDS.map(f => ({
         ...f,
@@ -49,6 +56,11 @@ export default function ViewTemplateForm({ form, submitLabel, onSubmit }) {
                     newRow={() => ({ label: '', key: '', source: 'field' })}
                 />
                 {errors.columns && <p className="mt-1 text-xs text-om-blocked">{errors.columns}</p>}
+                {columnErrors.map(([key, message]) => (
+                    <p key={key} className="mt-1 text-xs text-om-blocked">
+                        {__('Column')} {Number(key.split('.')[1]) + 1}: {message}
+                    </p>
+                ))}
             </div>
 
             <div className="flex items-center gap-3 pt-2">

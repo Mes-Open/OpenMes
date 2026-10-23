@@ -28,7 +28,7 @@ class ViewTemplateRequest extends FormRequest
             'columns' => ['required', 'array', 'min:1', 'max:20'],
             'columns.*.label' => ['required', 'string', 'max:100'],
             'columns.*.key' => ['required', 'string', 'max:100'],
-            'columns.*.source' => ['required', 'in:extra_data,field'],
+            'columns.*.source' => ['required', 'in:extra_data,field,product_type'],
         ];
     }
 }
