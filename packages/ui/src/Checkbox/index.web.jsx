@@ -8,8 +8,13 @@
  * `indeterminate` renders the accent fill with a – instead of a ✓ (a "some but
  * not all" parent, e.g. DataTable's select-all header box) and reports
  * aria-checked="mixed". `size="sm"` is the 17px box the data table uses.
+ *
+ * The label's line height equals the box size and the box is top-aligned, so
+ * a one-line label sits level with the box and a wrapped one keeps the box on
+ * its first line, left-aligned (a <button> centres text by default).
  */
 const BOX_SIZE = { md: 'size-[18px]', sm: 'size-[17px]' };
+const LABEL_LEADING = { md: 'leading-[18px]', sm: 'leading-[17px]' };
 
 export function Checkbox({
     checked,
@@ -29,7 +34,7 @@ export function Checkbox({
             aria-checked={indeterminate ? 'mixed' : checked}
             disabled={disabled}
             onClick={() => onChange?.(!checked)}
-            className={`inline-flex items-center gap-[9px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+            className={`inline-flex items-start gap-[9px] text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             {...props}
         >
             <span
@@ -38,7 +43,7 @@ export function Checkbox({
             >
                 {filled && (indeterminate ? '–' : '✓')}
             </span>
-            {label != null && <span className="text-[13px] text-om-ink">{label}</span>}
+            {label != null && <span className={`min-w-0 text-[13px] ${LABEL_LEADING[size]} text-om-ink`}>{label}</span>}
         </button>
     );
 }

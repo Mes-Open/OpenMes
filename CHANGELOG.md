@@ -79,6 +79,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   published plan for the material, as the tablet does; a draft plan or another material's plan is
   refused. Releasing a lot that was held now makes its received quantity available, and a lot
   created by a decision records the person who decided.
+- **Checkboxes line up with their labels in the HR forms.** In the worker form, *Active* and
+  *Logistics operator* now sit on their own rows instead of side by side at different heights.
+  Checkbox labels everywhere stay level with the box and left-aligned when they wrap on narrow
+  screens. This covers the worker and user-account forms, including the worker-profile skills.
 
 ## [0.27.0] - 2026-10-14
 

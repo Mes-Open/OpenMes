@@ -53,6 +53,7 @@ backend/yarn-error.log
 # directory, so a negation inside one would never be reached.
 .claude/*
 !.claude/skills/
+.claude/skills/**/__pycache__/
 .claude-flow/
 .mcp.json
 .agents/
