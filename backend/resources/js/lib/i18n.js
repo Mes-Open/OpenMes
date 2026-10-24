@@ -171,6 +171,15 @@ export function timeAgo(d) {
     return past ? __('just now') : __('soon');
 }
 
+/** "5h 33m" / "5h" / "45m" — language-neutral suffixes, as elapsed()/countdown() below. */
+export function durationLabel(minutes) {
+    const total = Math.max(0, Math.round(Number(minutes) || 0));
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (h === 0) return `${m}m`;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 /**
  * Human-readable elapsed duration between `from` and `now` (default: the current
  * time), as a compact single unit: "just now", "5m", "3h", "2d", "1y". Unit

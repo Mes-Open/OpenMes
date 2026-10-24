@@ -5,9 +5,8 @@ import AppLayout from '../../../layouts/AppLayout';
 import PageTitle from '../../../components/PageTitle';
 import { echo } from '../../../lib/echo';
 import { apiGet } from '../../../lib/http';
-import { __ } from '../../../lib/i18n';
+import { __, durationLabel } from '../../../lib/i18n';
 import { STATE_TONE, elapsedLabel, isDowntime, stateLabel } from '../../../components/shift-board/tokens';
-import { durationLabel } from '../../../components/dashboard/overview/DowntimeSection';
 
 /**
  * The whole plant, one tile per machine.

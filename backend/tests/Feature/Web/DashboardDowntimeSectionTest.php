@@ -229,6 +229,62 @@ class DashboardDowntimeSectionTest extends TestCase
         $this->assertSame(2, $dt['line_count']);
     }
 
+    public function test_stations_stopped_together_count_once_against_the_lines_time(): void
+    {
+        // One line, four stations, all faulted for the whole shift so far: the
+        // total lists every station's stop, but the line lost 240 min of its
+        // 240 — 100 %, not 400 %.
+        $line = Line::factory()->create(['code' => 'L1']);
+        $reason = DowntimeReason::factory()->unplanned()->create(['name' => 'Fault']);
+        foreach (range(1, 4) as $i) {
+            $station = Workstation::factory()->create(['line_id' => $line->id]);
+            $this->stop($line, $reason, '06:00', null, ['workstation_id' => $station->id]);
+        }
+
+        $dt = $this->downtime();
+
+        $this->assertSame(960, $dt['total_minutes']);
+        $this->assertSame(240, $dt['loss_minutes']);
+        $this->assertSame(240, $dt['planned_minutes']);
+        $this->assertSame(100, $dt['percent_of_planned']);
+    }
+
+    public function test_a_machine_stop_and_a_line_stop_over_the_same_hour_are_one_hour_lost(): void
+    {
+        $l1 = Line::factory()->create();
+        Line::factory()->create();
+        $station = Workstation::factory()->create(['line_id' => $l1->id]);
+        $auto = DowntimeReason::factory()->create(['name' => 'AUTO-FAULT']);
+        $breakdown = DowntimeReason::factory()->unplanned()->create(['name' => 'Breakdown']);
+        $this->stop($l1, $auto, '07:00', '08:00', ['workstation_id' => $station->id, 'needs_reason' => true]);
+        $this->stop($l1, $breakdown, '07:30', '08:30');
+
+        $dt = $this->downtime();
+
+        // Listed as reported: 60 + 60.
+        $this->assertSame(120, $dt['total_minutes']);
+        // Line time: 07:00–08:30 = 90 of 2 × 240.
+        $this->assertSame(90, $dt['loss_minutes']);
+        $this->assertSame(19, $dt['percent_of_planned']);
+    }
+
+    public function test_a_fault_inside_a_planned_break_is_not_a_loss(): void
+    {
+        $line = Line::factory()->create();
+        $break = DowntimeReason::factory()->planned()->create(['name' => 'Planned break']);
+        $fault = DowntimeReason::factory()->unplanned()->create(['name' => 'Fault']);
+        $this->stop($line, $break, '08:00', '09:00');
+        $this->stop($line, $fault, '08:30', '09:30');
+
+        $dt = $this->downtime();
+
+        // 240 − 60 planned = 180; only 09:00–09:30 is a loss.
+        $this->assertSame(180, $dt['planned_minutes']);
+        $this->assertSame(30, $dt['loss_minutes']);
+        $this->assertSame(17, $dt['percent_of_planned']);
+        $this->assertLessThanOrEqual(100, $dt['percent_of_planned']);
+    }
+
     public function test_without_lines_there_is_no_planned_time(): void
     {
         $dt = $this->downtime();
@@ -373,5 +429,9 @@ class DashboardDowntimeSectionTest extends TestCase
         $seenByB = $this->downtime($adminB);
         $this->assertSame(60, $seenByB['total_minutes']);
         $this->assertSame(['B-1'], $this->row($seenByB, 'Breakdown')['lines']);
+
+        // Plant Board prints the same total, cached per tenant.
+        $this->assertSame(10, $this->actingAs($adminA)->getJson(route('admin.shift-board.check'))->json('data.downtimeMinutes'));
+        $this->assertSame(60, $this->actingAs($adminB)->getJson(route('admin.shift-board.check'))->json('data.downtimeMinutes'));
     }
 }

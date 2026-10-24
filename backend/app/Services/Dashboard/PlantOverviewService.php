@@ -434,13 +434,23 @@ class PlantOverviewService
      * has already happened, an open stop running to now. Line-level stops
      * reported by hand count too.
      *
-     * `planned_minutes` is the net planned time *so far* — active lines ×
-     * elapsed shift minutes, minus planned-kind stops — the same net the OEE
-     * availability uses (shift time − DowntimeService::getPlannedMinutes), but
-     * on elapsed rather than whole-shift time because the numerator is also
-     * "so far". `percent_of_planned` is the loss (unplanned, changeover and
-     * unclassified stops) over that; planned stops appear in the total and the
-     * reason list but are not a loss.
+     * `total_minutes` and the reason rows add up every stop, station by
+     * station, exactly as Plant Board lists them.
+     *
+     * The percentage is measured in *line time* instead, so it cannot pass
+     * 100 %: four stations of one line faulting together, or a machine stop
+     * and a hand-reported line stop covering the same hour, are one hour of
+     * that line lost, not four. Per line, overlapping stops are merged first:
+     *
+     *  - `planned_minutes` — the net planned time *so far*: elapsed shift time
+     *    minus the time covered by planned-kind stops, summed over active
+     *    lines. The same net the OEE availability uses (shift time −
+     *    DowntimeService::getPlannedMinutes), on elapsed rather than whole-shift
+     *    time because the numerator is also "so far";
+     *  - `loss_minutes` — time covered by unplanned, changeover or unclassified
+     *    stops, outside planned stops;
+     *  - `percent_of_planned` — loss over planned time. Planned stops appear in
+     *    the total and the reason list but are not a loss.
      *
      * @return array{has_lines: bool, total_minutes: int, loss_minutes: int, planned_minutes: ?int, percent_of_planned: ?int, line_count: int, reasons: array<int, array<string, mixed>>, unclassified: ?array<string, mixed>}
      */
@@ -479,8 +489,9 @@ class PlantOverviewService
             ->get();
 
         $buckets = [];
-        $plannedSeconds = 0;
-        $lossSeconds = 0;
+        // line id → [[start, end], …] in unix seconds, for the line-time maths.
+        $plannedSpans = [];
+        $lossSpans = [];
         $totalSeconds = 0;
         $linesHit = [];
 
@@ -490,10 +501,11 @@ class PlantOverviewService
                 continue;
             }
 
-            $seconds = $this->clippedSeconds($stop, $window->start, $cap);
-            if ($seconds <= 0) {
+            $span = $this->clip($stop, $window->start, $cap);
+            if ($span === null) {
                 continue;
             }
+            $seconds = $span[1] - $span[0];
 
             $unclassified = $stop->needs_reason || $stop->reason === null;
             $kind = $unclassified ? 'unclassified' : ($stop->reason->kind?->value ?? 'unplanned');
@@ -524,9 +536,9 @@ class PlantOverviewService
             $totalSeconds += $seconds;
             $linesHit[$lineId] = true;
             if ($kind === 'planned') {
-                $plannedSeconds += $seconds;
+                $plannedSpans[$lineId][] = $span;
             } else {
-                $lossSeconds += $seconds;
+                $lossSpans[$lineId][] = $span;
             }
         }
 
@@ -545,7 +557,14 @@ class PlantOverviewService
             ->all();
 
         $elapsedSeconds = max(0, $cap->getTimestamp() - $window->start->getTimestamp());
-        $plannedTime = $lines->count() * $elapsedSeconds - $plannedSeconds;
+        $plannedTime = 0;
+        $lossSeconds = 0;
+        foreach ($lineIds as $lineId) {
+            $planned = self::mergeSpans($plannedSpans[$lineId] ?? []);
+            $loss = self::mergeSpans($lossSpans[$lineId] ?? []);
+            $plannedTime += $elapsedSeconds - self::spanLength($planned);
+            $lossSeconds += self::spanLength($loss) - self::overlapLength($loss, $planned);
+        }
         $plannedMinutes = (int) round($plannedTime / 60);
 
         return [
@@ -562,12 +581,64 @@ class PlantOverviewService
         ];
     }
 
-    /** Seconds of a stop inside [$from, $to], an open stop running to $to. */
-    private function clippedSeconds(ProductionDowntime $stop, Carbon $from, Carbon $to): int
+    /**
+     * The part of a stop inside [$from, $to] as [start, end] unix seconds, an
+     * open stop running to $to; null when nothing of it falls inside.
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function clip(ProductionDowntime $stop, Carbon $from, Carbon $to): ?array
     {
         $start = max($stop->started_at->getTimestamp(), $from->getTimestamp());
         $end = min(($stop->ended_at ?? $to)->getTimestamp(), $to->getTimestamp());
 
-        return max(0, $end - $start);
+        return $end > $start ? [$start, $end] : null;
+    }
+
+    /**
+     * Sorted, non-overlapping union of spans.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $spans
+     * @return array<int, array{0: int, 1: int}>
+     */
+    private static function mergeSpans(array $spans): array
+    {
+        usort($spans, fn (array $a, array $b) => $a[0] <=> $b[0]);
+
+        $merged = [];
+        foreach ($spans as [$start, $end]) {
+            $last = array_key_last($merged);
+            if ($last !== null && $start <= $merged[$last][1]) {
+                $merged[$last][1] = max($merged[$last][1], $end);
+            } else {
+                $merged[] = [$start, $end];
+            }
+        }
+
+        return $merged;
+    }
+
+    /** @param  array<int, array{0: int, 1: int}>  $spans  merged */
+    private static function spanLength(array $spans): int
+    {
+        return array_sum(array_map(fn (array $s) => $s[1] - $s[0], $spans));
+    }
+
+    /**
+     * Seconds two merged span lists have in common.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $a
+     * @param  array<int, array{0: int, 1: int}>  $b
+     */
+    private static function overlapLength(array $a, array $b): int
+    {
+        $total = 0;
+        $i = $j = 0;
+        while ($i < count($a) && $j < count($b)) {
+            $total += max(0, min($a[$i][1], $b[$j][1]) - max($a[$i][0], $b[$j][0]));
+            $a[$i][1] < $b[$j][1] ? $i++ : $j++;
+        }
+
+        return $total;
     }
 }

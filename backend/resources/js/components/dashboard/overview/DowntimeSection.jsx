@@ -1,15 +1,6 @@
 import { Link } from '@inertiajs/react';
-import { __ } from '../../../lib/i18n';
+import { __, durationLabel } from '../../../lib/i18n';
 import { OverviewCard } from './OverviewGrid';
-
-/** "5h 33m" / "5h" / "45m" — language-neutral suffixes, as elapsed()/countdown() in lib/i18n. */
-export function durationLabel(minutes) {
-    const total = Math.max(0, Math.round(Number(minutes) || 0));
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    if (h === 0) return `${m}m`;
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
 
 // Bar colour by DowntimeReason.kind: unplanned is the loss that hurts (red),
 // planned and changeover read neutral, an unclassified stop amber — it needs

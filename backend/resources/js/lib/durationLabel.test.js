@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { durationLabel } from './DowntimeSection';
+import { durationLabel } from './i18n';
 
 describe('durationLabel', () => {
     it('formats minutes as hours and minutes', () => {
