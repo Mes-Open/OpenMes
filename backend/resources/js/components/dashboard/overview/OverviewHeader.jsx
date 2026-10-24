@@ -1,12 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { __, formatTime } from '../../../lib/i18n';
-
-/** "3 h left" / "45 min left" — whole hours once there is at least one. */
-function timeLeft(minutes) {
-    if (minutes == null) return null;
-    if (minutes >= 60) return __(':count h left', { count: Math.floor(minutes / 60) });
-    return __(':count min left', { count: minutes });
-}
+import { shiftTimeLeft } from './timeLeft';
 
 /**
  * "Plant overview" page header: title, live indicator, the plant shift running
@@ -47,7 +41,7 @@ export default function OverviewHeader({ shift, liveOk = true }) {
                                 ? [
                                     shift.name,
                                     `${formatTime(shift.start)}–${formatTime(shift.end)}`,
-                                    timeLeft(shift.minutes_left),
+                                    shiftTimeLeft(shift.minutes_left),
                                 ].filter(Boolean).join(' · ')
                                 : __('No shift running')}
                         </span>

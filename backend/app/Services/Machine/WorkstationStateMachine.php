@@ -18,9 +18,17 @@ use Illuminate\Support\Facades\DB;
  * MAINTENANCE → planned) opens a ProductionDowntime; leaving it closes the open
  * one. Reasons are auto-provisioned per state so OEE availability reflects real
  * machine behaviour without manual reporting.
+ *
+ * The open state row's `updated_at` is "last heard from": every signal ingested
+ * for the station bumps it (markSignal(), at most once a minute), so a collector
+ * that keeps re-reading the same state is told apart from one that went silent.
+ * The plant overview reads it to show a line as "No data".
  */
 class WorkstationStateMachine
 {
+    /** markSignal() writes at most once per this many seconds per station. */
+    public const SIGNAL_TOUCH_SECONDS = 60;
+
     /**
      * Transition a workstation to a new state. No-op (metadata refresh only) if
      * the state is unchanged. Returns the new (or current) WorkstationState row.
@@ -42,6 +50,8 @@ class WorkstationStateMachine
             if ($current && $current->state === $newState) {
                 if ($metadata) {
                     $current->update(['metadata' => array_merge($current->metadata ?? [], $metadata)]);
+                } else {
+                    $this->markSignal($workstation);
                 }
 
                 return $current;
@@ -84,6 +94,21 @@ class WorkstationStateMachine
             ->whereNull('ended_at')
             ->latest('started_at')
             ->first();
+    }
+
+    /**
+     * Record that the station was heard from: bump the open state row's
+     * `updated_at`, throttled to once per SIGNAL_TOUCH_SECONDS. A query-builder
+     * update on purpose — no read, and no model `updated` event, so a healthy
+     * poller doesn't nudge the shift monitor every minute for nothing. Uses
+     * now(), not the observed time: a gateway flushing a buffer is alive now.
+     */
+    public function markSignal(Workstation $workstation): void
+    {
+        WorkstationState::where('workstation_id', $workstation->id)
+            ->whereNull('ended_at')
+            ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))
+            ->update(['updated_at' => now()]);
     }
 
     private function openDowntime(Workstation $workstation, string $state, Carbon $at): void
