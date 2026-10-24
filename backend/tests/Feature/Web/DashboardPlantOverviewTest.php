@@ -452,6 +452,35 @@ class DashboardPlantOverviewTest extends TestCase
                     ->missing('scrapStats')));
     }
 
+    public function test_overview_carries_planned_vs_actual_production(): void
+    {
+        Shift::create([
+            'name' => 'Shift A', 'code' => 'A',
+            'start_time' => '06:00:00', 'end_time' => '14:00:00',
+            'line_id' => null, 'is_active' => true,
+        ]);
+        $line = Line::factory()->create();
+        $order = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_IN_PROGRESS, 'planned_qty' => 800,
+            'planned_start_at' => $this->at('06:00'), 'planned_end_at' => $this->at('14:00'),
+        ]);
+        $order->update(['produced_qty' => 150]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.dashboard'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('overview.production.has_lines', true)
+                ->where('overview.production.totals.planned', 800)
+                ->where('overview.production.totals.actual', 150)
+                ->where('overview.production.totals.pace_delta', -250)
+                ->where('overview.production.plan_per_hour', 100)
+                ->count('overview.production.hours', 8)
+                ->has('overview.production.cumulative')
+                ->has('overview.production.summary.kind')
+                ->reloadOnly('overview', fn (AssertableInertia $reload) => $reload
+                    ->where('overview.production.totals.actual', 150)));
+    }
+
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get(route('admin.dashboard'))->assertRedirect(route('login'));

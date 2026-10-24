@@ -1,8 +1,11 @@
+import OutputPerHour from './OutputPerHour';
+import PlannedVsActual from './PlannedVsActual';
+
 /**
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -45,4 +48,11 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+// Planned vs actual and output per hour need no module and link nowhere, so
+// tab:dashboard (which already gates the page) is all they need.
+const hasProduction = ({ overview }) => Boolean(overview?.production);
+
+export const SECTIONS = [
+    { id: 'planned_vs_actual', row: 'production_kpi', span: 'wide', Component: PlannedVsActual, visible: hasProduction },
+    { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
+];

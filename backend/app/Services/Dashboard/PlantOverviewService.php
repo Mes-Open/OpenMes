@@ -43,16 +43,21 @@ class PlantOverviewService
 {
     private const STATE_PRIORITY = ['down' => 3, 'blocked' => 2, 'running' => 1, 'idle' => 0];
 
-    public function __construct(private ShiftMonitorService $monitor) {}
+    public function __construct(
+        private ShiftMonitorService $monitor,
+        private ShiftPlanService $plan,
+    ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, production: array<string, mixed>}
      */
     public function overview(): array
     {
         return [
             'shift' => $this->currentShift(),
             'lines' => $this->lineStates(),
+            // Planned vs actual output of the plant shift, hour by hour.
+            'production' => $this->plan->forShift(ShiftWindow::current()),
         ];
     }
 
