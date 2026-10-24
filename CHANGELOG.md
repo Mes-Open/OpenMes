@@ -81,6 +81,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Settings → Tab Access saves again.** On a fresh install, saving the page always failed
+  without a message, because Admin and Supervisor hold the same quality grants and a
+  validation rule wrongly treated that as a duplicate. The save now goes through, and
+  any validation error is shown above the *Save* button.
 - **Operators granted admin tabs can reach them again.** An Operator given tabs in
   *Settings → Access* (for example *Orders*) once more sees a sidebar on the operator
   screens, with *Lines* first and then each granted tab. A redesign had dropped the

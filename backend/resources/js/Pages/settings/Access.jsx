@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox } from '@openmes/ui';
+import { Button, Checkbox, InlineAlert } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -20,7 +20,10 @@ export default function Access() {
     });
 
     const form = useForm({ access: initial, grants: initialGrants });
-    const { data, setData, processing } = form;
+    const { data, setData, processing, errors } = form;
+    // A rejected save redirects back with errors; show them next to Save so it
+    // never fails silently.
+    const errorMessages = [...new Set(Object.values(errors))];
 
     const isChecked = (field, role, key) => role === lockedRole || (data[field][role] ?? []).includes(key);
 
@@ -121,6 +124,16 @@ export default function Access() {
                             </tbody>
                         </table>
                     </>
+                )}
+
+                {errorMessages.length > 0 && (
+                    <div className="pt-4">
+                        <InlineAlert severity="error" title={__('Could not save changes')}>
+                            <ul className="list-disc pl-5">
+                                {errorMessages.map((msg) => <li key={msg}>{msg}</li>)}
+                            </ul>
+                        </InlineAlert>
+                    </div>
                 )}
 
                 <div className="flex items-center gap-3 pt-4">
