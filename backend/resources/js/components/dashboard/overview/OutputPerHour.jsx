@@ -42,8 +42,9 @@ export function summaryText(summary) {
 
 /**
  * "Output per hour": a bar per hour of the shift — done hours solid, the
- * running hour hatched, future hours as empty slots — against the shift's
- * plan in pcs/h, with a one-line summary underneath. Data is
+ * running hour hatched, future hours as empty slots — against each hour's
+ * plan (the legend gives the shift's average pcs/h), with a one-line summary
+ * underneath. Data is
  * `overview.production` from ShiftPlanService.
  */
 export default function OutputPerHour({ overview }) {
@@ -60,7 +61,7 @@ export default function OutputPerHour({ overview }) {
 
     const { hours, plan_per_hour: planPerHour } = production;
     const hasPlan = planPerHour != null;
-    const peak = Math.max(planPerHour ?? 0, ...hours.map((h) => h.actual ?? 0), 1);
+    const peak = Math.max(planPerHour ?? 0, ...hours.map((h) => Math.max(h.actual ?? 0, h.planned ?? 0)), 1);
     const scale = PLOT / (peak * 1.1);
     const summary = summaryText(production.summary);
 
@@ -98,7 +99,7 @@ export default function OutputPerHour({ overview }) {
                         data-testid="output-bars"
                     >
                         {hours.map((h) => (
-                            <div key={h.start} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1" data-phase={h.phase}>
+                            <div key={h.start} className="relative flex h-full min-w-0 flex-1 flex-col justify-end gap-1" data-phase={h.phase}>
                                 {h.phase === 'future' ? (
                                     <div className="rounded-t-[4px] bg-om-track" style={{ height: PLOT }} />
                                 ) : (
@@ -121,15 +122,17 @@ export default function OutputPerHour({ overview }) {
                                         />
                                     </>
                                 )}
+                                {/* This hour's own plan. Bars and the summary are judged against
+                                    it, so it is drawn per hour; an even plan reads as one line. */}
+                                {h.planned > 0 && (
+                                    <div
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute -inset-x-1.5 border-t-2 border-dashed border-om-ink opacity-50"
+                                        style={{ bottom: h.planned * scale }}
+                                    />
+                                )}
                             </div>
                         ))}
-                        {hasPlan && (
-                            <div
-                                aria-hidden="true"
-                                className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-om-ink opacity-50"
-                                style={{ bottom: planPerHour * scale }}
-                            />
-                        )}
                     </div>
                     <div className="mt-1.5 flex gap-2 sm:gap-3">
                         {hours.map((h) => (

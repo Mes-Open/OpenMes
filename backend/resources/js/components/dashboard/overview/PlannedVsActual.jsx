@@ -1,10 +1,13 @@
+import { useEffect, useRef, useState } from 'react';
 import { OverviewCard } from './OverviewGrid';
 import { __, formatNumber, formatTime } from '../../../lib/i18n';
 
-// Plot area inside the 800×250 viewBox (not OeeGauge's 0 0 100 60 — the
-// oee-smoke e2e spec finds the gauge on this page by its viewBox).
+// Plot area. The viewBox is as wide as the chart is on screen (800 until
+// measured), so labels stay 11 px on a phone instead of shrinking with it. It
+// is never OeeGauge's 0 0 100 60 — the oee-smoke e2e spec finds the gauge on
+// this page by its viewBox.
+const HEIGHT = 250;
 const X0 = 50;
-const X1 = 780;
 const Y0 = 20;
 const Y1 = 220;
 
@@ -103,7 +106,27 @@ export default function PlannedVsActual({ overview }) {
     );
 }
 
+/** The element's rendered width in px, following resizes. */
+function useWidth(fallback) {
+    const ref = useRef(null);
+    const [width, setWidth] = useState(fallback);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        const observer = new ResizeObserver(([entry]) => {
+            setWidth(Math.max(300, Math.round(entry.contentRect.width)));
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    return [ref, width];
+}
+
 function Chart({ production, hasPlan, pace }) {
+    const [ref, width] = useWidth(800);
+    const X1 = width - 20;
     const { cumulative, totals, start, end, now, is_live: isLive } = production;
     const t0 = new Date(start).getTime();
     const t1 = new Date(end).getTime();
@@ -122,12 +145,13 @@ function Chart({ production, hasPlan, pace }) {
     const planFuture = hasPlan ? cumulative.filter((p) => new Date(p.at).getTime() >= tNow) : [];
     const last = actualPoints[actualPoints.length - 1];
 
-    // Every second hour boundary gets a time label, and always the shift end.
     const hourMarks = cumulative.filter((p) => {
         const t = new Date(p.at).getTime();
         return (t - t0) % 3_600_000 === 0 || t === t1;
     });
-    const xTicks = hourMarks.filter((p, i) => i % 2 === 0 || i === hourMarks.length - 1);
+    // Every second hour — or every third/fourth when the chart is phone-narrow.
+    const every = Math.max(2, Math.ceil((hourMarks.length * 44) / (X1 - X0)));
+    const xTicks = hourMarks.filter((p, i) => i % every === 0 || i === hourMarks.length - 1);
     const dots = actualPoints.filter((p) => {
         const t = new Date(p.at).getTime();
         return t !== t0 && t !== tNow;
@@ -142,65 +166,67 @@ function Chart({ production, hasPlan, pace }) {
         : __('Cumulative pieces this shift: actual :actual at :time', { actual: pcs(totals.actual ?? 0), time: formatTime(now) });
 
     return (
-        <svg role="img" aria-label={label} viewBox="0 0 800 250" className="block h-auto w-full font-mono" data-testid="pva-chart">
-            <g stroke="var(--om-track)" strokeWidth="1">
-                {gridValues.map((v) => <line key={v} x1={X0} x2={X1} y1={y(v)} y2={y(v)} />)}
-            </g>
-            <line x1={X0} x2={X1} y1={Y1} y2={Y1} stroke="var(--om-faintest)" strokeWidth="1" />
-            <g fill="var(--om-muted)" fontSize="11" textAnchor="end">
-                {[0, ...gridValues].map((v) => <text key={v} x={X0 - 8} y={y(v) + 4}>{pcs(v)}</text>)}
-            </g>
-            <g fill="var(--om-muted)" fontSize="11" textAnchor="middle">
-                {xTicks.map((p) => <text key={p.at} x={x(p.at)} y="242">{formatTime(p.at)}</text>)}
-            </g>
-
-            {actualPoints.length > 1 && (
-                <path
-                    d={`M${actualPoints.map((p) => xy(p, 'actual')).join(' L')} L${x(last.at).toFixed(1)},${Y1} L${X0},${Y1} Z`}
-                    fill={ACTUAL}
-                    fillOpacity="0.08"
-                />
-            )}
-            {planPast.length > 1 && (
-                <polyline points={planPast.map((p) => xy(p, 'planned')).join(' ')} fill="none" stroke={PLAN_PAST} strokeWidth="2" strokeDasharray="6 5" />
-            )}
-            {planFuture.length > 1 && (
-                <polyline points={planFuture.map((p) => xy(p, 'planned')).join(' ')} fill="none" stroke={PLAN_FUTURE} strokeWidth="2" strokeDasharray="6 5" />
-            )}
-            {actualPoints.length > 1 && (
-                <polyline points={actualPoints.map((p) => xy(p, 'actual')).join(' ')} fill="none" stroke={ACTUAL} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-            )}
-            <g fill="var(--om-card)" stroke={ACTUAL} strokeWidth="2">
-                {dots.map((p) => <circle key={p.at} cx={x(p.at)} cy={y(p.actual)} r="3.5" />)}
-            </g>
-
-            {isLive && (
-                <g>
-                    <line x1={xNow} x2={xNow} y1={Y0} y2={Y1} stroke="var(--om-ink)" strokeWidth="1" strokeDasharray="2 3" />
-                    <text x={xNow} y="14" fontSize="11" fill="var(--om-ink)" textAnchor="middle" fontWeight="600">
-                        {__('now :time', { time: formatTime(now) })}
-                    </text>
-                    {hasPlan && totals.planned_to_now != null && totals.actual != null && (
-                        <>
-                            <line x1={xNow + 7} x2={xNow + 7} y1={y(totals.planned_to_now)} y2={y(totals.actual)} stroke={pace?.color} strokeWidth="2" />
-                            <circle cx={xNow} cy={y(totals.planned_to_now)} r="4" fill="var(--om-card)" stroke={PLAN_PAST} strokeWidth="2" />
-                            {totals.pace_delta !== 0 && (
-                                <text
-                                    x={xNow > X1 - 90 ? xNow - 15 : xNow + 15}
-                                    y={(y(totals.planned_to_now) + y(totals.actual)) / 2 + 4}
-                                    fontSize="12"
-                                    fill={pace?.color}
-                                    fontWeight="600"
-                                    textAnchor={xNow > X1 - 90 ? 'end' : 'start'}
-                                >
-                                    {`${totals.pace_delta < 0 ? '−' : '+'}${pcs(Math.abs(totals.pace_delta))} ${__('pcs')}`}
-                                </text>
-                            )}
-                        </>
-                    )}
-                    {totals.actual != null && <circle cx={xNow} cy={y(totals.actual)} r="5" fill={ACTUAL} />}
+        <div ref={ref} className="w-full">
+            <svg role="img" aria-label={label} viewBox={`0 0 ${width} ${HEIGHT}`} className="block h-auto w-full font-mono" data-testid="pva-chart">
+                <g stroke="var(--om-track)" strokeWidth="1">
+                    {gridValues.map((v) => <line key={v} x1={X0} x2={X1} y1={y(v)} y2={y(v)} />)}
                 </g>
-            )}
-        </svg>
+                <line x1={X0} x2={X1} y1={Y1} y2={Y1} stroke="var(--om-faintest)" strokeWidth="1" />
+                <g fill="var(--om-muted)" fontSize="11" textAnchor="end">
+                    {[0, ...gridValues].map((v) => <text key={v} x={X0 - 8} y={y(v) + 4}>{pcs(v)}</text>)}
+                </g>
+                <g fill="var(--om-muted)" fontSize="11" textAnchor="middle">
+                    {xTicks.map((p) => <text key={p.at} x={x(p.at)} y="242">{formatTime(p.at)}</text>)}
+                </g>
+
+                {actualPoints.length > 1 && (
+                    <path
+                        d={`M${actualPoints.map((p) => xy(p, 'actual')).join(' L')} L${x(last.at).toFixed(1)},${Y1} L${X0},${Y1} Z`}
+                        fill={ACTUAL}
+                        fillOpacity="0.08"
+                    />
+                )}
+                {planPast.length > 1 && (
+                    <polyline points={planPast.map((p) => xy(p, 'planned')).join(' ')} fill="none" stroke={PLAN_PAST} strokeWidth="2" strokeDasharray="6 5" />
+                )}
+                {planFuture.length > 1 && (
+                    <polyline points={planFuture.map((p) => xy(p, 'planned')).join(' ')} fill="none" stroke={PLAN_FUTURE} strokeWidth="2" strokeDasharray="6 5" />
+                )}
+                {actualPoints.length > 1 && (
+                    <polyline points={actualPoints.map((p) => xy(p, 'actual')).join(' ')} fill="none" stroke={ACTUAL} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                )}
+                <g fill="var(--om-card)" stroke={ACTUAL} strokeWidth="2">
+                    {dots.map((p) => <circle key={p.at} cx={x(p.at)} cy={y(p.actual)} r="3.5" />)}
+                </g>
+
+                {isLive && (
+                    <g>
+                        <line x1={xNow} x2={xNow} y1={Y0} y2={Y1} stroke="var(--om-ink)" strokeWidth="1" strokeDasharray="2 3" />
+                        <text x={xNow} y="14" fontSize="11" fill="var(--om-ink)" textAnchor="middle" fontWeight="600">
+                            {__('now :time', { time: formatTime(now) })}
+                        </text>
+                        {hasPlan && totals.planned_to_now != null && totals.actual != null && (
+                            <>
+                                <line x1={xNow + 7} x2={xNow + 7} y1={y(totals.planned_to_now)} y2={y(totals.actual)} stroke={pace?.color} strokeWidth="2" />
+                                <circle cx={xNow} cy={y(totals.planned_to_now)} r="4" fill="var(--om-card)" stroke={PLAN_PAST} strokeWidth="2" />
+                                {totals.pace_delta !== 0 && (
+                                    <text
+                                        x={xNow > X1 - 90 ? xNow - 15 : xNow + 15}
+                                        y={(y(totals.planned_to_now) + y(totals.actual)) / 2 + 4}
+                                        fontSize="12"
+                                        fill={pace?.color}
+                                        fontWeight="600"
+                                        textAnchor={xNow > X1 - 90 ? 'end' : 'start'}
+                                    >
+                                        {`${totals.pace_delta < 0 ? '−' : '+'}${pcs(Math.abs(totals.pace_delta))} ${__('pcs')}`}
+                                    </text>
+                                )}
+                            </>
+                        )}
+                        {totals.actual != null && <circle cx={xNow} cy={y(totals.actual)} r="5" fill={ACTUAL} />}
+                    </g>
+                )}
+            </svg>
+        </div>
     );
 }
