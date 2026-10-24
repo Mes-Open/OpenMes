@@ -99,7 +99,9 @@ function DashboardBody({
     const moduleMain = moduleWidgets.main ?? [];
 
     return (
-        <div className="max-w-7xl mx-auto flex flex-col gap-8">
+        // AppLayout's <main> has no padding of its own; the page brings it, as
+        // in the mockup (32/40 px), tighter on phones.
+        <div className="max-w-7xl mx-auto flex flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
             <OverviewHeader shift={overview?.shift} liveOk={liveOk} />
 
             <OverviewGrid overview={overview} />

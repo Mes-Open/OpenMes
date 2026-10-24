@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { OverviewCard } from './OverviewGrid';
+import useWidth from './useWidth';
 import { __, formatNumber, formatTime } from '../../../lib/i18n';
 
 // Plot area. The viewBox is as wide as the chart is on screen (800 until
@@ -122,24 +122,6 @@ function PlanSource({ count, canOpenSchedule }) {
             )}
         </p>
     );
-}
-
-/** The element's rendered width in px, following resizes. */
-function useWidth(fallback) {
-    const ref = useRef(null);
-    const [width, setWidth] = useState(fallback);
-
-    useEffect(() => {
-        const el = ref.current;
-        if (!el || typeof ResizeObserver === 'undefined') return undefined;
-        const observer = new ResizeObserver(([entry]) => {
-            setWidth(Math.max(300, Math.round(entry.contentRect.width)));
-        });
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, []);
-
-    return [ref, width];
 }
 
 function Chart({ production, hasPlan, pace }) {

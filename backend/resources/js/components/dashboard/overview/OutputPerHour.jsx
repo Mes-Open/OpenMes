@@ -1,4 +1,5 @@
 import { OverviewCard } from './OverviewGrid';
+import useWidth from './useWidth';
 import { __, formatNumber, formatTime } from '../../../lib/i18n';
 
 // Bar area height in px; the value label sits in the headroom above it.
@@ -9,6 +10,13 @@ const HEIGHT = 200;
 const CURRENT_FILL = 'repeating-linear-gradient(135deg, var(--om-accent) 0 6px, color-mix(in srgb, var(--om-accent) 55%, transparent) 6px 10px)';
 
 const pcs = (value) => formatNumber(Math.round(value));
+
+/** Value above a bar: "5.3K" once the columns are too narrow for "5,318". */
+export function barLabel(value, compact) {
+    return compact && Math.abs(value) >= 1000
+        ? formatNumber(value, { notation: 'compact', maximumFractionDigits: 1 })
+        : pcs(value);
+}
 
 /**
  * One factual sentence from `summary` (ShiftPlanService): since when the
@@ -48,6 +56,7 @@ export function summaryText(summary) {
  * `overview.production` from ShiftPlanService.
  */
 export default function OutputPerHour({ overview }) {
+    const [barsRef, barsWidth] = useWidth(800);
     const production = overview?.production;
     const title = __('Output per hour');
 
@@ -60,6 +69,8 @@ export default function OutputPerHour({ overview }) {
     }
 
     const { hours, plan_per_hour: planPerHour } = production;
+    // ~9 px per mono digit at 12 px: a column narrower than 56 px can't fit "5,318".
+    const compact = barsWidth / Math.max(hours.length, 1) < 56;
     const hasPlan = planPerHour != null;
     const peak = Math.max(planPerHour ?? 0, ...hours.map((h) => Math.max(h.actual ?? 0, h.planned ?? 0)), 1);
     const scale = PLOT / (peak * 1.1);
@@ -88,9 +99,9 @@ export default function OutputPerHour({ overview }) {
                 </div>
             </div>
 
-            {/* Twelve hour columns don't fit a phone: scroll rather than overlap. */}
-            <div className="-mx-1 overflow-x-auto px-1">
-                <div style={{ minWidth: `${hours.length * 40}px` }}>
+            {/* A twelve-hour shift doesn't fit a phone: scroll rather than overlap. */}
+            <div ref={barsRef} className="-mx-1 overflow-x-auto px-1">
+                <div style={{ minWidth: `${hours.length * 34}px` }}>
                     <div
                         role="img"
                         aria-label={label}
@@ -111,7 +122,7 @@ export default function OutputPerHour({ overview }) {
                                                     : 'text-om-ink'
                                             }`}
                                         >
-                                            {pcs(h.actual)}
+                                            {barLabel(h.actual, compact)}
                                         </span>
                                         <div
                                             className="rounded-t-[4px]"
@@ -142,7 +153,8 @@ export default function OutputPerHour({ overview }) {
                                     h.phase === 'current' ? 'font-semibold text-om-ink' : 'text-om-muted'
                                 }`}
                             >
-                                {formatTime(h.start)}
+                                {/* "22" rather than "22:00" when "22:00" would collide. */}
+                                {compact ? formatTime(h.start, { hour: '2-digit' }) : formatTime(h.start)}
                             </span>
                         ))}
                     </div>
