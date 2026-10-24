@@ -7112,5 +7112,12 @@
     "Change disposition": "Change disposition",
     "Complete the inspection before applying a disposition.": "Complete the inspection before applying a disposition.",
     "This inspection plan does not apply to the selected material.": "This inspection plan does not apply to the selected material.",
-    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login."
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login.",
+    "Plant overview": "Plant overview",
+    "Last refresh failed": "Last refresh failed",
+    "No shift running": "No shift running",
+    ":count h left": ":count h left",
+    ":count min left": ":count min left",
+    "Waiting for material": "Waiting for material",
+    "Work order blocked": "Work order blocked"
 }
