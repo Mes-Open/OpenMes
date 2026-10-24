@@ -34,6 +34,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   show as *Unclassified* with a *Classify in Shift Monitor* link, and *Downtime report →*
   opens Plant Board. Planned stops count in the total but not in the percentage. With no
   stops the card reads *No downtime this shift*.
+- **"OEE · this shift" on the admin dashboard.** Under the *Plant overview* header, a new
+  card shows the plant's live OEE since the start of the current shift, how far it is
+  from target and which of availability / performance / quality loses the most, the
+  three components as bars with a target tick, and every active line's OEE sorted best
+  first, coloured against that line's own target (its *Planning efficiency (%)*). The
+  figures come from the same machine data as *Plant board*, so a line matches its tiles;
+  lines with no machine data show "—". The *(i)* button explains how OEE is computed and
+  where the target comes from. The nightly OEE report is unchanged.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

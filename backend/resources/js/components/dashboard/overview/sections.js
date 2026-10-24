@@ -1,3 +1,6 @@
+import DowntimeSection from './DowntimeSection';
+import OeeSection from './OeeSection';
+
 /**
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
@@ -17,7 +20,7 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines }, refreshed every 60 s).
+ *               `overview` Inertia prop ({ shift, lines, oee }, refreshed every 60 s).
  *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
@@ -34,8 +37,6 @@
  * gauge on this page by it.
  */
 
-import DowntimeSection from './DowntimeSection';
-
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
     'activity', //       Line activity
@@ -48,5 +49,6 @@ export const ROWS = [
 ];
 
 export const SECTIONS = [
+    { id: 'oee', row: 'oee_downtime', span: 'wide', Component: OeeSection },
     { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
 ];

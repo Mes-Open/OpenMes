@@ -298,6 +298,74 @@ class ShiftMonitorService
     }
 
     /**
+     * The raw quantities behind each station's OEE for the elapsed part of the
+     * shift, for callers that combine stations into a line or plant figure.
+     *
+     * Averaging the board's rounded percentages would weigh a station that ran
+     * ten minutes the same as one that ran all shift, so this hands out the
+     * sums the percentages are made of instead: opportunity and running
+     * minutes (availability), expected and produced pieces (performance), good
+     * and produced pieces (quality). `oee` is exactly what `board()` shows on
+     * the station's tile, computed by the same private `oee()`.
+     *
+     * Same three batched reads as `fleet()` regardless of station count, and
+     * none of the board's tile extras (batches, operators, open stops).
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array{opportunity: int, running: int, expected: float, produced: int, good: int, oee: array{availability: ?float, performance: ?float, quality: ?float, oee: ?float}}> keyed by workstation id
+     */
+    public function oeeInputs(Collection $workstations, ShiftWindow $window): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $now = Carbon::now();
+        $asOf = $now->greaterThan($window->end) ? $window->end->copy() : $now;
+
+        $statesByStation = WorkstationState::whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $countersByStation = $this->counterMinutesByStation($ids, $window);
+
+        $downtimesByStation = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($workstations as $workstation) {
+            $slices = $this->sliceRows($statesByStation->get($workstation->id) ?? collect(), $window);
+            $counters = $countersByStation[$workstation->id] ?? ['good' => [], 'reject' => []];
+            $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
+
+            $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
+            $segments = $this->buildSegments($workstation, $slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+            $totals = $this->totals($segments, $counters, $window, $asOf);
+            $m = $totals['minutes'];
+            $running = $m['run'] + $m['slow'];
+
+            $result[$workstation->id] = [
+                'opportunity' => $running + $m['down'],
+                'running' => $running,
+                'expected' => $idealPerMin * $running,
+                'produced' => $totals['produced'],
+                'good' => $totals['good'],
+                'oee' => $this->oee($totals, $idealPerMin),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * What each station is doing right now, read unclipped — the board's
      * "since" rule without the timeline, the counters or the OEE maths.
      *
