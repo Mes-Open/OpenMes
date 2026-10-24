@@ -15,7 +15,11 @@ export default function SupervisorWorkOrdersIndex() {
         counts = {}, lineNames = {}, productTypeNames = {}, customerNames = {}, can = {},
         // Create-form options, same props the standalone create page receives.
         lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [],
+        auth,
     } = usePage().props;
+    // UX only — the controller and Form Requests enforce the same abilities.
+    const canCreate = !!auth?.user?.can?.createWorkOrders;
+    const canEdit = !!auth?.user?.can?.editWorkOrders;
 
     // Creating from the list happens in a modal so you keep your filters, page and
     // selection. /supervisor/work-orders/create still renders the same form standalone.
@@ -144,7 +148,7 @@ export default function SupervisorWorkOrdersIndex() {
                     // `href`, not a router call: these are navigations, and a
                     // supervisor triaging a shift middle-clicks them into tabs.
                     { key: 'open', label: __('Open'), icon: 'open', href: `/supervisor/work-orders/${r.id}` },
-                    { key: 'edit', label: __('Edit'), icon: 'edit', href: `/supervisor/work-orders/${r.id}/edit` },
+                    ...(canEdit ? [{ key: 'edit', label: __('Edit'), icon: 'edit', href: `/supervisor/work-orders/${r.id}/edit` }] : []),
                     ...secondaryVerbs(r),
                     ...(can.delete ? [
                         { key: 'sep', divider: true },
@@ -176,8 +180,10 @@ export default function SupervisorWorkOrdersIndex() {
                 detailHref={(r) => `/supervisor/work-orders/${r.id}`}
                 title={__('Work Orders')}
                 titleIcon="clipboard-list"
-                createHref="/supervisor/work-orders/create"
-                onCreate={() => setCreating(true)}
+                // No create entry point without `create work orders` — ResourceTable
+                // hides the button when neither prop is set.
+                createHref={canCreate ? '/supervisor/work-orders/create' : undefined}
+                onCreate={canCreate ? () => setCreating(true) : undefined}
                 createLabel={__('New Work Order')}
                 columns={columns}
                 orderBy="order_no"
@@ -186,42 +192,44 @@ export default function SupervisorWorkOrdersIndex() {
                 bulkActionItems={bulkActionItems}
             />
 
-            <Modal
-                open={creating}
-                onClose={() => setCreating(false)}
-                title={__('New Work Order')}
-                closeLabel={__('Close')}
-                className="max-w-[720px]"
-                // A misclick on the scrim shouldn't cost a half-filled order.
-                keepMounted
-            >
-                {/* THE work-order form — the same component the create page and the
-                    planner render, so a field added there appears here too.
-                    `stay` makes the controller send us back to this list instead of
-                    redirecting, keeping filters and paging intact. */}
-                <WorkOrderForm
-                    key={formKey}
-                    action="/supervisor/work-orders"
-                    lines={lines}
-                    productTypes={productTypes}
-                    customers={customers}
-                    bomTemplates={bomTemplates}
-                    productRevisions={productRevisions}
-                    customFields={customFields}
-                    stay
-                    // Cancel means "throw this away", so it resets like a success
-                    // does. `keepMounted` is there for the accidental dismissal —
-                    // a stray click on the scrim — not for a deliberate one.
-                    onCancel={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
-                    onSuccess={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
-                />
-            </Modal>
+            {canCreate && (
+                <Modal
+                    open={creating}
+                    onClose={() => setCreating(false)}
+                    title={__('New Work Order')}
+                    closeLabel={__('Close')}
+                    className="max-w-[720px]"
+                    // A misclick on the scrim shouldn't cost a half-filled order.
+                    keepMounted
+                >
+                    {/* THE work-order form — the same component the create page and the
+                        planner render, so a field added there appears here too.
+                        `stay` makes the controller send us back to this list instead of
+                        redirecting, keeping filters and paging intact. */}
+                    <WorkOrderForm
+                        key={formKey}
+                        action="/supervisor/work-orders"
+                        lines={lines}
+                        productTypes={productTypes}
+                        customers={customers}
+                        bomTemplates={bomTemplates}
+                        productRevisions={productRevisions}
+                        customFields={customFields}
+                        stay
+                        // Cancel means "throw this away", so it resets like a success
+                        // does. `keepMounted` is there for the accidental dismissal —
+                        // a stray click on the scrim — not for a deliberate one.
+                        onCancel={() => {
+                            setCreating(false);
+                            setFormKey((k) => k + 1);
+                        }}
+                        onSuccess={() => {
+                            setCreating(false);
+                            setFormKey((k) => k + 1);
+                        }}
+                    />
+                </Modal>
+            )}
             {promptDialog}
         </>
     );

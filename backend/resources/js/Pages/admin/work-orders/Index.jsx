@@ -16,7 +16,11 @@ export default function WorkOrdersIndex() {
         counts = {}, lineNames = {}, productTypeNames = {}, customerNames = {},
         // Create-form options, same props the standalone create page receives.
         lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [],
+        auth,
     } = usePage().props;
+    // UX only — the controller and Form Requests enforce the same abilities.
+    const canCreate = !!auth?.user?.can?.createWorkOrders;
+    const canEdit = !!auth?.user?.can?.editWorkOrders;
 
     // Creating from the list happens in a modal so you keep your filters, page and
     // selection. /admin/work-orders/create still renders the same form standalone.
@@ -191,7 +195,7 @@ export default function WorkOrdersIndex() {
                     // `href`, not a router call: these are navigations, and a
                     // planner triaging a shift middle-clicks them into tabs.
                     { key: 'open', label: __('Open'), icon: 'open', href: `/admin/work-orders/${r.id}` },
-                    { key: 'edit', label: __('Edit'), icon: 'edit', href: `/admin/work-orders/${r.id}/edit` },
+                    ...(canEdit ? [{ key: 'edit', label: __('Edit'), icon: 'edit', href: `/admin/work-orders/${r.id}/edit` }] : []),
                     ...secondaryVerbs(r),
                     { key: 'sep', divider: true },
                     {
@@ -225,8 +229,10 @@ export default function WorkOrdersIndex() {
                 // are listed here. ('Orders' is skipped: the nav group and this
                 // page share a label, which would read "Zlecenia / Zlecenia".)
                 breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard', icon: 'layout-dashboard' }]}
-                createHref="/admin/work-orders/create"
-                onCreate={() => setCreating(true)}
+                // No create entry point without `create work orders` — ResourceTable
+                // hides the button when neither prop is set.
+                createHref={canCreate ? '/admin/work-orders/create' : undefined}
+                onCreate={canCreate ? () => setCreating(true) : undefined}
                 createLabel={__('New Work Order')}
                 columns={columns}
                 orderBy="order_no"
@@ -237,43 +243,45 @@ export default function WorkOrdersIndex() {
                 bulkActionItems={bulkActionItems}
             />
 
-            <Modal
-                open={creating}
-                onClose={() => setCreating(false)}
-                title={__('New Work Order')}
-                closeLabel={__('Close')}
-                // A right-edge drawer rather than a centered card: the order form
-                // is long enough that a card would scroll inside the page's own
-                // scroll, and the drawer keeps the list visible beside it.
-                side="right"
-                width={560}
-                // A misclick on the scrim shouldn't cost a half-filled order.
-                keepMounted
-            >
-                {/* THE work-order form — the same component the create page and the
-                    planner render, so a field added there appears here too.
-                    `stay` makes the controller send us back to this list instead of
-                    redirecting, keeping filters and paging intact. */}
-                {/* `keepMounted` holds the form's state, so closing the drawer —
-                    a stray click on the scrim, the ×, or Cancel — never costs what
-                    was typed. Only a finished create bumps the key, remounting the
-                    form empty so one order doesn't linger into the next. */}
-                <WorkOrderForm
-                    key={formKey}
-                    lines={lines}
-                    productTypes={productTypes}
-                    customers={customers}
-                    bomTemplates={bomTemplates}
-                    productRevisions={productRevisions}
-                    customFields={customFields}
-                    stay
-                    onCancel={() => setCreating(false)}
-                    onSuccess={() => {
-                        setCreating(false);
-                        setFormKey((k) => k + 1);
-                    }}
-                />
-            </Modal>
+            {canCreate && (
+                <Modal
+                    open={creating}
+                    onClose={() => setCreating(false)}
+                    title={__('New Work Order')}
+                    closeLabel={__('Close')}
+                    // A right-edge drawer rather than a centered card: the order form
+                    // is long enough that a card would scroll inside the page's own
+                    // scroll, and the drawer keeps the list visible beside it.
+                    side="right"
+                    width={560}
+                    // A misclick on the scrim shouldn't cost a half-filled order.
+                    keepMounted
+                >
+                    {/* THE work-order form — the same component the create page and the
+                        planner render, so a field added there appears here too.
+                        `stay` makes the controller send us back to this list instead of
+                        redirecting, keeping filters and paging intact. */}
+                    {/* `keepMounted` holds the form's state, so closing the drawer —
+                        a stray click on the scrim, the ×, or Cancel — never costs what
+                        was typed. Only a finished create bumps the key, remounting the
+                        form empty so one order doesn't linger into the next. */}
+                    <WorkOrderForm
+                        key={formKey}
+                        lines={lines}
+                        productTypes={productTypes}
+                        customers={customers}
+                        bomTemplates={bomTemplates}
+                        productRevisions={productRevisions}
+                        customFields={customFields}
+                        stay
+                        onCancel={() => setCreating(false)}
+                        onSuccess={() => {
+                            setCreating(false);
+                            setFormKey((k) => k + 1);
+                        }}
+                    />
+                </Modal>
+            )}
             {promptDialog}
         </>
     );

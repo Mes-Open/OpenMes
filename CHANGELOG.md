@@ -56,6 +56,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Creating and editing work orders now requires the matching permission.** On the
+  admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
+  create form and save need `create work orders`, and the edit form and save need
+  `edit work orders` (`WorkOrderPolicy`). Access to the *Orders* tab is no longer enough.
+  Without the permission the pages return 403, and the *New Work Order* button (work-order
+  lists, planner, weekly schedule) and the *Edit* row action are hidden. Admin and
+  Supervisor keep both permissions. An Operator given the *Orders* tab in *Settings →
+  Access* can still open the list, but can no longer create or edit orders there.
+
 - **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
   operator token could start, fill in and complete an inspection, and with lot tracking on,
   completing one put a released lot into stock. Every inspection endpoint, including the read
