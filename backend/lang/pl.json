@@ -7161,5 +7161,6 @@
     "performance": "wydajność",
     "quality": "jakość",
     "No machine data this shift yet.": "Brak danych z maszyn w tej zmianie.",
-    ":name :value, target :target": ":name :value, cel :target"
+    ":name :value, target :target": ":name :value, cel :target",
+    "Downtime this shift": "Przestoje w tej zmianie"
 }

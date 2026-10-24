@@ -7161,5 +7161,6 @@
     "performance": "performance",
     "quality": "quality",
     "No machine data this shift yet.": "No machine data this shift yet.",
-    ":name :value, target :target": ":name :value, target :target"
+    ":name :value, target :target": ":name :value, target :target",
+    "Downtime this shift": "Downtime this shift"
 }

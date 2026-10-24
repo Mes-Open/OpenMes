@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\Workstation;
+use App\Services\Dashboard\PlantOverviewService;
 use App\Services\Production\ShiftMonitorService;
 use App\Support\ShiftWindow;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +38,10 @@ class ShiftBoardController extends Controller
 {
     use ServesBothSections;
 
-    public function __construct(private readonly ShiftMonitorService $monitor) {}
+    public function __construct(
+        private readonly ShiftMonitorService $monitor,
+        private readonly PlantOverviewService $overview,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -64,7 +68,8 @@ class ShiftBoardController extends Controller
     private function snapshot(Request $request): array
     {
         $window = ShiftWindow::current();
-        $stations = $this->stations($this->requestedLineIds($request));
+        $lineIds = $this->requestedLineIds($request);
+        $stations = $this->stations($lineIds);
 
         return [
             'shift' => [
@@ -76,6 +81,11 @@ class ShiftBoardController extends Controller
             // channel, exactly as the line overview does.
             'stationIds' => $stations->pluck('id')->all(),
             'stations' => $this->monitor->board($stations, $window),
+            // The plant's downtime so far this shift — the same figure as the
+            // dashboard's Downtime card, so the two can be checked against each
+            // other. Whole-plant only: a board narrowed to some lines would
+            // print a plant total over a subset of its tiles.
+            'downtimeMinutes' => $lineIds === null ? $this->overview->downtime()['total_minutes'] : null,
             'clock' => ['iso' => now()->toIso8601String()],
         ];
     }
