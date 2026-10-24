@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Modal } from '@openmes/ui';
+import { InlineAlert, Modal } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import usePrompt from '../../../components/usePrompt';
@@ -173,6 +173,13 @@ export default function SupervisorWorkOrdersIndex() {
     return (
         <>
             <Head title={__('Work Orders')} />
+            {!canCreate && (
+                // Says why there is no "New Work Order" button, instead of
+                // leaving the user to guess. The backend refuses it anyway (403).
+                <InlineAlert severity="info" className="mb-4" title={__('You can view work orders, but not create them.')}>
+                    {__('Creating work orders needs the "Create work orders" permission. Ask an administrator if you need it.')}
+                </InlineAlert>
+            )}
             <ResourceTable
                 breadcrumbs={[{ label: 'Supervisor', href: '/supervisor/dashboard', icon: 'layout-dashboard' }]}
                 shape="work_orders_all"

@@ -63,7 +63,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Without the permission the pages return 403, and the *New Work Order* button (work-order
   lists, planner, weekly schedule) and the *Edit* row action are hidden. Admin and
   Supervisor keep both permissions. An Operator given the *Orders* tab in *Settings →
-  Access* can still open the list, but can no longer create or edit orders there.
+  Access* can still open the list, but can no longer create or edit orders there. That
+  list now says so ("You can view work orders, but not create them."), the detail page
+  hides *Edit* without the permission, and *Settings → Tab Access* shows, read-only,
+  which roles hold *Create work orders* and *Edit work orders*.
 
 - **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
   operator token could start, fill in and complete an inspection, and with lot tracking on,
@@ -81,6 +84,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Lists show your own changes even when live sync is down.** After saving a form, the
+  lists on screen re-read their rows, so a work order or account you just created appears
+  at once. Before, without a working live-sync connection, the list stayed empty
+  under the "created" message until the page was reloaded.
 - **Settings → Tab Access saves again.** On a fresh install, saving the page always failed
   without a message, because Admin and Supervisor hold the same quality grants and a
   validation rule wrongly treated that as a duplicate. The save now goes through, and

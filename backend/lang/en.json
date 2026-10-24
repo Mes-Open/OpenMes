@@ -7112,5 +7112,10 @@
     "Change disposition": "Change disposition",
     "Complete the inspection before applying a disposition.": "Complete the inspection before applying a disposition.",
     "This inspection plan does not apply to the selected material.": "This inspection plan does not apply to the selected material.",
-    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login."
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login.",
+    "Create work orders": "Create work orders",
+    "Edit work orders": "Edit work orders",
+    "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).": "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).",
+    "You can view work orders, but not create them.": "You can view work orders, but not create them.",
+    "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it."
 }

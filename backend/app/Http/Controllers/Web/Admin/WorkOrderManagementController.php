@@ -207,7 +207,10 @@ class WorkOrderManagementController extends Controller
             ->first();
 
         return Inertia::render('admin/work-orders/Show', [
-            'editForm' => Inertia::optional(fn () => $this->editFormProps($workOrder, $customFields)),
+            // Only for users who may edit — the drawer is hidden for the rest.
+            'editForm' => Inertia::optional(fn () => auth()->user()?->can('update', $workOrder)
+                ? $this->editFormProps($workOrder, $customFields)
+                : null),
             'stops' => $stops,
             'changeRequests' => $changeRequests,
             'changeControl' => [

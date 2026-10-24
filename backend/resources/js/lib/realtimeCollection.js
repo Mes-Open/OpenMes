@@ -1,9 +1,22 @@
+import { router } from '@inertiajs/react';
 import { createCollection } from '@tanstack/react-db';
 import { echo } from './echo';
 import { createSharedChannels } from './sharedChannels';
 
 // Collections for the same shape share one channel (see sharedChannels.js).
 const channels = createSharedChannels(echo);
+
+// Snapshot loaders of every live collection, so a write made through an
+// Inertia form re-reads them. Normally the broadcast delivers the row first and
+// this re-read is a no-op diff; when the WebSocket is down (Reverb unreachable,
+// a proxy dropping upgrades) it is the only way the user sees their own write —
+// otherwise "Work order created." sits above a list that still says it is empty.
+const loaders = new Set();
+router.on('finish', (event) => {
+    const visit = event.detail?.visit;
+    if (!visit?.completed || String(visit.method).toLowerCase() === 'get') return;
+    for (const load of loaders) load();
+});
 
 /**
  * A read-only TanStack DB collection synced over Reverb. Used directly by
@@ -91,9 +104,11 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
                 };
 
                 load();
+                loaders.add(load);
 
                 return () => {
                     alive = false;
+                    loaders.delete(load);
                     release?.();
                 };
             },

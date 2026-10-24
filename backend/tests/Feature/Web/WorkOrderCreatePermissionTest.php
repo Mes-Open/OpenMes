@@ -238,6 +238,35 @@ class WorkOrderCreatePermissionTest extends TestCase
         }
     }
 
+    public function test_show_page_withholds_the_edit_form_from_users_who_cannot_edit(): void
+    {
+        $wo = WorkOrder::factory()->create();
+
+        $this->actingAs($this->tabOnlyUser())
+            ->get("/admin/work-orders/{$wo->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('auth.user.can.editWorkOrders', false)
+                ->reloadOnly('editForm', fn (AssertableInertia $reload) => $reload->where('editForm', null)));
+
+        $this->actingAs($this->userWithRole('Admin'))
+            ->get("/admin/work-orders/{$wo->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->reloadOnly('editForm', fn (AssertableInertia $reload) => $reload->where('editForm.workOrder.id', $wo->id)));
+    }
+
+    public function test_access_page_shows_which_roles_may_create_and_edit_work_orders(): void
+    {
+        $this->actingAs($this->userWithRole('Admin'))
+            ->get('/settings/access')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('settings/Access')
+                ->has('workOrderAbilities', 2)
+                ->where('workOrderAbilityMatrix.Supervisor', ['create work orders', 'edit work orders'])
+                ->where('workOrderAbilityMatrix.Operator', []));
+    }
+
     // ── Seeder: same roles hold the abilities as before ────────────
 
     public function test_seeder_grants_create_and_edit_to_the_same_roles_as_before(): void

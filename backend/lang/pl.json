@@ -7112,5 +7112,10 @@
     "Change disposition": "Zmień dyspozycję",
     "Complete the inspection before applying a disposition.": "Zakończ kontrolę przed podjęciem decyzji o dyspozycji.",
     "This inspection plan does not apply to the selected material.": "Ten plan kontroli nie dotyczy wybranego materiału.",
-    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska."
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska.",
+    "Create work orders": "Tworzenie zleceń",
+    "Edit work orders": "Edycja zleceń",
+    "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).": "Zakładka Zlecenia otwiera listę zleceń. Tworzenie i edycja zleceń wymagają dodatkowo tych uprawnień, wynikających z roli (tu tylko do odczytu).",
+    "You can view work orders, but not create them.": "Możesz przeglądać zlecenia, ale nie możesz ich tworzyć.",
+    "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Tworzenie zleceń wymaga uprawnienia „Tworzenie zleceń”. Jeśli go potrzebujesz, poproś administratora."
 }
