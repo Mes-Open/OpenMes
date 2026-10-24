@@ -7135,5 +7135,19 @@
     "Production targets updated.": "Cele produkcyjne zostały zaktualizowane.",
     "max scrap rate": "maks. wskaźnik braków",
     "min first-pass yield": "min. uzysk za pierwszym podejściem",
-    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku."
+    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku.",
+    "Shift at a glance": "Zmiana w skrócie",
+    "Orders not scheduled": "Zlecenia niezaplanowane",
+    ":count due this week": ":count z terminem w tym tygodniu",
+    "All orders scheduled": "Wszystkie zlecenia zaplanowane",
+    "No due dates set": "Brak terminów",
+    "Lines producing": "Linie w produkcji",
+    ":count down": ":count w awarii",
+    ":count idle": ":count bezczynnych",
+    "No active lines": "Brak aktywnych linii",
+    "All lines running": "Wszystkie linie pracują",
+    "Target ≤ :pct%": "Cel ≤ :pct%",
+    "No completed output this shift": "Brak ukończonej produkcji na tej zmianie",
+    "First-pass yield": "Uzysk za pierwszym podejściem",
+    "Target ≥ :pct%": "Cel ≥ :pct%"
 }

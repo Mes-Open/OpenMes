@@ -34,6 +34,8 @@
  * gauge on this page by it.
  */
 
+import KpiTiles from './KpiTiles';
+
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
     'activity', //       Line activity
@@ -45,4 +47,6 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+export const SECTIONS = [
+    { id: 'kpi_tiles', row: 'production_kpi', span: 'narrow', Component: KpiTiles },
+];

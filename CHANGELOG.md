@@ -26,6 +26,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   separate setting: it is each line's *Planning efficiency (%)* (100 = not set, 85 % is
   used), and the plant target is those weighted by each line's planned minutes in the
   shift.
+- **Shift KPI tiles on the dashboard.** The *Plant overview* now shows four tiles for the
+  current shift: *Orders not scheduled* (the same backlog the *Production Planner* shows,
+  with how many are due this week and overdue, in the plant timezone), *Lines producing*
+  (running out of active lines, with how many are down, blocked or idle), *Scrap rate*
+  (against the *Max scrap rate* target) and *First-pass yield* (against the *Min
+  first-pass yield* target, or *No quality checks this shift*). The caption colour follows
+  the target, and each tile links to its screen when you can open it.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

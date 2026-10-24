@@ -5,6 +5,7 @@ namespace App\Services\Dashboard;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\ProductionDowntime;
+use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
@@ -43,16 +44,21 @@ class PlantOverviewService
 {
     private const STATE_PRIORITY = ['down' => 3, 'blocked' => 2, 'running' => 1, 'idle' => 0];
 
-    public function __construct(private ShiftMonitorService $monitor) {}
+    public function __construct(private ShiftMonitorService $monitor, private ShiftKpiService $kpis) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>}
+     * `kpis` are the shift tiles; their links are resolved for `$user`.
+     *
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, kpis: array<string, mixed>}
      */
-    public function overview(): array
+    public function overview(?User $user = null): array
     {
+        $lines = $this->lineStates();
+
         return [
             'shift' => $this->currentShift(),
-            'lines' => $this->lineStates(),
+            'lines' => $lines,
+            'kpis' => $this->kpis->tiles($lines, $user),
         ];
     }
 

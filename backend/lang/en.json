@@ -7135,5 +7135,19 @@
     "Production targets updated.": "Production targets updated.",
     "max scrap rate": "max scrap rate",
     "min first-pass yield": "min first-pass yield",
-    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place."
+    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place.",
+    "Shift at a glance": "Shift at a glance",
+    "Orders not scheduled": "Orders not scheduled",
+    ":count due this week": ":count due this week",
+    "All orders scheduled": "All orders scheduled",
+    "No due dates set": "No due dates set",
+    "Lines producing": "Lines producing",
+    ":count down": ":count down",
+    ":count idle": ":count idle",
+    "No active lines": "No active lines",
+    "All lines running": "All lines running",
+    "Target ≤ :pct%": "Target ≤ :pct%",
+    "No completed output this shift": "No completed output this shift",
+    "First-pass yield": "First-pass yield",
+    "Target ≥ :pct%": "Target ≥ :pct%"
 }

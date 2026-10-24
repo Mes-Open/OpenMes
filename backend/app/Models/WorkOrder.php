@@ -722,6 +722,23 @@ class WorkOrder extends Model
     }
 
     /**
+     * The production planner's backlog — the one definition of it: active
+     * orders with no line, or with nothing that places them in time (no due
+     * date, week number or planned start). The planner board and the
+     * dashboard's "Orders not scheduled" tile both read it, so they agree.
+     */
+    public function scopePlannerBacklog($query)
+    {
+        return $query->whereIn('status', self::ACTIVE_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('line_id')
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('due_date')->whereNull('week_number')->whereNull('planned_start_at');
+                    });
+            });
+    }
+
+    /**
      * Scope to filter by line.
      */
     public function scopeForLine($query, int $lineId)
