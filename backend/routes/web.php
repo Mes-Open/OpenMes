@@ -213,6 +213,9 @@ Route::middleware('auth')->group(function () {
         // Admin-only system settings
         Route::get('/system', [\App\Http\Controllers\Web\SettingsController::class, 'showSystemSettings'])->name('system')->middleware('role:Admin');
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
+        // Admin-only quality targets (scrap rate, first-pass yield) — own route so
+        // saving them never posts, or is blocked by, the rest of the system form.
+        Route::post('/production-targets', [\App\Http\Controllers\Web\SettingsController::class, 'updateProductionTargets'])->name('update-production-targets')->middleware('role:Admin');
         // Telemetry: the admin can read the exact report before deciding, and
         // can make a cloned installation a stranger again.
         Route::get('/telemetry/preview', [\App\Http\Controllers\Web\SettingsController::class, 'previewTelemetry'])->name('telemetry.preview')->middleware('role:Admin');

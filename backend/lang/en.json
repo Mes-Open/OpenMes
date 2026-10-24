@@ -7119,5 +7119,21 @@
     ":count h left": ":count h left",
     ":count min left": ":count min left",
     "Waiting for material": "Waiting for material",
-    "Work order blocked": "Work order blocked"
+    "Work order blocked": "Work order blocked",
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login.",
+    "Production targets": "Production targets",
+    "Targets each shift is measured against on the dashboard.": "Targets each shift is measured against on the dashboard.",
+    "Max scrap rate (%)": "Max scrap rate (%)",
+    "Min first-pass yield (%)": "Min first-pass yield (%)",
+    "Quality module is disabled — first-pass yield is not calculated.": "Quality module is disabled — first-pass yield is not calculated.",
+    "No quality checks this shift": "No quality checks this shift",
+    "Current shift: :value%": "Current shift: :value%",
+    "The OEE target comes from each line's planning efficiency (100% = not set, 85% is used).": "The OEE target comes from each line's planning efficiency (100% = not set, 85% is used).",
+    "Line settings": "Line settings",
+    "Plant OEE target this shift: :value%": "Plant OEE target this shift: :value%",
+    "Save targets": "Save targets",
+    "Production targets updated.": "Production targets updated.",
+    "max scrap rate": "max scrap rate",
+    "min first-pass yield": "min first-pass yield",
+    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place."
 }
