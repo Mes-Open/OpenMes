@@ -29,7 +29,9 @@ test('dashboard downtime card: empty state, report link, new stop shows up', asy
   // Dashboard: Downtime card, no stops yet
   const card = page.getByTestId('overview-downtime');
   await card.scrollIntoViewIfNeeded();
-  await expect(card.getByText('No downtime this shift')).toBeVisible();
+  // Seed state depends on the time of day: either no stops yet, or unclassified AUTO stops.
+  await expect(card.getByText('No downtime this shift').or(card.getByTestId('downtime-total'))).toBeVisible();
+  await expect(card.getByRole('link', { name: /Downtime report/ })).toBeVisible();
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('01-downtime-empty.png'), fullPage: true });
 
@@ -82,7 +84,7 @@ test('dashboard downtime card: empty state, report link, new stop shows up', asy
   await login(page, ADMIN_USER, ADMIN_PASS);
   const card2 = page.getByTestId('overview-downtime');
   await expect(card2.getByTestId('downtime-total')).toBeVisible({ timeout: 70000 });
-  await expect(card2.getByTestId('downtime-reason').first()).toBeVisible();
+  await expect(card2.locator('[data-testid=downtime-reason]:not([data-kind=unclassified])').first()).toBeVisible();
   await card2.scrollIntoViewIfNeeded();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: testInfo.outputPath('07-downtime-with-stop.png'), fullPage: true });
