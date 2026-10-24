@@ -4,6 +4,7 @@ namespace App\Services\Machine;
 
 use App\Enums\DowntimeKind;
 use App\Models\DowntimeReason;
+use App\Models\MachineConnection;
 use App\Models\ProductionDowntime;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
@@ -57,7 +58,13 @@ class WorkstationStateMachine
 
             if ($current && $current->state === $newState) {
                 if ($metadata) {
-                    $current->update(['metadata' => array_merge($current->metadata ?? [], $metadata)]);
+                    // `updated_at` is "last heard from the machine" (see
+                    // markSignal()); a note added by hand is not, so a manual
+                    // write leaves it alone.
+                    $current->metadata = array_merge($current->metadata ?? [], $metadata);
+                    $current->timestamps = $source !== 'manual';
+                    $current->save();
+                    $current->timestamps = true;
                 }
 
                 return $current;
@@ -124,6 +131,27 @@ class WorkstationStateMachine
 
         WorkstationState::where('workstation_id', $workstation->id)
             ->whereNull('ended_at')
+            ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))
+            ->update(['updated_at' => now()]);
+    }
+
+    /**
+     * markSignal() for every station a connection reads, when the collector
+     * proves it is alive without posting a value — an OPC UA gateway only
+     * posts on change, so a station stuck in FAULT goes quiet while its
+     * gateway keeps heart-beating. One statement, throttled per row like
+     * markSignal() and equally free of model events.
+     */
+    public function markConnectionSignal(MachineConnection $connection): void
+    {
+        $stationIds = $connection->activeTags()->whereNotNull('workstation_id')->distinct()->pluck('workstation_id');
+        if ($stationIds->isEmpty()) {
+            return;
+        }
+
+        WorkstationState::whereIn('workstation_id', $stationIds)
+            ->whereNull('ended_at')
+            ->where('source', 'machine')
             ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))
             ->update(['updated_at' => now()]);
     }

@@ -143,6 +143,37 @@ class MachineSignalTouchTest extends TestCase
         $this->assertEquals(Carbon::parse('2026-05-26 10:00:00'), $this->openRow()->updated_at);
     }
 
+    public function test_an_operator_note_on_the_same_state_is_not_a_machine_signal(): void
+    {
+        $machine = app(WorkstationStateMachine::class);
+        $machine->transition($this->station, WorkstationState::FAULT);
+
+        Carbon::setTestNow(Carbon::parse('2026-05-26 10:05:00'));
+        $machine->transition($this->station, WorkstationState::FAULT, ['note' => 'Waiting for fitter'], null, 'manual');
+
+        $row = $this->openRow();
+        $this->assertSame('Waiting for fitter', $row->metadata['note']);
+        $this->assertEquals(Carbon::parse('2026-05-26 10:00:00'), $row->updated_at);
+    }
+
+    public function test_gateway_heartbeat_marks_its_stations_as_heard_from(): void
+    {
+        $tag = $this->stateTag();
+        app(MachineSignalIngestor::class)->ingest($tag, 3, now());
+        $other = Workstation::factory()->create(['line_id' => $this->station->line_id]);
+        WorkstationState::create(['workstation_id' => $other->id, 'state' => WorkstationState::IDLE, 'started_at' => now()]);
+
+        Carbon::setTestNow(Carbon::parse('2026-05-26 10:15:00'));
+        app(WorkstationStateMachine::class)->markConnectionSignal($this->connection);
+
+        $this->assertEquals(Carbon::parse('2026-05-26 10:15:00'), $this->openRow()->updated_at);
+        $this->assertEquals(
+            Carbon::parse('2026-05-26 10:00:00'),
+            WorkstationState::where('workstation_id', $other->id)->sole()->updated_at,
+            'a station the connection does not read is left alone',
+        );
+    }
+
     public function test_signal_never_touches_closed_rows(): void
     {
         $tag = $this->stateTag();

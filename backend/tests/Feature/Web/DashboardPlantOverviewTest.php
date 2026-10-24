@@ -474,6 +474,75 @@ class DashboardPlantOverviewTest extends TestCase
         $this->assertNull($row['reason']);
     }
 
+    public function test_gateway_heartbeat_keeps_an_unchanging_fault_live(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line);
+        $connection = MachineConnection::create([
+            'name' => 'Press PLC', 'protocol' => 'opcua', 'is_active' => true, 'status' => 'connected',
+        ]);
+        $tag = MachineTag::create([
+            'machine_connection_id' => $connection->id, 'workstation_id' => $station->id,
+            'name' => 'State', 'address' => 'ns=2;s=State', 'signal_type' => MachineTag::SIGNAL_STATE,
+            'data_type' => 'int16', 'transform' => ['value_map' => ['3' => WorkstationState::FAULT]],
+        ]);
+
+        // The press faults; the gateway posts that once (it only posts on change).
+        $this->actingAs($this->admin)
+            ->postJson("/api/v1/machine-connections/{$connection->id}/signals", ['readings' => [['tag_id' => $tag->id, 'value' => 3]]])
+            ->assertOk();
+
+        // 15 minutes later nothing has changed, but the gateway still beats.
+        Carbon::setTestNow($this->at('10:15'));
+        $this->postJson("/api/v1/machine-connections/{$connection->id}/heartbeat")->assertOk();
+        $this->app['auth']->shouldUse('web'); // the API request switched the default guard
+
+        $row = $this->lineState($line);
+        $this->assertSame('down', $row['state']);
+        $this->assertSame($this->at('10:00')->toIso8601String(), $row['since']);
+    }
+
+    public function test_without_a_heartbeat_the_same_fault_reads_no_data(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::FAULT, '10:00');
+
+        Carbon::setTestNow($this->at('10:15'));
+
+        $this->assertSame('unknown', $this->lineState($line)['state']);
+    }
+
+    public function test_stop_logged_by_hand_on_a_running_station_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::RUNNING, '07:30');
+        ProductionDowntime::create([
+            'line_id' => $line->id, 'workstation_id' => $station->id,
+            'downtime_reason_id' => DowntimeReason::factory()->unplanned()->create(['name' => 'Quality hold'])->id,
+            'needs_reason' => false, 'reported_by' => $this->admin->id,
+            'started_at' => $this->at('09:20'),
+        ]);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Quality hold', $row['reason']);
+        $this->assertSame('manual', $row['source']);
+    }
+
+    public function test_stop_carried_by_a_fresh_fault_is_not_counted_twice(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '09:00');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Jammed conveyor']), '09:00');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Jammed conveyor', $row['reason']);
+        $this->assertSame('machine', $row['source']);
+    }
+
     public function test_one_fresh_station_decides_when_another_is_silent(): void
     {
         $line = Line::factory()->create();

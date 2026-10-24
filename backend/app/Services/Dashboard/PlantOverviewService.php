@@ -51,6 +51,11 @@ class PlantOverviewService
 {
     private const STATE_PRIORITY = ['down' => 4, 'blocked' => 3, 'running' => 2, 'idle' => 1, 'unknown' => 0];
 
+    /** Machine states whose line state stationCandidate() takes from the open stops. */
+    private const STATES_READING_STOPS = [
+        WorkstationState::FAULT, WorkstationState::STOPPED, WorkstationState::WAITING, WorkstationState::MAINTENANCE,
+    ];
+
     /**
      * A machine-reported state not refreshed for longer than this is no longer
      * believed. No per-station collector setting exists to borrow (the daemon
@@ -129,18 +134,23 @@ class PlantOverviewService
         $machine = $this->monitor->currentStates($stations, $openStops);
         $silentBefore = Carbon::now()->subMinutes(self::NO_SIGNAL_AFTER_MINUTES);
 
-        // Stops not already explained by a fresh station's state: line-level
-        // ones, ones on a station with no collector, and ones a person logged
-        // or classified on a station whose collector went silent (a broken or
-        // powered-off machine is exactly when that happens).
+        // Stops not already explained by a station's state: line-level ones,
+        // ones on a station with no collector, and ones a person logged or
+        // classified on a collector station — whether it went silent (a broken
+        // or powered-off machine is exactly when that happens) or it reports a
+        // state stationCandidate() doesn't read stops for (a quality hold on a
+        // RUNNING machine). Dropped: stops a fresh downtime state already
+        // carries, and the machine's own untouched AUTO-* placeholder.
         $manualStops = $openStops
             ->reject(function (ProductionDowntime $d) use ($machine, $silentBefore) {
                 $current = $d->workstation_id ? ($machine[$d->workstation_id] ?? null) : null;
                 if ($current === null) {
                     return false;
                 }
+                $explained = ! self::isSilent($current, $silentBefore)
+                    && in_array($current['state'], self::STATES_READING_STOPS, true);
 
-                return ! self::isSilent($current, $silentBefore) || $this->isMachinePlaceholder($d);
+                return $explained || $this->isMachinePlaceholder($d);
             })
             ->groupBy(fn (ProductionDowntime $d) => ($d->workstation_id ? $stationLine->get($d->workstation_id) : null) ?? $d->line_id);
 
