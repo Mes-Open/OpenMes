@@ -70,9 +70,10 @@ class DashboardController extends Controller
             // Cards registered by enabled modules via WidgetRegistry, keyed by
             // zone (kpi | main | sidebar). Empty when no module registers any.
             'moduleWidgets' => fn () => app(\App\Services\WidgetRegistry::class)->all(),
-            // "Plant overview" header: current shift + live line states.
+            // "Plant overview": current shift, live line states and the
+            // "Needs action" list (buttons resolved for this user).
             // The page partial-reloads just this prop every 60 s.
-            'overview' => fn () => app(PlantOverviewService::class)->overview(),
+            'overview' => fn () => app(PlantOverviewService::class)->overview($request->user()),
         ]);
     }
 

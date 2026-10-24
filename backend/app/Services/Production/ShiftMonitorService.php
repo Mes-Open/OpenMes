@@ -298,6 +298,71 @@ class ShiftMonitorService
     }
 
     /**
+     * The batch this station was actually working when the stop began — the
+     * work order an escalation from the shift monitor is filed against.
+     *
+     * Bounded by the stop's own time: a batch that started after it cannot have
+     * caused it, and one that finished before it is somebody else's problem. An
+     * unbounded "latest batch here" would happily return an order that closed
+     * weeks ago on a station that has been idle since.
+     */
+    public function batchRunningDuring(ProductionDowntime $downtime): ?Batch
+    {
+        $startedAt = $downtime->started_at;
+
+        return Batch::where('workstation_id', $downtime->workstation_id)
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->where('started_at', '<=', $startedAt)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $startedAt))
+            ->latest('started_at')
+            ->first();
+    }
+
+    /**
+     * batchRunningDuring() for many stops at once: which of them could be
+     * escalated right now, and against which work order. One query regardless
+     * of how many stops are asked about; the per-stop bounds are the same.
+     *
+     * @param  Collection<int, ProductionDowntime>  $downtimes
+     * @return array<int, int> downtime id → work order id, escalatable stops only
+     */
+    public function escalatableWorkOrders(Collection $downtimes): array
+    {
+        $downtimes = $downtimes->filter(fn (ProductionDowntime $d) => $d->workstation_id && $d->started_at);
+
+        if ($downtimes->isEmpty()) {
+            return [];
+        }
+
+        $earliest = $downtimes->min('started_at');
+        $latest = $downtimes->max('started_at');
+
+        $batches = Batch::whereIn('workstation_id', $downtimes->pluck('workstation_id')->unique())
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->whereNotNull('work_order_id')
+            ->where('started_at', '<=', $latest)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $earliest))
+            ->get(['id', 'workstation_id', 'work_order_id', 'started_at', 'completed_at'])
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($downtimes as $downtime) {
+            $start = $downtime->started_at;
+            $batch = ($batches->get($downtime->workstation_id) ?? collect())
+                ->filter(fn (Batch $b) => $b->started_at->lte($start)
+                    && ($b->completed_at === null || $b->completed_at->gte($start)))
+                ->sortByDesc(fn (Batch $b) => $b->started_at->getTimestamp())
+                ->first();
+
+            if ($batch) {
+                $result[$downtime->id] = $batch->work_order_id;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * What each station is doing right now, read unclipped — the board's
      * "since" rule without the timeline, the counters or the OEE maths.
      *

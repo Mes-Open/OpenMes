@@ -1,8 +1,10 @@
+import NeedsAction from './NeedsAction';
+
 /**
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -45,4 +47,6 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+export const SECTIONS = [
+    { id: 'needs_action', row: 'needs_action', span: 'full', Component: NeedsAction },
+];
