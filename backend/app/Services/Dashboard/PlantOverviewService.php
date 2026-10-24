@@ -38,22 +38,170 @@ use Illuminate\Support\Collection;
  * Tenant boundary: Workstation, WorkstationState and MaintenanceEvent carry no
  * tenant scope, so every query below is constrained by the IDs of the
  * tenant-scoped Line query. Query count is fixed regardless of line count.
+ *
+ * Shift OEE ({@see shiftOee()}) is the live figure from the shift monitor's
+ * machine data, from shift start until now — the numbers Plant Board shows on
+ * its tiles. `oee_records` is deliberately not read: those rows are the nightly
+ * settlement of a finished day, not the state of the shift in progress.
+ * Stations are combined by summing what the percentages are made of, never by
+ * averaging percentages:
+ *
+ *  - availability = Σ running minutes / Σ opportunity minutes (planned stops
+ *    excluded), so each station weighs by its planned production time;
+ *  - performance  = Σ min(produced, expected) / Σ expected over stations with
+ *    an ideal rate, so each weighs by its ideal pieces and one station beating
+ *    nameplate cannot hide a slow one (the per-station cap the board applies);
+ *  - quality      = Σ good / Σ produced, weighted by pieces made.
+ *
+ * On a line whose stations work in series a piece is counted at every station
+ * it passes; the ratios stay meaningful, which is why no piece count is shown.
  */
 class PlantOverviewService
 {
     private const STATE_PRIORITY = ['down' => 3, 'blocked' => 2, 'running' => 1, 'idle' => 0];
 
-    public function __construct(private ShiftMonitorService $monitor) {}
+    /** Ties for the biggest loss go to the first in this order. */
+    private const OEE_COMPONENTS = ['availability', 'performance', 'quality'];
+
+    public function __construct(
+        private ShiftMonitorService $monitor,
+        private ProductionTargets $targets,
+    ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, oee: array<string, mixed>}
      */
     public function overview(): array
     {
         return [
             'shift' => $this->currentShift(),
             'lines' => $this->lineStates(),
+            'oee' => $this->shiftOee(),
         ];
+    }
+
+    /**
+     * Live OEE of the plant and of every active line for the current shift,
+     * from shift start until now, against the targets of ProductionTargets.
+     *
+     * Values are percentages rounded to one decimal, null when there is
+     * nothing to compute them from — never a fake 0. Lines are sorted by OEE,
+     * best first, lines without a figure last.
+     *
+     * @return array{target: float, oee: ?float, availability: ?float, performance: ?float, quality: ?float, biggest_loss: ?string, gap_pts: ?float, on_target: ?bool, has_data: bool, lines: array<int, array{id: int, name: string, oee: ?float, availability: ?float, performance: ?float, quality: ?float, target: float, has_data: bool}>}
+     */
+    public function shiftOee(): array
+    {
+        $window = ShiftWindow::current();
+        $lines = Line::active()->orderBy('name')->get(['id', 'name', 'planning_efficiency_pct']);
+
+        $inputs = [];
+        $stationLine = collect();
+        if ($lines->isNotEmpty()) {
+            $stations = Workstation::whereIn('line_id', $lines->pluck('id'))
+                ->where('is_active', true)
+                ->get(['id', 'line_id', 'ideal_rate_per_hour']);
+            $inputs = $this->monitor->oeeInputs($stations, $window);
+            $stationLine = $stations->pluck('line_id', 'id');
+        }
+
+        $byLine = [];
+        foreach ($inputs as $stationId => $input) {
+            $byLine[$stationLine[$stationId]][] = $input;
+        }
+
+        $lineRows = $lines->map(function (Line $line) use ($byLine) {
+            $oee = self::aggregateOee($byLine[$line->id] ?? []);
+
+            return [
+                'id' => $line->id,
+                'name' => $line->name,
+                ...$oee,
+                'target' => round($this->targets->oeeTargetForLine($line), 1),
+            ];
+        })->sort(function (array $a, array $b) {
+            if (($a['oee'] === null) !== ($b['oee'] === null)) {
+                return $a['oee'] === null ? 1 : -1;
+            }
+
+            return ($b['oee'] <=> $a['oee']) ?: strcmp($a['name'], $b['name']);
+        })->values()->all();
+
+        $plant = self::aggregateOee(array_values($inputs));
+        $target = round($this->targets->plantOeeTarget($window), 1);
+
+        return [
+            'target' => $target,
+            ...$plant,
+            'biggest_loss' => $plant['oee'] !== null ? self::biggestLoss($plant) : null,
+            'gap_pts' => $plant['oee'] !== null && $plant['oee'] < $target ? round($target - $plant['oee'], 1) : null,
+            'on_target' => $plant['oee'] !== null ? $plant['oee'] >= $target : null,
+            'lines' => $lineRows,
+        ];
+    }
+
+    /**
+     * Combine station inputs from ShiftMonitorService::oeeInputs() into one
+     * A/P/Q/OEE figure — see the class docblock for the weighting. Rounded
+     * only at the end, so a single station reproduces its board tile exactly.
+     *
+     * @param  array<int, array{opportunity: int, running: int, expected: float, produced: int, good: int}>  $inputs
+     * @return array{oee: ?float, availability: ?float, performance: ?float, quality: ?float, has_data: bool}
+     */
+    public static function aggregateOee(array $inputs): array
+    {
+        $opportunity = $running = $produced = $good = 0;
+        $expected = $credited = 0.0;
+
+        foreach ($inputs as $input) {
+            $opportunity += $input['opportunity'];
+            $running += $input['running'];
+            $produced += $input['produced'];
+            $good += $input['good'];
+            if ($input['expected'] > 0) {
+                $expected += $input['expected'];
+                $credited += min($input['produced'], $input['expected']);
+            }
+        }
+
+        // No minute the station was meant to produce in: nothing to judge.
+        if ($opportunity <= 0) {
+            return ['oee' => null, 'availability' => null, 'performance' => null, 'quality' => null, 'has_data' => false];
+        }
+
+        $availability = $running / $opportunity * 100;
+        $performance = $expected > 0 ? $credited / $expected * 100 : null;
+        $quality = $produced > 0 ? $good / $produced * 100 : null;
+        $oee = $performance !== null && $quality !== null
+            ? $availability * $performance * $quality / 10000
+            : null;
+
+        return [
+            'oee' => $oee !== null ? round($oee, 1) : null,
+            'availability' => round($availability, 1),
+            'performance' => $performance !== null ? round($performance, 1) : null,
+            'quality' => $quality !== null ? round($quality, 1) : null,
+            'has_data' => true,
+        ];
+    }
+
+    /**
+     * The component costing the most OEE: the lowest one. Ties go to the first
+     * in availability → performance → quality order; null when none is known.
+     *
+     * @param  array{availability: ?float, performance: ?float, quality: ?float}  $oee
+     */
+    public static function biggestLoss(array $oee): ?string
+    {
+        $worst = null;
+        foreach (self::OEE_COMPONENTS as $component) {
+            $value = $oee[$component] ?? null;
+            if ($value !== null && ($worst === null || $value < $oee[$worst])) {
+                $worst = $component;
+            }
+        }
+
+        return $worst;
     }
 
     /**
