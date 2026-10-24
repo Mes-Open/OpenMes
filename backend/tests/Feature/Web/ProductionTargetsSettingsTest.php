@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Models\Batch;
 use App\Models\QualityCheck;
 use App\Models\User;
+use App\Support\ModuleRegistry;
 use App\Support\ProductionTargetSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,7 @@ class ProductionTargetsSettingsTest extends TestCase
     public function test_page_shows_defaults_and_no_fpy_without_checks(): void
     {
         $this->actingAs($this->admin)
-            ->get('/settings/system')
+            ->get('/settings/system?tab=production')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('settings/System')
@@ -63,8 +64,92 @@ class ProductionTargetsSettingsTest extends TestCase
         QualityCheck::factory()->create(['batch_id' => Batch::factory(), 'checked_at' => now(), 'all_passed' => false]);
 
         $this->actingAs($this->admin)
-            ->get('/settings/system')
+            ->get('/settings/system?tab=production')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('productionTargets.current_shift_fpy', 50));
+    }
+
+    public function test_other_tabs_open_without_the_targets_queries(): void
+    {
+        QualityCheck::factory()->create(['batch_id' => Batch::factory(), 'checked_at' => now(), 'all_passed' => true]);
+
+        foreach (['/settings/system', '/settings/system?tab=security'] as $url) {
+            $queries = $this->targetsQueriesDuring(fn () => $this->actingAs($this->admin)
+                ->get($url)
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->component('settings/System')
+                    ->missing('productionTargets')));
+
+            $this->assertSame([], $queries, "{$url} ran the production targets queries");
+        }
+    }
+
+    public function test_production_tab_runs_the_targets_queries(): void
+    {
+        // The counterpart of the test above — proves the query filter sees them.
+        $queries = $this->targetsQueriesDuring(fn () => $this->actingAs($this->admin)
+            ->get('/settings/system?tab=production')
+            ->assertOk());
+
+        $this->assertNotEmpty($queries);
+    }
+
+    public function test_partial_reload_loads_the_targets_with_the_shift_fpy(): void
+    {
+        QualityCheck::factory()->create(['batch_id' => Batch::factory(), 'checked_at' => now(), 'all_passed' => true]);
+        QualityCheck::factory()->create(['batch_id' => Batch::factory(), 'checked_at' => now(), 'all_passed' => false]);
+
+        $this->actingAs($this->admin)
+            ->get('/settings/system')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->missing('productionTargets')
+                ->reloadOnly('productionTargets', fn (AssertableInertia $reload) => $reload
+                    ->where('productionTargets.current_shift_fpy', 50)
+                    ->where('productionTargets.min_fpy_pct', 95)
+                    ->where('productionTargets.plant_oee_target', 85)
+                    ->missing('settings')));
+    }
+
+    public function test_targets_report_no_fpy_when_quality_module_is_disabled(): void
+    {
+        QualityCheck::factory()->create(['batch_id' => Batch::factory(), 'checked_at' => now(), 'all_passed' => true]);
+        ModuleRegistry::save(array_values(array_diff(ModuleRegistry::optionalKeys(), ['quality'])));
+
+        $this->actingAs($this->admin)
+            ->get('/settings/system?tab=production')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('productionTargets.quality_enabled', false)
+                ->where('productionTargets.current_shift_fpy', null));
+    }
+
+    public function test_non_admin_cannot_fetch_the_targets(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('Supervisor');
+
+        $this->actingAs($user)
+            ->get('/settings/system?tab=production')
+            ->assertForbidden();
+    }
+
+    /**
+     * SQL touching the tables only the targets card reads (quality checks for
+     * FPY, the schedule for planned minutes) while running $request.
+     *
+     * @return list<string>
+     */
+    private function targetsQueriesDuring(callable $request): array
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $request();
+        $log = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        return array_values(array_filter(
+            array_column($log, 'query'),
+            fn (string $sql) => preg_match('/\b(quality_checks|scheduled_operations)\b/', $sql) === 1,
+        ));
     }
 
     public function test_admin_saves_valid_targets(): void
@@ -79,7 +164,7 @@ class ProductionTargetsSettingsTest extends TestCase
         $this->assertEquals(97, $this->stored(ProductionTargetSettings::FPY_KEY));
 
         $this->actingAs($this->admin)
-            ->get('/settings/system')
+            ->get('/settings/system?tab=production')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('productionTargets.max_scrap_rate_pct', 1.5)
                 ->where('productionTargets.min_fpy_pct', 97));

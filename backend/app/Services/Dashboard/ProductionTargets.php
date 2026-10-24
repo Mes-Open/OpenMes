@@ -85,8 +85,10 @@ class ProductionTargets
             ->whereNotNull('planned_end_at')
             ->where('planned_start_at', '<', $to)
             ->where('planned_end_at', '>', $from)
-            // A deleted order's leftover plan is not work anyone will run.
-            ->whereHas('workOrder')
+            // Only plans of orders still to be run: a finished, cancelled or
+            // rejected (or deleted) order's leftover plan is not work anyone
+            // will run — same statuses as the order query below.
+            ->whereHas('workOrder', fn ($q) => $q->whereIn('status', WorkOrder::ACTIVE_STATUSES))
             ->get(['line_id', 'planned_start_at', 'planned_end_at']);
 
         foreach ($operations as $op) {

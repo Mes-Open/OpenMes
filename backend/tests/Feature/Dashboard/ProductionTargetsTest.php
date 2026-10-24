@@ -168,6 +168,48 @@ class ProductionTargetsTest extends TestCase
         $this->assertSame(85.0, $this->targets->plantOeeTargetBetween($this->from, $this->to));
     }
 
+    public function test_operations_of_finished_cancelled_or_rejected_orders_carry_no_weight(): void
+    {
+        $a = Line::factory()->create(['planning_efficiency_pct' => 80]);
+        $b = Line::factory()->create(['planning_efficiency_pct' => 60]);
+
+        $this->operation($a, '2026-10-20 06:00', '2026-10-20 12:00');
+        // Line B's only plan this shift belongs to an order that is still blocked —
+        // blocked is active, so it still counts.
+        $blocked = $this->operation($b, '2026-10-20 06:00', '2026-10-20 08:00');
+        $blocked->workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+
+        $before = $this->targets->plannedMinutesByLine($this->from, $this->to);
+        $this->assertSame([$a->id => 360, $b->id => 120], $before);
+        // (80·360 + 60·120) / 480
+        $this->assertEqualsWithDelta(75.0, $this->targets->plantOeeTargetBetween($this->from, $this->to), 0.0001);
+
+        // More plan on line B, whose orders then end without running it: the
+        // weights must not move.
+        foreach ([WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED, WorkOrder::STATUS_REJECTED] as $status) {
+            $op = $this->operation($b, '2026-10-20 08:00', '2026-10-20 14:00');
+            $op->workOrder->update(['status' => $status]);
+        }
+
+        $this->assertSame($before, $this->targets->plannedMinutesByLine($this->from, $this->to));
+        $this->assertEqualsWithDelta(75.0, $this->targets->plantOeeTargetBetween($this->from, $this->to), 0.0001);
+    }
+
+    public function test_finishing_the_only_planned_order_drops_the_line_from_the_weighting(): void
+    {
+        $line = Line::factory()->create(['planning_efficiency_pct' => 70]);
+        $op = $this->operation($line, '2026-10-20 06:00', '2026-10-20 10:00');
+
+        $this->assertSame(70.0, $this->targets->plantOeeTargetBetween($this->from, $this->to));
+
+        $op->workOrder->update(['status' => WorkOrder::STATUS_DONE]);
+
+        $this->assertSame([], $this->targets->plannedMinutesByLine($this->from, $this->to));
+        $this->assertSame(85.0, $this->targets->plantOeeTargetBetween($this->from, $this->to));
+        // The line's own target is its planning efficiency, untouched by orders.
+        $this->assertSame(70.0, $this->targets->oeeTargetForLine($line->fresh()));
+    }
+
     public function test_plant_target_reads_the_shift_window(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-10-20 23:00:00'));

@@ -1,5 +1,5 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
@@ -275,6 +275,20 @@ export default function System() {
             window.history.replaceState(window.history.state, '', url);
         }
     };
+    // The targets card's figures are real queries (shift FPY, planned minutes),
+    // so the server only sends them for the Production tab. Opened on another
+    // tab, fetch them with a partial reload the first time Production shows —
+    // once per visit to the tab, so a failed reload never turns into a loop.
+    const targetsRequested = useRef(false);
+    useEffect(() => {
+        if (tab !== 'production' || productionTargets != null) {
+            targetsRequested.current = false;
+            return;
+        }
+        if (targetsRequested.current) return;
+        targetsRequested.current = true;
+        router.reload({ only: ['productionTargets'] });
+    }, [tab, productionTargets]);
     const [sampleConfirm, setSampleConfirm] = useState(false);
     // Which example company the admin picked; defaults to the first on offer.
     const [dataset, setDataset] = useState(demoDatasets[0]?.key ?? null);
@@ -1310,9 +1324,18 @@ export default function System() {
             )}
 
             {/* ═══ Production targets (outside form — saves through its own route) ═══ */}
-            {tab === 'production' && productionTargets && (
+            {tab === 'production' && (
                 <div className="mt-6">
-                    <ProductionTargetsCard targets={productionTargets} />
+                    {productionTargets ? (
+                        <ProductionTargetsCard targets={productionTargets} />
+                    ) : (
+                        <div className={CARD_CLASS} aria-busy="true" data-testid="production-targets-loading">
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">
+                                {__('Production targets')}
+                            </h2>
+                            <p className={HELP_CLASS}>{__('Loading…')}</p>
+                        </div>
+                    )}
                 </div>
             )}
 

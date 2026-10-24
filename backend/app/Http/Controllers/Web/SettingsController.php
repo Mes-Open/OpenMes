@@ -121,7 +121,7 @@ class SettingsController extends Controller
     /**
      * Show admin-only system settings page.
      */
-    public function showSystemSettings()
+    public function showSystemSettings(Request $request)
     {
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
@@ -216,7 +216,12 @@ class SettingsController extends Controller
             // Tabs a module adds to this page: {slot, title, component} each.
             // The module's component saves through its own route. `{}` when none.
             'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
-            'productionTargets' => $this->productionTargetsPayload(),
+            // Shift FPY and planned minutes are real queries only the Production
+            // tab shows: sent up front when the page opens on that tab, otherwise
+            // left out until the tab asks for them with a partial reload.
+            'productionTargets' => $request->query('tab') === 'production'
+                ? fn () => $this->productionTargetsPayload()
+                : Inertia::optional(fn () => $this->productionTargetsPayload()),
         ]);
     }
 
