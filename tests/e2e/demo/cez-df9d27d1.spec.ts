@@ -50,10 +50,13 @@ test('production targets card loads lazily and the OEE target survives finishing
   const sys = page.getByRole('link', { name: /System Settings/ }).or(page.getByRole('button', { name: /System Settings/ })).first();
   const open = await sys.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false);
   if (!open) await page.getByText('Settings', { exact: true }).first().click();
-  await sys.click();
+  const prod = page.getByRole('link', { name: 'Production', exact: true });
+  if (!(await prod.isVisible())) await sys.click();
   await page.screenshot({ path: testInfo.outputPath('05b-settings-menu.png'), fullPage: true });
-  await page.getByRole('link', { name: 'Production', exact: true }).click();
+  await prod.click();
   await expect(page).toHaveURL(/tab=production/, { timeout: 30000 });
+  await expect(page.getByTestId('current-shift-fpy')).toContainText(/Current shift: \d+(\.\d)?%|No quality checks this shift/, { timeout: 30000 });
+  await page.waitForTimeout(1000);
   await expect(page.getByTestId('plant-oee-target')).toContainText(/Plant OEE target this shift: \d+(\.\d)?%/, { timeout: 30000 });
   const after = (await page.getByTestId('plant-oee-target').innerText()).trim();
   expect(after).toBe(before);
