@@ -13,6 +13,8 @@ import { realtimeCollection } from '../../../lib/realtimeCollection';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { __, elapsed, formatDate, formatDateTime } from '../../../lib/i18n';
 import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
+import { OPEN_ISSUE_STATUSES, isOverdue } from '../../../lib/alerts';
+import { usePlantToday } from '../../../lib/usePlantToday';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -25,8 +27,6 @@ import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
  * showing 48 issues can actually be narrowed instead of scrolled. The panels
  * keep their own toolbar heading and count chip through `toolbarStart`.
  */
-const OPEN_STATUSES = ['OPEN', 'ACKNOWLEDGED'];
-const TERMINAL_STATUSES = ['DONE', 'REJECTED', 'CANCELLED'];
 
 /**
  * Rows per panel — the app's list default. Deliberately not conditional on the
@@ -56,6 +56,9 @@ export default function AlertsIndex() {
     // The issue whose full report is open. A row can only carry its first line.
     const [detail, setDetail] = useState(null);
 
+    // Plant-timezone date, so "overdue" matches the sidebar badge and the server.
+    const today = usePlantToday();
+
     const derived = useMemo(() => {
         const typeById = new Map(types.map((t) => [String(t.id), t]));
         const orderById = new Map(orders.map((o) => [String(o.id), o]));
@@ -63,7 +66,7 @@ export default function AlertsIndex() {
         const userById = new Map(users.map((u) => [String(u.id), u]));
 
         const openIssues = issues
-            .filter((i) => OPEN_STATUSES.includes(i.status))
+            .filter((i) => OPEN_ISSUE_STATUSES.includes(i.status))
             .map((i) => ({
                 ...i,
                 type: i.issue_type_id != null ? typeById.get(String(i.issue_type_id)) : null,
@@ -86,11 +89,10 @@ export default function AlertsIndex() {
         const blockingIssues = openIssues.filter(isBlocking);
         const nonBlockingIssues = openIssues.filter((i) => !isBlocking(i));
 
-        const todayStr = new Date().toISOString().slice(0, 10);
         const withLine = (o) => ({ ...o, line: o.line_id != null ? lineById.get(String(o.line_id)) : null });
 
         const overdueOrders = orders
-            .filter((o) => o.due_date && String(o.due_date).slice(0, 10) < todayStr && !TERMINAL_STATUSES.includes(o.status))
+            .filter((o) => isOverdue(o, today))
             .map(withLine)
             .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)));
 
@@ -100,7 +102,7 @@ export default function AlertsIndex() {
             .sort((a, b) => String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? '')));
 
         return { blockingIssues, nonBlockingIssues, overdueOrders, blockedOrders };
-    }, [issues, types, orders, lines, users]);
+    }, [issues, types, orders, lines, users, today]);
 
     const { blockingIssues, nonBlockingIssues, overdueOrders, blockedOrders } = derived;
     const total = blockingIssues.length + nonBlockingIssues.length + overdueOrders.length + blockedOrders.length;

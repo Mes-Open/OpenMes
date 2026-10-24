@@ -4,6 +4,8 @@ import { useLiveQuery } from '@tanstack/react-db';
 
 import { useHotShapes } from './LiveShapesProvider';
 import { __, elapsed } from '../lib/i18n';
+import { OPEN_ISSUE_STATUSES, countAlerts } from '../lib/alerts';
+import { usePlantToday } from '../lib/usePlantToday';
 
 /**
  * The newest alerts, for the sidebar's hover panel — what the badge's number is
@@ -18,9 +20,6 @@ import { __, elapsed } from '../lib/i18n';
  * panel on a nav entry — exists on exactly one entry, in the admin tree. Give
  * the supervisor nav an alerts entry and this needs the section's base path.
  */
-const OPEN_STATUSES = ['OPEN', 'ACKNOWLEDGED'];
-const TERMINAL_STATUSES = ['DONE', 'REJECTED', 'CANCELLED'];
-
 /** Enough to answer "what just happened?" — the page answers "everything". */
 const PEEK_ROWS = 5;
 
@@ -29,21 +28,18 @@ export default function LatestAlerts() {
     const { data: issues = [] } = useLiveQuery((q) => q.from({ r: hot.issuesOpen }));
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: hot.workOrdersActive }));
 
+    const today = usePlantToday();
+
     const { latest, total, overdue, blocked } = useMemo(() => {
         const orderById = new Map(orders.map((o) => [String(o.id), o]));
-        const open = issues.filter((i) => OPEN_STATUSES.includes(i.status));
-        const todayStr = new Date().toISOString().slice(0, 10);
-
-        const overdueCount = orders.filter(
-            (o) => o.due_date && String(o.due_date).slice(0, 10) < todayStr && !TERMINAL_STATUSES.includes(o.status),
-        ).length;
-        const blockedCount = orders.filter((o) => o.status === 'BLOCKED').length;
+        const open = issues.filter((i) => OPEN_ISSUE_STATUSES.includes(i.status));
+        const counts = countAlerts({ issues, orders, today });
 
         return {
             // Mirrors LiveAlertCount / AlertController::totalCount.
-            total: open.length + overdueCount + blockedCount,
-            overdue: overdueCount,
-            blocked: blockedCount,
+            total: counts.total,
+            overdue: counts.overdue,
+            blocked: counts.blocked,
             latest: [...open]
                 .sort((a, b) =>
                     String(b.reported_at ?? b.created_at ?? '').localeCompare(
@@ -52,7 +48,7 @@ export default function LatestAlerts() {
                 .slice(0, PEEK_ROWS)
                 .map((i) => ({ ...i, order: i.work_order_id != null ? orderById.get(String(i.work_order_id)) : null })),
         };
-    }, [issues, orders]);
+    }, [issues, orders, today]);
 
     return (
         <div className="w-[330px]">

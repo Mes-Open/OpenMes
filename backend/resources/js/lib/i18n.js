@@ -62,6 +62,31 @@ export function setTimezone(tz) {
     activeTimezone = tz || undefined;
 }
 
+/** The active plant timezone, or undefined when the browser's zone is in use. */
+export function timezone() {
+    return activeTimezone;
+}
+
+/**
+ * Today's date as `YYYY-MM-DD` in the plant timezone — the same day boundary as
+ * the server's `today()` (which runs in the plant zone, see TimezoneRegistry).
+ *
+ * Never use `new Date().toISOString().slice(0, 10)` for "today": that is the UTC
+ * date, so a plant east of UTC is still on yesterday for the first hours after
+ * local midnight, and a plant west of UTC flips to tomorrow in the evening.
+ * Built from `formatToParts` so it doesn't depend on a locale's output format.
+ */
+export function todayInTimezone(now = new Date(), tz = activeTimezone) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now instanceof Date ? now : new Date(now));
+    const part = (type) => parts.find((p) => p.type === type)?.value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 // Map app locale codes to BCP-47 tags for Intl. English uses en-GB (day-first,
 // 24h) to match this app's European convention. Unmapped codes fall through to
 // the code itself, so adding a locale to config/app.php just works.
