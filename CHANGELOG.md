@@ -26,6 +26,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   separate setting: it is each line's *Planning efficiency (%)* (100 = not set, 85 % is
   used), and the plant target is those weighted by each line's planned minutes in the
   shift.
+- **Downtime on the admin dashboard.** *Admin → Dashboard* has a *Downtime* card next to
+  OEE: the total downtime of the shift running now (open stops count up to now, stops that
+  began before the shift count from its start), *across N lines · X% of planned time*,
+  and one row per reason, longest first, with the affected line codes, the time and a bar
+  (red for unplanned, grey for planned and changeover). Stops still waiting for a cause
+  show as *Unclassified* with a *Classify in Shift Monitor* link, and *Downtime report →*
+  opens Plant Board. Planned stops count in the total but not in the percentage. With no
+  stops the card reads *No downtime this shift*.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

@@ -2,7 +2,7 @@
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -34,6 +34,8 @@
  * gauge on this page by it.
  */
 
+import DowntimeSection from './DowntimeSection';
+
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
     'activity', //       Line activity
@@ -45,4 +47,6 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+export const SECTIONS = [
+    { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
+];

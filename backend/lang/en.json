@@ -7135,5 +7135,14 @@
     "Production targets updated.": "Production targets updated.",
     "max scrap rate": "max scrap rate",
     "min first-pass yield": "min first-pass yield",
-    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place."
+    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place.",
+    "this shift": "this shift",
+    "across :count lines · :percent% of planned time": "across :count lines · :percent% of planned time",
+    "across 1 line · :percent% of planned time": "across 1 line · :percent% of planned time",
+    "across :count lines": "across :count lines",
+    "across 1 line": "across 1 line",
+    "No downtime this shift": "No downtime this shift",
+    "Classify in Shift Monitor": "Classify in Shift Monitor",
+    "Downtime report": "Downtime report",
+    "Still running": "Still running"
 }

@@ -7135,5 +7135,14 @@
     "Production targets updated.": "Cele produkcyjne zostały zaktualizowane.",
     "max scrap rate": "maks. wskaźnik braków",
     "min first-pass yield": "min. uzysk za pierwszym podejściem",
-    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku."
+    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku.",
+    "this shift": "ta zmiana",
+    "across :count lines · :percent% of planned time": "na :count liniach · :percent% planowanego czasu",
+    "across 1 line · :percent% of planned time": "na 1 linii · :percent% planowanego czasu",
+    "across :count lines": "na :count liniach",
+    "across 1 line": "na 1 linii",
+    "No downtime this shift": "Brak przestojów w tej zmianie",
+    "Classify in Shift Monitor": "Sklasyfikuj w Monitorze zmiany",
+    "Downtime report": "Raport przestojów",
+    "Still running": "Nadal trwa"
 }

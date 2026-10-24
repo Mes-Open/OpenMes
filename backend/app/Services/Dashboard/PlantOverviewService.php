@@ -46,13 +46,14 @@ class PlantOverviewService
     public function __construct(private ShiftMonitorService $monitor) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, downtime: array<string, mixed>}
      */
     public function overview(): array
     {
         return [
             'shift' => $this->currentShift(),
             'lines' => $this->lineStates(),
+            'downtime' => $this->downtime(),
         ];
     }
 
@@ -274,5 +275,151 @@ class PlantOverviewService
             ->groupBy(fn (MaintenanceEvent $e) => $e->line_id && $lineIds->contains($e->line_id)
                 ? $e->line_id
                 : $stationLine->get($e->workstation_id));
+    }
+
+    /**
+     * Downtime of the plant shift running now, grouped by reason.
+     *
+     * Uses the same window and overlap rule as Plant Board / Shift Monitor
+     * (ShiftWindow::current(), `started_at < end AND (ended_at IS NULL OR
+     * ended_at > start)`): each stop is clipped to the part of the window that
+     * has already happened, an open stop running to now. Line-level stops
+     * reported by hand count too.
+     *
+     * `planned_minutes` is the net planned time *so far* — active lines ×
+     * elapsed shift minutes, minus planned-kind stops — the same net the OEE
+     * availability uses (shift time − DowntimeService::getPlannedMinutes), but
+     * on elapsed rather than whole-shift time because the numerator is also
+     * "so far". `percent_of_planned` is the loss (unplanned, changeover and
+     * unclassified stops) over that; planned stops appear in the total and the
+     * reason list but are not a loss.
+     *
+     * @return array{has_lines: bool, total_minutes: int, loss_minutes: int, planned_minutes: ?int, percent_of_planned: ?int, line_count: int, reasons: array<int, array<string, mixed>>, unclassified: ?array<string, mixed>}
+     */
+    public function downtime(): array
+    {
+        $lines = Line::active()->get(['id', 'name', 'code']);
+
+        if ($lines->isEmpty()) {
+            return [
+                'has_lines' => false,
+                'total_minutes' => 0,
+                'loss_minutes' => 0,
+                'planned_minutes' => null,
+                'percent_of_planned' => null,
+                'line_count' => 0,
+                'reasons' => [],
+                'unclassified' => null,
+            ];
+        }
+
+        $window = ShiftWindow::current();
+        $now = Carbon::now();
+        $cap = $now->lessThan($window->end) ? $now : $window->end;
+
+        $lineIds = $lines->pluck('id');
+        $lineLabel = $lines->mapWithKeys(fn (Line $l) => [$l->id => $l->code ?: $l->name]);
+        // Inactive stations too, so a stop logged before one was retired still
+        // finds its line.
+        $stationLine = Workstation::whereIn('line_id', $lineIds)->pluck('line_id', 'id');
+
+        $stops = ProductionDowntime::with(['reason' => fn ($q) => $q->withTrashed()])
+            ->where(fn ($q) => $q->whereIn('line_id', $lineIds)->orWhereIn('workstation_id', $stationLine->keys()))
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->orderBy('started_at')
+            ->get();
+
+        $buckets = [];
+        $plannedSeconds = 0;
+        $lossSeconds = 0;
+        $totalSeconds = 0;
+        $linesHit = [];
+
+        foreach ($stops as $stop) {
+            $lineId = ($stop->workstation_id ? $stationLine->get($stop->workstation_id) : null) ?? $stop->line_id;
+            if (! $lineLabel->has($lineId)) {
+                continue;
+            }
+
+            $seconds = $this->clippedSeconds($stop, $window->start, $cap);
+            if ($seconds <= 0) {
+                continue;
+            }
+
+            $unclassified = $stop->needs_reason || $stop->reason === null;
+            $kind = $unclassified ? 'unclassified' : ($stop->reason->kind?->value ?? 'unplanned');
+            $key = $unclassified ? 'unclassified' : 'reason:'.$stop->reason->id;
+
+            $buckets[$key] ??= [
+                'id' => $unclassified ? null : $stop->reason->id,
+                // Reason names are stored in English and translated on display,
+                // as ShiftMonitorService::reasonLabel() does.
+                'name' => $unclassified ? __('Unclassified') : __($stop->reason->name),
+                'code' => $unclassified ? null : $stop->reason->code,
+                'kind' => $kind,
+                'seconds' => 0,
+                'lines' => [],
+                'count' => 0,
+                'open' => false,
+                'workstation_id' => null,
+            ];
+            $bucket = &$buckets[$key];
+            $bucket['seconds'] += $seconds;
+            $bucket['lines'][$lineLabel->get($lineId)] = true;
+            $bucket['count']++;
+            $bucket['open'] = $bucket['open'] || $stop->ended_at === null;
+            // Oldest unclassified stop on a station: where "classify" sends you.
+            $bucket['workstation_id'] ??= $unclassified ? $stop->workstation_id : null;
+            unset($bucket);
+
+            $totalSeconds += $seconds;
+            $linesHit[$lineId] = true;
+            if ($kind === 'planned') {
+                $plannedSeconds += $seconds;
+            } else {
+                $lossSeconds += $seconds;
+            }
+        }
+
+        $rows = collect($buckets)->map(function (array $b) {
+            $lines = array_keys($b['lines']);
+            sort($lines, SORT_NATURAL);
+
+            return [...$b, 'minutes' => (int) round($b['seconds'] / 60), 'lines' => $lines];
+        });
+
+        $unclassified = $rows->get('unclassified');
+        $reasons = $rows->forget('unclassified')
+            ->sort(fn (array $a, array $b) => [$b['seconds'], $a['name']] <=> [$a['seconds'], $b['name']])
+            ->map(fn (array $r) => collect($r)->only(['id', 'name', 'code', 'kind', 'minutes', 'lines', 'count', 'open'])->all())
+            ->values()
+            ->all();
+
+        $elapsedSeconds = max(0, $cap->getTimestamp() - $window->start->getTimestamp());
+        $plannedTime = $lines->count() * $elapsedSeconds - $plannedSeconds;
+        $plannedMinutes = (int) round($plannedTime / 60);
+
+        return [
+            'has_lines' => true,
+            'total_minutes' => (int) round($totalSeconds / 60),
+            'loss_minutes' => (int) round($lossSeconds / 60),
+            'planned_minutes' => $plannedMinutes > 0 ? $plannedMinutes : null,
+            'percent_of_planned' => $plannedTime > 0 ? (int) round($lossSeconds / $plannedTime * 100) : null,
+            'line_count' => count($linesHit),
+            'reasons' => $reasons,
+            'unclassified' => $unclassified
+                ? collect($unclassified)->only(['minutes', 'lines', 'count', 'open', 'workstation_id'])->all()
+                : null,
+        ];
+    }
+
+    /** Seconds of a stop inside [$from, $to], an open stop running to $to. */
+    private function clippedSeconds(ProductionDowntime $stop, Carbon $from, Carbon $to): int
+    {
+        $start = max($stop->started_at->getTimestamp(), $from->getTimestamp());
+        $end = min(($stop->ended_at ?? $to)->getTimestamp(), $to->getTimestamp());
+
+        return max(0, $end - $start);
     }
 }
