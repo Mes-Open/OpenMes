@@ -21,6 +21,20 @@ function subtitle({ line_count: count, percent_of_planned: percent }) {
         : __('across :count lines · :percent% of planned time', { count, percent });
 }
 
+/**
+ * Reason rows and the Unclassified row as one list, longest first. The server
+ * sorts the reasons; Unclassified is slotted in by its minutes (after equal
+ * ones), so a 3 h unclassified block never sits under a 0 m reason.
+ */
+export function downtimeRows(data) {
+    const rows = (data?.reasons ?? []).map((r) => ({ ...r, key: `reason-${r.id}` }));
+    if (data?.unclassified) {
+        rows.push({ ...data.unclassified, key: 'unclassified', name: __('Unclassified'), kind: 'unclassified' });
+    }
+    // Array.prototype.sort is stable: the server's order survives among equals.
+    return rows.sort((a, b) => b.minutes - a.minutes);
+}
+
 function ReasonRow({ name, lines, minutes, kind, open, max, children }) {
     const width = max > 0 ? Math.max(2, (minutes / max) * 100) : 0;
 
@@ -69,9 +83,9 @@ export default function DowntimeSection({ overview, accessibleTabs = [] }) {
     } else if (data.total_minutes === 0) {
         body = <p className="text-[14px] text-om-muted">{__('No downtime this shift')}</p>;
     } else {
-        const reasons = data.reasons ?? [];
+        const rows = downtimeRows(data);
         const unclassified = data.unclassified;
-        const max = Math.max(0, ...reasons.map((r) => r.minutes), unclassified?.minutes ?? 0);
+        const max = Math.max(0, ...rows.map((r) => r.minutes));
         const classifyHref = unclassified?.workstation_id
             ? `/admin/shift-monitor?workstation=${unclassified.workstation_id}`
             : '/admin/shift-monitor';
@@ -88,18 +102,15 @@ export default function DowntimeSection({ overview, accessibleTabs = [] }) {
                     <span className="text-[14px] text-om-muted">{subtitle(data)}</span>
                 </div>
                 <ul className="m-0 flex list-none flex-col gap-3 p-0">
-                    {reasons.map((r) => (
-                        <ReasonRow key={r.id} max={max} {...r} />
-                    ))}
-                    {unclassified && (
-                        <ReasonRow name={__('Unclassified')} kind="unclassified" max={max} {...unclassified}>
-                            {canMonitor && (
+                    {rows.map(({ key, ...row }) => (
+                        <ReasonRow key={key} max={max} {...row}>
+                            {row.kind === 'unclassified' && canMonitor && (
                                 <Link href={classifyHref} className="block text-om-accent hover:underline">
                                     {__('Classify in Shift Monitor')}
                                 </Link>
                             )}
                         </ReasonRow>
-                    )}
+                    ))}
                 </ul>
             </>
         );
