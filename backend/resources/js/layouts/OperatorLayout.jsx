@@ -37,10 +37,16 @@ export default function OperatorLayout({ children }) {
     const ctx = line ? `?line=${line.id}${knowsBench ? `&workstation=${selectedWorkstation?.id ?? 'all'}` : ''}` : '';
     // The core tabs (the server keeps only the ones this bench needs) carry that context.
     const withCtx = (url) => (url.startsWith('/operator/') && !url.includes('?') ? `${url}${ctx}` : url);
+    // Admin tabs granted to this operator in Settings → Access. When there are
+    // any, a sidebar lists them (with "Lines" first) so the operator can reach
+    // those panel pages; without a grant the screen stays plain full-screen.
+    const tabLinks = (auth?.user?.accessibleTabLinks ?? []).filter((tab) => tab.url);
 
     return (
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="min-h-screen flex flex-col bg-om-bg font-sans">
+        <div className="min-h-screen flex bg-om-bg font-sans">
+            {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
+            <div className="flex flex-col flex-1 min-w-0">
             <header className="shrink-0 bg-om-card border-b border-om-line">
                 {/* One row from lg up; below that the links take a full row of their own
                     under the line and user, and the bar grows with them. */}
@@ -117,8 +123,40 @@ export default function OperatorLayout({ children }) {
                 <FlashMessages />
                 {children}
             </main>
+            </div>
         </div>
         </ToastProvider>
+    );
+}
+
+/**
+ * Left sidebar on operator screens for an operator granted admin tabs
+ * (Settings → Access): "Lines" (back to line selection) first, then each
+ * granted tab, mirroring the panel sidebar so navigation works both ways.
+ */
+function OperatorSidebar({ tabLinks, isActive }) {
+    return (
+        <aside aria-label={__('Navigation')} className="shrink-0 w-44 bg-om-card border-r border-om-line flex flex-col">
+            <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+                <SideLink href="/operator/select-line" active={isActive('/operator')}>{__('Lines')}</SideLink>
+                {tabLinks.map((tab) => (
+                    <SideLink key={tab.key} href={tab.url}>{__(tab.label)}</SideLink>
+                ))}
+            </nav>
+        </aside>
+    );
+}
+
+function SideLink({ href, active = false, children }) {
+    return (
+        <Link
+            href={href}
+            className={`block px-3 py-3 rounded-om-sm text-sm font-semibold transition-colors ${
+                active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
+            }`}
+        >
+            {children}
+        </Link>
     );
 }
 

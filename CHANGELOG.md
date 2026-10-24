@@ -81,6 +81,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Operators granted admin tabs can reach them again.** An Operator given tabs in
+  *Settings → Access* (for example *Orders*) once more sees a sidebar on the operator
+  screens, with *Lines* first and then each granted tab. A redesign had dropped the
+  sidebar, so the granted pages could only be opened by typing their address.
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.
