@@ -153,6 +153,7 @@ class ShiftPlanServiceTest extends TestCase
         $this->order('2026-10-20 06:00', '2026-10-20 14:00', 800, ['line_id' => $other->id]);
 
         $this->assertSame(1100.0, $this->shift()['totals']['planned']);
+        $this->assertSame(3, $this->shift()['totals']['planned_orders']);
 
         $data = $this->shift($this->line->id);
         $this->assertSame(300.0, $data['totals']['planned']);
@@ -213,6 +214,7 @@ class ShiftPlanServiceTest extends TestCase
         $this->assertNull($data['totals']['planned_to_now']);
         $this->assertNull($data['totals']['pace_delta']);
         $this->assertNull($data['totals']['pct_of_plan']);
+        $this->assertNull($data['totals']['planned_orders']);
         $this->assertNull($data['plan_per_hour']);
         foreach ($data['hours'] as $hour) {
             $this->assertNull($hour['planned']);

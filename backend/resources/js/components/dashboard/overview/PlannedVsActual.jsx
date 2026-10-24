@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from '@inertiajs/react';
 import { OverviewCard } from './OverviewGrid';
 import { __, formatNumber, formatTime } from '../../../lib/i18n';
 
@@ -6,10 +7,8 @@ import { __, formatNumber, formatTime } from '../../../lib/i18n';
 // measured), so labels stay 11 px on a phone instead of shrinking with it. It
 // is never OeeGauge's 0 0 100 60 — the oee-smoke e2e spec finds the gauge on
 // this page by its viewBox.
-const HEIGHT = 250;
 const X0 = 50;
 const Y0 = 20;
-const Y1 = 220;
 
 const PLAN_PAST = 'var(--om-muted)';
 const PLAN_FUTURE = 'var(--om-faintest)';
@@ -58,7 +57,7 @@ function Legend({ hasPlan }) {
  * whole shift, orange actual up to now, the gap at now). Data is
  * `overview.production` from ShiftPlanService.
  */
-export default function PlannedVsActual({ overview }) {
+export default function PlannedVsActual({ overview, accessibleTabs = [] }) {
     const production = overview?.production;
     const title = __('Production · planned vs actual');
 
@@ -95,14 +94,33 @@ export default function PlannedVsActual({ overview }) {
                             </span>
                         )}
                     </div>
-                    {!hasPlan && (
-                        <p className="m-0 text-[13px] text-om-muted">{__('No plan scheduled for this shift')}</p>
-                    )}
+                    <PlanSource count={totals.planned_orders} canOpenSchedule={accessibleTabs.includes('schedule')} />
                 </div>
                 <Legend hasPlan={hasPlan} />
             </div>
             <Chart production={production} hasPlan={hasPlan} pace={pace} />
         </OverviewCard>
+    );
+}
+
+/**
+ * Where the plan comes from: the orders scheduled in this shift, with a link
+ * to the Schedule for users who can open it.
+ */
+function PlanSource({ count, canOpenSchedule }) {
+    return (
+        <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-[13px] text-om-muted" data-testid="pva-plan-source">
+            <span>
+                {count == null
+                    ? __('No plan scheduled for this shift')
+                    : __('Plan from :count scheduled orders in this shift', { count: formatNumber(count) })}
+            </span>
+            {canOpenSchedule && (
+                <Link href="/admin/schedule" className="font-medium text-om-ink underline-offset-2 hover:underline">
+                    {__('Open schedule')}
+                </Link>
+            )}
+        </p>
     );
 }
 
@@ -127,6 +145,9 @@ function useWidth(fallback) {
 function Chart({ production, hasPlan, pace }) {
     const [ref, width] = useWidth(800);
     const X1 = width - 20;
+    // Shorter on a phone, so the card doesn't fill the whole screen.
+    const HEIGHT = width < 480 ? 200 : 250;
+    const Y1 = HEIGHT - 30;
     const { cumulative, totals, start, end, now, is_live: isLive } = production;
     const t0 = new Date(start).getTime();
     const t1 = new Date(end).getTime();
@@ -176,7 +197,7 @@ function Chart({ production, hasPlan, pace }) {
                     {[0, ...gridValues].map((v) => <text key={v} x={X0 - 8} y={y(v) + 4}>{pcs(v)}</text>)}
                 </g>
                 <g fill="var(--om-muted)" fontSize="11" textAnchor="middle">
-                    {xTicks.map((p) => <text key={p.at} x={x(p.at)} y="242">{formatTime(p.at)}</text>)}
+                    {xTicks.map((p) => <text key={p.at} x={x(p.at)} y={HEIGHT - 8}>{formatTime(p.at)}</text>)}
                 </g>
 
                 {actualPoints.length > 1 && (

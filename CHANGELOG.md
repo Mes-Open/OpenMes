@@ -39,7 +39,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Actual output comes from a new ledger, `work_order_output_entries`, that records every
   change to a work order's produced quantity with its time — whichever path made it
   (operator, batches, machine counters, corrections). Hourly output is recorded from the
-  upgrade on; output reported before the upgrade is not in the hourly figures.
+  upgrade on; output reported before the upgrade is not in the hourly figures. The section names how
+  many scheduled orders make up the plan, with an *Open schedule* link for users who can
+  open the Schedule. The example companies' demo data now fills the ledger too, so a fresh
+  demo shows real actual output.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

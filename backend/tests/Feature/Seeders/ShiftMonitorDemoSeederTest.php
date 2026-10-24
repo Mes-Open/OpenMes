@@ -4,7 +4,10 @@ namespace Tests\Feature\Seeders;
 
 use App\Models\Batch;
 use App\Models\Shift;
+use App\Models\WorkOrderOutputEntry;
 use App\Models\Workstation;
+use App\Services\Dashboard\ShiftPlanService;
+use App\Support\ShiftWindow;
 use Database\Seeders\AirFilterDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,6 +174,44 @@ class ShiftMonitorDemoSeederTest extends TestCase
         $this->seed(ShiftMonitorDemoSeeder::class);
 
         $this->assertSame($first, Batch::count(), 'A repeat run duplicated batches.');
+    }
+
+    public function test_line_output_reaches_the_output_ledger_once_per_line(): void
+    {
+        $this->seedPlant();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        // The dashboard's actual output reads the ledger; an empty one shows a
+        // fresh demo's plan against nothing.
+        $this->assertGreaterThan(0, WorkOrderOutputEntry::count());
+        $this->assertSame(0, WorkOrderOutputEntry::where('recorded_at', '>', now())->count(), 'Output recorded in the future.');
+
+        // One station per line stands for the line: its batches, not every
+        // station's, which would multiply the pieces by the station count.
+        foreach (Workstation::where('is_active', true)->get()->groupBy('line_id') as $lineId => $stations) {
+            $output = $stations->sortBy('id')->last();
+            $this->assertEqualsWithDelta(
+                // A batch slotted after "now" in a young live shift comes out
+                // negative; it produced nothing, and the ledger skips it.
+                (float) Batch::where('workstation_id', $output->id)->where('produced_qty', '>', 0)->sum('produced_qty'),
+                (float) WorkOrderOutputEntry::where('line_id', $lineId)->sum('delta'),
+                0.01,
+            );
+        }
+
+        $first = (float) WorkOrderOutputEntry::sum('delta');
+        $this->seed(ShiftMonitorDemoSeeder::class);
+        $this->assertEqualsWithDelta($first, (float) WorkOrderOutputEntry::sum('delta'), 0.01, 'A repeat run doubled the ledger.');
+    }
+
+    public function test_the_dashboard_shows_actual_output_for_the_live_shift(): void
+    {
+        $this->seedPlant();
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        $production = app(ShiftPlanService::class)->forShift(ShiftWindow::current());
+
+        $this->assertGreaterThan(0, $production['totals']['actual']);
     }
 
     public function test_every_example_company_fills_the_monitor(): void

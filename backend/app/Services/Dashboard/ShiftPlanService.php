@@ -70,7 +70,7 @@ class ShiftPlanService
                 'has_lines' => false,
                 'hours' => [],
                 'cumulative' => [],
-                'totals' => ['planned' => null, 'actual' => null, 'planned_to_now' => null, 'pace_delta' => null, 'pct_of_plan' => null],
+                'totals' => ['planned' => null, 'actual' => null, 'planned_to_now' => null, 'pace_delta' => null, 'pct_of_plan' => null, 'planned_orders' => null],
                 'plan_per_hour' => null,
                 'summary' => ['kind' => 'no_lines', 'since' => null, 'downtime_minutes' => null, 'downtime_lines' => []],
             ];
@@ -120,6 +120,9 @@ class ShiftPlanService
                 'planned_to_now' => $plannedToNow,
                 'pace_delta' => $hasPlan && $started ? (int) round($actualTotal - $plannedToNow) : null,
                 'pct_of_plan' => $hasPlan && $started ? (int) round($actualTotal / $planTotal * 100) : null,
+                // How many scheduled orders the plan is made of — the link back
+                // to what the Schedule shows for this shift.
+                'planned_orders' => $hasPlan ? $orders->count() : null,
             ],
             'plan_per_hour' => $hasPlan
                 ? round($planTotal / (($end->getTimestamp() - $start->getTimestamp()) / 3600), 2)

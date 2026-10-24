@@ -7153,5 +7153,7 @@
     "No active lines": "No active lines",
     "Cumulative pieces this shift: planned :plan, actual :actual at :time": "Cumulative pieces this shift: planned :plan, actual :actual at :time",
     "Cumulative pieces this shift: actual :actual at :time": "Cumulative pieces this shift: actual :actual at :time",
-    "Pieces produced per hour this shift": "Pieces produced per hour this shift"
+    "Pieces produced per hour this shift": "Pieces produced per hour this shift",
+    "Plan from :count scheduled orders in this shift": "Plan from :count scheduled orders in this shift",
+    "Open schedule": "Open schedule"
 }

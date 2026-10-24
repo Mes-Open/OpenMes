@@ -7153,5 +7153,7 @@
     "No active lines": "Brak aktywnych linii",
     "Cumulative pieces this shift: planned :plan, actual :actual at :time": "Narastająco w tej zmianie: plan :plan, wykonanie :actual o :time",
     "Cumulative pieces this shift: actual :actual at :time": "Narastająco w tej zmianie: wykonanie :actual o :time",
-    "Pieces produced per hour this shift": "Sztuki wyprodukowane na godzinę w tej zmianie"
+    "Pieces produced per hour this shift": "Sztuki wyprodukowane na godzinę w tej zmianie",
+    "Plan from :count scheduled orders in this shift": "Plan z :count zaplanowanych zleceń w tej zmianie",
+    "Open schedule": "Otwórz harmonogram"
 }
