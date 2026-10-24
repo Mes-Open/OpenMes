@@ -15,12 +15,10 @@ test('dashboard shows live "OEE · this shift", compares with Plant Board, follo
   // Dashboard
   await page.getByRole('link', { name: 'Dashboard', exact: true }).first().click();
   await expect(page).toHaveURL(/\/admin\/dashboard/, { timeout: 30000 });
-  const section = page.getByTestId('oee-section');
   await expect(page.getByRole('heading', { name: 'OEE · this shift' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('oee-plant-target')).toContainText(/Target \d+(\.\d)?%/);
   await expect(page.getByText('By line')).toBeVisible();
   await expect(page.getByTestId('oee-line-row').first()).toBeVisible();
-  await section.scrollIntoViewIfNeeded();
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('01-oee-section.png'), fullPage: true });
   const plantValue = await page.getByTestId('oee-plant-value').innerText();
@@ -64,7 +62,6 @@ test('dashboard shows live "OEE · this shift", compares with Plant Board, follo
   await expect(page).toHaveURL(/\/admin\/dashboard/, { timeout: 30000 });
   await expect(page.getByRole('heading', { name: 'OEE · this shift' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('img', { name: /Cooling & Packing .*target 80%/ })).toBeVisible();
-  await page.getByTestId('oee-section').scrollIntoViewIfNeeded();
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('06-dashboard-target-80.png'), fullPage: true });
 });
