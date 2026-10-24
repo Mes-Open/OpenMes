@@ -10,8 +10,10 @@ use App\Models\MachineTag;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Services\Machine\MachineSignalIngestor;
+use App\Services\Machine\WorkstationStateMachine;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -109,6 +111,36 @@ class MachineSignalTouchTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-05-26 10:07:00'));
         $ingestor->ingest($this->tag(MachineTag::SIGNAL_TELEMETRY, ['name' => 'temp']), 42, now());
         $this->assertEquals(Carbon::parse('2026-05-26 10:07:00'), $this->openRow()->updated_at);
+    }
+
+    public function test_a_burst_of_signals_issues_one_update_a_minute(): void
+    {
+        $tag = $this->tag(MachineTag::SIGNAL_TELEMETRY, ['name' => 'temp']);
+        $ingestor = app(MachineSignalIngestor::class);
+        $ingestor->ingest($this->stateTag(), 1, now());
+        Carbon::setTestNow(Carbon::parse('2026-05-26 10:02:00'));
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        foreach (range(1, 5) as $i) {
+            $ingestor->ingest($tag, 20 + $i, now());
+        }
+        $touches = collect(DB::getQueryLog())->pluck('query')
+            ->filter(fn (string $q) => str_starts_with($q, 'update "workstation_states" set "updated_at"'));
+        DB::disableQueryLog();
+
+        $this->assertCount(1, $touches);
+    }
+
+    public function test_an_operator_re_setting_the_same_state_is_not_a_machine_signal(): void
+    {
+        $machine = app(WorkstationStateMachine::class);
+        $machine->transition($this->station, WorkstationState::RUNNING);
+
+        Carbon::setTestNow(Carbon::parse('2026-05-26 10:05:00'));
+        $machine->transition($this->station, WorkstationState::RUNNING, [], null, 'manual');
+
+        $this->assertEquals(Carbon::parse('2026-05-26 10:00:00'), $this->openRow()->updated_at);
     }
 
     public function test_signal_never_touches_closed_rows(): void

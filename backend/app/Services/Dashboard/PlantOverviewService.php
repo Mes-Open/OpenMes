@@ -32,9 +32,12 @@ use Illuminate\Support\Collection;
  *    as missing data — an empty state — never as idle or as zero output.
  *
  * When signals disagree the worst one wins (down > blocked > running > idle >
- * unknown), ties going to the one that started first. A silent station casts
- * no vote, so one fresh station decides for the line, and anything a person
- * reported (a stop, a maintenance event, a blocked order) still shows. `LineStatus` is a kanban column for
+ * unknown), ties going to the one that started first. A silent station's
+ * machine state casts no vote, so one fresh station decides for the line, and
+ * anything a person reported still shows: a stop logged or classified by hand
+ * (on the line or on any station, silent or not), a maintenance event, a
+ * blocked order. Only the machine's own unclassified AUTO-* stop on a silent
+ * station is dropped with its state — it is the last state, not news. `LineStatus` is a kanban column for
  * work orders, not a machine state, and is deliberately not consulted.
  *
  * `since` for work-order signals is the order's `updated_at` — there is no
@@ -124,11 +127,21 @@ class PlantOverviewService
             ->get();
 
         $machine = $this->monitor->currentStates($stations, $openStops);
+        $silentBefore = Carbon::now()->subMinutes(self::NO_SIGNAL_AFTER_MINUTES);
 
-        // Stops not already explained by a reporting station: line-level ones,
-        // and ones logged by hand against a station with no collector.
+        // Stops not already explained by a fresh station's state: line-level
+        // ones, ones on a station with no collector, and ones a person logged
+        // or classified on a station whose collector went silent (a broken or
+        // powered-off machine is exactly when that happens).
         $manualStops = $openStops
-            ->reject(fn (ProductionDowntime $d) => $d->workstation_id && isset($machine[$d->workstation_id]))
+            ->reject(function (ProductionDowntime $d) use ($machine, $silentBefore) {
+                $current = $d->workstation_id ? ($machine[$d->workstation_id] ?? null) : null;
+                if ($current === null) {
+                    return false;
+                }
+
+                return ! self::isSilent($current, $silentBefore) || $this->isMachinePlaceholder($d);
+            })
             ->groupBy(fn (ProductionDowntime $d) => ($d->workstation_id ? $stationLine->get($d->workstation_id) : null) ?? $d->line_id);
 
         $orders = WorkOrder::whereIn('line_id', $lineIds)
@@ -137,8 +150,6 @@ class PlantOverviewService
             ->groupBy('line_id');
 
         $maintenance = $this->maintenanceByLine($lineIds, $stations->pluck('id'), $stationLine);
-
-        $silentBefore = Carbon::now()->subMinutes(self::NO_SIGNAL_AFTER_MINUTES);
 
         return $lines->map(function (Line $line) use ($stationsByLine, $machine, $manualStops, $orders, $maintenance, $silentBefore) {
             $candidates = [];
@@ -272,6 +283,15 @@ class PlantOverviewService
         return $this->isUnplanned($stop)
             ? $this->candidate('down', $stop->started_at, $this->reasonName($stop), 'manual', $this->isPlaceholder($stop))
             : $this->candidate('idle', $stop->started_at, $this->reasonName($stop), 'manual');
+    }
+
+    /**
+     * A stop the state machine opened and nobody has touched since: no
+     * reporter, still on its AUTO-* reason.
+     */
+    private function isMachinePlaceholder(ProductionDowntime $stop): bool
+    {
+        return $stop->reported_by === null && str_starts_with((string) $stop->reason?->code, 'AUTO-');
     }
 
     /** A stop nobody has given a cause yet: flagged, or with no reason at all. */

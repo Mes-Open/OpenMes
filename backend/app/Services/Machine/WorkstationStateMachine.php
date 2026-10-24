@@ -30,6 +30,14 @@ class WorkstationStateMachine
     public const SIGNAL_TOUCH_SECONDS = 60;
 
     /**
+     * When this instance last issued markSignal()'s UPDATE, per station — so a
+     * long-lived poller sends the statement once a minute, not once a pulse.
+     *
+     * @var array<int, int> workstation id → unix timestamp
+     */
+    private array $signalTouchedAt = [];
+
+    /**
      * Transition a workstation to a new state. No-op (metadata refresh only) if
      * the state is unchanged. Returns the new (or current) WorkstationState row.
      *
@@ -50,8 +58,6 @@ class WorkstationStateMachine
             if ($current && $current->state === $newState) {
                 if ($metadata) {
                     $current->update(['metadata' => array_merge($current->metadata ?? [], $metadata)]);
-                } else {
-                    $this->markSignal($workstation);
                 }
 
                 return $current;
@@ -102,9 +108,20 @@ class WorkstationStateMachine
      * update on purpose — no read, and no model `updated` event, so a healthy
      * poller doesn't nudge the shift monitor every minute for nothing. Uses
      * now(), not the observed time: a gateway flushing a buffer is alive now.
+     *
+     * Only collectors call this (MachineSignalIngestor), never transition():
+     * an operator re-setting the same state is not a sign of life from the
+     * machine and must not make a silent line look live.
      */
     public function markSignal(Workstation $workstation): void
     {
+        $now = now()->getTimestamp();
+        $last = $this->signalTouchedAt[$workstation->id] ?? null;
+        if ($last !== null && $now - $last < self::SIGNAL_TOUCH_SECONDS) {
+            return;
+        }
+        $this->signalTouchedAt[$workstation->id] = $now;
+
         WorkstationState::where('workstation_id', $workstation->id)
             ->whereNull('ended_at')
             ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))

@@ -430,6 +430,50 @@ class DashboardPlantOverviewTest extends TestCase
         $this->assertSame('blocked', $lines[$blocked->id]['state']);
     }
 
+    public function test_stop_logged_by_hand_on_a_silent_station_still_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::RUNNING, '07:30', '09:00');
+        ProductionDowntime::create([
+            'line_id' => $line->id, 'workstation_id' => $station->id,
+            'downtime_reason_id' => DowntimeReason::factory()->unplanned()->create(['name' => 'Power supply failure'])->id,
+            'needs_reason' => false, 'reported_by' => $this->admin->id,
+            'started_at' => $this->at('09:05'),
+        ]);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Power supply failure', $row['reason']);
+        $this->assertSame('manual', $row['source']);
+        $this->assertSame($this->at('09:05')->toIso8601String(), $row['since']);
+    }
+
+    public function test_classified_machine_stop_on_a_silent_station_still_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '08:30', '09:00');
+        // Opened by the machine, then given its cause by a supervisor.
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Hydraulic leak']), '08:30');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Hydraulic leak', $row['reason']);
+    }
+
+    public function test_untouched_machine_stop_on_a_silent_station_is_no_data(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '08:30', '09:00');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['code' => 'AUTO-FAULT', 'name' => 'Machine fault (auto)']), '08:30', true);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('unknown', $row['state']);
+        $this->assertNull($row['reason']);
+    }
+
     public function test_one_fresh_station_decides_when_another_is_silent(): void
     {
         $line = Line::factory()->create();
