@@ -132,6 +132,19 @@ export function formatDateTime(value, opts = { day: '2-digit', month: '2-digit',
     return d.toLocaleString(localeTag(), { timeZone: activeTimezone, ...opts });
 }
 
+/**
+ * The plant's calendar date ("today" in the plant timezone) as `YYYY-MM-DD`,
+ * for matching date-keyed rows such as `oee_records.record_date`. Never use
+ * `new Date().toISOString()` for this — that is the UTC date, which is
+ * yesterday for the first hours of every day east of Greenwich.
+ */
+export function todayInPlant(now = new Date()) {
+    // 'en-CA' is a fixed format tag (it yields YYYY-MM-DD), not the UI locale.
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: activeTimezone, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now);
+}
+
 export function formatNumber(value, opts = {}) {
     if (value == null || value === '' || isNaN(value)) return '';
     return Number(value).toLocaleString(localeTag(), opts);

@@ -1,14 +1,17 @@
-// Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (live-shape wiring and stats logic untouched).
+// Geist White restyle — om-* tokens + @openmes/ui, light and dark (.dark) themes. "Plant overview" header +
+// section grid on top (components/dashboard/overview), the original widgets below under "Last 30 days".
 import { useMemo, useState } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Badge, Dropdown, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { useDashboardShapes } from '../../lib/useDashboardShapes';
 import { useHotShapes } from '../../components/LiveShapesProvider';
 import OeeGauge, { oeeColor } from '../../components/OeeGauge';
 import AppLayout from '../../layouts/AppLayout';
-import { __ } from '../../lib/i18n';
-import { formatDateTime } from '../../lib/i18n';
+import { __, todayInPlant } from '../../lib/i18n';
+import OverviewHeader from '../../components/dashboard/overview/OverviewHeader';
+import OverviewGrid from '../../components/dashboard/overview/OverviewGrid';
+import useOverviewRefresh from '../../components/dashboard/overview/useOverviewRefresh';
 import { TIER_BADGE_STYLES, tierLabel } from './customers/fields';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
@@ -22,7 +25,7 @@ export default function AdminDashboard(props) {
 
     return (
         <>
-            <Head title={__('Admin Dashboard')} />
+            <Head title={__('Plant overview')} />
             <DashboardBody hot={hot} {...props} />
         </>
     );
@@ -42,7 +45,9 @@ function DashboardBody({
     nonConformanceStats,
     topCustomers,
     moduleWidgets = {},
+    overview,
 }) {
+    const liveOk = useOverviewRefresh();
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
         useDashboardShapes(hot);
 
@@ -94,8 +99,13 @@ function DashboardBody({
     const moduleMain = moduleWidgets.main ?? [];
 
     return (
-        <div className="max-w-7xl mx-auto">
-                <Header
+        <div className="max-w-7xl mx-auto flex flex-col gap-8">
+            <OverviewHeader shift={overview?.shift} liveOk={liveOk} />
+
+            <OverviewGrid overview={overview} />
+
+            <section aria-labelledby="dashboard-last-30-days">
+                <Last30Header
                     selectedLineId={selectedLineId}
                     onLineChange={setSelectedLineId}
                     lines={lines}
@@ -180,22 +190,19 @@ function DashboardBody({
                         </Section>
                     ))}
                 </div>
+            </section>
         </div>
     );
 }
 
-function Header({ selectedLineId, onLineChange, lines }) {
-    const { locale } = usePage().props;
+/** Heading of the original widget area, with the line filter that scopes it. */
+function Last30Header({ selectedLineId, onLineChange, lines }) {
     const selectedLine = lines.find((l) => String(l.id) === String(selectedLineId));
-    const dateStr = new Date().toLocaleString(locale, {
-        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
     return (
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Admin Dashboard')}</h1>
+                <h2 id="dashboard-last-30-days" className="text-[18px] font-semibold text-om-ink">{__('Last 30 days')}</h2>
                 <p className="text-om-muted mt-1 text-sm">
-                    {formatDateTime(new Date())}{' '}
                     {selectedLine ? (
                         <>— <span className="font-medium text-om-accent">{selectedLine.name}</span></>
                     ) : (
@@ -309,9 +316,9 @@ function KpiCard({ href, label, value, accent, hint }) {
 function OeeOverview({ records, lines }) {
     // Today's OEE per line. Mirrors the old Blade widget: one gauge card per
     // line, N/A where there's no record for today.
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayInPlant(); // plant date, not UTC
     const byLineToday = useMemo(
-        () => new Map(records.filter((r) => r.record_date === todayStr).map((r) => [String(r.line_id), r])),
+        () => new Map(records.filter((r) => String(r.record_date ?? '').slice(0, 10) === todayStr).map((r) => [String(r.line_id), r])),
         [records, todayStr],
     );
     const sortedLines = useMemo(

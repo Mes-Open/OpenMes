@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, setTimezone } from './i18n';
+import { formatDateTime, setTimezone, todayInPlant } from './i18n';
 
 /**
  * Timestamps reach the frontend two ways: ISO strings with a zone (Inertia props)
@@ -30,5 +30,16 @@ describe('formatDateTime timezone handling', () => {
     it('returns an empty string for empty input', () => {
         expect(formatDateTime(null)).toBe('');
         expect(formatDateTime('')).toBe('');
+    });
+});
+
+describe('todayInPlant', () => {
+    it('returns the plant calendar date, not the UTC one', () => {
+        // 23:30 UTC on 3 Aug is already 4 Aug in Warsaw.
+        const late = new Date('2026-08-03T23:30:00Z');
+        setTimezone('Europe/Warsaw');
+        expect(todayInPlant(late)).toBe('2026-08-04');
+        setTimezone('UTC');
+        expect(todayInPlant(late)).toBe('2026-08-03');
     });
 });
