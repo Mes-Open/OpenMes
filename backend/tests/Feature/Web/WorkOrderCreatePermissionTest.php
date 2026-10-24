@@ -71,6 +71,24 @@ class WorkOrderCreatePermissionTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_in_production_the_refusal_is_the_friendly_error_page(): void
+    {
+        // The handler renders the Inertia Error page ("Forbidden — You do not
+        // have permission to view this page.") outside local/testing; it keeps
+        // the user's chrome and carries nothing but the status.
+        $this->app['env'] = 'production';
+
+        $this->actingAs($this->tabOnlyUser())
+            ->get('/admin/work-orders/create')
+            ->assertForbidden()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Error')
+                ->where('status', 403)
+                ->where('auth.user.roles', ['Operator'])
+                ->missing('exception')
+                ->missing('message'));
+    }
+
     public function test_tab_only_user_cannot_store_an_order_on_the_admin_tree(): void
     {
         $this->actingAs($this->tabOnlyUser())
