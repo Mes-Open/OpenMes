@@ -18,6 +18,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the stop reason and since when), ready for the overview sections that follow. The
   existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
   heading.
+- **Line cards and plant summary on the dashboard.** The *Plant overview* now has a
+  *Lines* section: one card per active line with its state (*Running* / *Blocked* /
+  *Idle* / *Down*; blocked and down cards get an amber / red edge), the progress of the
+  order it is working on (`produced / planned pcs · product code`, *+N more* when the line
+  holds several) and either the ETA — *On track · ETA 13:05* / *Late · ETA 14:40*, from
+  the last hour's output or, without one, the planned end — or why the line is not moving
+  (*Maintenance · 1h 16m*). A line without an order reads *No active order*. Clicking a card
+  opens that line's *Shift Overview*; *Plant board →* opens the plant board. Below it a
+  summary strip shows *Work orders today* (running · pending, plant day), *Materials* below
+  minimum, *Open non-conformances* (only issues marked as non-conformances) and the *Next
+  order*, each linking to its list; fields of switched-off modules are hidden.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's

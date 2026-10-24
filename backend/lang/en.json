@@ -7135,5 +7135,21 @@
     "Production targets updated.": "Production targets updated.",
     "max scrap rate": "max scrap rate",
     "min first-pass yield": "min first-pass yield",
-    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place."
+    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place.",
+    "Down": "Down",
+    "Plant board →": "Plant board →",
+    "On track · ETA :time": "On track · ETA :time",
+    "Late · ETA :time": "Late · ETA :time",
+    "Late · due :time": "Late · due :time",
+    "No ETA": "No ETA",
+    "No active order": "No active order",
+    "+:count more": "+:count more",
+    ":done / :planned pcs": ":done / :planned pcs",
+    ":count min": ":count min",
+    "Work orders today": "Work orders today",
+    ":running running · :pending pending": ":running running · :pending pending",
+    ":count below minimum": ":count below minimum",
+    "Next order": "Next order",
+    "No upcoming orders": "No upcoming orders",
+    "Plant summary": "Plant summary"
 }

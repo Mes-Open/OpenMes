@@ -43,16 +43,29 @@ class PlantOverviewService
 {
     private const STATE_PRIORITY = ['down' => 3, 'blocked' => 2, 'running' => 1, 'idle' => 0];
 
-    public function __construct(private ShiftMonitorService $monitor) {}
+    public function __construct(
+        private ShiftMonitorService $monitor,
+        private LineProgressService $progress,
+        private PlantSummaryService $summary,
+    ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>}
+     * `line_orders` (LineProgressService) is the current work order, progress
+     * and ETA per line, in `lines` order; `summary` (PlantSummaryService) is
+     * the strip at the bottom of the page.
+     *
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, line_orders: array<int, array<string, mixed>>, summary: array<string, mixed>}
      */
     public function overview(): array
     {
+        $now = Carbon::now();
+        $lines = $this->lineStates();
+
         return [
             'shift' => $this->currentShift(),
-            'lines' => $this->lineStates(),
+            'lines' => $lines,
+            'line_orders' => $this->progress->forLines($lines, $now),
+            'summary' => $this->summary->summary($now),
         ];
     }
 

@@ -7135,5 +7135,21 @@
     "Production targets updated.": "Cele produkcyjne zostały zaktualizowane.",
     "max scrap rate": "maks. wskaźnik braków",
     "min first-pass yield": "min. uzysk za pierwszym podejściem",
-    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku."
+    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku.",
+    "Down": "Postój",
+    "Plant board →": "Tablica zakładu →",
+    "On track · ETA :time": "Zgodnie z planem · ETA :time",
+    "Late · ETA :time": "Opóźnienie · ETA :time",
+    "Late · due :time": "Opóźnienie · termin :time",
+    "No ETA": "Brak ETA",
+    "No active order": "Brak aktywnego zlecenia",
+    "+:count more": "+:count więcej",
+    ":done / :planned pcs": ":done / :planned szt.",
+    ":count min": ":count min",
+    "Work orders today": "Zlecenia dziś",
+    ":running running · :pending pending": ":running w toku · :pending oczekujących",
+    ":count below minimum": ":count poniżej minimum",
+    "Next order": "Następne zlecenie",
+    "No upcoming orders": "Brak nadchodzących zleceń",
+    "Plant summary": "Podsumowanie zakładu"
 }
