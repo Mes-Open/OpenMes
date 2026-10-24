@@ -25,6 +25,13 @@ describe('isOverdue', () => {
         expect(isOverdue({ due_date: '2026-06-14 23:59:59', status: 'PENDING' }, today)).toBe(true);
     });
 
+    it('reads a live-delta (UTC ISO) due date as the plant date', () => {
+        // 15 June 00:00 in Warsaw, serialised by the model cast as UTC.
+        expect(isOverdue({ due_date: '2026-06-14T22:00:00.000000Z', status: 'IN_PROGRESS' }, today, 'Europe/Warsaw')).toBe(false);
+        expect(isOverdue({ due_date: '2026-06-13T22:00:00.000000Z', status: 'PENDING' }, today, 'Europe/Warsaw')).toBe(true);
+        expect(isOverdue({ due_date: '2026-06-14T22:00:00+00:00', status: 'PENDING' }, today, 'Europe/Warsaw')).toBe(false);
+    });
+
     it('is false without a due date', () => {
         expect(isOverdue({ due_date: null, status: 'PENDING' }, today)).toBe(false);
     });
@@ -37,6 +44,12 @@ describe('isOverdue', () => {
 describe('countAlerts matches the server fixture', () => {
     it.each(fixture.cases)('$name', (c) => {
         const today = todayInTimezone(new Date(c.now), c.timezone);
-        expect(countAlerts({ issues: c.issues, orders: c.orders, today })).toEqual(c.expected);
+        expect(countAlerts({ issues: c.issues, orders: c.orders, today, tz: c.timezone })).toEqual(c.expected);
+    });
+
+    it.each(fixture.cases)('$name (rows as live deltas send them)', (c) => {
+        const today = todayInTimezone(new Date(c.now), c.timezone);
+        const orders = c.orders.map(({ broadcast_due_date: b, ...o }) => (b ? { ...o, due_date: b } : o));
+        expect(countAlerts({ issues: c.issues, orders, today, tz: c.timezone })).toEqual(c.expected);
     });
 });

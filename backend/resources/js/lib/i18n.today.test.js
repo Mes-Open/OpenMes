@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { setTimezone, timezone, todayInTimezone } from './i18n';
+import { plantDate, setTimezone, timezone, todayInTimezone } from './i18n';
 
 /**
  * "Today" must be the plant's date, not the UTC date `toISOString()` gives —
@@ -39,5 +39,30 @@ describe('todayInTimezone', () => {
 
     it('accepts an ISO string', () => {
         expect(todayInTimezone('2026-06-14T23:30:00Z', 'Europe/Warsaw')).toBe('2026-06-15');
+    });
+});
+
+describe('plantDate', () => {
+    afterEach(() => setTimezone(undefined));
+
+    it('keeps a zone-less DB value as the plant date', () => {
+        expect(plantDate('2026-06-15 00:00:00', 'Europe/Warsaw')).toBe('2026-06-15');
+        expect(plantDate('2026-06-15', 'Europe/Warsaw')).toBe('2026-06-15');
+    });
+
+    it('converts a UTC ISO value into the plant zone', () => {
+        expect(plantDate('2026-06-14T22:00:00.000000Z', 'Europe/Warsaw')).toBe('2026-06-15');
+        expect(plantDate('2026-06-14T04:00:00.000000Z', 'America/New_York')).toBe('2026-06-14');
+    });
+
+    it('defaults to the active zone', () => {
+        setTimezone('Europe/Warsaw');
+        expect(plantDate('2026-06-14T22:00:00Z')).toBe('2026-06-15');
+    });
+
+    it('returns null for empty or unparsable input', () => {
+        expect(plantDate(null)).toBeNull();
+        expect(plantDate('')).toBeNull();
+        expect(plantDate('not a date')).toBeNull();
     });
 });

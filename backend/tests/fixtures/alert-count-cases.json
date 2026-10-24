@@ -1,13 +1,13 @@
 {
-    "_comment": "Shared by tests/Feature/Web/AlertCountTimezoneTest.php (server, AlertController::totalCount) and resources/js/lib/alerts.test.js (front, countAlerts), so both sides are checked against the same rows at the same instant.",
+    "_comment": "Shared by tests/Feature/Web/AlertCountTimezoneTest.php (server, AlertController::totalCount) and resources/js/lib/alerts.test.js (front, countAlerts), so both sides are checked against the same rows at the same instant. due_date is the stored column (what the collection snapshot sends); broadcast_due_date, where given, is the same value as a live delta sends it (the model's UTC ISO serialisation) — the server test checks that, the front counts both forms.",
     "cases": [
         {
             "name": "Europe/Warsaw at 00:30 local: today's order is not overdue, yesterday's is",
             "timezone": "Europe/Warsaw",
             "now": "2026-06-14T22:30:00Z",
             "orders": [
-                { "due_date": "2026-06-15 00:00:00", "status": "IN_PROGRESS" },
-                { "due_date": "2026-06-14 00:00:00", "status": "PENDING" },
+                { "due_date": "2026-06-15 00:00:00", "broadcast_due_date": "2026-06-14T22:00:00.000000Z", "status": "IN_PROGRESS" },
+                { "due_date": "2026-06-14 00:00:00", "broadcast_due_date": "2026-06-13T22:00:00.000000Z", "status": "PENDING" },
                 { "due_date": "2026-06-14 00:00:00", "status": "DONE" },
                 { "due_date": "2026-06-13 00:00:00", "status": "CANCELLED" },
                 { "due_date": null, "status": "BLOCKED" },
@@ -39,8 +39,8 @@
             "timezone": "America/New_York",
             "now": "2026-06-15T02:00:00Z",
             "orders": [
-                { "due_date": "2026-06-14 00:00:00", "status": "IN_PROGRESS" },
-                { "due_date": "2026-06-13 00:00:00", "status": "PAUSED" }
+                { "due_date": "2026-06-14 00:00:00", "broadcast_due_date": "2026-06-14T04:00:00.000000Z", "status": "IN_PROGRESS" },
+                { "due_date": "2026-06-13 00:00:00", "broadcast_due_date": "2026-06-13T04:00:00.000000Z", "status": "PAUSED" }
             ],
             "issues": [],
             "expected": { "openIssues": 0, "overdue": 1, "blocked": 0, "total": 1 }

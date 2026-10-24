@@ -87,6 +87,24 @@ export function todayInTimezone(now = new Date(), tz = activeTimezone) {
     return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+// A DB value with no zone marker: the plant's wall time already (Carbon writes
+// it in the plant zone), so its date part is the plant date as-is.
+const NAIVE_DATE = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?)?$/;
+
+/**
+ * The plant calendar date (`YYYY-MM-DD`) of a backend date/timestamp, whichever
+ * way the row reached the browser: the collection snapshot sends the raw column
+ * ("2026-06-15 00:00:00", plant wall time), a live delta sends the model's
+ * serialised cast in UTC ("2026-06-14T22:00:00.000000Z" for the same value in
+ * Warsaw). Slicing the second form would give the previous day.
+ */
+export function plantDate(value, tz = activeTimezone) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'string' && NAIVE_DATE.test(value)) return value.slice(0, 10);
+    const d = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(d.getTime()) ? null : todayInTimezone(d, tz);
+}
+
 // Map app locale codes to BCP-47 tags for Intl. English uses en-GB (day-first,
 // 24h) to match this app's European convention. Unmapped codes fall through to
 // the code itself, so adding a locale to config/app.php just works.

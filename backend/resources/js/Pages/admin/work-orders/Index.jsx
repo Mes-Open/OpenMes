@@ -8,9 +8,7 @@ import WorkOrderForm from './WorkOrderForm';
 import { woStatusBadge } from './fields';
 import { woColumns } from './columns';
 import { __, todayInTimezone } from '../../../lib/i18n';
-import { isOverdue } from '../../../lib/alerts';
-
-const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
+import { isOverdue, TERMINAL_WO_STATUSES as TERMINAL } from '../../../lib/alerts';
 
 export default function WorkOrdersIndex() {
     const {

@@ -58,7 +58,16 @@ class AlertCountTimezoneTest extends TestCase
         $host = WorkOrder::factory()->create(['due_date' => null, 'status' => WorkOrder::STATUS_PENDING]);
 
         foreach ($orders as $order) {
-            WorkOrder::factory()->create($order);
+            $broadcast = $order['broadcast_due_date'] ?? null;
+            unset($order['broadcast_due_date']);
+
+            $created = WorkOrder::factory()->create($order);
+
+            // The fixture's live-delta form must be what CollectionBroadcaster
+            // really sends (attributesToArray), or the front test proves nothing.
+            if ($broadcast !== null) {
+                $this->assertSame($broadcast, $created->fresh()->attributesToArray()['due_date']);
+            }
         }
 
         foreach ($issues as $issue) {
