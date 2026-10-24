@@ -29,9 +29,11 @@ test('Alert badge counts overdue orders by the plant (Europe/Warsaw) date', asyn
   };
 
   const createOrder = async (orderNo: string, which: 'today' | 'yesterday') => {
-    await page.getByRole('button', { name: 'New Work Order' }).first().click();
-    const drawer = page.getByRole('dialog');
-    await expect(drawer.getByText('New Work Order').first()).toBeVisible();
+    // Retry the click: right after navigation the page may not be hydrated yet.
+    await expect(async () => {
+      await page.getByRole('button', { name: 'New Work Order' }).first().click();
+      await expect(page.getByRole('textbox', { name: /^Order No/ })).toBeVisible({ timeout: 4_000 });
+    }).toPass({ timeout: 40_000 });
     await page.getByRole('textbox', { name: /^Order No/ }).fill(orderNo);
     await page.getByRole('spinbutton', { name: /^Planned Qty/ }).fill('10');
     await pickDay(which);
