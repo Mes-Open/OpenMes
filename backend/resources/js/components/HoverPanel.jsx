@@ -62,6 +62,22 @@ export default function HoverPanel({
         setOpen(false);
     }, []);
 
+    // Clicking the anchor navigates (the nav item is a link): close, and stay
+    // closed until the pointer leaves — focus and a pointer still resting on the
+    // item would otherwise reopen the panel over the page you just opened.
+    const suppressed = useRef(false);
+    const onAnchorClick = useCallback(() => {
+        suppressed.current = true;
+        hideNow();
+    }, [hideNow]);
+    const onAnchorEnter = useCallback(() => {
+        if (!suppressed.current) show();
+    }, [show]);
+    const onAnchorLeave = useCallback(() => {
+        suppressed.current = false;
+        scheduleHide();
+    }, [scheduleHide]);
+
     useEffect(() => clear, []);
 
     useLayoutEffect(() => {
@@ -120,10 +136,11 @@ export default function HoverPanel({
             <span
                 ref={anchorRef}
                 className="contents"
-                onMouseEnter={show}
-                onMouseLeave={scheduleHide}
-                onFocus={show}
+                onMouseEnter={onAnchorEnter}
+                onMouseLeave={onAnchorLeave}
+                onFocus={onAnchorEnter}
                 onBlur={scheduleHide}
+                onClick={onAnchorClick}
                 aria-describedby={active ? id : undefined}
             >
                 {children}

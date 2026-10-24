@@ -50,6 +50,13 @@ export default function LatestAlerts() {
         };
     }, [issues, orders, today]);
 
+    // The other two things the badge counts, as words — shown in the footer, and
+    // in the body when there are no issues to list.
+    const orderSummary = [
+        overdue > 0 && __(':count overdue', { count: overdue }),
+        blocked > 0 && __(':count blocked', { count: blocked }),
+    ].filter(Boolean).join(' · ');
+
     return (
         <div className="w-[330px]">
             <div className="flex items-center gap-2.5 px-[14px] pt-3 pb-2.5">
@@ -65,10 +72,10 @@ export default function LatestAlerts() {
 
             {latest.length === 0 ? (
                 <p className="border-t border-om-line2 px-[14px] py-5 text-center text-[12.5px] text-om-faint">
-                    {/* The badge can be all work orders and no issues — say so,
-                        rather than "1" sitting over "No open issues." */}
+                    {/* The badge can be all work orders and no issues — say what
+                        it is made of, rather than "1" sitting over "No open issues." */}
                     {total > 0
-                        ? __('No open issues. The alerts are overdue or blocked work orders, listed below.')
+                        ? __('No open issues. The alerts are work orders: :summary.', { summary: orderSummary })
                         : __('No open issues.')}
                 </p>
             ) : (
@@ -105,10 +112,7 @@ export default function LatestAlerts() {
                 and an overdue order is what the number is often mostly made of. */}
             <div className="flex items-center justify-between gap-3 border-t border-om-line2 bg-om-panel px-[14px] py-2.5">
                 <span className="truncate font-mono text-[10.5px] whitespace-nowrap text-om-faint">
-                    {[
-                        overdue > 0 && __(':count overdue', { count: overdue }),
-                        blocked > 0 && __(':count blocked', { count: blocked }),
-                    ].filter(Boolean).join(' · ')}
+                    {orderSummary}
                 </span>
                 <Link href="/admin/alerts" className="shrink-0 text-[11.5px] font-semibold text-om-accent hover:underline">
                     {__('See all →')}

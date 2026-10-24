@@ -7114,5 +7114,5 @@
     "This inspection plan does not apply to the selected material.": "Ten plan kontroli nie dotyczy wybranego materiału.",
     "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska.",
     "Due before :date (:timezone)": "Termin przed :date (:timezone)",
-    "No open issues. The alerts are overdue or blocked work orders, listed below.": "Brak otwartych problemów. Alerty to przeterminowane lub zablokowane zlecenia, wymienione poniżej."
+    "No open issues. The alerts are work orders: :summary.": "Brak otwartych problemów. Alerty to zlecenia: :summary."
 }
