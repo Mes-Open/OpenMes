@@ -7135,5 +7135,14 @@
     "Production targets updated.": "Cele produkcyjne zostały zaktualizowane.",
     "max scrap rate": "maks. wskaźnik braków",
     "min first-pass yield": "min. uzysk za pierwszym podejściem",
-    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku."
+    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku.",
+    "Line activity · this shift": "Aktywność linii · ta zmiana",
+    "Down": "Awaria",
+    "Now": "Teraz",
+    "Uptime": "Czas pracy",
+    "No active lines": "Brak aktywnych linii",
+    "Cause not recorded": "Przyczyna niezgłoszona",
+    ":hours h :minutes min": ":hours h :minutes min",
+    ":count min": ":count min",
+    "Open the shift overview for :line": "Otwórz przegląd zmiany dla :line"
 }

@@ -1,8 +1,10 @@
+import LineActivity from './LineActivity';
+
 /**
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -17,7 +19,7 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines }, refreshed every 60 s).
+ *               `overview` Inertia prop ({ shift, lines, timeline }, refreshed every 60 s).
  *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
@@ -45,4 +47,6 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+export const SECTIONS = [
+    { id: 'line_activity', row: 'activity', span: 'full', Component: LineActivity },
+];

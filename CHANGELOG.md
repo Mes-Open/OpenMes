@@ -18,6 +18,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the stop reason and since when), ready for the overview sections that follow. The
   existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
   heading.
+- **Line activity on the admin dashboard.** The first section under the *Plant overview*
+  header, *Line activity · this shift*, draws one bar per active line from the start to
+  the end of the current plant shift: Running (green), Idle (grey), Blocked (orange) and
+  Down (red) up to a *Now* marker, with an hour scale and a legend. A line is Down in any
+  minute one of its stations is down (fault, maintenance, unplanned stop). Lines without a
+  machine collector are drawn from their batches, work orders and stops reported by hand;
+  a line nothing is known about shows *No data*. Hovering a segment shows the state, its
+  times, duration and the stop reason. The *Uptime* column is running time ÷ time since
+  the shift started (green from 85 %, orange from 70 %, red below). Clicking a line name
+  opens its *Shift Overview* for users who can open the shift monitor.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
