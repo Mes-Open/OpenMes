@@ -7,7 +7,7 @@ test('Alert badge counts overdue orders by the plant (Europe/Warsaw) date', asyn
 
   // Pick a day in the date picker drawer: 'today' or 'yesterday' (calendar based).
   const pickDay = async (which: 'today' | 'yesterday') => {
-    await page.getByRole('button', { name: /select date/i }).last().click();
+    await page.getByRole('button', { name: /select date/i }).last().click({ timeout: 5_000 });
     const todayCell = page.locator('[role="dialog"] button[aria-current="date"], [role="grid"] button[aria-current="date"]').first();
     await expect(todayCell).toBeVisible();
     if (which === 'today') {
@@ -29,14 +29,16 @@ test('Alert badge counts overdue orders by the plant (Europe/Warsaw) date', asyn
   };
 
   const createOrder = async (orderNo: string, which: 'today' | 'yesterday') => {
-    // Retry the click: right after navigation the page may not be hydrated yet.
+    // Drawer can be dismissed by a late re-render: redo open + fill + open picker as one unit.
     await expect(async () => {
-      await page.getByRole('button', { name: 'New Work Order' }).first().click();
+      if (!(await page.getByRole('textbox', { name: /^Order No/ }).isVisible())) {
+        await page.getByRole('button', { name: 'New Work Order' }).first().click();
+      }
       await expect(page.getByRole('textbox', { name: /^Order No/ })).toBeVisible({ timeout: 4_000 });
-    }).toPass({ timeout: 40_000 });
-    await page.getByRole('textbox', { name: /^Order No/ }).fill(orderNo);
-    await page.getByRole('spinbutton', { name: /^Planned Qty/ }).fill('10');
-    await pickDay(which);
+      await page.getByRole('textbox', { name: /^Order No/ }).fill(orderNo);
+      await page.getByRole('spinbutton', { name: /^Planned Qty/ }).fill('10');
+      await pickDay(which);
+    }).toPass({ timeout: 60_000 });
     await page.screenshot({ path: testInfo.outputPath(`form-${orderNo}.png`), fullPage: true });
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(page.getByText(orderNo).first()).toBeVisible({ timeout: 20_000 });
