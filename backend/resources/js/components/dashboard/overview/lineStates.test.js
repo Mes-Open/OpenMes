@@ -10,9 +10,12 @@ describe('line state vocabulary', () => {
         LINE_STATES.forEach((s) => expect(LINE_STATE_TONE[s]).toBeDefined());
     });
 
-    it('paints "No data" hatched, not as an idle line', () => {
-        expect(lineStateTone('unknown').pill.background).toContain('repeating-linear-gradient');
-        expect(lineStateTone('unknown').pill.background).not.toBe(lineStateTone('idle').pill.background);
+    it('marks "No data" hatched, not as an idle line, without stripes under the label', () => {
+        const unknown = lineStateTone('unknown');
+        expect(unknown.swatch).toContain('repeating-linear-gradient');
+        expect(unknown.marker).toContain('repeating-linear-gradient');
+        expect(unknown.pill.background).not.toContain('gradient');
+        expect(unknown.pill.background).not.toBe(lineStateTone('idle').pill.background);
     });
 
     it('treats anything unrecognised as "No data"', () => {

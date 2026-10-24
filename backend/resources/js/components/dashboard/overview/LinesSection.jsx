@@ -38,9 +38,12 @@ function LineCard({ line }) {
             <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-[16px] font-semibold text-om-ink">{line.name}</span>
                 <span
-                    className="shrink-0 rounded-full px-2.5 py-[3px] text-[12px] font-semibold"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12px] font-semibold"
                     style={tone.pill}
                 >
+                    {tone.marker && (
+                        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px]" style={{ background: tone.marker }} />
+                    )}
                     {lineStateLabel(line.state)}
                 </span>
             </div>

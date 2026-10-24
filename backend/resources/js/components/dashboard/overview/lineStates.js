@@ -33,14 +33,26 @@ const HATCH = 'repeating-linear-gradient(45deg, var(--om-faintest) 0 2px, transp
 
 /**
  * State → `swatch` (legend square / bar fill) and `pill` (text + wash).
- * Down is red and blocked amber, as in the mockup.
+ * Down is red and blocked amber, as in the mockup. The "No data" pill keeps a
+ * plain wash behind its text — stripes under the label made it hard to read on
+ * white — and marks itself with a dashed edge plus the hatched swatch
+ * (`marker`) in front of the label instead.
  */
 export const LINE_STATE_TONE = {
     running: { swatch: 'var(--om-running)', pill: { color: 'var(--om-running)', background: 'var(--om-running-bg)' } },
     idle: { swatch: 'var(--om-faintest)', pill: { color: 'var(--om-muted)', background: 'color-mix(in srgb, var(--om-faintest) 35%, transparent)' } },
     blocked: { swatch: 'var(--om-downtime)', pill: { color: 'var(--om-downtime)', background: 'var(--om-downtime-bg)' } },
     down: { swatch: 'var(--om-blocked)', pill: { color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)' } },
-    unknown: { swatch: HATCH, pill: { color: 'var(--om-muted)', background: HATCH } },
+    unknown: {
+        swatch: HATCH,
+        // Tighter, darker stripes: at 10 px the legend's faint hatch vanishes.
+        marker: 'repeating-linear-gradient(45deg, var(--om-faint) 0 1.5px, transparent 1.5px 3.5px)',
+        pill: {
+            color: 'var(--om-muted)',
+            background: 'var(--om-card)',
+            border: '1px dashed var(--om-faint)',
+        },
+    },
 };
 
 /** Tone for a state; anything unrecognised is painted as "No data". */
