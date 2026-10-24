@@ -11,7 +11,7 @@ import useConfirm from '../../../components/useConfirm';
 import usePrompt from '../../../components/usePrompt';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
-import { __, elapsed, formatDate, formatDateTime } from '../../../lib/i18n';
+import { __, elapsed, formatDate, formatDateTime, timezone } from '../../../lib/i18n';
 import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
 import { OPEN_ISSUE_STATUSES, isOverdue } from '../../../lib/alerts';
 import { usePlantToday } from '../../../lib/usePlantToday';
@@ -222,6 +222,7 @@ export default function AlertsIndex() {
                         <Panel
                             title={__('Overdue orders')}
                             count={overdueOrders.length}
+                            note={overdueBoundary(today)}
                             tone="bg-om-downtime-bg text-om-downtime"
                             action={
                                 <Link
@@ -319,7 +320,7 @@ function useMediaQuery(query) {
  * It is off when a second row of panels exists — a table measuring to the bottom
  * of the viewport would then push everything under it off the screen.
  */
-function Panel({ title, count, tone, action, columns, rows, emptyText, onRowDoubleClick, fill = false }) {
+function Panel({ title, count, tone, note, action, columns, rows, emptyText, onRowDoubleClick, fill = false }) {
     return (
         <section className="min-w-0">
             <AppDataTable
@@ -331,6 +332,7 @@ function Panel({ title, count, tone, action, columns, rows, emptyText, onRowDoub
                         <span className={`rounded-[20px] px-[9px] py-[2px] font-mono text-[11px] font-semibold ${tone}`}>
                             {count}
                         </span>
+                        {note && <span className="truncate font-mono text-[11px] text-om-faint">{note}</span>}
                     </div>
                 }
                 toolbarEnd={action || undefined}
@@ -344,6 +346,18 @@ function Panel({ title, count, tone, action, columns, rows, emptyText, onRowDoub
             />
         </section>
     );
+}
+
+/**
+ * The day boundary the overdue list is cut at, spelled out: "overdue" means due
+ * before the plant's today, not the viewer's or UTC's, and around midnight those
+ * differ. `today` is already the plant date, so it is formatted as a calendar
+ * date (UTC) rather than shifted into a zone a second time.
+ */
+function overdueBoundary(today) {
+    const date = formatDate(`${today}T00:00:00Z`, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+    const zone = timezone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return __('Due before :date (:timezone)', { date, timezone: zone });
 }
 
 /** Columns for either issue list — the same table, two different feeds. */

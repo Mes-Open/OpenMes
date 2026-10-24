@@ -65,7 +65,11 @@ export default function LatestAlerts() {
 
             {latest.length === 0 ? (
                 <p className="border-t border-om-line2 px-[14px] py-5 text-center text-[12.5px] text-om-faint">
-                    {__('No open issues.')}
+                    {/* The badge can be all work orders and no issues — say so,
+                        rather than "1" sitting over "No open issues." */}
+                    {total > 0
+                        ? __('No open issues. The alerts are overdue or blocked work orders, listed below.')
+                        : __('No open issues.')}
                 </p>
             ) : (
                 <ul className="border-t border-om-line2">

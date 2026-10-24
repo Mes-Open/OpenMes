@@ -7112,5 +7112,7 @@
     "Change disposition": "Change disposition",
     "Complete the inspection before applying a disposition.": "Complete the inspection before applying a disposition.",
     "This inspection plan does not apply to the selected material.": "This inspection plan does not apply to the selected material.",
-    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login."
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Quality permissions can only be granted to a personal account, not a shared workstation login.",
+    "Due before :date (:timezone)": "Due before :date (:timezone)",
+    "No open issues. The alerts are overdue or blocked work orders, listed below.": "No open issues. The alerts are overdue or blocked work orders, listed below."
 }
