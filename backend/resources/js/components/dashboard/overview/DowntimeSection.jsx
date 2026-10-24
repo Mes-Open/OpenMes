@@ -103,12 +103,9 @@ export default function DowntimeSection({ overview, accessibleTabs = [] }) {
                     {unclassified && (
                         <ReasonRow name={__('Unclassified')} kind="unclassified" max={max} {...unclassified}>
                             {canMonitor && (
-                                <>
-                                    {' · '}
-                                    <Link href={classifyHref} className="text-om-accent hover:underline">
-                                        {__('Classify in Shift Monitor')}
-                                    </Link>
-                                </>
+                                <Link href={classifyHref} className="block text-om-accent hover:underline">
+                                    {__('Classify in Shift Monitor')}
+                                </Link>
                             )}
                         </ReasonRow>
                     )}
