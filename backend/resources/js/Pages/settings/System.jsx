@@ -5,7 +5,7 @@ import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
 import { useToast } from '@openmes/ui';
-import { __ } from '../../lib/i18n';
+import { __, formatNumber } from '../../lib/i18n';
 import { Hook } from '../../lib/hooks';
 
 const SYSTEM_TABS_HOOK = 'display.settings.system.tabs';
@@ -150,10 +150,106 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
     );
 }
 
+const pct = (value) => formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/**
+ * Plant quality targets. Saves through its own route, so it sits outside the
+ * main form: the system Save never posts these fields, and saving the targets
+ * never posts (or is blocked by) the rest of the tab.
+ */
+function ProductionTargetsCard({ targets }) {
+    const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
+    const canSeeLines = accessibleTabs.includes('production');
+
+    const { data, setData, post, processing, errors } = useForm({
+        // One decimal, so the inputs read "2.0" / "95.0" rather than "2" / "95".
+        max_scrap_rate_pct: Number(targets.max_scrap_rate_pct ?? 2).toFixed(1),
+        min_fpy_pct: Number(targets.min_fpy_pct ?? 95).toFixed(1),
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        post('/settings/production-targets', { preserveScroll: true });
+    };
+
+    const fpyStatus = !targets.quality_enabled
+        ? __('Quality module is disabled — first-pass yield is not calculated.')
+        : targets.current_shift_fpy == null
+            ? __('No quality checks this shift')
+            : __('Current shift: :value%', { value: pct(targets.current_shift_fpy) });
+
+    return (
+        <form onSubmit={submit} className={CARD_CLASS} aria-labelledby="production-targets-heading" noValidate>
+            <h2 id="production-targets-heading" className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">
+                {__('Production targets')}
+            </h2>
+            <p className={`${HELP_CLASS} mb-4`}>
+                {__('Targets each shift is measured against on the dashboard.')}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className={LABEL_CLASS} htmlFor="max_scrap_rate_pct">{__('Max scrap rate (%)')}</label>
+                    <input
+                        type="number"
+                        id="max_scrap_rate_pct"
+                        value={data.max_scrap_rate_pct}
+                        onChange={(e) => setData('max_scrap_rate_pct', e.target.value)}
+                        className={`${INPUT_BASE} w-32`}
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        inputMode="decimal"
+                        aria-invalid={errors.max_scrap_rate_pct ? 'true' : undefined}
+                    />
+                    {errors.max_scrap_rate_pct && <p className={ERROR_CLASS}>{errors.max_scrap_rate_pct}</p>}
+                </div>
+                <div>
+                    <label className={LABEL_CLASS} htmlFor="min_fpy_pct">{__('Min first-pass yield (%)')}</label>
+                    <input
+                        type="number"
+                        id="min_fpy_pct"
+                        value={data.min_fpy_pct}
+                        onChange={(e) => setData('min_fpy_pct', e.target.value)}
+                        className={`${INPUT_BASE} w-32`}
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        inputMode="decimal"
+                        aria-invalid={errors.min_fpy_pct ? 'true' : undefined}
+                    />
+                    {errors.min_fpy_pct && <p className={ERROR_CLASS}>{errors.min_fpy_pct}</p>}
+                    <p className={`${HELP_CLASS} mt-2`} data-testid="current-shift-fpy">{fpyStatus}</p>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-om-sm border border-om-line2 bg-om-panel p-3">
+                <p className={HELP_CLASS}>
+                    {__("The OEE target comes from each line's planning efficiency (100% = not set, 85% is used).")}{' '}
+                    {canSeeLines && (
+                        <Link href="/admin/lines" className="text-om-accent hover:underline font-medium">
+                            {__('Line settings')}
+                        </Link>
+                    )}
+                </p>
+                <p className="mt-1 text-[13px] text-om-ink" data-testid="plant-oee-target">
+                    {__('Plant OEE target this shift: :value%', { value: pct(targets.plant_oee_target) })}
+                </p>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+                <Button type="submit" variant="accent" loading={processing}>
+                    {__('Save targets')}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
 export default function System() {
     const toast = useToast();
     const { settings, availableLocales, timezones = {}, currencies = [], appUrl, modules = [], backups,
-        demoDatasets = [], loadedDemoDataset = null, hooks = {} } = usePage().props;
+        demoDatasets = [], loadedDemoDataset = null, hooks = {}, productionTargets = null } = usePage().props;
 
     // Tabs an installed module adds (display.settings.system.tabs): one per
     // contribution, keyed `ext-<slot>` so it is linkable as ?tab=ext-<slot>.
@@ -1211,6 +1307,13 @@ export default function System() {
                         </div>
                     )}
                 </form>
+            )}
+
+            {/* ═══ Production targets (outside form — saves through its own route) ═══ */}
+            {tab === 'production' && productionTargets && (
+                <div className="mt-6">
+                    <ProductionTargetsCard targets={productionTargets} />
+                </div>
             )}
 
             {/* ═══ Module tabs (outside form — the module saves itself) ═══ */}
