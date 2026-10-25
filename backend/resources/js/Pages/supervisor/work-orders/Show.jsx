@@ -262,7 +262,9 @@ function OrderMachinesPanel({ machines }) {
 }
 
 export default function SupervisorWorkOrderShow() {
-    const { workOrder, workstations = [], workstationTypeNames = {} } = usePage().props;
+    const { workOrder, workstations = [], workstationTypeNames = {}, auth } = usePage().props;
+    // UX only — Supervisor\UpdateWorkOrderRequest enforces `edit work orders`.
+    const canEdit = !!auth?.user?.can?.editWorkOrders;
     const [assignStep, setAssignStep] = useState(null); // batch step being assigned a workstation (#52)
     const [showDoneModal, setShowDoneModal] = useState(false);
     const { confirm, dialog } = useConfirm();
@@ -354,12 +356,14 @@ export default function SupervisorWorkOrderShow() {
                             </Button>
                         ) : (
                             <>
-                                <Link
-                                    href={`/supervisor/work-orders/${workOrder.id}/edit`}
-                                    className={LINK_GHOST}
-                                >
-                                    Edit
-                                </Link>
+                                {canEdit && (
+                                    <Link
+                                        href={`/supervisor/work-orders/${workOrder.id}/edit`}
+                                        className={LINK_GHOST}
+                                    >
+                                        Edit
+                                    </Link>
+                                )}
                                 <button
                                     onClick={() => confirm({ title: __('Cancel this work order?') }, () => post('cancel'))}
                                     className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"

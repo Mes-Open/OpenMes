@@ -158,13 +158,7 @@ class SchedulePlannerService
 
         // Backlog: unassigned work orders (no line or no due_date/week)
         $backlogOrders = WorkOrder::with(['productType', 'line', 'customer'])
-            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->where(function ($q) {
-                $q->whereNull('line_id')
-                    ->orWhere(function ($q2) {
-                        $q2->whereNull('due_date')->whereNull('week_number')->whereNull('planned_start_at');
-                    });
-            })
+            ->plannerBacklog()
             ->orderBy('priority_score', 'desc')
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')

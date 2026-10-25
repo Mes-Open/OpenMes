@@ -210,6 +210,8 @@ class WorkOrder extends Model
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
             'unit_price' => 'decimal:2',
+            // Write through the model: WorkOrderOutputObserver logs every change
+            // to the output ledger, and a query-builder update would skip it.
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'priority_score' => 'integer',
@@ -719,6 +721,23 @@ class WorkOrder extends Model
         }
 
         return $query->where('status', $status);
+    }
+
+    /**
+     * The production planner's backlog — the one definition of it: active
+     * orders with no line, or with nothing that places them in time (no due
+     * date, week number or planned start). The planner board and the
+     * dashboard's "Orders not scheduled" tile both read it, so they agree.
+     */
+    public function scopePlannerBacklog($query)
+    {
+        return $query->whereIn('status', self::ACTIVE_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('line_id')
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('due_date')->whereNull('week_number')->whereNull('planned_start_at');
+                    });
+            });
     }
 
     /**

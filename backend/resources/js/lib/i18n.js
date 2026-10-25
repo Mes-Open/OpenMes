@@ -62,6 +62,49 @@ export function setTimezone(tz) {
     activeTimezone = tz || undefined;
 }
 
+/** The active plant timezone, or undefined when the browser's zone is in use. */
+export function timezone() {
+    return activeTimezone;
+}
+
+/**
+ * Today's date as `YYYY-MM-DD` in the plant timezone — the same day boundary as
+ * the server's `today()` (which runs in the plant zone, see TimezoneRegistry).
+ *
+ * Never use `new Date().toISOString().slice(0, 10)` for "today": that is the UTC
+ * date, so a plant east of UTC is still on yesterday for the first hours after
+ * local midnight, and a plant west of UTC flips to tomorrow in the evening.
+ * Built from `formatToParts` so it doesn't depend on a locale's output format.
+ */
+export function todayInTimezone(now = new Date(), tz = activeTimezone) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now instanceof Date ? now : new Date(now));
+    const part = (type) => parts.find((p) => p.type === type)?.value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+// A DB value with no zone marker: the plant's wall time already (Carbon writes
+// it in the plant zone), so its date part is the plant date as-is.
+const NAIVE_DATE = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?)?$/;
+
+/**
+ * The plant calendar date (`YYYY-MM-DD`) of a backend date/timestamp, whichever
+ * way the row reached the browser: the collection snapshot sends the raw column
+ * ("2026-06-15 00:00:00", plant wall time), a live delta sends the model's
+ * serialised cast in UTC ("2026-06-14T22:00:00.000000Z" for the same value in
+ * Warsaw). Slicing the second form would give the previous day.
+ */
+export function plantDate(value, tz = activeTimezone) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'string' && NAIVE_DATE.test(value)) return value.slice(0, 10);
+    const d = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(d.getTime()) ? null : todayInTimezone(d, tz);
+}
+
 // Map app locale codes to BCP-47 tags for Intl. English uses en-GB (day-first,
 // 24h) to match this app's European convention. Unmapped codes fall through to
 // the code itself, so adding a locale to config/app.php just works.
@@ -169,6 +212,15 @@ export function timeAgo(d) {
         }
     }
     return past ? __('just now') : __('soon');
+}
+
+/** "5h 33m" / "5h" / "45m" — language-neutral suffixes, as elapsed()/countdown() below. */
+export function durationLabel(minutes) {
+    const total = Math.max(0, Math.round(Number(minutes) || 0));
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (h === 0) return `${m}m`;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 /**

@@ -38,7 +38,7 @@ class PalletTraceabilityTest extends TestCase
         $adminRole = Role::create(['name' => 'Admin', 'guard_name' => 'web']);
         Role::create(['name' => 'Supervisor', 'guard_name' => 'web']);
         Role::create(['name' => 'Operator', 'guard_name' => 'web']);
-        foreach (['view work orders'] as $perm) {
+        foreach (['view work orders', 'create work orders'] as $perm) {
             Permission::create(['name' => $perm, 'guard_name' => 'web']);
         }
         $adminRole->givePermissionTo(Permission::all());

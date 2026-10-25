@@ -4,6 +4,8 @@ namespace Tests\Feature\Web;
 
 use App\Models\DowntimeReason;
 use App\Models\Line;
+use App\Models\MachineConnection;
+use App\Models\MachineTag;
 use App\Models\MaintenanceEvent;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
@@ -13,6 +15,7 @@ use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Services\Dashboard\PlantOverviewService;
+use App\Services\Machine\MachineSignalIngestor;
 use App\Support\ModuleRegistry;
 use App\Support\TabRegistry;
 use Carbon\Carbon;
@@ -73,14 +76,21 @@ class DashboardPlantOverviewTest extends TestCase
         return $row;
     }
 
-    private function station(Line $line, ?string $state = null, string $since = '08:00'): Workstation
+    /**
+     * A station, optionally with an open state row. `$seen` is when its
+     * collector was last heard from (the row's `updated_at`); default now.
+     */
+    private function station(Line $line, ?string $state = null, string $since = '08:00', ?string $seen = null, string $source = 'machine'): Workstation
     {
         $station = Workstation::factory()->create(['line_id' => $line->id]);
         if ($state) {
-            WorkstationState::create([
+            $row = WorkstationState::create([
                 'workstation_id' => $station->id, 'state' => $state,
-                'started_at' => $this->at($since), 'ended_at' => null,
+                'started_at' => $this->at($since), 'ended_at' => null, 'source' => $source,
             ]);
+            if ($seen) {
+                DB::table('workstation_states')->where('id', $row->id)->update(['updated_at' => $this->at($seen)]);
+            }
         }
 
         return $station;
@@ -127,6 +137,18 @@ class DashboardPlantOverviewTest extends TestCase
         $this->assertSame($this->at('06:00')->toIso8601String(), $shift['start']);
         $this->assertSame($this->at('18:00')->toIso8601String(), $shift['end']);
         $this->assertSame(480, $shift['minutes_left']);
+    }
+
+    public function test_minutes_left_is_exact_for_the_frontend_to_round(): void
+    {
+        Shift::create([
+            'name' => 'Shift A', 'code' => 'A',
+            'start_time' => '06:00:00', 'end_time' => '12:59:00',
+            'line_id' => null, 'is_active' => true,
+        ]);
+
+        // 2 h 59 min: the header shows it as such, not truncated to "2 h".
+        $this->assertSame(179, $this->overview()['shift']['minutes_left']);
     }
 
     // ── machine-reported states ────────────────────────────────────────
@@ -247,6 +269,296 @@ class DashboardPlantOverviewTest extends TestCase
         $line = Line::factory()->create();
         $this->station($line, WorkstationState::RUNNING);
         $this->station($line, WorkstationState::FAULT);
+
+        $this->assertSame('down', $this->lineState($line)['state']);
+    }
+
+    // ── several open stops on one station ──────────────────────────────
+
+    public function test_older_open_stop_is_not_lost(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::STOPPED, '08:30');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Jammed conveyor']), '08:30');
+        $this->openStop($line, $station, DowntimeReason::factory()->planned()->create(['name' => 'Lunch break']), '09:10');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Jammed conveyor', $row['reason']);
+        $this->assertSame($this->at('08:30')->toIso8601String(), $row['since']);
+    }
+
+    public function test_oldest_classified_reason_wins_over_newer_placeholder(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '08:30');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Jammed conveyor']), '08:30');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['code' => 'AUTO-FAULT', 'name' => 'Machine fault (auto)']), '09:00', true);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Jammed conveyor', $row['reason']);
+        $this->assertTrue($row['needs_reason']);
+        $this->assertSame($this->at('08:30')->toIso8601String(), $row['since']);
+    }
+
+    // ── placeholder stops ask for a reason, whatever the state ─────────
+
+    public function test_maintenance_with_placeholder_stop_needs_reason(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::MAINTENANCE);
+        $this->openStop($line, $station, DowntimeReason::factory()->planned()->create(['code' => 'AUTO-MAINT', 'name' => 'Machine maintenance (auto)']), '09:00', true);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Maintenance', $row['reason']);
+        $this->assertTrue($row['needs_reason']);
+    }
+
+    public function test_maintenance_auto_reason_name_is_not_shown(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::MAINTENANCE);
+        // Planned AUTO-* stops are opened without the flag: self-explanatory.
+        $this->openStop($line, $station, DowntimeReason::factory()->planned()->create(['code' => 'AUTO-MAINT', 'name' => 'Machine maintenance (auto)']));
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Maintenance', $row['reason']);
+        $this->assertFalse($row['needs_reason']);
+    }
+
+    public function test_waiting_with_placeholder_stop_needs_reason(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::WAITING);
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['code' => 'AUTO-WAIT', 'name' => 'Machine waiting (auto)']), '09:00', true);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('blocked', $row['state']);
+        $this->assertSame('Waiting for material', $row['reason']);
+        $this->assertTrue($row['needs_reason']);
+    }
+
+    // ── silent collector → "No data" ───────────────────────────────────
+
+    public function test_machine_state_silent_beyond_threshold_is_unknown(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::RUNNING, '07:30', '09:49');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('unknown', $row['state']);
+        $this->assertSame($this->at('09:49')->toIso8601String(), $row['since'], 'no data since the last signal');
+        $this->assertNull($row['reason']);
+        $this->assertFalse($row['needs_reason']);
+        $this->assertSame('machine', $row['source']);
+        $this->assertTrue($row['has_collector']);
+    }
+
+    public function test_machine_state_at_threshold_is_still_live(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::RUNNING, '07:30', '09:50');
+
+        $this->assertSame('running', $this->lineState($line)['state']);
+    }
+
+    public function test_never_refreshed_state_goes_silent_from_its_start(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::FAULT, '10:00');
+
+        Carbon::setTestNow($this->at('10:11'));
+        $row = $this->lineState($line);
+
+        $this->assertSame('unknown', $row['state']);
+        $this->assertSame($this->at('10:00')->toIso8601String(), $row['since']);
+    }
+
+    public function test_unknown_line_returns_after_a_new_signal(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line);
+        $connection = MachineConnection::create([
+            'name' => 'Press', 'protocol' => 'modbus', 'is_active' => true, 'status' => 'disconnected',
+        ]);
+        $tag = MachineTag::create([
+            'machine_connection_id' => $connection->id, 'workstation_id' => $station->id,
+            'name' => 'state', 'address' => '0', 'signal_type' => MachineTag::SIGNAL_STATE,
+            'data_type' => 'int16', 'register_type' => 'holding',
+            'transform' => ['value_map' => ['1' => WorkstationState::RUNNING]],
+        ]);
+        $ingestor = app(MachineSignalIngestor::class);
+        $ingestor->ingest($tag, 1, now());
+
+        Carbon::setTestNow($this->at('10:15'));
+        $this->assertSame('unknown', $this->lineState($line)['state']);
+
+        // The poller comes back and re-reads the same RUNNING state.
+        $ingestor->ingest($tag, 1, now());
+
+        $row = $this->lineState($line);
+        $this->assertSame('running', $row['state']);
+        $this->assertSame($this->at('10:00')->toIso8601String(), $row['since'], 'still running since the original start');
+        $this->assertSame(1, WorkstationState::where('workstation_id', $station->id)->count());
+    }
+
+    public function test_silent_collector_still_shows_maintenance_and_blocked_orders(): void
+    {
+        $maintained = Line::factory()->create(['name' => 'Maintained']);
+        $this->station($maintained, WorkstationState::RUNNING, '07:30', '09:00');
+        MaintenanceEvent::create([
+            'title' => 'Bearing swap', 'event_type' => MaintenanceEvent::TYPE_CORRECTIVE,
+            'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
+            'line_id' => $maintained->id, 'started_at' => $this->at('09:30'),
+        ]);
+        $blocked = Line::factory()->create(['name' => 'Blocked']);
+        $this->station($blocked, WorkstationState::RUNNING, '07:30', '09:00');
+        WorkOrder::factory()->create(['line_id' => $blocked->id, 'status' => WorkOrder::STATUS_BLOCKED]);
+
+        $lines = collect($this->overview()['lines'])->keyBy('id');
+
+        $this->assertSame('down', $lines[$maintained->id]['state']);
+        $this->assertSame('blocked', $lines[$blocked->id]['state']);
+    }
+
+    public function test_stop_logged_by_hand_on_a_silent_station_still_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::RUNNING, '07:30', '09:00');
+        ProductionDowntime::create([
+            'line_id' => $line->id, 'workstation_id' => $station->id,
+            'downtime_reason_id' => DowntimeReason::factory()->unplanned()->create(['name' => 'Power supply failure'])->id,
+            'needs_reason' => false, 'reported_by' => $this->admin->id,
+            'started_at' => $this->at('09:05'),
+        ]);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Power supply failure', $row['reason']);
+        $this->assertSame('manual', $row['source']);
+        $this->assertSame($this->at('09:05')->toIso8601String(), $row['since']);
+    }
+
+    public function test_classified_machine_stop_on_a_silent_station_still_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '08:30', '09:00');
+        // Opened by the machine, then given its cause by a supervisor.
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Hydraulic leak']), '08:30');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Hydraulic leak', $row['reason']);
+    }
+
+    public function test_untouched_machine_stop_on_a_silent_station_is_no_data(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '08:30', '09:00');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['code' => 'AUTO-FAULT', 'name' => 'Machine fault (auto)']), '08:30', true);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('unknown', $row['state']);
+        $this->assertNull($row['reason']);
+    }
+
+    public function test_gateway_heartbeat_keeps_an_unchanging_fault_live(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line);
+        $connection = MachineConnection::create([
+            'name' => 'Press PLC', 'protocol' => 'opcua', 'is_active' => true, 'status' => 'connected',
+        ]);
+        $tag = MachineTag::create([
+            'machine_connection_id' => $connection->id, 'workstation_id' => $station->id,
+            'name' => 'State', 'address' => 'ns=2;s=State', 'signal_type' => MachineTag::SIGNAL_STATE,
+            'data_type' => 'int16', 'transform' => ['value_map' => ['3' => WorkstationState::FAULT]],
+        ]);
+
+        // The press faults; the gateway posts that once (it only posts on change).
+        $this->actingAs($this->admin)
+            ->postJson("/api/v1/machine-connections/{$connection->id}/signals", ['readings' => [['tag_id' => $tag->id, 'value' => 3]]])
+            ->assertOk();
+
+        // 15 minutes later nothing has changed, but the gateway still beats.
+        Carbon::setTestNow($this->at('10:15'));
+        $this->postJson("/api/v1/machine-connections/{$connection->id}/heartbeat")->assertOk();
+        $this->app['auth']->shouldUse('web'); // the API request switched the default guard
+
+        $row = $this->lineState($line);
+        $this->assertSame('down', $row['state']);
+        $this->assertSame($this->at('10:00')->toIso8601String(), $row['since']);
+    }
+
+    public function test_without_a_heartbeat_the_same_fault_reads_no_data(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::FAULT, '10:00');
+
+        Carbon::setTestNow($this->at('10:15'));
+
+        $this->assertSame('unknown', $this->lineState($line)['state']);
+    }
+
+    public function test_stop_logged_by_hand_on_a_running_station_shows(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::RUNNING, '07:30');
+        ProductionDowntime::create([
+            'line_id' => $line->id, 'workstation_id' => $station->id,
+            'downtime_reason_id' => DowntimeReason::factory()->unplanned()->create(['name' => 'Quality hold'])->id,
+            'needs_reason' => false, 'reported_by' => $this->admin->id,
+            'started_at' => $this->at('09:20'),
+        ]);
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Quality hold', $row['reason']);
+        $this->assertSame('manual', $row['source']);
+    }
+
+    public function test_stop_carried_by_a_fresh_fault_is_not_counted_twice(): void
+    {
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT, '09:00');
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create(['name' => 'Jammed conveyor']), '09:00');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('down', $row['state']);
+        $this->assertSame('Jammed conveyor', $row['reason']);
+        $this->assertSame('machine', $row['source']);
+    }
+
+    public function test_one_fresh_station_decides_when_another_is_silent(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::IDLE);
+        $this->station($line, WorkstationState::FAULT, '08:00', '09:00');
+
+        $row = $this->lineState($line);
+
+        $this->assertSame('idle', $row['state']);
+        $this->assertSame('machine', $row['source']);
+    }
+
+    public function test_manual_state_never_goes_silent(): void
+    {
+        $line = Line::factory()->create();
+        $this->station($line, WorkstationState::FAULT, '09:00', '09:30', 'manual');
 
         $this->assertSame('down', $this->lineState($line)['state']);
     }
@@ -399,7 +711,8 @@ class DashboardPlantOverviewTest extends TestCase
             foreach (range(1, $lines) as $i) {
                 $line = Line::factory()->create();
                 foreach (range(1, $stations) as $j) {
-                    $station = $this->station($line, $j === 1 ? WorkstationState::FAULT : WorkstationState::RUNNING);
+                    // One silent collector per line, so both paths are exercised.
+                    $station = $this->station($line, $j === 1 ? WorkstationState::FAULT : WorkstationState::RUNNING, '08:00', $j === 2 ? '09:40' : null);
                     $this->openStop($line, $station, $reason);
                 }
                 $this->openStop($line, null, $reason);
@@ -433,6 +746,23 @@ class DashboardPlantOverviewTest extends TestCase
         $this->assertLessThanOrEqual(12, $large);
     }
 
+    public function test_open_stops_are_read_once(): void
+    {
+        $this->actingAs($this->admin);
+        $line = Line::factory()->create();
+        $station = $this->station($line, WorkstationState::FAULT);
+        $this->openStop($line, $station, DowntimeReason::factory()->unplanned()->create());
+        $this->openStop($line, null, DowntimeReason::factory()->unplanned()->create());
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        app(PlantOverviewService::class)->lineStates();
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $this->assertCount(1, $queries->filter(fn (string $q) => str_contains($q, 'from "production_downtimes"')));
+    }
+
     // ── delivery & access ──────────────────────────────────────────────
 
     public function test_partial_reload_returns_only_overview(): void
@@ -450,6 +780,35 @@ class DashboardPlantOverviewTest extends TestCase
                     ->has('overview.shift')
                     ->missing('materialsStats')
                     ->missing('scrapStats')));
+    }
+
+    public function test_overview_carries_planned_vs_actual_production(): void
+    {
+        Shift::create([
+            'name' => 'Shift A', 'code' => 'A',
+            'start_time' => '06:00:00', 'end_time' => '14:00:00',
+            'line_id' => null, 'is_active' => true,
+        ]);
+        $line = Line::factory()->create();
+        $order = WorkOrder::factory()->create([
+            'line_id' => $line->id, 'status' => WorkOrder::STATUS_IN_PROGRESS, 'planned_qty' => 800,
+            'planned_start_at' => $this->at('06:00'), 'planned_end_at' => $this->at('14:00'),
+        ]);
+        $order->update(['produced_qty' => 150]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.dashboard'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('overview.production.has_lines', true)
+                ->where('overview.production.totals.planned', 800)
+                ->where('overview.production.totals.actual', 150)
+                ->where('overview.production.totals.pace_delta', -250)
+                ->where('overview.production.plan_per_hour', 100)
+                ->count('overview.production.hours', 8)
+                ->has('overview.production.cumulative')
+                ->has('overview.production.summary.kind')
+                ->reloadOnly('overview', fn (AssertableInertia $reload) => $reload
+                    ->where('overview.production.totals.actual', 150)));
     }
 
     public function test_guest_is_redirected_to_login(): void

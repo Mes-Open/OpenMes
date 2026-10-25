@@ -2,7 +2,7 @@
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -17,8 +17,8 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines }, refreshed every 60 s).
- *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
+ *               `overview` Inertia prop ({ shift, lines, timeline, oee, downtime, production, line_orders, summary }, refreshed every 60 s).
+ *               Wrap it in `OverviewCard` (./OverviewCard) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
  *               enabledModules }. Return false to hide the section, e.g. when its
@@ -29,10 +29,24 @@
  * independent of the number of lines) rather than a new Inertia prop, so the
  * 60 s partial reload refreshes it too.
  *
+ * Line state: read it through ./lineStates.js (labels, colours, legend) — never
+ * re-map it per section. `unknown` ("No data") means the line's collector went
+ * silent; treat it as missing data (empty state), never as idle or zero.
+ *
  * Charts are hand-drawn SVG (see components/shift-monitor/*). Do NOT use
  * viewBox="0 0 100 60": that is OeeGauge's, and the oee-smoke e2e spec finds the
  * gauge on this page by it.
  */
+
+import DowntimeSection from './DowntimeSection';
+import KpiTiles from './KpiTiles';
+import LineActivity from './LineActivity';
+import LineCards from './LineCards';
+import NeedsAction from './NeedsAction';
+import OeeSection from './OeeSection';
+import OutputPerHour from './OutputPerHour';
+import PlannedVsActual from './PlannedVsActual';
+import SummaryBar from './SummaryBar';
 
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
@@ -45,4 +59,18 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+// Planned vs actual and output per hour need no module and link nowhere, so
+// tab:dashboard (which already gates the page) is all they need.
+const hasProduction = ({ overview }) => Boolean(overview?.production);
+
+export const SECTIONS = [
+    { id: 'line_activity', row: 'activity', span: 'full', Component: LineActivity },
+    { id: 'oee', row: 'oee_downtime', span: 'wide', Component: OeeSection },
+    { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
+    { id: 'planned_vs_actual', row: 'production_kpi', span: 'wide', Component: PlannedVsActual, visible: hasProduction },
+    { id: 'kpi_tiles', row: 'production_kpi', span: 'narrow', Component: KpiTiles },
+    { id: 'needs_action', row: 'needs_action', span: 'full', Component: NeedsAction },
+    { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
+    { id: 'lines', row: 'lines', span: 'full', Component: LineCards },
+    { id: 'summary', row: 'summary', span: 'full', Component: SummaryBar, visible: ({ overview }) => !!overview?.summary },
+];

@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox } from '@openmes/ui';
+import { Button, Checkbox, InlineAlert } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -9,7 +9,7 @@ import { __ } from '../../lib/i18n';
  * The Admin column is locked to full access (can never be revoked). Geist White.
  */
 export default function Access() {
-    const { tabs = [], roles = [], matrix = {}, grants = [], grantMatrix = {}, lockedRole = 'Admin' } = usePage().props;
+    const { tabs = [], roles = [], matrix = {}, grants = [], grantMatrix = {}, workOrderAbilities = [], workOrderAbilityMatrix = {}, lockedRole = 'Admin' } = usePage().props;
 
     // form.access = { roleName: [tabKey, ...] }, form.grants = { roleName: [permission, ...] }
     const initial = {};
@@ -20,7 +20,10 @@ export default function Access() {
     });
 
     const form = useForm({ access: initial, grants: initialGrants });
-    const { data, setData, processing } = form;
+    const { data, setData, processing, errors } = form;
+    // A rejected save redirects back with errors; show them next to Save so it
+    // never fails silently.
+    const errorMessages = [...new Set(Object.values(errors))];
 
     const isChecked = (field, role, key) => role === lockedRole || (data[field][role] ?? []).includes(key);
 
@@ -121,6 +124,49 @@ export default function Access() {
                             </tbody>
                         </table>
                     </>
+                )}
+
+                {workOrderAbilities.length > 0 && (
+                    <>
+                        <h2 className="mt-6 text-sm font-semibold text-om-ink">{__('Work Orders')}</h2>
+                        <p className="mb-2 text-xs text-om-muted">
+                            {__('The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).')}
+                        </p>
+                        <table className="w-full text-sm">
+                            <tbody>
+                                {workOrderAbilities.map((ability) => (
+                                    <tr key={ability.key} className="border-b border-om-line2 last:border-0">
+                                        <td className="py-2.5 pr-4 font-medium text-om-ink">{__(ability.label)}</td>
+                                        {roles.map((role) => {
+                                            const held = (workOrderAbilityMatrix[role] ?? []).includes(ability.key);
+                                            return (
+                                                <td key={role} className="px-3 py-2.5 text-center">
+                                                    <span className="inline-flex justify-center">
+                                                        <Checkbox
+                                                            checked={held}
+                                                            disabled
+                                                            onChange={() => {}}
+                                                            aria-label={`${__(ability.label)} — ${role}`}
+                                                        />
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </>
+                )}
+
+                {errorMessages.length > 0 && (
+                    <div className="pt-4">
+                        <InlineAlert severity="error" title={__('Could not save changes')}>
+                            <ul className="list-disc pl-5">
+                                {errorMessages.map((msg) => <li key={msg}>{msg}</li>)}
+                            </ul>
+                        </InlineAlert>
+                    </div>
                 )}
 
                 <div className="flex items-center gap-3 pt-4">

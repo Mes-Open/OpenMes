@@ -35,6 +35,12 @@ class HandleInertiaRequests extends Middleware
                     // screen's sidebar (OperatorLayout) so operators can reach the
                     // panel pages they've been given. Empty when none granted.
                     'accessibleTabLinks' => $this->accessibleTabLinks($user),
+                    // Ability flags for UI gating (hide buttons the user can't
+                    // use). UX only — controllers and Form Requests enforce.
+                    'can' => [
+                        'createWorkOrders' => $user->can('create', \App\Models\WorkOrder::class),
+                        'editWorkOrders' => $user->can('edit work orders'),
+                    ],
                 ] : null,
             ],
             // Optional feature modules switched on for this installation. The

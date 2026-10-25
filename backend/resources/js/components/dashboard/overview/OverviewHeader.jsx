@@ -1,12 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { __, formatTime } from '../../../lib/i18n';
-
-/** "3 h left" / "45 min left" — whole hours once there is at least one. */
-function timeLeft(minutes) {
-    if (minutes == null) return null;
-    if (minutes >= 60) return __(':count h left', { count: Math.floor(minutes / 60) });
-    return __(':count min left', { count: minutes });
-}
+import { shiftTimeLeft } from './timeLeft';
 
 /**
  * "Plant overview" page header: title, live indicator, the plant shift running
@@ -15,11 +9,15 @@ function timeLeft(minutes) {
  */
 export default function OverviewHeader({ shift, liveOk = true }) {
     const { auth } = usePage().props;
-    const canCreateOrder = (auth?.user?.accessibleTabs ?? []).includes('orders');
+    // The Orders tab AND the `create work orders` permission — the form behind
+    // the button refuses either one missing (403), so never offer it then.
+    const canCreateOrder = (auth?.user?.accessibleTabs ?? []).includes('orders')
+        && !!auth?.user?.can?.createWorkOrders;
 
-    // A configured shift running now. The fallback 06–18 / 18–06 window
-    // (is_default) is not a shift anybody planned, so it reads as "no shift".
-    const running = shift && shift.is_live && !shift.is_default;
+    // With no shifts set up, the sections below still report on the fallback
+    // 06–18 / 18–06 window (is_default). Show that window and say it is the
+    // default, so the header and the "this shift" sections never disagree.
+    const live = shift && shift.is_live;
 
     return (
         <header className="flex flex-wrap items-center justify-between gap-4">
@@ -42,12 +40,12 @@ export default function OverviewHeader({ shift, liveOk = true }) {
                         {!liveOk && <span className="sr-only">{__('Last refresh failed')}</span>}
                     </span>
                     {shift && (
-                        <span data-testid="overview-shift">
-                            {running
+                        <span data-testid="overview-shift" data-default-window={shift.is_default ? 'true' : undefined}>
+                            {live
                                 ? [
-                                    shift.name,
+                                    shift.is_default ? __('Default window (no shifts set up)') : shift.name,
                                     `${formatTime(shift.start)}–${formatTime(shift.end)}`,
-                                    timeLeft(shift.minutes_left),
+                                    shiftTimeLeft(shift.minutes_left),
                                 ].filter(Boolean).join(' · ')
                                 : __('No shift running')}
                         </span>

@@ -13,11 +13,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
   order* button for users who can open work orders. The header refreshes every 60 s while
-  the browser tab is visible; the *Live* dot turns grey when a refresh fails. The page
-  also receives the live state of every active line (running / idle / blocked / down, with
-  the stop reason and since when), ready for the overview sections that follow. The
-  existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
-  heading.
+  the browser tab is visible; the *Live* dot turns grey when a refresh fails. Time left
+  reads "2 h 59 min" under three hours and whole hours, rounded up, above. With no shifts
+  set up, the header shows the default 06–18 / 18–06 window the sections report on. A line
+  whose machine collector has sent nothing (no reading and no gateway heartbeat) for more
+  than 10 minutes shows *No data* instead of its last known state, while stops logged by
+  hand still show. The existing widgets and the line filter are unchanged and now sit
+  under a *Last 30 days* heading.
+- **Line activity on the admin dashboard.** The first section under the *Plant overview*
+  header, *Line activity · this shift*, draws one bar per active line from the start to
+  the end of the current plant shift: Running (green), Idle (grey), Blocked (orange) and
+  Down (red) up to a *Now* marker, with an hour scale and a legend. A line is Down in any
+  minute one of its stations is down (fault, maintenance, unplanned stop). Lines without a
+  machine collector are drawn from their batches, work orders and stops reported by hand;
+  a line nothing is known about shows *No data*. Hovering a segment shows the state, its
+  times, duration and the stop reason. The *Uptime* column is running time ÷ time since
+  the shift started (green from 85 %, orange from 70 %, red below). Clicking a line name
+  opens its *Shift Overview* for users who can open the shift monitor.
+- **Line cards and plant summary on the dashboard.** The *Plant overview* now has a
+  *Lines* section: one card per active line with its state (*Running* / *Blocked* /
+  *Idle* / *Down*; blocked and down cards get an amber / red edge), the progress of the
+  order it is working on (`produced / planned pcs · product code`, *+N more* when the line
+  holds several) and either the ETA — *On track · ETA 13:05* / *Late · ETA 14:40*, from
+  the last hour's output or, without one, the planned end — or why the line is not moving
+  (*Maintenance · 1h 16m*). A line without an order reads *No active order*. Clicking a card
+  opens that line's *Shift Overview*; *Plant board →* opens the plant board. Below it a
+  summary strip shows *Work orders today* (running · pending, plant day), *Materials* below
+  minimum, *Open non-conformances* (only issues marked as non-conformances) and the *Next
+  order*, each linking to its list; fields of switched-off modules are hidden.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
@@ -26,6 +49,63 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   separate setting: it is each line's *Planning efficiency (%)* (100 = not set, 85 % is
   used), and the plant target is those weighted by each line's planned minutes in the
   shift.
+- **Downtime on the admin dashboard.** *Admin → Dashboard* has a *Downtime* card next to
+  OEE: the total downtime of the shift running now (open stops count up to now, stops that
+  began before the shift count from its start), *across N lines · X% of planned time*,
+  and one row per reason, longest first, with the affected line codes, the time and a bar
+  (red for unplanned, grey for planned and changeover). Stops still waiting for a cause
+  show as *Unclassified* with a *Classify in Shift Monitor* link, and *Downtime report →*
+  opens Plant Board. Planned stops count in the total but not in the percentage, which is
+  measured in line time: stations of one line stopped together, or a machine stop and a
+  hand-reported line stop over the same period, count once, so it never passes 100 %.
+  With no stops the card reads *No downtime this shift*. *Plant board*'s header now shows
+  the same *Downtime this shift* total (whole-plant board only); a stop reported by hand
+  against a whole line reaches it on the board's next poll rather than instantly.
+- **"OEE · this shift" on the admin dashboard.** Under the *Plant overview* header, a new
+  card shows the plant's live OEE since the start of the current shift, how far it is
+  from target and which of availability / performance / quality loses the most, the
+  three components as bars with a target tick, and every active line's OEE sorted best
+  first, coloured against that line's own target (its *Planning efficiency (%)*). The
+  figures come from the same machine data as *Plant board*, so a line matches its tiles;
+  lines with no machine data show "—". The *(i)* button explains how OEE is computed and
+  where the target comes from. The nightly OEE report is unchanged.
+- **Planned vs actual production and output per hour on the dashboard.** *Admin →
+  Dashboard* gains two plant-overview sections. *Production · planned vs actual* shows
+  pieces made this shift against the schedule (e.g. *636 / 1,312 pcs · 48% of shift plan ·
+  −179 pcs behind pace*) and a cumulative chart: the dashed plan line for the whole shift,
+  the orange actual line up to *now*, and the gap at now. *Output per hour* shows a bar per
+  shift hour (the running hour hatched, future hours empty) against the plan in pcs/h, and
+  one sentence such as *Below plan since 09:00 · 47 min unplanned downtime on L5*. The plan
+  is each scheduled order's *Planned qty* spread over its planned start–end on the
+  *Schedule* (orders placed only by date and shift carry no hourly plan); with nothing
+  scheduled the sections say *No plan scheduled for this shift* instead of showing 0.
+  Actual output comes from a new ledger, `work_order_output_entries`, that records every
+  change to a work order's produced quantity with its time — whichever path made it
+  (operator, batches, machine counters, corrections). Hourly output is recorded from the
+  upgrade on; output reported before the upgrade is not in the hourly figures. The section names how
+  many scheduled orders make up the plan, with an *Open schedule* link for users who can
+  open the Schedule. On the example companies the demo data records output for the orders
+  scheduled in the live shift, at 72–98 % of their plan each hour, so a fresh demo shows
+  actual output against the plan.
+- **Shift KPI tiles on the dashboard.** The *Plant overview* now shows four tiles for the
+  current shift: *Orders not scheduled* (the same backlog the *Production Planner* shows,
+  with how many are due this week and overdue, in the plant timezone), *Lines producing*
+  (running out of active lines, with how many are down, blocked or idle), *Scrap rate*
+  (against the *Max scrap rate* target) and *First-pass yield* (against the *Min
+  first-pass yield* target, or *No quality checks this shift*). The caption colour follows
+  the target, and each tile links to its screen when you can open it.
+- **Dashboard: Needs action list.** *Admin → Dashboard* has a *Needs action · N* section
+  listing what is wrong right now, critical (red) before warning (amber), oldest first,
+  each with how long it has lasted: down lines (*Open ticket* raises the Shift Monitor's
+  maintenance escalation; *View ticket* once raised; the Shift Monitor when no order was
+  running), blocked lines and materials below minimum (*Resolve* opens the work order or
+  material), failed inbound inspections awaiting a disposition and quarantined lots
+  (*Review*), and overdue corrective actions (*Open* lists that issue — *Admin → Issues*
+  now accepts `?issue=<id>`). Six rows show, *Show all* expands the rest; *All alerts →*
+  opens the Alerts page. A button only appears for users who can open its target, and rows
+  of a switched-off module are hidden. N is not the menu's alert count: that counts open
+  issues, overdue and blocked work orders; this list counts blocked lines once per line
+  and adds down lines, low stock, inspections, quarantined lots and overdue actions.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not
@@ -73,6 +153,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Creating and editing work orders now requires the matching permission.** On the
+  admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
+  create form and save need `create work orders`, and the edit form and save need
+  `edit work orders` (`WorkOrderPolicy`). Access to the *Orders* tab is no longer enough.
+  Without the permission the pages return 403, and the *New Work Order* button (work-order
+  lists, planner, weekly schedule) and the *Edit* row action are hidden. Admin and
+  Supervisor keep both permissions. An Operator given the *Orders* tab in *Settings →
+  Access* can still open the list, but can no longer create or edit orders there. That
+  list now says so ("You can view work orders, but not create them."), the detail page
+  hides *Edit* without the permission, and *Settings → Tab Access* shows, read-only,
+  which roles hold *Create work orders* and *Edit work orders*.
+
 - **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
   operator token could start, fill in and complete an inspection, and with lot tracking on,
   completing one put a released lot into stock. Every inspection endpoint, including the read
@@ -92,6 +184,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
+- **Overdue alerts follow the plant's midnight, not UTC's.** The sidebar alert badge, its
+  *Latest alerts* panel, the *Alerts* page and the *Work orders → Overdue* filter decided
+  "overdue" against the UTC date, so outside UTC an order changed state hours away from the
+  plant's midnight (in Warsaw, yesterday's orders dropped out of the badge between 00:00 and
+  02:00) and the badge disagreed with the server's count. They now use today's date in the
+  plant timezone (*Settings → System*), the same day boundary as the server, and the badge
+  updates at midnight without a page reload. The *Alerts* page states the cut-off it uses
+  ("Due before 24/10/2026 (Europe/Warsaw)"); the *Latest alerts* panel says when the count is
+  made only of work orders, and closes when you click through to the *Alerts* page.
+- **Settings → Tab Access saves again.** On a fresh install, saving the page always failed
+  without a message, because Admin and Supervisor hold the same quality grants and a
+  validation rule wrongly treated that as a duplicate. The save now goes through, and
+  any validation error is shown above the *Save* button.
+- **Operators granted admin tabs can reach them again.** An Operator given tabs in
+  *Settings → Access* (for example *Orders*) once more sees a sidebar on the operator
+  screens, with *Lines* first and then each granted tab. A redesign had dropped the
+  sidebar, so the granted pages could only be opened by typing their address.
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.

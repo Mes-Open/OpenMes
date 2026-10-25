@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\IssueDisposition;
 use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
@@ -182,6 +183,23 @@ class Issue extends Model
     public function scopeOpen($query)
     {
         return $query->whereIn('status', [self::STATUS_OPEN, self::STATUS_ACKNOWLEDGED]);
+    }
+
+    /**
+     * Scope to issues that are non-conformances rather than plain production
+     * problems. There is no explicit flag column, so an issue counts as one
+     * when anything marks it as such: it came from a quality source (inbound
+     * inspection, in-process check, customer complaint), somebody classified
+     * who is responsible (`nc_source`), recorded a non-conforming quantity, or
+     * decided a disposition other than "pending".
+     */
+    public function scopeNonConformance($query)
+    {
+        return $query->where(fn ($q) => $q
+            ->whereIn('source', [self::SOURCE_INBOUND_INSPECTION, self::SOURCE_IN_PROCESS, self::SOURCE_CUSTOMER_COMPLAINT])
+            ->orWhereNotNull('nc_source')
+            ->orWhere('non_conforming_qty', '>', 0)
+            ->orWhere('disposition', '<>', IssueDisposition::Pending->value));
     }
 
     /**

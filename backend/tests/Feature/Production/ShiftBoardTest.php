@@ -283,6 +283,40 @@ class ShiftBoardTest extends TestCase
         $this->assertEqualsWithDelta(100, $tile['availability'], 0.01);
     }
 
+    public function test_the_board_prints_the_same_shift_downtime_total_as_the_dashboard(): void
+    {
+        // The dashboard's Downtime card links here as its "report", so the two
+        // must agree on the number — one service computes it for both.
+        $reason = DowntimeReason::create([
+            'code' => 'BRK', 'name' => 'Machine Breakdown',
+            'kind' => DowntimeKind::Unplanned, 'is_active' => true,
+        ]);
+        ProductionDowntime::create([
+            'line_id' => $this->lineA->id, 'workstation_id' => $this->stopped->id,
+            'downtime_reason_id' => $reason->id,
+            'started_at' => $this->at('09:30:00'),
+        ]);
+        ProductionDowntime::create([
+            'line_id' => $this->lineB->id, 'workstation_id' => $this->onOtherLine->id,
+            'downtime_reason_id' => $reason->id,
+            'started_at' => $this->at('05:00:00'), 'ended_at' => $this->at('06:15:00'),
+        ]);
+
+        $board = $this->board();
+
+        // 30 min still open + 15 min inside the shift.
+        $this->assertSame(45, $board['downtimeMinutes']);
+        $this->assertSame(
+            app(\App\Services\Dashboard\PlantOverviewService::class)->downtime()['total_minutes'],
+            $board['downtimeMinutes'],
+        );
+    }
+
+    public function test_a_board_narrowed_to_some_lines_prints_no_plant_total(): void
+    {
+        $this->assertNull($this->board(['lines' => (string) $this->lineB->id])['downtimeMinutes']);
+    }
+
     public function test_a_kiosk_url_can_narrow_the_board_to_chosen_lines(): void
     {
         $board = $this->board(['lines' => (string) $this->lineB->id]);

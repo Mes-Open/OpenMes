@@ -5,6 +5,7 @@ namespace App\Services\Quality;
 use App\Models\QualityCheck;
 use App\Support\ModuleRegistry;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * First-pass yield: the share of batches that passed in-process quality
@@ -52,33 +53,37 @@ class FirstPassYieldService
             return null;
         }
 
-        // Batches with any check in the window — only these can have their first
-        // check there. `whereHas` drops checks of deleted batches/orders.
-        $batchIds = QualityCheck::query()
-            ->where('checked_at', '>=', $from)
+        // Aggregated in SQL, so the work grows with the number of batches, not
+        // with how many times each was checked.
+        //
+        // 1. Each batch's first-ever check time, kept when it falls inside the
+        //    window. `whereHas` drops checks of deleted batches/orders.
+        $firstTimes = QualityCheck::query()
+            ->select('batch_id')
+            ->selectRaw('MIN(checked_at) AS first_at')
             ->where('checked_at', '<', $to)
             ->whereHas('batch.workOrder', fn ($q) => $q->when($lineId !== null, fn ($q2) => $q2->where('line_id', $lineId)))
-            ->distinct()
-            ->pluck('batch_id');
+            ->groupBy('batch_id')
+            ->havingRaw('MIN(checked_at) >= ?', [$from]);
 
-        if ($batchIds->isEmpty()) {
-            return ['first_pass' => 0, 'inspected' => 0];
-        }
+        // 2. The check at that time — the lowest id when two share it.
+        $firstCheckIds = DB::query()
+            ->fromSub($firstTimes, 'first_times')
+            ->join('quality_checks as first_check', fn ($join) => $join
+                ->on('first_check.batch_id', '=', 'first_times.batch_id')
+                ->on('first_check.checked_at', '=', 'first_times.first_at'))
+            ->groupBy('first_times.batch_id')
+            ->selectRaw('MIN(first_check.id)');
 
-        // Every earlier-or-in-window check of those batches, oldest first (ties
-        // by id), so the first row per batch is its first-ever check.
-        $firstChecks = QualityCheck::query()
-            ->whereIn('batch_id', $batchIds)
-            ->where('checked_at', '<', $to)
-            ->orderBy('checked_at')
-            ->orderBy('id')
-            ->get(['id', 'batch_id', 'checked_at', 'all_passed'])
-            ->unique('batch_id')
-            ->filter(fn (QualityCheck $check) => $check->checked_at->greaterThanOrEqualTo($from));
+        // 3. How many of those first checks passed.
+        $counts = DB::table('quality_checks')
+            ->whereIn('id', $firstCheckIds)
+            ->selectRaw('COUNT(*) AS inspected, SUM(CASE WHEN all_passed THEN 1 ELSE 0 END) AS first_pass')
+            ->first();
 
         return [
-            'first_pass' => $firstChecks->where('all_passed', true)->count(),
-            'inspected' => $firstChecks->count(),
+            'first_pass' => (int) ($counts->first_pass ?? 0),
+            'inspected' => (int) ($counts->inspected ?? 0),
         ];
     }
 }

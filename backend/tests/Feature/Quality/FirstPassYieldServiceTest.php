@@ -152,6 +152,42 @@ class FirstPassYieldServiceTest extends TestCase
         $this->assertSame(50.0, $this->fpy->forWindow($window->start, $window->end));
     }
 
+    public function test_many_checks_per_batch_only_the_first_decides(): void
+    {
+        // Passed first, then many routine re-checks, some failing.
+        $passed = $this->batch();
+        $this->check($passed, '2026-10-20 06:30', true);
+        foreach (['07:00', '08:00', '09:00', '10:00', '11:00', '12:00'] as $i => $time) {
+            $this->check($passed, "2026-10-20 {$time}", $i % 2 === 0);
+        }
+
+        // Failed first, then passed on every re-check.
+        $failed = $this->batch();
+        $this->check($failed, '2026-10-20 07:15', false);
+        foreach (['07:45', '08:15', '08:45', '09:15'] as $time) {
+            $this->check($failed, "2026-10-20 {$time}", true);
+        }
+
+        // Two checks at the same instant: the first recorded (lowest id) decides.
+        $tied = $this->batch();
+        $this->check($tied, '2026-10-20 10:00', true);
+        $this->check($tied, '2026-10-20 10:00', false);
+        $this->check($tied, '2026-10-20 11:00', false);
+
+        // First checked last shift, re-checked many times in this one: not counted.
+        $carried = $this->batch();
+        $this->check($carried, '2026-10-20 05:30', true);
+        foreach (['06:15', '07:30', '13:59'] as $time) {
+            $this->check($carried, "2026-10-20 {$time}", false);
+        }
+
+        // Re-checks after the window do not reach back into it.
+        $this->check($failed, '2026-10-20 14:00', true);
+
+        $this->assertSame(['first_pass' => 2, 'inspected' => 3], $this->fpy->breakdownForWindow($this->from, $this->to));
+        $this->assertSame(66.7, $this->fpy->forWindow($this->from, $this->to));
+    }
+
     public function test_checks_of_deleted_batches_are_ignored(): void
     {
         $deleted = $this->batch();

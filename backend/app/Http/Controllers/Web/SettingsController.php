@@ -121,7 +121,7 @@ class SettingsController extends Controller
     /**
      * Show admin-only system settings page.
      */
-    public function showSystemSettings()
+    public function showSystemSettings(Request $request)
     {
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
@@ -216,7 +216,12 @@ class SettingsController extends Controller
             // Tabs a module adds to this page: {slot, title, component} each.
             // The module's component saves through its own route. `{}` when none.
             'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
-            'productionTargets' => $this->productionTargetsPayload(),
+            // Shift FPY and planned minutes are real queries only the Production
+            // tab shows: sent up front when the page opens on that tab, otherwise
+            // left out until the tab asks for them with a partial reload.
+            'productionTargets' => $request->query('tab') === 'production'
+                ? fn () => $this->productionTargetsPayload()
+                : Inertia::optional(fn () => $this->productionTargetsPayload()),
         ]);
     }
 
@@ -788,6 +793,12 @@ class SettingsController extends Controller
         }
     }
 
+    /** Work-order permissions listed (read-only) on the Access page. */
+    private const WORK_ORDER_ABILITIES = [
+        ['key' => 'create work orders', 'label' => 'Create work orders'],
+        ['key' => 'edit work orders', 'label' => 'Edit work orders'],
+    ];
+
     /**
      * Show the role × tab access matrix. Rows are tabs, columns are roles;
      * Admin is locked to full access (handled in the UI + Gate::before).
@@ -819,6 +830,14 @@ class SettingsController extends Controller
             'matrix' => $matrix,
             'grants' => InspectionPermissions::options(),
             'grantMatrix' => $grantMatrix,
+            // Work-order abilities per role, shown read-only next to the tab
+            // matrix: the Orders tab opens the list, these decide who may
+            // create or edit there (WorkOrderPolicy). Not editable here.
+            'workOrderAbilities' => self::WORK_ORDER_ABILITIES,
+            'workOrderAbilityMatrix' => $roles->mapWithKeys(fn ($role) => [
+                $role->name => $role->permissions->pluck('name')
+                    ->intersect(array_column(self::WORK_ORDER_ABILITIES, 'key'))->values()->all(),
+            ]),
             'lockedRole' => 'Admin',
         ]);
     }

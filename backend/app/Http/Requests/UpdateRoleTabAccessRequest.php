@@ -26,7 +26,10 @@ class UpdateRoleTabAccessRequest extends FormRequest
             // a role left out keeps the quality permissions it has.
             'grants' => 'sometimes|array',
             'grants.*' => 'array',
-            'grants.*.*' => ['string', 'distinct', Rule::in(InspectionPermissions::ALL)],
+            // No `distinct`: on a nested wildcard it compares across roles, and
+            // two roles holding the same grant is the normal case. A repeat
+            // within one role is harmless — the controller de-duplicates.
+            'grants.*.*' => ['string', Rule::in(InspectionPermissions::ALL)],
         ];
     }
 }
