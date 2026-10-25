@@ -210,6 +210,8 @@ class WorkOrder extends Model
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
             'unit_price' => 'decimal:2',
+            // Write through the model: WorkOrderOutputObserver logs every change
+            // to the output ledger, and a query-builder update would skip it.
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'priority_score' => 'integer',

@@ -87,10 +87,11 @@ class PlantOverviewService
     public function __construct(
         private ShiftMonitorService $monitor,
         private ProductionTargets $targets,
+        private ShiftPlanService $plan,
     ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>, production: array<string, mixed>}
      */
     public function overview(): array
     {
@@ -100,6 +101,8 @@ class PlantOverviewService
             'timeline' => $this->lineTimeline(),
             'oee' => $this->shiftOee(),
             'downtime' => $this->downtime(),
+            // Planned vs actual output of the plant shift, hour by hour.
+            'production' => $this->plan->forShift(ShiftWindow::current()),
         ];
     }
 

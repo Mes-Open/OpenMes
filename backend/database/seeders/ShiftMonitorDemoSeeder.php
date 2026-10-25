@@ -4,10 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Batch;
 use App\Models\DowntimeReason;
+use App\Models\Line;
 use App\Models\MachineEvent;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderOutputEntry;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Support\ShiftWindow;
@@ -152,6 +154,98 @@ class ShiftMonitorDemoSeeder extends Seeder
 
                 $this->seedStation($workstation, $ratePerHour);
             });
+        }
+
+        $this->seedOutputLedger();
+    }
+
+    /**
+     * Output so far in each line's live shift, for the dashboard's planned vs
+     * actual and output per hour (they read `work_order_output_entries`, which
+     * seeding batches never writes).
+     *
+     * Taken from the schedule rather than from the batches above: those run at
+     * nameplate rate on whatever orders a line happens to have, which next to
+     * the shift's plan reads as 200 % of it. Here every order scheduled in the
+     * live shift has made a believable 72–98 % of its planned pieces each hour,
+     * recorded in quarter-hour steps up to now. Lines with nothing scheduled
+     * get nothing. Kept off the orders' produced_qty, which drives status
+     * changes and the planned-start guard. Re-running replaces this shift's
+     * entries on the line.
+     */
+    private function seedOutputLedger(): void
+    {
+        $now = Carbon::now();
+
+        foreach (Line::where('is_active', true)->get(['id']) as $line) {
+            $window = ShiftWindow::current($line->id);
+            $cut = $now->copy()->min($window->end);
+
+            WorkOrderOutputEntry::withoutGlobalScopes()
+                ->where('line_id', $line->id)
+                ->where('recorded_at', '>=', $window->start)
+                ->delete();
+
+            if ($cut->lessThanOrEqualTo($window->start)) {
+                continue;
+            }
+
+            $orders = WorkOrder::where('line_id', $line->id)
+                ->whereIn('status', [...WorkOrder::ACTIVE_STATUSES, WorkOrder::STATUS_DONE])
+                ->whereNotNull('planned_start_at')
+                ->whereNotNull('planned_end_at')
+                ->where('planned_start_at', '<', $cut)
+                ->where('planned_end_at', '>', $window->start)
+                ->where('planned_qty', '>', 0)
+                ->get();
+
+            mt_srand($line->id * 7919 + (int) $window->start->format('Ymd'));
+            $attainment = [];
+            $rows = [];
+
+            foreach ($orders as $order) {
+                $s = $order->planned_start_at->getTimestamp();
+                $e = $order->planned_end_at->getTimestamp();
+                if ($e <= $s) {
+                    continue;
+                }
+
+                $carry = 0.0;
+                $total = (float) $order->produced_qty;
+                for ($from = $window->start->copy(); $from->lessThan($cut); $from->addMinutes(15)) {
+                    $to = $from->copy()->addMinutes(15)->min($cut);
+                    $overlap = min($e, $to->getTimestamp()) - max($s, $from->getTimestamp());
+                    if ($overlap <= 0) {
+                        continue;
+                    }
+
+                    $hour = intdiv($from->getTimestamp() - $window->start->getTimestamp(), 3600);
+                    $attainment[$hour] ??= mt_rand(72, 98) / 100;
+
+                    $carry += (float) $order->planned_qty * $overlap / ($e - $s) * $attainment[$hour];
+                    $pieces = (int) floor($carry);
+                    if ($pieces <= 0) {
+                        continue;
+                    }
+                    $carry -= $pieces;
+                    $total += $pieces;
+
+                    $rows[] = [
+                        'tenant_id' => $order->tenant_id,
+                        'work_order_id' => $order->id,
+                        'line_id' => $line->id,
+                        'delta' => $pieces,
+                        'produced_total' => $total,
+                        'recorded_at' => $to->copy(),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                WorkOrderOutputEntry::insert($chunk);
+            }
         }
     }
 

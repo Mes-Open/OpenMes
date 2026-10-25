@@ -17,7 +17,7 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines, timeline, oee }, refreshed every 60 s).
+ *               `overview` Inertia prop ({ shift, lines, timeline, oee, downtime, production }, refreshed every 60 s).
  *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
@@ -42,6 +42,8 @@ import DowntimeSection from './DowntimeSection';
 import LineActivity from './LineActivity';
 import LinesSection from './LinesSection';
 import OeeSection from './OeeSection';
+import OutputPerHour from './OutputPerHour';
+import PlannedVsActual from './PlannedVsActual';
 
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
@@ -54,9 +56,15 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
+// Planned vs actual and output per hour need no module and link nowhere, so
+// tab:dashboard (which already gates the page) is all they need.
+const hasProduction = ({ overview }) => Boolean(overview?.production);
+
 export const SECTIONS = [
     { id: 'line_activity', row: 'activity', span: 'full', Component: LineActivity },
     { id: 'oee', row: 'oee_downtime', span: 'wide', Component: OeeSection },
     { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
+    { id: 'planned_vs_actual', row: 'production_kpi', span: 'wide', Component: PlannedVsActual, visible: hasProduction },
+    { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
     { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
 ];

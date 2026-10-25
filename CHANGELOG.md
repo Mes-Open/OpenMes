@@ -59,6 +59,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   figures come from the same machine data as *Plant board*, so a line matches its tiles;
   lines with no machine data show "—". The *(i)* button explains how OEE is computed and
   where the target comes from. The nightly OEE report is unchanged.
+- **Planned vs actual production and output per hour on the dashboard.** *Admin →
+  Dashboard* gains two plant-overview sections. *Production · planned vs actual* shows
+  pieces made this shift against the schedule (e.g. *636 / 1,312 pcs · 48% of shift plan ·
+  −179 pcs behind pace*) and a cumulative chart: the dashed plan line for the whole shift,
+  the orange actual line up to *now*, and the gap at now. *Output per hour* shows a bar per
+  shift hour (the running hour hatched, future hours empty) against the plan in pcs/h, and
+  one sentence such as *Below plan since 09:00 · 47 min unplanned downtime on L5*. The plan
+  is each scheduled order's *Planned qty* spread over its planned start–end on the
+  *Schedule* (orders placed only by date and shift carry no hourly plan); with nothing
+  scheduled the sections say *No plan scheduled for this shift* instead of showing 0.
+  Actual output comes from a new ledger, `work_order_output_entries`, that records every
+  change to a work order's produced quantity with its time — whichever path made it
+  (operator, batches, machine counters, corrections). Hourly output is recorded from the
+  upgrade on; output reported before the upgrade is not in the hourly figures. The section names how
+  many scheduled orders make up the plan, with an *Open schedule* link for users who can
+  open the Schedule. On the example companies the demo data records output for the orders
+  scheduled in the live shift, at 72–98 % of their plan each hour, so a fresh demo shows
+  actual output against the plan.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

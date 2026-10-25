@@ -3,8 +3,13 @@
 namespace Tests\Feature\Seeders;
 
 use App\Models\Batch;
+use App\Models\Line;
 use App\Models\Shift;
+use App\Models\WorkOrder;
+use App\Models\WorkOrderOutputEntry;
 use App\Models\Workstation;
+use App\Services\Dashboard\ShiftPlanService;
+use App\Support\ShiftWindow;
 use Database\Seeders\AirFilterDemoSeeder;
 use Database\Seeders\ShiftMonitorDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,6 +176,70 @@ class ShiftMonitorDemoSeederTest extends TestCase
         $this->seed(ShiftMonitorDemoSeeder::class);
 
         $this->assertSame($first, Batch::count(), 'A repeat run duplicated batches.');
+    }
+
+    /** An order on a line scheduled across the whole live shift. */
+    private function scheduledOrder(int $qty = 800): WorkOrder
+    {
+        $line = Line::where('is_active', true)->orderBy('id')->firstOrFail();
+        $window = ShiftWindow::current($line->id);
+
+        return WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_IN_PROGRESS,
+            'planned_qty' => $qty,
+            'planned_start_at' => $window->start,
+            'planned_end_at' => $window->end,
+        ]);
+    }
+
+    public function test_live_shift_output_follows_the_schedule_at_a_believable_pace(): void
+    {
+        $this->travelTo(now()->setTime(10, 40));
+        $this->seedPlant();
+        $order = $this->scheduledOrder();
+        $window = ShiftWindow::current($order->line_id);
+
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        $made = (float) WorkOrderOutputEntry::where('work_order_id', $order->id)->sum('delta');
+        $plannedToNow = 800 * $window->start->diffInSeconds(now()) / $window->start->diffInSeconds($window->end);
+
+        // 72–98 % of what the schedule asked for by now — not nameplate rate.
+        $this->assertGreaterThan(0.6 * $plannedToNow, $made);
+        $this->assertLessThanOrEqual($plannedToNow, $made);
+        $this->assertSame(0, WorkOrderOutputEntry::where('recorded_at', '>', now())->count(), 'Output recorded in the future.');
+        $this->assertSame(0, WorkOrderOutputEntry::where('recorded_at', '<', $window->start)->count());
+
+        $this->seed(ShiftMonitorDemoSeeder::class);
+        $this->assertEqualsWithDelta($made, (float) WorkOrderOutputEntry::where('work_order_id', $order->id)->sum('delta'), 0.01, 'A repeat run doubled the ledger.');
+    }
+
+    public function test_only_scheduled_orders_get_output(): void
+    {
+        $this->travelTo(now()->setTime(10, 40));
+        $this->seedPlant();
+        $order = $this->scheduledOrder();
+
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        // Every entry belongs to an order with a minute window in the schedule.
+        $scheduled = WorkOrder::whereNotNull('planned_start_at')->whereNotNull('planned_end_at')->pluck('id');
+        $this->assertGreaterThan(0, WorkOrderOutputEntry::where('work_order_id', $order->id)->count());
+        $this->assertSame(0, WorkOrderOutputEntry::whereNotIn('work_order_id', $scheduled)->count());
+    }
+
+    public function test_the_dashboard_shows_actual_output_below_plan_for_the_live_shift(): void
+    {
+        $this->travelTo(now()->setTime(10, 40));
+        $this->seedPlant();
+        $this->scheduledOrder();
+
+        $this->seed(ShiftMonitorDemoSeeder::class);
+
+        $production = app(ShiftPlanService::class)->forShift(ShiftWindow::current());
+        $this->assertGreaterThan(0, $production['totals']['actual']);
+        $this->assertLessThanOrEqual($production['totals']['planned_to_now'], $production['totals']['actual']);
     }
 
     public function test_every_example_company_fills_the_monitor(): void
