@@ -7127,5 +7127,12 @@
     "Production targets updated.": "Cele produkcyjne zostały zaktualizowane.",
     "max scrap rate": "maks. wskaźnik braków",
     "min first-pass yield": "min. uzysk za pierwszym podejściem",
-    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku."
+    "The :attribute may have at most one decimal place.": "Pole :attribute może mieć najwyżej jedno miejsce po przecinku.",
+    "Plant overview": "Przegląd zakładu",
+    "Last refresh failed": "Ostatnie odświeżenie nie powiodło się",
+    "No shift running": "Żadna zmiana nie trwa",
+    ":count h left": "zostało :count h",
+    ":count min left": "zostało :count min",
+    "Waiting for material": "Oczekiwanie na materiał",
+    "Work order blocked": "Zlecenie zablokowane"
 }

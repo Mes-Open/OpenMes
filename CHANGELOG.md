@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
+  *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
+  and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
+  order* button for users who can open work orders. The header refreshes every 60 s while
+  the browser tab is visible; the *Live* dot turns grey when a refresh fails. The page
+  also receives the live state of every active line (running / idle / blocked / down, with
+  the stop reason and since when), ready for the overview sections that follow. The
+  existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
+  heading.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
@@ -80,6 +89,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
+  "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
+  (or no) OEE.
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.
