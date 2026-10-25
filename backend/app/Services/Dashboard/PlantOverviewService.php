@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\ProductionDowntime;
+use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
@@ -88,21 +89,28 @@ class PlantOverviewService
         private ShiftMonitorService $monitor,
         private ProductionTargets $targets,
         private ShiftPlanService $plan,
+        private ShiftKpiService $kpis,
     ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>, production: array<string, mixed>}
+     * Everything the plant overview draws, refreshed together every 60 s.
+     * `kpis` are the shift tiles; their links are resolved for `$user`.
+     *
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>, production: array<string, mixed>, kpis: array<string, mixed>}
      */
-    public function overview(): array
+    public function overview(?User $user = null): array
     {
+        $lines = $this->lineStates();
+
         return [
             'shift' => $this->currentShift(),
-            'lines' => $this->lineStates(),
+            'lines' => $lines,
             'timeline' => $this->lineTimeline(),
             'oee' => $this->shiftOee(),
             'downtime' => $this->downtime(),
             // Planned vs actual output of the plant shift, hour by hour.
             'production' => $this->plan->forShift(ShiftWindow::current()),
+            'kpis' => $this->kpis->tiles($lines, $user),
         ];
     }
 

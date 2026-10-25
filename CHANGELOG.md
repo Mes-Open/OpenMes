@@ -77,6 +77,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   open the Schedule. On the example companies the demo data records output for the orders
   scheduled in the live shift, at 72–98 % of their plan each hour, so a fresh demo shows
   actual output against the plan.
+- **Shift KPI tiles on the dashboard.** The *Plant overview* now shows four tiles for the
+  current shift: *Orders not scheduled* (the same backlog the *Production Planner* shows,
+  with how many are due this week and overdue, in the plant timezone), *Lines producing*
+  (running out of active lines, with how many are down, blocked or idle), *Scrap rate*
+  (against the *Max scrap rate* target) and *First-pass yield* (against the *Min
+  first-pass yield* target, or *No quality checks this shift*). The caption colour follows
+  the target, and each tile links to its screen when you can open it.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

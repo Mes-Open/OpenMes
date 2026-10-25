@@ -7193,5 +7193,18 @@
     "Cumulative pieces this shift: actual :actual at :time": "Narastająco w tej zmianie: wykonanie :actual o :time",
     "Pieces produced per hour this shift": "Sztuki wyprodukowane na godzinę w tej zmianie",
     "Plan from :count scheduled orders in this shift": "Plan z :count zaplanowanych zleceń w tej zmianie",
-    "Open schedule": "Otwórz harmonogram"
+    "Open schedule": "Otwórz harmonogram",
+    "Shift at a glance": "Zmiana w skrócie",
+    "Orders not scheduled": "Zlecenia niezaplanowane",
+    ":count due this week": ":count z terminem w tym tygodniu",
+    "All orders scheduled": "Wszystkie zlecenia zaplanowane",
+    "No due dates set": "Brak terminów",
+    "Lines producing": "Linie w produkcji",
+    ":count down": ":count w awarii",
+    ":count idle": ":count bezczynnych",
+    "All lines running": "Wszystkie linie pracują",
+    "Target ≤ :pct%": "Cel ≤ :pct%",
+    "No completed output this shift": "Brak ukończonej produkcji na tej zmianie",
+    "First-pass yield": "Uzysk za pierwszym podejściem",
+    "Target ≥ :pct%": "Cel ≥ :pct%"
 }

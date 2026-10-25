@@ -39,6 +39,7 @@
  */
 
 import DowntimeSection from './DowntimeSection';
+import KpiTiles from './KpiTiles';
 import LineActivity from './LineActivity';
 import LinesSection from './LinesSection';
 import OeeSection from './OeeSection';
@@ -65,6 +66,7 @@ export const SECTIONS = [
     { id: 'oee', row: 'oee_downtime', span: 'wide', Component: OeeSection },
     { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
     { id: 'planned_vs_actual', row: 'production_kpi', span: 'wide', Component: PlannedVsActual, visible: hasProduction },
+    { id: 'kpi_tiles', row: 'production_kpi', span: 'narrow', Component: KpiTiles },
     { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
     { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
 ];
