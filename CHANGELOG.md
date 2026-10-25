@@ -42,6 +42,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   summary strip shows *Work orders today* (running · pending, plant day), *Materials* below
   minimum, *Open non-conformances* (only issues marked as non-conformances) and the *Next
   order*, each linking to its list; fields of switched-off modules are hidden.
+  the browser tab is visible; the *Live* dot turns grey when a refresh fails. The page
+  also receives the live state of every active line (running / idle / blocked / down, with
+  the stop reason and since when), ready for the overview sections that follow. The
+  existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
+  heading.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
