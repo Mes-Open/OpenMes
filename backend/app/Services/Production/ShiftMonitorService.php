@@ -298,6 +298,57 @@ class ShiftMonitorService
     }
 
     /**
+     * What each station is doing right now, read unclipped — the board's
+     * "since" rule without the timeline, the counters or the OEE maths.
+     *
+     * For callers that only need the present tense (the plant overview header)
+     * and can't afford `board()`'s counter feed on every refresh. Two queries
+     * regardless of station count. Stations nothing was ever heard from are
+     * absent from the result rather than present with a null state.
+     *
+     * `since` follows board(): the open stop's start when there is one,
+     * otherwise the state row's. `stateSince` is always the state row's.
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array{state: string, since: Carbon, stateSince: Carbon, stop: ?ProductionDowntime}> keyed by workstation id
+     */
+    public function currentStates(Collection $workstations): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $openStates = WorkstationState::whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->orderBy('started_at')
+            ->get()
+            ->keyBy('workstation_id');
+
+        $openStops = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->orderBy('started_at')
+            ->get()
+            ->keyBy('workstation_id');
+
+        $result = [];
+        foreach ($openStates as $stationId => $open) {
+            $stop = $openStops->get($stationId);
+            $result[$stationId] = [
+                'state' => $open->state,
+                // Same rule as board(): the open stop wins over the state row.
+                'since' => $stop?->started_at ?? $open->started_at,
+                'stateSince' => $open->started_at,
+                'stop' => $stop,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * What the station is doing right now — the state of the slice covering
      * `asOf`, or null when nothing has been reported for it at all.
      *

@@ -7112,5 +7112,12 @@
     "Change disposition": "Zmień dyspozycję",
     "Complete the inspection before applying a disposition.": "Zakończ kontrolę przed podjęciem decyzji o dyspozycji.",
     "This inspection plan does not apply to the selected material.": "Ten plan kontroli nie dotyczy wybranego materiału.",
-    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska."
+    "Quality permissions can only be granted to a personal account, not a shared workstation login.": "Uprawnienia jakościowe można nadać tylko kontu osobistemu, nie wspólnemu loginowi stanowiska.",
+    "Plant overview": "Przegląd zakładu",
+    "Last refresh failed": "Ostatnie odświeżenie nie powiodło się",
+    "No shift running": "Żadna zmiana nie trwa",
+    ":count h left": "zostało :count h",
+    ":count min left": "zostało :count min",
+    "Waiting for material": "Oczekiwanie na materiał",
+    "Work order blocked": "Zlecenie zablokowane"
 }
