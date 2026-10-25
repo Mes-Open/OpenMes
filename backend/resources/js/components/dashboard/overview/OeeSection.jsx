@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { __, formatNumber } from '../../../lib/i18n';
-import { OverviewCard } from './OverviewGrid';
+import OverviewCard from './OverviewCard';
 
 // Below this a figure is red whatever its target — App\Support\OeeBand::RED_BELOW.
 const RED_BELOW = 65;

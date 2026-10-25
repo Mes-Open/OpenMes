@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { __, durationLabel } from '../../../lib/i18n';
-import { OverviewCard } from './OverviewGrid';
+import OverviewCard from './OverviewCard';
 
 // Bar colour by DowntimeReason.kind: unplanned is the loss that hurts (red),
 // planned and changeover read neutral, an unclassified stop amber — it needs

@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { __, formatTime } from '../../../lib/i18n';
 import Tooltip from '../../Tooltip';
 import { pct } from '../../shift-monitor/tokens';
-import { OverviewCard } from './OverviewGrid';
+import OverviewCard from './OverviewCard';
 import { LINE_STATE_SWATCH, REPORTED_LINE_STATES, lineStateLabel } from './lineStates';
 
 // Name | bar | uptime — the mockup's three columns.

@@ -72,7 +72,7 @@ class DashboardController extends Controller
             // zone (kpi | main | sidebar). Empty when no module registers any.
             'moduleWidgets' => fn () => app(\App\Services\WidgetRegistry::class)->all(),
             // "Plant overview": current shift, live line states and every overview
-            // section (KPI tile links are resolved for the user). The page
+            // section (KPI tile links and "Needs action" buttons are resolved for the user). The page
             // partial-reloads just this prop every 60 s.
             'overview' => fn () => app(PlantOverviewService::class)->overview($request->user()),
         ]);

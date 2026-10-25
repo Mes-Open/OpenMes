@@ -1,5 +1,5 @@
 import { __, formatTime } from '../../../lib/i18n';
-import { OverviewCard } from './OverviewGrid';
+import OverviewCard from './OverviewCard';
 import LineStateLegend from './LineStateLegend';
 import { lineStateLabel, lineStateTone } from './lineStates';
 

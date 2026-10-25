@@ -18,7 +18,7 @@
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
  *               `overview` Inertia prop ({ shift, lines, timeline, oee, downtime, production }, refreshed every 60 s).
- *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
+ *               Wrap it in `OverviewCard` (./OverviewCard) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
  *               enabledModules }. Return false to hide the section, e.g. when its
@@ -42,6 +42,7 @@ import DowntimeSection from './DowntimeSection';
 import KpiTiles from './KpiTiles';
 import LineActivity from './LineActivity';
 import LinesSection from './LinesSection';
+import NeedsAction from './NeedsAction';
 import OeeSection from './OeeSection';
 import OutputPerHour from './OutputPerHour';
 import PlannedVsActual from './PlannedVsActual';
@@ -67,6 +68,7 @@ export const SECTIONS = [
     { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
     { id: 'planned_vs_actual', row: 'production_kpi', span: 'wide', Component: PlannedVsActual, visible: hasProduction },
     { id: 'kpi_tiles', row: 'production_kpi', span: 'narrow', Component: KpiTiles },
+    { id: 'needs_action', row: 'needs_action', span: 'full', Component: NeedsAction },
     { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
     { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
 ];

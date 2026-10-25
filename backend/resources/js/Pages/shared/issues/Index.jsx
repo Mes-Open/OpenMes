@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { useCallback, useEffect, useState } from 'react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, IconButton, Dropdown, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
 import AppDatePicker from '../../../components/AppDatePicker';
 import AppLayout from '../../../layouts/AppLayout';
@@ -46,6 +46,17 @@ const ACTION_TYPE_LABELS = { corrective: 'Corrective', preventive: 'Preventive',
 // IssueAction::OPEN_STATUSES, which is what drives the `is_overdue` flag.
 const SETTLED_ACTION_STATUSES = ['done', 'verified'];
 
+// `?issue=<id>` narrows the list to one issue — the target of the dashboard's
+// "Needs action" links, as issues have no page of their own. Read-only and
+// client-side: it only filters rows the page already receives.
+function focusedIssueId() {
+    if (typeof window === 'undefined') return null;
+    const raw = new URLSearchParams(window.location.search).get('issue');
+    if (!raw || !/^\d+$/.test(raw)) return null;
+    const id = Number.parseInt(raw, 10);
+    return id > 0 ? id : null;
+}
+
 export default function IssuesIndex() {
     const { prompt, dialog: promptDialog } = usePrompt();
     const {
@@ -66,6 +77,8 @@ export default function IssuesIndex() {
 
     const [actionsFor, setActionsFor] = useState(null); // issue row whose actions modal is open
     const [dispositionFor, setDispositionFor] = useState(null); // issue row whose disposition modal is open
+    const [focusId] = useState(focusedIssueId);
+    const focusFilter = useCallback((r) => Number(r.id) === focusId, [focusId]);
 
     const columns = [
         { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink', filter: 'text' },
@@ -118,6 +131,15 @@ export default function IssuesIndex() {
     return (
         <>
             <Head title={__('Issues')} />
+            {focusId && (
+                <div className="mb-4">
+                    <InlineAlert severity="info" title={__('Showing issue #:id only', { id: focusId })}>
+                        <Link href={`${base}/issues`} className="font-medium text-om-accent hover:underline">
+                            {__('Show all issues')}
+                        </Link>
+                    </InlineAlert>
+                </div>
+            )}
             <ResourceTable
                 shape="issues_all"
                 title={__('Issues')}
@@ -125,6 +147,7 @@ export default function IssuesIndex() {
                 orderBy="reported_at"
                 orderDir="desc"
                 actions={actions}
+                filterFn={focusId ? focusFilter : undefined}
                 emptyText={__('No issues.')}
             />
             {dispositionFor && (

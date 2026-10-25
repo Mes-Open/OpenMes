@@ -84,6 +84,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   (against the *Max scrap rate* target) and *First-pass yield* (against the *Min
   first-pass yield* target, or *No quality checks this shift*). The caption colour follows
   the target, and each tile links to its screen when you can open it.
+- **Dashboard: Needs action list.** *Admin → Dashboard* has a *Needs action · N* section
+  listing what is wrong right now, critical (red) before warning (amber), oldest first,
+  each with how long it has lasted: down lines (*Open ticket* raises the Shift Monitor's
+  maintenance escalation; *View ticket* once raised; the Shift Monitor when no order was
+  running), blocked lines and materials below minimum (*Resolve* opens the work order or
+  material), failed inbound inspections awaiting a disposition and quarantined lots
+  (*Review*), and overdue corrective actions (*Open* lists that issue — *Admin → Issues*
+  now accepts `?issue=<id>`). Six rows show, *Show all* expands the rest; *All alerts →*
+  opens the Alerts page. A button only appears for users who can open its target, and rows
+  of a switched-off module are hidden. N is not the menu's alert count: that counts open
+  issues, overdue and blocked work orders; this list counts blocked lines once per line
+  and adds down lines, low stock, inspections, quarantined lots and overdue actions.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not

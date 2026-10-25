@@ -520,8 +520,6 @@ class ShiftMonitorService
         return $slices->last(fn (array $slice) => $slice['from']->lessThanOrEqualTo($asOf))['state'] ?? null;
     }
 
-    // ─────────────────────────── raw sources ───────────────────────────
-
     /**
      * State slices overlapping the shift, clipped to its boundaries. The open
      * slice (ended_at null) is closed at `asOf` by the caller's clipping.
@@ -704,8 +702,6 @@ class ShiftMonitorService
 
         return $recovered ? $recovered['from']->copy() : Carbon::now();
     }
-
-    // ─────────────────────────── segments ───────────────────────────
 
     /**
      * The timeline the screen draws: state slices clipped to the shift, split
@@ -1051,8 +1047,6 @@ class ShiftMonitorService
         };
     }
 
-    // ─────────────────────────── hour rows ───────────────────────────
-
     /**
      * One row per clock hour the shift touches, carrying its segments, its
      * production pulses and its actual-vs-target counts.
@@ -1145,8 +1139,6 @@ class ShiftMonitorService
 
         return $dots;
     }
-
-    // ─────────────────────────── totals & header ───────────────────────────
 
     /**
      * @param  array<int, array<string, mixed>>  $segments
@@ -1271,8 +1263,6 @@ class ShiftMonitorService
         ];
     }
 
-    // ─────────────────────────── batches ───────────────────────────
-
     /** @return array<string, mixed>|null */
     private function currentBatch(Workstation $workstation, ShiftWindow $window): ?array
     {
@@ -1324,8 +1314,6 @@ class ShiftMonitorService
             'percent' => $target > 0 ? min(100, round($produced / $target * 100)) : 0,
         ];
     }
-
-    // ─────────────────────────── chart ───────────────────────────
 
     /**
      * Rolling rate window: 28 two-minute samples ending at `asOf`. Each sample
@@ -1386,8 +1374,6 @@ class ShiftMonitorService
             'idealRatePerMinute' => round($idealPerMin, 2),
         ];
     }
-
-    // ─────────────────────────── event pins ───────────────────────────
 
     /**
      * The balloons above the timeline. Each comes from a real record — a batch
@@ -1521,8 +1507,6 @@ class ShiftMonitorService
         ]);
     }
 
-    // ─────────────────────────── attention / summary ───────────────────────────
-
     /**
      * @param  array<int, array<string, mixed>>  $segments
      * @return array<string, mixed>
@@ -1581,8 +1565,6 @@ class ShiftMonitorService
             'scrap' => $totals['reject'],
         ];
     }
-
-    // ─────────────────────────── analysis tab ───────────────────────────
 
     /**
      * @param  array<string, mixed>  $totals
@@ -1671,5 +1653,70 @@ class ShiftMonitorService
             ], true))
             ->values()
             ->all();
+    }
+
+    /**
+     * The batch this station was actually working when the stop began — the
+     * work order an escalation from the shift monitor is filed against.
+     *
+     * Bounded by the stop's own time: a batch that started after it cannot have
+     * caused it, and one that finished before it is somebody else's problem. An
+     * unbounded "latest batch here" would happily return an order that closed
+     * weeks ago on a station that has been idle since.
+     */
+    public function batchRunningDuring(ProductionDowntime $downtime): ?Batch
+    {
+        $startedAt = $downtime->started_at;
+
+        return Batch::where('workstation_id', $downtime->workstation_id)
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->where('started_at', '<=', $startedAt)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $startedAt))
+            ->latest('started_at')
+            ->first();
+    }
+
+    /**
+     * batchRunningDuring() for many stops at once: which of them could be
+     * escalated right now, and against which work order. One query regardless
+     * of how many stops are asked about; the per-stop bounds are the same.
+     *
+     * @param  Collection<int, ProductionDowntime>  $downtimes
+     * @return array<int, int> downtime id → work order id, escalatable stops only
+     */
+    public function escalatableWorkOrders(Collection $downtimes): array
+    {
+        $downtimes = $downtimes->filter(fn (ProductionDowntime $d) => $d->workstation_id && $d->started_at);
+
+        if ($downtimes->isEmpty()) {
+            return [];
+        }
+
+        $earliest = $downtimes->min('started_at');
+        $latest = $downtimes->max('started_at');
+
+        $batches = Batch::whereIn('workstation_id', $downtimes->pluck('workstation_id')->unique())
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->whereNotNull('work_order_id')
+            ->where('started_at', '<=', $latest)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $earliest))
+            ->get(['id', 'workstation_id', 'work_order_id', 'started_at', 'completed_at'])
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($downtimes as $downtime) {
+            $start = $downtime->started_at;
+            $batch = ($batches->get($downtime->workstation_id) ?? collect())
+                ->filter(fn (Batch $b) => $b->started_at->lte($start)
+                    && ($b->completed_at === null || $b->completed_at->gte($start)))
+                ->sortByDesc(fn (Batch $b) => $b->started_at->getTimestamp())
+                ->first();
+
+            if ($batch) {
+                $result[$downtime->id] = $batch->work_order_id;
+            }
+        }
+
+        return $result;
     }
 }

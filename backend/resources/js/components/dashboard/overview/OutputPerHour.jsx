@@ -1,4 +1,4 @@
-import { OverviewCard } from './OverviewGrid';
+import OverviewCard from './OverviewCard';
 import useWidth from './useWidth';
 import { __, formatNumber, formatTime } from '../../../lib/i18n';
 
