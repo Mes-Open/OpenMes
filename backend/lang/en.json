@@ -7139,5 +7139,12 @@
     "Production targets updated.": "Production targets updated.",
     "max scrap rate": "max scrap rate",
     "min first-pass yield": "min first-pass yield",
-    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place."
+    "The :attribute may have at most one decimal place.": "The :attribute may have at most one decimal place.",
+    "Line activity · this shift": "Line activity · this shift",
+    "Now": "Now",
+    "Uptime": "Uptime",
+    "Cause not recorded": "Cause not recorded",
+    ":hours h :minutes min": ":hours h :minutes min",
+    ":count min": ":count min",
+    "Open the shift overview for :line": "Open the shift overview for :line"
 }

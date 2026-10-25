@@ -1,4 +1,5 @@
 import { __ } from '../../../lib/i18n';
+import { SEGMENT_COLOR } from '../../shift-monitor/tokens';
 
 /**
  * Shared vocabulary for line state on the plant overview — the one place every
@@ -53,6 +54,18 @@ export const LINE_STATE_TONE = {
             border: '1px dashed var(--om-faint)',
         },
     },
+};
+
+/** The four states a line can report, in legend order — LINE_STATES without "No data". */
+export const REPORTED_LINE_STATES = LINE_STATES.filter((state) => state !== 'unknown');
+
+/**
+ * Bar fill per state for charts (timeline segments, legends). `none` is a
+ * stretch of the shift nothing was reported for.
+ */
+export const LINE_STATE_SWATCH = {
+    ...Object.fromEntries(Object.entries(LINE_STATE_TONE).map(([state, tone]) => [state, tone.swatch])),
+    none: SEGMENT_COLOR.none,
 };
 
 /** Tone for a state; anything unrecognised is painted as "No data". */

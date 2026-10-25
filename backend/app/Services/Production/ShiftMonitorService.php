@@ -365,6 +365,83 @@ class ShiftMonitorService
     }
 
     /**
+     * Each station's state slices for the shift — clipped and de-overlapped
+     * exactly as `fleet()` does, with the stop covering each stopped slice —
+     * but without the counter feed, the run/slow split or hour splitting.
+     *
+     * For callers that only need "what state, when" (the dashboard's line
+     * timeline) and can't afford `fleet()`'s counter feed on every refresh.
+     * Minute offsets are rounded the way `buildSegments()` rounds them and
+     * capped at now, so the two never disagree about where a slice sits. Two
+     * queries regardless of station count.
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array<int, array{state: string, from: int, to: int, started_at: Carbon, downtime: ?ProductionDowntime}>> keyed by workstation id; stations with no slice in the window are absent
+     */
+    public function stateTimelines(Collection $workstations, ShiftWindow $window): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $now = Carbon::now();
+        $asOf = $now->greaterThan($window->end) ? $window->end->copy() : $now;
+        $asOfMinute = (int) floor($window->start->diffInSeconds($asOf) / 60);
+
+        $statesByStation = WorkstationState::whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $downtimesByStation = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $result = [];
+
+        foreach ($statesByStation as $stationId => $rows) {
+            $slices = $this->sliceRows($rows, $window);
+            $downtimes = $this->downtimeRows($downtimesByStation->get($stationId) ?? collect(), $slices);
+            $timeline = [];
+
+            foreach ($slices as $slice) {
+                $from = (int) round($window->start->diffInSeconds($slice['from']) / 60);
+                $to = min((int) round($window->start->diffInSeconds($slice['to']) / 60), $asOfMinute);
+                if ($to <= $from) {
+                    continue;
+                }
+
+                // Every state that is not plain work or plain waiting-for-work
+                // can carry the cause somebody gave it.
+                $explainable = ! in_array($slice['state'], [
+                    WorkstationState::RUNNING, WorkstationState::IDLE,
+                    WorkstationState::SETUP, WorkstationState::CLEANING,
+                ], true);
+
+                $timeline[] = [
+                    'state' => $slice['state'],
+                    'from' => $from,
+                    'to' => $to,
+                    'started_at' => $slice['from'],
+                    'downtime' => $explainable ? $this->downtimeFor($downtimes, $slice) : null,
+                ];
+            }
+
+            if ($timeline !== []) {
+                $result[$stationId] = $timeline;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * What the station is doing right now — the state of the slice covering
      * `asOf`, or null when nothing has been reported for it at all.
      *

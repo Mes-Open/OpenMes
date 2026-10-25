@@ -1,3 +1,4 @@
+
 /**
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
@@ -17,7 +18,7 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines }, refreshed every 60 s).
+ *               `overview` Inertia prop ({ shift, lines, timeline }, refreshed every 60 s).
  *               Wrap it in `OverviewCard` (./OverviewGrid) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
@@ -37,6 +38,7 @@
  * viewBox="0 0 100 60": that is OeeGauge's, and the oee-smoke e2e spec finds the
  * gauge on this page by it.
  */
+import LineActivity from './LineActivity';
 import LinesSection from './LinesSection';
 
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
@@ -51,5 +53,6 @@ export const ROWS = [
 ];
 
 export const SECTIONS = [
+    { id: 'line_activity', row: 'activity', span: 'full', Component: LineActivity },
     { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
 ];
