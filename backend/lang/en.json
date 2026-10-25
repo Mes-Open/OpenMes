@@ -7119,5 +7119,10 @@
     ":count h left": ":count h left",
     ":count min left": ":count min left",
     "Waiting for material": "Waiting for material",
-    "Work order blocked": "Work order blocked"
+    "Work order blocked": "Work order blocked",
+    ":hours h :minutes min left": ":hours h :minutes min left",
+    "Down": "Down",
+    "Since :time": "Since :time",
+    "Reason needed": "Reason needed",
+    "No active lines": "No active lines"
 }

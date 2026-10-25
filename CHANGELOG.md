@@ -13,9 +13,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
   order* button for users who can open work orders. The header refreshes every 60 s while
-  the browser tab is visible; the *Live* dot turns grey when a refresh fails. The page
-  also receives the live state of every active line (running / idle / blocked / down, with
-  the stop reason and since when), ready for the overview sections that follow. The
+  the browser tab is visible; the *Live* dot turns grey when a refresh fails. Time left
+  reads "2 h 59 min" under three hours and whole hours, rounded up, above. A *Lines*
+  section shows every active line's state (running / idle / blocked / down) with the stop
+  reason and since when; a line whose machine collector has sent nothing (no reading and
+  no gateway heartbeat) for more than 10 minutes shows *No data* instead of its last known
+  state, while stops logged by hand still show. The
   existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
   heading.
 - **Link an account to an existing worker.** The *Worker profile* section of the account

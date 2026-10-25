@@ -24,6 +24,15 @@ use Illuminate\Database\Seeder;
  * Regenerates every run — the data is pinned to the shift in progress, so
  * yesterday's copy would be off-screen anyway. Only touches stations it
  * seeds; other workstations are left alone.
+ *
+ * The open state rows are written as machine-reported and fresh, but nothing
+ * keeps them fresh afterwards: with no collector running, the plant overview
+ * shows these lines as "No data" ten minutes after seeding
+ * (PlantOverviewService::NO_SIGNAL_AFTER_MINUTES). That is the honest reading
+ * of a silent collector. Lines stay live only while a collector reports on
+ * them — e.g. the machine simulator (MachineSimulatorSeeder + `modbus:simulate`
+ * + `modbus:poll`), which drives its own SIM-* stations — so to show these
+ * seeded lines live, re-seed shortly before the demo.
  */
 class ShiftMonitorDemoSeeder extends Seeder
 {

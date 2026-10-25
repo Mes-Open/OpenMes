@@ -2,7 +2,7 @@
  * Plant-overview section registry — the sections drawn between the "Plant
  * overview" header and the "Last 30 days" widgets on the admin dashboard.
  *
- * Empty for now. Adding a section is ONE import and ONE entry here; nothing in
+ * Adding a section is ONE import and ONE entry here; nothing in
  * Dashboard.jsx or OverviewGrid.jsx changes:
  *
  *   import LineActivity from './LineActivity';
@@ -29,10 +29,15 @@
  * independent of the number of lines) rather than a new Inertia prop, so the
  * 60 s partial reload refreshes it too.
  *
+ * Line state: read it through ./lineStates.js (labels, colours, legend) — never
+ * re-map it per section. `unknown` ("No data") means the line's collector went
+ * silent; treat it as missing data (empty state), never as idle or zero.
+ *
  * Charts are hand-drawn SVG (see components/shift-monitor/*). Do NOT use
  * viewBox="0 0 100 60": that is OeeGauge's, and the oee-smoke e2e spec finds the
  * gauge on this page by it.
  */
+import LinesSection from './LinesSection';
 
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
@@ -45,4 +50,6 @@ export const ROWS = [
     'summary', //        Summary bar
 ];
 
-export const SECTIONS = [];
+export const SECTIONS = [
+    { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
+];

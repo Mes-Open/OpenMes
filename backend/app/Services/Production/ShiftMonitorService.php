@@ -303,16 +303,24 @@ class ShiftMonitorService
      *
      * For callers that only need the present tense (the plant overview header)
      * and can't afford `board()`'s counter feed on every refresh. Two queries
-     * regardless of station count. Stations nothing was ever heard from are
-     * absent from the result rather than present with a null state.
+     * regardless of station count — one when the caller already holds the open
+     * stops and passes them in (any extra stops in it are ignored). Stations
+     * nothing was ever heard from are absent from the result rather than
+     * present with a null state.
      *
      * `since` follows board(): the open stop's start when there is one,
-     * otherwise the state row's. `stateSince` is always the state row's.
+     * otherwise the state row's. A station can hold more than one open stop
+     * (one opened by the machine, one logged by hand); `stop` is the oldest —
+     * the one the station has been down since — and `stops` all of them, oldest
+     * first, so a newer stop never hides an older one's reason. `stateSince` is
+     * always the state row's. `seenAt` is when the station was last heard from
+     * (see WorkstationStateMachine::markSignal()).
      *
      * @param  Collection<int, Workstation>  $workstations
-     * @return array<int, array{state: string, since: Carbon, stateSince: Carbon, stop: ?ProductionDowntime}> keyed by workstation id
+     * @param  Collection<int, ProductionDowntime>|null  $openStops  open stops with `reason` loaded, oldest first
+     * @return array<int, array{state: string, source: string, since: Carbon, stateSince: Carbon, seenAt: Carbon, stop: ?ProductionDowntime, stops: Collection<int, ProductionDowntime>}> keyed by workstation id
      */
-    public function currentStates(Collection $workstations): array
+    public function currentStates(Collection $workstations, ?Collection $openStops = null): array
     {
         $ids = $workstations->pluck('id');
 
@@ -326,22 +334,30 @@ class ShiftMonitorService
             ->get()
             ->keyBy('workstation_id');
 
-        $openStops = ProductionDowntime::with('reason')
+        $openStops ??= ProductionDowntime::with('reason')
             ->whereIn('workstation_id', $ids)
             ->whereNull('ended_at')
             ->orderBy('started_at')
-            ->get()
-            ->keyBy('workstation_id');
+            ->get();
+
+        $stopsByStation = $openStops
+            ->filter(fn (ProductionDowntime $d) => $d->workstation_id !== null)
+            ->sortBy(fn (ProductionDowntime $d) => $d->started_at->getTimestamp())
+            ->groupBy('workstation_id');
 
         $result = [];
         foreach ($openStates as $stationId => $open) {
-            $stop = $openStops->get($stationId);
+            $stops = ($stopsByStation->get($stationId) ?? collect())->values();
+            $stop = $stops->first();
             $result[$stationId] = [
                 'state' => $open->state,
+                'source' => $open->source ?? 'machine',
                 // Same rule as board(): the open stop wins over the state row.
                 'since' => $stop?->started_at ?? $open->started_at,
                 'stateSince' => $open->started_at,
+                'seenAt' => $open->updated_at && $open->updated_at->gt($open->started_at) ? $open->updated_at : $open->started_at,
                 'stop' => $stop,
+                'stops' => $stops,
             ];
         }
 

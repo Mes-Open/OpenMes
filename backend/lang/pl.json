@@ -7119,5 +7119,10 @@
     ":count h left": "zostało :count h",
     ":count min left": "zostało :count min",
     "Waiting for material": "Oczekiwanie na materiał",
-    "Work order blocked": "Zlecenie zablokowane"
+    "Work order blocked": "Zlecenie zablokowane",
+    ":hours h :minutes min left": "zostało :hours h :minutes min",
+    "Down": "Postój",
+    "Since :time": "Od :time",
+    "Reason needed": "Wymaga podania przyczyny",
+    "No active lines": "Brak aktywnych linii"
 }
