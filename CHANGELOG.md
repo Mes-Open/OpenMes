@@ -14,13 +14,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
   order* button for users who can open work orders. The header refreshes every 60 s while
   the browser tab is visible; the *Live* dot turns grey when a refresh fails. Time left
-  reads "2 h 59 min" under three hours and whole hours, rounded up, above. A *Lines*
-  section shows every active line's state (running / idle / blocked / down) with the stop
-  reason and since when; a line whose machine collector has sent nothing (no reading and
-  no gateway heartbeat) for more than 10 minutes shows *No data* instead of its last known
-  state, while stops logged by hand still show. The
-  existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
-  heading.
+  reads "2 h 59 min" under three hours and whole hours, rounded up, above. With no shifts
+  set up, the header shows the default 06–18 / 18–06 window the sections report on. A line
+  whose machine collector has sent nothing (no reading and no gateway heartbeat) for more
+  than 10 minutes shows *No data* instead of its last known state, while stops logged by
+  hand still show. The existing widgets and the line filter are unchanged and now sit
+  under a *Last 30 days* heading.
 - **Line activity on the admin dashboard.** The first section under the *Plant overview*
   header, *Line activity · this shift*, draws one bar per active line from the start to
   the end of the current plant shift: Running (green), Idle (grey), Blocked (orange) and
@@ -42,11 +41,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   summary strip shows *Work orders today* (running · pending, plant day), *Materials* below
   minimum, *Open non-conformances* (only issues marked as non-conformances) and the *Next
   order*, each linking to its list; fields of switched-off modules are hidden.
-  the browser tab is visible; the *Live* dot turns grey when a refresh fails. The page
-  also receives the live state of every active line (running / idle / blocked / down, with
-  the stop reason and since when), ready for the overview sections that follow. The
-  existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
-  heading.
 - **Production targets.** *Settings → System → Production* has a new *Production targets*
   card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
   (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
@@ -199,10 +193,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   updates at midnight without a page reload. The *Alerts* page states the cut-off it uses
   ("Due before 24/10/2026 (Europe/Warsaw)"); the *Latest alerts* panel says when the count is
   made only of work orders, and closes when you click through to the *Alerts* page.
-- **Lists show your own changes even when live sync is down.** After saving a form, the
-  lists on screen re-read their rows, so a work order or account you just created appears
-  at once. Before, without a working live-sync connection, the list stayed empty
-  under the "created" message until the page was reloaded.
 - **Settings → Tab Access saves again.** On a fresh install, saving the page always failed
   without a message, because Admin and Supervisor hold the same quality grants and a
   validation rule wrongly treated that as a duplicate. The save now goes through, and
