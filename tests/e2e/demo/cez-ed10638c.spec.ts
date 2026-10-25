@@ -28,13 +28,13 @@ test('plant overview: time left in h/min and silent collector lines turn to "No 
   const legend = page.getByTestId('line-state-legend');
   await legend.scrollIntoViewIfNeeded();
   await expect(legend).toContainText('No data');
-  await expect(page.getByTestId('overview-line').first()).toBeVisible();
+  await expect(page.getByTestId('line-card').first()).toBeVisible();
   await page.waitForTimeout(800);
   await page.screenshot({ path: testInfo.outputPath('02-lines-fresh.png'), fullPage: true });
 
   // Nobody feeds the demo collectors: after >10 min without a signal a machine line
   // must switch to "No data". The page refreshes itself every 60 s.
-  const silent = page.locator('[data-testid="overview-line"][data-state="unknown"]').first();
+  const silent = page.locator('[data-testid="line-card"][data-state="unknown"]').first();
   await expect(silent).toBeVisible({ timeout: 14 * 60_000 });
   await expect(silent).toContainText('No data');
   await silent.scrollIntoViewIfNeeded();
