@@ -7232,5 +7232,20 @@
     "<1 min": "<1 min",
     ":d d": ":d d",
     "Showing issue #:id only": "Pokazano tylko zgłoszenie #:id",
-    "Show all issues": "Pokaż wszystkie zgłoszenia"
+    "Show all issues": "Pokaż wszystkie zgłoszenia",
+    "Plant board →": "Tablica zakładu →",
+    "On track · ETA :time": "Zgodnie z planem · ETA :time",
+    "Late · ETA :time": "Opóźnienie · ETA :time",
+    "Late · due :time": "Opóźnienie · termin :time",
+    "No ETA": "Brak ETA",
+    "No active order": "Brak aktywnego zlecenia",
+    "+:count more": "+:count więcej",
+    ":done / :planned pcs": ":done / :planned szt.",
+    "Work orders today": "Zlecenia dziś",
+    ":running running · :pending pending": ":running w toku · :pending oczekujących",
+    ":count below minimum": ":count poniżej minimum",
+    "Next order": "Następne zlecenie",
+    "No upcoming orders": "Brak nadchodzących zleceń",
+    "Plant summary": "Podsumowanie zakładu",
+    "No data since :time": "Brak danych od :time"
 }

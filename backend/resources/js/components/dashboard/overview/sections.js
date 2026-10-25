@@ -17,7 +17,7 @@
  *               render side by side and wrap to one column on narrow screens.
  *   span      — 'full' (whole row) | 'wide' (2 parts) | 'narrow' (1 part).
  *   Component — receives { overview, accessibleTabs } where `overview` is the
- *               `overview` Inertia prop ({ shift, lines, timeline, oee, downtime, production }, refreshed every 60 s).
+ *               `overview` Inertia prop ({ shift, lines, timeline, oee, downtime, production, line_orders, summary }, refreshed every 60 s).
  *               Wrap it in `OverviewCard` (./OverviewCard) for the shared card
  *               style, and render its own empty state — never fake zeros or NaN.
  *   visible   — optional (ctx) => boolean, ctx = { overview, accessibleTabs,
@@ -41,11 +41,12 @@
 import DowntimeSection from './DowntimeSection';
 import KpiTiles from './KpiTiles';
 import LineActivity from './LineActivity';
-import LinesSection from './LinesSection';
+import LineCards from './LineCards';
 import NeedsAction from './NeedsAction';
 import OeeSection from './OeeSection';
 import OutputPerHour from './OutputPerHour';
 import PlannedVsActual from './PlannedVsActual';
+import SummaryBar from './SummaryBar';
 
 /** Row order, top to bottom, as in the "Plant overview" mockup. */
 export const ROWS = [
@@ -70,5 +71,6 @@ export const SECTIONS = [
     { id: 'kpi_tiles', row: 'production_kpi', span: 'narrow', Component: KpiTiles },
     { id: 'needs_action', row: 'needs_action', span: 'full', Component: NeedsAction },
     { id: 'output_per_hour', row: 'output', span: 'wide', Component: OutputPerHour, visible: hasProduction },
-    { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
+    { id: 'lines', row: 'lines', span: 'full', Component: LineCards },
+    { id: 'summary', row: 'summary', span: 'full', Component: SummaryBar, visible: ({ overview }) => !!overview?.summary },
 ];

@@ -104,6 +104,8 @@ class PlantOverviewService
         private ProductionTargets $targets,
         private ShiftPlanService $plan,
         private ShiftKpiService $kpis,
+        private LineProgressService $progress,
+        private PlantSummaryService $summary,
     ) {}
 
     /**
@@ -113,10 +115,11 @@ class PlantOverviewService
      * `kpis` links and `needs_action` buttons depend on who is asking; without
      * a user `needs_action` is null.
      *
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>, production: array<string, mixed>, kpis: array<string, mixed>, needs_action: ?array{total: int, items: array<int, array<string, mixed>>}}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>, production: array<string, mixed>, kpis: array<string, mixed>, needs_action: ?array{total: int, items: array<int, array<string, mixed>>}, line_orders: array<int, array<string, mixed>>, summary: ?array<string, mixed>}
      */
     public function overview(?User $user = null): array
     {
+        $now = Carbon::now();
         $resolved = $this->resolveLines();
         $lines = $this->publicLines($resolved);
 
@@ -130,6 +133,8 @@ class PlantOverviewService
             'production' => $this->plan->forShift(ShiftWindow::current()),
             'kpis' => $this->kpis->tiles($lines, $user),
             'needs_action' => $user ? $this->needsAction($user, $resolved) : null,
+            'line_orders' => $this->progress->forLines($lines, $now),
+            'summary' => $this->summary->summary($now),
         ];
     }
 

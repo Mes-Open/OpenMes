@@ -7232,5 +7232,20 @@
     "<1 min": "<1 min",
     ":d d": ":d d",
     "Showing issue #:id only": "Showing issue #:id only",
-    "Show all issues": "Show all issues"
+    "Show all issues": "Show all issues",
+    "Plant board →": "Plant board →",
+    "On track · ETA :time": "On track · ETA :time",
+    "Late · ETA :time": "Late · ETA :time",
+    "Late · due :time": "Late · due :time",
+    "No ETA": "No ETA",
+    "No active order": "No active order",
+    "+:count more": "+:count more",
+    ":done / :planned pcs": ":done / :planned pcs",
+    "Work orders today": "Work orders today",
+    ":running running · :pending pending": ":running running · :pending pending",
+    ":count below minimum": ":count below minimum",
+    "Next order": "Next order",
+    "No upcoming orders": "No upcoming orders",
+    "Plant summary": "Plant summary",
+    "No data since :time": "No data since :time"
 }
