@@ -39,7 +39,9 @@ describe('bar labels', () => {
     it('shortens thousands only when the columns are narrow', () => {
         setTimezone('UTC');
         expect(barLabel(5318, false)).toBe('5,318');
-        expect(barLabel(5318, true)).toMatch(/^5\.3\s?K$/);
+        // en-GB's compact suffix is "K" or "k" depending on the CLDR data the
+        // runtime ships (Node 20 vs 22), so only the shortening is asserted.
+        expect(barLabel(5318, true)).toMatch(/^5\.3\s?[Kk]$/);
         expect(barLabel(840, true)).toBe('840');
     });
 });
