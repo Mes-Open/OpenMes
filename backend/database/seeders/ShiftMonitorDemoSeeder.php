@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Batch;
 use App\Models\DowntimeReason;
+use App\Models\Line;
 use App\Models\MachineEvent;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
@@ -120,17 +121,6 @@ class ShiftMonitorDemoSeeder extends Seeder
 
     private const DEFAULT_RATE = 500;
 
-    /**
-     * Station id => true for the one station per line whose batches stand for
-     * the line's output. Every station on a line draws batches from the same
-     * orders, so counting them all would multiply the line's pieces by its
-     * station count; the last station (by id — seeders create them in line
-     * order) is where finished pieces leave the line.
-     *
-     * @var array<int, true>
-     */
-    private array $outputStations = [];
-
     public function run(): void
     {
         // Every active station, not a hand-listed few. The list used to name
@@ -139,12 +129,6 @@ class ShiftMonitorDemoSeeder extends Seeder
         // screen three times out of four, which reads as broken rather than as
         // a station nobody ran.
         $workstations = Workstation::where('is_active', true)->orderBy('code')->get();
-        $this->outputStations = $workstations->groupBy('line_id')
-            ->map(fn ($stations) => $stations->max('id'))
-            ->filter()
-            ->flip()
-            ->map(fn () => true)
-            ->all();
 
         foreach ($workstations as $workstation) {
             $ratePerHour = self::STATIONS[$workstation->code]
@@ -162,6 +146,98 @@ class ShiftMonitorDemoSeeder extends Seeder
                 $this->seedStation($workstation, $ratePerHour);
             });
         }
+
+        $this->seedOutputLedger();
+    }
+
+    /**
+     * Output so far in each line's live shift, for the dashboard's planned vs
+     * actual and output per hour (they read `work_order_output_entries`, which
+     * seeding batches never writes).
+     *
+     * Taken from the schedule rather than from the batches above: those run at
+     * nameplate rate on whatever orders a line happens to have, which next to
+     * the shift's plan reads as 200 % of it. Here every order scheduled in the
+     * live shift has made a believable 72–98 % of its planned pieces each hour,
+     * recorded in quarter-hour steps up to now. Lines with nothing scheduled
+     * get nothing. Kept off the orders' produced_qty, which drives status
+     * changes and the planned-start guard. Re-running replaces this shift's
+     * entries on the line.
+     */
+    private function seedOutputLedger(): void
+    {
+        $now = Carbon::now();
+
+        foreach (Line::where('is_active', true)->get(['id']) as $line) {
+            $window = ShiftWindow::current($line->id);
+            $cut = $now->copy()->min($window->end);
+
+            WorkOrderOutputEntry::withoutGlobalScopes()
+                ->where('line_id', $line->id)
+                ->where('recorded_at', '>=', $window->start)
+                ->delete();
+
+            if ($cut->lessThanOrEqualTo($window->start)) {
+                continue;
+            }
+
+            $orders = WorkOrder::where('line_id', $line->id)
+                ->whereIn('status', [...WorkOrder::ACTIVE_STATUSES, WorkOrder::STATUS_DONE])
+                ->whereNotNull('planned_start_at')
+                ->whereNotNull('planned_end_at')
+                ->where('planned_start_at', '<', $cut)
+                ->where('planned_end_at', '>', $window->start)
+                ->where('planned_qty', '>', 0)
+                ->get();
+
+            mt_srand($line->id * 7919 + (int) $window->start->format('Ymd'));
+            $attainment = [];
+            $rows = [];
+
+            foreach ($orders as $order) {
+                $s = $order->planned_start_at->getTimestamp();
+                $e = $order->planned_end_at->getTimestamp();
+                if ($e <= $s) {
+                    continue;
+                }
+
+                $carry = 0.0;
+                $total = (float) $order->produced_qty;
+                for ($from = $window->start->copy(); $from->lessThan($cut); $from->addMinutes(15)) {
+                    $to = $from->copy()->addMinutes(15)->min($cut);
+                    $overlap = min($e, $to->getTimestamp()) - max($s, $from->getTimestamp());
+                    if ($overlap <= 0) {
+                        continue;
+                    }
+
+                    $hour = intdiv($from->getTimestamp() - $window->start->getTimestamp(), 3600);
+                    $attainment[$hour] ??= mt_rand(72, 98) / 100;
+
+                    $carry += (float) $order->planned_qty * $overlap / ($e - $s) * $attainment[$hour];
+                    $pieces = (int) floor($carry);
+                    if ($pieces <= 0) {
+                        continue;
+                    }
+                    $carry -= $pieces;
+                    $total += $pieces;
+
+                    $rows[] = [
+                        'tenant_id' => $order->tenant_id,
+                        'work_order_id' => $order->id,
+                        'line_id' => $line->id,
+                        'delta' => $pieces,
+                        'produced_total' => $total,
+                        'recorded_at' => $to->copy(),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                WorkOrderOutputEntry::insert($chunk);
+            }
+        }
     }
 
     private function seedStation(Workstation $workstation, int $ratePerHour): void
@@ -175,15 +251,6 @@ class ShiftMonitorDemoSeeder extends Seeder
         $windows = $this->windows($workstation);
         $now = Carbon::now();
         $stops = 0;
-
-        // The output ledger mirrors the batches below; drop the previous run's
-        // copy over the same span so re-seeding does not double it.
-        if (isset($this->outputStations[$workstation->id]) && $windows) {
-            WorkOrderOutputEntry::withoutGlobalScopes()
-                ->where('line_id', $workstation->line_id)
-                ->where('recorded_at', '>=', end($windows)->start)
-                ->delete();
-        }
         $unclassified = 0;
 
         // Oldest first when writing. clear() wipes everything at or after the
@@ -576,57 +643,7 @@ class ShiftMonitorDemoSeeder extends Seeder
                 'started_at' => $from,
                 'completed_at' => $to,
             ]);
-
-            if (isset($this->outputStations[$workstation->id])) {
-                // The open batch ran to the end of what was seeded for this shift —
-                // now for the live one, the shift's end for history.
-                $this->writeOutput($workOrder, $from, $to ?? $window->start->copy()->addMinutes($elapsed), $produced);
-            }
         }
-    }
-
-    /**
-     * The line's output for one batch in the output ledger — what the
-     * dashboard's planned-vs-actual and output-per-hour read — spread over the
-     * batch's run in quarter-hour steps, each recorded when it would have
-     * been. Without it a fresh demo shows the shift's plan against nothing,
-     * because seeding writes batches, not produced_qty changes.
-     */
-    private function writeOutput(WorkOrder $workOrder, Carbon $from, Carbon $to, int $produced): void
-    {
-        $seconds = $to->getTimestamp() - $from->getTimestamp();
-        if ($produced <= 0 || $seconds <= 0) {
-            return;
-        }
-
-        $rows = [];
-        $done = 0;
-        $total = (float) $workOrder->produced_qty;
-        for ($at = $from->copy()->addMinutes(15); ; $at->addMinutes(15)) {
-            $end = $at->min($to);
-            $share = (int) round($produced * ($end->getTimestamp() - $from->getTimestamp()) / $seconds) - $done;
-            if ($share > 0) {
-                $done += $share;
-                $total += $share;
-                $rows[] = [
-                    'tenant_id' => $workOrder->tenant_id,
-                    'work_order_id' => $workOrder->id,
-                    'line_id' => $workOrder->line_id,
-                    'delta' => $share,
-                    'produced_total' => $total,
-                    'recorded_at' => $end->copy(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-            if ($end->greaterThanOrEqualTo($to)) {
-                break;
-            }
-        }
-
-        // Kept off the order's own produced_qty: that drives status changes and
-        // the planned-start guard, which a seeder replaying history must not trip.
-        WorkOrderOutputEntry::insert($rows);
     }
 
     /**

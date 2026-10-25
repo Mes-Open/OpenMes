@@ -41,8 +41,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   (operator, batches, machine counters, corrections). Hourly output is recorded from the
   upgrade on; output reported before the upgrade is not in the hourly figures. The section names how
   many scheduled orders make up the plan, with an *Open schedule* link for users who can
-  open the Schedule. The example companies' demo data now fills the ledger too, so a fresh
-  demo shows real actual output.
+  open the Schedule. On the example companies the demo data records output for the orders
+  scheduled in the live shift, at 72–98 % of their plan each hour, so a fresh demo shows
+  actual output against the plan.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not
