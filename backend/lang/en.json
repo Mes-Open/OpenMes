@@ -7254,5 +7254,6 @@
     "Edit work orders": "Edit work orders",
     "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).": "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).",
     "You can view work orders, but not create them.": "You can view work orders, but not create them.",
-    "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it."
+    "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.",
+    "Default window (no shifts set up)": "Default window (no shifts set up)"
 }
