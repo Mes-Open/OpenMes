@@ -7164,5 +7164,15 @@
     "performance": "wydajność",
     "quality": "jakość",
     "No machine data this shift yet.": "Brak danych z maszyn w tej zmianie.",
-    ":name :value, target :target": ":name :value, cel :target"
+    ":name :value, target :target": ":name :value, cel :target",
+    "this shift": "ta zmiana",
+    "across :count lines · :percent% of planned time": "na :count liniach · :percent% planowanego czasu",
+    "across 1 line · :percent% of planned time": "na 1 linii · :percent% planowanego czasu",
+    "across :count lines": "na :count liniach",
+    "across 1 line": "na 1 linii",
+    "No downtime this shift": "Brak przestojów w tej zmianie",
+    "Classify in Shift Monitor": "Sklasyfikuj w Monitorze zmiany",
+    "Downtime report": "Raport przestojów",
+    "Still running": "Nadal trwa",
+    "Downtime this shift": "Przestoje w tej zmianie"
 }

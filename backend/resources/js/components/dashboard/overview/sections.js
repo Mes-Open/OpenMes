@@ -38,6 +38,7 @@
  * gauge on this page by it.
  */
 
+import DowntimeSection from './DowntimeSection';
 import LineActivity from './LineActivity';
 import LinesSection from './LinesSection';
 import OeeSection from './OeeSection';
@@ -56,5 +57,6 @@ export const ROWS = [
 export const SECTIONS = [
     { id: 'line_activity', row: 'activity', span: 'full', Component: LineActivity },
     { id: 'oee', row: 'oee_downtime', span: 'wide', Component: OeeSection },
+    { id: 'downtime', row: 'oee_downtime', span: 'narrow', Component: DowntimeSection },
     { id: 'lines', row: 'lines', span: 'full', Component: LinesSection },
 ];

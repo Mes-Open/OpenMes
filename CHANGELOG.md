@@ -39,6 +39,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   separate setting: it is each line's *Planning efficiency (%)* (100 = not set, 85 % is
   used), and the plant target is those weighted by each line's planned minutes in the
   shift.
+- **Downtime on the admin dashboard.** *Admin → Dashboard* has a *Downtime* card next to
+  OEE: the total downtime of the shift running now (open stops count up to now, stops that
+  began before the shift count from its start), *across N lines · X% of planned time*,
+  and one row per reason, longest first, with the affected line codes, the time and a bar
+  (red for unplanned, grey for planned and changeover). Stops still waiting for a cause
+  show as *Unclassified* with a *Classify in Shift Monitor* link, and *Downtime report →*
+  opens Plant Board. Planned stops count in the total but not in the percentage, which is
+  measured in line time: stations of one line stopped together, or a machine stop and a
+  hand-reported line stop over the same period, count once, so it never passes 100 %.
+  With no stops the card reads *No downtime this shift*. *Plant board*'s header now shows
+  the same *Downtime this shift* total (whole-plant board only); a stop reported by hand
+  against a whole line reaches it on the board's next poll rather than instantly.
 - **"OEE · this shift" on the admin dashboard.** Under the *Plant overview* header, a new
   card shows the plant's live OEE since the start of the current shift, how far it is
   from target and which of availability / performance / quality loses the most, the

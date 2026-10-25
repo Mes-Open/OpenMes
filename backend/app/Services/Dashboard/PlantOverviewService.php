@@ -90,7 +90,7 @@ class PlantOverviewService
     ) {}
 
     /**
-     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>}
+     * @return array{shift: array<string, mixed>, lines: array<int, array<string, mixed>>, timeline: array<string, mixed>, oee: array<string, mixed>, downtime: array<string, mixed>}
      */
     public function overview(): array
     {
@@ -99,6 +99,7 @@ class PlantOverviewService
             'lines' => $this->lineStates(),
             'timeline' => $this->lineTimeline(),
             'oee' => $this->shiftOee(),
+            'downtime' => $this->downtime(),
         ];
     }
 
@@ -797,5 +798,222 @@ class PlantOverviewService
         }
 
         return $worst;
+    }
+
+    /**
+     * Downtime of the plant shift running now, grouped by reason.
+     *
+     * Uses the same window and overlap rule as Plant Board / Shift Monitor
+     * (ShiftWindow::current(), `started_at < end AND (ended_at IS NULL OR
+     * ended_at > start)`): each stop is clipped to the part of the window that
+     * has already happened, an open stop running to now. Line-level stops
+     * reported by hand count too.
+     *
+     * `total_minutes` and the reason rows add up every stop, station by
+     * station, exactly as Plant Board lists them.
+     *
+     * The percentage is measured in *line time* instead, so it cannot pass
+     * 100 %: four stations of one line faulting together, or a machine stop
+     * and a hand-reported line stop covering the same hour, are one hour of
+     * that line lost, not four. Per line, overlapping stops are merged first:
+     *
+     *  - `planned_minutes` — the net planned time *so far*: elapsed shift time
+     *    minus the time covered by planned-kind stops, summed over active
+     *    lines. The same net the OEE availability uses (shift time −
+     *    DowntimeService::getPlannedMinutes), on elapsed rather than whole-shift
+     *    time because the numerator is also "so far";
+     *  - `loss_minutes` — time covered by unplanned, changeover or unclassified
+     *    stops, outside planned stops;
+     *  - `percent_of_planned` — loss over planned time. Planned stops appear in
+     *    the total and the reason list but are not a loss.
+     *
+     * @return array{has_lines: bool, total_minutes: int, loss_minutes: int, planned_minutes: ?int, percent_of_planned: ?int, line_count: int, reasons: array<int, array<string, mixed>>, unclassified: ?array<string, mixed>}
+     */
+    public function downtime(): array
+    {
+        $lines = Line::active()->get(['id', 'name', 'code']);
+
+        if ($lines->isEmpty()) {
+            return [
+                'has_lines' => false,
+                'total_minutes' => 0,
+                'loss_minutes' => 0,
+                'planned_minutes' => null,
+                'percent_of_planned' => null,
+                'line_count' => 0,
+                'reasons' => [],
+                'unclassified' => null,
+            ];
+        }
+
+        $window = ShiftWindow::current();
+        $now = Carbon::now();
+        $cap = $now->lessThan($window->end) ? $now : $window->end;
+
+        $lineIds = $lines->pluck('id');
+        $lineLabel = $lines->mapWithKeys(fn (Line $l) => [$l->id => $l->code ?: $l->name]);
+        // Inactive stations too, so a stop logged before one was retired still
+        // finds its line.
+        $stationLine = Workstation::whereIn('line_id', $lineIds)->pluck('line_id', 'id');
+
+        $stops = ProductionDowntime::with(['reason' => fn ($q) => $q->withTrashed()])
+            ->where(fn ($q) => $q->whereIn('line_id', $lineIds)->orWhereIn('workstation_id', $stationLine->keys()))
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->orderBy('started_at')
+            ->get();
+
+        $buckets = [];
+        // line id → [[start, end], …] in unix seconds, for the line-time maths.
+        $plannedSpans = [];
+        $lossSpans = [];
+        $totalSeconds = 0;
+        $linesHit = [];
+
+        foreach ($stops as $stop) {
+            $lineId = ($stop->workstation_id ? $stationLine->get($stop->workstation_id) : null) ?? $stop->line_id;
+            if (! $lineLabel->has($lineId)) {
+                continue;
+            }
+
+            $span = $this->clip($stop, $window->start, $cap);
+            if ($span === null) {
+                continue;
+            }
+            $seconds = $span[1] - $span[0];
+
+            $unclassified = $stop->needs_reason || $stop->reason === null;
+            $kind = $unclassified ? 'unclassified' : ($stop->reason->kind?->value ?? 'unplanned');
+            $key = $unclassified ? 'unclassified' : 'reason:'.$stop->reason->id;
+
+            $buckets[$key] ??= [
+                'id' => $unclassified ? null : $stop->reason->id,
+                // Reason names are stored in English and translated on display,
+                // as ShiftMonitorService::reasonLabel() does.
+                'name' => $unclassified ? __('Unclassified') : __($stop->reason->name),
+                'code' => $unclassified ? null : $stop->reason->code,
+                'kind' => $kind,
+                'seconds' => 0,
+                'lines' => [],
+                'count' => 0,
+                'open' => false,
+                'workstation_id' => null,
+            ];
+            $bucket = &$buckets[$key];
+            $bucket['seconds'] += $seconds;
+            $bucket['lines'][$lineLabel->get($lineId)] = true;
+            $bucket['count']++;
+            $bucket['open'] = $bucket['open'] || $stop->ended_at === null;
+            // Oldest unclassified stop on a station: where "classify" sends you.
+            $bucket['workstation_id'] ??= $unclassified ? $stop->workstation_id : null;
+            unset($bucket);
+
+            $totalSeconds += $seconds;
+            $linesHit[$lineId] = true;
+            if ($kind === 'planned') {
+                $plannedSpans[$lineId][] = $span;
+            } else {
+                $lossSpans[$lineId][] = $span;
+            }
+        }
+
+        $rows = collect($buckets)->map(function (array $b) {
+            $lines = array_keys($b['lines']);
+            sort($lines, SORT_NATURAL);
+
+            return [...$b, 'minutes' => (int) round($b['seconds'] / 60), 'lines' => $lines];
+        });
+
+        $unclassified = $rows->get('unclassified');
+        $reasons = $rows->forget('unclassified')
+            ->sort(fn (array $a, array $b) => [$b['seconds'], $a['name']] <=> [$a['seconds'], $b['name']])
+            ->map(fn (array $r) => collect($r)->only(['id', 'name', 'code', 'kind', 'minutes', 'lines', 'count', 'open'])->all())
+            ->values()
+            ->all();
+
+        $elapsedSeconds = max(0, $cap->getTimestamp() - $window->start->getTimestamp());
+        $plannedTime = 0;
+        $lossSeconds = 0;
+        foreach ($lineIds as $lineId) {
+            $planned = self::mergeSpans($plannedSpans[$lineId] ?? []);
+            $loss = self::mergeSpans($lossSpans[$lineId] ?? []);
+            $plannedTime += $elapsedSeconds - self::spanLength($planned);
+            $lossSeconds += self::spanLength($loss) - self::overlapLength($loss, $planned);
+        }
+        $plannedMinutes = (int) round($plannedTime / 60);
+
+        return [
+            'has_lines' => true,
+            'total_minutes' => (int) round($totalSeconds / 60),
+            'loss_minutes' => (int) round($lossSeconds / 60),
+            'planned_minutes' => $plannedMinutes > 0 ? $plannedMinutes : null,
+            'percent_of_planned' => $plannedTime > 0 ? (int) round($lossSeconds / $plannedTime * 100) : null,
+            'line_count' => count($linesHit),
+            'reasons' => $reasons,
+            'unclassified' => $unclassified
+                ? collect($unclassified)->only(['minutes', 'lines', 'count', 'open', 'workstation_id'])->all()
+                : null,
+        ];
+    }
+
+    /**
+     * The part of a stop inside [$from, $to] as [start, end] unix seconds, an
+     * open stop running to $to; null when nothing of it falls inside.
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function clip(ProductionDowntime $stop, Carbon $from, Carbon $to): ?array
+    {
+        $start = max($stop->started_at->getTimestamp(), $from->getTimestamp());
+        $end = min(($stop->ended_at ?? $to)->getTimestamp(), $to->getTimestamp());
+
+        return $end > $start ? [$start, $end] : null;
+    }
+
+    /**
+     * Sorted, non-overlapping union of spans.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $spans
+     * @return array<int, array{0: int, 1: int}>
+     */
+    private static function mergeSpans(array $spans): array
+    {
+        usort($spans, fn (array $a, array $b) => $a[0] <=> $b[0]);
+
+        $merged = [];
+        foreach ($spans as [$start, $end]) {
+            $last = array_key_last($merged);
+            if ($last !== null && $start <= $merged[$last][1]) {
+                $merged[$last][1] = max($merged[$last][1], $end);
+            } else {
+                $merged[] = [$start, $end];
+            }
+        }
+
+        return $merged;
+    }
+
+    /** @param  array<int, array{0: int, 1: int}>  $spans  merged */
+    private static function spanLength(array $spans): int
+    {
+        return array_sum(array_map(fn (array $s) => $s[1] - $s[0], $spans));
+    }
+
+    /**
+     * Seconds two merged span lists have in common.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $a
+     * @param  array<int, array{0: int, 1: int}>  $b
+     */
+    private static function overlapLength(array $a, array $b): int
+    {
+        $total = 0;
+        $i = $j = 0;
+        while ($i < count($a) && $j < count($b)) {
+            $total += max(0, min($a[$i][1], $b[$j][1]) - max($a[$i][0], $b[$j][0]));
+            $a[$i][1] < $b[$j][1] ? $i++ : $j++;
+        }
+
+        return $total;
     }
 }

@@ -7164,5 +7164,15 @@
     "performance": "performance",
     "quality": "quality",
     "No machine data this shift yet.": "No machine data this shift yet.",
-    ":name :value, target :target": ":name :value, target :target"
+    ":name :value, target :target": ":name :value, target :target",
+    "this shift": "this shift",
+    "across :count lines · :percent% of planned time": "across :count lines · :percent% of planned time",
+    "across 1 line · :percent% of planned time": "across 1 line · :percent% of planned time",
+    "across :count lines": "across :count lines",
+    "across 1 line": "across 1 line",
+    "No downtime this shift": "No downtime this shift",
+    "Classify in Shift Monitor": "Classify in Shift Monitor",
+    "Downtime report": "Downtime report",
+    "Still running": "Still running",
+    "Downtime this shift": "Downtime this shift"
 }
