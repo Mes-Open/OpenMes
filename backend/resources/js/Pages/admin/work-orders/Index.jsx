@@ -7,9 +7,8 @@ import usePrompt from '../../../components/usePrompt';
 import WorkOrderForm from './WorkOrderForm';
 import { woStatusBadge } from './fields';
 import { woColumns } from './columns';
-import { __ } from '../../../lib/i18n';
-
-const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
+import { __, todayInTimezone } from '../../../lib/i18n';
+import { isOverdue, TERMINAL_WO_STATUSES as TERMINAL } from '../../../lib/alerts';
 
 export default function WorkOrdersIndex() {
     const {
@@ -35,12 +34,11 @@ export default function WorkOrdersIndex() {
     // `?overdue=1` is the alerts page's "open in work orders" link: the same
     // definition of overdue it lists — a past due date on an order still live.
     const overdueFilter = params.get('overdue');
-    const today = new Date().toISOString().slice(0, 10);
-    const isOverdue = (r) => r.due_date && String(r.due_date).slice(0, 10) < today && !TERMINAL.includes(r.status);
+    const today = todayInTimezone();
     const filterFn = (statusFilter || lineFilter || overdueFilter)
         ? (r) => (!statusFilter || r.status === statusFilter)
             && (!lineFilter || String(r.line_id) === String(lineFilter))
-            && (!overdueFilter || isOverdue(r))
+            && (!overdueFilter || isOverdue(r, today))
         : undefined;
     const subtitle = filterFn ? (
         <div className="flex items-center gap-2 text-sm">

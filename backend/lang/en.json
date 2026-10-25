@@ -7247,5 +7247,7 @@
     "Next order": "Next order",
     "No upcoming orders": "No upcoming orders",
     "Plant summary": "Plant summary",
-    "No data since :time": "No data since :time"
+    "No data since :time": "No data since :time",
+    "Due before :date (:timezone)": "Due before :date (:timezone)",
+    "No open issues. The alerts are work orders: :summary.": "No open issues. The alerts are work orders: :summary."
 }

@@ -7247,5 +7247,7 @@
     "Next order": "Następne zlecenie",
     "No upcoming orders": "Brak nadchodzących zleceń",
     "Plant summary": "Podsumowanie zakładu",
-    "No data since :time": "Brak danych od :time"
+    "No data since :time": "Brak danych od :time",
+    "Due before :date (:timezone)": "Termin przed :date (:timezone)",
+    "No open issues. The alerts are work orders: :summary.": "Brak otwartych problemów. Alerty to zlecenia: :summary."
 }

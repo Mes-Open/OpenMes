@@ -173,6 +173,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
+- **Overdue alerts follow the plant's midnight, not UTC's.** The sidebar alert badge, its
+  *Latest alerts* panel, the *Alerts* page and the *Work orders → Overdue* filter decided
+  "overdue" against the UTC date, so outside UTC an order changed state hours away from the
+  plant's midnight (in Warsaw, yesterday's orders dropped out of the badge between 00:00 and
+  02:00) and the badge disagreed with the server's count. They now use today's date in the
+  plant timezone (*Settings → System*), the same day boundary as the server, and the badge
+  updates at midnight without a page reload. The *Alerts* page states the cut-off it uses
+  ("Due before 24/10/2026 (Europe/Warsaw)"); the *Latest alerts* panel says when the count is
+  made only of work orders, and closes when you click through to the *Alerts* page.
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.
