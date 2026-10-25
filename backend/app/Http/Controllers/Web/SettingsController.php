@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
+use App\Http\Requests\UpdateProductionTargetsRequest;
 use App\Http\Requests\UpdateRoleTabAccessRequest;
 use App\Http\Requests\UpdateSystemSettingsRequest;
+use App\Services\Dashboard\ProductionTargets;
+use App\Services\Quality\FirstPassYieldService;
 use App\Services\Settings\ConfigurationImporter;
 use App\Services\Settings\ProductionScenarioImporter;
 use App\Services\Settings\ScenarioException;
 use App\Support\InspectionPermissions;
+use App\Support\ModuleRegistry;
+use App\Support\ProductionTargetSettings;
+use App\Support\ShiftWindow;
 use App\Support\TabRegistry;
 use App\Support\TimezoneRegistry;
 use App\Sync\CollectionBroadcaster;
@@ -115,7 +121,7 @@ class SettingsController extends Controller
     /**
      * Show admin-only system settings page.
      */
-    public function showSystemSettings()
+    public function showSystemSettings(Request $request)
     {
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
@@ -210,7 +216,44 @@ class SettingsController extends Controller
             // Tabs a module adds to this page: {slot, title, component} each.
             // The module's component saves through its own route. `{}` when none.
             'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
+            // Shift FPY and planned minutes are real queries only the Production
+            // tab shows: sent up front when the page opens on that tab, otherwise
+            // left out until the tab asks for them with a partial reload.
+            'productionTargets' => $request->query('tab') === 'production'
+                ? fn () => $this->productionTargetsPayload()
+                : Inertia::optional(fn () => $this->productionTargetsPayload()),
         ]);
+    }
+
+    /**
+     * The Production targets card: the two stored quality targets plus the
+     * current shift's figures, so an admin can see the calculation is live.
+     */
+    private function productionTargetsPayload(): array
+    {
+        $window = ShiftWindow::current();
+
+        return [
+            'max_scrap_rate_pct' => ProductionTargetSettings::maxScrapRate(),
+            'min_fpy_pct' => ProductionTargetSettings::minFirstPassYield(),
+            'quality_enabled' => ModuleRegistry::isModuleEnabled('quality'),
+            'current_shift_fpy' => app(FirstPassYieldService::class)->forWindow($window->start, $window->end),
+            'plant_oee_target' => round(app(ProductionTargets::class)->plantOeeTarget($window), 1),
+        ];
+    }
+
+    /**
+     * Save the plant's quality targets (admin only). Separate from the main
+     * system form so it can never reset — or be blocked by — other settings.
+     */
+    public function updateProductionTargets(UpdateProductionTargetsRequest $request)
+    {
+        $validated = $request->validated();
+
+        ProductionTargetSettings::save((float) $validated['max_scrap_rate_pct'], (float) $validated['min_fpy_pct']);
+
+        return redirect()->route('settings.system', ['tab' => 'production'])
+            ->with('success', __('Production targets updated.'));
     }
 
     /**

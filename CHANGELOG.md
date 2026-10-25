@@ -21,6 +21,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   state, while stops logged by hand still show. The
   existing widgets and the line filter are unchanged and now sit under a *Last 30 days*
   heading.
+- **Production targets.** *Settings → System → Production* has a new *Production targets*
+  card (Admin only): *Max scrap rate (%)* (default 2.0) and *Min first-pass yield (%)*
+  (default 95.0), 0–100 with at most one decimal. The card shows the current shift's
+  first-pass yield — batches whose first quality check passed, out of batches first
+  checked in the shift — or *No quality checks this shift*. The OEE target is not a
+  separate setting: it is each line's *Planning efficiency (%)* (100 = not set, 85 % is
+  used), and the plant target is those weighted by each line's planned minutes in the
+  shift.
 - **Link an account to an existing worker.** The *Worker profile* section of the account
   form (*Admin → Users & Accounts*) now offers *Create new profile* or *Link existing
   worker*: a searchable list of HR workers that have no account yet. Linking does not
