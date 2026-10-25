@@ -95,6 +95,26 @@ class AccessQualityGrantsTest extends TestCase
         $this->assertFalse(Role::findByName('Supervisor', 'web')->fresh()->hasPermissionTo(InspectionPermissions::DISPOSITION));
     }
 
+    public function test_saving_the_form_as_shown_when_two_roles_hold_the_same_grants(): void
+    {
+        // The page posts every role's grants. On a fresh install Admin and
+        // Supervisor both hold both quality grants; the same value under two
+        // roles is normal and must not fail validation.
+        $this->actingAs($this->admin)->from('/settings/access')->post('/settings/access', [
+            'access' => ['Supervisor' => ['orders'], 'Operator' => ['orders']],
+            'grants' => [
+                'Admin' => InspectionPermissions::ALL,
+                'Supervisor' => InspectionPermissions::ALL,
+                'Operator' => [],
+            ],
+        ])->assertRedirect('/settings/access')
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->assertTrue($this->operatorRole()->hasPermissionTo('tab:orders'));
+        $this->assertTrue(Role::findByName('Supervisor', 'web')->fresh()->hasPermissionTo(InspectionPermissions::PERFORM));
+    }
+
     public function test_an_unknown_grant_is_rejected(): void
     {
         $this->actingAs($this->admin)->post('/settings/access', [

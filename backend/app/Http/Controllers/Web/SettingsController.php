@@ -793,6 +793,12 @@ class SettingsController extends Controller
         }
     }
 
+    /** Work-order permissions listed (read-only) on the Access page. */
+    private const WORK_ORDER_ABILITIES = [
+        ['key' => 'create work orders', 'label' => 'Create work orders'],
+        ['key' => 'edit work orders', 'label' => 'Edit work orders'],
+    ];
+
     /**
      * Show the role × tab access matrix. Rows are tabs, columns are roles;
      * Admin is locked to full access (handled in the UI + Gate::before).
@@ -824,6 +830,14 @@ class SettingsController extends Controller
             'matrix' => $matrix,
             'grants' => InspectionPermissions::options(),
             'grantMatrix' => $grantMatrix,
+            // Work-order abilities per role, shown read-only next to the tab
+            // matrix: the Orders tab opens the list, these decide who may
+            // create or edit there (WorkOrderPolicy). Not editable here.
+            'workOrderAbilities' => self::WORK_ORDER_ABILITIES,
+            'workOrderAbilityMatrix' => $roles->mapWithKeys(fn ($role) => [
+                $role->name => $role->permissions->pluck('name')
+                    ->intersect(array_column(self::WORK_ORDER_ABILITIES, 'key'))->values()->all(),
+            ]),
             'lockedRole' => 'Admin',
         ]);
     }

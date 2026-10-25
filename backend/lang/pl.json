@@ -7249,5 +7249,10 @@
     "Plant summary": "Podsumowanie zakładu",
     "No data since :time": "Brak danych od :time",
     "Due before :date (:timezone)": "Termin przed :date (:timezone)",
-    "No open issues. The alerts are work orders: :summary.": "Brak otwartych problemów. Alerty to zlecenia: :summary."
+    "No open issues. The alerts are work orders: :summary.": "Brak otwartych problemów. Alerty to zlecenia: :summary.",
+    "Create work orders": "Tworzenie zleceń",
+    "Edit work orders": "Edycja zleceń",
+    "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).": "Zakładka Zlecenia otwiera listę zleceń. Tworzenie i edycja zleceń wymagają dodatkowo tych uprawnień, wynikających z roli (tu tylko do odczytu).",
+    "You can view work orders, but not create them.": "Możesz przeglądać zlecenia, ale nie możesz ich tworzyć.",
+    "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Tworzenie zleceń wymaga uprawnienia „Tworzenie zleceń”. Jeśli go potrzebujesz, poproś administratora."
 }

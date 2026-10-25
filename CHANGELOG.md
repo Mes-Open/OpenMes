@@ -154,6 +154,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Creating and editing work orders now requires the matching permission.** On the
+  admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
+  create form and save need `create work orders`, and the edit form and save need
+  `edit work orders` (`WorkOrderPolicy`). Access to the *Orders* tab is no longer enough.
+  Without the permission the pages return 403, and the *New Work Order* button (work-order
+  lists, planner, weekly schedule) and the *Edit* row action are hidden. Admin and
+  Supervisor keep both permissions. An Operator given the *Orders* tab in *Settings →
+  Access* can still open the list, but can no longer create or edit orders there. That
+  list now says so ("You can view work orders, but not create them."), the detail page
+  hides *Edit* without the permission, and *Settings → Tab Access* shows, read-only,
+  which roles hold *Create work orders* and *Edit work orders*.
+
 - **The inspections API now checks permissions.** `/api/v1/inspections` only required a login: any
   operator token could start, fill in and complete an inspection, and with lot tracking on,
   completing one put a released lot into stock. Every inspection endpoint, including the read
@@ -182,6 +194,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   updates at midnight without a page reload. The *Alerts* page states the cut-off it uses
   ("Due before 24/10/2026 (Europe/Warsaw)"); the *Latest alerts* panel says when the count is
   made only of work orders, and closes when you click through to the *Alerts* page.
+- **Lists show your own changes even when live sync is down.** After saving a form, the
+  lists on screen re-read their rows, so a work order or account you just created appears
+  at once. Before, without a working live-sync connection, the list stayed empty
+  under the "created" message until the page was reloaded.
+- **Settings → Tab Access saves again.** On a fresh install, saving the page always failed
+  without a message, because Admin and Supervisor hold the same quality grants and a
+  validation rule wrongly treated that as a duplicate. The save now goes through, and
+  any validation error is shown above the *Save* button.
+- **Operators granted admin tabs can reach them again.** An Operator given tabs in
+  *Settings → Access* (for example *Orders*) once more sees a sidebar on the operator
+  screens, with *Lines* first and then each granted tab. A redesign had dropped the
+  sidebar, so the granted pages could only be opened by typing their address.
 - **Inspection links no longer lead to a 404.** The admin dashboard's inspections widget ("View all")
   and the material lot page linked to `/inspections`, which does not exist; they now open the
   inspection screens.
