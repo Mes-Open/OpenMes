@@ -2,7 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
-import { LIFECYCLE_BADGE_STYLES, lifecycleLabel, productRevisionFields, productRevisionInitial } from './fields';
+import { LIFECYCLE_BADGE_STYLES, LIFECYCLE_STATUSES, lifecycleLabel, productRevisionFields, productRevisionInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ProductRevisionsIndex() {
@@ -28,6 +28,7 @@ export default function ProductRevisionsIndex() {
         { key: 'revision_code', label: __('Revision'), className: 'font-mono font-medium text-om-ink' },
         {
             key: 'lifecycle_status', label: __('Lifecycle'),
+            filter: 'select', options: LIFECYCLE_STATUSES, optionLabel: lifecycleLabel, allLabel: __('All statuses'),
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${LIFECYCLE_BADGE_STYLES[r.lifecycle_status] ?? 'bg-om-chip text-om-muted'}`}>
                     {lifecycleLabel(r.lifecycle_status)}
