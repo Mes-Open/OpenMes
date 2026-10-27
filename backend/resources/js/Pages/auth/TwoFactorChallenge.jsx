@@ -18,10 +18,15 @@ export default function TwoFactorChallenge() {
 
     const submit = (e) => {
         e.preventDefault();
+        // `transform` returns nothing, so this cannot be chained: doing so
+        // called `.post` on undefined and the button did nothing at all,
+        // with the reason only in the console. Both ways in went through
+        // here, so neither a code nor a recovery code could be sent.
         form.transform((data) => (mode === 'code'
             ? { code: data.code }
-            : { recovery_code: data.recovery_code }))
-            .post('/2fa/challenge');
+            : { recovery_code: data.recovery_code }));
+
+        form.post('/2fa/challenge');
     };
 
     // §04 input idiom, kept hand-rolled for the centered code styling.
