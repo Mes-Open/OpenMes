@@ -181,6 +181,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Two-factor sign-in works again.** The *Verify* button on the two-factor challenge did
+  nothing: the handler chained `.post()` onto `useForm().transform()`, which returns
+  nothing, so every click threw before anything was sent and the only sign of it was in
+  the browser console. A recovery code went through the same handler, so there was no way
+  past it either — nobody with a second factor could sign in at all.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
