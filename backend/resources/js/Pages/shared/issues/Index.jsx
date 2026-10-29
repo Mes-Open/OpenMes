@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Button, IconButton, Dropdown, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
+import { Button, IconButton, Dropdown, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog, RadioGroup } from '@openmes/ui';
 import AppDatePicker from '../../../components/AppDatePicker';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import usePrompt from '../../../components/usePrompt';
 import DueCountdown from '../../../components/DueCountdown';
+import CustomFields from '../../../components/CustomFields';
+import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
@@ -64,6 +66,10 @@ export default function IssuesIndex() {
         lineNames = {},
         reporterNames = {},
         workOrderNos = {},
+        issueTypes = [],
+        scrapReasons = [],
+        reportableWorkOrders = [],
+        issueCustomFields = [],
         csrf_token: csrf,
     } = usePage().props;
 
@@ -77,6 +83,10 @@ export default function IssuesIndex() {
 
     const [actionsFor, setActionsFor] = useState(null); // issue row whose actions modal is open
     const [dispositionFor, setDispositionFor] = useState(null); // issue row whose disposition modal is open
+    const [reportOpen, setReportOpen] = useState(false);
+    // Bumped after a save so the next opening starts empty; closing without
+    // saving keeps what was typed (the drawer stays mounted).
+    const [reportRun, setReportRun] = useState(0);
     const [focusId] = useState(focusedIssueId);
     const focusFilter = useCallback((r) => Number(r.id) === focusId, [focusId]);
 
@@ -149,6 +159,23 @@ export default function IssuesIndex() {
                 actions={actions}
                 filterFn={focusId ? focusFilter : undefined}
                 emptyText={__('No issues.')}
+                onCreate={() => setReportOpen(true)}
+                createLabel="Report issue"
+            />
+            <ReportIssueDrawer
+                key={reportRun}
+                open={reportOpen}
+                base={base}
+                lineNames={lineNames}
+                workOrders={reportableWorkOrders}
+                issueTypes={issueTypes}
+                scrapReasons={scrapReasons}
+                customFields={issueCustomFields}
+                onClose={() => setReportOpen(false)}
+                onSaved={() => {
+                    setReportOpen(false);
+                    setReportRun((n) => n + 1);
+                }}
             />
             {dispositionFor && (
                 <DispositionModal
@@ -172,6 +199,202 @@ export default function IssuesIndex() {
 }
 
 IssuesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
+
+// ── Report issue drawer ─────────────────────────────────────────────────────
+
+// What the issue does to production once filed — mutually exclusive. Mirrors
+// StoreManagedIssueRequest::EFFECTS.
+const EFFECT_OPTIONS = [
+    { value: 'none', label: 'No effect' },
+    { value: 'block', label: 'Blocks the work order' },
+    { value: 'scrap', label: 'Records scrap' },
+];
+
+const fieldLabelCls = 'mb-1 block text-[12.5px] font-medium text-om-ink';
+const fieldErrorCls = 'mt-1 text-[11.5px] text-om-blocked';
+
+/**
+ * The operator's "Report Issue" dialog for the Issues page: the same fields,
+ * plus the line + work order (an operator gets those from their station) and
+ * the issue's effect, which here is chosen instead of following the type.
+ */
+function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scrapReasons, customFields = [], onClose, onSaved }) {
+    const [lineId, setLineId] = useState('');
+    const form = useForm({
+        work_order_id: '',
+        issue_type_id: '',
+        title: '',
+        description: '',
+        effect: 'none',
+        scrap_reason_id: '',
+        quantity: '',
+        ...customFieldInitial(),
+    });
+    const { data, setData, errors, processing } = form;
+
+    const lineOptions = Object.entries(lineNames).map(([id, name]) => ({ value: String(id), label: name }));
+    const orderOptions = workOrders
+        .filter((wo) => !lineId || String(wo.line_id) === lineId)
+        .map((wo) => ({ value: String(wo.id), label: wo.order_no }));
+
+    // The type's own blocking flag is the starting point; the reporter can
+    // still pick another effect.
+    const pickType = (id) => {
+        const type = issueTypes.find((t) => String(t.id) === id);
+        form.setData((prev) => ({
+            ...prev,
+            issue_type_id: id,
+            effect: prev.effect === 'scrap' ? 'scrap' : (type?.is_blocking ? 'block' : 'none'),
+        }));
+    };
+
+    const submit = () => {
+        submitForm(form, 'post', `${base}/issues`, { preserveScroll: true, onSuccess: onSaved });
+    };
+
+    return (
+        <Modal
+            open={open}
+            onClose={onClose}
+            side="right"
+            title={__('Report issue')}
+            closeLabel={__('Close')}
+            width={560}
+            // A misclick on the scrim shouldn't cost a half-filled report.
+            keepMounted
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                    <Button variant="danger" onClick={submit} disabled={processing}>{__('Report issue')}</Button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <div className={fieldLabelCls}>{__('Line')}</div>
+                        <Dropdown
+                            aria-label={__('Line')}
+                            className="w-full"
+                            options={[{ value: '', label: __('All lines') }, ...lineOptions]}
+                            value={lineId}
+                            onChange={(v) => {
+                                setLineId(v);
+                                setData('work_order_id', '');
+                            }}
+                        />
+                    </div>
+                    <div>
+                        <div className={fieldLabelCls}>
+                            {__('Work Order')} <span className="text-om-blocked">*</span>
+                        </div>
+                        <Dropdown
+                            aria-label={__('Work Order')}
+                            className="w-full"
+                            options={orderOptions}
+                            value={String(data.work_order_id)}
+                            onChange={(v) => setData('work_order_id', v)}
+                            placeholder={__('— Select work order —')}
+                        />
+                        {errors.work_order_id && <p className={fieldErrorCls}>{errors.work_order_id}</p>}
+                    </div>
+                </div>
+
+                <div>
+                    <div className={fieldLabelCls}>
+                        {__('Issue Type')} <span className="text-om-blocked">*</span>
+                    </div>
+                    <Dropdown
+                        aria-label={__('Issue Type')}
+                        className="w-full"
+                        options={issueTypes.map((type) => ({ value: String(type.id), label: type.name }))}
+                        value={String(data.issue_type_id)}
+                        onChange={pickType}
+                        placeholder={__('— Select type —')}
+                    />
+                    {errors.issue_type_id && <p className={fieldErrorCls}>{errors.issue_type_id}</p>}
+                </div>
+
+                <div>
+                    <div className={fieldLabelCls}>
+                        {__('Title')} <span className="text-om-blocked">*</span>
+                    </div>
+                    <TextField
+                        aria-label={__('Title')}
+                        value={data.title}
+                        onChange={(v) => setData('title', v)}
+                        placeholder={__('Brief summary of the issue')}
+                        maxLength={255}
+                        error={errors.title}
+                    />
+                </div>
+
+                <div>
+                    <div className={fieldLabelCls}>{__('Description')}</div>
+                    <TextField
+                        aria-label={__('Description')}
+                        multiline
+                        value={data.description}
+                        onChange={(v) => setData('description', v)}
+                        placeholder={__('Additional details…')}
+                        maxLength={2000}
+                        error={errors.description}
+                    />
+                </div>
+
+                <div className="border-t border-om-line2 pt-4">
+                    <div className={fieldLabelCls}>{__('Effect on production')}</div>
+                    <RadioGroup
+                        label={__('Effect on production')}
+                        options={EFFECT_OPTIONS.map((o) => ({ value: o.value, label: __(o.label) }))}
+                        value={data.effect}
+                        onChange={(v) => setData('effect', v)}
+                    />
+                    {errors.effect && <p className={fieldErrorCls}>{errors.effect}</p>}
+                    {data.effect === 'block' && (
+                        <p className="mt-2 text-[11.5px] text-om-faint">
+                            {__('The work order stays blocked until this issue is resolved.')}
+                        </p>
+                    )}
+                </div>
+
+                {data.effect === 'scrap' && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <div className={fieldLabelCls}>
+                                {__('Scrap reason')} <span className="text-om-blocked">*</span>
+                            </div>
+                            <Dropdown
+                                aria-label={__('Scrap reason')}
+                                className="w-full"
+                                options={scrapReasons.map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` }))}
+                                value={String(data.scrap_reason_id)}
+                                onChange={(v) => setData('scrap_reason_id', v)}
+                                placeholder={__('— Select reason —')}
+                            />
+                            {errors.scrap_reason_id && <p className={fieldErrorCls}>{errors.scrap_reason_id}</p>}
+                        </div>
+                        <div>
+                            <div className={fieldLabelCls}>
+                                {__('Quantity')} <span className="text-om-blocked">*</span>
+                            </div>
+                            <TextField
+                                aria-label={__('Quantity')}
+                                inputMode="decimal"
+                                value={String(data.quantity)}
+                                onChange={(v) => setData('quantity', v)}
+                                placeholder="0"
+                                error={errors.quantity}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
+            </div>
+        </Modal>
+    );
+}
 
 // ── Non-conformance disposition modal (#11) ─────────────────────────────────
 

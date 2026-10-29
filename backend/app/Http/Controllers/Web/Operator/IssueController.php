@@ -14,10 +14,10 @@ class IssueController extends Controller
     public function store(Request $request, CustomFieldService $cf)
     {
         $validated = $request->validate(array_merge([
-            'work_order_id'  => 'required|exists:work_orders,id',
-            'issue_type_id'  => 'required|exists:issue_types,id',
-            'title'          => 'required|string|max:255',
-            'description'    => 'nullable|string|max:2000',
+            'work_order_id' => 'required|exists:work_orders,id',
+            'issue_type_id' => 'required|exists:issue_types,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
         ], $cf->rules('issue')), [], $cf->attributeNames('issue'));
 
         $workOrder = WorkOrder::findOrFail($validated['work_order_id']);
@@ -29,19 +29,19 @@ class IssueController extends Controller
 
         $issueType = IssueType::findOrFail($validated['issue_type_id']);
 
-        Issue::create([
+        $issue = Issue::create([
             'work_order_id' => $workOrder->id,
             'issue_type_id' => $issueType->id,
-            'title'         => $validated['title'],
-            'description'   => $validated['description'] ?? null,
-            'status'        => Issue::STATUS_OPEN,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'status' => Issue::STATUS_OPEN,
             'reported_by_id' => auth()->id(),
-            'reported_at'   => now(),
+            'reported_at' => now(),
             'custom_fields' => $cf->touched($request) ? ($cf->fromRequest($request, 'issue') ?: null) : null,
         ]);
 
         // If the issue type is blocking, block the work order
-        if ($issueType->is_blocking) {
+        if ($issue->blocks_work_order) {
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
         }
 

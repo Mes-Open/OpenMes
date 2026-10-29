@@ -15,6 +15,7 @@ class ScrapEntry extends Model
 
     protected $fillable = [
         'work_order_id',
+        'issue_id',
         'scrap_reason_id',
         'quantity',
         'batch_step_id',
@@ -38,6 +39,14 @@ class ScrapEntry extends Model
     public function workOrder(): BelongsTo
     {
         return $this->belongsTo(WorkOrder::class);
+    }
+
+    /**
+     * The issue this scrap was recorded with, if it was filed as its effect.
+     */
+    public function issue(): BelongsTo
+    {
+        return $this->belongsTo(Issue::class);
     }
 
     /**

@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkIssueActionRequest;
 use App\Http\Requests\SetDispositionRequest;
 use App\Http\Requests\StoreIssueActionRequest;
+use App\Http\Requests\StoreManagedIssueRequest;
 use App\Http\Requests\UpdateIssueActionRequest;
 use App\Models\Issue;
 use App\Models\IssueAction;
 use App\Models\IssueType;
 use App\Models\Line;
+use App\Models\ScrapReason;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\CustomFieldService;
 use App\Services\IssueService;
 use App\Services\Quality\IssueActionService;
 use Illuminate\Http\Request;
@@ -24,14 +27,47 @@ use Inertia\Inertia;
  */
 class IssueManagementController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, CustomFieldService $cf)
     {
         return Inertia::render('shared/issues/Index', [
             'issueTypeNames' => IssueType::pluck('name', 'id'),
             'lineNames' => Line::pluck('name', 'id'),
             'reporterNames' => User::pluck('name', 'id'),
             'workOrderNos' => WorkOrder::pluck('order_no', 'id'),
+            // "Report issue" dialog: what can be picked.
+            'issueTypes' => IssueType::active()->orderBy('name')->get(['id', 'name', 'is_blocking']),
+            'scrapReasons' => ScrapReason::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'reportableWorkOrders' => WorkOrder::whereNotIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])
+                ->orderBy('order_no')
+                ->get(['id', 'order_no', 'line_id']),
+            'issueCustomFields' => $cf->clientConfig('issue'),
         ]);
+    }
+
+    /**
+     * File an issue from the Issues page, choosing what it does to production
+     * (see StoreManagedIssueRequest for the effects).
+     */
+    public function store(StoreManagedIssueRequest $request, IssueService $issues, CustomFieldService $cf)
+    {
+        $effect = $request->validated('effect');
+
+        $issues->reportWithEffect(
+            data: [
+                'work_order_id' => $request->validated('work_order_id'),
+                'issue_type_id' => $request->validated('issue_type_id'),
+                'title' => $request->validated('title'),
+                'description' => $request->validated('description'),
+                'custom_fields' => $cf->touched($request) ? ($cf->fromRequest($request, 'issue') ?: null) : null,
+            ],
+            blocksWorkOrder: $effect === StoreManagedIssueRequest::EFFECT_BLOCK,
+            scrap: $effect === StoreManagedIssueRequest::EFFECT_SCRAP
+                ? $request->safe()->only(['scrap_reason_id', 'quantity'])
+                : null,
+            userId: $request->user()->id,
+        );
+
+        return redirect()->back()->with('success', __('Issue reported successfully.'));
     }
 
     public function acknowledge(Request $request, Issue $issue)

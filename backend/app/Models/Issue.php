@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Issue extends Model
 {
@@ -47,6 +48,7 @@ class Issue extends Model
         'material_id',
         'source',
         'issue_type_id',
+        'blocks_work_order',
         'title',
         'description',
         'status',
@@ -75,7 +77,21 @@ class Issue extends Model
             'closed_at' => 'datetime',
             'disposition_at' => 'datetime',
             'non_conforming_qty' => 'decimal:2',
+            'blocks_work_order' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Every place that files an issue without deciding its effect (operator
+        // screens, the API, quality triggers, downtime escalation) keeps the old
+        // behaviour: the type says whether it blocks. Only the Issues page
+        // decides explicitly.
+        static::creating(function (Issue $issue) {
+            if (! array_key_exists('blocks_work_order', $issue->getAttributes())) {
+                $issue->blocks_work_order = (bool) IssueType::whereKey($issue->issue_type_id)->value('is_blocking');
+            }
+        });
     }
 
     /**
@@ -150,6 +166,14 @@ class Issue extends Model
     }
 
     /**
+     * Scrap recorded together with this issue, when it was filed with that effect.
+     */
+    public function scrapEntry(): HasOne
+    {
+        return $this->hasOne(ScrapEntry::class);
+    }
+
+    /**
      * Soft-deleting an issue also soft-deletes its CAPA actions (mirrors the
      * cascadeOnDelete FK, which doesn't fire on a soft delete).
      */
@@ -165,7 +189,7 @@ class Issue extends Model
      */
     public function isBlocking(): bool
     {
-        return $this->issueType->is_blocking &&
+        return $this->blocks_work_order &&
             in_array($this->status, [self::STATUS_OPEN, self::STATUS_ACKNOWLEDGED]);
     }
 
@@ -207,9 +231,7 @@ class Issue extends Model
      */
     public function scopeBlocking($query)
     {
-        return $query->whereHas('issueType', function ($q) {
-            $q->where('is_blocking', true);
-        })->open();
+        return $query->where('blocks_work_order', true)->open();
     }
 
     /**

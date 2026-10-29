@@ -7255,5 +7255,14 @@
     "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).": "The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).",
     "You can view work orders, but not create them.": "You can view work orders, but not create them.",
     "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.",
-    "Default window (no shifts set up)": "Default window (no shifts set up)"
+    "Default window (no shifts set up)": "Default window (no shifts set up)",
+    "Issues cannot be reported on a finished or cancelled work order.": "Issues cannot be reported on a finished or cancelled work order.",
+    "This work order records scrap on its steps — report it there.": "This work order records scrap on its steps — report it there.",
+    "Select a scrap reason.": "Select a scrap reason.",
+    "Enter the scrapped quantity.": "Enter the scrapped quantity.",
+    "No effect": "No effect",
+    "Blocks the work order": "Blocks the work order",
+    "Records scrap": "Records scrap",
+    "Effect on production": "Effect on production",
+    "The work order stays blocked until this issue is resolved.": "The work order stays blocked until this issue is resolved."
 }

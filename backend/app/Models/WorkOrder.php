@@ -649,9 +649,7 @@ class WorkOrder extends Model
     {
         return $this->issues()
             ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', function ($query) {
-                $query->where('is_blocking', true);
-            })
+            ->where('blocks_work_order', true)
             ->get();
     }
 

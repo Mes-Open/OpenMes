@@ -143,7 +143,7 @@ const dimInactiveRow = (row) =>
  * that have no obvious icon — kept as real buttons rather than plain links.
  * Geist White (light-only v1 — dark: variants removed).
  */
-const ACTION_BASE = 'inline-flex items-center justify-center rounded-om-sm px-3 py-1.5 text-[12.5px] font-semibold transition-colors';
+const ACTION_BASE = 'inline-flex cursor-pointer items-center justify-center rounded-om-sm px-3 py-1.5 text-[12.5px] font-semibold transition-colors';
 const ACTION_CLASS = {
     primary: `${ACTION_BASE} bg-om-ink text-om-on-ink hover:bg-om-ink-hover`,
     secondary: `${ACTION_BASE} bg-om-chip text-om-ink hover:bg-om-line2`,
@@ -275,7 +275,7 @@ function RowActions({ actions, row, confirm }) {
                     : a.onClick;
                 // Icon button (Edit / toggle / Delete) — the legacy look.
                 if (a.icon && ACTION_ICON[a.icon]) {
-                    const cls = `p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
+                    const cls = `cursor-pointer p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
                     const glyph = <Icon name={ACTION_ICON[a.icon]} size={20} />;
                     // `aria-label` (not `title`) names the control — the styled
                     // tooltip carries the visible hover label.

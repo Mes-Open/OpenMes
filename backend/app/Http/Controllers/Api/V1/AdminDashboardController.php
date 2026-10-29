@@ -62,9 +62,6 @@ class AdminDashboardController extends Controller
         $issues = $issuesQuery->get();
 
         $lines = Line::orderBy('name')->get();
-        $blockingTypeIds = IssueType::where('is_blocking', true)->pluck('id')
-            ->map(fn ($id) => (string) $id)->all();
-
         $today = today()->toDateString();
 
         $stats = [
@@ -74,7 +71,7 @@ class AdminDashboardController extends Controller
             'blocked' => $workOrders->where('status', WorkOrder::STATUS_BLOCKED)->count(),
             'active_today' => $workOrders->filter(fn ($wo) => optional($wo->updated_at)->toDateString() === $today)->count(),
             'open_issues' => $issues->count(),
-            'blocking_issues' => $issues->filter(fn ($i) => in_array((string) $i->issue_type_id, $blockingTypeIds, true))->count(),
+            'blocking_issues' => $issues->where('blocks_work_order', true)->count(),
             'active_lines' => $lines->where('is_active', true)->count(),
         ];
 

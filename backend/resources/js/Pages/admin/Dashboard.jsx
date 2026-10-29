@@ -69,8 +69,8 @@ function DashboardBody({
     }, [issues, workOrders, selectedLineId]);
 
     const stats = useMemo(
-        () => computeStats(scopedWorkOrders, scopedIssues, issueTypes, lines),
-        [scopedWorkOrders, scopedIssues, issueTypes, lines],
+        () => computeStats(scopedWorkOrders, scopedIssues, lines),
+        [scopedWorkOrders, scopedIssues, lines],
     );
 
     const recentWorkOrders = useMemo(
@@ -647,7 +647,7 @@ function RecentIssues({ rows, issueTypes }) {
                                     </p>
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    {type?.is_blocking && (
+                                    {(issue.blocks_work_order === true || issue.blocks_work_order === 't') && (
                                         <Badge variant="danger">{__('blocking')}</Badge>
                                     )}
                                     <StatusBadge status={issue.status} />
@@ -709,7 +709,7 @@ function ModuleWidget({ w, compact = false }) {
         : <Link href={w.href} className={cls}>{card}</Link>;
 }
 
-function computeStats(workOrders, issues, issueTypes, lines) {
+function computeStats(workOrders, issues, lines) {
     const counts = workOrders.reduce(
         (acc, wo) => {
             acc.total++;
@@ -730,11 +730,9 @@ function computeStats(workOrders, issues, issueTypes, lines) {
         (wo) => (wo.updated_at ?? '').slice(0, 10) === today,
     ).length;
 
-    const blockingTypeIds = new Set(
-        issueTypes.filter((t) => t.is_blocking).map((t) => String(t.id)),
-    );
+    // 't' when the row arrived as a broadcast delta rather than the snapshot.
     const blocking_issues = issues.filter((i) =>
-        blockingTypeIds.has(String(i.issue_type_id)),
+        i.blocks_work_order === true || i.blocks_work_order === 't',
     ).length;
 
     return {
