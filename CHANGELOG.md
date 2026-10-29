@@ -153,6 +153,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **PHP 8.3.36 against PHP2Shell (CVE-2026-109618, CVE-2026-109619).** The image is
+  now built on `php:8.3.36-fpm-alpine`; releases up to v0.27.0 shipped PHP 8.3.29–8.3.35,
+  which are affected. The publish workflow pulls the base image on every build
+  (`pull: true`) so a cached layer can no longer keep an older PHP. Upload progress
+  tracking (`session.upload_progress.enabled`) is turned off, since OpenMES does not use
+  it and CVE-2026-109619 lives there. The bundled Docker setup serves requests through
+  RoadRunner, not PHP-FPM or mod_php, but installations running OpenMES on their own
+  PHP-FPM or Apache must upgrade PHP themselves.
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
