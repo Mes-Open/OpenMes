@@ -7,6 +7,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-10-30
+
+### Security
+
+- **PHP 8.3.36 against PHP2Shell (CVE-2026-109618, CVE-2026-109619).** The image is
+  now built on `php:8.3.36-fpm-alpine`; releases up to v0.27.0 shipped PHP 8.3.29–8.3.35,
+  which are affected. The publish workflow pulls the base image on every build
+  (`pull: true`) so a cached layer can no longer keep an older PHP. Upload progress
+  tracking (`session.upload_progress.enabled`) is turned off, since OpenMES does not use
+  it and CVE-2026-109619 lives there. The bundled Docker setup serves requests through
+  RoadRunner, not PHP-FPM or mod_php, but installations running OpenMES on their own
+  PHP-FPM or Apache must upgrade PHP themselves.
+
 ## [0.27.0] - 2026-10-14
 
 ### Added
