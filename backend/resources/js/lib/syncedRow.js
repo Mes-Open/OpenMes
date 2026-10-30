@@ -34,6 +34,14 @@ export function jsonColumn(raw, fallback = null) {
     }
 }
 
+/**
+ * A `boolean` column as a real boolean. Postgres hands the snapshot `true` and
+ * a broadcast delta `'t'`; SQLite and MySQL store `1` — every form counts.
+ */
+export function boolColumn(raw) {
+    return raw === true || raw === 1 || raw === 't' || raw === '1' || raw === 'true';
+}
+
 /** A `datetime` column as the `Y-m-dTH:i` an `<input type="datetime-local">` wants. */
 export function dateTimeLocal(raw) {
     if (!raw) return '';

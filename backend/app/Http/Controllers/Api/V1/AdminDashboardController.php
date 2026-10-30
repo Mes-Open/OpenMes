@@ -113,7 +113,7 @@ class AdminDashboardController extends Controller
                 'id' => $i->id,
                 'title' => $i->title,
                 'type_name' => optional($type)->name,
-                'is_blocking' => (bool) optional($type)->is_blocking,
+                'is_blocking' => $i->blocks_work_order,
                 'work_order_id' => $i->work_order_id,
                 'status' => $i->status,
             ];

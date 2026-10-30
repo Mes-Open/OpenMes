@@ -7,11 +7,12 @@ use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
+use App\Services\IssueService;
 use Illuminate\Http\Request;
 
 class IssueController extends Controller
 {
-    public function store(Request $request, CustomFieldService $cf)
+    public function store(Request $request, CustomFieldService $cf, IssueService $issues)
     {
         $validated = $request->validate(array_merge([
             'work_order_id' => 'required|exists:work_orders,id',
@@ -42,7 +43,7 @@ class IssueController extends Controller
 
         // If the issue type is blocking, block the work order
         if ($issue->blocks_work_order) {
-            $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+            $issues->blockWorkOrder($workOrder->id);
         }
 
         return redirect()->back()->with('success', __('Issue reported successfully.'));

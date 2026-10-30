@@ -237,15 +237,33 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
         .filter((wo) => !lineId || String(wo.line_id) === lineId)
         .map((wo) => ({ value: String(wo.id), label: wo.order_no }));
 
-    // The type's own blocking flag is the starting point; the reporter can
-    // still pick another effect.
+    // Effects the selected order accepts (mirrors StoreManagedIssueRequest):
+    // a step-ledger order records scrap on its steps, a paused or held order
+    // can't be blocked on top of its own stop.
+    const order = workOrders.find((wo) => String(wo.id) === String(data.work_order_id));
+    const allowed = (effect) =>
+        !order || (effect === 'scrap' ? !order.scrap_on_steps : effect === 'block' ? order.can_block : true);
+    const effectOptions = EFFECT_OPTIONS.filter((o) => allowed(o.value));
+
+    // Until the reporter picks an effect, the type's blocking flag decides it.
+    // Once they have, changing the type leaves their choice alone.
+    const [effectChosen, setEffectChosen] = useState(false);
     const pickType = (id) => {
         const type = issueTypes.find((t) => String(t.id) === id);
         form.setData((prev) => ({
             ...prev,
             issue_type_id: id,
-            effect: prev.effect === 'scrap' ? 'scrap' : (type?.is_blocking ? 'block' : 'none'),
+            effect: effectChosen ? prev.effect : (type?.is_blocking && allowed('block') ? 'block' : 'none'),
         }));
+    };
+
+    // An order that doesn't accept the current effect drops it back to none.
+    const pickOrder = (id) => {
+        const next = workOrders.find((wo) => String(wo.id) === id);
+        form.setData((prev) => {
+            const fits = prev.effect === 'scrap' ? !next?.scrap_on_steps : prev.effect === 'block' ? next?.can_block : true;
+            return { ...prev, work_order_id: id, effect: fits ? prev.effect : 'none' };
+        });
     };
 
     const submit = () => {
@@ -293,7 +311,7 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
                             className="w-full"
                             options={orderOptions}
                             value={String(data.work_order_id)}
-                            onChange={(v) => setData('work_order_id', v)}
+                            onChange={pickOrder}
                             placeholder={__('— Select work order —')}
                         />
                         {errors.work_order_id && <p className={fieldErrorCls}>{errors.work_order_id}</p>}
@@ -346,11 +364,24 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
                     <div className={fieldLabelCls}>{__('Effect on production')}</div>
                     <RadioGroup
                         label={__('Effect on production')}
-                        options={EFFECT_OPTIONS.map((o) => ({ value: o.value, label: __(o.label) }))}
+                        options={effectOptions.map((o) => ({ value: o.value, label: __(o.label) }))}
                         value={data.effect}
-                        onChange={(v) => setData('effect', v)}
+                        onChange={(v) => {
+                            setEffectChosen(true);
+                            setData('effect', v);
+                        }}
                     />
                     {errors.effect && <p className={fieldErrorCls}>{errors.effect}</p>}
+                    {order?.scrap_on_steps && (
+                        <p className="mt-2 text-[11.5px] text-om-faint">
+                            {__('This work order records scrap on its steps — report it there.')}
+                        </p>
+                    )}
+                    {order && !order.can_block && (
+                        <p className="mt-2 text-[11.5px] text-om-faint">
+                            {__('A paused or held work order cannot be blocked — resume it first.')}
+                        </p>
+                    )}
                     {data.effect === 'block' && (
                         <p className="mt-2 text-[11.5px] text-om-faint">
                             {__('The work order stays blocked until this issue is resolved.')}

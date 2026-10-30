@@ -153,6 +153,8 @@ class ManagedIssueReportTest extends TestCase
                 ->has('issueTypes')
                 ->has('scrapReasons')
                 ->has('reportableWorkOrders', 1)
+                ->where('reportableWorkOrders.0.can_block', true)
+                ->where('reportableWorkOrders.0.scrap_on_steps', false)
                 ->has('issueCustomFields'));
     }
 
@@ -165,6 +167,43 @@ class ManagedIssueReportTest extends TestCase
 
         $this->assertTrue($blocking->fresh()->blocks_work_order);
         $this->assertFalse($plain->fresh()->blocks_work_order);
+    }
+
+    public function test_resolving_restores_the_status_the_block_replaced(): void
+    {
+        $this->order->update(['status' => WorkOrder::STATUS_PENDING]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']));
+        $order = $this->order->fresh();
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $order->status);
+        $this->assertSame(WorkOrder::STATUS_PENDING, $order->status_before_block);
+
+        $issue = Issue::sole();
+        $this->actingAs($this->admin)->post("/admin/issues/{$issue->id}/resolve")->assertSessionHasNoErrors();
+
+        $order->refresh();
+        $this->assertSame(WorkOrder::STATUS_PENDING, $order->status);
+        $this->assertNull($order->status_before_block);
+    }
+
+    public function test_a_second_block_keeps_the_original_status_to_restore(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']));
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block', 'title' => 'Second']));
+
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status_before_block);
+    }
+
+    public function test_the_service_refuses_block_and_scrap_together(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(\App\Services\IssueService::class)->reportWithEffect(
+            data: ['work_order_id' => $this->order->id, 'issue_type_id' => $this->type->id, 'title' => 'x'],
+            blocksWorkOrder: true,
+            scrap: ['scrap_reason_id' => ScrapReason::factory()->create()->id, 'quantity' => 1],
+            userId: $this->admin->id,
+        );
     }
 
     // ── Validation ───────────────────────────────────────────────────────────
@@ -205,6 +244,19 @@ class ManagedIssueReportTest extends TestCase
         ]))->assertSessionHasErrors('quantity');
     }
 
+    public function test_scrap_quantity_allows_at_most_two_decimals(): void
+    {
+        $reason = ScrapReason::factory()->create();
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload([
+            'effect' => 'scrap',
+            'scrap_reason_id' => $reason->id,
+            'quantity' => '0.015',
+        ]))->assertSessionHasErrors('quantity');
+
+        $this->assertSame(0, ScrapEntry::count());
+    }
+
     public function test_an_inactive_scrap_reason_is_rejected(): void
     {
         $reason = ScrapReason::factory()->inactive()->create();
@@ -237,6 +289,36 @@ class ManagedIssueReportTest extends TestCase
             ->assertSessionHasErrors('work_order_id');
 
         $this->assertSame(0, Issue::count());
+    }
+
+    public function test_a_rejected_work_order_cannot_get_a_new_issue(): void
+    {
+        $this->order->update(['status' => WorkOrder::STATUS_REJECTED]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+            ->assertSessionHasErrors('work_order_id');
+
+        $this->assertSame(WorkOrder::STATUS_REJECTED, $this->order->fresh()->status);
+    }
+
+    public function test_a_paused_work_order_cannot_be_blocked(): void
+    {
+        $this->order->update(['status' => WorkOrder::STATUS_PAUSED]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+            ->assertSessionHasErrors('effect');
+
+        $this->assertSame(0, Issue::count());
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $this->order->fresh()->status);
+    }
+
+    public function test_a_paused_work_order_still_accepts_an_issue_without_a_block(): void
+    {
+        $this->order->update(['status' => WorkOrder::STATUS_PAUSED]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload())->assertSessionHasNoErrors();
+
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $this->order->fresh()->status);
     }
 
     public function test_an_inactive_issue_type_is_rejected(): void

@@ -13,6 +13,7 @@ import OverviewHeader from '../../components/dashboard/overview/OverviewHeader';
 import OverviewGrid from '../../components/dashboard/overview/OverviewGrid';
 import useOverviewRefresh from '../../components/dashboard/overview/useOverviewRefresh';
 import { TIER_BADGE_STYLES, tierLabel } from './customers/fields';
+import { boolColumn } from '../../lib/syncedRow';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
 
@@ -647,7 +648,7 @@ function RecentIssues({ rows, issueTypes }) {
                                     </p>
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    {(issue.blocks_work_order === true || issue.blocks_work_order === 't') && (
+                                    {boolColumn(issue.blocks_work_order) && (
                                         <Badge variant="danger">{__('blocking')}</Badge>
                                     )}
                                     <StatusBadge status={issue.status} />
@@ -730,10 +731,7 @@ function computeStats(workOrders, issues, lines) {
         (wo) => (wo.updated_at ?? '').slice(0, 10) === today,
     ).length;
 
-    // 't' when the row arrived as a broadcast delta rather than the snapshot.
-    const blocking_issues = issues.filter((i) =>
-        i.blocks_work_order === true || i.blocks_work_order === 't',
-    ).length;
+    const blocking_issues = issues.filter((i) => boolColumn(i.blocks_work_order)).length;
 
     return {
         total_work_orders: counts.total,

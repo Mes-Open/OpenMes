@@ -49,6 +49,10 @@ class IssueService
      */
     public function reportWithEffect(array $data, bool $blocksWorkOrder, ?array $scrap, int $userId): Issue
     {
+        if ($blocksWorkOrder && $scrap !== null) {
+            throw new \InvalidArgumentException('An issue either blocks its work order or records scrap, not both.');
+        }
+
         return DB::transaction(function () use ($data, $blocksWorkOrder, $scrap, $userId) {
             $issue = Issue::create([
                 ...$data,
@@ -207,15 +211,19 @@ class IssueService
     }
 
     /**
-     * Block a work order.
+     * Block a work order, remembering the status the block replaces so
+     * unblocking can put it back.
      */
-    protected function blockWorkOrder(int $workOrderId): void
+    public function blockWorkOrder(int $workOrderId): void
     {
         $workOrder = WorkOrder::findOrFail($workOrderId);
 
-        // Only block if not already blocked or done
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_BLOCKED, WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])) {
-            $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+        // Already blocked, finished, or held by a stop of its own: leave it.
+        if (in_array($workOrder->status, WorkOrder::BLOCKABLE_STATUSES, true)) {
+            $workOrder->update([
+                'status_before_block' => $workOrder->status,
+                'status' => WorkOrder::STATUS_BLOCKED,
+            ]);
 
             Log::info('Work order blocked due to issue', [
                 'work_order_id' => $workOrderId,
@@ -226,7 +234,7 @@ class IssueService
     /**
      * Check if work order should be unblocked (no more blocking issues).
      */
-    protected function checkAndUnblockWorkOrder(int $workOrderId): void
+    public function checkAndUnblockWorkOrder(int $workOrderId): void
     {
         $workOrder = WorkOrder::findOrFail($workOrderId);
 
@@ -241,17 +249,18 @@ class IssueService
             ->exists();
 
         if (! $hasBlockingIssues) {
-            // Determine the appropriate status to restore
-            // If there are in-progress batches, set to IN_PROGRESS, otherwise PENDING
-            $hasBatchesInProgress = $workOrder->batches()
-                ->where('status', 'IN_PROGRESS')
-                ->exists();
+            // Put back what the block replaced. Orders blocked before that was
+            // recorded fall back to guessing from the batches: IN_PROGRESS when
+            // one is running, otherwise PENDING.
+            $newStatus = $workOrder->status_before_block
+                ?? ($workOrder->batches()->where('status', 'IN_PROGRESS')->exists()
+                    ? WorkOrder::STATUS_IN_PROGRESS
+                    : WorkOrder::STATUS_PENDING);
 
-            $newStatus = $hasBatchesInProgress
-                ? WorkOrder::STATUS_IN_PROGRESS
-                : WorkOrder::STATUS_PENDING;
-
-            $workOrder->update(['status' => $newStatus]);
+            $workOrder->update([
+                'status' => $newStatus,
+                'status_before_block' => null,
+            ]);
 
             Log::info('Work order unblocked', [
                 'work_order_id' => $workOrderId,

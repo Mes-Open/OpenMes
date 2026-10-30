@@ -15,6 +15,7 @@ import { __, elapsed, formatDate, formatDateTime, timezone } from '../../../lib/
 import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
 import { OPEN_ISSUE_STATUSES, isOverdue } from '../../../lib/alerts';
 import { usePlantToday } from '../../../lib/usePlantToday';
+import { boolColumn } from '../../../lib/syncedRow';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -78,10 +79,9 @@ export default function AlertsIndex() {
             }))
             .sort((a, b) => String(b.reportedAt ?? '').localeCompare(String(a.reportedAt ?? '')));
 
-        // The flag arrives as a boolean or as 't'/'f' depending on the path the
-        // row took to the browser (snapshot vs. broadcast delta). It lives on the
-        // issue itself, so the panels no longer wait for the types collection.
-        const isBlocking = (i) => i.blocks_work_order === true || i.blocks_work_order === 't';
+        // The flag lives on the issue itself, so the panels no longer wait for
+        // the types collection.
+        const isBlocking = (i) => boolColumn(i.blocks_work_order);
         const blockingIssues = openIssues.filter(isBlocking);
         const nonBlockingIssues = openIssues.filter((i) => !isBlocking(i));
 

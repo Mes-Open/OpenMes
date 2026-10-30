@@ -55,7 +55,8 @@ class StoreManagedIssueRequest extends FormRequest
                 'integer',
                 Rule::exists('scrap_reasons', 'id')->where('is_active', true)->whereNull('deleted_at'),
             ],
-            'quantity' => ['exclude_unless:effect,'.self::EFFECT_SCRAP, 'required', 'numeric', 'min:0.01', 'max:99999999'],
+            // Two decimals: the scrap and non-conforming quantity columns are scale 2.
+            'quantity' => ['exclude_unless:effect,'.self::EFFECT_SCRAP, 'required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:99999999'],
         ], $this->customFieldRules());
     }
 
@@ -69,10 +70,24 @@ class StoreManagedIssueRequest extends FormRequest
 
             $workOrder = WorkOrder::find($this->integer('work_order_id'));
 
-            if (in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED], true)) {
-                $validator->errors()->add('work_order_id', __('Issues cannot be reported on a finished or cancelled work order.'));
+            // Gone between the `exists` rule and here (deleted meanwhile).
+            if ($workOrder === null) {
+                $validator->errors()->add('work_order_id', __('validation.exists', ['attribute' => 'work order id']));
 
                 return;
+            }
+
+            if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES, true)) {
+                $validator->errors()->add('work_order_id', __('Issues cannot be reported on a finished, rejected or cancelled work order.'));
+
+                return;
+            }
+
+            // A paused or change-held order is already stopped and resumes
+            // through its own stop; blocking it on top would bypass that.
+            if ($this->input('effect') === self::EFFECT_BLOCK
+                && ! in_array($workOrder->status, [...WorkOrder::BLOCKABLE_STATUSES, WorkOrder::STATUS_BLOCKED], true)) {
+                $validator->errors()->add('effect', __('A paused or held work order cannot be blocked — resume it first.'));
             }
 
             // A step-ledger order records scrap per step (operator screen); a

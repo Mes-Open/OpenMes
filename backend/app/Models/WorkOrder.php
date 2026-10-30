@@ -153,6 +153,13 @@ class WorkOrder extends Model
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
+    /**
+     * Statuses a blocking issue may move to BLOCKED. A PAUSED or CHANGE_HOLD
+     * order is already stopped and resumes through WorkOrderStopService, which
+     * a block-then-unblock round trip would bypass.
+     */
+    const BLOCKABLE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS];
+
     /** Stopped states an order can be resumed from. */
     const HELD_STATUSES = [self::STATUS_PAUSED, self::STATUS_BLOCKED, self::STATUS_CHANGE_HOLD];
 
@@ -184,6 +191,7 @@ class WorkOrder extends Model
         'produced_qty',
         'counting_source',
         'status',
+        'status_before_block',
         'line_status_id',
         'priority',
         'priority_score',

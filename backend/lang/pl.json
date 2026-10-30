@@ -7256,7 +7256,7 @@
     "You can view work orders, but not create them.": "Możesz przeglądać zlecenia, ale nie możesz ich tworzyć.",
     "Creating work orders needs the \"Create work orders\" permission. Ask an administrator if you need it.": "Tworzenie zleceń wymaga uprawnienia „Tworzenie zleceń”. Jeśli go potrzebujesz, poproś administratora.",
     "Default window (no shifts set up)": "Okno domyślne (brak skonfigurowanych zmian)",
-    "Issues cannot be reported on a finished or cancelled work order.": "Nie można zgłosić problemu do zakończonego lub anulowanego zlecenia.",
+    "Issues cannot be reported on a finished, rejected or cancelled work order.": "Nie można zgłosić problemu do zakończonego, odrzuconego lub anulowanego zlecenia.",
     "This work order records scrap on its steps — report it there.": "To zlecenie rejestruje odpad na krokach — zgłoś go tam.",
     "Select a scrap reason.": "Wybierz przyczynę odpadu.",
     "Enter the scrapped quantity.": "Podaj ilość odpadu.",
@@ -7264,5 +7264,6 @@
     "Blocks the work order": "Blokuje zlecenie",
     "Records scrap": "Rejestruje odpad",
     "Effect on production": "Wpływ na produkcję",
-    "The work order stays blocked until this issue is resolved.": "Zlecenie pozostanie zablokowane do czasu rozwiązania zgłoszenia."
+    "The work order stays blocked until this issue is resolved.": "Zlecenie pozostanie zablokowane do czasu rozwiązania zgłoszenia.",
+    "A paused or held work order cannot be blocked — resume it first.": "Wstrzymanego zlecenia nie można zablokować — najpierw je wznów."
 }

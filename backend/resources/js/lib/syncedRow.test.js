@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dateTimeLocal, jsonColumn, timeOfDay } from './syncedRow';
+import { boolColumn, dateTimeLocal, jsonColumn, timeOfDay } from './syncedRow';
 
 /**
  * The list drawer edits the row the synced collection holds, and that snapshot
@@ -61,5 +61,19 @@ describe('timeOfDay', () => {
         expect(timeOfDay('06:30:00')).toBe('06:30');
         expect(timeOfDay('06:30')).toBe('06:30');
         expect(timeOfDay(null)).toBe('');
+    });
+});
+
+describe('boolColumn', () => {
+    it('reads every form a true flag reaches the browser in', () => {
+        for (const raw of [true, 1, 't', '1', 'true']) {
+            expect(boolColumn(raw)).toBe(true);
+        }
+    });
+
+    it('reads everything else as false', () => {
+        for (const raw of [false, 0, 'f', '0', 'false', null, undefined, '']) {
+            expect(boolColumn(raw)).toBe(false);
+        }
     });
 });
