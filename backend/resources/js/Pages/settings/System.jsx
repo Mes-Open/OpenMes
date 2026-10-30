@@ -25,6 +25,7 @@ const CURRENCIES = [
     ['RON', 'Romanian Leu'],
     ['UAH', 'Ukrainian Hryvnia'],
     ['VND', 'Vietnamese Đồng'],
+    ['INR', 'Indian Rupee'],
 ];
 
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';
