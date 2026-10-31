@@ -46,8 +46,8 @@ class WorkOrderController extends Controller
             // a supervisor granted `delete work orders` gets it here too.
             'can' => ['delete' => (bool) $request->user()?->can('delete work orders')],
             // Feeds the list's "New work order" modal, which renders the same form
-            // as the create page.
-            ...$this->createFormOptions($customFields),
+            // as the create page — only sent to users who may create.
+            ...($request->user()?->can('create', WorkOrder::class) ? $this->createFormOptions($customFields) : []),
         ]);
     }
 
@@ -123,7 +123,7 @@ class WorkOrderController extends Controller
             'title' => $i->title,
             'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
-            'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
+            'is_blocking' => (bool) $i->blocks_work_order,
         ])->values();
 
         return Inertia::render('supervisor/work-orders/Show', [
@@ -287,6 +287,9 @@ class WorkOrderController extends Controller
 
     public function edit(WorkOrder $workOrder)
     {
+        // update() is covered by Supervisor\UpdateWorkOrderRequest::authorize().
+        $this->authorize('update', $workOrder);
+
         return Inertia::render('supervisor/work-orders/Edit', [
             'workOrder' => [
                 ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status'),

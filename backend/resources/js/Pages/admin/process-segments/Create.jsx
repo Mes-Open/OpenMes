@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ProcessSegmentForm from './Form';
+import { __ } from '../../../lib/i18n';
 
 export default function ProcessSegmentCreate() {
     const { workstationTypes = [], skills = [], segmentTypes = [] } = usePage().props;
@@ -24,8 +25,8 @@ export default function ProcessSegmentCreate() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="New Process Segment" />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">New Process Segment</h1>
+            <Head title={__('New Process Segment')} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Process Segment')}</h1>
             <ProcessSegmentForm
                 form={form}
                 workstationTypes={workstationTypes}

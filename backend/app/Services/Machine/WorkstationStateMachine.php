@@ -4,6 +4,7 @@ namespace App\Services\Machine;
 
 use App\Enums\DowntimeKind;
 use App\Models\DowntimeReason;
+use App\Models\MachineConnection;
 use App\Models\ProductionDowntime;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
@@ -18,9 +19,25 @@ use Illuminate\Support\Facades\DB;
  * MAINTENANCE → planned) opens a ProductionDowntime; leaving it closes the open
  * one. Reasons are auto-provisioned per state so OEE availability reflects real
  * machine behaviour without manual reporting.
+ *
+ * The open state row's `updated_at` is "last heard from": every signal ingested
+ * for the station bumps it (markSignal(), at most once a minute), so a collector
+ * that keeps re-reading the same state is told apart from one that went silent.
+ * The plant overview reads it to show a line as "No data".
  */
 class WorkstationStateMachine
 {
+    /** markSignal() writes at most once per this many seconds per station. */
+    public const SIGNAL_TOUCH_SECONDS = 60;
+
+    /**
+     * When this instance last issued markSignal()'s UPDATE, per station — so a
+     * long-lived poller sends the statement once a minute, not once a pulse.
+     *
+     * @var array<int, int> workstation id → unix timestamp
+     */
+    private array $signalTouchedAt = [];
+
     /**
      * Transition a workstation to a new state. No-op (metadata refresh only) if
      * the state is unchanged. Returns the new (or current) WorkstationState row.
@@ -41,7 +58,13 @@ class WorkstationStateMachine
 
             if ($current && $current->state === $newState) {
                 if ($metadata) {
-                    $current->update(['metadata' => array_merge($current->metadata ?? [], $metadata)]);
+                    // `updated_at` is "last heard from the machine" (see
+                    // markSignal()); a note added by hand is not, so a manual
+                    // write leaves it alone.
+                    $current->metadata = array_merge($current->metadata ?? [], $metadata);
+                    $current->timestamps = $source !== 'manual';
+                    $current->save();
+                    $current->timestamps = true;
                 }
 
                 return $current;
@@ -84,6 +107,53 @@ class WorkstationStateMachine
             ->whereNull('ended_at')
             ->latest('started_at')
             ->first();
+    }
+
+    /**
+     * Record that the station was heard from: bump the open state row's
+     * `updated_at`, throttled to once per SIGNAL_TOUCH_SECONDS. A query-builder
+     * update on purpose — no read, and no model `updated` event, so a healthy
+     * poller doesn't nudge the shift monitor every minute for nothing. Uses
+     * now(), not the observed time: a gateway flushing a buffer is alive now.
+     *
+     * Only collectors call this (MachineSignalIngestor), never transition():
+     * an operator re-setting the same state is not a sign of life from the
+     * machine and must not make a silent line look live.
+     */
+    public function markSignal(Workstation $workstation): void
+    {
+        $now = now()->getTimestamp();
+        $last = $this->signalTouchedAt[$workstation->id] ?? null;
+        if ($last !== null && $now - $last < self::SIGNAL_TOUCH_SECONDS) {
+            return;
+        }
+        $this->signalTouchedAt[$workstation->id] = $now;
+
+        WorkstationState::where('workstation_id', $workstation->id)
+            ->whereNull('ended_at')
+            ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))
+            ->update(['updated_at' => now()]);
+    }
+
+    /**
+     * markSignal() for every station a connection reads, when the collector
+     * proves it is alive without posting a value — an OPC UA gateway only
+     * posts on change, so a station stuck in FAULT goes quiet while its
+     * gateway keeps heart-beating. One statement, throttled per row like
+     * markSignal() and equally free of model events.
+     */
+    public function markConnectionSignal(MachineConnection $connection): void
+    {
+        $stationIds = $connection->activeTags()->whereNotNull('workstation_id')->distinct()->pluck('workstation_id');
+        if ($stationIds->isEmpty()) {
+            return;
+        }
+
+        WorkstationState::whereIn('workstation_id', $stationIds)
+            ->whereNull('ended_at')
+            ->where('source', 'machine')
+            ->where('updated_at', '<', now()->subSeconds(self::SIGNAL_TOUCH_SECONDS))
+            ->update(['updated_at' => now()]);
     }
 
     private function openDowntime(Workstation $workstation, string $state, Carbon $at): void

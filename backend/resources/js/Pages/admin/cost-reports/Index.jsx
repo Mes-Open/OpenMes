@@ -5,6 +5,7 @@ import AppDatePicker from '../../../components/AppDatePicker';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
+import { formatMoney } from '../../../lib/money';
 import CostMethodology from './CostMethodology';
 import { nameControl } from '../../../lib/fieldName';
 
@@ -19,13 +20,8 @@ const PRESET_LABELS = {
     all: 'All time',
 };
 
-function money(value, currency) {
-    if (value == null) return '—';
-    return `${formatNumber(value)} ${currency}`;
-}
-
 export default function CostReportsIndex() {
-    const { orders, summary = {}, filters = {}, lines = [], productTypes = [], presets = [], currency = 'PLN' } =
+    const { orders, summary = {}, filters = {}, lines = [], productTypes = [], presets = [], currency } =
         usePage().props;
 
     const [form, setForm] = useState({
@@ -108,7 +104,7 @@ export default function CostReportsIndex() {
                 header: __('Material cost'),
                 meta: { align: 'right' },
                 cell: ({ row }) => (
-                    <span className="font-mono">{money(row.original.material_cost, row.original.currency)}</span>
+                    <span className="font-mono">{formatMoney(row.original.material_cost, row.original.currency)}</span>
                 ),
             },
             {
@@ -117,7 +113,7 @@ export default function CostReportsIndex() {
                 header: __('Labor cost'),
                 meta: { align: 'right' },
                 cell: ({ row }) => (
-                    <span className="font-mono">{money(row.original.labor_cost, row.original.currency)}</span>
+                    <span className="font-mono">{formatMoney(row.original.labor_cost, row.original.currency)}</span>
                 ),
             },
             {
@@ -126,7 +122,7 @@ export default function CostReportsIndex() {
                 header: __('Additional costs'),
                 meta: { align: 'right' },
                 cell: ({ row }) => (
-                    <span className="font-mono">{money(row.original.additional_cost, row.original.currency)}</span>
+                    <span className="font-mono">{formatMoney(row.original.additional_cost, row.original.currency)}</span>
                 ),
             },
             {
@@ -136,7 +132,7 @@ export default function CostReportsIndex() {
                 meta: { align: 'right' },
                 cell: ({ row }) => (
                     <span className="font-mono font-semibold text-om-ink">
-                        {money(row.original.total_cost, row.original.currency)}
+                        {formatMoney(row.original.total_cost, row.original.currency)}
                     </span>
                 ),
             },
@@ -149,7 +145,7 @@ export default function CostReportsIndex() {
                     <span className="font-mono">
                         {row.original.cost_per_unit == null
                             ? '—'
-                            : money(row.original.cost_per_unit, row.original.currency)}
+                            : formatMoney(row.original.cost_per_unit, row.original.currency)}
                     </span>
                 ),
             },
@@ -175,7 +171,7 @@ export default function CostReportsIndex() {
 
                 {summary.mixed_currency && (
                     <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
-                        {__('Mixed currencies - totals are summed without conversion.')}
+                        {__('Some orders include amounts recorded in a currency other than :currency (for example material prices). Totals add them without conversion — open an order to see which lines.', { currency })}
                     </div>
                 )}
 
@@ -187,13 +183,13 @@ export default function CostReportsIndex() {
 
                 {/* Summary cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <SummaryCard label={__('Total cost')} value={money(summary.total_cost ?? 0, currency)} />
-                    <SummaryCard label={__('Material cost')} value={money(summary.material_cost ?? 0, currency)} />
-                    <SummaryCard label={__('Labor cost')} value={money(summary.labor_cost ?? 0, currency)} />
-                    <SummaryCard label={__('Additional costs')} value={money(summary.additional_cost ?? 0, currency)} />
+                    <SummaryCard label={__('Total cost')} value={formatMoney(summary.total_cost ?? 0, currency)} />
+                    <SummaryCard label={__('Material cost')} value={formatMoney(summary.material_cost ?? 0, currency)} />
+                    <SummaryCard label={__('Labor cost')} value={formatMoney(summary.labor_cost ?? 0, currency)} />
+                    <SummaryCard label={__('Additional costs')} value={formatMoney(summary.additional_cost ?? 0, currency)} />
                     <SummaryCard
                         label={__('Avg cost per unit')}
-                        value={summary.avg_cost_per_unit == null ? '—' : money(summary.avg_cost_per_unit, currency)}
+                        value={summary.avg_cost_per_unit == null ? '—' : formatMoney(summary.avg_cost_per_unit, currency)}
                     />
                 </div>
 

@@ -22,6 +22,8 @@ backend/storage/logs/*
 # installation, and the counts would be meaningless.
 backend/storage/installed
 backend/storage/telemetry-id
+# Local e2e test instance (SQLite database with seeded accounts and sessions).
+backend/storage/e2e-instance/
 backend/bootstrap/cache/*
 backend/public/hot
 backend/public/storage
@@ -51,6 +53,7 @@ backend/yarn-error.log
 # directory, so a negation inside one would never be reached.
 .claude/*
 !.claude/skills/
+.claude/skills/**/__pycache__/
 .claude-flow/
 .mcp.json
 .agents/
@@ -131,3 +134,4 @@ tests/e2e/car-production-buildout.spec.ts
 docs/cla/contributors-audit.md
 docs/cla/ai-commits.md
 docs/cla/license-scan.md
+backend/storage/e2e-instance/

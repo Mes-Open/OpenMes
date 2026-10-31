@@ -8,6 +8,7 @@ use App\Models\MachineConnection;
 use App\Models\MachineTag;
 use App\Services\Machine\MachineSignalIngestor;
 use App\Services\Machine\RuntimeMonitor;
+use App\Services\Machine\WorkstationStateMachine;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -91,10 +92,16 @@ class MachineGatewayController extends Controller
 
     /**
      * Standalone heartbeat (gateway connected but no readings to push yet).
+     *
+     * The gateway posts readings only when a value changes, so this is also
+     * what keeps an unchanging machine — one sitting in FAULT, say — from
+     * reading as "No data" on the plant overview: its stations are marked as
+     * heard from.
      */
-    public function heartbeat(MachineConnection $machineConnection): JsonResponse
+    public function heartbeat(MachineConnection $machineConnection, WorkstationStateMachine $states): JsonResponse
     {
         $this->runtime->heartbeat($machineConnection->protocol, $machineConnection->id);
+        $states->markConnectionSignal($machineConnection);
 
         return response()->json(['ok' => true]);
     }

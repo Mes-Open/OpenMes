@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox } from '@openmes/ui';
+import { Button, Checkbox, InlineAlert } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -9,24 +9,29 @@ import { __ } from '../../lib/i18n';
  * The Admin column is locked to full access (can never be revoked). Geist White.
  */
 export default function Access() {
-    const { tabs = [], roles = [], matrix = {}, lockedRole = 'Admin' } = usePage().props;
+    const { tabs = [], roles = [], matrix = {}, grants = [], grantMatrix = {}, workOrderAbilities = [], workOrderAbilityMatrix = {}, lockedRole = 'Admin' } = usePage().props;
 
-    // form.access = { roleName: [tabKey, ...] }
+    // form.access = { roleName: [tabKey, ...] }, form.grants = { roleName: [permission, ...] }
     const initial = {};
+    const initialGrants = {};
     roles.forEach((role) => {
         initial[role] = role === lockedRole ? tabs.map((t) => t.key) : (matrix[role] ?? []);
+        initialGrants[role] = role === lockedRole ? grants.map((g) => g.key) : (grantMatrix[role] ?? []);
     });
 
-    const form = useForm({ access: initial });
-    const { data, setData, processing } = form;
+    const form = useForm({ access: initial, grants: initialGrants });
+    const { data, setData, processing, errors } = form;
+    // A rejected save redirects back with errors; show them next to Save so it
+    // never fails silently.
+    const errorMessages = [...new Set(Object.values(errors))];
 
-    const isChecked = (role, key) => role === lockedRole || (data.access[role] ?? []).includes(key);
+    const isChecked = (field, role, key) => role === lockedRole || (data[field][role] ?? []).includes(key);
 
-    const toggle = (role, key) => {
+    const toggle = (field, role, key) => {
         if (role === lockedRole) return;
-        const current = data.access[role] ?? [];
+        const current = data[field][role] ?? [];
         const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
-        setData('access', { ...data.access, [role]: next });
+        setData(field, { ...data[field], [role]: next });
     };
 
     const submit = (e) => {
@@ -76,9 +81,9 @@ export default function Access() {
                                     <td key={role} className="px-3 py-2.5 text-center">
                                         <span className="inline-flex justify-center">
                                             <Checkbox
-                                                checked={isChecked(role, tab.key)}
+                                                checked={isChecked('access', role, tab.key)}
                                                 disabled={role === lockedRole}
-                                                onChange={() => toggle(role, tab.key)}
+                                                onChange={() => toggle('access', role, tab.key)}
                                             />
                                         </span>
                                     </td>
@@ -87,6 +92,82 @@ export default function Access() {
                         ))}
                     </tbody>
                 </table>
+
+                {grants.length > 0 && (
+                    <>
+                        <h2 className="mt-6 text-sm font-semibold text-om-ink">{__('Quality')}</h2>
+                        <p className="mb-2 text-xs text-om-muted">
+                            {__('Who may carry out inbound inspections, and who may decide on the inspected lot. Individual people can also be granted these on their account.')}
+                        </p>
+                        <table className="w-full text-sm">
+                            <tbody>
+                                {grants.map((grant) => (
+                                    <tr key={grant.key} className="border-b border-om-line2 last:border-0">
+                                        <td className="py-2.5 pr-4">
+                                            <span className="font-medium text-om-ink">{__(grant.label)}</span>
+                                            <span className="block text-xs text-om-faint">{__(grant.description)}</span>
+                                        </td>
+                                        {roles.map((role) => (
+                                            <td key={role} className="px-3 py-2.5 text-center">
+                                                <span className="inline-flex justify-center">
+                                                    <Checkbox
+                                                        checked={isChecked('grants', role, grant.key)}
+                                                        disabled={role === lockedRole}
+                                                        onChange={() => toggle('grants', role, grant.key)}
+                                                        aria-label={`${__(grant.label)} — ${role}`}
+                                                    />
+                                                </span>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </>
+                )}
+
+                {workOrderAbilities.length > 0 && (
+                    <>
+                        <h2 className="mt-6 text-sm font-semibold text-om-ink">{__('Work Orders')}</h2>
+                        <p className="mb-2 text-xs text-om-muted">
+                            {__('The Orders tab opens the work-order list. Creating and editing orders also needs these permissions, which come with the role (read-only here).')}
+                        </p>
+                        <table className="w-full text-sm">
+                            <tbody>
+                                {workOrderAbilities.map((ability) => (
+                                    <tr key={ability.key} className="border-b border-om-line2 last:border-0">
+                                        <td className="py-2.5 pr-4 font-medium text-om-ink">{__(ability.label)}</td>
+                                        {roles.map((role) => {
+                                            const held = (workOrderAbilityMatrix[role] ?? []).includes(ability.key);
+                                            return (
+                                                <td key={role} className="px-3 py-2.5 text-center">
+                                                    <span className="inline-flex justify-center">
+                                                        <Checkbox
+                                                            checked={held}
+                                                            disabled
+                                                            onChange={() => {}}
+                                                            aria-label={`${__(ability.label)} — ${role}`}
+                                                        />
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </>
+                )}
+
+                {errorMessages.length > 0 && (
+                    <div className="pt-4">
+                        <InlineAlert severity="error" title={__('Could not save changes')}>
+                            <ul className="list-disc pl-5">
+                                {errorMessages.map((msg) => <li key={msg}>{msg}</li>)}
+                            </ul>
+                        </InlineAlert>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-3 pt-4">
                     <Button type="submit" variant="primary" loading={processing}>

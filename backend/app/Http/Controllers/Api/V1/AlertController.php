@@ -30,7 +30,7 @@ class AlertController extends Controller
                 'description' => $i->description,
                 'status' => $i->status,
                 'type_name' => optional($i->issueType)->name,
-                'is_blocking' => (bool) optional($i->issueType)->is_blocking,
+                'is_blocking' => $i->blocks_work_order,
                 'order' => $i->workOrder ? ['id' => $i->workOrder->id, 'order_no' => $i->workOrder->order_no] : null,
                 'reporter_name' => optional($i->reportedBy)->name,
                 'created_at' => optional($i->created_at)->toIso8601String(),

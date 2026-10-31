@@ -153,6 +153,13 @@ class WorkOrder extends Model
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
+    /**
+     * Statuses a blocking issue may move to BLOCKED. A PAUSED or CHANGE_HOLD
+     * order is already stopped and resumes through WorkOrderStopService, which
+     * a block-then-unblock round trip would bypass.
+     */
+    const BLOCKABLE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS];
+
     /** Stopped states an order can be resumed from. */
     const HELD_STATUSES = [self::STATUS_PAUSED, self::STATUS_BLOCKED, self::STATUS_CHANGE_HOLD];
 
@@ -184,6 +191,7 @@ class WorkOrder extends Model
         'produced_qty',
         'counting_source',
         'status',
+        'status_before_block',
         'line_status_id',
         'priority',
         'priority_score',
@@ -210,6 +218,8 @@ class WorkOrder extends Model
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
             'unit_price' => 'decimal:2',
+            // Write through the model: WorkOrderOutputObserver logs every change
+            // to the output ledger, and a query-builder update would skip it.
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'priority_score' => 'integer',
@@ -647,9 +657,7 @@ class WorkOrder extends Model
     {
         return $this->issues()
             ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', function ($query) {
-                $query->where('is_blocking', true);
-            })
+            ->where('blocks_work_order', true)
             ->get();
     }
 
@@ -719,6 +727,23 @@ class WorkOrder extends Model
         }
 
         return $query->where('status', $status);
+    }
+
+    /**
+     * The production planner's backlog — the one definition of it: active
+     * orders with no line, or with nothing that places them in time (no due
+     * date, week number or planned start). The planner board and the
+     * dashboard's "Orders not scheduled" tile both read it, so they agree.
+     */
+    public function scopePlannerBacklog($query)
+    {
+        return $query->whereIn('status', self::ACTIVE_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('line_id')
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('due_date')->whereNull('week_number')->whereNull('planned_start_at');
+                    });
+            });
     }
 
     /**

@@ -298,6 +298,218 @@ class ShiftMonitorService
     }
 
     /**
+     * The raw quantities behind each station's OEE for the elapsed part of the
+     * shift, for callers that combine stations into a line or plant figure.
+     *
+     * Averaging the board's rounded percentages would weigh a station that ran
+     * ten minutes the same as one that ran all shift, so this hands out the
+     * sums the percentages are made of instead: opportunity and running
+     * minutes (availability), expected and produced pieces (performance), good
+     * and produced pieces (quality). `oee` is exactly what `board()` shows on
+     * the station's tile, computed by the same private `oee()`.
+     *
+     * Same three batched reads as `fleet()` regardless of station count, and
+     * none of the board's tile extras (batches, operators, open stops).
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array{opportunity: int, running: int, expected: float, produced: int, good: int, oee: array{availability: ?float, performance: ?float, quality: ?float, oee: ?float}}> keyed by workstation id
+     */
+    public function oeeInputs(Collection $workstations, ShiftWindow $window): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $now = Carbon::now();
+        $asOf = $now->greaterThan($window->end) ? $window->end->copy() : $now;
+
+        $statesByStation = WorkstationState::whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $countersByStation = $this->counterMinutesByStation($ids, $window);
+
+        $downtimesByStation = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($workstations as $workstation) {
+            $slices = $this->sliceRows($statesByStation->get($workstation->id) ?? collect(), $window);
+            $counters = $countersByStation[$workstation->id] ?? ['good' => [], 'reject' => []];
+            $downtimes = $this->downtimeRows($downtimesByStation->get($workstation->id) ?? collect(), $slices);
+
+            $idealPerMin = (float) ($workstation->ideal_rate_per_hour ?? 0) / 60;
+            $segments = $this->buildSegments($workstation, $slices, $counters, $downtimes, $idealPerMin, $window, $asOf);
+            $totals = $this->totals($segments, $counters, $window, $asOf);
+            $m = $totals['minutes'];
+            $running = $m['run'] + $m['slow'];
+
+            $result[$workstation->id] = [
+                'opportunity' => $running + $m['down'],
+                'running' => $running,
+                'expected' => $idealPerMin * $running,
+                'produced' => $totals['produced'],
+                'good' => $totals['good'],
+                'oee' => $this->oee($totals, $idealPerMin),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * What each station is doing right now, read unclipped — the board's
+     * "since" rule without the timeline, the counters or the OEE maths.
+     *
+     * For callers that only need the present tense (the plant overview header)
+     * and can't afford `board()`'s counter feed on every refresh. Two queries
+     * regardless of station count — one when the caller already holds the open
+     * stops and passes them in (any extra stops in it are ignored). Stations
+     * nothing was ever heard from are absent from the result rather than
+     * present with a null state.
+     *
+     * `since` follows board(): the open stop's start when there is one,
+     * otherwise the state row's. A station can hold more than one open stop
+     * (one opened by the machine, one logged by hand); `stop` is the oldest —
+     * the one the station has been down since — and `stops` all of them, oldest
+     * first, so a newer stop never hides an older one's reason. `stateSince` is
+     * always the state row's. `seenAt` is when the station was last heard from
+     * (see WorkstationStateMachine::markSignal()).
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @param  Collection<int, ProductionDowntime>|null  $openStops  open stops with `reason` loaded, oldest first
+     * @return array<int, array{state: string, source: string, since: Carbon, stateSince: Carbon, seenAt: Carbon, stop: ?ProductionDowntime, stops: Collection<int, ProductionDowntime>}> keyed by workstation id
+     */
+    public function currentStates(Collection $workstations, ?Collection $openStops = null): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $openStates = WorkstationState::whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->orderBy('started_at')
+            ->get()
+            ->keyBy('workstation_id');
+
+        $openStops ??= ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->whereNull('ended_at')
+            ->orderBy('started_at')
+            ->get();
+
+        $stopsByStation = $openStops
+            ->filter(fn (ProductionDowntime $d) => $d->workstation_id !== null)
+            ->sortBy(fn (ProductionDowntime $d) => $d->started_at->getTimestamp())
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($openStates as $stationId => $open) {
+            $stops = ($stopsByStation->get($stationId) ?? collect())->values();
+            $stop = $stops->first();
+            $result[$stationId] = [
+                'state' => $open->state,
+                'source' => $open->source ?? 'machine',
+                // Same rule as board(): the open stop wins over the state row.
+                'since' => $stop?->started_at ?? $open->started_at,
+                'stateSince' => $open->started_at,
+                'seenAt' => $open->updated_at && $open->updated_at->gt($open->started_at) ? $open->updated_at : $open->started_at,
+                'stop' => $stop,
+                'stops' => $stops,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Each station's state slices for the shift — clipped and de-overlapped
+     * exactly as `fleet()` does, with the stop covering each stopped slice —
+     * but without the counter feed, the run/slow split or hour splitting.
+     *
+     * For callers that only need "what state, when" (the dashboard's line
+     * timeline) and can't afford `fleet()`'s counter feed on every refresh.
+     * Minute offsets are rounded the way `buildSegments()` rounds them and
+     * capped at now, so the two never disagree about where a slice sits. Two
+     * queries regardless of station count.
+     *
+     * @param  Collection<int, Workstation>  $workstations
+     * @return array<int, array<int, array{state: string, from: int, to: int, started_at: Carbon, downtime: ?ProductionDowntime}>> keyed by workstation id; stations with no slice in the window are absent
+     */
+    public function stateTimelines(Collection $workstations, ShiftWindow $window): array
+    {
+        $ids = $workstations->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $now = Carbon::now();
+        $asOf = $now->greaterThan($window->end) ? $window->end->copy() : $now;
+        $asOfMinute = (int) floor($window->start->diffInSeconds($asOf) / 60);
+
+        $statesByStation = WorkstationState::whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $downtimesByStation = ProductionDowntime::with('reason')
+            ->whereIn('workstation_id', $ids)
+            ->where('started_at', '<', $window->end)
+            ->where(fn ($q) => $q->whereNull('ended_at')->orWhere('ended_at', '>', $window->start))
+            ->get()
+            ->groupBy('workstation_id');
+
+        $result = [];
+
+        foreach ($statesByStation as $stationId => $rows) {
+            $slices = $this->sliceRows($rows, $window);
+            $downtimes = $this->downtimeRows($downtimesByStation->get($stationId) ?? collect(), $slices);
+            $timeline = [];
+
+            foreach ($slices as $slice) {
+                $from = (int) round($window->start->diffInSeconds($slice['from']) / 60);
+                $to = min((int) round($window->start->diffInSeconds($slice['to']) / 60), $asOfMinute);
+                if ($to <= $from) {
+                    continue;
+                }
+
+                // Every state that is not plain work or plain waiting-for-work
+                // can carry the cause somebody gave it.
+                $explainable = ! in_array($slice['state'], [
+                    WorkstationState::RUNNING, WorkstationState::IDLE,
+                    WorkstationState::SETUP, WorkstationState::CLEANING,
+                ], true);
+
+                $timeline[] = [
+                    'state' => $slice['state'],
+                    'from' => $from,
+                    'to' => $to,
+                    'started_at' => $slice['from'],
+                    'downtime' => $explainable ? $this->downtimeFor($downtimes, $slice) : null,
+                ];
+            }
+
+            if ($timeline !== []) {
+                $result[$stationId] = $timeline;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * What the station is doing right now — the state of the slice covering
      * `asOf`, or null when nothing has been reported for it at all.
      *
@@ -307,8 +519,6 @@ class ShiftMonitorService
     {
         return $slices->last(fn (array $slice) => $slice['from']->lessThanOrEqualTo($asOf))['state'] ?? null;
     }
-
-    // ─────────────────────────── raw sources ───────────────────────────
 
     /**
      * State slices overlapping the shift, clipped to its boundaries. The open
@@ -492,8 +702,6 @@ class ShiftMonitorService
 
         return $recovered ? $recovered['from']->copy() : Carbon::now();
     }
-
-    // ─────────────────────────── segments ───────────────────────────
 
     /**
      * The timeline the screen draws: state slices clipped to the shift, split
@@ -839,8 +1047,6 @@ class ShiftMonitorService
         };
     }
 
-    // ─────────────────────────── hour rows ───────────────────────────
-
     /**
      * One row per clock hour the shift touches, carrying its segments, its
      * production pulses and its actual-vs-target counts.
@@ -933,8 +1139,6 @@ class ShiftMonitorService
 
         return $dots;
     }
-
-    // ─────────────────────────── totals & header ───────────────────────────
 
     /**
      * @param  array<int, array<string, mixed>>  $segments
@@ -1059,8 +1263,6 @@ class ShiftMonitorService
         ];
     }
 
-    // ─────────────────────────── batches ───────────────────────────
-
     /** @return array<string, mixed>|null */
     private function currentBatch(Workstation $workstation, ShiftWindow $window): ?array
     {
@@ -1112,8 +1314,6 @@ class ShiftMonitorService
             'percent' => $target > 0 ? min(100, round($produced / $target * 100)) : 0,
         ];
     }
-
-    // ─────────────────────────── chart ───────────────────────────
 
     /**
      * Rolling rate window: 28 two-minute samples ending at `asOf`. Each sample
@@ -1174,8 +1374,6 @@ class ShiftMonitorService
             'idealRatePerMinute' => round($idealPerMin, 2),
         ];
     }
-
-    // ─────────────────────────── event pins ───────────────────────────
 
     /**
      * The balloons above the timeline. Each comes from a real record — a batch
@@ -1309,8 +1507,6 @@ class ShiftMonitorService
         ]);
     }
 
-    // ─────────────────────────── attention / summary ───────────────────────────
-
     /**
      * @param  array<int, array<string, mixed>>  $segments
      * @return array<string, mixed>
@@ -1369,8 +1565,6 @@ class ShiftMonitorService
             'scrap' => $totals['reject'],
         ];
     }
-
-    // ─────────────────────────── analysis tab ───────────────────────────
 
     /**
      * @param  array<string, mixed>  $totals
@@ -1459,5 +1653,70 @@ class ShiftMonitorService
             ], true))
             ->values()
             ->all();
+    }
+
+    /**
+     * The batch this station was actually working when the stop began — the
+     * work order an escalation from the shift monitor is filed against.
+     *
+     * Bounded by the stop's own time: a batch that started after it cannot have
+     * caused it, and one that finished before it is somebody else's problem. An
+     * unbounded "latest batch here" would happily return an order that closed
+     * weeks ago on a station that has been idle since.
+     */
+    public function batchRunningDuring(ProductionDowntime $downtime): ?Batch
+    {
+        $startedAt = $downtime->started_at;
+
+        return Batch::where('workstation_id', $downtime->workstation_id)
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->where('started_at', '<=', $startedAt)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $startedAt))
+            ->latest('started_at')
+            ->first();
+    }
+
+    /**
+     * batchRunningDuring() for many stops at once: which of them could be
+     * escalated right now, and against which work order. One query regardless
+     * of how many stops are asked about; the per-stop bounds are the same.
+     *
+     * @param  Collection<int, ProductionDowntime>  $downtimes
+     * @return array<int, int> downtime id → work order id, escalatable stops only
+     */
+    public function escalatableWorkOrders(Collection $downtimes): array
+    {
+        $downtimes = $downtimes->filter(fn (ProductionDowntime $d) => $d->workstation_id && $d->started_at);
+
+        if ($downtimes->isEmpty()) {
+            return [];
+        }
+
+        $earliest = $downtimes->min('started_at');
+        $latest = $downtimes->max('started_at');
+
+        $batches = Batch::whereIn('workstation_id', $downtimes->pluck('workstation_id')->unique())
+            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
+            ->whereNotNull('work_order_id')
+            ->where('started_at', '<=', $latest)
+            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $earliest))
+            ->get(['id', 'workstation_id', 'work_order_id', 'started_at', 'completed_at'])
+            ->groupBy('workstation_id');
+
+        $result = [];
+        foreach ($downtimes as $downtime) {
+            $start = $downtime->started_at;
+            $batch = ($batches->get($downtime->workstation_id) ?? collect())
+                ->filter(fn (Batch $b) => $b->started_at->lte($start)
+                    && ($b->completed_at === null || $b->completed_at->gte($start)))
+                ->sortByDesc(fn (Batch $b) => $b->started_at->getTimestamp())
+                ->first();
+
+            if ($batch) {
+                $result[$downtime->id] = $batch->work_order_id;
+            }
+        }
+
+        return $result;
     }
 }

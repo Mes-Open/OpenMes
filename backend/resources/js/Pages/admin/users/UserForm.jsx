@@ -1,27 +1,53 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
-import { useState } from 'react';
+import { cloneElement, isValidElement, useId, useState } from 'react';
 import { nameControl } from '../../../lib/fieldName';
 import ModuleFields from '../../../components/ModuleFields';
+import useConfirm from '../../../components/useConfirm';
 
 /**
  * Bespoke create/edit form for user accounts. Conditional on `account_type`:
  *  - 'user'        → role select + optional worker profile (crew/wage-group/skills matrix)
  *  - 'workstation' → workstation select (role auto-assigned Operator server-side)
  *
+ * The worker profile is either created here (`worker_code` and friends) or an
+ * existing HR worker without an account is linked (`worker_id`). An account
+ * that already has one shows it with an Unlink action instead of the chooser.
+ *
  * `form` is an Inertia useForm() instance. Non-optimistic write-through; the
  * password is confirmed (password + password_confirmation). On edit, leaving
  * password blank keeps the current one.
  */
-export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], hooks, isEdit, onSubmit, bare = false, onCancel }) {
+export default function UserForm({ form, roles = [], workstations = [], crews = [], wageGroups = [], skills = [], grantablePermissions = [], rolePermissions = {}, hooks, isEdit, onSubmit, bare = false, onCancel, linkableWorkers = [], linkedWorker = null, userId = null }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
+    const { confirm, dialog } = useConfirm();
+
+    // 'create' a new worker profile or 'link' an existing one. Local only —
+    // the server tells the two apart by which of worker_code / worker_id is set.
+    const [workerMode, setWorkerMode] = useState(() => (data.worker_id ? 'link' : 'create'));
+    const chooseWorkerMode = (mode) => {
+        setWorkerMode(mode);
+        if (mode === 'link') {
+            setData((d) => ({ ...d, worker_code: '', worker_phone: '', worker_crew_id: '', worker_wage_group_id: '', skills: [] }));
+        } else {
+            setData('worker_id', '');
+        }
+    };
+
+    const unlinkWorker = () => confirm(
+        {
+            title: __('Unlink the worker profile from this account? The worker record stays in HR.'),
+            confirmLabel: __('Unlink worker profile'),
+        },
+        () => router.delete(`/admin/users/${userId}/worker`, { preserveScroll: true }),
+    );
 
     // Worker profile is optional and only relevant for shop-floor staff, so it
     // starts collapsed to keep the form focused — auto-expanded when editing an
     // account that already has a worker profile.
-    const [showWorker, setShowWorker] = useState(() => isEdit && !!data.worker_code);
+    const [showWorker, setShowWorker] = useState(() => isEdit && (!!data.worker_code || !!linkedWorker));
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
 
@@ -31,6 +57,15 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
         else next.delete(String(id));
         setData('skills', [...next].map(([sid, level]) => ({ id: Number(sid), level })));
     };
+    // Per-person quality permissions. One the selected role already carries is
+    // shown ticked and locked — granting it again to the person changes nothing.
+    const effectiveRole = isUser ? data.role : 'Operator';
+    const roleGrants = rolePermissions[effectiveRole] ?? [];
+    const granted = data.permissions ?? [];
+    const togglePermission = (key, on) => {
+        setData('permissions', on ? [...new Set([...granted, key])] : granted.filter((k) => k !== key));
+    };
+
     const setSkillLevel = (id, level) => {
         const next = new Map(selectedSkills);
         next.set(String(id), Number(level));
@@ -51,7 +86,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                         { value: 'workstation', label: __('Workstation') },
                     ]}
                     value={data.account_type}
-                    onChange={(v) => setData('account_type', v)}
+                    onChange={(v) => setData((d) => ({ ...d, account_type: v, ...(v === 'workstation' ? { permissions: [] } : {}) }))}
                 />
             </div>
 
@@ -118,9 +153,59 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                     </button>
                     {showWorker && (
                 <div className="border-t border-om-line2 p-4 space-y-4">
+                    {linkedWorker ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <p className="text-sm text-om-ink">
+                                {__('Linked worker profile')}: <span className="font-medium">{linkedWorker.code} — {linkedWorker.name}</span>
+                            </p>
+                            <Link href={`/admin/workers/${linkedWorker.id}`} className="text-sm underline text-om-accent">{__('Open in HR')}</Link>
+                            <Button type="button" variant="outline" onClick={unlinkWorker}>{__('Unlink worker profile')}</Button>
+                        </div>
+                    ) : (
+                        <div>
+                            {/* The section bar above already captions this; the
+                                group keeps an aria label of its own. */}
+                            <RadioGroup
+                                label={__('Worker profile')}
+                                options={[
+                                    { value: 'create', label: __('Create new profile') },
+                                    { value: 'link', label: __('Link existing worker') },
+                                ]}
+                                value={workerMode}
+                                onChange={chooseWorkerMode}
+                            />
+                        </div>
+                    )}
+                    {!linkedWorker && workerMode === 'link' ? (
+                        <>
+                            <p className="text-xs text-om-faint">{__('Only workers without a user account are listed. Linking does not change the worker record.')}</p>
+                            {linkableWorkers.length === 0 ? (
+                                <p className="text-sm text-om-faint">{__('No workers without an account.')}</p>
+                            ) : (
+                                <Field label={__('Worker')} error={errors.worker_id}>
+                                    <Dropdown
+                                        options={linkableWorkers.map((w) => ({ value: String(w.id), label: `${w.code} — ${w.name}` }))}
+                                        value={data.worker_id == null ? '' : String(data.worker_id)}
+                                        onChange={(v) => setData('worker_id', v)}
+                                        placeholder={__('— Select worker —')}
+                                        searchable
+                                        searchPlaceholder={__('Search…')}
+                                        noResultsLabel={__('No workers without an account.')}
+                                        className="w-full"
+                                    />
+                                </Field>
+                            )}
+                        </>
+                    ) : (
+                    <>
+                    {errors.worker_id && <p className="text-xs text-om-blocked">{errors.worker_id}</p>}
                     <p className="text-xs text-om-faint">{__('Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.')}</p>
                     <div className="grid grid-cols-2 gap-4">
-                        <Field label={__('Worker Code')} error={errors.worker_code}>
+                        <Field
+                            label={__('Worker Code')}
+                            error={errors.worker_code}
+                            help={__('Unique identifier of the worker profile linked to this account, e.g. W-201. Saving creates the profile with this code (or updates the linked one); no two workers can share a code.')}
+                        >
                             <input type="text" value={data.worker_code} onChange={(e) => setData('worker_code', e.target.value)} className="form-input w-full" />
                         </Field>
                         <Field label={__('Phone')} error={errors.worker_phone}>
@@ -157,7 +242,7 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                                             checked={on}
                                             onChange={(next) => toggleSkill(skill.id, next)}
                                             label={skill.name}
-                                            className="flex-1"
+                                            className="flex-1 min-w-0"
                                         />
                                         {on && (
                                             <Dropdown
@@ -172,9 +257,38 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                             })}
                         </div>
                     </div>
+                    </>
+                    )}
                 </div>
                     )}
                 </div>
+            )}
+
+            {/* Personal accounts only: a shared workstation login cannot answer for a quality decision. */}
+            {isUser && grantablePermissions.length > 0 && (
+                <section className="border border-om-line2 rounded-om-sm p-4 space-y-3">
+                    <div>
+                        <h2 className="text-sm font-semibold text-om-ink">{__('Quality permissions')}</h2>
+                        <p className="text-xs text-om-faint">{__('Granted to this person in addition to their role.')}</p>
+                    </div>
+                    {grantablePermissions.map((perm) => {
+                        const fromRole = roleGrants.includes(perm.key);
+                        return (
+                            <div key={perm.key}>
+                                <Checkbox
+                                    checked={fromRole || granted.includes(perm.key)}
+                                    disabled={fromRole}
+                                    onChange={(next) => togglePermission(perm.key, next)}
+                                    label={__(perm.label)}
+                                />
+                                <p className="ml-7 text-xs text-om-faint">
+                                    {fromRole ? __('Granted by the :role role.', { role: effectiveRole }) : __(perm.description)}
+                                </p>
+                            </div>
+                        );
+                    })}
+                    {errors.permissions && <p className="text-xs text-om-blocked">{errors.permissions}</p>}
+                </section>
             )}
 
             <ModuleFields
@@ -191,17 +305,21 @@ export default function UserForm({ form, roles = [], workstations = [], crews = 
                 </Button>
                 {onCancel ? <Button type="button" variant="outline" onClick={onCancel}>{__('Cancel')}</Button> : <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>}
             </div>
+            {dialog}
         </form>
     );
 }
 
-function Field({ label, error, required, children }) {
+function Field({ label, error, required, help, children }) {
+    const helpId = useId();
+    const control = help && isValidElement(children) ? cloneElement(children, { 'aria-describedby': helpId }) : children;
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </div>
-            {nameControl(children, label)}
+            {nameControl(control, label)}
+            {help && <p id={helpId} className="mt-1 text-xs text-om-faint">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );

@@ -6,7 +6,6 @@ use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ClassifyDowntimeRequest;
 use App\Http\Requests\EscalateDowntimeRequest;
-use App\Models\Batch;
 use App\Models\DowntimeReason;
 use App\Models\Issue;
 use App\Models\IssueType;
@@ -106,7 +105,7 @@ class ShiftMonitorController extends Controller
     {
         $validated = $request->validated();
 
-        $batch = $this->batchRunningDuring($downtime);
+        $batch = $this->monitor->batchRunningDuring($downtime);
 
         if (! $batch?->work_order_id) {
             // Better to refuse than to file the escalation against whatever ran
@@ -157,26 +156,6 @@ class ShiftMonitorController extends Controller
         return response()->json([
             'message' => __('Escalated to maintenance · issue #:id opened', ['id' => $issue->id]),
         ]);
-    }
-
-    /**
-     * The batch this station was actually working when the stop began.
-     *
-     * Bounded by the stop's own time: a batch that started after it cannot have
-     * caused it, and one that finished before it is somebody else's problem. An
-     * unbounded "latest batch here" would happily return an order that closed
-     * weeks ago on a station that has been idle since.
-     */
-    private function batchRunningDuring(ProductionDowntime $downtime): ?Batch
-    {
-        $startedAt = $downtime->started_at;
-
-        return Batch::where('workstation_id', $downtime->workstation_id)
-            ->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])
-            ->where('started_at', '<=', $startedAt)
-            ->where(fn ($q) => $q->whereNull('completed_at')->orWhere('completed_at', '>=', $startedAt))
-            ->latest('started_at')
-            ->first();
     }
 
     /**

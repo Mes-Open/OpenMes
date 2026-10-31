@@ -17,10 +17,15 @@ class SystemApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $supervisor;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $supervisorToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -38,9 +43,20 @@ class SystemApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authSupervisor()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     // ── Settings ──────────────────────────────────────────────────────────
 
@@ -67,6 +83,40 @@ class SystemApiTest extends TestCase
         $this->authSupervisor()->putJson('/api/v1/system/settings/allow_overproduction', [
             'value' => true,
         ])->assertStatus(403);
+    }
+
+    public function test_admin_can_set_the_currency_through_the_api(): void
+    {
+        $this->authAdmin()->putJson('/api/v1/system/settings/default_currency', ['value' => 'eur'])
+            ->assertOk()
+            ->assertJsonPath('data.value', 'EUR');
+
+        $this->assertSame('"EUR"', DB::table('system_settings')->where('key', 'default_currency')->value('value'));
+        $this->assertSame('EUR', \App\Support\CurrencyRegistry::current());
+    }
+
+    public function test_setting_the_currency_through_the_api_relabels_the_old_one(): void
+    {
+        $material = \App\Models\Material::factory()->create(['price_currency' => 'PLN']);
+
+        $this->authAdmin()->putJson('/api/v1/system/settings/default_currency', ['value' => 'EUR'])->assertOk();
+
+        $this->assertSame('EUR', $material->fresh()->price_currency);
+    }
+
+    public function test_api_rejects_an_unsupported_currency(): void
+    {
+        $this->authAdmin()->putJson('/api/v1/system/settings/default_currency', ['value' => 'XYZ'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('value');
+
+        $this->assertSame('"PLN"', DB::table('system_settings')->where('key', 'default_currency')->value('value'));
+    }
+
+    public function test_supervisor_cannot_set_the_currency(): void
+    {
+        $this->authSupervisor()->putJson('/api/v1/system/settings/default_currency', ['value' => 'EUR'])
+            ->assertStatus(403);
     }
 
     public function test_unknown_setting_returns_404(): void
@@ -109,7 +159,7 @@ class SystemApiTest extends TestCase
             'due_date' => now()->addDays(3)->toDateString(),
         ]);
         $r = $this->authSupervisor()->getJson(
-            '/api/v1/system/schedule?from=' . now()->toDateString() . '&to=' . now()->addDays(7)->toDateString()
+            '/api/v1/system/schedule?from='.now()->toDateString().'&to='.now()->addDays(7)->toDateString()
         );
         $r->assertStatus(200);
         $this->assertGreaterThanOrEqual(2, count($r->json('data')));
@@ -125,8 +175,8 @@ class SystemApiTest extends TestCase
         WorkOrder::factory()->create(['due_date' => now()->addDays(3)->toDateString()]);
 
         $r = $this->authSupervisor()->getJson(
-            '/api/v1/system/schedule?from=' . now()->toDateString()
-            . '&to=' . now()->addDays(7)->toDateString() . '&type=maintenance'
+            '/api/v1/system/schedule?from='.now()->toDateString()
+            .'&to='.now()->addDays(7)->toDateString().'&type=maintenance'
         );
         $types = collect($r->json('data'))->pluck('type')->unique();
         $this->assertTrue($types->contains('maintenance'));

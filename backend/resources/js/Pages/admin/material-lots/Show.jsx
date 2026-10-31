@@ -158,7 +158,7 @@ export default function MaterialLotShow({ lot }) {
                     <div>
                         <h1 className="text-3xl font-bold text-om-ink font-mono">{lot.lot_number}</h1>
                         <p className="text-om-muted text-sm mt-1">
-                            Received {fmtDateTime(lot.received_at)}
+                            {__('Received')} {fmtDateTime(lot.received_at)}
                             {lot.material && (
                                 <> — <span className="font-medium">{lot.material.name}</span></>
                             )}
@@ -170,14 +170,14 @@ export default function MaterialLotShow({ lot }) {
                         </span>
                         {/* The incoming-inspection label: lot, material and the IQC verdict, for the warehouse shelf. */}
                         <a href={`/packaging/labels/material-lot/${lot.id}/pdf`} target="_blank" rel="noopener" className="btn-touch btn-secondary">{__('IQC label')}</a>
-                        <Link href={`/admin/material-lots/${lot.id}/edit`} className="btn-touch btn-secondary">Edit</Link>
-                        <Link href="/admin/material-lots" className="btn-touch btn-ghost">&#8592; Back</Link>
+                        <Link href={`/admin/material-lots/${lot.id}/edit`} className="btn-touch btn-secondary">{__('Edit')}</Link>
+                        <Link href="/admin/material-lots" className="btn-touch btn-ghost">&#8592; {__('Back')}</Link>
                     </div>
                 </div>
 
                 {/* Info card */}
                 <div className="card mb-6">
-                    <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">Info</h2>
+                    <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">{__('Info')}</h2>
                     <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <InfoCell label="Material">
                             {lot.material ? (
@@ -210,13 +210,13 @@ export default function MaterialLotShow({ lot }) {
                         <InfoCell label="Inspection">
                             {lot.inspection ? (
                                 <Link
-                                    href={`/inspections/${lot.inspection.id}`}
+                                    href={`/operator/inspections/${lot.inspection.id}`}
                                     className="text-om-accent hover:underline"
                                 >
                                     #{lot.inspection.id} ({lot.inspection.status})
                                 </Link>
                             ) : (
-                                <span className="text-om-faint">Not linked</span>
+                                 <span className="text-om-faint">{__('Not linked')}</span>
                             )}
                         </InfoCell>
                         <InfoCell label="Source">{lot.source?.external_name ?? '—'}</InfoCell>
@@ -243,9 +243,9 @@ export default function MaterialLotShow({ lot }) {
                 {/* Genealogy */}
                 <div className="card">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide">Genealogy</h2>
+                        <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide">{__('Genealogy')}</h2>
                         <span className="text-xs text-om-muted">
-                            Total consumed:{' '}
+                            {__('Total consumed')}:{' '}
                             <span className="font-mono font-medium">
                                 {trimQty(totalConsumed)} {lot.unit_of_measure}
                             </span>
@@ -254,9 +254,9 @@ export default function MaterialLotShow({ lot }) {
 
                     {/* Forward — consumed by */}
                     <div className="mb-6">
-                        <h3 className="text-xs font-semibold text-om-muted uppercase mb-2">Forward — consumed by</h3>
+                        <h3 className="text-xs font-semibold text-om-muted uppercase mb-2">{__('Forward — consumed by')}</h3>
                         {(!lot.consumptions || lot.consumptions.length === 0) ? (
-                            <p className="text-sm text-om-muted italic">No consumption recorded yet.</p>
+                            <p className="text-sm text-om-muted italic">{__('No consumption recorded yet.')}</p>
                         ) : (
                             <DataTable
                                 data={lot.consumptions}
@@ -270,25 +270,25 @@ export default function MaterialLotShow({ lot }) {
 
                     {/* Backward — sourced from */}
                     <div>
-                        <h3 className="text-xs font-semibold text-om-muted uppercase mb-2">Backward — sourced from</h3>
+                        <h3 className="text-xs font-semibold text-om-muted uppercase mb-2">{__('Backward — sourced from')}</h3>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                             <div>
-                                <dt className="text-xs text-om-muted">Inspection</dt>
+                                <dt className="text-xs text-om-muted">{__('Inspection')}</dt>
                                 <dd className="mt-1">
                                     {lot.inspection ? (
                                         <Link
-                                            href={`/inspections/${lot.inspection.id}`}
+                                            href={`/operator/inspections/${lot.inspection.id}`}
                                             className="text-om-accent hover:underline"
                                         >
                                             #{lot.inspection.id} — {ucFirst(lot.inspection.status)}
                                         </Link>
                                     ) : (
-                                        <span className="text-om-faint">No inbound inspection</span>
+                                        <span className="text-om-faint">{__('No inbound inspection')}</span>
                                     )}
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs text-om-muted">Supplier reference</dt>
+                                <dt className="text-xs text-om-muted">{__('Supplier reference')}</dt>
                                 <dd className="mt-1 text-om-ink">{lot.supplier_reference ?? lot.supplier_lot_no ?? '—'}</dd>
                             </div>
                         </dl>
@@ -313,7 +313,7 @@ MaterialLotShow.layout = (page) => <AppLayout>{page}</AppLayout>;
 function InfoCell({ label, children }) {
     return (
         <div>
-            <dt className="text-xs text-om-muted uppercase">{label}</dt>
+            <dt className="text-xs text-om-muted uppercase">{__(label)}</dt>
             <dd className="mt-1 text-om-ink">{children}</dd>
         </div>
     );

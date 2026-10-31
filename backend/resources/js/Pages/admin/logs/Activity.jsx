@@ -79,12 +79,12 @@ function DetailModal({ log, onClose }) {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between p-4 border-b">
-                    <h3 id="log-detail-title" className="text-lg font-semibold">Log entry details</h3>
+                    <h3 id="log-detail-title" className="text-lg font-semibold">{__('Log entry details')}</h3>
                     <button
                         type="button"
                         onClick={onClose}
                         className="text-om-faint hover:text-om-ink text-xl leading-none"
-                        aria-label="Close"
+                        aria-label={__('Close')}
                     >
                         &times;
                     </button>
@@ -168,7 +168,7 @@ function DetailModal({ log, onClose }) {
                     )}
 
                     <div className="text-xs text-om-faint pt-3 border-t break-words">
-                        <strong>User agent:</strong>{' '}
+                        <strong>{__('User agent')}:</strong>{' '}
                         <span>{log.user_agent || '—'}</span>
                     </div>
                 </div>
@@ -178,7 +178,7 @@ function DetailModal({ log, onClose }) {
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                     >
-                        Close
+                        {__('Close')}
                     </button>
                 </div>
             </div>
@@ -231,7 +231,7 @@ export default function Activity() {
         {
             id: 'when',
             accessorFn: (r) => r.created_at,
-            header: 'When',
+            header: __('When'),
             cell: ({ row }) => {
                 const log = row.original;
                 return (
@@ -246,7 +246,7 @@ export default function Activity() {
         {
             id: 'who',
             accessorFn: (r) => r.user?.name ?? 'Guest',
-            header: 'Who',
+            header: __('Who'),
             cell: ({ row }) => (
                 <span className="text-om-ink whitespace-nowrap">
                     {row.original.user?.name ?? 'Guest'}
@@ -256,7 +256,7 @@ export default function Activity() {
         {
             id: 'what',
             accessorFn: (r) => (r.source === 'audit' ? r.action : r.path),
-            header: 'What',
+            header: __('What'),
             cell: ({ row }) => {
                 const log = row.original;
                 return log.source === 'audit' ? (
@@ -288,7 +288,7 @@ export default function Activity() {
         },
         {
             id: 'details',
-            header: 'Details',
+            header: __('Details'),
             enableSorting: false,
             cell: ({ row }) => {
                 const log = row.original;
@@ -299,7 +299,7 @@ export default function Activity() {
                             onClick={() => setDetailLog(log)}
                             className="text-om-accent hover:underline text-xs"
                         >
-                            Details
+                            {__('Details')}
                         </button>
                         {log.source === 'audit' && (log.action === 'updated' || log.action === 'created') && (
                             <>
@@ -308,7 +308,7 @@ export default function Activity() {
                                     href={`/admin/audit-logs?user_id=${log.user_id ?? ''}&entity_type=${encodeURIComponent(log.entity_type ?? '')}`}
                                     className="text-om-accent hover:underline"
                                 >
-                                    View changes
+                                    {__('View changes')}
                                 </a>
                             </>
                         )}
@@ -321,12 +321,12 @@ export default function Activity() {
 
     return (
         <>
-            <Head title="Activity Logs" />
+            <Head title={__('Activity Logs')} />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">Activity Logs</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Activity Logs')}</h1>
                     <p className="text-om-muted mt-1">
-                        What users did across the system — entity changes, navigation, auth events.
+                        {__('What users did across the system — entity changes, navigation, auth events.')}
                     </p>
                 </div>
 
@@ -334,71 +334,71 @@ export default function Activity() {
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">From</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('From')}</div>
                             <AppDatePicker
-                                aria-label="From"
+                                aria-label={__('From')}
                                 value={form.from || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">To</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('To')}</div>
                             <AppDatePicker
-                                aria-label="To"
+                                aria-label={__('To')}
                                 value={form.to || null}
                                 onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">User</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('User')}</div>
                             <Dropdown
-                                aria-label="User"
+                                aria-label={__('User')}
                                 value={form.user_id == null ? '' : String(form.user_id)}
                                 onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
                                 options={[
-                                    { value: '', label: 'All users' },
+                                    { value: '', label: __('All users') },
                                     ...users.map((u) => ({ value: String(u.id), label: u.name })),
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Source</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Source')}</div>
                             <Dropdown
-                                aria-label="Source"
+                                aria-label={__('Source')}
                                 value={form.source == null ? '' : String(form.source)}
                                 onChange={(v) => setForm((f) => ({ ...f, source: v }))}
                                 options={[
-                                    { value: '', label: 'All sources' },
-                                    { value: 'audit', label: 'Entity changes' },
-                                    { value: 'request', label: 'Navigation' },
+                                    { value: '', label: __('All sources') },
+                                    { value: 'audit', label: __('Entity changes') },
+                                    { value: 'request', label: __('Navigation') },
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Entity</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Entity')}</div>
                             <Dropdown
-                                aria-label="Entity"
+                                aria-label={__('Entity')}
                                 value={form.entity_type == null ? '' : String(form.entity_type)}
                                 onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
                                 options={[
-                                    { value: '', label: 'All entities' },
+                                    { value: '', label: __('All entities') },
                                     ...entityTypes.map((et) => ({ value: String(et), label: String(et).split('\\').pop() })),
                                 ]}
                                 className="w-full"
                             />
                         </div>
                         <div>
-                            <div className="block text-xs font-medium text-om-muted mb-1">Action</div>
+                            <div className="block text-xs font-medium text-om-muted mb-1">{__('Action')}</div>
                             <Dropdown
-                                aria-label="Action"
+                                aria-label={__('Action')}
                                 value={form.action == null ? '' : String(form.action)}
                                 onChange={(v) => setForm((f) => ({ ...f, action: v }))}
                                 options={[
-                                    { value: '', label: 'All actions' },
+                                    { value: '', label: __('All actions') },
                                     ...actions.map((a) => ({ value: String(a), label: a })),
                                 ]}
                                 className="w-full"
@@ -411,20 +411,20 @@ export default function Activity() {
                             onClick={() => apply()}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                         >
-                            Apply
+                            {__('Apply')}
                         </button>
                         <button
                             type="button"
                             onClick={clear}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Clear
+                            {__('Clear')}
                         </button>
                         <a
                             href={exportUrl()}
                             className="sm:ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            Export CSV
+                            {__('Export CSV')}
                         </a>
                     </div>
                 </div>

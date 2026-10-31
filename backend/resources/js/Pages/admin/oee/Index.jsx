@@ -189,9 +189,9 @@ export default function OeeIndex() {
                                         <MetricMini label="Quality" value={fmt1(s.avg_quality)} />
                                     </div>
                                     <div className="w-full mt-3 pt-3 border-t border-om-line2 flex justify-around text-xs text-om-muted">
-                                        <span>Produced: {formatNumber(Number(s.total_produced))}</span>
-                                        <span>Scrap: {formatNumber(Number(s.total_scrap))}</span>
-                                        <span>Downtime: {s.total_downtime}min</span>
+                                        <span>{__('Produced')}: {formatNumber(Number(s.total_produced))}</span>
+                                        <span>{__('Scrap')}: {formatNumber(Number(s.total_scrap))}</span>
+                                        <span>{__('Downtime')}: {s.total_downtime}min</span>
                                     </div>
                                 </a>
                             );
@@ -319,8 +319,8 @@ OeeIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 function Filter({ label, children }) {
     return (
         <div>
-            <div className="block text-xs font-medium text-om-muted mb-1">{label}</div>
-            {nameControl(children, label)}
+            <div className="block text-xs font-medium text-om-muted mb-1">{__(label)}</div>
+            {nameControl(children, __(label))}
         </div>
     );
 }
@@ -340,7 +340,7 @@ function ModeBtn({ active, onClick, children }) {
 function MetricMini({ label, value }) {
     return (
         <div>
-            <p className="text-[10px] text-om-muted uppercase tracking-wide leading-tight">{label}</p>
+            <p className="text-[10px] text-om-muted uppercase tracking-wide leading-tight">{__(label)}</p>
             <p className="text-sm font-bold text-om-ink">{value}</p>
         </div>
     );

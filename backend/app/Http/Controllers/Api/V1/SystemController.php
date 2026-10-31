@@ -57,10 +57,15 @@ class SystemController extends Controller
         if (! $row) {
             return response()->json(['message' => 'Setting not found'], 404);
         }
-        DB::table('system_settings')->where('key', $key)->update([
-            'value' => json_encode($request->input('value')),
-            'updated_at' => now(),
-        ]);
+        if ($key === \App\Support\CurrencyRegistry::SETTING_KEY) {
+            // Same path as Settings → System: relabels amounts in the old currency.
+            \App\Support\CurrencyRegistry::change($request->input('value'));
+        } else {
+            DB::table('system_settings')->where('key', $key)->update([
+                'value' => json_encode($request->input('value')),
+                'updated_at' => now(),
+            ]);
+        }
         \App\Support\ProductionFlow::forget();
 
         return response()->json([
@@ -222,7 +227,7 @@ class SystemController extends Controller
             ->count();
         $blockedOrders = WorkOrder::where('status', WorkOrder::STATUS_BLOCKED)->count();
         $blockingIssues = Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
+            ->where('blocks_work_order', true)
             ->count();
 
         return response()->json([
@@ -342,7 +347,7 @@ class SystemController extends Controller
         if ($type === 'all' || $type === 'blocking_issue') {
             $alerts = $alerts->concat(
                 Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-                    ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
+                    ->where('blocks_work_order', true)
                     ->with(['issueType', 'workOrder'])
                     ->orderByDesc('reported_at')
                     ->get()

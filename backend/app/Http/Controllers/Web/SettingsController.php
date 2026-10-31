@@ -4,11 +4,18 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
+use App\Http\Requests\UpdateProductionTargetsRequest;
 use App\Http\Requests\UpdateRoleTabAccessRequest;
 use App\Http\Requests\UpdateSystemSettingsRequest;
+use App\Services\Dashboard\ProductionTargets;
+use App\Services\Quality\FirstPassYieldService;
 use App\Services\Settings\ConfigurationImporter;
 use App\Services\Settings\ProductionScenarioImporter;
 use App\Services\Settings\ScenarioException;
+use App\Support\InspectionPermissions;
+use App\Support\ModuleRegistry;
+use App\Support\ProductionTargetSettings;
+use App\Support\ShiftWindow;
 use App\Support\TabRegistry;
 use App\Support\TimezoneRegistry;
 use App\Sync\CollectionBroadcaster;
@@ -114,7 +121,7 @@ class SettingsController extends Controller
     /**
      * Show admin-only system settings page.
      */
-    public function showSystemSettings()
+    public function showSystemSettings(Request $request)
     {
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
@@ -153,7 +160,8 @@ class SettingsController extends Controller
             'scanner_mode' => json_decode($rows['scanner_mode']?->value ?? '"hid"', true) ?? 'hid',
             ...app(\App\Support\UnitSerialisation::class)->all(),
             'standard_weekly_hours' => json_decode($rows['standard_weekly_hours']?->value ?? '40', true) ?? 40,
-            'default_currency' => json_decode($rows['default_currency']?->value ?? '"PLN"', true) ?? 'PLN',
+            // Effective value: a stored code outside the allowlist reads as PLN.
+            'default_currency' => \App\Support\CurrencyRegistry::current(),
             'default_pay_type' => json_decode($rows['default_pay_type']?->value ?? '"hourly"', true) ?? 'hourly',
             'default_pay_rate' => json_decode($rows['default_pay_rate']?->value ?? 'null', true),
             // Stored raw (not JSON) by TimezoneRegistry, and falls back to
@@ -193,6 +201,8 @@ class SettingsController extends Controller
             // Every IANA identifier, grouped by region — same source the
             // installer's timezone step uses.
             'timezones' => TimezoneRegistry::grouped(),
+            // Same allowlist the Form Request validates against.
+            'currencies' => \App\Support\CurrencyRegistry::options(),
             'appUrl' => config('app.url'),
             'modules' => \App\Support\ModuleRegistry::forForm(),
             'backups' => $backups,
@@ -206,7 +216,44 @@ class SettingsController extends Controller
             // Tabs a module adds to this page: {slot, title, component} each.
             // The module's component saves through its own route. `{}` when none.
             'hooks' => app(\App\Extension\HookRegistry::class)->renderMany(['display.settings.system.tabs']),
+            // Shift FPY and planned minutes are real queries only the Production
+            // tab shows: sent up front when the page opens on that tab, otherwise
+            // left out until the tab asks for them with a partial reload.
+            'productionTargets' => $request->query('tab') === 'production'
+                ? fn () => $this->productionTargetsPayload()
+                : Inertia::optional(fn () => $this->productionTargetsPayload()),
         ]);
+    }
+
+    /**
+     * The Production targets card: the two stored quality targets plus the
+     * current shift's figures, so an admin can see the calculation is live.
+     */
+    private function productionTargetsPayload(): array
+    {
+        $window = ShiftWindow::current();
+
+        return [
+            'max_scrap_rate_pct' => ProductionTargetSettings::maxScrapRate(),
+            'min_fpy_pct' => ProductionTargetSettings::minFirstPassYield(),
+            'quality_enabled' => ModuleRegistry::isModuleEnabled('quality'),
+            'current_shift_fpy' => app(FirstPassYieldService::class)->forWindow($window->start, $window->end),
+            'plant_oee_target' => round(app(ProductionTargets::class)->plantOeeTarget($window), 1),
+        ];
+    }
+
+    /**
+     * Save the plant's quality targets (admin only). Separate from the main
+     * system form so it can never reset — or be blocked by — other settings.
+     */
+    public function updateProductionTargets(UpdateProductionTargetsRequest $request)
+    {
+        $validated = $request->validated();
+
+        ProductionTargetSettings::save((float) $validated['max_scrap_rate_pct'], (float) $validated['min_fpy_pct']);
+
+        return redirect()->route('settings.system', ['tab' => 'production'])
+            ->with('success', __('Production targets updated.'));
     }
 
     /**
@@ -585,7 +632,6 @@ class SettingsController extends Controller
             'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
             'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,
             'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
-            'default_currency' => strtoupper($validated['default_currency'] ?? 'PLN'),
             'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
             'default_pay_rate' => isset($validated['default_pay_rate']) && $validated['default_pay_rate'] !== null
                 ? (float) $validated['default_pay_rate']
@@ -607,6 +653,11 @@ class SettingsController extends Controller
         // The flow mode is cached per request; this save bypasses ProductionFlow::set().
         \App\Support\ProductionFlow::forget();
         app(\App\Support\UnitSerialisation::class)->forget();
+
+        // Installation currency — relabels amounts recorded in the old one.
+        if (! empty($validated['default_currency'])) {
+            \App\Support\CurrencyRegistry::change($validated['default_currency']);
+        }
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.
@@ -742,6 +793,12 @@ class SettingsController extends Controller
         }
     }
 
+    /** Work-order permissions listed (read-only) on the Access page. */
+    private const WORK_ORDER_ABILITIES = [
+        ['key' => 'create work orders', 'label' => 'Create work orders'],
+        ['key' => 'edit work orders', 'label' => 'Edit work orders'],
+    ];
+
     /**
      * Show the role × tab access matrix. Rows are tabs, columns are roles;
      * Admin is locked to full access (handled in the UI + Gate::before).
@@ -760,12 +817,27 @@ class SettingsController extends Controller
                 ->all();
         }
 
+        // The same matrix for the quality permissions (inspector / disposition).
+        $grantMatrix = $roles->mapWithKeys(fn ($role) => [
+            $role->name => $role->permissions->pluck('name')->intersect(InspectionPermissions::ALL)->values()->all(),
+        ]);
+
         return Inertia::render('settings/Access', [
             'tabs' => collect(TabRegistry::labels())
                 ->map(fn ($label, $key) => ['key' => $key, 'label' => $label])
                 ->values(),
             'roles' => $roles->pluck('name')->values(),
             'matrix' => $matrix,
+            'grants' => InspectionPermissions::options(),
+            'grantMatrix' => $grantMatrix,
+            // Work-order abilities per role, shown read-only next to the tab
+            // matrix: the Orders tab opens the list, these decide who may
+            // create or edit there (WorkOrderPolicy). Not editable here.
+            'workOrderAbilities' => self::WORK_ORDER_ABILITIES,
+            'workOrderAbilityMatrix' => $roles->mapWithKeys(fn ($role) => [
+                $role->name => $role->permissions->pluck('name')
+                    ->intersect(array_column(self::WORK_ORDER_ABILITIES, 'key'))->values()->all(),
+            ]),
             'lockedRole' => 'Admin',
         ]);
     }
@@ -773,12 +845,15 @@ class SettingsController extends Controller
     /**
      * Persist the matrix: for each role (except the always-full Admin) replace
      * its tab:* permissions with the submitted set, preserving non-tab perms.
+     * The quality grants work the same way, for the roles the form sent them for.
      */
     public function updateAccess(UpdateRoleTabAccessRequest $request)
     {
-        $access = $request->validated()['access'] ?? [];
+        $validated = $request->validated();
+        $access = $validated['access'] ?? [];
+        $grants = $validated['grants'] ?? [];
 
-        foreach ($access as $roleName => $tabKeys) {
+        foreach (array_unique([...array_keys($access), ...array_keys($grants)]) as $roleName) {
             if ($roleName === 'Admin') {
                 continue; // Admin always keeps full access
             }
@@ -790,14 +865,24 @@ class SettingsController extends Controller
                 continue;
             }
 
-            $nonTab = $role->permissions->pluck('name')
-                ->reject(fn ($p) => str_starts_with($p, 'tab:'));
+            $names = $role->permissions->pluck('name');
 
-            $tabPerms = collect($tabKeys)
-                ->filter(fn ($k) => TabRegistry::exists($k))
-                ->map(fn ($k) => TabRegistry::permission($k));
+            if (array_key_exists($roleName, $access)) {
+                $names = $names->reject(fn ($p) => str_starts_with($p, 'tab:'))
+                    ->merge(collect($access[$roleName])
+                        ->filter(fn ($k) => TabRegistry::exists($k))
+                        ->map(fn ($k) => TabRegistry::permission($k)));
+            }
 
-            $role->syncPermissions($nonTab->merge($tabPerms)->unique()->all());
+            if (array_key_exists($roleName, $grants)) {
+                foreach ($grants[$roleName] as $name) {
+                    \Spatie\Permission\Models\Permission::findOrCreate($name, 'web');
+                }
+                $names = $names->reject(fn ($p) => in_array($p, InspectionPermissions::ALL, true))
+                    ->merge($grants[$roleName]);
+            }
+
+            $role->syncPermissions($names->unique()->values()->all());
         }
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();

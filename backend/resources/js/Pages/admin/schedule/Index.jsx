@@ -47,7 +47,9 @@ function parseWeekStart(weekParam) {
 }
 
 export default function ScheduleIndex() {
-    const { workOrders = [], byLine = {}, lines = [], days = [], weekStart, weekEnd, lineId, currentShift } = usePage().props;
+    const { workOrders = [], byLine = {}, lines = [], days = [], weekStart, weekEnd, lineId, currentShift, auth } = usePage().props;
+    // UX only — WorkOrderPolicy::create is enforced on the create page itself.
+    const canCreate = !!auth?.user?.can?.createWorkOrders;
 
     const isCurrentWeek = (() => {
         const now = new Date();
@@ -134,7 +136,7 @@ export default function ScheduleIndex() {
                                 onClick={() => navigate({ line_id: lineId || '' })}
                                 className="text-sm text-om-accent hover:underline"
                             >
-                                Today
+                                {__('Today')}
                             </button>
                         )}
                     </div>
@@ -145,10 +147,12 @@ export default function ScheduleIndex() {
                         <svg className="w-14 h-14 text-om-faintest mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <p className="text-om-muted">No work orders scheduled for this week.</p>
-                        <Link href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-om-ink text-om-on-ink rounded-om-sm hover:bg-om-ink-hover">
-                            Create Work Order
-                        </Link>
+                        <p className="text-om-muted">{__('No work orders scheduled for this week.')}</p>
+                        {canCreate && (
+                            <Link href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-om-ink text-om-on-ink rounded-om-sm hover:bg-om-ink-hover">
+                                {__('Create Work Order')}
+                            </Link>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-6">

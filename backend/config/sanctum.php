@@ -22,13 +22,16 @@ return [
     // when its Origin/Referer matches this host, so cross-site requests stay
     // rejected — this does NOT weaken CSRF. Fixes "POST create 200 but list 401"
     // when APP_URL doesn't match the access host. SANCTUM_STATEFUL_DOMAINS still
-    // overrides when set.
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
+    // overrides when set. `?:` rather than env()'s default argument: docker-compose
+    // passes the variable through as an empty string when it isn't configured, and
+    // env() only falls back on null — an empty value would leave no stateful host
+    // at all and 401 every SPA call to /api/v1.
+    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS') ?: sprintf(
         '%s%s%s',
         'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
         Sanctum::currentApplicationUrlWithPort(),
         Sanctum::currentRequestHost(),
-    ))),
+    )),
 
     /*
     |--------------------------------------------------------------------------

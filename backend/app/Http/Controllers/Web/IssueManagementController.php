@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkIssueActionRequest;
 use App\Http\Requests\SetDispositionRequest;
 use App\Http\Requests\StoreIssueActionRequest;
+use App\Http\Requests\StoreManagedIssueRequest;
 use App\Http\Requests\UpdateIssueActionRequest;
+use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\IssueAction;
 use App\Models\IssueType;
 use App\Models\Line;
+use App\Models\ScrapReason;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\CustomFieldService;
 use App\Services\IssueService;
 use App\Services\Quality\IssueActionService;
+use App\Support\ProductionFlow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -24,14 +29,81 @@ use Inertia\Inertia;
  */
 class IssueManagementController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(private readonly IssueService $issues) {}
+
+    public function index(Request $request, CustomFieldService $cf)
     {
         return Inertia::render('shared/issues/Index', [
             'issueTypeNames' => IssueType::pluck('name', 'id'),
             'lineNames' => Line::pluck('name', 'id'),
             'reporterNames' => User::pluck('name', 'id'),
             'workOrderNos' => WorkOrder::pluck('order_no', 'id'),
+            // "Report issue" dialog: what can be picked.
+            'issueTypes' => IssueType::active()->orderBy('name')->get(['id', 'name', 'is_blocking']),
+            'scrapReasons' => ScrapReason::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'reportableWorkOrders' => $this->reportableWorkOrders(),
+            'issueCustomFields' => $cf->clientConfig('issue'),
         ]);
+    }
+
+    /**
+     * Work orders the "Report issue" drawer can pick, with what it needs to
+     * offer only the effects each one accepts (mirrors StoreManagedIssueRequest).
+     */
+    private function reportableWorkOrders(): array
+    {
+        $transfer = ProductionFlow::isTransfer();
+
+        return WorkOrder::whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
+            ->when($transfer, fn ($q) => $q->withExists(['batches as has_step_batches' => fn ($b) => $b
+                ->where('status', '!=', Batch::STATUS_CANCELLED)
+                ->whereHas('steps')]))
+            ->orderBy('order_no')
+            ->get(['id', 'order_no', 'line_id', 'status', 'process_snapshot'])
+            ->map(fn (WorkOrder $wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'line_id' => $wo->line_id,
+                // Same test as WorkOrder::usesStepLedger(), without a query per order.
+                'scrap_on_steps' => $transfer && (! empty($wo->process_snapshot['steps']) || $wo->has_step_batches),
+                'can_block' => in_array($wo->status, [...WorkOrder::BLOCKABLE_STATUSES, WorkOrder::STATUS_BLOCKED], true),
+            ])
+            ->all();
+    }
+
+    /**
+     * File an issue from the Issues page, choosing what it does to production
+     * (see StoreManagedIssueRequest for the effects).
+     */
+    public function store(StoreManagedIssueRequest $request, CustomFieldService $cf)
+    {
+        $effect = $request->validated('effect');
+        $customFields = $cf->touched($request) ? ($cf->fromRequest($request, 'issue') ?: null) : null;
+
+        try {
+            $this->issues->reportWithEffect(
+                data: [
+                    'work_order_id' => $request->validated('work_order_id'),
+                    'issue_type_id' => $request->validated('issue_type_id'),
+                    'title' => $request->validated('title'),
+                    'description' => $request->validated('description'),
+                    'custom_fields' => $customFields,
+                ],
+                blocksWorkOrder: $effect === StoreManagedIssueRequest::EFFECT_BLOCK,
+                scrap: $effect === StoreManagedIssueRequest::EFFECT_SCRAP
+                    ? $request->safe()->only(['scrap_reason_id', 'quantity'])
+                    : null,
+                userId: $request->user()->id,
+            );
+        } catch (\Throwable $e) {
+            // The uploads were stored before the transaction; nothing will
+            // reference them now.
+            $cf->discardFiles($customFields ?? [], 'issue');
+
+            throw $e;
+        }
+
+        return redirect()->back()->with('success', __('Issue reported successfully.'));
     }
 
     public function acknowledge(Request $request, Issue $issue)
@@ -118,11 +190,8 @@ class IssueManagementController extends Controller
         ]);
 
         // The work order this issue was blocking may now be free to run again.
-        $workOrder = $issue->workOrder;
-        if ($workOrder && $workOrder->status === WorkOrder::STATUS_BLOCKED) {
-            if ($workOrder->openBlockingIssues()->isEmpty()) {
-                $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-            }
+        if ($issue->work_order_id) {
+            $this->issues->checkAndUnblockWorkOrder($issue->work_order_id);
         }
     }
 

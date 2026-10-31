@@ -46,6 +46,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
+use App\Http\Controllers\Web\Operator\InspectionController as OperatorInspectionController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
@@ -212,6 +213,9 @@ Route::middleware('auth')->group(function () {
         // Admin-only system settings
         Route::get('/system', [\App\Http\Controllers\Web\SettingsController::class, 'showSystemSettings'])->name('system')->middleware('role:Admin');
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
+        // Admin-only quality targets (scrap rate, first-pass yield) — own route so
+        // saving them never posts, or is blocked by, the rest of the system form.
+        Route::post('/production-targets', [\App\Http\Controllers\Web\SettingsController::class, 'updateProductionTargets'])->name('update-production-targets')->middleware('role:Admin');
         // Telemetry: the admin can read the exact report before deciding, and
         // can make a cloned installation a stranger again.
         Route::get('/telemetry/preview', [\App\Http\Controllers\Web\SettingsController::class, 'previewTelemetry'])->name('telemetry.preview')->middleware('role:Admin');
@@ -335,6 +339,19 @@ Route::middleware('auth')->group(function () {
         Route::put('/shift-entry/{shiftEntry}/correct', [ProductionCorrectionController::class, 'update'])->name('shift-entry.correct.update');
     });
 
+    // Inbound inspections on the operator tablet — for holders of the "Quality
+    // inspector" / "Quality disposition" permissions, whatever their role. No
+    // role gate here: InspectionPolicy alone authorises every action, the
+    // same policy as /api/v1/inspections, so the two let in the same people.
+    Route::prefix('operator')->name('operator.')->group(function () {
+        Route::get('/inspections', [OperatorInspectionController::class, 'index'])->name('inspections.index');
+        Route::post('/inspections', [OperatorInspectionController::class, 'store'])->name('inspections.store');
+        Route::get('/inspections/{inspection}', [OperatorInspectionController::class, 'show'])->name('inspections.show')->whereNumber('inspection');
+        Route::patch('/inspections/{inspection}/results/{result}', [OperatorInspectionController::class, 'recordResult'])->name('inspections.results.update')->whereNumber(['inspection', 'result']);
+        Route::post('/inspections/{inspection}/complete', [OperatorInspectionController::class, 'complete'])->name('inspections.complete')->whereNumber('inspection');
+        Route::post('/inspections/{inspection}/disposition', [OperatorInspectionController::class, 'disposition'])->name('inspections.disposition')->whereNumber('inspection');
+    });
+
     // Supervisor routes (Supervisor and Admin)
     // The `section` group attribute tells controllers mounted in both trees
     // which one served the request (ServesBothSections), so their redirects and
@@ -407,6 +424,7 @@ Route::middleware('auth')->group(function () {
         // optional `quality` module ("Issues & reasons").
         Route::middleware('module:quality')->group(function () {
             Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+            Route::post('/issues', [IssueManagementController::class, 'store'])->name('issues.store');
             // Bulk acknowledge / resolve — the alerts page acts on a whole list.
             Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
             Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
@@ -593,6 +611,7 @@ Route::middleware('auth')->group(function () {
 
         // Issues Management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        Route::post('/issues', [IssueManagementController::class, 'store'])->name('issues.store');
         // Bulk acknowledge / resolve — the alerts page acts on a whole list.
         Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
@@ -617,6 +636,7 @@ Route::middleware('auth')->group(function () {
 
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
+        Route::delete('/users/{user}/worker', [\App\Http\Controllers\Web\Admin\UserManagementController::class, 'unlinkWorker'])->name('users.worker.unlink');
 
         // Production Lines Management
         Route::resource('lines', \App\Http\Controllers\Web\Admin\LineManagementController::class);

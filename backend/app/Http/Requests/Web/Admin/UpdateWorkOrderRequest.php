@@ -10,9 +10,13 @@ class UpdateWorkOrderRequest extends FormRequest
 {
     use MergesCustomFieldRules;
 
+    /**
+     * Editing needs the `edit work orders` ability (WorkOrderPolicy), not just
+     * access to the Orders tab. Checked before validation.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('update', $this->route('work_order')) ?? false;
     }
 
     protected function customFieldEntityType(): string

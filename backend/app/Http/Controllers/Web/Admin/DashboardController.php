@@ -9,6 +9,7 @@ use App\Models\Inspection;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\OeeRecord;
+use App\Services\Dashboard\PlantOverviewService;
 use App\Services\Production\OeeCalculationService;
 use App\Services\Scrap\ScrapReportService;
 use Illuminate\Http\Request;
@@ -28,6 +29,9 @@ use Inertia\Response;
  *     reflect today's production.
  *   - Computing heavy aggregates (inbound QC pass rates, materials KPIs)
  *     that don't map cleanly to per-row sync.
+ *   - The "Plant overview" header (current shift, line states) and the line
+ *     activity timeline via
+ *     PlantOverviewService, partial-reloaded by the page every 60 s.
  */
 class DashboardController extends Controller
 {
@@ -67,6 +71,10 @@ class DashboardController extends Controller
             // Cards registered by enabled modules via WidgetRegistry, keyed by
             // zone (kpi | main | sidebar). Empty when no module registers any.
             'moduleWidgets' => fn () => app(\App\Services\WidgetRegistry::class)->all(),
+            // "Plant overview": current shift, live line states and every overview
+            // section (KPI tile links and "Needs action" buttons are resolved for the user). The page
+            // partial-reloads just this prop every 60 s.
+            'overview' => fn () => app(PlantOverviewService::class)->overview($request->user()),
         ]);
     }
 

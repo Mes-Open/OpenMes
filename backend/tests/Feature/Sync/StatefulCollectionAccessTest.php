@@ -24,6 +24,26 @@ class StatefulCollectionAccessTest extends TestCase
         );
     }
 
+    public function test_empty_stateful_domains_env_falls_back_to_the_defaults(): void
+    {
+        // docker-compose passes SANCTUM_STATEFUL_DOMAINS through as an empty string
+        // when the deployment doesn't set it. env() only applies its default on null,
+        // so an empty value must not wipe the list and 401 every SPA call to /api/v1.
+        $previous = getenv('SANCTUM_STATEFUL_DOMAINS');
+        putenv('SANCTUM_STATEFUL_DOMAINS=');
+        $_ENV['SANCTUM_STATEFUL_DOMAINS'] = $_SERVER['SANCTUM_STATEFUL_DOMAINS'] = '';
+
+        try {
+            $stateful = (require base_path('config/sanctum.php'))['stateful'];
+        } finally {
+            putenv($previous === false ? 'SANCTUM_STATEFUL_DOMAINS' : "SANCTUM_STATEFUL_DOMAINS={$previous}");
+            unset($_ENV['SANCTUM_STATEFUL_DOMAINS'], $_SERVER['SANCTUM_STATEFUL_DOMAINS']);
+        }
+
+        $this->assertContains(Sanctum::$currentRequestHostPlaceholder, $stateful);
+        $this->assertContains('localhost', $stateful);
+    }
+
     public function test_same_origin_request_is_treated_as_stateful_on_any_host(): void
     {
         // App served on an arbitrary host the app URL doesn't cover.

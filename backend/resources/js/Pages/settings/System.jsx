@@ -1,32 +1,14 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import useConfirm from '../../components/useConfirm';
 import { useToast } from '@openmes/ui';
-import { __ } from '../../lib/i18n';
+import { __, formatNumber } from '../../lib/i18n';
 import { Hook } from '../../lib/hooks';
 
 const SYSTEM_TABS_HOOK = 'display.settings.system.tabs';
-
-// Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
-const CURRENCIES = [
-    ['PLN', 'Polish Złoty'],
-    ['EUR', 'Euro'],
-    ['USD', 'US Dollar'],
-    ['GBP', 'British Pound'],
-    ['CHF', 'Swiss Franc'],
-    ['CZK', 'Czech Koruna'],
-    ['SEK', 'Swedish Krona'],
-    ['NOK', 'Norwegian Krone'],
-    ['DKK', 'Danish Krone'],
-    ['HUF', 'Hungarian Forint'],
-    ['RON', 'Romanian Leu'],
-    ['UAH', 'Ukrainian Hryvnia'],
-    ['VND', 'Vietnamese Đồng'],
-    ['INR', 'Indian Rupee'],
-];
 
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
@@ -168,10 +150,106 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
     );
 }
 
+const pct = (value) => formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/**
+ * Plant quality targets. Saves through its own route, so it sits outside the
+ * main form: the system Save never posts these fields, and saving the targets
+ * never posts (or is blocked by) the rest of the tab.
+ */
+function ProductionTargetsCard({ targets }) {
+    const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
+    const canSeeLines = accessibleTabs.includes('production');
+
+    const { data, setData, post, processing, errors } = useForm({
+        // One decimal, so the inputs read "2.0" / "95.0" rather than "2" / "95".
+        max_scrap_rate_pct: Number(targets.max_scrap_rate_pct ?? 2).toFixed(1),
+        min_fpy_pct: Number(targets.min_fpy_pct ?? 95).toFixed(1),
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        post('/settings/production-targets', { preserveScroll: true });
+    };
+
+    const fpyStatus = !targets.quality_enabled
+        ? __('Quality module is disabled — first-pass yield is not calculated.')
+        : targets.current_shift_fpy == null
+            ? __('No quality checks this shift')
+            : __('Current shift: :value%', { value: pct(targets.current_shift_fpy) });
+
+    return (
+        <form onSubmit={submit} className={CARD_CLASS} aria-labelledby="production-targets-heading" noValidate>
+            <h2 id="production-targets-heading" className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">
+                {__('Production targets')}
+            </h2>
+            <p className={`${HELP_CLASS} mb-4`}>
+                {__('Targets each shift is measured against on the dashboard.')}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className={LABEL_CLASS} htmlFor="max_scrap_rate_pct">{__('Max scrap rate (%)')}</label>
+                    <input
+                        type="number"
+                        id="max_scrap_rate_pct"
+                        value={data.max_scrap_rate_pct}
+                        onChange={(e) => setData('max_scrap_rate_pct', e.target.value)}
+                        className={`${INPUT_BASE} w-32`}
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        inputMode="decimal"
+                        aria-invalid={errors.max_scrap_rate_pct ? 'true' : undefined}
+                    />
+                    {errors.max_scrap_rate_pct && <p className={ERROR_CLASS}>{errors.max_scrap_rate_pct}</p>}
+                </div>
+                <div>
+                    <label className={LABEL_CLASS} htmlFor="min_fpy_pct">{__('Min first-pass yield (%)')}</label>
+                    <input
+                        type="number"
+                        id="min_fpy_pct"
+                        value={data.min_fpy_pct}
+                        onChange={(e) => setData('min_fpy_pct', e.target.value)}
+                        className={`${INPUT_BASE} w-32`}
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        inputMode="decimal"
+                        aria-invalid={errors.min_fpy_pct ? 'true' : undefined}
+                    />
+                    {errors.min_fpy_pct && <p className={ERROR_CLASS}>{errors.min_fpy_pct}</p>}
+                    <p className={`${HELP_CLASS} mt-2`} data-testid="current-shift-fpy">{fpyStatus}</p>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-om-sm border border-om-line2 bg-om-panel p-3">
+                <p className={HELP_CLASS}>
+                    {__("The OEE target comes from each line's planning efficiency (100% = not set, 85% is used).")}{' '}
+                    {canSeeLines && (
+                        <Link href="/admin/lines" className="text-om-accent hover:underline font-medium">
+                            {__('Line settings')}
+                        </Link>
+                    )}
+                </p>
+                <p className="mt-1 text-[13px] text-om-ink" data-testid="plant-oee-target">
+                    {__('Plant OEE target this shift: :value%', { value: pct(targets.plant_oee_target) })}
+                </p>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+                <Button type="submit" variant="accent" loading={processing}>
+                    {__('Save targets')}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
 export default function System() {
     const toast = useToast();
-    const { settings, availableLocales, timezones = {}, appUrl, modules = [], backups,
-        demoDatasets = [], loadedDemoDataset = null, hooks = {} } = usePage().props;
+    const { settings, availableLocales, timezones = {}, currencies = [], appUrl, modules = [], backups,
+        demoDatasets = [], loadedDemoDataset = null, hooks = {}, productionTargets = null } = usePage().props;
 
     // Tabs an installed module adds (display.settings.system.tabs): one per
     // contribution, keyed `ext-<slot>` so it is linkable as ?tab=ext-<slot>.
@@ -197,6 +275,20 @@ export default function System() {
             window.history.replaceState(window.history.state, '', url);
         }
     };
+    // The targets card's figures are real queries (shift FPY, planned minutes),
+    // so the server only sends them for the Production tab. Opened on another
+    // tab, fetch them with a partial reload the first time Production shows —
+    // once per visit to the tab, so a failed reload never turns into a loop.
+    const targetsRequested = useRef(false);
+    useEffect(() => {
+        if (tab !== 'production' || productionTargets != null) {
+            targetsRequested.current = false;
+            return;
+        }
+        if (targetsRequested.current) return;
+        targetsRequested.current = true;
+        router.reload({ only: ['productionTargets'] });
+    }, [tab, productionTargets]);
     const [sampleConfirm, setSampleConfirm] = useState(false);
     // Which example company the admin picked; defaults to the first on offer.
     const [dataset, setDataset] = useState(demoDatasets[0]?.key ?? null);
@@ -274,7 +366,14 @@ export default function System() {
             || data.app_timezone !== settings.app_timezone;
         post('/settings/system', {
             onSuccess: () => {
-                if (needsReload) window.location.reload();
+                if (needsReload) {
+                    window.location.reload();
+                    return;
+                }
+                // Sidebar links prefetch pages and keep them for ~30s. A saved
+                // setting (e.g. the currency) changes what those pages render,
+                // so drop the cache or the next click shows the old values.
+                router.flushAll();
             },
         });
     }
@@ -540,16 +639,22 @@ export default function System() {
                                 <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
                                 <Dropdown
                                     options={[
-                                        ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
+                                        ...(!currencies.some((c) => c.code === data.default_currency) && data.default_currency
                                             ? [{ value: String(data.default_currency), label: data.default_currency }]
                                             : []),
-                                        ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
+                                        // Server-side allowlist (CurrencyRegistry) — the same list the save validates against.
+                                        ...currencies.map((c) => ({ value: c.code, label: `${c.code} - ${__(c.name)}` })),
                                     ]}
                                     value={data.default_currency == null ? '' : String(data.default_currency)}
                                     onChange={(v) => setData('default_currency', v)}
                                     className="w-64 max-w-full"
                                 />
                                 {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
+                                {data.default_currency !== settings.default_currency && (
+                                    <p className={`${HELP_CLASS} mt-2`} data-testid="currency-change-note">
+                                        {__('Existing prices and costs recorded in :from will be shown in :to. Amounts are not converted.', { from: settings.default_currency, to: data.default_currency })}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1216,6 +1321,22 @@ export default function System() {
                         </div>
                     )}
                 </form>
+            )}
+
+            {/* ═══ Production targets (outside form — saves through its own route) ═══ */}
+            {tab === 'production' && (
+                <div className="mt-6">
+                    {productionTargets ? (
+                        <ProductionTargetsCard targets={productionTargets} />
+                    ) : (
+                        <div className={CARD_CLASS} aria-busy="true" data-testid="production-targets-loading">
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">
+                                {__('Production targets')}
+                            </h2>
+                            <p className={HELP_CLASS}>{__('Loading…')}</p>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* ═══ Module tabs (outside form — the module saves itself) ═══ */}

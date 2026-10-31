@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Support\CurrencyRegistry;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSystemSettingRequest extends FormRequest
 {
@@ -11,13 +13,30 @@ class UpdateSystemSettingRequest extends FormRequest
         return $this->user()?->hasRole('Admin') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->route('key') === CurrencyRegistry::SETTING_KEY && is_string($this->input('value'))) {
+            $this->merge(['value' => CurrencyRegistry::normalise($this->input('value'))]);
+        }
+    }
+
     public function rules(): array
     {
-        $known = ['production_period' => 'in:none,weekly,monthly', 'allow_overproduction' => 'boolean',
+        $known = [CurrencyRegistry::SETTING_KEY => Rule::in(CurrencyRegistry::codes()), 'production_period' => 'in:none,weekly,monthly', 'allow_overproduction' => 'boolean',
             'workflow_mode' => 'in:status,board_status', 'force_sequential_steps' => 'boolean', 'production_flow_mode' => 'in:whole_batch,transfer', 'pin_login_enabled' => 'boolean'];
         $rule = $known[$this->route('key')] ?? null;
 
         return ['value' => $rule ? ['required', $rule] : ['present']];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->route('key') === CurrencyRegistry::SETTING_KEY
+            ? ['value.in' => __('The selected currency is not a supported ISO 4217 code.')]
+            : [];
     }
 
     public function after(): array

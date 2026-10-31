@@ -139,8 +139,8 @@ export default function OeeShow() {
                 {/* Header */}
                 <div className="flex justify-between items-start flex-wrap gap-3">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">{line.name} — OEE</h1>
-                        <p className="text-om-muted mt-1 text-sm">{dateFrom} to {dateTo}</p>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('OEE — :name', { name: line.name })}</h1>
+                        <p className="text-om-muted mt-1 text-sm">{dateFrom} {__('to')} {dateTo}</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
                         <a

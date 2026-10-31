@@ -2560,7 +2560,7 @@ export default function WorkOrderDetail() {
                                     {workOrder.issues.slice(0, 5).map((issue) => (
                                         <div
                                             key={issue.id}
-                                            className={`p-3 rounded-om-sm border ${issue.issue_type?.is_blocking ? 'bg-om-blocked-bg/60 border-om-blocked/20' : 'bg-om-panel border-om-line2'}`}
+                                            className={`p-3 rounded-om-sm border ${issue.blocks_work_order ? 'bg-om-blocked-bg/60 border-om-blocked/20' : 'bg-om-panel border-om-line2'}`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="text-xs font-semibold text-om-ink">

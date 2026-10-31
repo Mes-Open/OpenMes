@@ -228,6 +228,20 @@ class CustomFieldService
     }
 
     /** Delete a previously stored file, guarding the path to our directory. */
+    /**
+     * Delete the files `fromRequest()` just stored, for a save that failed after
+     * they were written — otherwise they stay in storage with nothing pointing
+     * at them.
+     */
+    public function discardFiles(array $values, string $entityType): void
+    {
+        foreach ($this->definitionsFor($entityType) as $def) {
+            if ($this->typeOf($def)->isFile() && is_array($values[$def->key] ?? null)) {
+                $this->deleteStoredFile($values[$def->key]);
+            }
+        }
+    }
+
     private function deleteStoredFile(?array $meta): void
     {
         $path = $meta['path'] ?? null;

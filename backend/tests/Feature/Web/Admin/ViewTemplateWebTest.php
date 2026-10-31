@@ -50,6 +50,31 @@ class ViewTemplateWebTest extends TestCase
         $this->assertDatabaseHas('view_templates', ['name' => 'Cutting board']);
     }
 
+    public function test_product_type_column_source_is_accepted(): void
+    {
+        // The seeded "Simple" template and the workstation view both use it, so a
+        // template carrying it must survive an unchanged save.
+        $vt = ViewTemplate::create($this->payload());
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.view-templates.update', $vt), $this->payload([
+                'columns' => [['label' => 'Product', 'key' => 'product_name', 'source' => 'product_type']],
+            ]))
+            ->assertRedirect(route('admin.view-templates.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('product_type', $vt->fresh()->columns[0]['source']);
+    }
+
+    public function test_unknown_column_source_rejected(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.view-templates.store'), $this->payload([
+                'columns' => [['label' => 'X', 'key' => 'x', 'source' => 'bogus']],
+            ]))
+            ->assertSessionHasErrors('columns.0.source');
+    }
+
     public function test_columns_are_required(): void
     {
         $this->actingAs($this->admin)

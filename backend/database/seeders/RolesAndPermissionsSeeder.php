@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\InspectionPermissions;
 use App\Support\TabRegistry;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -75,12 +76,23 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Attachments (cross-cutting)
             'manage attachments',
+
+            // Inbound inspections: the quality inspector right and the higher
+            // disposition right (releasing a lot) — see InspectionPolicy.
+            ...InspectionPermissions::ALL,
         ];
 
         // Per-tab access permissions (tab:<key>) backing the Settings → Access
         // role × tab matrix. Admin gets all of them via syncPermissions below;
         // other roles start with none (they have no admin-panel access today).
         $permissions = array_merge($permissions, TabRegistry::permissions());
+
+        // The inspection permissions are new on an upgraded installation the
+        // first time this runs. Only then do Supervisors get them by default
+        // (they inspected and decided before the permissions existed); after
+        // that the role keeps whatever Settings → Access says, so revoking them
+        // there survives the next container start.
+        $firstInspectionSeed = Permission::whereIn('name', InspectionPermissions::ALL)->doesntExist();
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
@@ -91,18 +103,19 @@ class RolesAndPermissionsSeeder extends Seeder
         $adminRole->syncPermissions(Permission::all());
 
         // This seeder runs on every container start (docker-entrypoint.sh), so
-        // syncPermissions() must not clobber the per-role tab:* grants an admin
-        // configured through Settings → Access. Capture them and merge them back
-        // into the canonical operational set below. Admin keeps all tabs anyway
-        // (Permission::all()); fresh installs have none, so nothing leaks.
-        $keepTabs = fn (Role $role) => $role->permissions
+        // syncPermissions() must not clobber the per-role tab:* and inspection
+        // grants an admin configured through Settings → Access. Capture them and
+        // merge them back into the canonical operational set below. Admin keeps
+        // everything anyway (Permission::all()); fresh installs have none, so
+        // nothing leaks.
+        $keepGranted = fn (Role $role) => $role->permissions
             ->pluck('name')
-            ->filter(fn ($name) => str_starts_with($name, 'tab:'))
+            ->filter(fn ($name) => str_starts_with($name, 'tab:') || in_array($name, InspectionPermissions::ALL, true))
             ->all();
 
         // Supervisor — operational read + production management
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
-        $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
+        $supervisorRole->syncPermissions(array_merge($keepGranted($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
             // Supervisors are the reviewers on the shop floor: they approve and apply
             // production changes (#182).
@@ -135,11 +148,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'view cost sources',
             // Gate 7
             'view tools', 'view maintenance events',
-        ]));
+        ], $firstInspectionSeed ? InspectionPermissions::ALL : []));
 
         // Operator — minimal: view queue + execute steps + report issues
         $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'web']);
-        $operatorRole->syncPermissions(array_merge($keepTabs($operatorRole), [
+        $operatorRole->syncPermissions(array_merge($keepGranted($operatorRole), [
             'view work orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues',

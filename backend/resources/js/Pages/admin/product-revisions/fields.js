@@ -7,6 +7,8 @@ export const LIFECYCLE_BADGE_STYLES = {
     obsolete: 'bg-amber-100 text-amber-800',
 };
 
+export const LIFECYCLE_STATUSES = Object.keys(LIFECYCLE_BADGE_STYLES);
+
 export function lifecycleLabel(status) {
     return {
         draft: __('Draft'),
