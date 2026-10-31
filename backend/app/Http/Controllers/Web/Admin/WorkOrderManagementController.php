@@ -136,7 +136,7 @@ class WorkOrderManagementController extends Controller
             'title' => $i->title,
             'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
-            'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
+            'is_blocking' => (bool) $i->blocks_work_order,
             'reported_at' => $i->reported_at?->toISOString(),
             'reported_by' => $i->reportedBy?->name,
         ])->values();

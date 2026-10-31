@@ -416,7 +416,7 @@ class ReportController extends Controller
                 'type' => $i->issueType?->name,
                 'description' => $i->description,
                 'status' => $i->status,
-                'is_blocking' => (bool) $i->is_blocking,
+                'is_blocking' => (bool) $i->blocks_work_order,
                 'reported_by' => $i->reportedBy?->name,
                 'reported_at' => $i->created_at?->toIso8601String(),
             ])->all(),

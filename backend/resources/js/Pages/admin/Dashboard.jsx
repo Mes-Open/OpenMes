@@ -13,6 +13,7 @@ import OverviewHeader from '../../components/dashboard/overview/OverviewHeader';
 import OverviewGrid from '../../components/dashboard/overview/OverviewGrid';
 import useOverviewRefresh from '../../components/dashboard/overview/useOverviewRefresh';
 import { TIER_BADGE_STYLES, tierLabel } from './customers/fields';
+import { boolColumn } from '../../lib/syncedRow';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
 
@@ -69,8 +70,8 @@ function DashboardBody({
     }, [issues, workOrders, selectedLineId]);
 
     const stats = useMemo(
-        () => computeStats(scopedWorkOrders, scopedIssues, issueTypes, lines),
-        [scopedWorkOrders, scopedIssues, issueTypes, lines],
+        () => computeStats(scopedWorkOrders, scopedIssues, lines),
+        [scopedWorkOrders, scopedIssues, lines],
     );
 
     const recentWorkOrders = useMemo(
@@ -647,7 +648,7 @@ function RecentIssues({ rows, issueTypes }) {
                                     </p>
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    {type?.is_blocking && (
+                                    {boolColumn(issue.blocks_work_order) && (
                                         <Badge variant="danger">{__('blocking')}</Badge>
                                     )}
                                     <StatusBadge status={issue.status} />
@@ -709,7 +710,7 @@ function ModuleWidget({ w, compact = false }) {
         : <Link href={w.href} className={cls}>{card}</Link>;
 }
 
-function computeStats(workOrders, issues, issueTypes, lines) {
+function computeStats(workOrders, issues, lines) {
     const counts = workOrders.reduce(
         (acc, wo) => {
             acc.total++;
@@ -730,12 +731,7 @@ function computeStats(workOrders, issues, issueTypes, lines) {
         (wo) => (wo.updated_at ?? '').slice(0, 10) === today,
     ).length;
 
-    const blockingTypeIds = new Set(
-        issueTypes.filter((t) => t.is_blocking).map((t) => String(t.id)),
-    );
-    const blocking_issues = issues.filter((i) =>
-        blockingTypeIds.has(String(i.issue_type_id)),
-    ).length;
+    const blocking_issues = issues.filter((i) => boolColumn(i.blocks_work_order)).length;
 
     return {
         total_work_orders: counts.total,

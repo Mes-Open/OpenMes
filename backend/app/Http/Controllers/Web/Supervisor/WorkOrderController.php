@@ -123,7 +123,7 @@ class WorkOrderController extends Controller
             'title' => $i->title,
             'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
-            'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
+            'is_blocking' => (bool) $i->blocks_work_order,
         ])->values();
 
         return Inertia::render('supervisor/work-orders/Show', [

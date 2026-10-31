@@ -227,7 +227,7 @@ class SystemController extends Controller
             ->count();
         $blockedOrders = WorkOrder::where('status', WorkOrder::STATUS_BLOCKED)->count();
         $blockingIssues = Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
+            ->where('blocks_work_order', true)
             ->count();
 
         return response()->json([
@@ -347,7 +347,7 @@ class SystemController extends Controller
         if ($type === 'all' || $type === 'blocking_issue') {
             $alerts = $alerts->concat(
                 Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-                    ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
+                    ->where('blocks_work_order', true)
                     ->with(['issueType', 'workOrder'])
                     ->orderByDesc('reported_at')
                     ->get()

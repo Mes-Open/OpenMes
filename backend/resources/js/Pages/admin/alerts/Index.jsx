@@ -15,6 +15,7 @@ import { __, elapsed, formatDate, formatDateTime, timezone } from '../../../lib/
 import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
 import { OPEN_ISSUE_STATUSES, isOverdue } from '../../../lib/alerts';
 import { usePlantToday } from '../../../lib/usePlantToday';
+import { boolColumn } from '../../../lib/syncedRow';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -46,7 +47,7 @@ export default function AlertsIndex() {
     const { data: issues = [] } = useLiveQuery((q) => q.from({ r: issuesC }));
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: ordersC }));
 
-    // Lookup tables (names + is_blocking) — all live over the one Reverb socket.
+    // Lookup tables (names) — all live over the one Reverb socket.
     const { data: types = [] } = useSyncedShape('issue_types_all');
     const { data: lines = [] } = useSyncedShape('lines_all');
     const { data: users = [] } = useSyncedShape('users');
@@ -78,14 +79,9 @@ export default function AlertsIndex() {
             }))
             .sort((a, b) => String(b.reportedAt ?? '').localeCompare(String(a.reportedAt ?? '')));
 
-        // The flag arrives as a boolean or as 't'/'f' depending on the path the
-        // row took to the browser (snapshot vs. broadcast delta).
-        //
-        // An issue whose type hasn't arrived yet counts as blocking. The two
-        // collections load independently, and treating "type unknown" as
-        // non-blocking dumped every open issue into the secondary panel for the
-        // frame between them — the whole page rearranging itself on load.
-        const isBlocking = (i) => !i.type || i.type.is_blocking === true || i.type.is_blocking === 't';
+        // The flag lives on the issue itself, so the panels no longer wait for
+        // the types collection.
+        const isBlocking = (i) => boolColumn(i.blocks_work_order);
         const blockingIssues = openIssues.filter(isBlocking);
         const nonBlockingIssues = openIssues.filter((i) => !isBlocking(i));
 

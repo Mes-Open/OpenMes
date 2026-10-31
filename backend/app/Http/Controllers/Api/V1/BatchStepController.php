@@ -146,7 +146,7 @@ class BatchStepController extends Controller
                 'message' => 'Issue reported successfully',
                 'data' => [
                     'issue' => $issue,
-                    'work_order_blocked' => $issue->issueType->is_blocking,
+                    'work_order_blocked' => $issue->blocks_work_order,
                 ],
             ], 201);
         } catch (\Exception $e) {

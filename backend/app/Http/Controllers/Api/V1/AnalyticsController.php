@@ -58,9 +58,9 @@ class AnalyticsController extends Controller
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn ($wo) => $wo->where('line_id', $lineId));
                 })->count(),
-            // Issues whose type is_blocking AND status is OPEN/ACKNOWLEDGED.
+            // Issues that block their work order AND status is OPEN/ACKNOWLEDGED.
             'blocking_issues' => Issue::whereIn('status', ['OPEN', 'ACKNOWLEDGED'])
-                ->whereHas('issueType', fn ($q) => $q->where('is_blocking', true))
+                ->where('blocks_work_order', true)
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn ($wo) => $wo->where('line_id', $lineId));
                 })->count(),

@@ -424,6 +424,7 @@ Route::middleware('auth')->group(function () {
         // optional `quality` module ("Issues & reasons").
         Route::middleware('module:quality')->group(function () {
             Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+            Route::post('/issues', [IssueManagementController::class, 'store'])->name('issues.store');
             // Bulk acknowledge / resolve — the alerts page acts on a whole list.
             Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
             Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
@@ -610,6 +611,7 @@ Route::middleware('auth')->group(function () {
 
         // Issues Management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        Route::post('/issues', [IssueManagementController::class, 'store'])->name('issues.store');
         // Bulk acknowledge / resolve — the alerts page acts on a whole list.
         Route::post('/issues/bulk', [IssueManagementController::class, 'bulk'])->name('issues.bulk');
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');

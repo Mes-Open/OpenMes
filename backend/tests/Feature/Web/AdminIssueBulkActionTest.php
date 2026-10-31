@@ -119,7 +119,10 @@ class AdminIssueBulkActionTest extends TestCase
     public function test_bulk_resolve_unblocks_a_work_order_with_no_open_blocking_issues_left(): void
     {
         $blockingType = IssueType::factory()->create(['is_blocking' => true]);
-        $order = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_BLOCKED]);
+        $order = WorkOrder::factory()->create([
+            'status' => WorkOrder::STATUS_BLOCKED,
+            'status_before_block' => WorkOrder::STATUS_IN_PROGRESS,
+        ]);
         $issues = Issue::factory()->count(2)->create([
             'work_order_id' => $order->id,
             'issue_type_id' => $blockingType->id,

@@ -9,8 +9,8 @@ use App\Sync\Shape;
 /**
  * Open + acknowledged issues. Closed and resolved are excluded — they're
  * terminal for the operator/supervisor live view. Combine on the client with
- * the IssueTypesShape to surface the `is_blocking` flag for the "blocking
- * issues" KPI.
+ * the IssueTypesShape for type names; `blocks_work_order` drives the
+ * "blocking issues" KPI.
  */
 class IssuesOpenShape extends Shape
 {
@@ -25,6 +25,7 @@ class IssuesOpenShape extends Shape
             'id',
             'work_order_id',
             'issue_type_id',
+            'blocks_work_order',
             'title',
             'status',
             'reported_by_id',

@@ -234,6 +234,8 @@ class BackupController extends Controller
 
                 $currentTable = null;
                 $buffer = [];
+                // Set when the backup predates issues.blocks_work_order (see below).
+                $legacyIssueRows = false;
 
                 while (($line = fgets($handle)) !== false) {
                     $line = trim($line);
@@ -272,6 +274,9 @@ class BackupController extends Controller
 
                         $row = json_decode($line, true);
                         if (is_array($row)) {
+                            if ($currentTable === 'issues' && ! array_key_exists('blocks_work_order', $row)) {
+                                $legacyIssueRows = true;
+                            }
                             $buffer[] = $row;
                             if (count($buffer) >= 500) {
                                 $this->bulkInsertSafe($currentTable, $buffer);
@@ -286,6 +291,15 @@ class BackupController extends Controller
                 }
 
                 fclose($handle);
+
+                // A backup taken before issues carried their own blocking flag
+                // restores every row with the column's default (false); derive
+                // it from the type, exactly as the migration that added it did.
+                if ($legacyIssueRows) {
+                    DB::table('issues')
+                        ->whereIn('issue_type_id', DB::table('issue_types')->where('is_blocking', true)->select('id'))
+                        ->update(['blocks_work_order' => true]);
+                }
 
                 // 4. Re-enable triggers
                 foreach ($tables as $table) {
