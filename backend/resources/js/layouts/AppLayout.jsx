@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
 import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
+import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
@@ -513,48 +514,6 @@ function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrai
     );
 }
 
-/**
- * Flat list of every navigable sidebar item (top links, group/subgroup headers
- * that have their own landing page, and children) for the sidebar search.
- * `trail` is the group path shown under a result, e.g. "Production /
- * Production Lines". Disabled entries are skipped.
- */
-// A nav group is visible when its own tab is accessible OR at least one of its
-// descendants carries its own (different) accessible tab. The second clause lets
-// a group survive when its header key is off but a fine-grained child module is
-// on — e.g. Reports hidden but Advanced reports enabled. Groups whose children
-// have no explicit tab fall back to the header key alone.
-function groupVisible(group, showTab) {
-    // Groups that are not a feature module — Settings holds the current user's
-    // own profile, password and 2FA, which no enabled-module set should hide.
-    if (group.alwaysVisible) return true;
-    if (showTab(group.tab ?? group.key)) return true;
-    const anyChild = (nodes) => (nodes || []).some((n) =>
-        n.children ? anyChild(n.children) : (n.tab && showTab(n.tab)));
-    return anyChild(group.children);
-}
-
-function flattenNavItems(showTab, groups, links) {
-    const items = links.filter((link) => showTab(link.key)).map((link) => ({
-        label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
-    }));
-    const walk = (nodes, trail) => {
-        nodes.filter((node) => showTab(node.tab)).forEach((node) => {
-            if (node.href && !node.disabled) {
-                items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, external: node.external, trail });
-            }
-            if (node.children) {
-                walk(node.children, [...trail, node.label]);
-            }
-        });
-    };
-    // Index groups with at least one accessible tab (role + enabled module — #144);
-    // module-declared groups are always indexed (already gated server-side).
-    walk(groups.filter((group) => group.moduleGroup || groupVisible(group, showTab)), []);
-    items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
-    return items;
-}
-
 function Sidebar({
     auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
@@ -573,14 +532,8 @@ function Sidebar({
     // in the active locale.
     const [query, setQuery] = useState('');
     const searchItems = useMemo(() => flattenNavItems(showTab, navGroups, navLinks), [showTab, navGroups, navLinks]);
-    const q = query.trim().toLowerCase();
-    const results = q
-        ? searchItems.filter((item) =>
-            [item.label, __(item.label), ...item.trail.flatMap((t) => [t, __(t)])]
-                .join(' ')
-                .toLowerCase()
-                .includes(q))
-        : null;
+    const results = filterNavItems(searchItems, query, __);
+    const resultKeys = results ? searchResultKeys(results) : [];
 
     const clearSearch = () => setQuery('');
     const submitSearch = () => {
@@ -646,11 +599,14 @@ function Sidebar({
             <nav className="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden pb-3 space-y-0.5">
                 {results ? (
                     results.length ? (
-                        results.map((item) => (
+                        results.map((item, index) => (
                             // Group headers can share an href with their first child
                             // (e.g. Orders and All Orders), so href alone isn't unique.
+                            // trail+label collides for two Settings rows, and React
+                            // then leaves the extra row in the sidebar. The key
+                            // helper keeps each row distinct.
                             <SearchResultLink
-                                key={`${item.trail.join('/')}>${item.label}`}
+                                key={resultKeys[index]}
                                 item={item}
                                 path={path}
                                 onNavigate={clearSearch}
