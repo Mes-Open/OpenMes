@@ -150,6 +150,7 @@ function RerouteCard() {
 
 export default function LogisticsPallets() {
     const { statusLabels = {} } = usePage().props;
+    const statusLabel = (r) => statusLabels[r.status] ?? r.status;
 
     const columns = [
         { key: 'pallet_no', label: __('Pallet number'), className: 'font-mono font-medium text-om-ink' },
@@ -160,10 +161,12 @@ export default function LogisticsPallets() {
             // the literal 'text' / 'select' variants.
             filter: 'select',
             allLabel: __('All statuses'),
-            options: Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
+            // Search and filter on the label the badge shows, not the code.
+            value: statusLabel,
+            options: Object.values(statusLabels),
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] ?? ''}`}>
-                    {statusLabels[r.status] ?? r.status}
+                    {statusLabel(r)}
                 </span>
             ),
         },
