@@ -5,6 +5,7 @@ import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
 import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
+import ViewAsBar from '../components/ViewAsBar';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
 import HoverPanel from '../components/HoverPanel';
@@ -264,11 +265,16 @@ export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
  * Admin wins when a user holds both roles: it is the larger tree, and it is the
  * one the per-tab access matrix governs. Module hooks register against the admin
  * groups, so they merge only there.
+ *
+ * An administrator who chose the supervisor view in the view switcher gets the
+ * supervisor tree. `viewAs` is sent to Admins only, and the supervisor routes
+ * admit Admins, so every entry in that tree still opens.
  */
 function useNavTree() {
     const page = usePage();
     const isAdmin = page.props.auth?.user?.roles?.includes('Admin');
     const isSupervisor = page.props.auth?.user?.roles?.includes('Supervisor');
+    const viewAs = page.props.viewAs;
     const moduleNav = page.props.moduleNav;
     // Which admin tabs this user may open (#144) — role grants and enabled
     // modules, resolved server-side.
@@ -277,7 +283,7 @@ function useNavTree() {
     const enabledModules = page.props.enabledModules;
 
     return useMemo(() => {
-        if (! isAdmin && isSupervisor) {
+        if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
                 links: withEnabledModules(SUPERVISOR_LINKS, enabledModules),
                 groups: withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
@@ -294,7 +300,7 @@ function useNavTree() {
             groups: mergeModuleNav(moduleNav),
             showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
         };
-    }, [isAdmin, isSupervisor, moduleNav, allowedTabs, enabledModules]);
+    }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, enabledModules]);
 }
 
 export default function AppLayout({ children }) {
@@ -374,6 +380,8 @@ export default function AppLayout({ children }) {
             )}
 
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                {/* Administrator's view switcher — renders nothing for other roles. */}
+                <ViewAsBar />
                 {/* Mobile top bar */}
                 <header className="lg:hidden shrink-0 flex items-center gap-3 h-14 px-4 bg-om-card border-b border-om-line z-20">
                     <button
