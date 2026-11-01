@@ -5,6 +5,8 @@ import ResourceFormDrawer, { useResourceDrawer } from '../../../components/Resou
 import { TRACKING_LABELS, materialFields, materialInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
+const trackingLabel = (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—';
+
 export default function MaterialsIndex() {
     const { counts = {}, materialTypeNames = {}, materialTypes, customFields } = usePage().props;
 
@@ -15,7 +17,7 @@ export default function MaterialsIndex() {
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink', filter: 'text', link: true },
         { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => materialTypeNames[r.material_type_id] ?? '—', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
         { key: 'unit_of_measure', label: __('UoM'), className: 'text-om-muted' },
-        { key: 'tracking_type', label: __('Tracking'), className: 'text-om-muted', render: (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—' },
+        { key: 'tracking_type', label: __('Tracking'), className: 'text-om-muted', value: trackingLabel, render: trackingLabel },
         { key: 'stock_quantity', label: __('Stock'), className: 'text-om-muted', value: (r) => Number(r.stock_quantity ?? 0), render: (r) => (r.stock_quantity ?? '—') },
         { key: 'bom', label: __('In BOMs'), value: (r) => counts[r.id] ?? 0, render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },

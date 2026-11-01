@@ -17,6 +17,8 @@ export default function QualityControlTriggersIndex() {
 
     const drawer = useResourceDrawer();
 
+    const blocking = (r) => (r.is_blocking ? __('Yes') : __('No'));
+
     const scope = (r) => {
         const parts = [];
         if (r.line_id) parts.push(lineNames[r.line_id] ?? `#${r.line_id}`);
@@ -54,7 +56,7 @@ export default function QualityControlTriggersIndex() {
             render: (r) => templateNames[r.quality_check_template_id] ?? '—',
         },
         { key: 'scope', label: __('Scope'), className: 'text-om-muted', value: scope, render: scope },
-        { key: 'is_blocking', label: __('Blocking'), render: (r) => (r.is_blocking ? __('Yes') : __('No')) },
+        { key: 'is_blocking', label: __('Blocking'), value: blocking, render: blocking },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
