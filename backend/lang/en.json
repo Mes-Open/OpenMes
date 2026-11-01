@@ -7265,5 +7265,11 @@
     "Records scrap": "Records scrap",
     "Effect on production": "Effect on production",
     "The work order stays blocked until this issue is resolved.": "The work order stays blocked until this issue is resolved.",
-    "A paused or held work order cannot be blocked — resume it first.": "A paused or held work order cannot be blocked — resume it first."
+    "A paused or held work order cannot be blocked — resume it first.": "A paused or held work order cannot be blocked — resume it first.",
+    "View switcher": "View switcher",
+    "View as": "View as",
+    "Administrator": "Administrator",
+    "View: :role": "View: :role",
+    "your permissions have not changed.": "your permissions have not changed.",
+    "Back to the administrator view": "Back to the administrator view"
 }

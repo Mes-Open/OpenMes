@@ -150,6 +150,31 @@ class TabRegistry
         ));
     }
 
+    /**
+     * Tab keys a role grants on its own — what a member of that role who holds
+     * no extra per-user grants would see. Drives the administrator's preview of
+     * another role's screens (ViewAs); never used for access decisions.
+     *
+     * @return array<int, string>
+     */
+    public static function accessibleForRole(string $role): array
+    {
+        $model = \Spatie\Permission\Models\Role::query()->where('name', $role)->first();
+        if (! $model) {
+            return [];
+        }
+
+        $granted = $model->permissions->pluck('name')->all();
+        $optional = ModuleRegistry::optionalKeys();
+        $enabled = ModuleRegistry::enabled();
+
+        return array_values(array_filter(
+            self::keys(),
+            fn (string $key) => in_array(self::permission($key), $granted, true)
+                && (! in_array($key, $optional, true) || in_array($key, $enabled, true)),
+        ));
+    }
+
     /** tab key => label, for the matrix rows. @return array<string, string> */
     public static function labels(): array
     {

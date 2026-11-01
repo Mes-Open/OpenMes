@@ -173,6 +173,10 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // Administrator's view switcher: look at the interface as a supervisor or an
+    // operator sees it. Presentation only; SwitchViewRequest admits Admins only.
+    Route::post('/view-as', [\App\Http\Controllers\Web\ViewAsController::class, 'store'])->name('view-as');
+
     // SPA live-sync snapshot — initial rows for a Reverb-synced collection (live
     // deltas then arrive on the channel). Served in the *web* group so it
     // authenticates via the plain session cookie, exactly like every Inertia

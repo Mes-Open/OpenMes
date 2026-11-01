@@ -7265,5 +7265,11 @@
     "Records scrap": "Rejestruje odpad",
     "Effect on production": "Wpływ na produkcję",
     "The work order stays blocked until this issue is resolved.": "Zlecenie pozostanie zablokowane do czasu rozwiązania zgłoszenia.",
-    "A paused or held work order cannot be blocked — resume it first.": "Wstrzymanego zlecenia nie można zablokować — najpierw je wznów."
+    "A paused or held work order cannot be blocked — resume it first.": "Wstrzymanego zlecenia nie można zablokować — najpierw je wznów.",
+    "View switcher": "Przełącznik widoku",
+    "View as": "Wyświetl jako",
+    "Administrator": "Administrator",
+    "View: :role": "Widok: :role",
+    "your permissions have not changed.": "Twoje uprawnienia się nie zmieniły.",
+    "Back to the administrator view": "Wróć do widoku administratora"
 }
