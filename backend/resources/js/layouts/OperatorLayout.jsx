@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { OnlineDot, ToastProvider } from '@openmes/ui';
 import Tooltip from '../components/Tooltip';
+import ViewAsBar from '../components/ViewAsBar';
 import { Hook } from '../lib/hooks';
 import { __ } from '../lib/i18n';
 
@@ -47,6 +48,9 @@ export default function OperatorLayout({ children }) {
         <div className="min-h-screen flex bg-om-bg font-sans">
             {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
             <div className="flex flex-col flex-1 min-w-0">
+            {/* Administrator's view switcher, in the document flow above the bar so
+                it never covers a touch target. Renders nothing for operators. */}
+            <ViewAsBar />
             <header className="shrink-0 bg-om-card border-b border-om-line">
                 {/* One row from lg up; below that the links take a full row of their own
                     under the line and user, and the bar grows with them. */}
