@@ -278,6 +278,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/queue/check', [OperatorWorkOrderController::class, 'check'])->name('queue.check');
         Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
+        // The execution panel beside the queue / workstation lists (JSON).
+        Route::get('/work-order/{workOrder}/panel', [OperatorWorkOrderController::class, 'panel'])->name('work-order.panel');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
         Route::post('/batch/{batch}/confirm', [OperatorBatchController::class, 'confirmParameters'])->name('batch.confirm');
         Route::post('/batch/{batch}/quality-check', [OperatorBatchController::class, 'qualityCheck'])->name('batch.quality-check');

@@ -146,6 +146,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   fill in and complete an inspection; *Quality disposition* also lets them decide on the inspected
   lot. Grant them to one person on Admin → Users → Edit, or to a whole role on Settings → Access.
   Operators who hold either permission get an **Inspections** tab on the operator tablet.
+- **Quantity entry per process step** (process template → step → *Quantity entry*, used by
+  the transfer flow). *Record quantities* (the default) has the operator type good and scrap
+  counts, with a small *+1* for a single piece and *All n good*. *+1 per piece* replaces the
+  fields with one large *+1* per good piece and one per scrapped piece, for a station that
+  hands pieces on one at a time. The choice is frozen into the order like the rest of the
+  routing.
 
 ### Changed
 
@@ -160,6 +166,78 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - An upgrade migration uppercases the stored currency and resets a code outside the
   supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
   to `CurrencyRegistry`).
+- **Redesigned operator screens.** Queue and Workstation now share one shell:
+  - a top bar with the line, the shift, the view switch, connection, a Light / Dark switch
+    and the operator;
+  - a shift strip: in progress, made this shift, blocked, due today, workstations, and how far
+    through the shift the clock is.
+
+  The **Queue** lists orders grouped as Running / Blocked / Paused / Up next / Done, with
+  search and status filters. A **workstation picker** replaces the row of station buttons and
+  now appears on the Workstation view too. Stations can be searched by code or name, are grouped
+  by station type (or code family) in natural order, and each shows how many orders are waiting
+  at it. With a station picked, the list shows only that station's orders. The **Workstation** table is grouped the same way. Each row has a
+  *Log output* control: pick the shift, type the pieces, Add.
+
+  Selecting an order opens an **execution panel** beside the list, or a drawer on tablets.
+  It shows the order's figures, its process steps, and the current step's instructions,
+  media, read-confirmation and checklist, with the button that starts or completes the step.
+  Anything the panel has no form for (documents, typed outputs, quantity logs, new batches)
+  links to the order page on that step. The earlier table and card views are still available
+  from the view switch. The Report issue dialog now shows whether the chosen issue type stops
+  the order.
+
+- **Redesigned SN Label Station.** The scans sit in a panel on the left and the line's recent
+  units fill the right.
+  - **Scans:** each scan is a numbered step with a large field. The step the scanner is filling
+    is outlined and marked *Scan*; a filled step turns its number into a tick. The outcome of the
+    last scan stays in a fixed slot under the steps, and a counter shows how many scans went
+    through and how many were refused this sitting.
+  - **Recent units:** search by SN, PSN or order, status chips with counts, and the row actions
+    (label, components, block, release, scrap) as icon buttons.
+  - **Dialogs:** blocking a unit lists the error codes as choices instead of a dropdown;
+    release, scrap, re-bind and removing a component ask for the reason in a text box; a batch
+    is sized with large − / + buttons. A refusal stays in the dialog, and a done block,
+    release, scrap or removal shows as a toast.
+
+- **Redesigned Packing Station.** The packer's bench sits in a panel on the left and the
+  station's work fills the right; the header shows what was packed this shift, the plan, the
+  backlog and the completion.
+  - **Bench:** one large scan field takes a PSN or a serial number, and *Pack into* says where
+    the unit goes. A step that weighs units adds a weight field. The outcome of the last scan
+    stays in a fixed slot under the button, next to a count of packed and refused scans.
+  - **My carton and My pallet:** what is being filled, with a slot per piece from the step's
+    capacities. A pallet counts its closed cartons. Close, print, put down and resume stay on
+    the card; a pallet for an order is opened from chips, or a searchable list above six orders.
+  - **Tabs:** *Packing steps* expand to the step's packaging, per unit, carton and pallet, with
+    *Pick packaging* choosing the lots. *Open pallets* shows who is filling each one, with
+    *Take over* and *Resume*. EAN scanning has its own tab where the line uses it.
+
+- **Redesigned operator work order page.**
+  - **Header:** one row with the order, product, priority, due date (with days overdue),
+    produced / planned with what is left, and the Print label, Scrap, Report issue and
+    Create batch buttons. The page now fills the screen: the tabs and the sidebar scroll on
+    their own.
+  - **Material banner:** a shortage now reads as one line ("n of m components short · can build
+    x of y") with a link to the materials.
+  - **Tabs:** the body is split into Batches, Materials, Instructions and Serial units.
+    - Each batch shows its route as a row of steps grouped into segments, with what each
+      started step passed out of what it received. Below it is one card for the step on show:
+      the current one, or any step picked on the route. *Your station* and *All steps* lay out
+      the station's steps, or every step, as cards grouped by station.
+    - On the current step's card, the left side holds the instructions, the label and media
+      buttons, and a *Before completing* list (read confirmation, checklist, documents to
+      validate, outputs). The right side holds the step's incoming / waiting / passed / scrap
+      figures, the quantity log and *Complete step* with
+      the reason it is not ready yet.
+    - The routing graph is one click away, and the station the operator works at can be
+      cleared from the card.
+    - The Materials tab lists every BOM line against stock: need, have, missing, on hand and
+      reserved by other batches. You can filter it to the short lines and search by code. The
+      recipe table is kept below it.
+  - **Sidebar:** Issues, Scrap and Order details. On lines that record scrap per step, the
+    Scrap buttons say so instead of being hidden. Below 1280 px it moves under the order's
+    work instead of squeezing the step card.
 
 ### Security
 
@@ -222,6 +300,55 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Logistics operator* now sit on their own rows instead of side by side at different heights.
   Checkbox labels everywhere stay level with the box and left-aligned when they wrap on narrow
   screens. This covers the worker and user-account forms, including the worker-profile skills.
+- **Batches are checked on the server as well as in the Create batch dialog** (operator
+  screen and API). A batch may not plan more than the order still needs unless
+  *Settings → Production → Allow overproduction* is on. A finished short batch frees what it
+  did not make, an open batch holds its whole target and a cancelled one holds nothing. The
+  saved setting is now read; before, only the `ALLOW_OVERPRODUCTION` environment value counted.
+  Done, rejected and cancelled orders take no new batch. The dialog prefills and caps with the
+  same figure, and *Create batch* is hidden once the batches cover the order.
+- **Whole pieces for products counted in pieces.** Good, scrap, a correction or a batch
+  target of 1.5 is refused for a product measured in pcs (or `szt`, `ea`, … or no unit).
+  Products measured in kg, m, l and similar still take fractions.
+- **The *Create batch* dialog says why it refuses.** A quantity over what the order still needs,
+  or a fraction of a product counted in pieces, is explained under the field and *Create Batch*
+  stays disabled. Before, the first showed only the browser's own tooltip and the second closed
+  the dialog with an error at the top of the page.
+- **A process serial in the wrong format is refused in words.** *Start unit on PSN* now says
+  "The process serial number does not match the configured format." instead of "The psn field
+  format is invalid."
+- **Serial unit actions stay on the operator's line.** Blocking, releasing, scrapping,
+  starting, labelling and binding components are refused for a unit of another line's order,
+  even by a hand-made request. The station's unit list shows the line's own units only.
+  Admins act on any line.
+- **Edits that would strand a running order are refused** (admin, supervisor and API edit).
+  Planned below what was already produced is refused. So is moving the order to another line
+  while a batch is still open there, and changing the product (supervisor form) after
+  production has started.
+- **Packing counts every unit on the packing step, or refuses it.** A unit used to be packed
+  and marked done even when the routing's packing step could not count it, with nothing said.
+  This happened when the step was not reached yet, had nothing waiting, the order was blocked,
+  or the order had no batch. The scan is now refused with the reason. Orders without a packing
+  step pack as before.
+- **Operator screens on tablets.**
+  - The queue list fits at 768 px, with the step under the order number until there is room
+    for its own column. Before, the Open / Start buttons were cut off.
+  - The SN station's unit list keeps the serial number and the actions pinned while the
+    other columns scroll. Below 1280 px the action buttons show only their icons. Block and
+    Scrap are red as intended.
+  - The Workstation table keeps its actions pinned and shows one row of controls. The
+    four-line hint under a disabled *+1* is gone; *Record output* beside it opens the order.
+- **Routing graph on the order page** follows the step on show and its neighbours instead
+  of shrinking a long routing to unreadable size. Its zoom controls are no longer blank white
+  boxes in dark mode.
+- **Execution panel:** in the transfer flow, steps already running after the current one
+  show as running instead of greyed out like steps not reached yet.
+- `@openmes/ui` DataTable: a column can be pinned to the left or right edge with
+  `meta.sticky`.
+- **A unit scrapped after packing leaves its box's count.** The carton and pallet piece counts
+  drop by one and the carton label no longer lists it. The pallet's quality is re-read. The unit
+  keeps its carton and pallet link, so the packing list and the trace still show where it was
+  scrapped from.
 
 ## [0.27.1] - 2026-10-30
 

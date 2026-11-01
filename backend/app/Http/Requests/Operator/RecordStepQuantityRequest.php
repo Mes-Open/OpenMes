@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Operator;
 
+use App\Models\BatchStep;
+use App\Models\ProductType;
+use App\Rules\WholePieces;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -21,8 +24,8 @@ class RecordStepQuantityRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'good_qty' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
-            'scrap_qty' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'good_qty' => ['nullable', 'numeric', 'min:0', 'max:99999999', new WholePieces($this->productType())],
+            'scrap_qty' => ['nullable', 'numeric', 'min:0', 'max:99999999', new WholePieces($this->productType())],
             'notes' => ['nullable', 'string', 'max:2000'],
             // Pass the good pieces on through the following steps owned by the
             // same workstation (a station doing several steps in a row). Only
@@ -38,6 +41,14 @@ class RecordStepQuantityRequest extends FormRequest
                 $v->errors()->add('good_qty', __('Log at least one good or scrapped piece.'));
             }
         });
+    }
+
+    /** The product the step's order makes — decides whether fractions are allowed. */
+    private function productType(): ?ProductType
+    {
+        $step = $this->route('batchStep');
+
+        return $step instanceof BatchStep ? $step->batch?->workOrder?->productType : null;
     }
 
     public function goodQty(): float

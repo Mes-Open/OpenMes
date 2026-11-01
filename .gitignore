@@ -84,6 +84,7 @@ yarn-error.log*
 /node_modules
 /test-results
 /playwright-report
+/recordings
 
 # Local binaries / installers
 cloudflared.deb

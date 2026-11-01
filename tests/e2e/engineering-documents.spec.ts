@@ -141,6 +141,8 @@ test('operator: sees and can download the documents frozen onto the work order',
   await page.waitForLoadState('networkidle');
 
   await page.goto(`/operator/work-order/${ids.wo}`);
+  // The order page keeps reference photos and documents on its Instructions tab.
+  await page.getByRole('tab', { name: /Instructions/ }).click();
   await expect(page.getByRole('heading', { name: 'Engineering documents' })).toBeVisible();
   await expect(page.getByText(DOC)).toBeVisible();
 

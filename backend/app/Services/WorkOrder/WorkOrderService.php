@@ -690,6 +690,78 @@ class WorkOrderService
     }
 
     /**
+     * Quantity a new batch may still take: planned minus what the existing
+     * batches already account for. A finished batch counts what it produced
+     * (a short batch frees the rest for a replacement), an open one its full
+     * target, a cancelled one nothing.
+     */
+    public function remainingBatchCapacity(WorkOrder $workOrder): float
+    {
+        $committed = $workOrder->batches()
+            ->where('status', '!=', Batch::STATUS_CANCELLED)
+            ->get(['status', 'target_qty', 'produced_qty'])
+            ->sum(fn (Batch $b) => $b->status === Batch::STATUS_DONE ? (float) $b->produced_qty : (float) $b->target_qty);
+
+        return max(0.0, (float) $workOrder->planned_qty - $committed);
+    }
+
+    /**
+     * Refuse a batch a user asks for when the order is closed or the batch would
+     * plan more than the order still needs (unless overproduction is allowed in
+     * Settings → Production). The planner and importers create batches through
+     * createBatch() directly and are not subject to this check.
+     *
+     * @throws \DomainException with a message meant for the user
+     */
+    public function assertCanCreateBatch(WorkOrder $workOrder, float $targetQty): void
+    {
+        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES, true)) {
+            throw new \DomainException(__('Work order :order is :status — no new batches can be created.', [
+                'order' => $workOrder->order_no,
+                'status' => __(ucfirst(strtolower($workOrder->status))),
+            ]));
+        }
+
+        $productType = $workOrder->productType;
+        if ($productType?->isCountedInPieces() && abs($targetQty - round($targetQty)) > 0.000001) {
+            throw new \DomainException(__('Enter whole pieces — :product is counted in :unit.', [
+                'product' => $productType->name,
+                'unit' => $productType->unit_of_measure ?: 'pcs',
+            ]));
+        }
+
+        if (self::overproductionAllowed()) {
+            return;
+        }
+
+        $remaining = $this->remainingBatchCapacity($workOrder);
+        if ($targetQty - $remaining > 0.0001) {
+            throw new \DomainException(__('Batch quantity :qty exceeds what the order still needs (:remaining). Allow overproduction in Settings → Production to plan more.', [
+                'qty' => rtrim(rtrim(number_format($targetQty, 4, '.', ''), '0'), '.'),
+                'remaining' => rtrim(rtrim(number_format($remaining, 4, '.', ''), '0'), '.'),
+            ]));
+        }
+    }
+
+    /**
+     * Settings → Production "Allow overproduction". The stored system setting
+     * wins; the ALLOW_OVERPRODUCTION env value is the fallback for installs that
+     * never saved the settings page.
+     */
+    public static function overproductionAllowed(): bool
+    {
+        try {
+            $raw = DB::table('system_settings')->where('key', 'allow_overproduction')->value('value');
+        } catch (\Throwable) {
+            $raw = null;
+        }
+
+        return $raw === null
+            ? (bool) config('openmmes.allow_overproduction', false)
+            : (bool) json_decode($raw, true);
+    }
+
+    /**
      * Create a new batch for a work order.
      */
     public function createBatch(WorkOrder $workOrder, float $targetQty, ?int $workstationId = null, ?string $lotNumber = null): Batch
@@ -773,6 +845,7 @@ class WorkOrderService
                 'config' => $stepData['config'] ?? null,
                 'instruction' => $stepData['instruction'] ?? null,
                 'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
+                'quantity_entry' => $stepData['quantity_entry'] ?? \App\Models\TemplateStep::QUANTITY_ENTRY_QUANTITIES,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
                 // ISA-95 (#52): carry the required Equipment Class + planning times
                 // down from the snapshot so pool dispatch and the actual-vs-standard

@@ -3,6 +3,7 @@
 namespace App\Services\Packaging;
 
 use App\Enums\PalletStatus;
+use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BomItem;
 use App\Models\Material;
@@ -305,7 +306,7 @@ class UnitPackingService
     /** @param  array<string, mixed>  $measured  what was measured at packing (the weight), kept on the "packed" event */
     public function packUnit(SerialUnit $unit, User $operator, ?UnitCarton $carton = null, ?Pallet $pallet = null, ?int $workstationId = null, array $measured = []): SerialUnit
     {
-        [$unit, $firstPacking] = DB::transaction(function () use ($unit, $operator, $carton, $pallet, $workstationId, $measured) {
+        [$unit] = DB::transaction(function () use ($unit, $operator, $carton, $pallet, $workstationId, $measured) {
             // Read again under lock: two benches, or a scan racing the box's close,
             // must not both see room in the same carton or an open pallet.
             $unit = SerialUnit::whereKey($unit->id)->lockForUpdate()->firstOrFail();
@@ -359,6 +360,12 @@ class UnitPackingService
             if (! $firstPacking && ($alreadyInCarton || (! $carton && ! $newOnPallet))) {
                 return [$unit, false];
             }
+            // One unit counts once on the packing step, however often its label
+            // is rescanned. Counted inside this transaction: a step that cannot
+            // take the piece refuses the packing too.
+            if ($firstPacking) {
+                $this->countOnPackingStep($unit, $operator);
+            }
 
             $unit->fill([
                 'carton_id' => $carton?->id ?? $unit->carton_id,
@@ -391,12 +398,6 @@ class UnitPackingService
             return [$unit->fresh(), $firstPacking];
         });
 
-        // One unit counts once on the packing step, however often its label is
-        // rescanned - and only once the packing itself is safely committed.
-        if ($firstPacking) {
-            $this->countOnPackingStep($unit, $operator);
-        }
-
         return $unit;
     }
 
@@ -404,15 +405,38 @@ class UnitPackingService
      * The routing's packing step, if the order has one, gets the piece: that
      * is what makes packing a step with a station, a duration and a count like
      * any other, instead of activity beside the routing. A READY step is
-     * started by the first piece. Nothing here may stop the packing itself -
-     * a step the flow rules refuse (not reached yet, a required control still
-     * open, production not yet available) is logged and skipped, whatever the
-     * rule throws.
+     * started by the first piece.
+     *
+     * A step that cannot take the piece refuses the packing: the packing step
+     * not reached yet, nothing left waiting at it, the order blocked or paused.
+     * Packing it anyway would leave a unit marked done that the order's count
+     * never sees. An order without a packing step, or whose packing steps are
+     * all finished, packs without a count as before.
+     *
+     * @throws BindingException
      */
     private function countOnPackingStep(SerialUnit $unit, User $operator): void
     {
         $step = $this->packingStepFor($unit->work_order_id, $unit->batch_id);
         if (! $step) {
+            $notReached = $unit->work_order_id ? BatchStep::query()
+                ->where('kind', TemplateStep::KIND_PACKING)
+                ->where('status', BatchStep::STATUS_PENDING)
+                ->whereHas('batch', fn ($q) => $q->where('work_order_id', $unit->work_order_id)
+                    ->whereIn('status', [Batch::STATUS_PENDING, Batch::STATUS_IN_PROGRESS])
+                    ->when($unit->batch_id, fn ($q) => $q->whereKey($unit->batch_id)))
+                ->orderBy('step_number')
+                ->first() : null;
+            if ($notReached) {
+                throw new BindingException(__('Unit :sn cannot be packed yet: nothing has reached packing step :name. Finish the steps before it first.', ['sn' => $unit->display_id, 'name' => $notReached->name]));
+            }
+            // The routing packs, but no batch runs it yet: nothing to count on.
+            $workOrder = $unit->work_order_id ? WorkOrder::find($unit->work_order_id) : null;
+            if ($workOrder && collect($workOrder->process_snapshot['steps'] ?? [])->contains('kind', TemplateStep::KIND_PACKING)
+                && ! $workOrder->batches()->where('status', '!=', Batch::STATUS_CANCELLED)->exists()) {
+                throw new BindingException(__('Unit :sn cannot be packed yet: order :order has no batch. Create a batch first.', ['sn' => $unit->display_id, 'order' => $workOrder->order_no]));
+            }
+
             return;
         }
 
@@ -421,8 +445,16 @@ class UnitPackingService
                 $step = $this->batches->startStep($step, $operator);
             }
             $this->batches->recordQuantity($step, $operator, 1, 0);
-        } catch (\Throwable $e) {
-            Log::info('Packing step not counted: '.$e->getMessage(), ['batch_step_id' => $step->id, 'serial_unit_id' => $unit->id]);
+        } catch (BindingException|\Illuminate\Database\QueryException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            // The step's own refusal (flow rules throw \Exception, \DomainException
+            // or a ValidationException), passed on to the bench.
+            throw new BindingException(__('Unit :sn was not packed — packing step :name: :reason', [
+                'sn' => $unit->display_id,
+                'name' => $step->name,
+                'reason' => $e instanceof \Illuminate\Validation\ValidationException ? collect($e->errors())->flatten()->first() : $e->getMessage(),
+            ]));
         }
     }
 

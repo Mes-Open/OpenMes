@@ -175,8 +175,12 @@ class WorkstationController extends Controller
             ],
         );
 
+        $shiftSummary = app(\App\Services\Production\OperatorShiftSummary::class)->forLine((int) $lineId);
+        // The toolbar's workstation picker; a cumulative line does not route work to stations.
+        $stationPicker = $trackingMode === 'cumulative' ? [] : app(\App\Services\Production\OperatorStationPicker::class)->forLine((int) $lineId);
+
         return Inertia::render('operator/Workstation', compact(
-            'hooks',
+            'hooks', 'shiftSummary', 'stationPicker',
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
             'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',

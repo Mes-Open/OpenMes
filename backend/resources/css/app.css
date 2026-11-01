@@ -330,3 +330,15 @@ html.dark .border-amber-200 { border-color: rgb(180 83 9 / 0.5)     !important; 
 html.dark .text-amber-800  { color: rgb(252 211 77)                  !important; }
 html.dark .bg-amber-100    { background-color: rgb(69 26 3 / 0.6)   !important; }
 html.dark .hover\:bg-amber-200:hover { background-color: rgb(69 26 3 / 0.8) !important; }
+
+/* Routing graph (@xyflow) zoom controls: the library paints them white with
+   dark glyphs, which in dark mode leaves blank white boxes. Its stylesheet is
+   imported after this one, so set its variables rather than its rules. */
+.react-flow {
+    --xy-controls-button-background-color: var(--om-card);
+    --xy-controls-button-background-color-hover: var(--om-chip);
+    --xy-controls-button-color: var(--om-ink);
+    --xy-controls-button-color-hover: var(--om-ink);
+    --xy-controls-button-border-color: var(--om-line);
+    --xy-controls-box-shadow: 0 0 0 1px var(--om-line);
+}

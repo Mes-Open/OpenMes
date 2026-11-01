@@ -1,27 +1,31 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { OnlineDot, ToastProvider } from '@openmes/ui';
+import { useState } from 'react';
+import { Link, usePage } from '@inertiajs/react';
+import { Icon, ToastProvider } from '@openmes/ui';
 import Tooltip from '../components/Tooltip';
 import ViewAsBar from '../components/ViewAsBar';
+import ShiftStrip, { shiftTimes } from '../components/operator/ShiftStrip';
+import { initialsOf, pillCls } from '../components/operator/operatorUi';
 import { Hook } from '../lib/hooks';
 import { __ } from '../lib/i18n';
 
 /**
- * Full-screen tablet chrome for operator screens — the React port of the
- * operator branch of layouts/app.blade.php. Big touch targets, a slim top bar
- * showing the selected line/workstation, and view switches (Queue / Workstation).
+ * Full-screen tablet chrome for operator screens (design ref: OpenMES
+ * Operator.dc.html): one top bar with the line and shift, the view switch
+ * (Queue / Workstation / module tabs), connection, theme and the operator;
+ * under it the shift strip when the page sends a `shiftSummary`.
  *
  * Pages opt in via:  Page.layout = (page) => <OperatorLayout>{page}</OperatorLayout>
+ * A page that lays out its own columns to the viewport's height (the list +
+ * execution panel split) passes `flush`: no padding, and it scrolls itself.
  *
  * Reads from shared Inertia props: auth, line, selectedWorkstation, csrf_token,
  * flash. `line` is present once a line is selected (all operator pages but
  * select-line pass it).
- *
- * Geist White restyle: light-only v1 — former `dark:` classes removed.
  */
-export default function OperatorLayout({ children }) {
+export default function OperatorLayout({ children, flush = false }) {
     const props = usePage().props;
     const {
-        auth, line, selectedWorkstation, csrf_token, moduleNav,
+        auth, line, selectedWorkstation, csrf_token, moduleNav, shiftSummary,
         operatorTabs = [], operatorCanLogout = true, operatorHooks = {}, operatorCanSwitchLine = true,
     } = props;
     // Tabs an enabled module registered via MenuRegistry::addOperatorItem().
@@ -43,77 +47,98 @@ export default function OperatorLayout({ children }) {
     // those panel pages; without a grant the screen stays plain full-screen.
     const tabLinks = (auth?.user?.accessibleTabLinks ?? []).filter((tab) => tab.url);
 
+    // Line sub-caption: code · shift and its hours · the bench (or how many the line has).
+    const shift = shiftSummary?.shift;
+    const caption = [
+        line?.code,
+        shift?.code ? `${shift.code} ${shiftTimes(shift)}` : null,
+        selectedWorkstation?.name
+            ?? (shiftSummary?.workstations ? __(':count workstations', { count: shiftSummary.workstations }) : null),
+    ].filter(Boolean).join(' · ');
+
     return (
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="min-h-screen flex bg-om-bg font-sans">
+        <div className={`${flush ? 'h-screen' : 'min-h-screen'} flex bg-om-bg font-sans`}>
             {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
             <div className="flex flex-col flex-1 min-w-0">
             {/* Administrator's view switcher, in the document flow above the bar so
                 it never covers a touch target. Renders nothing for operators. */}
             <ViewAsBar />
             <header className="shrink-0 bg-om-card border-b border-om-line">
-                {/* One row from lg up; below that the links take a full row of their own
-                    under the line and user, and the bar grows with them. */}
-                <div className="flex flex-wrap items-center gap-3 px-4 py-2 min-h-16 lg:h-16">
-                    <Link href="/operator/select-line" className="flex items-center shrink-0">
-                        <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
+                {/* One row from xl up; below that the view switch takes a row of its
+                    own under the line and the operator, and the bar grows with it. */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-[22px] py-2 min-h-[60px]">
+                    <Link href="/operator/select-line" className="flex items-center gap-[9px] shrink-0">
+                        <img src="/logo_open_mes.png" alt="OpenMES" className="h-7 w-auto" />
+                        <span className="font-mono text-[9px] text-om-faint border border-om-line rounded px-[5px] py-px">{__('OPERATOR')}</span>
                     </Link>
 
                     {line && (
-                        <div className="min-w-0 flex-1 lg:flex-none border-l border-om-line pl-4">
-                            <p className="text-[15px] font-semibold leading-tight text-om-ink truncate">{line.name}</p>
-                            {selectedWorkstation && (
-                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{selectedWorkstation.name}</p>
-                            )}
-                        </div>
+                        <>
+                            <div className="hidden sm:block w-px h-[26px] bg-om-line2" />
+                            <div className="min-w-0 flex items-center gap-2.5">
+                                <div className="min-w-0">
+                                    <p className="text-[14.5px] font-semibold leading-tight text-om-ink truncate">{line.name}</p>
+                                    {caption && (
+                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.05em] text-om-faint truncate">{caption}</p>
+                                    )}
+                                </div>
+                                {operatorCanSwitchLine && (
+                                    <Link href="/operator/select-line" className="ml-1.5 shrink-0 text-[12px] text-om-accent hover:text-om-ink">
+                                        {__('Change line')}
+                                    </Link>
+                                )}
+                            </div>
+                        </>
                     )}
 
-                    <OnlineDot label={__("ONLINE")} pulse className="hidden md:inline-flex shrink-0" />
-
-                    {line && (
-                        <nav className="order-last w-full flex flex-wrap items-center gap-2 pt-2 border-t border-om-line lg:order-none lg:w-auto lg:ml-auto lg:pt-0 lg:border-t-0">
-                            {/* Core tabs arrive as data (filter `operator.tabs`), so a module can drop or reorder them. */}
-                            {operatorTabs.map((tab) => (
-                                <TopLink key={tab.key} href={withCtx(tab.url)} active={(tab.prefixes ?? [tab.url]).some(isActive)}>
-                                    {__(tab.label)}
-                                </TopLink>
-                            ))}
-                            {moduleTabs.map((tab) => (
-                                <TopLink key={tab.url} href={tab.url} active={isActive(tab.prefix)} module>
-                                    {__(tab.label)}
-                                </TopLink>
-                            ))}
-                            {operatorCanSwitchLine && (
-                                <Link
-                                    href="/operator/select-line"
-                                    className="px-3 py-2.5 rounded-om-sm text-sm font-medium text-om-muted border border-om-line hover:bg-om-chip hover:text-om-ink transition-colors"
-                                >
-                                    {__('Switch Line')}
-                                </Link>
-                            )}
+                    {line && (operatorTabs.length > 0 || moduleTabs.length > 0) && (
+                        <nav className="order-last w-full xl:order-none xl:w-auto xl:ml-[18px] flex">
+                            <div className="flex flex-wrap gap-[3px] bg-om-bg border border-om-line rounded-[10px] p-[3px]">
+                                {/* Core tabs arrive as data (filter `operator.tabs`), so a module can drop or reorder them. */}
+                                {operatorTabs.map((tab) => (
+                                    <Link key={tab.key} href={withCtx(tab.url)} className={pillCls((tab.prefixes ?? [tab.url]).some(isActive))}>
+                                        {__(tab.label)}
+                                    </Link>
+                                ))}
+                                {moduleTabs.map((tab) => (
+                                    <ModuleTab key={tab.url} href={tab.url} active={isActive(tab.prefix)}>
+                                        {__(tab.label)}
+                                    </ModuleTab>
+                                ))}
+                            </div>
                         </nav>
                     )}
 
-                    <div className={`flex items-center gap-3 ${line ? 'ml-auto lg:ml-0' : 'ml-auto'}`}>
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center text-om-on-ink text-sm font-semibold">
-                                {auth?.user?.initial ?? '?'}
-                            </div>
-                            <span className="text-sm text-om-ink hidden md:block">{auth?.user?.name}</span>
+                    <div className="flex-1" />
+
+                    <div className="hidden md:flex items-center gap-[7px] px-[11px] py-1.5 border border-om-line2 rounded-lg">
+                        <span className="w-[7px] h-[7px] rounded-full bg-om-running animate-om-pulse" />
+                        <span className="font-mono text-[10px] tracking-[0.06em] text-om-running">{__('ONLINE')}</span>
+                    </div>
+
+                    <ThemeSwitch />
+
+                    <div className="flex items-center gap-[9px]">
+                        <span className="w-[30px] h-[30px] rounded-full bg-om-ink text-om-on-ink flex items-center justify-center text-[11px] font-semibold shrink-0">
+                            {initialsOf(auth?.user?.name)}
+                        </span>
+                        <div className="hidden md:block leading-[1.25]">
+                            <div className="text-[12.5px] font-medium text-om-ink">{auth?.user?.name}</div>
+                            {auth?.user?.username && (
+                                <div className="font-mono text-[9.5px] text-om-faint">{auth.user.username}</div>
+                            )}
                         </div>
                         {operatorCanLogout && (
                             <form action="/logout" method="POST">
                                 <input type="hidden" name="_token" value={csrf_token} />
-                                <Tooltip label="Logout">
+                                <Tooltip label={__('Logout')}>
                                     <button
                                         type="submit"
-                                        aria-label="Logout"
-                                        className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
+                                        aria-label={__('Logout')}
+                                        className="p-2 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors cursor-pointer"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                        </svg>
+                                        <Icon name="log-out" size={18} />
                                     </button>
                                 </Tooltip>
                             </form>
@@ -122,11 +147,23 @@ export default function OperatorLayout({ children }) {
                 </div>
             </header>
 
-            <main className="flex-1 overflow-auto p-4 md:p-6">
-                <Hook name="display.operator.layout" hooks={operatorHooks} />
-                <FlashMessages />
-                {children}
-            </main>
+            <ShiftStrip summary={shiftSummary} />
+
+            {flush ? (
+                <main className="flex-1 min-h-0 flex flex-col">
+                    <div className="empty:hidden shrink-0 px-[22px] pt-3">
+                        <Hook name="display.operator.layout" hooks={operatorHooks} />
+                        <FlashMessages />
+                    </div>
+                    <div className="flex-1 min-h-0">{children}</div>
+                </main>
+            ) : (
+                <main className="flex-1 overflow-auto p-4 md:p-6">
+                    <Hook name="display.operator.layout" hooks={operatorHooks} />
+                    <FlashMessages />
+                    {children}
+                </main>
+            )}
             </div>
         </div>
         </ToastProvider>
@@ -164,18 +201,38 @@ function SideLink({ href, active = false, children }) {
     );
 }
 
-// `module` marks a tab an installed module contributed: tinted with the accent
-// so the panel shows at a glance which tabs are core and which are not.
-function TopLink({ href, active, module = false, children }) {
+// `module` tabs are the ones an installed module contributed: tinted with the
+// accent so the bar shows at a glance which views are core and which are not.
+function ModuleTab({ href, active, children }) {
     return (
         <Link
             href={href}
-            className={`px-4 py-2.5 rounded-om-sm text-sm font-semibold transition-colors ${
-                active ? 'bg-om-ink text-om-on-ink' : module ? 'bg-om-accent-bg text-om-accent hover:bg-om-accent hover:text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
-            }${module && active ? ' ring-2 ring-om-accent' : ''}`}
+            className={`px-3.5 py-1.5 rounded-[7px] text-[12.5px] font-medium transition-colors whitespace-nowrap ${
+                active ? 'bg-om-ink text-om-on-ink ring-2 ring-om-accent' : 'bg-om-accent-bg text-om-accent hover:bg-om-accent hover:text-om-on-ink'
+            }`}
         >
             {children}
         </Link>
+    );
+}
+
+/**
+ * Light / Dark — the same switch as the staff sidebar: the `dark` class on
+ * <html> (the om-* tokens flip with it) remembered as `theme` in localStorage,
+ * which inertia.blade.php applies before first paint.
+ */
+function ThemeSwitch() {
+    const [dark, setDark] = useState(() => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+    const set = (next) => {
+        setDark(next);
+        document.documentElement.classList.toggle('dark', next);
+        try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch { /* private mode: the choice lasts this page only */ }
+    };
+    return (
+        <div className="flex gap-[3px] bg-om-bg border border-om-line rounded-[9px] p-[3px]" role="group" aria-label={__('Theme')}>
+            <button type="button" aria-pressed={!dark} onClick={() => set(false)} className={pillCls(!dark)}>{__('Light')}</button>
+            <button type="button" aria-pressed={dark} onClick={() => set(true)} className={pillCls(dark)}>{__('Dark')}</button>
+        </div>
     );
 }
 

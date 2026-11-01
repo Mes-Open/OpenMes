@@ -6,6 +6,7 @@ use App\Models\Line;
 use App\Models\PackagingScanLog;
 use App\Models\Pallet;
 use App\Models\Shift;
+use App\Models\UnitCarton;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
@@ -117,6 +118,21 @@ class PalletStationTest extends TestCase
         // Line info (derived from the work order) is exposed for per-line grouping.
         $this->assertArrayHasKey('line_name', $response->json('pallets.0'));
         $this->assertSame(7, $response->json('pallets.0.qty'));
+    }
+
+    public function test_open_pallets_count_their_closed_cartons(): void
+    {
+        $wo = WorkOrder::factory()->create();
+        $pallet = Pallet::create(['work_order_id' => $wo->id, 'status' => 'open']);
+        foreach ([UnitCarton::STATUS_CLOSED, UnitCarton::STATUS_CLOSED, UnitCarton::STATUS_OPEN] as $status) {
+            UnitCarton::create(['work_order_id' => $wo->id, 'pallet_id' => $pallet->id, 'status' => $status, 'created_by_id' => $this->operator->id]);
+        }
+
+        // The box still being filled is not counted: the station shows it as the slot in progress.
+        $this->actingAs($this->operator)
+            ->getJson(route('packaging.pallets.open'))
+            ->assertOk()
+            ->assertJsonPath('pallets.0.cartons_closed', 2);
     }
 
     public function test_open_pallets_can_be_filtered_by_line(): void

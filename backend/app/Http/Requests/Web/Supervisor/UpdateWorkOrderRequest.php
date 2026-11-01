@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Web\Supervisor;
 
+use App\Http\Requests\Concerns\GuardsStartedWorkOrderEdits;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
+    use GuardsStartedWorkOrderEdits;
+
     /**
      * Editing needs the `edit work orders` ability (WorkOrderPolicy), not just
      * the Supervisor section. Checked before validation.
@@ -31,5 +35,10 @@ class UpdateWorkOrderRequest extends FormRequest
             'description' => 'nullable|string|max:2000',
             'status' => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->guardStartedOrder($validator, $this->route('workOrder'));
     }
 }

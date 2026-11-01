@@ -36,6 +36,7 @@ class BatchStep extends Model
         'config',
         'instruction',
         'requires_confirmation',
+        'quantity_entry',
         'passed_qty',
         'scrap_qty',
         'workstation_id',

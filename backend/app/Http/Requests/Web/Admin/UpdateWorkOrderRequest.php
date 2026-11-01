@@ -2,13 +2,15 @@
 
 namespace App\Http\Requests\Web\Admin;
 
+use App\Http\Requests\Concerns\GuardsStartedWorkOrderEdits;
 use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
-    use MergesCustomFieldRules;
+    use GuardsStartedWorkOrderEdits, MergesCustomFieldRules;
 
     /**
      * Editing needs the `edit work orders` ability (WorkOrderPolicy), not just
@@ -61,5 +63,12 @@ class UpdateWorkOrderRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'status' => ['required', 'in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED'],
         ], $this->customFieldRules());
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        // The product change after production is refused by the controller,
+        // together with the BOM re-selection it implies.
+        $this->guardStartedOrder($validator, $this->route('work_order'), product: false);
     }
 }

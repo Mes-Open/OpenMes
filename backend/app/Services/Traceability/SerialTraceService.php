@@ -9,6 +9,7 @@ use App\Models\Pallet;
 use App\Models\ScrapReason;
 use App\Models\SerialUnit;
 use App\Models\SerialUnitComponent;
+use App\Models\UnitCarton;
 use App\Models\UnitStepHistory;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -169,6 +170,7 @@ class SerialTraceService
             $unit->refresh();
             if (! in_array($unit->status, SerialUnit::TERMINAL_STATUSES, true)) {
                 $unit->update(['status' => SerialUnit::STATUS_SCRAPPED]);
+                $this->takeOutOfPacking($unit);
             }
 
             return;
@@ -480,6 +482,36 @@ class SerialTraceService
      *
      * @throws BindingException when the unit already left the line
      */
+    /**
+     * A scrapped unit that was already packed is pulled out of its box: the
+     * carton and pallet stop counting it (so the box has room for its
+     * replacement and the pallet's piece count is what ships), the carton
+     * label leaves it off, and the pallet's quality verdict is re-read. The
+     * unit keeps its carton and pallet link, so the packing list and the trace
+     * still show where it was scrapped from.
+     *
+     * @return array{carton_no?: string, pallet_no?: string} what it was taken out of
+     */
+    private function takeOutOfPacking(SerialUnit $unit): array
+    {
+        $from = [];
+        if ($unit->carton_id && ($carton = UnitCarton::whereKey($unit->carton_id)->lockForUpdate()->first())) {
+            if ($carton->qty > 0) {
+                $carton->decrement('qty');
+            }
+            $from['carton_no'] = $carton->carton_no;
+        }
+        if ($unit->pallet_id && ($pallet = Pallet::whereKey($unit->pallet_id)->lockForUpdate()->first())) {
+            if ($pallet->qty > 0) {
+                $pallet->decrement('qty');
+            }
+            $pallet->recomputeQualityStatus();
+            $from['pallet_no'] = $pallet->pallet_no;
+        }
+
+        return $from;
+    }
+
     public function scrapUnit(SerialUnit $unit, User $operator, string $reason, ?int $workstationId = null): SerialUnit
     {
         return DB::transaction(function () use ($unit, $operator, $reason, $workstationId) {
@@ -488,9 +520,10 @@ class SerialTraceService
             }
             if ($unit->status !== SerialUnit::STATUS_SCRAPPED) {
                 $unit->update(['status' => SerialUnit::STATUS_SCRAPPED]);
+                $packed = $this->takeOutOfPacking($unit);
                 $this->recordStep($unit, $operator, null, [
                     'workstation_id' => $workstationId ?? $operator->workstation_id,
-                    'parameters' => ['event' => 'scrapped'],
+                    'parameters' => array_filter(['event' => 'scrapped', ...$packed]),
                     'result' => 'fail',
                     'notes' => $reason,
                 ]);

@@ -33,4 +33,10 @@ class StartUnitRequest extends FormRequest
             'work_order_id' => ['required_without:psn', 'nullable', 'integer', Rule::exists('work_orders', 'id')->whereNull('deleted_at')],
         ];
     }
+
+    public function messages(): array
+    {
+        // Same wording as the label station's bind form for the same rule.
+        return ['psn.regex' => __('The process serial number does not match the configured format.')];
+    }
 }

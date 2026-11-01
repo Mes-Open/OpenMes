@@ -32,6 +32,8 @@ class PsnFirstUnitTest extends TestCase
         $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
         $this->wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+        // The station works on the order's line (unit actions are line-scoped).
+        $this->withSession(['selected_line_id' => $this->wo->line_id]);
         LotSequence::create(['name' => 'PSN', 'product_type_id' => $this->wo->product_type_id, 'purpose' => LotSequence::PURPOSE_PROCESS_SERIAL, 'prefix' => '', 'pattern' => 'P-[seq]', 'pad_size' => 4, 'next_number' => 1, 'reset_period' => 'none']);
     }
 
@@ -73,6 +75,16 @@ class PsnFirstUnitTest extends TestCase
         $this->send('operator.unit-labels.start', ['psn' => 'P-0777'])->assertStatus(422);
         // No PSN and no order: nothing to number from.
         $this->send('operator.unit-labels.start', [])->assertStatus(422)->assertJsonValidationErrors('work_order_id');
+    }
+
+    public function test_a_psn_off_the_configured_format_is_refused_in_words(): void
+    {
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'unit_psn_pattern'], ['value' => json_encode('^P-[0-9]{4}$'), 'updated_at' => now()]);
+        app(\App\Support\UnitSerialisation::class)->forget();
+
+        $this->send('operator.unit-labels.start', ['psn' => 'lamp 7'])->assertStatus(422)
+            ->assertJsonValidationErrors(['psn' => 'The process serial number does not match the configured format.']);
+        $this->assertSame(0, SerialUnit::count());
     }
 
     public function test_an_sn_already_on_another_unit_is_refused_for_a_waiting_unit(): void

@@ -481,6 +481,12 @@ class BatchController extends Controller
         }
 
         try {
+            $this->workOrderService->assertCanCreateBatch($workOrder, (float) $request->input('target_qty'));
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        try {
             $lotNumber = $request->input('lot_number');
 
             if ($request->boolean('auto_lot') && ! $lotNumber) {

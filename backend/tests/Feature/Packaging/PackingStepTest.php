@@ -85,7 +85,7 @@ class PackingStepTest extends TestCase
         $this->assertSame(['unit' => 'carton', 'carton_capacity' => 2, 'pallet_capacity' => 10], $pack->config);
     }
 
-    public function test_packing_a_unit_counts_on_the_orders_packing_step_once_it_is_reachable(): void
+    public function test_packing_a_unit_counts_on_the_orders_packing_step_and_waits_until_it_is_reached(): void
     {
         $template = $this->templateWithPacking();
         $wo = WorkOrder::factory()->create(['product_type_id' => $template->product_type_id, 'process_snapshot' => $template->toSnapshot(), 'planned_qty' => 4, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
@@ -95,9 +95,12 @@ class PackingStepTest extends TestCase
         SerialUnit::create(['serial_no' => 'SN-1', 'psn' => 'P-1', 'work_order_id' => $wo->id]);
         SerialUnit::create(['serial_no' => 'SN-2', 'psn' => 'P-2', 'work_order_id' => $wo->id]);
 
-        // Assembly not done: the pack step is not reachable, packing still works, nothing is counted.
-        $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => 'P-1'])->assertOk();
+        // Assembly not done: nothing has reached the pack step, so the unit is
+        // refused instead of being packed beside a count that never sees it.
+        $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => 'P-1'])
+            ->assertStatus(422)->assertJsonFragment(['message' => __('Unit :sn cannot be packed yet: nothing has reached packing step :name. Finish the steps before it first.', ['sn' => 'SN-1', 'name' => $pack->name])]);
         $this->assertSame(0.0, (float) $pack->fresh()->passed_qty);
+        $this->assertNull(SerialUnit::where('psn', 'P-1')->value('packed_at'));
 
         // Assembly done -> pack step READY: the next packed unit starts it and counts.
         $svc = app(\App\Services\WorkOrder\BatchService::class);
@@ -458,5 +461,55 @@ class PackingStepTest extends TestCase
             ->assertJsonPath('steps.0.order_no', $wo->order_no)
             ->assertJsonPath('steps.0.config.carton_capacity', 2)
             ->assertJsonPath('steps.0.target_qty', 4);
+    }
+
+    public function test_a_unit_is_refused_once_nothing_is_left_waiting_at_the_packing_step(): void
+    {
+        $wo = $this->packableOrder(['unit' => 'carton', 'carton_capacity' => 5]);
+        $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => "P-{$wo->id}-1", 'auto_carton' => true])->assertOk();
+        $pack = BatchStep::whereHas('batch', fn ($q) => $q->where('work_order_id', $wo->id))->where('kind', TemplateStep::KIND_PACKING)->firstOrFail();
+        $this->assertSame(1.0, (float) $pack->passed_qty);
+
+        // Everything the batch makes has been counted: one more unit is not
+        // packed beside a count that can no longer take it.
+        $pack->update(['passed_qty' => 10]);
+        $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => "P-{$wo->id}-2", 'auto_carton' => true])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, $pack->name));
+        $unit = SerialUnit::where('psn', "P-{$wo->id}-2")->firstOrFail();
+        $this->assertSame([null, null, SerialUnit::STATUS_IN_PRODUCTION], [$unit->packed_at, $unit->carton_id, $unit->status]);
+    }
+
+    public function test_scrapping_a_packed_unit_takes_it_out_of_the_box_count_and_the_carton_label(): void
+    {
+        $wo = $this->packableOrder(['unit' => 'carton', 'carton_capacity' => 5]);
+        $pallet = Pallet::create(['work_order_id' => $wo->id, 'status' => 'open', 'qty' => 0]);
+        foreach ([1, 2] as $i) {
+            $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => "P-{$wo->id}-{$i}", 'pallet_id' => $pallet->id, 'auto_carton' => true])->assertOk();
+        }
+        $unit = SerialUnit::where('psn', "P-{$wo->id}-2")->firstOrFail();
+        $carton = $unit->carton;
+        $this->assertSame([2, 2], [$carton->qty, $pallet->fresh()->qty]);
+
+        app(\App\Services\Traceability\SerialTraceService::class)->scrapUnit($unit, $this->operator, 'Cracked housing');
+
+        $this->assertSame([1, 1], [$carton->fresh()->qty, $pallet->fresh()->qty]);
+        // Still linked, so the packing list and the trace say where it was scrapped from.
+        $this->assertSame($carton->id, $unit->fresh()->carton_id);
+        $this->assertSame(['event' => 'scrapped', 'carton_no' => $carton->carton_no, 'pallet_no' => $pallet->pallet_no], $unit->history()->reorder()->orderByDesc('id')->first()->parameters);
+
+        $template = LabelTemplate::create(['name' => 'Box', 'type' => LabelTemplate::TYPE_CARTON, 'size' => '100x150', 'barcode_format' => 'code128', 'fields_config' => [], 'is_default' => true, 'is_active' => true]);
+        $label = (fn ($c, $t) => $this->labelDataForCarton($c, $t))->call(app(\App\Services\Packaging\LabelGenerator::class), $carton->fresh(), $template);
+        $this->assertSame(["SN-{$wo->id}-1"], $label['units']);
+    }
+
+    public function test_a_unit_of_an_order_whose_routing_packs_is_refused_until_a_batch_runs(): void
+    {
+        $template = $this->templateWithPacking();
+        $wo = WorkOrder::factory()->create(['product_type_id' => $template->product_type_id, 'process_snapshot' => $template->toSnapshot(), 'planned_qty' => 2, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        SerialUnit::create(['serial_no' => 'SN-NB', 'psn' => 'P-NB', 'work_order_id' => $wo->id]);
+
+        $this->actingAs($this->operator)->postJson(route('packaging.scan-unit'), ['psn' => 'P-NB'])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, $wo->order_no));
+        $this->assertNull(SerialUnit::where('psn', 'P-NB')->value('packed_at'));
     }
 }

@@ -437,6 +437,24 @@ function SortableRow({ id, index, disabled, children }) {
  */
 const CHROME_CELL = 'dt-chrome-cell';
 
+/**
+ * `meta.sticky: 'left' | 'right'` pins a column to that edge while the rest
+ * scrolls sideways — the row actions on a table wider than a tablet, or the
+ * identifying column so a row stays recognisable. Body cells take the row's
+ * own background (stripe, hover, selection) so nothing shows through; the
+ * shadow marks the edge the other columns slide under. A `rowClassName` that
+ * tints rows must use an opaque colour for the same reason (mix the tint into
+ * the card colour rather than lowering its alpha).
+ */
+const STICKY_CELL = {
+    left: 'sticky left-0 z-[1] shadow-[8px_0_12px_-10px_rgba(0,0,0,.35)]',
+    right: 'sticky right-0 z-[1] shadow-[-8px_0_12px_-10px_rgba(0,0,0,.35)]',
+};
+const stickyClass = (col, body = false) => {
+    const side = col.columnDef.meta?.sticky;
+    return side && STICKY_CELL[side] ? `${STICKY_CELL[side]}${body ? ' bg-inherit' : ''}` : '';
+};
+
 /** `DragDropProvider`, but only for the tables that actually reorder. */
 function MaybeDragDrop({ enabled, onDragEnd, children }) {
     if (!enabled) return children;
@@ -1026,7 +1044,7 @@ export function DataTable({
                                                             : 'descending'
                                                         : undefined
                                                 }
-                                                className={`whitespace-nowrap border-b border-r border-om-line2 last:border-r-0 bg-om-bg px-4 py-[10px] font-mono text-[11px] font-bold tracking-[0.08em] uppercase select-none ${
+                                                className={`${stickyClass(col)} whitespace-nowrap border-b border-r border-om-line2 last:border-r-0 bg-om-bg px-4 py-[10px] font-mono text-[11px] font-bold tracking-[0.08em] uppercase select-none ${
                                                     sorted ? 'text-om-ink' : 'text-om-muted'
                                                 } ${col.getCanSort() ? 'cursor-pointer' : ''} ${
                                                     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
@@ -1055,7 +1073,7 @@ export function DataTable({
                                     {visibleCols.map((col) => (
                                         <th
                                             key={col.id}
-                                            className={`border-b border-r border-om-line2 last:border-r-0 bg-om-card px-4 py-2 align-middle font-normal ${alignClass(col.id)}`}
+                                            className={`${stickyClass(col)} border-b border-r border-om-line2 last:border-r-0 bg-om-card px-4 py-2 align-middle font-normal ${alignClass(col.id)}`}
                                         >
                                             <ColumnFilter col={col} />
                                         </th>
@@ -1135,7 +1153,7 @@ export function DataTable({
                                     {row.getVisibleCells().map((cell) => (
                                         <td
                                             key={cell.id}
-                                            className={`px-4 py-3 align-middle ${alignClass(cell.column.id)} ${
+                                            className={`px-4 py-3 align-middle ${alignClass(cell.column.id)} ${stickyClass(cell.column, true)} ${
                                                 cell.column.columnDef.meta?.chrome ? CHROME_CELL : ''
                                             }`}
                                         >

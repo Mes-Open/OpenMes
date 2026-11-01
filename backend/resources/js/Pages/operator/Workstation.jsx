@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { __ } from '../../lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, Dropdown, IconButton, StatusPill } from '@openmes/ui';
+import { Button, Dropdown, Icon, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -13,8 +13,14 @@ import DueCountdown, { SETTLED_STATUSES } from '../../components/DueCountdown';
 import { formatDate, formatNumber } from '../../lib/i18n';
 import { Hook, hasRenderableHook } from '../../lib/hooks';
 import QuantityField from '../../components/QuantityField';
+import ExecutionPanel from '../../components/operator/ExecutionPanel';
+import StationPicker from '../../components/operator/StationPicker';
+import ReportIssueDialog from '../../components/operator/ReportIssueDialog';
+import ListToolbar, { useOrderSelection, useStoredState } from '../../components/operator/ListToolbar';
+import { applyFilter, dueInfo, groupOrders, orderSearchText, pillCls, progressOf, statusMeta } from '../../components/operator/operatorUi';
 
-// Geist White restyle: light-only v1 — former `dark:` variants removed.
+// Layout ref: OpenMES Operator.dc.html (workstation view + execution panel).
+// The grouped table is the default view; the configurable table stays beside it.
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -104,17 +110,14 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
     if (!visible) return null;
 
     return (
-        <Tooltip label="Correct quantity">
+        <Tooltip label={__("Correct quantity")}>
             <Link
                 href={`/operator/shift-entry/${entry.id}/correct`}
                 className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
-                aria-label="Correct quantity"
+                aria-label={__("Correct quantity")}
                 onClick={(e) => e.stopPropagation()}
             >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
+                <Icon name="pencil" size={14} />
             </Link>
         </Tooltip>
     );
@@ -241,9 +244,10 @@ function ModalHeader({ title, subtitle, onClose }) {
             <button
                 type="button"
                 onClick={onClose}
-                className="cursor-pointer text-[18px] leading-none text-om-faint hover:text-om-muted"
+                aria-label={__('Close')}
+                className="cursor-pointer text-om-faint hover:text-om-muted"
             >
-                ×
+                <Icon name="x" size={18} />
             </button>
         </div>
     );
@@ -424,125 +428,6 @@ function InfoRow({ label, children }) {
     );
 }
 
-function ReportModal({ report, issueTypes, onClose }) {
-    const [typeId, setTypeId] = useState('');
-    const [title, setTitle] = useState('');
-    const [desc, setDesc] = useState('');
-
-    useEffect(() => {
-        if (report) {
-            setTypeId('');
-            setTitle('');
-            setDesc('');
-        }
-    }, [report?.woId]);
-
-    if (!report) return null;
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!typeId || !title) return;
-        onClose();
-        router.post('/operator/issue', {
-            work_order_id: report.woId,
-            issue_type_id: typeId,
-            title,
-            description: desc,
-        });
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
-            <div
-                className="relative w-full max-w-lg overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <ModalHeader title="Report Issue" subtitle={report.woNo} onClose={onClose} />
-
-                <form onSubmit={handleSubmit}>
-                    <div className="px-[18px] py-4 space-y-4">
-                        <div>
-                            <div className={fieldLabelCls}>
-                                Type <span className="text-om-blocked">*</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {issueTypes.map((t) => (
-                                    <label
-                                        key={t.id}
-                                        className={`flex items-center gap-2 p-3 rounded-om-sm border cursor-pointer transition-colors ${
-                                            String(typeId) === String(t.id)
-                                                ? 'border-om-accent bg-om-selected shadow-[0_0_0_3px_rgba(234,90,43,0.12)]'
-                                                : 'border-om-line bg-om-bg hover:border-om-faintest'
-                                        }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="issue_type_id"
-                                            value={t.id}
-                                            checked={String(typeId) === String(t.id)}
-                                            onChange={() => {
-                                                setTypeId(String(t.id));
-                                                if (!title) setTitle(t.name);
-                                            }}
-                                            className="sr-only"
-                                            required
-                                        />
-                                        <span className="text-sm font-medium text-om-ink">{t.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <div className={fieldLabelCls}>
-                                Title <span className="text-om-blocked">*</span>
-                            </div>
-                            <input
-                                aria-label="Title"
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className={inputCls}
-                                required
-                                maxLength={255}
-                            />
-                        </div>
-
-                        <div>
-                            <div className={fieldLabelCls}>
-                                Details <span className="text-om-faint normal-case tracking-normal">(optional)</span>
-                            </div>
-                            <textarea
-                                aria-label="Details"
-                                value={desc}
-                                onChange={(e) => setDesc(e.target.value)}
-                                rows={3}
-                                className={`${inputCls} resize-none`}
-                                maxLength={2000}
-                            />
-                        </div>
-                    </div>
-
-                    <div className={modalFooterCls}>
-                        <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                            {__("Cancel")}
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="danger"
-                            disabled={!typeId || !title}
-                            className="flex-1 px-6 py-4 text-[15px] font-semibold"
-                        >
-                            {__("Submit Report")}
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
 // ─── status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -560,7 +445,9 @@ function StatusBadge({ status }) {
 
 // ─── quick step count ───────────────────────────────────────────────────────
 
-function QuickStepCount({ order }) {
+// `compact` (the grouped view's Log output): one row, and nothing at all when
+// no step can take a piece — the Record output link beside it says where to go.
+function QuickStepCount({ order, compact = false }) {
     const targets = order.quick_count_targets ?? [];
     const [selected, setSelected] = useState('');
     const [busy, setBusy] = useState(false);
@@ -576,6 +463,15 @@ function QuickStepCount({ order }) {
             onFinish: () => setBusy(false),
         });
     };
+    if (compact) {
+        if (targets.length === 0) return null;
+        return <div className="flex items-center gap-1.5">
+            {targets.length > 1 && <Dropdown className="w-28" aria-label={__('Assigned batch step')} value={selected} placeholder={__('Select step')} options={targets.map(t => ({ value: String(t.id), label: t.label }))} onChange={setSelected} />}
+            <button type="button" disabled={!target || busy} onClick={add} aria-label={__('Add one good piece')} title={error || undefined}
+                    className={`font-mono text-[12px] font-semibold rounded-[7px] px-3 py-2 ${target && !busy ? 'bg-om-accent text-white cursor-pointer' : 'bg-om-chip text-om-faint cursor-not-allowed'}`}>+1</button>
+            {error && <span role="alert" className="max-w-40 truncate text-[11px] text-om-blocked" title={error}>{error}</span>}
+        </div>;
+    }
     return <div className="flex flex-col gap-1">
         {targets.length > 1 && <Dropdown aria-label={__('Assigned batch step')} value={selected} placeholder={__('Select step')} options={targets.map(t => ({ value: String(t.id), label: t.label }))} onChange={setSelected} />}
         <Button variant="accent" disabled={!target || busy} onClick={add} aria-label={__('Add one good piece')}>+1</Button>
@@ -587,10 +483,13 @@ function QuickStepCount({ order }) {
 // ─── table columns ───────────────────────────────────────────────────────────
 
 /** Whole-row tint for the order's state (the design's done / running / blocked surfaces). */
+// Mixed into the card colour rather than made transparent: the pinned actions
+// column takes the row's background, and a see-through one let the scrolled
+// columns show through it. `!` because the table's own stripe class would win.
 function rowClassFor(wo) {
-    if (wo.status === 'DONE') return 'bg-om-done-bg/60';
-    if (wo.status === 'IN_PROGRESS') return 'bg-om-running-bg/50';
-    if (wo.status === 'BLOCKED') return 'bg-om-blocked-bg/50';
+    if (wo.status === 'DONE') return 'bg-[color-mix(in_srgb,var(--om-done-bg)_60%,var(--om-card))]!';
+    if (wo.status === 'IN_PROGRESS') return 'bg-[color-mix(in_srgb,var(--om-running-bg)_50%,var(--om-card))]!';
+    if (wo.status === 'BLOCKED') return 'bg-[color-mix(in_srgb,var(--om-blocked-bg)_50%,var(--om-card))]!';
     return '';
 }
 
@@ -612,30 +511,32 @@ function RowActions({ wo, labelTemplates, routingOpen, onToggleRouting, onComple
     return (
         // The actions are not the row: a click here never starts or completes the order.
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-            {wo.uses_step_ledger && <QuickStepCount order={wo} />}
+            {/* compact: one row, and no +1 at all when no step can take a piece — the
+                link beside it opens the order, where the step says why. */}
+            {wo.uses_step_ledger && <QuickStepCount order={wo} compact />}
             {wo.uses_step_ledger && (
-                <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent">
+                <Link href={`/operator/work-order/${wo.id}`} className="px-3 py-2 text-sm font-semibold text-om-accent whitespace-nowrap">
                     {__('Record output')}
                 </Link>
             )}
             {!isDone && !wo.uses_step_ledger && (
-                <Tooltip label="Add produced quantity">
+                <Tooltip label={__("Add produced quantity")}>
                     <IconButton
                         variant="primary"
                         onClick={() => onComplete({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned, produced })}
                         className="bg-om-accent hover:bg-om-accent hover:brightness-95"
-                        aria-label="Add produced quantity"
+                        aria-label={__("Add produced quantity")}
                     >
                         +
                     </IconButton>
                 </Tooltip>
             )}
-            <Tooltip label="Report problem">
-                <IconButton variant="danger" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} aria-label="Report problem">
+            <Tooltip label={__("Report problem")}>
+                <IconButton variant="danger" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} aria-label={__("Report problem")}>
                     !
                 </IconButton>
             </Tooltip>
-            <Tooltip label="Details">
+            <Tooltip label={__("Details")}>
                 <IconButton
                     variant="default"
                     onClick={() =>
@@ -656,7 +557,7 @@ function RowActions({ wo, labelTemplates, routingOpen, onToggleRouting, onComple
                             description: wo.description ?? '-',
                         })
                     }
-                    aria-label="Details"
+                    aria-label={__("Details")}
                 >
                     ?
                 </IconButton>
@@ -728,7 +629,8 @@ function buildColumns({ allColumns, lineShifts, shiftEntries, qtyEditPolicy, qty
             header: __('Actions'),
             enableSorting: false,
             enableHiding: false,
-            meta: { align: 'right', chrome: true, filter: false },
+            // Pinned right so the actions stay on screen when the columns scroll.
+            meta: { align: 'right', chrome: true, filter: false, sticky: 'right' },
             cell: ({ row }) => (
                 <RowActions
                     wo={row.original}
@@ -743,6 +645,196 @@ function buildColumns({ allColumns, lineShifts, shiftEntries, qtyEditPolicy, qty
         },
     ];
     return [...configurable, ...fixed];
+}
+
+// ─── grouped view (design: workstation table) ────────────────────────────────
+
+/** What a shift cell shows in the grouped view: the shift's count, its correction link, or a module's cell. */
+function ShiftValue({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes }) {
+    const { hooks } = usePage().props;
+    const entry = (shiftEntries[`${wo.id}_${shift.id}`] ?? [])[0] ?? null;
+    const qty = entry ? parseFloat(entry.quantity) : 0;
+    const editable = wo.status !== 'DONE' && !wo.uses_step_ledger;
+    const canCorrect = editable && entry && qty > 0 && qtyEditPolicy !== 'none'
+        && (qtyEditPolicy === 'full' || (qtyEditPolicy === 'timed'
+            && new Date(entry.updated_at).getTime() + qtyEditWindowMinutes * 60 * 1000 > Date.now()));
+
+    // A module contributing to the shift cell replaces it here too.
+    if (editable && hasRenderableHook(hooks, SHIFT_CELL_HOOK)) {
+        return (
+            <div className="text-center" onClick={(e) => e.stopPropagation()}>
+                <Hook name={SHIFT_CELL_HOOK} hooks={hooks} entry={entry} workOrder={wo} shift={shift} canCorrect={Boolean(canCorrect)} />
+            </div>
+        );
+    }
+    return (
+        <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+            <span className={`font-mono text-[13px] ${qty > 0 ? 'text-om-ink' : 'text-om-faintest'}`}>{qty > 0 ? fmt(qty) : '—'}</span>
+            {canCorrect && <TimedCorrectLink entry={entry} qtyEditPolicy={qtyEditPolicy} qtyEditWindowMinutes={qtyEditWindowMinutes} />}
+        </div>
+    );
+}
+
+/**
+ * The row's "Log output": pick the shift, type the pieces, Add — the
+ * shift-entry route adds them to that shift's count. Step-ledger orders log on
+ * their steps instead (+1 / Record output), machine-counted ones not at all.
+ */
+function LogOutput({ wo, lineShifts, defaultShiftId, moduleCell, onAddQuantity }) {
+    const [shiftId, setShiftId] = useState(defaultShiftId ?? lineShifts[0]?.id ?? null);
+    const [qty, setQty] = useState('');
+    const [busy, setBusy] = useState(false);
+    useEffect(() => { if (defaultShiftId && !lineShifts.some((s) => s.id === shiftId)) setShiftId(defaultShiftId); }, [defaultShiftId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (wo.status === 'DONE') return <span className="text-[12px] text-om-faint">{__('Completed')}</span>;
+    if (wo.status === 'BLOCKED') return <span className="text-[12px] text-om-blocked">{__('Blocked — resolve issue')}</span>;
+    if (wo.uses_step_ledger) {
+        return (
+            <div className="flex items-center gap-2">
+                <QuickStepCount order={wo} compact />
+                <Link href={`/operator/work-order/${wo.id}`} className="text-[12px] font-semibold text-om-accent whitespace-nowrap">{__('Record output')}</Link>
+            </div>
+        );
+    }
+    if (wo.counting_source === 'machine') return <span className="text-[12px] text-om-faint">{__('Machine-counted')}</span>;
+    // A module owns the quantity cell on this install: its shift cells are the input.
+    if (moduleCell) return null;
+    if (!lineShifts.length) {
+        return (
+            <button type="button" onClick={onAddQuantity} className="text-[12px] font-semibold rounded-[7px] px-3 py-2 bg-om-ink text-om-on-ink cursor-pointer">
+                {__('Add quantity')}
+            </button>
+        );
+    }
+
+    const n = parseInt(qty, 10);
+    const add = () => {
+        if (!n || n <= 0 || !shiftId || busy) return;
+        setBusy(true);
+        router.post(`/operator/workstation/${wo.id}/shift-entry`, { shift_id: shiftId, quantity: n }, {
+            preserveScroll: true,
+            onSuccess: () => setQty(''),
+            onFinish: () => setBusy(false),
+        });
+    };
+    const seg = (on) => `font-mono text-[10.5px] font-semibold px-[7px] py-[5px] rounded-[5px] cursor-pointer ${on ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`;
+    return (
+        <div className="flex items-center gap-1.5">
+            {lineShifts.length > 1 && (
+                <div className="flex gap-0.5 bg-om-bg border border-om-line2 rounded-[7px] p-0.5" role="group" aria-label={__('Shift')}>
+                    {lineShifts.map((s) => (
+                        <button key={s.id} type="button" aria-pressed={shiftId === s.id} onClick={() => setShiftId(s.id)} className={seg(shiftId === s.id)} title={s.name}>
+                            {s.code}
+                        </button>
+                    ))}
+                </div>
+            )}
+            <QuantityField
+                aria-label={__('Quantity')}
+                value={qty}
+                onChange={(v) => setQty(String(v).replace(/[^0-9]/g, '').slice(0, 6))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+                placeholder={__('qty')}
+                min="1"
+                step="1"
+                inputMode="numeric"
+                className="w-[54px] text-center border border-om-line rounded-[7px] px-1 py-[7px] bg-om-bg font-mono text-[13px] text-om-ink outline-none focus:border-om-accent"
+            />
+            <button type="button" disabled={!n || busy} onClick={add}
+                    className={`text-[12px] font-semibold rounded-[7px] px-3 py-2 ${n && !busy ? 'bg-om-ink text-om-on-ink cursor-pointer' : 'bg-om-chip text-om-faint cursor-not-allowed'}`}>
+                {__('Add')}
+            </button>
+        </div>
+    );
+}
+
+function GroupedTable({ orders, selectedId, onSelect, lineShifts, defaultShiftId, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, detailColumns, onAddQuantity }) {
+    const { hooks } = usePage().props;
+    const moduleCell = hasRenderableHook(hooks, SHIFT_CELL_HOOK);
+    const groups = groupOrders(orders);
+    const cols = `112px minmax(150px,1fr) 100px 60px 150px ${lineShifts.map(() => '48px').join(' ')} ${moduleCell ? '' : '270px'}`;
+    const th = 'font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint';
+
+    return (
+        <div className="bg-om-card border border-om-line rounded-xl overflow-x-auto" data-testid="workstation-grouped">
+            <div className="min-w-max">
+                <div className="grid gap-2.5 items-center px-4 py-2.5 bg-om-panel border-b border-om-line2" style={{ gridTemplateColumns: cols }}>
+                    <span className={th}>{__('Order')}</span>
+                    <span className={th}>{__('Product')}</span>
+                    <span className={th}>{__('Status')}</span>
+                    <span className={th}>{__('Due')}</span>
+                    <span className={th}>{__('Progress')}</span>
+                    {lineShifts.map((s) => (
+                        <span key={s.id} className={`${th} text-center`} title={`${s.name} (${(s.start_time ?? '').substring(0, 5)}–${(s.end_time ?? '').substring(0, 5)})`}>{s.code}</span>
+                    ))}
+                    {!moduleCell && <span className={th}>{__('Log output')}</span>}
+                </div>
+                {groups.map((g) => (
+                    <div key={g.key}>
+                        <div className="flex items-center gap-2 px-4 py-[9px] bg-om-bg border-b border-om-line2">
+                            <span className={`w-2 h-2 rounded-full ${g.dot}`} />
+                            <span className="text-[12px] font-semibold text-om-ink">{g.label}</span>
+                            <span className="font-mono text-[11px] text-om-faint">{g.rows.length}</span>
+                        </div>
+                        {g.rows.map((wo) => {
+                            const st = statusMeta(wo.status);
+                            const due = dueInfo(wo.due_date, wo.status);
+                            const { planned, produced, remaining, pct } = progressOf(wo);
+                            const details = detailColumns.map((c) => textValue(wo, c)).filter(Boolean).join(' · ');
+                            return (
+                                <div
+                                    key={wo.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-pressed={wo.id === selectedId}
+                                    onClick={() => onSelect(wo.id)}
+                                    onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(wo.id); } }}
+                                    data-testid={`ws-row-${wo.id}`}
+                                    className={`grid gap-2.5 items-center px-4 py-3 border-b border-om-line2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-om-accent/40 ${
+                                        wo.id === selectedId ? 'bg-om-accent-bg' : 'hover:bg-om-panel'
+                                    } ${wo.status === 'DONE' ? 'opacity-60' : ''}`}
+                                    style={{ gridTemplateColumns: cols }}
+                                >
+                                    <Link href={`/operator/work-order/${wo.id}`} onClick={(e) => e.stopPropagation()}
+                                          className="font-mono text-[12.5px] font-medium text-om-ink hover:text-om-accent truncate">
+                                        {wo.order_no}
+                                    </Link>
+                                    <div className="min-w-0">
+                                        <div className="text-[14px] font-semibold text-om-ink truncate">{wo.product_type?.name ?? '—'}</div>
+                                        {details && <div className="text-[11.5px] text-om-faint mt-0.5 truncate">{details}</div>}
+                                    </div>
+                                    <span className={`flex items-center gap-[7px] text-[11.5px] font-semibold ${st.text}`}>
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${st.dot}`} />{st.label}
+                                    </span>
+                                    <span className={`font-mono text-[12.5px] ${due.hot ? 'text-om-blocked font-semibold' : 'text-om-muted'}`}>
+                                        {due.label}
+                                    </span>
+                                    <div>
+                                        <div className="flex justify-between items-baseline mb-1.5 gap-1">
+                                            <span className="font-mono text-[13px] text-om-ink whitespace-nowrap">{fmt(produced)}<span className="text-om-faint"> / {fmt(planned)}</span></span>
+                                            <span className={`text-[11px] font-semibold whitespace-nowrap ${remaining <= 0 ? 'text-om-running' : 'text-om-accent'}`}>
+                                                {remaining <= 0 ? __('complete') : __(':count left', { count: fmt(remaining) })}
+                                            </span>
+                                        </div>
+                                        <div className="h-[5px] rounded-full bg-om-chip overflow-hidden"><div className="h-full bg-om-accent" style={{ width: `${pct}%` }} /></div>
+                                    </div>
+                                    {lineShifts.map((s) => (
+                                        <ShiftValue key={s.id} wo={wo} shift={s} shiftEntries={shiftEntries} qtyEditPolicy={qtyEditPolicy} qtyEditWindowMinutes={qtyEditWindowMinutes} />
+                                    ))}
+                                    {!moduleCell && (
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <LogOutput wo={wo} lineShifts={lineShifts} defaultShiftId={defaultShiftId} moduleCell={moduleCell} onAddQuantity={() => onAddQuantity(wo)} />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
+                {groups.length === 0 && <div className="text-center p-[34px] text-om-faint text-[13px]">{__('No work orders match.')}</div>}
+            </div>
+        </div>
+    );
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
@@ -765,7 +857,8 @@ export default function Workstation() {
         machineStateOptions = [],
         selectedWorkstation = null,
         hooks = {},
-        operatorCanSwitchLine = true,
+        shiftSummary = null,
+        stationPicker = [],
     } = usePage().props;
 
     // Which configurable columns the reader keeps on, remembered per line in
@@ -784,11 +877,16 @@ export default function Workstation() {
         } catch { /* private mode etc. — the choice just doesn't survive a reload */ }
     };
 
+    // The design's grouped table by default; the configurable table beside it.
+    const [view, setView] = useStoredState('operatorWorkstationView', 'grouped');
+    const [filter, setFilter] = useStoredState('operatorWorkstationFilter', 'all');
+    const [query, setQuery] = useState(searchProp ?? '');
+
     // Modals
     const [startModal, setStartModal] = useState({ open: false });
     const [completeModal, setCompleteModal] = useState({ open: false });
     const [infoModal, setInfoModal] = useState(null);   // null = closed, obj = open
-    const [reportModal, setReportModal] = useState(null); // null = closed, obj = open
+    const [reportFor, setReportFor] = useState(null);   // null = closed, order = open
     // Routing graphs folded out under orders: the header button opens every
     // ledger order's, the row button just that one.
     const [openRouting, setOpenRouting] = useState(() => new Set());
@@ -803,23 +901,45 @@ export default function Workstation() {
         router.visit(`/operator/work-order/${wo.id}?${[...ctx, `step=${stepId}`].join('&')}`);
     };
 
-    // Clicking a row: an order with a step ledger opens its page; otherwise
-    // the start / add-quantity dialog, as before.
+    const visible = useMemo(
+        () => applyFilter(workOrders, filter, query, (wo) => `${orderSearchText(wo)} ${allColumns.map((c) => textValue(wo, c)).join(' ')}`),
+        [workOrders, filter, query, allColumns],
+    );
+    const { selectedId, select, mobileOpen, closeMobile } = useOrderSelection(workOrders);
+    const selected = workOrders.find((wo) => wo.id === selectedId) ?? null;
+
+    const startFor = (wo) => setStartModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, qty: parseFloat(wo.planned_qty ?? 0) });
+    const completeFor = (wo) => setCompleteModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned: parseFloat(wo.planned_qty ?? 0), produced: parseFloat(wo.produced_qty ?? 0) });
+    // Callers pass { woId, woNo } (the table's actions) or the order (the panel).
+    const openReport = ({ woId, woNo, id, order_no, product }) => {
+        const wo = workOrders.find((o) => o.id === (woId ?? id));
+        setReportFor({ id: woId ?? id, order_no: woNo ?? order_no, product: product ?? wo?.product_type?.name });
+    };
+
+    // Table view: clicking a row — an order with a step ledger opens its page;
+    // otherwise the start / add-quantity dialog, as before.
     const handleRowClick = (wo) => {
+        select(wo.id);
         if (wo.uses_step_ledger) { router.visit(`/operator/work-order/${wo.id}`); return; }
         if (wo.status === 'DONE') return;
-        const planned = parseFloat(wo.planned_qty ?? 0);
-        const produced = parseFloat(wo.produced_qty ?? 0);
-        if (wo.status !== 'IN_PROGRESS') {
-            setStartModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, qty: planned });
-        } else {
-            setCompleteModal({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned, produced });
-        }
+        if (wo.status !== 'IN_PROGRESS') startFor(wo); else completeFor(wo);
     };
+
+    // The panel's footer for an order counted by quantity: start it, then add pieces.
+    const quantityAction = (() => {
+        if (!selected || selected.uses_step_ledger) return null;
+        if (selected.status === 'IN_PROGRESS') return { label: __('Add produced quantity'), onClick: () => completeFor(selected) };
+        if (['PENDING', 'ACCEPTED', 'PAUSED'].includes(selected.status)) return { label: __('Start Production'), onClick: () => startFor(selected) };
+        return null;
+    })();
 
     // Only show shift columns for shifts belonging to this line
     const lineShifts = shifts.filter((s) => s.line_id === line?.id || String(s.line_id) === String(line?.id));
     const hasShifts = lineShifts.length > 0;
+    // The shift running now is the one a new count goes to by default.
+    const defaultShiftId = lineShifts.find((s) => s.code && s.code === shiftSummary?.shift?.code)?.id ?? lineShifts[0]?.id ?? null;
+    // Extra detail under the product in the grouped view: the line's own columns.
+    const detailColumns = allColumns.filter((c) => c.source === 'extra_data' && c.default);
 
     const weekUrl = (wk) => {
         const params = new URLSearchParams();
@@ -829,9 +949,9 @@ export default function Workstation() {
         return '/operator/workstation' + (qs ? '?' + qs : '');
     };
 
-    // Clearing the workstation keeps the week and search filters in place.
-    const allWorkstationsUrl = () => {
-        const params = new URLSearchParams({ workstation: 'all' });
+    // Changing the workstation keeps the week and search filters in place.
+    const stationUrl = (id) => {
+        const params = new URLSearchParams({ workstation: id ?? 'all' });
         if (weekFilter && weekFilter !== 'all') params.set('week', weekFilter);
         if (searchProp) params.set('search', searchProp);
         return `/operator/workstation?${params}`;
@@ -839,143 +959,124 @@ export default function Workstation() {
 
     const columns = useMemo(() => buildColumns({
         allColumns, lineShifts: hasShifts ? lineShifts : [], shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates,
-        openRouting, onToggleRouting: toggleRouting, onComplete: setCompleteModal, onInfo: setInfoModal, onReport: setReportModal,
-    }), [allColumns, lineShifts, hasShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates, openRouting]); // eslint-disable-line react-hooks/exhaustive-deps
+        openRouting, onToggleRouting: toggleRouting, onComplete: setCompleteModal, onInfo: setInfoModal, onReport: openReport,
+    }), [allColumns, lineShifts, hasShifts, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, labelTemplates, openRouting, workOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <>
             <Head title={`Workstation — ${line?.name ?? ''}`} />
 
-            <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries']} />
+            <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries', 'shiftSummary']} />
 
-            <div className="max-w-full mx-auto px-2 sm:px-4">
+            <div className="h-full flex">
+            <div className="flex-1 min-w-0 overflow-auto px-4 md:px-[22px] pt-[18px] pb-10">
                 {machineStates.length > 0 && (
                     <MachineStatePanel machines={machineStates} options={machineStateOptions} label={workOrders.some(order => ['machine', 'both'].includes(order.counting_source)) ? __('Machine state') : __('Workstation state')} />
                 )}
-                {/* Header */}
-                <div className="mb-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-                        <div>
-                            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-om-ink">
-                                {line?.name}
-                                {selectedWorkstation && (
-                                    <span className="font-mono text-[14px] text-om-accent font-medium ml-2">/ {selectedWorkstation.name}</span>
-                                )}
-                            </h1>
-                            {selectedWorkstation && (
-                                <Link
-                                    href={allWorkstationsUrl()}
-                                    className="text-sm text-om-muted hover:text-om-ink underline underline-offset-2"
-                                >
-                                    {__("All workstations")}
-                                </Link>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {/* Mode toggle */}
-                            <div className="flex items-center bg-om-card border border-om-line rounded-om-sm p-1 gap-1">
-                                <Link
-                                    href="/operator/queue"
-                                    className="px-3 py-1.5 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors"
-                                >
-                                    {__("Queue")}
-                                </Link>
-                                <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-om-on-ink">
-                                    {__("Workstation")}
-                                </span>
-                            </div>
 
-                            {anyRouting && (
-                                <Button variant={showRouting ? 'primary' : 'secondary'} onClick={toggleAllRouting} aria-pressed={showRouting} data-testid="routing-toggle-all">
-                                    {showRouting ? __('Hide routing') : __('Show routing')}
-                                </Button>
-                            )}
+                {/* Anything an installed module contributes to this screen.
+                    Renders nothing on a community install. */}
+                <Hook
+                    name="display.operator.workstation.actor"
+                    hooks={hooks}
+                    line={line}
+                    workstation={selectedWorkstation}
+                />
 
-                            {operatorCanSwitchLine && (
-                                <Link
-                                    href="/operator/select-line"
-                                    className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
-                                >
-                                    {__("Change Line")}
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Anything an installed module contributes to this screen.
-                        Renders nothing on a community install. */}
-                    <Hook
-                        name="display.operator.workstation.actor"
-                        hooks={hooks}
-                        line={line}
-                        workstation={selectedWorkstation}
-                    />
-
-                    {/* Week filter */}
-                    {availableWeeks.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">{__("Select week:")}</span>
-
-                            <a
-                                href={weekUrl('all')}
-                                className={`px-4 py-2.5 rounded-om-sm font-mono text-[12px] border transition-colors ${
-                                    !weekFilter || weekFilter === 'all'
-                                        ? 'bg-om-chip border-om-line text-om-ink'
-                                        : 'border-transparent text-om-muted hover:bg-om-chip'
-                                }`}
-                            >
+                {/* Week filter */}
+                {availableWeeks.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mr-1">{__("Select week:")}</span>
+                        <div className="flex flex-wrap gap-[3px] bg-om-card border border-om-line rounded-[9px] p-[3px]">
+                            <a href={weekUrl('all')} className={pillCls(!weekFilter || weekFilter === 'all')}>
                                 {__("All weeks")}
                             </a>
-
                             {availableWeeks.map((wk) => (
-                                <a
-                                    key={wk}
-                                    href={weekUrl(wk)}
-                                    className={`px-4 py-2.5 rounded-om-sm font-mono text-[12px] border transition-colors ${
-                                        String(weekFilter) === String(wk)
-                                            ? 'bg-om-selected border-om-accent text-om-accent'
-                                            : 'border-transparent text-om-muted hover:bg-om-chip'
-                                    }`}
-                                >
+                                <a key={wk} href={weekUrl(wk)} className={`${pillCls(String(weekFilter) === String(wk))} font-mono`}>
                                     {weekLabel(wk)}
                                 </a>
                             ))}
                         </div>
-                    )}
-
-                    <p className="text-xs text-om-faint mb-2">
-                        {__('Click a row to change production status. Use "Z1" or "Z2" columns to enter produced quantities per shift.')}
-                    </p>
-                </div>
-
-                {/* Table */}
-                {workOrders.length === 0 ? (
-                    <div className="bg-om-card border border-om-line rounded-om text-center py-16">
-                        <p className="text-om-faint text-lg">{__('No work orders found')}</p>
                     </div>
-                ) : (
-                    <AppDataTable
-                        data={workOrders}
-                        columns={columns}
-                        getRowId={(wo) => String(wo.id)}
-                        columnVisibility={savedVisibility}
-                        onColumnVisibilityChange={rememberColumns}
-                        paginated={false}
-                        striped={false}
-                        rowClassName={rowClassFor}
-                        onRowClick={handleRowClick}
-                        rowDetail={(wo) => (openRouting.has(wo.id) && (wo.routing ?? []).length > 0 ? (
-                            <div data-testid={`routing-row-${wo.id}`}>
-                                <RoutingGraph compact height={170} steps={wo.routing} onSelectStep={(id) => openStep(wo, id)} />
-                                <p className="px-3 py-1.5 text-[11px] text-om-muted border-t border-om-line2 m-0">{__('Click a step to open the order on it.')}</p>
-                            </div>
-                        ) : null)}
+                )}
+
+                <ListToolbar
+                    leading={stationPicker.length > 0 && (
+                        <StationPicker
+                            stations={stationPicker}
+                            selectedId={selectedWorkstation?.id ?? null}
+                            onPick={(id) => router.visit(stationUrl(id))}
+                        />
+                    )}
+                    query={query} onQuery={setQuery}
+                    filter={filter} onFilter={setFilter}
+                    count={visible.length}
+                    views={[['grouped', __('Grouped')], ['table', __('Table')]]}
+                    view={view} onView={setView}
+                >
+                    {view === 'table' && anyRouting && (
+                        <Button variant={showRouting ? 'primary' : 'secondary'} onClick={toggleAllRouting} aria-pressed={showRouting} data-testid="routing-toggle-all">
+                            {showRouting ? __('Hide routing') : __('Show routing')}
+                        </Button>
+                    )}
+                </ListToolbar>
+
+                {view === 'grouped' && (
+                    <GroupedTable
+                        orders={visible}
+                        selectedId={selectedId}
+                        onSelect={select}
+                        lineShifts={hasShifts ? lineShifts : []}
+                        defaultShiftId={defaultShiftId}
+                        shiftEntries={shiftEntries}
+                        qtyEditPolicy={qtyEditPolicy}
+                        qtyEditWindowMinutes={qtyEditWindowMinutes}
+                        detailColumns={detailColumns}
+                        onAddQuantity={completeFor}
                     />
                 )}
+
+                {view === 'table' && (
+                    <>
+                        <p className="text-xs text-om-faint mb-2">
+                            {__('Click a row to change production status. Use "Z1" or "Z2" columns to enter produced quantities per shift.')}
+                        </p>
+                        {visible.length === 0 ? (
+                            <div className="bg-om-card border border-om-line rounded-xl text-center py-16">
+                                <p className="text-om-faint text-lg">{__('No work orders found')}</p>
+                            </div>
+                        ) : (
+                            <AppDataTable
+                                data={visible}
+                                columns={columns}
+                                getRowId={(wo) => String(wo.id)}
+                                columnVisibility={savedVisibility}
+                                onColumnVisibilityChange={rememberColumns}
+                                paginated={false}
+                                striped={false}
+                                rowClassName={rowClassFor}
+                                onRowClick={handleRowClick}
+                                rowDetail={(wo) => (openRouting.has(wo.id) && (wo.routing ?? []).length > 0 ? (
+                                    <div data-testid={`routing-row-${wo.id}`}>
+                                        <RoutingGraph compact height={170} steps={wo.routing} onSelectStep={(id) => openStep(wo, id)} />
+                                        <p className="px-3 py-1.5 text-[11px] text-om-muted border-t border-om-line2 m-0">{__('Click a step to open the order on it.')}</p>
+                                    </div>
+                                ) : null)}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
+
+            <ExecutionPanel
+                workOrderId={selectedId}
+                fallback={selected}
+                labelTemplates={labelTemplates}
+                onReportIssue={issueTypes.length > 0 ? openReport : null}
+                quantityAction={quantityAction}
+                mobileOpen={mobileOpen}
+                onClose={closeMobile}
+            />
             </div>
 
             {/* Modals */}
@@ -983,11 +1084,7 @@ export default function Workstation() {
             <CompleteModal modal={completeModal} onClose={() => setCompleteModal({ open: false })} />
             <InfoModal info={infoModal} onClose={() => setInfoModal(null)} />
             {issueTypes.length > 0 && (
-                <ReportModal
-                    report={reportModal}
-                    issueTypes={issueTypes}
-                    onClose={() => setReportModal(null)}
-                />
+                <ReportIssueDialog workOrder={reportFor} issueTypes={issueTypes} onClose={() => setReportFor(null)} />
             )}
         </>
     );
@@ -1023,10 +1120,29 @@ function MachineStatePanel({ machines, options, label }) {
         );
     };
 
+    // A whole line's benches would push the list off the screen: past a few,
+    // the panel folds to one line of per-state counts until it is opened.
+    const [open, setOpen] = useState(machines.length <= 4);
+    const counts = machines.reduce((acc, m) => ({ ...acc, [m.state ?? '—']: (acc[m.state ?? '—'] ?? 0) + 1 }), {});
+
     return (
-        <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{label}</p>
-            <div className="flex flex-wrap gap-3">
+        <div className="mb-4 bg-om-card border border-om-line rounded-xl px-3.5 py-2.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint m-0">{label}</p>
+                {!open && Object.entries(counts).map(([state, n]) => (
+                    <span key={state} className="inline-flex items-center gap-1.5 text-[12px] text-om-muted">
+                        <span className={`w-2 h-2 rounded-full ${MACHINE_STATE_DOT[state] ?? 'bg-om-faintest'}`} />
+                        {MACHINE_STATE_LABELS[state] ? __(MACHINE_STATE_LABELS[state]) : state} <span className="font-mono text-om-ink">{n}</span>
+                    </span>
+                ))}
+                {machines.length > 4 && (
+                    <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+                            className="ml-auto text-[12px] font-medium text-om-accent hover:text-om-ink cursor-pointer">
+                        {open ? __('Hide') : __('Set state')}
+                    </button>
+                )}
+            </div>
+            {open && <div className="flex flex-wrap gap-3 mt-2">
                 {machines.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
                         <span className={`w-2 h-2 rounded-full ${MACHINE_STATE_DOT[m.state] ?? 'bg-slate-300'}`} />
@@ -1045,10 +1161,10 @@ function MachineStatePanel({ machines, options, label }) {
                         />
                     </div>
                 ))}
-            </div>
+            </div>}
             {dialog}
         </div>
     );
 }
 
-Workstation.layout = (page) => <OperatorLayout>{page}</OperatorLayout>;
+Workstation.layout = (page) => <OperatorLayout flush>{page}</OperatorLayout>;

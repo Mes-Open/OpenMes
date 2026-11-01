@@ -72,6 +72,15 @@ async function pickDropdown(button, optionName: string | RegExp) {
   await button.page().getByRole('option', { name: optionName, exact: typeof optionName === 'string' }).click();
 }
 
+/** The packing station offers a handful of orders as chips and a long list as a dropdown. */
+async function pickPalletOrder(page: Page, order: RegExp, name = 'Create pallet for order') {
+  const chips = page.getByRole('radiogroup', { name });
+  const dropdown = page.getByRole('combobox', { name });
+  await expect(chips.or(dropdown)).toBeVisible({ timeout: 15_000 });
+  if (await chips.count()) await chips.getByRole('radio', { name: order }).click();
+  else await pickDropdown(dropdown, order);
+}
+
 test('produce a product end-to-end through the UI', async ({ page, browser }: { page: Page; browser: Browser }) => {
   // Deterministic slate: silence any leftover triggers/tasks from earlier runs
   // so this run's single in-production control is the only one outstanding.
@@ -193,10 +202,10 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
   let palletNo = '';
   await test.step('operator packages a piece onto a pallet', async () => {
     await op.goto('/operator/packaging');
-    await pickDropdown(op.locator('button[aria-haspopup="listbox"]').first(), new RegExp(WO));
+    await pickPalletOrder(op, new RegExp(WO));
     await op.getByRole('button', { name: /Create pallet/ }).click();
-    await expect(op.getByText('Active pallet')).toBeVisible({ timeout: 15_000 });
-    palletNo = (await op.locator('text=/PAL-\\d{6}/').first().innerText()).trim();
+    await expect(op.getByRole('button', { name: /Close pallet/ })).toBeVisible({ timeout: 15_000 });
+    palletNo = (await op.locator('text=/PAL-\\d{6}/').first().innerText()).match(/PAL-\d{6}/)![0]; // the Pack-into menu names it too ("My pallet PAL-…")
 
     await op.getByRole('heading', { name: /Packing Station/ }).click();
     await op.keyboard.type(EAN);
@@ -204,7 +213,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await expect(op.getByText('Scanned!')).toBeVisible({ timeout: 15_000 });
 
     await op.getByRole('button', { name: /Close pallet/ }).click();
-    await expect(op.getByText('Active pallet')).toBeHidden({ timeout: 15_000 });
+    await expect(op.getByRole('button', { name: /Close pallet/ })).toBeHidden({ timeout: 15_000 });
   });
 
   // ── 11. Admin performs the fired QC linked to the pallet (→ Passed) ─────

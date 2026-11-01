@@ -32,6 +32,7 @@ class StoreTemplateStepRequest extends FormRequest
             'config.weight_expected_g' => ['nullable', 'numeric', 'gt:0', 'max:1000000'],
             'config.weight_tolerance_g' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'instruction' => ['nullable', 'string'],
+            'quantity_entry' => ['sometimes', Rule::in(TemplateStep::QUANTITY_ENTRIES)],
             'estimated_duration_minutes' => ['nullable', 'integer', 'min:0'],
             'setup_time_minutes' => ['nullable', 'integer', 'min:0'],
             'run_time_per_unit_minutes' => ['nullable', 'numeric', 'min:0'],

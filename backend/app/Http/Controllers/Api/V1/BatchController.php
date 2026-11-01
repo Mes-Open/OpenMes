@@ -69,14 +69,12 @@ class BatchController extends Controller
             'lot_number' => 'nullable|string|max:50',
         ]);
 
-        // Check if adding this batch would exceed planned qty
-        $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
-        $allowOverproduction = config('openmmes.allow_overproduction', false);
-
-        if (! $allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
-            return response()->json([
-                'message' => 'Total batch quantity would exceed planned quantity',
-            ], 422);
+        // Closed order, or more than the order still needs (Settings → Production
+        // "Allow overproduction") — same rule as the operator screen.
+        try {
+            $this->workOrderService->assertCanCreateBatch($workOrder, (float) $validated['target_qty']);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
         // Check workstation conflicts (soft warning in response)
