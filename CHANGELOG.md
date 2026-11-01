@@ -7,8 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-01
+
 ### Added
 
+- **Indian Rupee (INR) as the installation currency** (#389, thanks @Jovinmathew). *Settings →
+  System → General → Currency* now offers INR alongside the other supported currencies.
 - **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
@@ -153,6 +157,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Patched PHP dependencies** (#385, thanks @AsteaFrostweb). Composer-locked packages moved to
+  releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
+  HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
+  PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -181,6 +189,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
+  change to the search query added another *Settings* result, because the Settings group and
+  the footer link were indexed under the same key.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
