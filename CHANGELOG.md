@@ -11,6 +11,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
+  only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
+  views: the menu and the screen shell redraw as that role sees them, with no second login.
+  While another view is on, the bar turns amber and says so: *"View: Supervisor — your
+  permissions have not changed."* It is presentation only — the account, its roles and every
+  permission stay the administrator's, so it shows what a role sees, not what it may do. The
+  choice is kept in the session (never the URL) and ends at logout; the server sends the bar
+  and accepts the switch for Admins only. In the operator view the operator screen lists the
+  admin tabs the *Operator* role grants, and line selection shows the lines the administrator
+  is assigned to.
 - **Indian Rupee (INR) as the installation currency** (#389, thanks @Jovinmathew). *Settings →
   System → General → Currency* now offers INR alongside the other supported currencies.
 - **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
