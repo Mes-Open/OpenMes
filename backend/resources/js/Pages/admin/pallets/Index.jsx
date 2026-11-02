@@ -20,6 +20,7 @@ const QUALITY_BADGE = {
     fail: 'bg-om-blocked-bg text-om-blocked',
 };
 const QUALITY_LABELS = { pending: 'Pending', pass: 'Passed', fail: 'Failed' };
+const qualityLabel = (r) => __(QUALITY_LABELS[r.quality_status] ?? r.quality_status ?? 'Pending');
 
 const PRINTER_ICON = (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,17 +103,14 @@ export default function PalletsIndex() {
         {
             key: 'quality_status',
             label: __('Quality'),
-            value: (r) => r.quality_status ?? 'pending',
+            // The label the pill shows; options carry labels as their values to match.
+            value: qualityLabel,
             filter: true,
             allLabel: __('All quality'),
-            options: [
-                { value: 'pending', label: __('Pending') },
-                { value: 'pass', label: __('Passed') },
-                { value: 'fail', label: __('Failed') },
-            ],
+            options: Object.values(QUALITY_LABELS).map((label) => __(label)),
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${QUALITY_BADGE[r.quality_status] ?? ''}`}>
-                    {__(QUALITY_LABELS[r.quality_status] ?? r.quality_status ?? 'Pending')}
+                    {qualityLabel(r)}
                 </span>
             ),
         },

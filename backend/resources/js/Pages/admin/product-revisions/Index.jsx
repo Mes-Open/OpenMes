@@ -28,7 +28,9 @@ export default function ProductRevisionsIndex() {
         { key: 'revision_code', label: __('Revision'), className: 'font-mono font-medium text-om-ink' },
         {
             key: 'lifecycle_status', label: __('Lifecycle'),
-            filter: 'select', options: LIFECYCLE_STATUSES, optionLabel: lifecycleLabel, allLabel: __('All statuses'),
+            // Label as the value, so the options carry labels too.
+            value: (r) => lifecycleLabel(r.lifecycle_status),
+            filter: 'select', options: LIFECYCLE_STATUSES.map(lifecycleLabel), allLabel: __('All statuses'),
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${LIFECYCLE_BADGE_STYLES[r.lifecycle_status] ?? 'bg-om-chip text-om-muted'}`}>
                     {lifecycleLabel(r.lifecycle_status)}

@@ -203,7 +203,7 @@ function BrowseTable({ tab }) {
                     {
                         key: 'status',
                         label: __('Status'),
-                        value: (r) => r.status,
+                        value: (r) => materialLotStatusLabel(r.status),
                         render: (r) => (
                             <span className={`text-xs px-2 py-0.5 rounded font-medium ${LOT_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                                 {materialLotStatusLabel(r.status)}

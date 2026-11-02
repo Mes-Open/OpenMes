@@ -117,7 +117,8 @@ export default function ReportsIndex() {
             },
             {
                 id: 'status',
-                accessorKey: 'status',
+                // The translated status the pill shows, not the raw code.
+                accessorFn: (r) => __(r.status),
                 header: __('Status'),
                 cell: ({ row }) => {
                     const r = row.original;

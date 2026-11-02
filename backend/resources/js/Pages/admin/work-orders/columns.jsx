@@ -89,9 +89,11 @@ export function woColumns({ lineNames = {}, productTypeNames = {}, counts = {}, 
         {
             key: 'status',
             label: __('Status'),
+            // Search, sort and filter on the label the badge shows, not the enum
+            // code — so the options carry labels as their values too.
+            value: (r) => woStatusLabel(r.status),
             filter: 'select',
-            options: WO_STATUSES,
-            optionLabel: woStatusLabel,
+            options: WO_STATUSES.map(woStatusLabel),
             allLabel: __('All statuses'),
             render: (r) => <StatusBadge {...woStatusBadge(r.status)} />,
         },
@@ -224,11 +226,10 @@ const OPTIONAL_COLUMNS = [
         label: __('Counted'),
         hidden: true,
         className: 'text-om-muted',
+        // Search and filter on the "Yes"/"No" the cell shows, not the boolean.
+        value: (r) => yesNo(r.customer_totals_counted),
         render: (r) => yesNo(r.customer_totals_counted),
-        // The filter's options come from the raw column values, so without this
-        // the menu offers "true"/"false" under a cell that reads "Tak"/"Nie".
         filter: 'select',
-        optionLabel: yesNo,
     },
     { key: 'custom_fields', label: __('Custom fields'), hidden: true, filter: false, className: 'text-om-muted tabular-nums', render: (r) => jsonCell(r.custom_fields) },
 ];
