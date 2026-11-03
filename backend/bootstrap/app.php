@@ -79,6 +79,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'scope' => \App\Http\Middleware\EnsureApiScope::class,
             // Gate a route on an optional feature module (ModuleRegistry) being on.
             'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+            // Sanctum token abilities; machine-gateway tokens are confined to the
+            // gateway routes by `no-gateway-token` on everything else.
+            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'no-gateway-token' => \App\Http\Middleware\RejectMachineGatewayToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

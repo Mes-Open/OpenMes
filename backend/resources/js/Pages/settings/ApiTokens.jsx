@@ -1,18 +1,23 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, ConfirmDialog, TextField } from '@openmes/ui';
+import { Button, ConfirmDialog, Dropdown, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
 export default function ApiTokens() {
-    const { tokens, newToken, newTokenName, appUrl, csrf_token } = usePage().props;
+    const { tokens, newToken, newTokenName, newTokenScope, appUrl, csrf_token, scopes = [] } = usePage().props;
     const [copied, setCopied] = useState(false);
     // Pending revoke confirmation — holds the token row + its <form> element so
     // confirming submits the exact same native DELETE form.
     const [revoke, setRevoke] = useState(null);
 
-    const { data, setData, post, processing, errors, reset } = useForm({ name: '' });
+    // `?scope=machine-gateway` — the OPC UA connection page links here to create
+    // the gateway's token, so the right scope is already picked.
+    const requestedScope = new URLSearchParams(window.location.search).get('scope');
+    const initialScope = scopes.some((sc) => sc.value === requestedScope) ? requestedScope : 'full';
+
+    const { data, setData, post, processing, errors, reset } = useForm({ name: '', scope: initialScope });
 
     function handleCreate(e) {
         e.preventDefault();
@@ -58,6 +63,11 @@ export default function ApiTokens() {
                         <div className="flex-1">
                             <p className="text-[13px] font-semibold text-om-ink mb-1">{__('Token created: :name', { name: newTokenName })}</p>
                             <p className="text-om-muted text-[12.5px] mb-3">{__('Copy this token now — it will not be shown again.')}</p>
+                            {newTokenScope === 'machine-gateway' && (
+                                <p className="text-om-muted text-[12.5px] mb-3">
+                                    {__('Set it as OPENMES_API_TOKEN in the .env file next to docker-compose.yml, then restart the gateway.')}
+                                </p>
+                            )}
                             <div className="flex items-center gap-2">
                                 <code className="flex-1 bg-om-chip rounded-om-sm px-3 py-2 font-mono text-[13px] break-all text-om-ink select-all">
                                     {newToken}
@@ -88,6 +98,18 @@ export default function ApiTokens() {
                         placeholder={__('e.g. PrestaShop Integration')}
                         required
                     />
+                    <div className="w-56 shrink-0">
+                        <div className="mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Access')}</div>
+                        <Dropdown
+                            options={scopes}
+                            value={data.scope}
+                            onChange={(v) => setData('scope', v)}
+                            aria-label={__('Access')}
+                            searchable={false}
+                            className="w-full"
+                        />
+                        {errors.scope && <p className="text-om-blocked text-[11.5px] mt-1">{errors.scope}</p>}
+                    </div>
                     <Button type="submit" variant="accent" loading={processing} className="mt-[22px]">
                         {__('Generate Token')}
                     </Button>
@@ -104,7 +126,14 @@ export default function ApiTokens() {
                         {tokens.map((token) => (
                             <div key={token.id} className="flex items-center justify-between py-3">
                                 <div className="flex-1">
-                                    <p className="text-[13.5px] font-medium text-om-ink">{token.name}</p>
+                                    <p className="text-[13.5px] font-medium text-om-ink">
+                                        {token.name}
+                                        {token.scope !== 'full' && (
+                                            <span className="ml-2 text-[11px] px-2 py-0.5 bg-om-chip text-om-muted rounded-full font-normal">
+                                                {token.scope_label}
+                                            </span>
+                                        )}
+                                    </p>
                                     <p className="text-[11.5px] text-om-muted mt-0.5">
                                         {__('Created by :name', { name: token.tokenable_name ?? __('Unknown') })}
                                         &nbsp;&middot;&nbsp;{token.created_at_formatted}

@@ -9,7 +9,7 @@
  *
  * Required env:
  *   OPENMES_API_URL        e.g. http://backend:8000
- *   OPENMES_API_TOKEN      Sanctum token (Admin → API Tokens)
+ *   OPENMES_API_TOKEN      machine gateway token (Settings → API Tokens)
  *   OPCUA_CONNECTION_ID    machine_connection id (protocol = opcua)
  * Optional:
  *   HEARTBEAT_MS           default 10000
@@ -43,6 +43,18 @@ async function fetchConfig() {
   const res = await fetch(api(`/machine-connections/${CONNECTION_ID}/gateway-config`), {
     headers: authHeaders,
   });
+  if (res.status === 401) {
+    throw new Error(
+      "config fetch failed: 401 - OPENMES_API_TOKEN is invalid or revoked. " +
+        "Create a machine gateway token in OpenMES (Settings → API Tokens)."
+    );
+  }
+  if (res.status === 403) {
+    throw new Error("config fetch failed: 403 - the token is not allowed to use the machine gateway API.");
+  }
+  if (res.status === 404) {
+    throw new Error(`config fetch failed: 404 - no machine connection with id ${CONNECTION_ID} (OPCUA_CONNECTION_ID).`);
+  }
   if (!res.ok) throw new Error(`config fetch failed: ${res.status}`);
   return res.json();
 }
@@ -60,11 +72,14 @@ async function postReadings(readings) {
   }
 }
 
-async function heartbeat() {
+async function heartbeat(error = null) {
   try {
     await fetch(api(`/machine-connections/${CONNECTION_ID}/heartbeat`), {
       method: "POST",
       headers: authHeaders,
+      // An error heartbeat tells OpenMES the gateway is up but cannot reach the
+      // OPC UA server, so the UI shows that instead of "not running".
+      body: JSON.stringify(error ? { status: "error", message: String(error).slice(0, 500) } : {}),
     });
   } catch (e) {
     log("heartbeat error:", e.message);
@@ -96,16 +111,24 @@ async function run() {
 
   client.on("backoff", (retry, delay) => log(`retry ${retry}, next in ${delay}ms`));
 
-  await client.connect(cfg.opcua.endpoint_url);
-  log("connected to OPC UA server");
-
   const userIdentity =
     cfg.opcua.auth_mode === "username" && cfg.opcua.username
       ? { userName: cfg.opcua.username, password: process.env.OPCUA_PASSWORD || "" }
       : undefined;
 
-  const session = await client.createSession(userIdentity);
-  log("session created");
+  let session;
+  try {
+    await client.connect(cfg.opcua.endpoint_url);
+    log("connected to OPC UA server");
+    session = await client.createSession(userIdentity);
+    log("session created");
+  } catch (e) {
+    // OpenMES is reachable (config was fetched) but the OPC UA server is not:
+    // report it, so the connection page shows the reason.
+    await heartbeat(`Cannot connect to ${cfg.opcua.endpoint_url}: ${e.message}`);
+    try { await client.disconnect(); } catch {}
+    throw e;
+  }
 
   const subscription = ClientSubscription.create(session, {
     requestedPublishingInterval: cfg.opcua.publishing_interval_ms || 1000,
@@ -142,12 +165,18 @@ async function run() {
 }
 
 async function main() {
+  if (!API_TOKEN) {
+    log(
+      "fatal: OPENMES_API_TOKEN is not set. Create a machine gateway token in OpenMES " +
+        "(Settings → API Tokens) and set it in the .env file next to docker-compose.yml."
+    );
+  }
   for (;;) {
     try {
       await run();
       return; // run() keeps the process alive via subscription + heartbeat
     } catch (e) {
-      log("fatal:", e.message, `— retrying in ${RECONNECT_MS}ms`);
+      log("fatal:", e.message, `- retrying in ${RECONNECT_MS}ms`);
       await new Promise((r) => setTimeout(r, RECONNECT_MS));
     }
   }

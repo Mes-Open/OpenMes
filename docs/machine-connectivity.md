@@ -132,7 +132,8 @@ start by default:
 # Modbus poller for connection 1
 MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
 
-# OPC UA gateway for connection 1 (needs an API token: Admin → API Tokens)
+# OPC UA gateway for connection 1 (needs a machine gateway token:
+# Settings → API Tokens → Access: "Machine gateway (OPC UA)")
 OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
   docker compose --profile connectivity up -d opcua-gateway
 
@@ -142,6 +143,16 @@ MQTT_CONNECTION_ID=1 docker compose --profile connectivity up -d mqtt-listener
 # Queue worker (needed in production for MQTT/queued jobs)
 docker compose --profile workers up -d queue-worker
 ```
+
+The OPC UA gateway runs in its own container, so an OPC UA server on the
+Docker host is `opc.tcp://host.docker.internal:4840`, not `127.0.0.1` — the
+connection page warns about a loopback endpoint. A gateway that is running but
+cannot reach the server reports the reason with its heartbeat, and the page
+shows "Running, but cannot connect to the machine" with that message.
+
+A machine gateway token can only call the three gateway endpoints
+(`gateway-config`, `signals`, `heartbeat`); every other API route rejects it
+with 403. Full-access tokens keep working for the gateway.
 
 Not using Docker? Run the equivalent `php artisan …` command under a process
 supervisor (systemd, Supervisor, etc.). The connection page shows the exact

@@ -2,6 +2,7 @@
 
 namespace App\Services\Machine;
 
+use App\Enums\ApiTokenScope;
 use App\Models\MachineConnection;
 use Illuminate\Support\Facades\Cache;
 
@@ -47,7 +48,12 @@ class RuntimeMonitor
      * Runtime status for a machine connection, including a copy-paste command
      * and the optional Docker service to start it.
      *
-     * @return array{required: bool, alive: bool, seconds_ago: int|null, label: string, command: string|null, docker: string|null}
+     * `error` is the reason a running gateway reported for not reaching its
+     * machine; `token_url` points at where a gateway token is created (only for
+     * runtimes that call the API); `endpoint_warning` flags an endpoint that
+     * cannot work from inside a container.
+     *
+     * @return array{required: bool, alive: bool, seconds_ago: int|null, label: string, command: string|null, docker: string|null, error: string|null, token_url: string|null, endpoint_warning: string|null}
      */
     public function connectionRuntime(MachineConnection $connection): array
     {
@@ -68,19 +74,48 @@ class RuntimeMonitor
             MachineConnection::PROTOCOL_OPCUA => [
                 'label' => __('OPC UA gateway'),
                 'command' => null, // external sidecar, not an artisan command
-                'docker' => "OPCUA_CONNECTION_ID={$id} docker compose --profile connectivity up -d opcua-gateway",
+                // The sidecar authenticates against the API, unlike the artisan
+                // daemons above — without a token it only ever gets a 401.
+                'docker' => "OPCUA_CONNECTION_ID={$id} OPENMES_API_TOKEN=<token> docker compose --profile connectivity up -d opcua-gateway",
             ],
             default => ['label' => __('Runtime'), 'command' => null, 'docker' => null],
         };
 
+        $alive = $this->isAlive($kind, $id);
+
         return [
             'required' => $connection->is_active,
-            'alive' => $this->isAlive($kind, $id),
+            'alive' => $alive,
             'seconds_ago' => $this->secondsSince($kind, $id),
             'label' => $meta['label'],
             'command' => $meta['command'],
             'docker' => $meta['docker'],
+            'error' => $alive && $connection->status === MachineConnection::STATUS_ERROR
+                ? $connection->status_message
+                : null,
+            'token_url' => $kind === MachineConnection::PROTOCOL_OPCUA
+                ? '/settings/api-tokens?scope='.ApiTokenScope::MachineGateway->value
+                : null,
+            'endpoint_warning' => $kind === MachineConnection::PROTOCOL_OPCUA
+                ? $this->loopbackWarning($connection->opcuaConnection?->endpoint_url)
+                : null,
         ];
+    }
+
+    /**
+     * The gateway runs in its own container, where localhost is the container
+     * itself — an OPC UA server on the host is not reachable that way.
+     */
+    private function loopbackWarning(?string $endpoint): ?string
+    {
+        $host = $endpoint ? parse_url($endpoint, PHP_URL_HOST) : null;
+        $host = is_string($host) ? strtolower(trim($host, '[]')) : null;
+
+        if ($host === null || ! ($host === 'localhost' || $host === '::1' || str_starts_with($host, '127.'))) {
+            return null;
+        }
+
+        return __('The endpoint points to :host. Inside Docker that is the gateway container itself - use host.docker.internal or the machine\'s IP address instead.', ['host' => $host]);
     }
 
     private function cacheKey(string $kind, int|string $key): string

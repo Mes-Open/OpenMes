@@ -134,4 +134,148 @@ class MachineGatewayTest extends TestCase
             ->first();
         $this->assertEquals(7, $counter->payload['delta']);
     }
+
+    // ── Gateway token scope (#387) ───────────────────────────────
+
+    private function gatewayToken(): string
+    {
+        return $this->admin->createToken('opcua-gateway', ['machine-gateway'])->plainTextToken;
+    }
+
+    public function test_guest_cannot_fetch_gateway_config(): void
+    {
+        $conn = $this->opcuaConnection();
+
+        $this->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")->assertUnauthorized();
+    }
+
+    public function test_gateway_token_can_use_the_gateway_endpoints(): void
+    {
+        $conn = $this->opcuaConnection();
+        $token = $this->gatewayToken();
+
+        $this->withToken($token)
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertOk()
+            ->assertJsonPath('connection.id', $conn->id);
+
+        $this->withToken($token)
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat")
+            ->assertOk();
+
+        $this->assertTrue(app(RuntimeMonitor::class)->isAlive('opcua', $conn->id));
+    }
+
+    public function test_full_access_token_still_works_for_the_gateway(): void
+    {
+        $conn = $this->opcuaConnection();
+        $token = $this->admin->createToken('legacy')->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertOk();
+    }
+
+    public function test_token_without_gateway_ability_is_rejected(): void
+    {
+        $conn = $this->opcuaConnection();
+        $token = $this->admin->createToken('other', ['password:change'])->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertForbidden();
+    }
+
+    public function test_gateway_token_is_rejected_by_the_rest_of_the_api(): void
+    {
+        $this->withToken($this->gatewayToken())
+            ->getJson('/api/v1/lines')
+            ->assertForbidden();
+    }
+
+    public function test_gateway_token_cannot_be_refreshed_into_a_full_token(): void
+    {
+        $this->withToken($this->gatewayToken())
+            ->postJson('/api/auth/refresh')
+            ->assertForbidden();
+
+        $this->assertSame(1, $this->admin->tokens()->count());
+    }
+
+    // ── Error heartbeat ──────────────────────────────────────────
+
+    public function test_error_heartbeat_marks_connection_error_but_gateway_alive(): void
+    {
+        $conn = $this->opcuaConnection();
+
+        $this->withToken($this->gatewayToken())
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat", [
+                'status' => 'error',
+                'message' => 'Cannot connect to opc.tcp://plc:4840: ECONNREFUSED',
+            ])
+            ->assertOk();
+
+        $conn->refresh();
+        $this->assertSame(MachineConnection::STATUS_ERROR, $conn->status);
+        $this->assertStringContainsString('ECONNREFUSED', $conn->status_message);
+
+        $rt = app(RuntimeMonitor::class)->connectionRuntime($conn);
+        $this->assertTrue($rt['alive']);
+        $this->assertStringContainsString('ECONNREFUSED', $rt['error']);
+    }
+
+    public function test_ok_heartbeat_clears_a_previous_error(): void
+    {
+        $conn = $this->opcuaConnection();
+        $conn->markError('Cannot connect');
+
+        $this->withToken($this->gatewayToken())
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat")
+            ->assertOk();
+
+        $conn->refresh();
+        $this->assertSame(MachineConnection::STATUS_CONNECTED, $conn->status);
+        $this->assertNull(app(RuntimeMonitor::class)->connectionRuntime($conn)['error']);
+    }
+
+    public function test_error_heartbeat_requires_a_message(): void
+    {
+        $conn = $this->opcuaConnection();
+
+        $this->withToken($this->gatewayToken())
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat", ['status' => 'error'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('message');
+    }
+
+    public function test_heartbeat_rejects_unknown_status(): void
+    {
+        $conn = $this->opcuaConnection();
+
+        $this->withToken($this->gatewayToken())
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat", ['status' => 'maybe'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    // ── Runtime hints ────────────────────────────────────────────
+
+    public function test_runtime_command_includes_the_api_token_and_settings_link(): void
+    {
+        $rt = app(RuntimeMonitor::class)->connectionRuntime($this->opcuaConnection());
+
+        $this->assertStringContainsString('OPENMES_API_TOKEN=<token>', $rt['docker']);
+        $this->assertSame('/settings/api-tokens?scope=machine-gateway', $rt['token_url']);
+        $this->assertNull($rt['endpoint_warning']);
+    }
+
+    public function test_runtime_warns_about_a_loopback_endpoint(): void
+    {
+        $conn = $this->opcuaConnection();
+        $conn->opcuaConnection->update(['endpoint_url' => 'opc.tcp://127.0.0.1:4840']);
+
+        $rt = app(RuntimeMonitor::class)->connectionRuntime($conn->fresh());
+
+        $this->assertStringContainsString('host.docker.internal', $rt['endpoint_warning']);
+    }
 }
