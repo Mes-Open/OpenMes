@@ -100,10 +100,10 @@ Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\Workstation
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-    Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth:sanctum', 'no-gateway-token']);
-    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware(['auth:sanctum', 'no-gateway-token']);
-    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware(['auth:sanctum', 'no-gateway-token']);
-    Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'no-gateway-token']);
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
+    Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
 });
 
 // ERP integration API (SAP, Comarch, enova365, MS Dynamics / Business Central).
@@ -149,20 +149,22 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
 });
 
-// Machine gateway bridge (OPC UA sidecar / external REST gateways). Kept out of
-// the main v1 group: a token scoped to `machine-gateway` (Settings → API Tokens)
-// may call these and nothing else. Full `*` tokens and sessions still pass.
+// Machine gateway bridge (OPC UA sidecar / external REST gateways). A token
+// scoped to `machine-gateway` (Settings → API Tokens) may call these and nothing
+// else: RejectMachineGatewayToken runs on the whole `api` group and exempts only
+// the `api.machine-gateway.*` names below. Full `*` tokens and sessions pass.
 Route::prefix('v1/machine-connections/{machineConnection}')
     ->middleware(['auth:sanctum', 'ability:'.\App\Enums\ApiTokenScope::GATEWAY_ABILITY])
+    ->name('api.machine-gateway.')
     ->controller(\App\Http\Controllers\Api\V1\MachineGatewayController::class)
     ->group(function () {
-        Route::get('/gateway-config', 'config');
-        Route::post('/signals', 'ingest');
-        Route::post('/heartbeat', 'heartbeat');
+        Route::get('/gateway-config', 'config')->name('config');
+        Route::post('/signals', 'ingest')->name('signals');
+        Route::post('/heartbeat', 'heartbeat')->name('heartbeat');
     });
 
 // Protected API routes (require authentication)
-Route::prefix('v1')->middleware(['auth:sanctum', 'no-gateway-token'])->group(function () {
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Lines (read for any authenticated user; admin-only mutations below)
     Route::get('/lines', [LineController::class, 'index']);
     Route::get('/lines/{line}', [LineController::class, 'show']);

@@ -193,6 +193,34 @@ class MachineGatewayTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_gateway_token_is_rejected_by_module_routes(): void
+    {
+        // A module registers its own `api` + `auth:sanctum` group outside
+        // routes/api.php (e.g. modules/Enterprise) — the block must still apply.
+        \Illuminate\Support\Facades\Route::middleware(['api', 'auth:sanctum'])
+            ->get('/api/v1/test-module-route', fn () => response()->json(['ok' => true]));
+
+        $this->withToken($this->gatewayToken())
+            ->getJson('/api/v1/test-module-route')
+            ->assertForbidden();
+    }
+
+    public function test_full_token_and_session_still_reach_module_routes(): void
+    {
+        \Illuminate\Support\Facades\Route::middleware(['api', 'auth:sanctum'])
+            ->get('/api/v1/test-module-route', fn () => response()->json(['ok' => true]));
+
+        $this->withToken($this->admin->createToken('full')->plainTextToken)
+            ->getJson('/api/v1/test-module-route')
+            ->assertOk();
+
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($this->admin)
+            ->getJson('/api/v1/test-module-route')
+            ->assertOk();
+    }
+
     public function test_gateway_token_cannot_be_refreshed_into_a_full_token(): void
     {
         $this->withToken($this->gatewayToken())
