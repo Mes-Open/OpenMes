@@ -6,16 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ImportBomsRequest;
 use App\Http\Requests\Api\V1\Erp\ImportMaterialLotsRequest;
 use App\Http\Requests\Api\V1\Erp\ImportMaterialsRequest;
+use App\Http\Requests\Api\V1\Erp\ImportProcessTemplatesRequest;
 use App\Http\Requests\Api\V1\Erp\ImportProductsRequest;
 use App\Services\Erp\BomImportService;
 use App\Services\Erp\MaterialImportService;
 use App\Services\Erp\MaterialLotImportService;
+use App\Services\Erp\ProcessTemplateImportService;
 use App\Services\Erp\ProductImportService;
 use Illuminate\Http\JsonResponse;
 
 /**
- * ERP → OpenMES master data (#212): products, materials, material lots and
- * recipes. One controller because all four share the same contract — a canonical
+ * ERP → OpenMES master data (#212): products, materials, material lots,
+ * recipes and routings (process templates). One controller because all five share the same contract — a canonical
  * JSON list in, a per-row report out — and an ERP sync job typically calls them
  * in sequence.
  *
@@ -33,6 +35,8 @@ class MasterDataImportController extends Controller
             $request->strategy(),
             $request->onlyCategories(),
             $request->input('external_system'),
+            $request->createDefaultTemplate(),
+            $request->defaultStepName(),
         );
 
         return $this->report($result);
@@ -64,6 +68,13 @@ class MasterDataImportController extends Controller
     public function boms(ImportBomsRequest $request, BomImportService $service): JsonResponse
     {
         $result = $service->import($request->input('recipes'), $request->mode());
+
+        return $this->report($result);
+    }
+
+    public function processTemplates(ImportProcessTemplatesRequest $request, ProcessTemplateImportService $service): JsonResponse
+    {
+        $result = $service->import($request->input('templates'), $request->mode());
 
         return $this->report($result);
     }

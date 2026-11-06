@@ -258,7 +258,7 @@ class WorkOrderImportService
             $template = null;
 
             if ($productType) {
-                $templates[$productType->id] ??= $productType->processTemplates()->where('is_active', true)->first();
+                $templates[$productType->id] ??= $productType->activeProcessTemplate();
                 $template = $templates[$productType->id];
             }
 
@@ -380,10 +380,9 @@ class WorkOrderImportService
     protected function createNew(array $row, Line $line, ProductType $productType): array
     {
         DB::transaction(function () use ($row, $line, $productType) {
-            // Get active process template for product type
-            $processTemplate = $productType->processTemplates()
-                ->where('is_active', true)
-                ->first();
+            // The newest active version: older versions stay active while their
+            // orders finish, so "any active one" would be nondeterministic.
+            $processTemplate = $productType->activeProcessTemplate();
 
             if (! $processTemplate) {
                 throw new \Exception("No active process template found for product type '{$productType->code}'");

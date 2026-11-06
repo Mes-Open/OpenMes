@@ -9,6 +9,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Routings from the ERP: process templates over the ERP API.** A product and its routing
+  sent from the ERP are now enough to accept the first work order — no manual work in
+  OpenMES first. The new `POST /api/v1/erp/process-templates/import` (scope
+  `erp:masterdata:write`) takes each product's operations — number, name, workstation (and
+  optionally line), setup time, run time per piece, instruction — and turns them into a
+  process template. By default it adds a new active version, exactly like *Production →
+  Product Types → Process Templates* does: earlier versions stay, orders already released
+  keep the steps they were frozen with, and the recipe moves onto the new version. Re-sending
+  an unchanged routing is reported as *skipped* instead of stacking versions; `mode:
+  replace_draft` rewrites an inactive draft instead. A routing naming an unknown product or
+  workstation fails as one row (207) and is written not at all. `POST
+  /api/v1/erp/products/import` also accepts `create_default_template: true`: a product type
+  with no template gets an active one with a single *Production* step (name configurable via
+  `default_step_name`, in the plant language by default), reported as `template_created` in
+  the new per-row `rows` list. See *ERP Integration API → Process Templates* in
+  `docs/API_DOCUMENTATION.md`.
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -190,6 +207,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is now refused, and concurrent decisions no longer create a second lot.
 
 ### Fixed
+
+- **Work-order import picks the newest active process template.** With several active
+  versions of a product's process template, the CSV and ERP work-order imports took an
+  unspecified one; they now take the newest active version, like the rest of OpenMES.
 
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's

@@ -19,8 +19,8 @@ trait ReportsImportRows
     /**
      * @param  array<int, array<string, mixed>>  $rows
      * @param  callable(array<string, mixed>): array<string, mixed>  $handler  returns
-     *                                                                         ['status' => 'success'|'skipped'|'error', 'action' => 'created'|'updated', …]
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>}
+     *                                                                         ['status' => 'success'|'skipped'|'error', 'action' => 'created'|'updated', 'report' => [...], …]
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>, rows?: array<int, array<string, mixed>>}
      */
     protected function processRows(array $rows, callable $handler): array
     {
@@ -28,6 +28,11 @@ trait ReportsImportRows
         $updated = 0;
         $skipped = 0;
         $errors = [];
+        // Per-row details a handler wants the caller to see (e.g. a default
+        // process template created alongside a product). Only rows with
+        // something to say are listed, and the key is omitted when none do,
+        // so the response is unchanged for importers that never report.
+        $reports = [];
 
         foreach (array_values($rows) as $index => $row) {
             $rowNumber = $index + 1;
@@ -45,6 +50,10 @@ trait ReportsImportRows
 
                 if ($result['status'] === 'success') {
                     ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;
+
+                    if (! empty($result['report'])) {
+                        $reports[] = ['row' => $rowNumber, ...$result['report']];
+                    }
                 } elseif ($result['status'] === 'skipped') {
                     $skipped++;
                 } else {
@@ -73,12 +82,18 @@ trait ReportsImportRows
             }
         }
 
-        return [
+        $result = [
             'imported' => $imported,
             'updated' => $updated,
             'skipped' => $skipped,
             'errors' => $errors,
         ];
+
+        if ($reports !== []) {
+            $result['rows'] = $reports;
+        }
+
+        return $result;
     }
 
     /** @return array<string, mixed> */
@@ -87,16 +102,22 @@ trait ReportsImportRows
         return ['status' => 'error', 'field' => $field, 'error' => $message];
     }
 
-    /** @return array<string, mixed> */
-    protected function created(): array
+    /**
+     * @param  array<string, mixed>  $report  listed under `rows` in the response when non-empty
+     * @return array<string, mixed>
+     */
+    protected function created(array $report = []): array
     {
-        return ['status' => 'success', 'action' => 'created'];
+        return ['status' => 'success', 'action' => 'created', 'report' => $report];
     }
 
-    /** @return array<string, mixed> */
-    protected function updated(): array
+    /**
+     * @param  array<string, mixed>  $report  listed under `rows` in the response when non-empty
+     * @return array<string, mixed>
+     */
+    protected function updated(array $report = []): array
     {
-        return ['status' => 'success', 'action' => 'updated'];
+        return ['status' => 'success', 'action' => 'updated', 'report' => $report];
     }
 
     /** @return array<string, mixed> */
