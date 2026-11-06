@@ -37,14 +37,16 @@ class WebhookDispatcher
     /**
      * @param  array<string, mixed>  $data  the entity payload for this event
      * @param  int|null  $tenantId  tenant of the entity the event is about
+     * @param  Collection<int, Webhook>|null  $webhooks  subscribers already looked up
+     *                                                   with subscribersFor(), to skip a second query
      */
-    public function dispatch(string $event, array $data, ?int $tenantId = null): void
+    public function dispatch(string $event, array $data, ?int $tenantId = null, ?Collection $webhooks = null): void
     {
         if (! WebhookEventRegistry::exists($event)) {
             return;
         }
 
-        $webhooks = $this->subscribers($event, $tenantId);
+        $webhooks ??= $this->subscribersFor($event, $tenantId);
         if ($webhooks->isEmpty()) {
             return;
         }
@@ -63,17 +65,19 @@ class WebhookDispatcher
     }
 
     /**
-     * Cheap pre-check so observers can skip building a payload (eager loads,
-     * throttle bookkeeping) when nobody listens.
+     * Active endpoints of the tenant subscribed to the event. Observers call this
+     * first so they can skip building a payload (eager loads, throttle
+     * bookkeeping) when nobody listens, then hand the result to dispatch() so
+     * the lookup runs once per event.
+     *
+     * @return Collection<int, Webhook>
      */
-    public function hasSubscribers(string $event, ?int $tenantId): bool
+    public function subscribersFor(string $event, ?int $tenantId): Collection
     {
-        return WebhookEventRegistry::exists($event) && $this->subscribers($event, $tenantId)->isNotEmpty();
-    }
+        if (! WebhookEventRegistry::exists($event)) {
+            return collect();
+        }
 
-    /** @return Collection<int, Webhook> */
-    private function subscribers(string $event, ?int $tenantId): Collection
-    {
         try {
             return Webhook::withoutGlobalScope(TenantScope::class)
                 ->active()

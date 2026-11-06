@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Issue;
 use App\Services\Webhooks\WebhookDispatcher;
 use App\Support\Integration\QualityIssuePresenter;
+use App\Support\TenantContext;
 use App\Support\WebhookEventRegistry;
 
 /**
@@ -13,8 +14,6 @@ use App\Support\WebhookEventRegistry;
  *  - quality_issue.created for an issue raised against a work order, in the
  *    ERP quality-export shape (QualityIssuePresenter). Issues without a work
  *    order are not exported to the ERP, so they don't fire it either.
- *
- * Issue has no tenant column; its tenant is its work order's.
  */
 class IssueWebhookObserver
 {
@@ -22,7 +21,7 @@ class IssueWebhookObserver
 
     public function created(Issue $issue): void
     {
-        $tenantId = $issue->work_order_id ? $issue->workOrder?->tenant_id : null;
+        $tenantId = $this->tenantOf($issue);
 
         $this->dispatcher->dispatch(WebhookEventRegistry::ISSUE_CREATED, [
             'id' => $issue->id,
@@ -34,13 +33,34 @@ class IssueWebhookObserver
             'reported_by_id' => $issue->reported_by_id,
         ], $tenantId);
 
+        if (! $issue->work_order_id) {
+            return;
+        }
+
         $event = WebhookEventRegistry::QUALITY_ISSUE_CREATED;
-        if (! $issue->work_order_id || ! $this->dispatcher->hasSubscribers($event, $tenantId)) {
+        $webhooks = $this->dispatcher->subscribersFor($event, $tenantId);
+        if ($webhooks->isEmpty()) {
             return;
         }
 
         $issue->loadMissing(['workOrder', 'issueType']);
 
-        $this->dispatcher->dispatch($event, QualityIssuePresenter::present($issue), $tenantId);
+        $this->dispatcher->dispatch($event, QualityIssuePresenter::present($issue), $tenantId, $webhooks);
+    }
+
+    /**
+     * Issue has no tenant column. Its tenant is its work order's; an issue with
+     * no work order (e.g. reported against a line) belongs to whoever reported
+     * it, or to the request's TenantContext for headless (API-key) writes.
+     */
+    private function tenantOf(Issue $issue): ?int
+    {
+        if ($issue->work_order_id && ($workOrder = $issue->workOrder)) {
+            return $workOrder->tenant_id;
+        }
+
+        return $issue->reportedBy?->tenant_id
+            ?? (auth()->hasUser() ? auth()->user()?->tenant_id : null)
+            ?? app(TenantContext::class)->id();
     }
 }

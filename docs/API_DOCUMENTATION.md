@@ -1464,7 +1464,9 @@ Each attempt has a fresh timestamp and signature.
 | `batch.completed` | A batch reaches `DONE`. | `id`, `work_order_id`, `status`, `completed_at`. |
 | `stock_document.posted` | A warehouse document is posted. | Same shape as `GET /api/v1/erp/stock-documents`. |
 
-An event only reaches endpoints of the tenant that owns the entity.
+An event only reaches endpoints of the tenant that owns the entity. An issue takes its
+work order's tenant; an issue without a work order takes the reporting user's tenant (or
+the API key's tenant for headless writes).
 
 **Work order payload.** The same fields as `GET /api/v1/erp/production/...`, plus `id`,
 `previous_status` and the internal ids `line_id` / `product_type_id`, which are kept for
@@ -1617,7 +1619,9 @@ the timestamped scheme unless you tick the option.
 
 To migrate a receiver:
 
-1. Deploy the verification above.
+1. Deploy the verification above. While you are at it, check how you read quantities:
+   in work-order payloads `planned_qty` and `produced_qty` are now JSON numbers
+   (`100.0`), not decimal strings (`"100.00"`). Accept both if your parser is strict.
 2. Untick **Legacy signature** on the endpoint (Admin → Webhooks → Edit), or `PATCH
    /api/v1/webhooks/{id}` with `"legacy_signature": false`.
 3. Click **Send test** and check the delivery log. The *Signature* column shows `v1` and

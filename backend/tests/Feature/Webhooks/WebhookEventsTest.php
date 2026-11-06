@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\StockDocument;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
@@ -16,6 +17,7 @@ use App\Models\WorkOrder;
 use App\Services\Warehouse\StockDocumentService;
 use App\Support\Integration\StockDocumentPresenter;
 use App\Support\Integration\WorkOrderPresenter;
+use App\Support\TenantContext;
 use App\Support\WebhookEventRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -115,6 +117,8 @@ class WebhookEventsTest extends TestCase
         $data = $deliveries->first()->payload['data'];
         $this->assertEquals(12, $data['produced_qty']);
         $this->assertEquals(0, $data['previous_produced_qty']);
+        // Status did not change in this update.
+        $this->assertNull($data['previous_status']);
         $this->assertCount(0, $this->deliveriesFor($other, WebhookEventRegistry::WORK_ORDER_PROGRESS));
     }
 
@@ -318,5 +322,48 @@ class WebhookEventsTest extends TestCase
 
         $this->assertSame('Postęp zlecenia', $labels[WebhookEventRegistry::WORK_ORDER_PROGRESS]);
         $this->assertSame('Dokument magazynowy zaksięgowany', $labels[WebhookEventRegistry::STOCK_DOCUMENT_POSTED]);
+    }
+
+    public function test_progress_carries_previous_status_when_status_changed_in_same_update(): void
+    {
+        $webhook = Webhook::factory()->subscribedTo([WebhookEventRegistry::WORK_ORDER_PROGRESS])->create();
+        $wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS, 'produced_qty' => 0]);
+
+        $wo->update(['status' => WorkOrder::STATUS_DONE, 'produced_qty' => 10]);
+
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->deliveriesFor($webhook)->first()->payload['data']['previous_status']);
+    }
+
+    public function test_issue_without_work_order_reaches_reporters_tenant_only(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $hookA = Webhook::factory()->subscribedTo([WebhookEventRegistry::ISSUE_CREATED])->create(['tenant_id' => $tenantA->id]);
+        $hookB = Webhook::factory()->subscribedTo([WebhookEventRegistry::ISSUE_CREATED])->create(['tenant_id' => $tenantB->id]);
+
+        $reporter = User::factory()->create(['tenant_id' => $tenantA->id]);
+        Issue::factory()->create(['work_order_id' => null, 'reported_by_id' => $reporter->id]);
+
+        $this->assertCount(1, $this->deliveriesFor($hookA, WebhookEventRegistry::ISSUE_CREATED));
+        $this->assertCount(0, $this->deliveriesFor($hookB));
+    }
+
+    public function test_issue_without_work_order_or_reporter_uses_tenant_context(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $hookA = Webhook::factory()->subscribedTo([WebhookEventRegistry::ISSUE_CREATED])->create(['tenant_id' => $tenantA->id]);
+        $hookB = Webhook::factory()->subscribedTo([WebhookEventRegistry::ISSUE_CREATED])->create(['tenant_id' => $tenantB->id]);
+
+        // Headless (API-key) write: no user, tenant from TenantContext.
+        app(TenantContext::class)->set($tenantA->id);
+        try {
+            Issue::factory()->create(['work_order_id' => null, 'reported_by_id' => null]);
+        } finally {
+            app(TenantContext::class)->clear();
+        }
+
+        $this->assertCount(1, $this->deliveriesFor($hookA, WebhookEventRegistry::ISSUE_CREATED));
+        $this->assertCount(0, $this->deliveriesFor($hookB));
     }
 }
