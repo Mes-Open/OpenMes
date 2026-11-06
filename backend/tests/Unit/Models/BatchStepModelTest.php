@@ -15,6 +15,7 @@ class BatchStepModelTest extends TestCase
     use RefreshDatabase;
 
     protected WorkOrder $workOrder;
+
     protected Batch $batch;
 
     protected function setUp(): void
@@ -70,8 +71,8 @@ class BatchStepModelTest extends TestCase
     public function test_can_start_returns_true_for_second_step_when_first_done(): void
     {
         $this->batch->steps()->where('step_number', 1)->update([
-            'status'       => BatchStep::STATUS_DONE,
-            'started_at'   => now()->subMinutes(30),
+            'status' => BatchStep::STATUS_DONE,
+            'started_at' => now()->subMinutes(30),
             'completed_at' => now(),
         ]);
 
@@ -97,7 +98,7 @@ class BatchStepModelTest extends TestCase
         \App\Models\Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $blockingType->id,
-            'status'        => \App\Models\Issue::STATUS_OPEN,
+            'status' => \App\Models\Issue::STATUS_OPEN,
         ]);
         $this->workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
 

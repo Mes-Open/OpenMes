@@ -789,6 +789,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
         // Outgoing webhooks (#20)
+        // Private-network allowlist (T2a). Deliberately NOT under /webhooks/…
+        // (would collide with PUT /webhooks/{webhook}) and explicitly Admin-only:
+        // the Webhooks tab permission alone must not widen SSRF reach.
+        Route::put('/webhook-allowlist', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'updateAllowlist'])
+            ->name('webhooks.allowlist.update')->middleware('role:Admin');
         Route::resource('webhooks', \App\Http\Controllers\Web\Admin\WebhookController::class)->except(['show']);
         Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'toggleActive'])->name('webhooks.toggle-active');
         Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'test'])->name('webhooks.test');

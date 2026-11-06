@@ -16,8 +16,11 @@ class ScrapApiTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $operator;
+
     private string $adminToken;
+
     private string $operatorToken;
 
     protected function setUp(): void

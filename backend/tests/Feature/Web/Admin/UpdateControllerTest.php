@@ -18,6 +18,7 @@ class UpdateControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
 
     protected function setUp(): void
@@ -52,8 +53,8 @@ class UpdateControllerTest extends TestCase
     {
         Http::fake([
             'getopenmes.com/*' => Http::response([
-                'version'     => 'v999.0.0',
-                'name'        => 'OpenMES v999.0.0',
+                'version' => 'v999.0.0',
+                'name' => 'OpenMES v999.0.0',
                 'release_url' => 'https://example.com/r',
             ], 200),
         ]);
@@ -63,7 +64,7 @@ class UpdateControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'available' => true,
-            'latest'    => 'v999.0.0',
+            'latest' => 'v999.0.0',
         ]);
     }
 
@@ -74,7 +75,7 @@ class UpdateControllerTest extends TestCase
         Http::fake([
             'getopenmes.com/*' => Http::response([
                 'version' => $current,
-                'name'    => "OpenMES {$current}",
+                'name' => "OpenMES {$current}",
             ], 200),
         ]);
 
@@ -127,8 +128,8 @@ class UpdateControllerTest extends TestCase
     public function test_apply_rejects_when_update_already_in_progress(): void
     {
         Cache::put(UpdateApplier::STATUS_CACHE_KEY, [
-            'state'      => 'copying',
-            'version'    => 'v9.0.0',
+            'state' => 'copying',
+            'version' => 'v9.0.0',
             'started_at' => now()->toIso8601String(),
             'updated_at' => now()->toIso8601String(),
         ], 60);
@@ -209,7 +210,7 @@ class UpdateControllerTest extends TestCase
     public function test_status_returns_cached_state(): void
     {
         Cache::put(UpdateApplier::STATUS_CACHE_KEY, [
-            'state'    => 'downloading',
+            'state' => 'downloading',
             'progress' => 20,
         ], 60);
 
@@ -252,26 +253,26 @@ class UpdateControllerTest extends TestCase
     public function test_history_returns_recent_updates_with_user(): void
     {
         $completed = SystemUpdate::create([
-            'user_id'              => $this->admin->id,
-            'from_version'         => 'v1.0.0',
-            'to_version'           => 'v1.1.0',
-            'state'                => SystemUpdate::STATE_COMPLETED,
-            'started_at'           => now()->subMinutes(5),
-            'finished_at'          => now()->subMinutes(4),
-            'duration_seconds'     => 60,
-            'files_copied'         => 42,
+            'user_id' => $this->admin->id,
+            'from_version' => 'v1.0.0',
+            'to_version' => 'v1.1.0',
+            'state' => SystemUpdate::STATE_COMPLETED,
+            'started_at' => now()->subMinutes(5),
+            'finished_at' => now()->subMinutes(4),
+            'duration_seconds' => 60,
+            'files_copied' => 42,
             'composer_install_ran' => true,
-            'checksum_verified'    => true,
+            'checksum_verified' => true,
         ]);
 
         $failed = SystemUpdate::create([
-            'user_id'      => $this->admin->id,
+            'user_id' => $this->admin->id,
             'from_version' => 'v1.1.0',
-            'to_version'   => 'v1.2.0',
-            'state'        => SystemUpdate::STATE_FAILED,
-            'started_at'   => now()->subMinute(),
-            'finished_at'  => now(),
-            'error'        => 'boom',
+            'to_version' => 'v1.2.0',
+            'state' => SystemUpdate::STATE_FAILED,
+            'started_at' => now()->subMinute(),
+            'finished_at' => now(),
+            'error' => 'boom',
         ]);
 
         $response = $this->actingAs($this->admin)->getJson('/admin/update/history');

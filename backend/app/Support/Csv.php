@@ -23,12 +23,12 @@ class Csv
 
         // Formula injection guard — prepend apostrophe to neutralize.
         if (preg_match('/^[=+\-@\t\r]/', $value)) {
-            $value = "'" . $value;
+            $value = "'".$value;
         }
 
         // Standard CSV quoting
         if (preg_match('/[",\r\n]/', $value)) {
-            $value = '"' . str_replace('"', '""', $value) . '"';
+            $value = '"'.str_replace('"', '""', $value).'"';
         }
 
         return $value;
@@ -40,6 +40,6 @@ class Csv
      */
     public static function row(array $cells): string
     {
-        return implode(',', array_map(fn ($c) => self::escape((string) $c), $cells)) . "\r\n";
+        return implode(',', array_map(fn ($c) => self::escape((string) $c), $cells))."\r\n";
     }
 }

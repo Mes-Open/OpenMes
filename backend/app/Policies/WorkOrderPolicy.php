@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\WorkOrder;
-use Illuminate\Auth\Access\Response;
 
 class WorkOrderPolicy
 {
@@ -32,7 +31,7 @@ class WorkOrderPolicy
     public function view(User $user, WorkOrder $workOrder): bool
     {
         // Check permission
-        if (!$user->can('view work orders')) {
+        if (! $user->can('view work orders')) {
             return false;
         }
 
@@ -58,7 +57,7 @@ class WorkOrderPolicy
      */
     public function update(User $user, WorkOrder $workOrder): bool
     {
-        if (!$user->can('edit work orders')) {
+        if (! $user->can('edit work orders')) {
             return false;
         }
 

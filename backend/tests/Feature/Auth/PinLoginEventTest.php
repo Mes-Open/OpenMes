@@ -31,13 +31,13 @@ class PinLoginEventTest extends TestCase
         $user = User::factory()->create([
             'username' => 'pinuser',
             'password' => Hash::make('irrelevant-for-pin'),
-            'pin'      => Hash::make('123456'),
+            'pin' => Hash::make('123456'),
         ]);
         $user->assignRole('Operator');
 
         $response = $this->post('/login/pin', [
             'username' => 'pinuser',
-            'pin'      => '123456',
+            'pin' => '123456',
         ]);
 
         $response->assertRedirect();
@@ -57,12 +57,12 @@ class PinLoginEventTest extends TestCase
     {
         User::factory()->create([
             'username' => 'pinuser',
-            'pin'      => Hash::make('123456'),
+            'pin' => Hash::make('123456'),
         ]);
 
         $response = $this->post('/login/pin', [
             'username' => 'pinuser',
-            'pin'      => '999999',
+            'pin' => '999999',
         ]);
 
         $response->assertSessionHasErrors();

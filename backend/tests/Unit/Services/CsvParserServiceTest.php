@@ -23,15 +23,16 @@ class CsvParserServiceTest extends TestCase
 
     private function writeTempCsv(string $content): string
     {
-        $path = sys_get_temp_dir() . '/test_' . uniqid() . '.csv';
+        $path = sys_get_temp_dir().'/test_'.uniqid().'.csv';
         file_put_contents($path, $content);
+
         return $path;
     }
 
     protected function tearDown(): void
     {
         // Clean up any temp files created during tests
-        foreach (glob(sys_get_temp_dir() . '/test_*.csv') as $file) {
+        foreach (glob(sys_get_temp_dir().'/test_*.csv') as $file) {
             @unlink($file);
         }
         parent::tearDown();
@@ -63,7 +64,7 @@ class CsvParserServiceTest extends TestCase
 
     public function test_parse_counts_total_rows_correctly(): void
     {
-        $rows = implode("\n", array_map(fn($i) => "WO-00{$i},{$i}00,LINE-A", range(1, 7)));
+        $rows = implode("\n", array_map(fn ($i) => "WO-00{$i},{$i}00,LINE-A", range(1, 7)));
         $csv = "OrderNo,Quantity,Line\n{$rows}";
         $path = $this->writeTempCsv($csv);
 
@@ -74,7 +75,7 @@ class CsvParserServiceTest extends TestCase
 
     public function test_parse_limits_preview_rows(): void
     {
-        $rows = implode("\n", array_map(fn($i) => "WO-00{$i},{$i}00,LINE-A", range(1, 10)));
+        $rows = implode("\n", array_map(fn ($i) => "WO-00{$i},{$i}00,LINE-A", range(1, 10)));
         $csv = "OrderNo,Quantity,Line\n{$rows}";
         $path = $this->writeTempCsv($csv);
 
@@ -100,10 +101,10 @@ class CsvParserServiceTest extends TestCase
     {
         $headers = ['OrderNo', 'Line', 'Product', 'Qty'];
         $mapping = [
-            'order_no'          => ['csv_column' => 'OrderNo'],
-            'line_code'         => ['csv_column' => 'Line'],
+            'order_no' => ['csv_column' => 'OrderNo'],
+            'line_code' => ['csv_column' => 'Line'],
             'product_type_code' => ['csv_column' => 'Product'],
-            'planned_qty'       => ['csv_column' => 'Qty'],
+            'planned_qty' => ['csv_column' => 'Qty'],
         ];
 
         $errors = $this->service->validateMapping($headers, $mapping);
@@ -115,9 +116,9 @@ class CsvParserServiceTest extends TestCase
     {
         $headers = ['Line', 'Product', 'Qty'];
         $mapping = [
-            'line_code'         => ['csv_column' => 'Line'],
+            'line_code' => ['csv_column' => 'Line'],
             'product_type_code' => ['csv_column' => 'Product'],
-            'planned_qty'       => ['csv_column' => 'Qty'],
+            'planned_qty' => ['csv_column' => 'Qty'],
             // 'order_no' missing
         ];
 
@@ -131,10 +132,10 @@ class CsvParserServiceTest extends TestCase
     {
         $headers = ['OrderNo', 'Line', 'Product', 'Qty'];
         $mapping = [
-            'order_no'          => ['csv_column' => 'NonExistentColumn'],
-            'line_code'         => ['csv_column' => 'Line'],
+            'order_no' => ['csv_column' => 'NonExistentColumn'],
+            'line_code' => ['csv_column' => 'Line'],
             'product_type_code' => ['csv_column' => 'Product'],
-            'planned_qty'       => ['csv_column' => 'Qty'],
+            'planned_qty' => ['csv_column' => 'Qty'],
         ];
 
         $errors = $this->service->validateMapping($headers, $mapping);
@@ -161,7 +162,7 @@ class CsvParserServiceTest extends TestCase
         $csv = "OrderNo,Qty\nWO-001,100\nWO-002,200";
         $path = $this->writeTempCsv($csv);
         $mapping = [
-            'order_no'   => ['csv_column' => 'OrderNo'],
+            'order_no' => ['csv_column' => 'OrderNo'],
             'planned_qty' => ['csv_column' => 'Qty'],
         ];
 
@@ -190,8 +191,8 @@ class CsvParserServiceTest extends TestCase
         $csv = "OrderNo\nWO-001";
         $path = $this->writeTempCsv($csv);
         $mapping = [
-            'order_no'   => ['csv_column' => 'OrderNo'],
-            'priority'   => ['csv_column' => 'Priority', 'default' => 3],
+            'order_no' => ['csv_column' => 'OrderNo'],
+            'priority' => ['csv_column' => 'Priority', 'default' => 3],
         ];
 
         $result = $this->service->parseWithMapping($path, $mapping);
@@ -268,7 +269,7 @@ class CsvParserServiceTest extends TestCase
 
     public function test_cleanup_temporary_removes_file(): void
     {
-        $tmpPath = sys_get_temp_dir() . '/test_cleanup_' . uniqid() . '.csv';
+        $tmpPath = sys_get_temp_dir().'/test_cleanup_'.uniqid().'.csv';
         file_put_contents($tmpPath, 'test');
 
         $this->service->cleanupTemporary($tmpPath);

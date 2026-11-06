@@ -735,7 +735,10 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // The webhook network allowlist is security config, not portable data.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\WebhookNetworkAllowlist::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.

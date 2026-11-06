@@ -43,8 +43,7 @@ class ApplyUpdateJob implements ShouldQueue
         public string $version,
         public array $remote,
         public int $startedByUserId,
-    ) {
-    }
+    ) {}
 
     public function handle(UpdateApplier $applier): void
     {
@@ -52,9 +51,9 @@ class ApplyUpdateJob implements ShouldQueue
             try {
                 $applier->run($this->version, $this->remote, $this->startedByUserId);
             } catch (\Throwable $e) {
-                Log::error('ApplyUpdateJob crashed: ' . $e->getMessage(), [
+                Log::error('ApplyUpdateJob crashed: '.$e->getMessage(), [
                     'version' => $this->version,
-                    'trace'   => $e->getTraceAsString(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 // Mark cache as failed so the banner stops polling.
@@ -62,10 +61,10 @@ class ApplyUpdateJob implements ShouldQueue
                 Cache::put(
                     UpdateApplier::STATUS_CACHE_KEY,
                     array_merge($existing, [
-                        'state'      => 'failed',
-                        'progress'   => 100,
-                        'message'    => $e->getMessage(),
-                        'error'      => $e->getMessage(),
+                        'state' => 'failed',
+                        'progress' => 100,
+                        'message' => $e->getMessage(),
+                        'error' => $e->getMessage(),
                         'updated_at' => now()->toIso8601String(),
                     ]),
                     UpdateApplier::STATUS_CACHE_TTL
@@ -94,17 +93,17 @@ class ApplyUpdateJob implements ShouldQueue
 
         Log::error('ApplyUpdateJob marked failed by queue', [
             'version' => $this->version,
-            'error'   => $message,
+            'error' => $message,
         ]);
 
         $existing = Cache::get(UpdateApplier::STATUS_CACHE_KEY) ?? [];
         Cache::put(
             UpdateApplier::STATUS_CACHE_KEY,
             array_merge($existing, [
-                'state'      => 'failed',
-                'progress'   => 100,
-                'message'    => $message,
-                'error'      => $message,
+                'state' => 'failed',
+                'progress' => 100,
+                'message' => $message,
+                'error' => $message,
                 'updated_at' => now()->toIso8601String(),
             ]),
             UpdateApplier::STATUS_CACHE_TTL
@@ -115,7 +114,7 @@ class ApplyUpdateJob implements ShouldQueue
         try {
             app(UpdateApplier::class)->markPendingAuditFailed($this->version, $message);
         } catch (\Throwable $auditErr) {
-            Log::warning('ApplyUpdateJob::failed audit patch swallowed: ' . $auditErr->getMessage());
+            Log::warning('ApplyUpdateJob::failed audit patch swallowed: '.$auditErr->getMessage());
         }
 
         // Belt-and-braces lock release in case handle()'s finally never ran

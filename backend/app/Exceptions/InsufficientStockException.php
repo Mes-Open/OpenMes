@@ -15,10 +15,10 @@ class InsufficientStockException extends Exception
         parent::__construct(__(
             'Insufficient stock for material ":name" (:code): required :required :unit, available :available :unit.',
             [
-                'name'      => $material->name,
-                'code'      => $material->code,
-                'required'  => number_format($required, 4),
-                'unit'      => $material->unit_of_measure,
+                'name' => $material->name,
+                'code' => $material->code,
+                'required' => number_format($required, 4),
+                'unit' => $material->unit_of_measure,
                 'available' => number_format($available, 4),
             ]
         ));

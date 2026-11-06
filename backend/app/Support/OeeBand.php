@@ -5,6 +5,7 @@ namespace App\Support;
 class OeeBand
 {
     public const RED_BELOW = 65.0;
+
     public const GREEN_AT_LEAST = 85.0;
 
     public static function colorFor(?float $value): string

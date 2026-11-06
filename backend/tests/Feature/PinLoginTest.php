@@ -15,6 +15,7 @@ class PinLoginTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $operator;
 
     protected function setUp(): void

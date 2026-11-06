@@ -15,14 +15,15 @@ use App\Http\Controllers\Api\V1\ConnectivityController;
 use App\Http\Controllers\Api\V1\CostSourceController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
+use App\Http\Controllers\Api\V1\Erp\ChangeRequestExportController as ErpChangeRequestExportController;
 use App\Http\Controllers\Api\V1\Erp\KeyIntrospectionController as ErpKeyIntrospectionController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataExportController;
-use App\Http\Controllers\Api\V1\Erp\ChangeRequestExportController as ErpChangeRequestExportController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
 use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
 use App\Http\Controllers\Api\V1\Erp\StockSyncController;
+use App\Http\Controllers\Api\V1\Erp\WebhookController as ErpWebhookController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderCancelController as ErpWorkOrderCancelController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
@@ -180,6 +181,21 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
     Route::post('/stock-documents/{stockDocument}/ack', [StockDocumentExportController::class, 'acknowledge'])
         ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+
+    // OpenMES → ERP push (T2a): the integration registers and manages its OWN
+    // webhook endpoints. Ownership (api_key_id) is enforced in the controller.
+    Route::middleware('scope:erp:webhooks:manage')->group(function () {
+        Route::middleware('throttle:erp-read')->group(function () {
+            Route::get('/webhook-event-types', [ErpWebhookController::class, 'eventTypes']);
+            Route::get('/webhooks', [ErpWebhookController::class, 'index']);
+            Route::get('/webhooks/{webhookId}', [ErpWebhookController::class, 'show'])->whereNumber('webhookId');
+        });
+        Route::middleware('throttle:erp-import')->group(function () {
+            Route::post('/webhooks', [ErpWebhookController::class, 'store']);
+            Route::patch('/webhooks/{webhookId}', [ErpWebhookController::class, 'update'])->whereNumber('webhookId');
+            Route::delete('/webhooks/{webhookId}', [ErpWebhookController::class, 'destroy'])->whereNumber('webhookId');
+        });
+    });
 });
 
 // Protected API routes (require authentication)

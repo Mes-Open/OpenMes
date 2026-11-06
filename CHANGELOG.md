@@ -108,6 +108,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Production Cost* report. Without `include` the response is unchanged; an unknown value is
   a `422`. With `include`, `limit` on the completions list is capped at 100 (default 50) and
   the sections are loaded per page, not per order. See `docs/API_DOCUMENTATION.md`.
+- **ERP integrations can register their own webhooks.** An API key with the new
+  `erp:webhooks:manage` scope can list, create, update and delete webhooks through
+  `/api/v1/erp/webhooks` (event catalog: `/api/v1/erp/webhook-event-types`). A key sees
+  only the webhooks it created itself: webhooks created by an administrator or by another
+  key return 404. The signing secret appears once, in the create response. Deactivating
+  or deleting a key deactivates its webhooks; reactivating the key leaves them off.
+  Deliveries for a key that has expired are not sent. One key can own at most 25
+  webhooks. *Settings → API Keys* has a new *ERP integration keys* section for creating
+  scoped keys (shown once), deactivating them and deleting them. *Webhooks → Endpoints*
+  shows whether each webhook came from an API key or an admin.
+- **Webhooks to receivers in the local network.** *Webhooks → Endpoints* has a new
+  *Local network receivers* card. There an administrator lists the private networks (CIDR,
+  e.g. `192.168.1.0/24`) or exact hostnames that webhooks may reach, for example an
+  on-premises Odoo or another ERP. The list is empty by default, so private addresses stay
+  blocked as before. Loopback, link-local and cloud-metadata addresses are always blocked,
+  even when the list covers them. The same rule is checked again on every delivery, and
+  each delivery is still pinned to the checked IP. Only Admins can change the list, every
+  change is written to the audit log (`webhook_network_allowlist_updated`), and the list is
+  not included in settings export or import.
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
