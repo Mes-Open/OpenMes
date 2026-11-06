@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ChangeEffectivePoint;
 use App\Enums\ChangeRequestStatus;
+use App\Enums\ChangeRequestType;
 use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -41,6 +42,7 @@ class WorkOrderChangeRequest extends Model
 
     protected $fillable = [
         'code',
+        'type',
         'work_order_id',
         'work_order_stop_id',
         'title',
@@ -56,6 +58,7 @@ class WorkOrderChangeRequest extends Model
         'implementation_notes',
         'rejection_reason',
         'requested_by_id',
+        'requested_by_api_key_id',
         'submitted_at',
         'approved_by_id',
         'approved_at',
@@ -69,6 +72,7 @@ class WorkOrderChangeRequest extends Model
 
     protected $attributes = [
         'status' => ChangeRequestStatus::Draft->value,
+        'type' => ChangeRequestType::Change->value,
         'effective_from' => ChangeEffectivePoint::NextBatch->value,
     ];
 
@@ -76,6 +80,7 @@ class WorkOrderChangeRequest extends Model
     {
         return [
             'status' => ChangeRequestStatus::class,
+            'type' => ChangeRequestType::class,
             'effective_from' => ChangeEffectivePoint::class,
             'proposed' => 'array',
             'previous_values' => 'array',
@@ -108,6 +113,15 @@ class WorkOrderChangeRequest extends Model
         return $this->belongsTo(User::class, 'requested_by_id');
     }
 
+    /**
+     * The API key that raised the request when an integration (the ERP) did rather
+     * than a person. Includes revoked keys: the requester's name must outlive the key.
+     */
+    public function requestedByApiKey(): BelongsTo
+    {
+        return $this->belongsTo(ApiKey::class, 'requested_by_api_key_id')->withTrashed();
+    }
+
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by_id');
@@ -138,6 +152,44 @@ class WorkOrderChangeRequest extends Model
         ]);
     }
 
+    /** Requests raised by an integration through an API key, not by a person. */
+    public function scopeFromIntegration(Builder $query): Builder
+    {
+        return $query->whereNotNull('requested_by_api_key_id');
+    }
+
+    public function isCancellation(): bool
+    {
+        return $this->type === ChangeRequestType::Cancellation;
+    }
+
+    public function isFromIntegration(): bool
+    {
+        return $this->requested_by_api_key_id !== null;
+    }
+
+    /**
+     * Who asked, for display: the user's name, or the API key (and its integration)
+     * when the request came in over the ERP API.
+     */
+    public function requesterLabel(): ?string
+    {
+        if ($this->requestedBy !== null) {
+            return $this->requestedBy->name;
+        }
+
+        $key = $this->requestedByApiKey;
+
+        if ($key === null) {
+            return null;
+        }
+
+        $label = __('API key: :name', ['name' => $key->name]);
+        $integration = $key->integrationConfig?->system_name;
+
+        return $integration ? "{$label} ({$integration})" : $label;
+    }
+
     public function isEditable(): bool
     {
         return $this->status->isEditable();
@@ -163,6 +215,11 @@ class WorkOrderChangeRequest extends Model
     /** Whether the request changes anything at all — an empty one must not be submitted. */
     public function hasProposedChanges(): bool
     {
+        // A cancellation proposes no field values — the cancellation is the change.
+        if ($this->isCancellation()) {
+            return true;
+        }
+
         return $this->proposedChanges() !== [];
     }
 
@@ -175,6 +232,14 @@ class WorkOrderChangeRequest extends Model
     public function diff(): array
     {
         $previous = $this->previous_values ?? [];
+
+        if ($this->isCancellation()) {
+            return [[
+                'field' => 'status',
+                'from' => $previous['status'] ?? $this->workOrder?->status,
+                'to' => WorkOrder::STATUS_CANCELLED,
+            ]];
+        }
 
         return collect($this->proposedChanges())
             ->map(fn ($to, $field) => [

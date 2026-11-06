@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\ResolvesErpWorkOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ProductionExportRequest;
+use App\Http\Requests\Api\V1\Erp\ShowErpWorkOrderRequest;
+use App\Http\Resources\Erp\ErpChangeRequestPresenter;
 use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
 
@@ -18,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 class ProductionExportController extends Controller
 {
     use BuildsCursorMeta;
+    use ResolvesErpWorkOrder;
 
     public function completions(ProductionExportRequest $request): JsonResponse
     {
@@ -46,9 +50,10 @@ class ProductionExportController extends Controller
     }
 
     /**
-     * Single work order by id — lets the ERP confirm the current state of one
-     * order it previously imported. 404 when the id is unknown within the key's
-     * tenant.
+     * Single work order by id — or by order number with `?by=order_no` — so the ERP
+     * can confirm the current state of an order it imported, including every change
+     * request raised against it and how each was decided. 404 when the order is
+     * unknown within the key's tenant.
      *
      * The model is resolved here rather than via implicit route-model binding on
      * purpose: SubstituteBindings runs before this route's API-key middleware
@@ -58,17 +63,28 @@ class ProductionExportController extends Controller
      * Resolving in the controller runs after the middleware, so the tenant scope
      * is always applied.
      */
-    public function show(int $workOrder): JsonResponse
+    public function show(ShowErpWorkOrderRequest $request, string $workOrder): JsonResponse
     {
-        $order = WorkOrder::with(['line:id,code,name', 'productType:id,code,name'])
-            ->findOrFail($workOrder);
+        $order = $this->resolveWorkOrder($workOrder, $request->lookup(), [
+            'line:id,code,name',
+            'productType:id,code,name',
+            'changeRequests' => fn ($q) => $q->orderBy('id'),
+        ]);
 
-        return response()->json(['data' => $this->present($order)]);
+        // present() reads the order number off each request; it is this order.
+        $order->changeRequests->each->setRelation('workOrder', $order);
+        $presenter = new ErpChangeRequestPresenter($order->changeRequests);
+
+        return response()->json(['data' => [
+            ...$this->present($order),
+            'change_requests' => $order->changeRequests->map(fn ($cr) => $presenter->present($cr))->values(),
+        ]]);
     }
 
     private function present(WorkOrder $wo): array
     {
         return [
+            'id' => $wo->id,
             'order_no' => $wo->order_no,
             'customer_order_no' => $wo->customer_order_no,
             'status' => $wo->status,
