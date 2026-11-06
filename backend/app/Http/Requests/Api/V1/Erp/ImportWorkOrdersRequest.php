@@ -39,6 +39,9 @@ class ImportWorkOrdersRequest extends FormRequest
             'orders.*.priority' => ['nullable', 'integer', 'min:0', 'max:100'],
             'orders.*.due_date' => ['nullable', 'date'],
             'orders.*.description' => ['nullable', 'string', 'max:2000'],
+            // Shown to the manager when the row becomes a change request because the
+            // order is already in production.
+            'orders.*.change_reason' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

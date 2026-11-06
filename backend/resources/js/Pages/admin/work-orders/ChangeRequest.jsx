@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { InlineAlert } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatDateTime, formatNumber, __ } from '../../../lib/i18n';
 
@@ -111,11 +112,17 @@ function ApplyModal({ changeRequest, onClose }) {
     const [effectiveFrom, setEffectiveFrom] = useState(changeRequest.effective_from);
     const [notes, setNotes] = useState('');
 
+    // A cancellation writes no configuration version, so there is no point from
+    // which it "applies" — the order is simply cancelled.
+    const isCancellation = changeRequest.type === 'CANCEL';
+
     function submit(e) {
         e.preventDefault();
         router.post(
             `/admin/work-order-change-requests/${changeRequest.id}/apply`,
-            { effective_from: effectiveFrom, implementation_notes: notes || null },
+            isCancellation
+                ? { implementation_notes: notes || null }
+                : { effective_from: effectiveFrom, implementation_notes: notes || null },
             { preserveScroll: true, onSuccess: onClose },
         );
     }
@@ -125,9 +132,12 @@ function ApplyModal({ changeRequest, onClose }) {
             <div className="bg-om-card rounded-om-sm shadow-xl p-6 w-full max-w-md">
                 <h3 className="text-lg font-bold text-om-ink mb-1">{__('Apply change request')}</h3>
                 <p className="text-sm text-om-muted mb-4">
-                    {__('This writes a new configuration version. Earlier versions and everything already produced stay exactly as recorded.')}
+                    {isCancellation
+                        ? __('This cancels the work order. Everything already produced stays exactly as recorded.')
+                        : __('This writes a new configuration version. Earlier versions and everything already produced stay exactly as recorded.')}
                 </p>
                 <form onSubmit={submit} className="space-y-4">
+                    {!isCancellation && (
                     <div>
                         <div className="block text-sm font-medium text-om-muted mb-1">{__('Applies from')}</div>
                         <select
@@ -141,6 +151,7 @@ function ApplyModal({ changeRequest, onClose }) {
                             <option value="IMMEDIATE">{__('Immediately')}</option>
                         </select>
                     </div>
+                    )}
                     <div>
                         <div className="block text-sm font-medium text-om-muted mb-1">
                             {__('Implementation notes')} <span className="text-om-faint font-normal">({__('optional')})</span>
@@ -184,6 +195,7 @@ export default function AdminChangeRequestShow() {
     const impact = cr.live_impact ?? {};
     const warnings = impact.warnings ?? [];
     const order = cr.work_order ?? {};
+    const isCancellation = cr.type === 'CANCEL';
 
     return (
         <>
@@ -205,6 +217,16 @@ export default function AdminChangeRequestShow() {
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${STATUS_STYLES[cr.status] ?? 'bg-om-chip text-om-muted'}`}>
                                 {cr.status_label}
                             </span>
+                            {isCancellation && (
+                                <span className="px-2 py-0.5 rounded text-xs font-semibold bg-om-blocked-bg text-om-blocked">
+                                    {cr.type_label}
+                                </span>
+                            )}
+                            {cr.requested_via_api && (
+                                <span className="px-2 py-0.5 rounded text-xs font-semibold bg-om-chip text-om-accent">
+                                    {__('Requested via API key')}
+                                </span>
+                            )}
                         </div>
                         <p className="text-om-muted mt-1 font-mono text-sm">{cr.code}</p>
                     </div>
@@ -239,7 +261,7 @@ export default function AdminChangeRequestShow() {
                                 onClick={() => setShowApply(true)}
                                 className="px-4 py-2 text-sm font-medium text-white bg-om-running rounded-md hover:brightness-95"
                             >
-                                {__('Apply change')}
+                                {isCancellation ? __('Apply cancellation') : __('Apply change')}
                             </button>
                         )}
                         {['DRAFT', 'SUBMITTED', 'APPROVED'].includes(cr.status) && can.cancel && (
@@ -265,11 +287,17 @@ export default function AdminChangeRequestShow() {
                         {/* Proposed change */}
                         <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
                             <h2 className="text-lg font-bold text-om-ink mb-1">{__('Proposed change')}</h2>
-                            <p className="text-sm text-om-muted mb-4">
-                                {__('Applies from')}: <span className="font-medium text-om-ink">{cr.effective_from_label}</span>
-                            </p>
+                            {isCancellation ? (
+                                <InlineAlert severity="warning" title={__('This request cancels the work order.')} className="my-3">
+                                    {__('Approving and applying it sets the order to Cancelled, the same as the Cancel action on the order.')}
+                                </InlineAlert>
+                            ) : (
+                                <p className="text-sm text-om-muted mb-4">
+                                    {__('Applies from')}: <span className="font-medium text-om-ink">{cr.effective_from_label}</span>
+                                </p>
+                            )}
 
-                            {(cr.diff ?? []).length === 0 ? (
+                            {isCancellation ? null : (cr.diff ?? []).length === 0 ? (
                                 <p className="text-sm text-om-faint py-3">{__('Nothing proposed.')}</p>
                             ) : (
                                 <div className="space-y-2">
@@ -419,6 +447,9 @@ export default function AdminChangeRequestShow() {
                                 <div>
                                     <p className="text-om-ink font-medium">{__('Requested')}</p>
                                     <p className="text-om-faint text-xs">{cr.requested_by ?? '—'}</p>
+                                    {cr.requested_via_api && (
+                                        <p className="text-om-faint text-xs">{__('Requested via API key')}</p>
+                                    )}
                                 </div>
                                 {cr.submitted_at && (
                                     <div>
@@ -442,7 +473,9 @@ export default function AdminChangeRequestShow() {
                                 {cr.applied_at && (
                                     <div>
                                         <p className="text-om-running font-medium">
-                                            {__('Applied as version :version', { version: cr.resulting_snapshot_version })}
+                                            {isCancellation
+                                                ? __('Applied — work order cancelled')
+                                                : __('Applied as version :version', { version: cr.resulting_snapshot_version })}
                                         </p>
                                         <p className="text-om-faint text-xs">{cr.applied_by} · {stamp(cr.applied_at)}</p>
                                         {cr.implementation_notes && (

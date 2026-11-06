@@ -18,7 +18,13 @@ class WorkOrderImportController extends Controller
 {
     public function store(ImportWorkOrdersRequest $request, WorkOrderImportService $service): JsonResponse
     {
-        $result = $service->importErp($request->input('orders'), $request->strategy());
+        $result = $service->importErp(
+            $request->input('orders'),
+            $request->strategy(),
+            // The key is the requester of any change request the import raises for
+            // an order already in production.
+            $request->attributes->get('api_key'),
+        );
 
         // 207 Multi-Status when some rows failed but the batch was processed;
         // 200 when every order was applied cleanly. Malformed payloads never
