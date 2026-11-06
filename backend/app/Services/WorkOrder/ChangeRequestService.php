@@ -338,9 +338,15 @@ class ChangeRequestService
         $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
 
         return DB::transaction(function () use ($changeRequest, $user, $data) {
+            // The order is locked before the request — the order every other writer
+            // uses (the ERP import and cancel lock the order, then revise its request).
+            // The opposite order here would deadlock against a sync of the same order.
+            // work_order_id never changes, so reading it before the lock is safe.
+            $workOrder = WorkOrder::whereKey($changeRequest->work_order_id)->lockForUpdate()->first();
+
             // Re-read the request under a row lock and check the transition again. The
             // assertion above is outside the transaction, so two concurrent applies on
-            // the same APPROVED request would both pass it; the work-order lock below
+            // the same APPROVED request would both pass it; the work-order lock above
             // only serializes them, it does not stop the second one from appending a
             // second snapshot version and regenerating the same steps again.
             $locked = WorkOrderChangeRequest::whereKey($changeRequest->getKey())->lockForUpdate()->first();
@@ -351,8 +357,6 @@ class ChangeRequestService
 
             $changeRequest->setRawAttributes($locked->getAttributes(), true);
             $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
-
-            $workOrder = WorkOrder::whereKey($changeRequest->work_order_id)->lockForUpdate()->first();
 
             // Null when the order was deleted while the request sat in review. Refuse
             // as a domain rule, or the refresh() below would be a fatal error the
