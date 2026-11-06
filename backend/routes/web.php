@@ -37,6 +37,7 @@ use App\Http\Controllers\Web\Admin\ScrapReportController;
 use App\Http\Controllers\Web\Admin\SubassemblyController;
 use App\Http\Controllers\Web\Admin\ToolController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\UnitAliasController;
 use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
@@ -844,6 +845,11 @@ Route::middleware('auth')->group(function () {
             ->parameters(['custom-fields' => 'customField'])->except(['show']);
         Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
         Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
+
+        // Unit aliases (Settings → Units) — ERP unit names → OpenMES units.
+        // Deliberately outside every TabRegistry prefix, which keeps it Admin-only.
+        Route::resource('unit-aliases', UnitAliasController::class)
+            ->parameters(['unit-aliases' => 'unitAlias'])->except(['show']);
 
         // Scrap Reasons
         // Personnel records. The optional workforce module adds crews, wage

@@ -13,14 +13,21 @@ use Illuminate\Support\Facades\Log;
  * fails the batch (each row runs in its own transaction so a database-level
  * failure cannot cascade into the rows after it), the caller gets counts plus a structured error list, and the
  * controller turns a non-empty error list into 207 Multi-Status.
+ *
+ * A row can also succeed with a caveat — e.g. a unit no alias maps — which the
+ * handler reports through warn(). Warnings sit next to `errors` in the report
+ * with the same shape, and never change the HTTP status.
  */
 trait ReportsImportRows
 {
+    /** @var list<array{field: string, message: string}> warnings of the row being processed */
+    private array $pendingWarnings = [];
+
     /**
      * @param  array<int, array<string, mixed>>  $rows
      * @param  callable(array<string, mixed>): array<string, mixed>  $handler  returns
      *                                                                         ['status' => 'success'|'skipped'|'error', 'action' => 'created'|'updated', …]
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>, warnings: list<array{row: int, field: string, message: string}>}
      */
     protected function processRows(array $rows, callable $handler): array
     {
@@ -28,9 +35,11 @@ trait ReportsImportRows
         $updated = 0;
         $skipped = 0;
         $errors = [];
+        $warnings = [];
 
         foreach (array_values($rows) as $index => $row) {
             $rowNumber = $index + 1;
+            $this->pendingWarnings = [];
 
             try {
                 // Each row gets its own transaction — a savepoint when the
@@ -53,6 +62,14 @@ trait ReportsImportRows
                         'field' => $result['field'] ?? null,
                         'message' => $result['error'] ?? __('Unknown error'),
                     ];
+                }
+
+                // An error row already reports its problem; a caveat on top of
+                // it would only be noise.
+                if ($result['status'] !== 'error') {
+                    foreach ($this->pendingWarnings as $warning) {
+                        $warnings[] = ['row' => $rowNumber, ...$warning];
+                    }
                 }
             } catch (\Throwable $e) {
                 // Never hand the exception text to the caller: a QueryException
@@ -78,7 +95,17 @@ trait ReportsImportRows
             'updated' => $updated,
             'skipped' => $skipped,
             'errors' => $errors,
+            'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Note a caveat on the row being processed. It is reported only if the
+     * row does not end in an error.
+     */
+    protected function warn(string $field, string $message): void
+    {
+        $this->pendingWarnings[] = ['field' => $field, 'message' => $message];
     }
 
     /** @return array<string, mixed> */

@@ -3,7 +3,9 @@
 namespace App\Services\Erp;
 
 use App\Models\ProductType;
+use App\Services\Erp\Concerns\NormalizesUnits;
 use App\Services\Erp\Concerns\ReportsImportRows;
+use App\Support\Units\UnitNormalizer;
 
 /**
  * ERP → OpenMES product (product type) master-data import (#212).
@@ -16,19 +18,21 @@ use App\Services\Erp\Concerns\ReportsImportRows;
  */
 class ProductImportService
 {
+    use NormalizesUnits;
     use ReportsImportRows;
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
      * @param  list<string>  $onlyCategories  empty = accept every category
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>}
      */
     public function import(array $rows, string $strategy = 'update_or_create', array $onlyCategories = [], ?string $system = null): array
     {
         // Case-insensitive match: ERP classification codes are inconsistently cased.
         $allowed = array_map(fn (string $c) => mb_strtolower(trim($c)), $onlyCategories);
+        $units = UnitNormalizer::forCurrentTenant();
 
-        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system) {
+        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system, $units) {
             $code = trim((string) ($row['code'] ?? ''));
 
             if ($code === '') {
@@ -60,6 +64,12 @@ class ProductImportService
                 if (array_key_exists($field, $row) && $row[$field] !== null && $row[$field] !== '') {
                     $attributes[$field] = is_string($row[$field]) ? trim($row[$field]) : $row[$field];
                 }
+            }
+
+            // ERPs name units their own way ("Units", "szt.", "KGM"); store
+            // the OpenMES unit so stock and lots can be checked against it.
+            if (isset($attributes['unit_of_measure'])) {
+                $attributes['unit_of_measure'] = $this->masterDataUnit($units, (string) $attributes['unit_of_measure']);
             }
 
             if (! isset($attributes['external_system']) && $system !== null) {

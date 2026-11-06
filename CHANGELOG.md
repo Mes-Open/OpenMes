@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Unit aliases and unit checks for ERP imports.** *Settings → Units of Measure* is a new
+  Admin page listing the names ERPs use for a unit and the unit OpenMES stores for each
+  (`Units`, `szt`, `Stück`, `C62` → `pcs`; `KGM` → `kg`; …), pre-filled with common
+  names and UN/ECE codes and editable per tenant. Product and material imports store
+  the OpenMES unit instead of the ERP's spelling; an unknown unit is still saved as sent,
+  and the import report lists it under a new `warnings` key. **Behaviour change:** a
+  stock or material-lot row whose unit does not match the item's unit (340 `g` for a
+  material kept in `kg`) now fails with a readable `unit_of_measure` error instead of
+  being stored with the wrong unit; quantities are never converted. Rows without a unit
+  behave as before.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
