@@ -39,6 +39,19 @@ class WebhookUrlGuard
         '::1/128',          // loopback
         'fe80::/10',        // link-local
         'ff00::/8',         // multicast
+        // AWS IMDS over IPv6. It sits inside the ULA pool (fc00::/7), so it
+        // must be listed here or an fd00::/8 allowlist entry would unlock it.
+        'fd00:ec2::254/128',
+        // IPv6 forms that embed an IPv4 address (IPv4-compatible, SIIT,
+        // NAT64, 6to4, Teredo) or are deprecated (site-local): a webhook has
+        // no business there, and each could tunnel to a blocked IPv4 target.
+        '::/96',
+        '::ffff:0:0:0/96',
+        '64:ff9b::/96',
+        '64:ff9b:1::/48',
+        '2001::/32',
+        '2002::/16',
+        'fec0::/10',
     ];
 
     /** Private ranges an administrator may open up via the allowlist. */

@@ -1538,10 +1538,13 @@ The list is not included in settings export or import.
 Whatever is on the list, these addresses are **always** blocked: loopback
 (`127.0.0.0/8`, `::1`), unspecified (`0.0.0.0/8`, `::`), link-local (`169.254.0.0/16`,
 `fe80::/10`), cloud metadata endpoints (`169.254.169.254`, `169.254.170.2`,
-`100.100.100.200`), multicast and other reserved ranges. IPv4-mapped IPv6 forms such as
+`100.100.100.200`, `fd00:ec2::254`), multicast and other reserved ranges, and IPv6
+forms that embed an IPv4 address (IPv4-compatible `::/96`, NAT64 `64:ff9b::/96`,
+6to4 `2002::/16`, Teredo `2001::/32`). IPv4-mapped IPv6 forms such as
 `::ffff:127.0.0.1` count as their IPv4 address. If a hostname resolves to several
 addresses, every one of them must be allowed. Each delivery is pinned to the address
-that was checked, so DNS rebinding cannot redirect it.
+that was checked, so DNS rebinding cannot redirect it, and redirects are never
+followed: a `3xx` answer counts as a failed attempt.
 
 
 ---

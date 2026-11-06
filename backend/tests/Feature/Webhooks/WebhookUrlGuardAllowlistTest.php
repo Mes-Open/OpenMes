@@ -139,4 +139,34 @@ class WebhookUrlGuardAllowlistTest extends TestCase
 
         $this->assertFalse(WebhookUrlGuard::isSafe('http://odoo.lan/hook'));
     }
+
+    public function test_ipv6_metadata_endpoint_stays_blocked_when_its_ula_range_is_listed(): void
+    {
+        // AWS IMDS over IPv6 lives inside the unlockable ULA pool.
+        $this->allow(['fd00::/8']);
+
+        $this->assertTrue(WebhookUrlGuard::isSafe('http://[fd00:1::5]/hook'));
+        $this->assertFalse(WebhookUrlGuard::isSafe('http://[fd00:ec2::254]/latest/meta-data'));
+        $this->assertFalse(WebhookUrlGuard::isSafe('http://[fd00:ec2:0:0:0:0:0:254]/latest/meta-data'));
+    }
+
+    public function test_ipv6_forms_embedding_an_ipv4_address_are_blocked(): void
+    {
+        foreach ([
+            'http://[::127.0.0.1]/x',           // IPv4-compatible
+            'http://[::a9fe:a9fe]/x',           // IPv4-compatible 169.254.169.254
+            'http://[::ffff:0:a9fe:a9fe]/x',    // SIIT IPv4-translated
+            'http://[64:ff9b::a9fe:a9fe]/x',    // NAT64
+            'http://[64:ff9b:1::a9fe:a9fe]/x',  // local-use NAT64
+            'http://[2002:a9fe:a9fe::1]/x',     // 6to4
+            'http://[2001:0:4136:e378::1]/x',   // Teredo
+            'http://[fec0::1]/x',               // deprecated site-local
+        ] as $url) {
+            $this->assertFalse(WebhookUrlGuard::isSafe($url), $url);
+        }
+
+        // A plain public IPv6 address and a mapped public IPv4 stay reachable.
+        $this->assertTrue(WebhookUrlGuard::isSafe('http://[2606:4700:4700::1111]/x'));
+        $this->assertTrue(WebhookUrlGuard::isSafe('http://[::ffff:8.8.8.8]/x'));
+    }
 }
