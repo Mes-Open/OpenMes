@@ -31,14 +31,14 @@ class IssueTypeManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:issue_types,code',
-            'name'        => 'required|string|max:100',
-            'severity'    => 'required|in:LOW,MEDIUM,HIGH,CRITICAL',
+            'code' => 'required|string|max:50|unique:issue_types,code',
+            'name' => 'required|string|max:100',
+            'severity' => 'required|in:LOW,MEDIUM,HIGH,CRITICAL',
             'is_blocking' => 'boolean',
         ]);
 
         $validated['is_blocking'] = $request->boolean('is_blocking');
-        $validated['is_active']   = true;
+        $validated['is_active'] = true;
 
         IssueType::create($validated);
 
@@ -55,11 +55,11 @@ class IssueTypeManagementController extends Controller
     public function update(Request $request, IssueType $issueType)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:issue_types,code,' . $issueType->id,
-            'name'        => 'required|string|max:100',
-            'severity'    => 'required|in:LOW,MEDIUM,HIGH,CRITICAL',
+            'code' => 'required|string|max:50|unique:issue_types,code,'.$issueType->id,
+            'name' => 'required|string|max:100',
+            'severity' => 'required|in:LOW,MEDIUM,HIGH,CRITICAL',
             'is_blocking' => 'boolean',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_blocking'] = $request->boolean('is_blocking');
@@ -86,9 +86,9 @@ class IssueTypeManagementController extends Controller
 
     public function toggleActive(IssueType $issueType)
     {
-        $issueType->update(['is_active' => !$issueType->is_active]);
+        $issueType->update(['is_active' => ! $issueType->is_active]);
 
         return redirect()->back()
-            ->with('success', "Issue type \"{$issueType->name}\" " . ($issueType->is_active ? 'activated' : 'deactivated') . '.');
+            ->with('success', "Issue type \"{$issueType->name}\" ".($issueType->is_active ? 'activated' : 'deactivated').'.');
     }
 }

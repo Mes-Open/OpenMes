@@ -15,13 +15,13 @@ class DashboardWidgetController extends Controller
 
         return Inertia::render('admin/dashboard-widgets/Index', [
             'widgets' => $widgets->map(fn ($w) => [
-                'id'          => $w->id,
-                'name'        => $w->name,
-                'zone'        => $w->zone,
+                'id' => $w->id,
+                'name' => $w->name,
+                'zone' => $w->zone,
                 'description' => $w->description ?? '',
-                'source'      => $w->source,
+                'source' => $w->source,
                 'module_name' => $w->module_name,
-                'enabled'     => (bool) $w->enabled,
+                'enabled' => (bool) $w->enabled,
             ]),
         ]);
     }

@@ -10,7 +10,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * API mirror of Web/Admin/SystemLogController — read the Laravel application
@@ -22,24 +21,25 @@ use Illuminate\Support\Facades\Storage;
 class SystemLogController extends Controller
 {
     private const TAIL_BYTES = 256 * 1024;
+
     private const MAX_ENTRIES = 500;
 
     /** Returns the last N parsed log entries from today's app log. */
     public function tail(Request $request): JsonResponse
     {
-        $level   = $request->query('level');
-        $search  = $request->query('search');
-        $date    = $request->filled('date')
+        $level = $request->query('level');
+        $search = $request->query('search');
+        $date = $request->filled('date')
             ? Carbon::parse($request->query('date'))->startOfDay()
             : today();
-        $limit   = max(10, min((int) $request->query('limit', 100), self::MAX_ENTRIES));
+        $limit = max(10, min((int) $request->query('limit', 100), self::MAX_ENTRIES));
 
         $entries = $this->readLogFile($date, $level, $search, $limit);
 
         return response()->json([
             'data' => $entries->values()->all(),
             'meta' => [
-                'date'  => $date->toDateString(),
+                'date' => $date->toDateString(),
                 'count' => $entries->count(),
             ],
         ]);
@@ -56,16 +56,16 @@ class SystemLogController extends Controller
         }
 
         $perPage = max(1, min((int) $request->query('per_page', 25), 100));
-        $page    = DB::table('failed_jobs')->orderByDesc('failed_at')->paginate($perPage);
+        $page = DB::table('failed_jobs')->orderByDesc('failed_at')->paginate($perPage);
 
         return response()->json([
             'data' => $page->items(),
             'meta' => [
                 'current_page' => $page->currentPage(),
-                'per_page'     => $page->perPage(),
-                'total'        => $page->total(),
-                'last_page'    => $page->lastPage(),
-                'missing'      => false,
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+                'missing' => false,
             ],
         ]);
     }
@@ -97,16 +97,16 @@ class SystemLogController extends Controller
         }
 
         $perPage = max(1, min((int) $request->query('per_page', 25), 100));
-        $page    = DB::table('system_updates')->orderByDesc('started_at')->paginate($perPage);
+        $page = DB::table('system_updates')->orderByDesc('started_at')->paginate($perPage);
 
         return response()->json([
             'data' => $page->items(),
             'meta' => [
                 'current_page' => $page->currentPage(),
-                'per_page'     => $page->perPage(),
-                'total'        => $page->total(),
-                'last_page'    => $page->lastPage(),
-                'missing'      => false,
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+                'missing' => false,
             ],
         ]);
     }
@@ -124,10 +124,14 @@ class SystemLogController extends Controller
         int $maxLines = self::MAX_ENTRIES
     ): Collection {
         $path = $this->resolveLogPath($date);
-        if ($path === null) return collect();
+        if ($path === null) {
+            return collect();
+        }
 
         $handle = @fopen($path, 'r');
-        if (! $handle) return collect();
+        if (! $handle) {
+            return collect();
+        }
 
         $size = @filesize($path) ?: 0;
         if ($size > self::TAIL_BYTES) {
@@ -140,19 +144,23 @@ class SystemLogController extends Controller
 
         while (($line = fgets($handle)) !== false) {
             if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] (\w+)\.(\w+): (.*)$/', $line, $m)) {
-                if ($current !== null) $entries->push($current);
+                if ($current !== null) {
+                    $entries->push($current);
+                }
                 $current = (object) [
-                    'timestamp'   => $m[1],
+                    'timestamp' => $m[1],
                     'environment' => $m[2],
-                    'level'       => strtolower($m[3]),
-                    'message'     => rtrim($m[4]),
-                    'context'     => '',
+                    'level' => strtolower($m[3]),
+                    'message' => rtrim($m[4]),
+                    'context' => '',
                 ];
             } elseif ($current !== null) {
                 $current->context .= $line;
             }
         }
-        if ($current !== null) $entries->push($current);
+        if ($current !== null) {
+            $entries->push($current);
+        }
         fclose($handle);
 
         if ($level) {
@@ -175,12 +183,15 @@ class SystemLogController extends Controller
         $base = storage_path('logs');
         // Daily channel filename pattern, fall back to the single laravel.log.
         $candidates = [
-            $base . '/laravel-' . $date->format('Y-m-d') . '.log',
-            $base . '/laravel.log',
+            $base.'/laravel-'.$date->format('Y-m-d').'.log',
+            $base.'/laravel.log',
         ];
         foreach ($candidates as $p) {
-            if (is_file($p)) return $p;
+            if (is_file($p)) {
+                return $p;
+            }
         }
+
         return null;
     }
 }

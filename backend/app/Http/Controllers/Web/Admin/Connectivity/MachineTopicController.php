@@ -12,17 +12,17 @@ class MachineTopicController extends Controller
     public function store(Request $request, MachineConnection $mqttConnection)
     {
         $validated = $request->validate([
-            'topic_pattern'  => ['required', 'string', 'max:500'],
+            'topic_pattern' => ['required', 'string', 'max:500'],
             'payload_format' => ['required', 'in:json,plain,csv,hex'],
-            'description'    => ['nullable', 'string', 'max:500'],
-            'is_active'      => ['boolean'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['boolean'],
         ]);
 
         $mqttConnection->topics()->create([
-            'topic_pattern'  => $validated['topic_pattern'],
+            'topic_pattern' => $validated['topic_pattern'],
             'payload_format' => $validated['payload_format'],
-            'description'    => $validated['description'] ?? null,
-            'is_active'      => $request->boolean('is_active', true),
+            'description' => $validated['description'] ?? null,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return back()->with('success', 'Topic added.');
@@ -33,17 +33,17 @@ class MachineTopicController extends Controller
         $this->authorizeTopicBelongsToConnection($topic, $mqttConnection);
 
         $validated = $request->validate([
-            'topic_pattern'  => ['required', 'string', 'max:500'],
+            'topic_pattern' => ['required', 'string', 'max:500'],
             'payload_format' => ['required', 'in:json,plain,csv,hex'],
-            'description'    => ['nullable', 'string', 'max:500'],
-            'is_active'      => ['boolean'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['boolean'],
         ]);
 
         $topic->update([
-            'topic_pattern'  => $validated['topic_pattern'],
+            'topic_pattern' => $validated['topic_pattern'],
             'payload_format' => $validated['payload_format'],
-            'description'    => $validated['description'] ?? null,
-            'is_active'      => $request->boolean('is_active', true),
+            'description' => $validated['description'] ?? null,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return back()->with('success', 'Topic updated.');
@@ -53,6 +53,7 @@ class MachineTopicController extends Controller
     {
         $this->authorizeTopicBelongsToConnection($topic, $mqttConnection);
         $topic->delete();
+
         return back()->with('success', 'Topic deleted.');
     }
 

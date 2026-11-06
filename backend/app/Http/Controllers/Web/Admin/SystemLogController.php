@@ -107,12 +107,12 @@ class SystemLogController extends Controller
         $availableDates = $this->listLogDates();
 
         return \Inertia\Inertia::render('admin/logs/System', [
-            'tab'            => 'app',
-            'entries'        => $entries->values(),
+            'tab' => 'app',
+            'entries' => $entries->values(),
             'availableDates' => $availableDates,
-            'date'           => $date->format('Y-m-d'),
-            'level'          => $level ?? '',
-            'search'         => $search ?? '',
+            'date' => $date->format('Y-m-d'),
+            'level' => $level ?? '',
+            'search' => $search ?? '',
         ]);
     }
 
@@ -120,7 +120,7 @@ class SystemLogController extends Controller
     {
         if (! Schema::hasTable('failed_jobs')) {
             return \Inertia\Inertia::render('admin/logs/System', [
-                'tab'     => 'failed_jobs',
+                'tab' => 'failed_jobs',
                 'entries' => new LengthAwarePaginator([], 0, self::PER_PAGE),
                 'missing' => true,
             ]);
@@ -132,7 +132,7 @@ class SystemLogController extends Controller
             ->withQueryString();
 
         return \Inertia\Inertia::render('admin/logs/System', [
-            'tab'     => 'failed_jobs',
+            'tab' => 'failed_jobs',
             'entries' => $entries,
             'missing' => false,
         ]);
@@ -146,7 +146,7 @@ class SystemLogController extends Controller
         // the deployment history here instead of the info card.
         if (! Schema::hasTable('system_updates')) {
             return \Inertia\Inertia::render('admin/logs/System', [
-                'tab'     => 'deployments',
+                'tab' => 'deployments',
                 'entries' => new LengthAwarePaginator([], 0, self::PER_PAGE),
                 'missing' => true,
             ]);
@@ -158,7 +158,7 @@ class SystemLogController extends Controller
             ->withQueryString();
 
         return \Inertia\Inertia::render('admin/logs/System', [
-            'tab'     => 'deployments',
+            'tab' => 'deployments',
             'entries' => $entries,
             'missing' => false,
         ]);

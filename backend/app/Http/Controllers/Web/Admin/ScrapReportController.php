@@ -18,9 +18,9 @@ class ScrapReportController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate([
-            'line_id'   => ['nullable', 'integer', 'exists:lines,id'],
+            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ]);
 
         $lineId = isset($validated['line_id']) ? (int) $validated['line_id'] : null;

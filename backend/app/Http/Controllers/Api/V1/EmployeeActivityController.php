@@ -57,9 +57,9 @@ class EmployeeActivityController extends Controller
             'data' => $page->getCollection()->map(fn ($a) => $this->serialize($a)),
             'meta' => [
                 'current_page' => $page->currentPage(),
-                'per_page'     => $page->perPage(),
-                'total'        => $page->total(),
-                'last_page'    => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
             ],
         ]);
     }
@@ -83,7 +83,7 @@ class EmployeeActivityController extends Controller
 
         return response()->json([
             'message' => __('Activity created'),
-            'data'    => $this->serialize($activity),
+            'data' => $this->serialize($activity),
         ], 201);
     }
 
@@ -95,7 +95,7 @@ class EmployeeActivityController extends Controller
 
         return response()->json([
             'message' => __('Activity updated'),
-            'data'    => $this->serialize($employeeActivity->fresh()),
+            'data' => $this->serialize($employeeActivity->fresh()),
         ]);
     }
 
@@ -125,16 +125,16 @@ class EmployeeActivityController extends Controller
 
         return response()->json([
             'data' => [
-                'worker'     => [
-                    'id'              => $worker->id,
-                    'code'            => $worker->code,
-                    'name'            => $worker->name,
-                    'personnel_class' => $worker->personnelClass?->only(['id','code','name']),
+                'worker' => [
+                    'id' => $worker->id,
+                    'code' => $worker->code,
+                    'name' => $worker->name,
+                    'personnel_class' => $worker->personnelClass?->only(['id', 'code', 'name']),
                 ],
-                'date'       => $date->toDateString(),
-                'segments'   => $segments,
-                'summary'    => $sums,
-                'type_meta'  => EmployeeActivity::TYPE_META,
+                'date' => $date->toDateString(),
+                'segments' => $segments,
+                'summary' => $sums,
+                'type_meta' => EmployeeActivity::TYPE_META,
             ],
         ]);
     }
@@ -167,11 +167,11 @@ class EmployeeActivityController extends Controller
             $segments = $this->segmentsFromRows($dayRows, $cursor);
             $sums = $this->summarize($segments);
             $days[] = [
-                'date'       => $key,
-                'in_month'   => $cursor->month === $anchor->month,
-                'is_today'   => $cursor->isToday(),
-                'segments'   => $segments,
-                'on_duty'    => ($sums['work'] ?? 0) + ($sums['setup'] ?? 0) + ($sums['qc'] ?? 0)
+                'date' => $key,
+                'in_month' => $cursor->month === $anchor->month,
+                'is_today' => $cursor->isToday(),
+                'segments' => $segments,
+                'on_duty' => ($sums['work'] ?? 0) + ($sums['setup'] ?? 0) + ($sums['qc'] ?? 0)
                                 + ($sums['maint'] ?? 0) + ($sums['meeting'] ?? 0) + ($sums['training'] ?? 0),
                 'productive' => ($sums['work'] ?? 0) + ($sums['setup'] ?? 0) + ($sums['qc'] ?? 0),
             ];
@@ -180,12 +180,12 @@ class EmployeeActivityController extends Controller
 
         return response()->json([
             'data' => [
-                'worker'      => ['id' => $worker->id, 'code' => $worker->code, 'name' => $worker->name],
-                'month'       => $anchor->format('Y-m'),
+                'worker' => ['id' => $worker->id, 'code' => $worker->code, 'name' => $worker->name],
+                'month' => $anchor->format('Y-m'),
                 'month_start' => $monthStart->toDateString(),
-                'month_end'   => $monthEnd->toDateString(),
-                'days'        => $days,
-                'type_meta'   => EmployeeActivity::TYPE_META,
+                'month_end' => $monthEnd->toDateString(),
+                'days' => $days,
+                'type_meta' => EmployeeActivity::TYPE_META,
             ],
         ]);
     }
@@ -220,23 +220,24 @@ class EmployeeActivityController extends Controller
             foreach ($onDutyTypes as $t) {
                 $onDuty += $sums[$t] ?? 0;
             }
+
             return [
-                'worker'   => [
-                    'id'              => $w->id,
-                    'code'            => $w->code,
-                    'name'            => $w->name,
-                    'personnel_class' => $w->personnelClass?->only(['id','code','name']),
+                'worker' => [
+                    'id' => $w->id,
+                    'code' => $w->code,
+                    'name' => $w->name,
+                    'personnel_class' => $w->personnelClass?->only(['id', 'code', 'name']),
                 ],
                 'segments' => $segments,
-                'summary'  => $sums,
-                'on_duty'  => $onDuty,
+                'summary' => $sums,
+                'on_duty' => $onDuty,
             ];
         });
 
         return response()->json([
             'data' => [
-                'date'      => $date->toDateString(),
-                'rows'      => $rows,
+                'date' => $date->toDateString(),
+                'rows' => $rows,
                 'type_meta' => EmployeeActivity::TYPE_META,
             ],
         ]);
@@ -250,11 +251,11 @@ class EmployeeActivityController extends Controller
     {
         $built = collect(EmployeeActivity::TYPE_META)
             ->map(fn ($meta, $key) => [
-                'key'      => $key,
-                'label'    => $meta['label'],
-                'short'    => $meta['short'],
-                'color'    => $meta['color'],
-                'custom'   => false,
+                'key' => $key,
+                'label' => $meta['label'],
+                'short' => $meta['short'],
+                'color' => $meta['color'],
+                'custom' => false,
             ])
             ->values();
 
@@ -262,19 +263,19 @@ class EmployeeActivityController extends Controller
             ->orderBy('label')
             ->get()
             ->map(fn ($c) => [
-                'key'    => 'custom',
-                'code'   => $c->code,
-                'label'  => $c->label,
-                'short'  => mb_strtoupper(mb_substr($c->code, 0, 3)),
-                'color'  => $c->color,
-                'icon'   => $c->icon,
+                'key' => 'custom',
+                'code' => $c->code,
+                'label' => $c->label,
+                'short' => mb_strtoupper(mb_substr($c->code, 0, 3)),
+                'color' => $c->color,
+                'icon' => $c->icon,
                 'custom' => true,
             ]);
 
         return response()->json([
             'data' => [
                 'built_in' => $built,
-                'custom'   => $custom,
+                'custom' => $custom,
             ],
         ]);
     }
@@ -282,10 +283,10 @@ class EmployeeActivityController extends Controller
     public function storeCustomType(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'code'  => ['required', 'string', 'max:64', Rule::unique('employee_activity_custom_types', 'code')],
+            'code' => ['required', 'string', 'max:64', Rule::unique('employee_activity_custom_types', 'code')],
             'label' => ['required', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:16'],
-            'icon'  => ['nullable', 'string', 'max:32'],
+            'icon' => ['nullable', 'string', 'max:32'],
         ]);
 
         $type = EmployeeActivityCustomType::create($data + ['is_active' => true]);
@@ -296,10 +297,10 @@ class EmployeeActivityController extends Controller
     public function updateCustomType(Request $request, EmployeeActivityCustomType $employeeActivityCustomType): JsonResponse
     {
         $data = $request->validate([
-            'code'      => ['sometimes', 'string', 'max:64', Rule::unique('employee_activity_custom_types', 'code')->ignore($employeeActivityCustomType->id)],
-            'label'     => ['sometimes', 'string', 'max:255'],
-            'color'     => ['sometimes', 'nullable', 'string', 'max:16'],
-            'icon'      => ['sometimes', 'nullable', 'string', 'max:32'],
+            'code' => ['sometimes', 'string', 'max:64', Rule::unique('employee_activity_custom_types', 'code')->ignore($employeeActivityCustomType->id)],
+            'label' => ['sometimes', 'string', 'max:255'],
+            'color' => ['sometimes', 'nullable', 'string', 'max:16'],
+            'icon' => ['sometimes', 'nullable', 'string', 'max:32'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -322,41 +323,41 @@ class EmployeeActivityController extends Controller
     private function serialize(EmployeeActivity $a): array
     {
         return [
-            'id'             => $a->id,
-            'worker_id'      => $a->worker_id,
-            'worker'         => $a->relationLoaded('worker') ? $a->worker?->only(['id','code','name']) : null,
-            'type'           => $a->type,
-            'custom_code'    => $a->custom_code,
-            'label'          => $a->label,
-            'starts_at'      => $a->starts_at?->toIso8601String(),
-            'ends_at'        => $a->ends_at?->toIso8601String(),
-            'from'           => $a->starts_at?->format('H:i'),
-            'to'             => $a->ends_at?->format('H:i'),
-            'duration_min'   => $a->durationMinutes(),
-            'work_order_id'  => $a->work_order_id,
-            'work_order'     => $a->relationLoaded('workOrder') ? $a->workOrder?->only(['id','order_no']) : null,
-            'line_id'        => $a->line_id,
-            'line'           => $a->relationLoaded('line') ? $a->line?->only(['id','name']) : null,
-            'step_name'      => $a->step_name,
-            'notes'          => $a->notes,
-            'created_at'     => $a->created_at?->toIso8601String(),
-            'updated_at'     => $a->updated_at?->toIso8601String(),
+            'id' => $a->id,
+            'worker_id' => $a->worker_id,
+            'worker' => $a->relationLoaded('worker') ? $a->worker?->only(['id', 'code', 'name']) : null,
+            'type' => $a->type,
+            'custom_code' => $a->custom_code,
+            'label' => $a->label,
+            'starts_at' => $a->starts_at?->toIso8601String(),
+            'ends_at' => $a->ends_at?->toIso8601String(),
+            'from' => $a->starts_at?->format('H:i'),
+            'to' => $a->ends_at?->format('H:i'),
+            'duration_min' => $a->durationMinutes(),
+            'work_order_id' => $a->work_order_id,
+            'work_order' => $a->relationLoaded('workOrder') ? $a->workOrder?->only(['id', 'order_no']) : null,
+            'line_id' => $a->line_id,
+            'line' => $a->relationLoaded('line') ? $a->line?->only(['id', 'name']) : null,
+            'step_name' => $a->step_name,
+            'notes' => $a->notes,
+            'created_at' => $a->created_at?->toIso8601String(),
+            'updated_at' => $a->updated_at?->toIso8601String(),
         ];
     }
 
     private function validatePayload(Request $request, ?EmployeeActivity $existing = null): array
     {
         $rules = [
-            'worker_id'     => ['required', 'exists:workers,id'],
-            'type'          => ['required', Rule::in(EmployeeActivity::TYPES)],
-            'custom_code'   => ['nullable', 'string', 'max:64'],
-            'label'         => ['nullable', 'string', 'max:255'],
-            'starts_at'     => ['required', 'date'],
-            'ends_at'       => ['required', 'date', 'after:starts_at'],
+            'worker_id' => ['required', 'exists:workers,id'],
+            'type' => ['required', Rule::in(EmployeeActivity::TYPES)],
+            'custom_code' => ['nullable', 'string', 'max:64'],
+            'label' => ['nullable', 'string', 'max:255'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
             'work_order_id' => ['nullable', 'exists:work_orders,id'],
-            'line_id'       => ['nullable', 'exists:lines,id'],
-            'step_name'     => ['nullable', 'string', 'max:255'],
-            'notes'         => ['nullable', 'string'],
+            'line_id' => ['nullable', 'exists:lines,id'],
+            'step_name' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
         ];
 
         if ($existing) {
@@ -399,17 +400,17 @@ class EmployeeActivityController extends Controller
                 $segments[] = $this->offSegment($cursor, $row->starts_at);
             }
             $segments[] = [
-                'id'            => $row->id,
-                'type'          => $row->type,
-                'custom_code'   => $row->custom_code,
-                'label'         => $row->label,
-                'from'          => $row->starts_at->format('H:i'),
-                'to'            => $row->ends_at->format('H:i'),
-                'duration_min'  => $row->durationMinutes(),
-                'work_order'    => $row->workOrder?->only(['id','order_no']),
-                'line'          => $row->line?->only(['id','name']),
-                'step_name'     => $row->step_name,
-                'notes'         => $row->notes,
+                'id' => $row->id,
+                'type' => $row->type,
+                'custom_code' => $row->custom_code,
+                'label' => $row->label,
+                'from' => $row->starts_at->format('H:i'),
+                'to' => $row->ends_at->format('H:i'),
+                'duration_min' => $row->durationMinutes(),
+                'work_order' => $row->workOrder?->only(['id', 'order_no']),
+                'line' => $row->line?->only(['id', 'name']),
+                'step_name' => $row->step_name,
+                'notes' => $row->notes,
             ];
             $cursor = $row->ends_at->copy();
         }
@@ -424,17 +425,17 @@ class EmployeeActivityController extends Controller
     private function offSegment(Carbon $from, Carbon $to): array
     {
         return [
-            'id'           => null,
-            'type'         => 'off',
-            'custom_code'  => null,
-            'label'        => null,
-            'from'         => $from->format('H:i'),
-            'to'           => $to->format('H:i') === '23:59' ? '24:00' : $to->format('H:i'),
+            'id' => null,
+            'type' => 'off',
+            'custom_code' => null,
+            'label' => null,
+            'from' => $from->format('H:i'),
+            'to' => $to->format('H:i') === '23:59' ? '24:00' : $to->format('H:i'),
             'duration_min' => max(0, (int) round($from->diffInMinutes($to))),
-            'work_order'   => null,
-            'line'         => null,
-            'step_name'    => null,
-            'notes'        => null,
+            'work_order' => null,
+            'line' => null,
+            'step_name' => null,
+            'notes' => null,
         ];
     }
 
@@ -445,6 +446,7 @@ class EmployeeActivityController extends Controller
         foreach ($segments as $s) {
             $sums[$s['type']] = ($sums[$s['type']] ?? 0) + ($s['duration_min'] ?? 0);
         }
+
         return $sums;
     }
 }

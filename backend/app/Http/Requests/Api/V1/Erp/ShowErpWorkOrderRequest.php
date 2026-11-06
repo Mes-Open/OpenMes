@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Erp;
 
 use App\Http\Requests\Api\V1\Erp\Concerns\LooksUpWorkOrder;
+use App\Http\Requests\Api\V1\Erp\Concerns\ParsesErpIncludes;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class ShowErpWorkOrderRequest extends FormRequest
 {
     use LooksUpWorkOrder;
+    use ParsesErpIncludes;
 
     public function authorize(): bool
     {
@@ -20,6 +22,6 @@ class ShowErpWorkOrderRequest extends FormRequest
 
     public function rules(): array
     {
-        return $this->lookupRules();
+        return [...$this->lookupRules(), ...$this->includeRules()];
     }
 }

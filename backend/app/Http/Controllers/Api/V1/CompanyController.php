@@ -15,26 +15,28 @@ class CompanyController extends Controller
         $this->authorize('viewAny', Company::class);
 
         $query = Company::query();
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
         if ($type = $request->query('type')) {
             $query->where('type', $type);
         }
         if ($q = $request->query('q')) {
-            $needle = '%' . strtolower($q) . '%';
+            $needle = '%'.strtolower($q).'%';
             $query->where(function ($qb) use ($needle) {
                 $qb->whereRaw('LOWER(name) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(code) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(email) LIKE ?', [$needle]);
             });
         }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function show(Company $company): JsonResponse
     {
         $this->authorize('view', $company);
+
         return response()->json(['data' => $company]);
     }
 
@@ -53,6 +55,7 @@ class CompanyController extends Controller
         ]);
         $data['is_active'] = $data['is_active'] ?? true;
         $c = Company::create($data);
+
         return response()->json(['message' => 'Company created', 'data' => $c], 201);
     }
 
@@ -70,6 +73,7 @@ class CompanyController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $company->update($data);
+
         return response()->json(['message' => 'Company updated', 'data' => $company->fresh()]);
     }
 
@@ -77,13 +81,15 @@ class CompanyController extends Controller
     {
         $this->authorize('delete', $company);
         $company->delete();
+
         return response()->json(['message' => 'Company deleted']);
     }
 
     public function toggleActive(Company $company): JsonResponse
     {
         $this->authorize('update', $company);
-        $company->update(['is_active' => !$company->is_active]);
+        $company->update(['is_active' => ! $company->is_active]);
+
         return response()->json(['message' => $company->is_active ? 'Activated' : 'Deactivated', 'data' => $company]);
     }
 }

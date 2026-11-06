@@ -9,6 +9,7 @@ use App\Http\Requests\Api\V1\Erp\ProductionExportRequest;
 use App\Http\Requests\Api\V1\Erp\ShowErpWorkOrderRequest;
 use App\Http\Resources\Erp\ErpChangeRequestPresenter;
 use App\Models\WorkOrder;
+use App\Services\Erp\WorkOrderSettlementPresenter;
 use App\Support\Integration\WorkOrderPresenter;
 use Illuminate\Http\JsonResponse;
 
@@ -18,16 +19,25 @@ use Illuminate\Http\JsonResponse;
  * polling, in one, several or all statuses. Requires the `erp:production:read`
  * scope; rate limited via the `erp-read` limiter. Tenant scoping is applied automatically from the API
  * key's tenant (TenantContext).
+ *
+ * `?include=consumption,scrap,costs` adds settlement sections to each order
+ * (see WorkOrderSettlementPresenter); without it the shape is unchanged.
  */
 class ProductionExportController extends Controller
 {
     use BuildsCursorMeta;
     use ResolvesErpWorkOrder;
 
+    /** Resolved only when sections are requested: its cost service reads settings. */
+    private ?WorkOrderSettlementPresenter $settlement = null;
+
     public function completions(ProductionExportRequest $request): JsonResponse
     {
+        $includes = $request->includes();
+
         $query = WorkOrder::query()
             ->with(WorkOrderPresenter::RELATIONS)
+            ->with($includes === [] ? [] : $this->settlement()->relations($includes))
             ->orderBy('id');
 
         // Incremental sync: everything changed at/after the ERP's last poll.
@@ -48,7 +58,7 @@ class ProductionExportController extends Controller
         $page = $query->cursorPaginate($request->perPage())->withQueryString();
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (WorkOrder $wo) => WorkOrderPresenter::present($wo)),
+            'data' => collect($page->items())->map(fn (WorkOrder $wo) => $this->present($wo, $includes)),
             'meta' => $this->cursorMeta($page),
         ]);
     }
@@ -69,9 +79,12 @@ class ProductionExportController extends Controller
      */
     public function show(ShowErpWorkOrderRequest $request, string $workOrder): JsonResponse
     {
+        $includes = $request->includes();
+
         $order = $this->resolveWorkOrder($workOrder, $request->lookup(), [
             ...WorkOrderPresenter::RELATIONS,
             'changeRequests' => fn ($q) => $q->orderBy('id'),
+            ...($includes === [] ? [] : $this->settlement()->relations($includes)),
         ]);
 
         // present() reads the order number off each request; it is this order.
@@ -79,8 +92,25 @@ class ProductionExportController extends Controller
         $presenter = new ErpChangeRequestPresenter($order->changeRequests);
 
         return response()->json(['data' => [
-            ...WorkOrderPresenter::present($order),
+            ...$this->present($order, $includes),
             'change_requests' => $order->changeRequests->map(fn ($cr) => $presenter->present($cr))->values(),
         ]]);
+    }
+
+    /**
+     * The shared integration shape, plus the requested settlement sections.
+     *
+     * @param  list<string>  $includes  requested settlement sections
+     */
+    private function present(WorkOrder $wo, array $includes = []): array
+    {
+        $base = WorkOrderPresenter::present($wo);
+
+        return $includes === [] ? $base : array_merge($base, $this->settlement()->sections($wo, $includes));
+    }
+
+    private function settlement(): WorkOrderSettlementPresenter
+    {
+        return $this->settlement ??= app(WorkOrderSettlementPresenter::class);
     }
 }

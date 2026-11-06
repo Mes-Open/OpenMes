@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Erp;
 
+use App\Http\Requests\Api\V1\Erp\Concerns\ParsesErpIncludes;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,11 +14,15 @@ use Illuminate\Validation\Rule;
  *
  * `status` is one status (`?status=DONE`), a list (`?status[]=DONE&status[]=IN_PROGRESS`)
  * or `all`, so an integration that tracks every status needs one request per
- * cycle instead of one per status. Authorization is handled by the
- * auth.apikey + scope middleware.
+ * cycle instead of one per status. `include` adds settlement sections per order;
+ * because those are heavier, the page size is capped lower (max 100, default 50)
+ * when it is present. Authorization is handled by the auth.apikey + scope
+ * middleware.
  */
 class ProductionExportRequest extends FormRequest
 {
+    use ParsesErpIncludes;
+
     /** `?status=all` — no status filter at all. */
     public const STATUS_ALL = 'all';
 
@@ -51,8 +56,9 @@ class ProductionExportRequest extends FormRequest
             }],
             'status.*' => ['string', Rule::in(WorkOrder::STATUSES)],
             'line' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.($this->filled('include') ? 100 : 500)],
             'cursor' => ['nullable', 'string'],
+            ...$this->includeRules(),
         ];
     }
 
@@ -79,6 +85,6 @@ class ProductionExportRequest extends FormRequest
 
     public function perPage(): int
     {
-        return (int) $this->input('limit', 100);
+        return (int) $this->input('limit', $this->filled('include') ? 50 : 100);
     }
 }

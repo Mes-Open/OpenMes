@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Support\Csv;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 
 class AuditLogController extends Controller
@@ -124,7 +124,7 @@ class AuditLogController extends Controller
             $csv .= Csv::row([
                 $log->created_at->toIso8601String(),
                 $log->user ? $log->user->username : 'System',
-                $log->entity_name . ' #' . $log->entity_id,
+                $log->entity_name.' #'.$log->entity_id,
                 $log->action,
                 $log->ip_address ?? 'N/A',
                 $changes,
@@ -133,7 +133,7 @@ class AuditLogController extends Controller
 
         return Response::make($csv, 200, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="audit_log_' . date('Y-m-d_H-i-s') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="audit_log_'.date('Y-m-d_H-i-s').'.csv"',
         ]);
     }
 
@@ -143,7 +143,7 @@ class AuditLogController extends Controller
     protected function formatChanges(AuditLog $log): string
     {
         if ($log->action === 'created') {
-            return 'Created with ' . count($log->after_state ?? []) . ' fields';
+            return 'Created with '.count($log->after_state ?? []).' fields';
         }
 
         if ($log->action === 'deleted') {
@@ -156,6 +156,7 @@ class AuditLogController extends Controller
                 $oldValue = $log->before_state[$field] ?? 'null';
                 $changes[] = "{$field}: {$oldValue} -> {$newValue}";
             }
+
             return implode('; ', $changes);
         }
 

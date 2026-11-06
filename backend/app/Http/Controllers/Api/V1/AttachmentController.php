@@ -39,6 +39,7 @@ class AttachmentController extends Controller
     {
         $this->authorize('view', $attachment);
         $attachment->load('uploadedBy');
+
         return response()->json(['data' => $attachment]);
     }
 
@@ -76,6 +77,7 @@ class AttachmentController extends Controller
         $this->authorize('delete', $attachment);
         Storage::delete($attachment->storage_path);
         $attachment->delete();
+
         return response()->json(['message' => 'Attachment deleted']);
     }
 
@@ -83,7 +85,7 @@ class AttachmentController extends Controller
     {
         $this->authorize('view', $attachment);
 
-        if (!Storage::exists($attachment->storage_path)) {
+        if (! Storage::exists($attachment->storage_path)) {
             return response()->json(['message' => 'File no longer exists on storage.'], 404);
         }
 
