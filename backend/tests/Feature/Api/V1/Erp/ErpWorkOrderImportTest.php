@@ -282,6 +282,33 @@ class ErpWorkOrderImportTest extends TestCase
         $this->assertNull($cr->approved_by_id);
     }
 
+    public function test_repeating_the_same_update_keeps_the_managers_approval(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $id = $this->importAs($key, [$this->validOrder(['planned_qty' => 150, 'due_date' => '2026-12-24'])])
+            ->json('data.results.0.change_request_id');
+        $approvedAt = now()->subMinute()->startOfSecond();
+        WorkOrderChangeRequest::whereKey($id)->update([
+            'status' => ChangeRequestStatus::Approved->value,
+            'approved_at' => $approvedAt,
+        ]);
+        $updatedAt = WorkOrderChangeRequest::find($id)->updated_at;
+
+        // A periodic ERP sync re-sends the very same order: nothing new to decide.
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 150, 'due_date' => '2026-12-24'])])
+            ->assertOk()
+            ->assertJsonPath('data.results.0.action', 'change_requested')
+            ->assertJsonPath('data.results.0.change_request_id', $id);
+
+        $cr = WorkOrderChangeRequest::find($id);
+        $this->assertSame(ChangeRequestStatus::Approved, $cr->status);
+        $this->assertEquals($approvedAt, $cr->approved_at);
+        $this->assertEquals($updatedAt, $cr->updated_at);
+        $this->assertSame(1, WorkOrderChangeRequest::count());
+    }
+
     public function test_a_field_that_cannot_be_changed_in_production_is_a_row_error(): void
     {
         $key = $this->keyWith([ApiScope::OrdersImport]);
