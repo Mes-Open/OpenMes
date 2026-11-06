@@ -1176,6 +1176,110 @@ GET  /api/v1/erp/quality/issues              # scope: erp:quality:read
 The export endpoints are cursor-paginated — follow `meta.next_cursor` until it is
 null — and accept `?since=<ISO timestamp>` for incremental polling.
 
+Send `Accept: application/json` on every call so validation errors come back as a
+JSON `422` instead of a redirect.
+
+#### Settling a work order: `?include=consumption,scrap,costs`
+
+`GET /work-orders/{id}` and `GET /production/completions` accept an optional
+`include` — a comma-separated subset of `consumption`, `scrap`, `costs`. Each value
+adds one section to every work-order object, so an ERP can close a production order
+(materials with lots, scrap, costs) from a single call with the API key alone.
+
+- Without `include` the response is exactly the base shape below — nothing changes
+  for existing integrations.
+- Any other value (`?include=foo`, an empty item) → `422` on `include`.
+- On `production/completions`, `limit` is capped at **100** (default **50**) when
+  `include` is present; without it the cap stays 500 (default 100). Sections are
+  eager-loaded per page, so a page costs the same number of queries however many
+  orders it holds.
+
+```http
+GET /api/v1/erp/work-orders/42?include=consumption,scrap,costs
+X-Api-Key: omk_xxxxxxxxxxxxxxxxxxxxxxxx
+Accept: application/json
+```
+
+```json
+{
+    "data": {
+        "order_no": "WO-2026-001",
+        "customer_order_no": "PO-77",
+        "status": "DONE",
+        "planned_qty": 500,
+        "produced_qty": 480,
+        "unit_price": null,
+        "counting_source": "operator",
+        "line_code": "L1",
+        "product_type_code": "BREAD-01",
+        "completed_at": "2026-09-01T14:02:11+00:00",
+        "updated_at": "2026-09-01T14:02:11+00:00",
+        "consumption": [
+            {
+                "material_code": "FLOUR-RYE",
+                "material_name": "Rye flour",
+                "unit_of_measure": "kg",
+                "consumed_qty": 241.5,
+                "scrap_qty": 3.5,
+                "returned_qty": 5,
+                "status": "consumed",
+                "consumed_at": "2026-09-01T13:55:00+00:00",
+                "lots": [
+                    { "lot_number": "LOT-2026-0815", "quantity": 250 }
+                ]
+            }
+        ],
+        "scrap": {
+            "total_qty": 20,
+            "entries": [
+                {
+                    "quantity": 20,
+                    "reason": { "code": "BURNT", "name": "Burnt", "category": "machine" },
+                    "step": { "batch_number": 1, "step_number": 3, "name": "Baking" },
+                    "reported_at": "2026-09-01T12:40:00+00:00",
+                    "notes": "Oven 2 overheated"
+                }
+            ]
+        },
+        "costs": {
+            "currency": "PLN",
+            "mixed_currency": false,
+            "total_cost": 1393,
+            "cost_per_unit": 2.9021,
+            "materials": {
+                "total": 483,
+                "items": [
+                    { "material_code": "FLOUR-RYE", "source": "actual", "qty": 241.5,
+                      "unit_price": 2, "currency": "PLN", "line_total": 483 }
+                ]
+            },
+            "labor": {
+                "total": 870,
+                "items": [
+                    { "worker_code": "W-0012", "pay_type": "hourly", "basis": 29,
+                      "basis_unit": "h", "rate": 30, "currency": "PLN", "line_total": 870 }
+                ]
+            },
+            "additional": {
+                "total": 40,
+                "items": [
+                    { "description": "Courier", "cost_source_code": "TRANSPORT",
+                      "cost_source_name": "Transport", "amount": 40, "currency": "PLN" }
+                ]
+            }
+        }
+    }
+}
+```
+
+Where the numbers come from:
+
+| Section | Source |
+|---|---|
+| `consumption` | The order's material allocations — where consumption is recorded on the work-order page (**Materials → Record consumption**). Only allocations with a consumed or scrapped quantity are listed. `lots` are the lots picked for the allocation; `quantity` is the **picked** quantity (lot tracking is opt-in, so `lots` may be empty). Consumption booked directly against a lot without an allocation (`POST /material-lots/{id}/consume`, genealogy only) is not included. |
+| `scrap` | The order's scrap entries (deleted ones excluded). `reason` and `step` are `null` when not set; the reporting person is deliberately not exported. |
+| `costs` | The same calculation as the **Production Cost** report. `materials` prices recorded consumption (`source: "actual"`); a material with no recorded consumption is estimated from the BOM × produced quantity (`source: "bom"`). `labor` is priced from logged work time and pay rates (worker code only, no names). `additional` lists manually booked costs. `mixed_currency: true` means some item is in a different currency than `currency` — amounts are summed without FX conversion. OpenMES has no machine-cost model, so no machine cost is reported. |
+
 ### Master Data
 
 All four require the `erp:masterdata:write` scope.
