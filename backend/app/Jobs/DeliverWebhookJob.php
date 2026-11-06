@@ -15,6 +15,11 @@ use Throwable;
 /**
  * Delivers one webhook payload over HTTP with an HMAC-SHA256 signature (#20).
  *
+ * Every attempt sends `X-OpenMES-Timestamp` (unix seconds, fresh per attempt)
+ * and `X-OpenMES-Signature: sha256=HMAC(secret, "{timestamp}.{body}")`, so a
+ * receiver can reject replays older than its tolerance window. Webhooks with
+ * `legacy_signature` on keep the original body-only HMAC.
+ *
  * Retries on transport failure / non-2xx with exponential backoff; the
  * WebhookDelivery row is updated in place each attempt, and failed() records
  * the terminal failure once retries are exhausted.
@@ -63,7 +68,8 @@ class DeliverWebhookJob implements ShouldQueue
         }
 
         $body = json_encode($delivery->payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $signature = hash_hmac('sha256', $body, $webhook->secret);
+        $timestamp = time();
+        $signature = self::sign($body, $timestamp, $webhook->secret, (bool) $webhook->legacy_signature);
 
         $headers = array_merge(
             is_array($webhook->headers) ? $webhook->headers : [],
@@ -71,11 +77,16 @@ class DeliverWebhookJob implements ShouldQueue
                 'Content-Type' => 'application/json',
                 'X-OpenMES-Event' => $delivery->event_type,
                 'X-OpenMES-Delivery' => (string) $delivery->id,
+                'X-OpenMES-Timestamp' => (string) $timestamp,
                 'X-OpenMES-Signature' => 'sha256='.$signature,
             ],
         );
 
         $delivery->attempts = $delivery->attempts + 1;
+        $delivery->signature_timestamp = $timestamp;
+        $delivery->signature_scheme = $webhook->legacy_signature
+            ? WebhookDelivery::SIGNATURE_LEGACY
+            : WebhookDelivery::SIGNATURE_V1;
 
         try {
             $response = Http::withHeaders($headers)
@@ -110,6 +121,15 @@ class DeliverWebhookJob implements ShouldQueue
 
         // Non-2xx → retry with backoff (or land in failed() when exhausted).
         throw new \RuntimeException($delivery->error);
+    }
+
+    /**
+     * Hex HMAC-SHA256 of what a delivery signs: "{timestamp}.{body}", or the
+     * body alone for a legacy-signature webhook.
+     */
+    public static function sign(string $body, int $timestamp, string $secret, bool $legacy = false): string
+    {
+        return hash_hmac('sha256', $legacy ? $body : "{$timestamp}.{$body}", $secret);
     }
 
     public function failed(?Throwable $e): void

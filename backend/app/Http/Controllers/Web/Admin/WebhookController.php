@@ -38,6 +38,8 @@ class WebhookController extends Controller
     {
         $data = $this->payload($request);
         $data['is_active'] = $request->boolean('is_active', true);
+        // New endpoints use the timestamped signature unless asked otherwise.
+        $data['legacy_signature'] = $request->boolean('legacy_signature', false);
         $data['secret'] = $request->filled('secret') ? $request->input('secret') : Str::random(40);
 
         Webhook::create($data);
@@ -50,7 +52,7 @@ class WebhookController extends Controller
         return Inertia::render('admin/webhooks/Edit', [
             // Never send the secret to the browser; only whether one is set.
             'webhook' => array_merge(
-                $webhook->only('id', 'name', 'url', 'events', 'headers', 'is_active'),
+                $webhook->only('id', 'name', 'url', 'events', 'headers', 'is_active', 'legacy_signature'),
                 ['has_secret' => filled($webhook->secret)],
             ),
             'events' => WebhookEventRegistry::forForm(),
@@ -63,6 +65,7 @@ class WebhookController extends Controller
         // Default to the current state when the field is omitted, so an update
         // that doesn't carry is_active can't silently re-activate a disabled hook.
         $data['is_active'] = $request->boolean('is_active', $webhook->is_active);
+        $data['legacy_signature'] = $request->boolean('legacy_signature', $webhook->legacy_signature);
         // Keep the existing secret unless a new one is explicitly provided.
         if ($request->filled('secret')) {
             $data['secret'] = $request->input('secret');

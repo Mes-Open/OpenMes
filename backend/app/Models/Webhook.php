@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * The `secret` is encrypted at rest (cast) and must never be synced to the
  * browser — it is excluded from the synced collection in ShapeRegistry.
+ *
+ * `legacy_signature` keeps the original body-only HMAC instead of the
+ * timestamped "{timestamp}.{body}" one (see DeliverWebhookJob).
  */
 class Webhook extends Model
 {
@@ -28,6 +31,7 @@ class Webhook extends Model
         'events',
         'headers',
         'is_active',
+        'legacy_signature',
         'last_triggered_at',
         'tenant_id',
     ];
@@ -43,6 +47,7 @@ class Webhook extends Model
             'events' => 'array',
             'headers' => 'array',
             'is_active' => 'boolean',
+            'legacy_signature' => 'boolean',
             'secret' => 'encrypted',
             'last_triggered_at' => 'datetime',
         ];

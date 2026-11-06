@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\QualityExportRequest;
 use App\Models\Issue;
+use App\Support\Integration\QualityIssuePresenter;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -28,7 +29,7 @@ class QualityExportController extends Controller
         // TenantScope, restricting the export to non-conformances raised against
         // the API key's tenant's production orders.
         $query = Issue::query()
-            ->with(['workOrder:id,order_no,line_id', 'issueType:id,name,severity'])
+            ->with(QualityIssuePresenter::RELATIONS)
             ->whereHas('workOrder', function ($q) use ($line) {
                 if ($line) {
                     $q->whereHas('line', fn ($l) => $l->where('code', $line));
@@ -47,30 +48,8 @@ class QualityExportController extends Controller
         $page = $query->cursorPaginate($request->perPage())->withQueryString();
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (Issue $issue) => $this->present($issue)),
+            'data' => collect($page->items())->map(fn (Issue $issue) => QualityIssuePresenter::present($issue)),
             'meta' => $this->cursorMeta($page),
         ]);
-    }
-
-    private function present(Issue $issue): array
-    {
-        return [
-            'id' => $issue->id,
-            'title' => $issue->title,
-            'status' => $issue->status,
-            'disposition' => $issue->disposition,
-            'nc_source' => $issue->nc_source,
-            'non_conforming_qty' => $issue->non_conforming_qty !== null ? (float) $issue->non_conforming_qty : null,
-            'issue_type' => $issue->issueType?->name,
-            'severity' => $issue->issueType?->severity,
-            'work_order_no' => $issue->workOrder?->order_no,
-            'root_cause' => $issue->root_cause,
-            'containment_action' => $issue->containment_action,
-            'reported_at' => $issue->reported_at?->toIso8601String(),
-            'acknowledged_at' => $issue->acknowledged_at?->toIso8601String(),
-            'resolved_at' => $issue->resolved_at?->toIso8601String(),
-            'closed_at' => $issue->closed_at?->toIso8601String(),
-            'updated_at' => $issue->updated_at?->toIso8601String(),
-        ];
     }
 }

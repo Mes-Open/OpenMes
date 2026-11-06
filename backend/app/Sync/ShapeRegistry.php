@@ -232,13 +232,13 @@ class ShapeRegistry
         // must not leave the server.
         'webhooks' => [
             'table' => 'webhooks',
-            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'legacy_signature', 'last_triggered_at', 'created_at', 'updated_at'],
         ],
         // Delivery log — payload/response_body are excluded to keep the stream
         // light; the status/code/error are enough for the admin list.
         'webhook_deliveries' => [
             'table' => 'webhook_deliveries',
-            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'signature_timestamp', 'signature_scheme', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
         // Warehousing (#212).
         'warehouses' => [
