@@ -430,6 +430,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::get('/work-orders/{workOrder}/edit', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'edit'])->name('work-orders.edit');
         Route::put('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'update'])->name('work-orders.update');
+        // Change requests waiting for a decision (incl. the ERP's). Same list as the
+        // admin twin; each row opens the review page, which lives under /admin and
+        // is reachable through the `orders` tab supervisors hold.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         // Authorized per-order by WorkOrderPolicy::delete — the Supervisor role
         // doesn't hold `delete work orders`, an Admin browsing this tree does.
         Route::delete('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'destroy'])->name('work-orders.destroy');
@@ -590,6 +595,9 @@ Route::middleware('auth')->group(function () {
             ->name('work-orders.stop');
         Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
             ->name('work-orders.change-requests.store');
+        // The reviewer's queue — every request, including the ones an ERP raised.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
             ->name('work-order-change-requests.show');
         Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\ChangeRequestStatus;
+use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkOrder\ApplyChangeRequestRequest;
+use App\Http\Requests\WorkOrder\IndexChangeRequestsRequest;
 use App\Http\Requests\WorkOrder\RejectChangeRequestRequest;
 use App\Http\Requests\WorkOrder\StopWorkOrderRequest;
 use App\Http\Requests\WorkOrder\StoreChangeRequestRequest;
@@ -27,6 +30,10 @@ use Inertia\Inertia;
  */
 class WorkOrderChangeControlController extends Controller
 {
+    use ServesBothSections;
+
+    private const PER_PAGE = 25;
+
     public function __construct(
         protected WorkOrderStopService $stops,
         protected ChangeRequestService $changeRequests,
@@ -62,6 +69,74 @@ class WorkOrderChangeControlController extends Controller
     }
 
     /**
+     * Every change request in the plant, open ones first — the reviewer's queue.
+     *
+     * Requests reach a manager from two directions: raised on an order's page, or
+     * sent by the ERP for an order already in production. The second kind has no
+     * order page visit behind it, so without this list nobody would know it is
+     * waiting. Mounted under both /admin and /supervisor; the review page itself
+     * lives under /admin (supervisors hold its `orders` tab).
+     */
+    public function index(IndexChangeRequestsRequest $request)
+    {
+        $this->authorize('viewAny', WorkOrderChangeRequest::class);
+
+        $status = $request->validated('status');
+        $open = [
+            ChangeRequestStatus::Draft->value,
+            ChangeRequestStatus::Submitted->value,
+            ChangeRequestStatus::Approved->value,
+        ];
+
+        $query = WorkOrderChangeRequest::query()
+            ->with(['workOrder:id,order_no,status', 'requestedBy:id,name', 'requestedByApiKey.integrationConfig']);
+
+        if ($status === 'OPEN') {
+            $query->whereIn('status', $open);
+        } elseif ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        // Open requests first — they are the ones waiting on somebody — newest first
+        // within each group.
+        $page = $query
+            ->orderByRaw('CASE WHEN status IN (?, ?, ?) THEN 0 ELSE 1 END', $open)
+            ->orderByDesc('id')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString();
+
+        return Inertia::render('admin/work-orders/ChangeRequests', [
+            'changeRequests' => [
+                'data' => collect($page->items())->map(fn (WorkOrderChangeRequest $cr) => [
+                    'id' => $cr->id,
+                    'code' => $cr->code,
+                    'title' => $cr->title,
+                    'type' => $cr->type->value,
+                    'type_label' => $cr->type->label(),
+                    'status' => $cr->status->value,
+                    'status_label' => $cr->status->label(),
+                    'work_order' => $cr->workOrder?->only('id', 'order_no', 'status'),
+                    'requested_by' => $cr->requesterLabel(),
+                    'requested_via_api' => $cr->isFromIntegration(),
+                    'submitted_at' => $cr->submitted_at?->toISOString(),
+                    'decided_at' => ($cr->rejected_at ?? $cr->approved_at)?->toISOString(),
+                    'created_at' => $cr->created_at?->toISOString(),
+                ])->values(),
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'total' => $page->total(),
+                'prev_page_url' => $page->previousPageUrl(),
+                'next_page_url' => $page->nextPageUrl(),
+            ],
+            'filters' => ['status' => $status],
+            'statuses' => collect(ChangeRequestStatus::cases())
+                ->map(fn (ChangeRequestStatus $s) => ['value' => $s->value, 'label' => $s->label()])
+                ->values(),
+            'basePath' => $this->basePath('/work-order-change-requests'),
+        ]);
+    }
+
+    /**
      * The review screen: the request, its diff, the impact analysis as it stands now,
      * and what the current user is allowed to do with it.
      */
@@ -77,6 +152,7 @@ class WorkOrderChangeControlController extends Controller
             // exposes the handful of fields the page needs.
             'workOrder',
             'requestedBy:id,name', 'approvedBy:id,name', 'rejectedBy:id,name', 'appliedBy:id,name',
+            'requestedByApiKey.integrationConfig',
             'stop:id,type,reason,stopped_at,requires_change',
             'resultingSnapshot:id,change_request_id,version,effective_from,effective_from_qty',
         ]);
@@ -92,6 +168,8 @@ class WorkOrderChangeControlController extends Controller
                 ]),
                 'status' => $changeRequest->status->value,
                 'status_label' => $changeRequest->status->label(),
+                'type' => $changeRequest->type->value,
+                'type_label' => $changeRequest->type->label(),
                 'effective_from' => $changeRequest->effective_from->value,
                 'effective_from_label' => $changeRequest->effective_from->label(),
                 'work_order' => $changeRequest->workOrder?->only(
@@ -103,7 +181,8 @@ class WorkOrderChangeControlController extends Controller
                     'type_label' => $changeRequest->stop->type->label(),
                     'stopped_at' => $changeRequest->stop->stopped_at?->toISOString(),
                 ],
-                'requested_by' => $changeRequest->requestedBy?->name,
+                'requested_by' => $changeRequest->requesterLabel(),
+                'requested_via_api' => $changeRequest->isFromIntegration(),
                 'approved_by' => $changeRequest->approvedBy?->name,
                 'rejected_by' => $changeRequest->rejectedBy?->name,
                 'applied_by' => $changeRequest->appliedBy?->name,

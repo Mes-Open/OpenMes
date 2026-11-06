@@ -19,6 +19,7 @@ class WorkOrderPresenter
     public static function present(WorkOrder $wo): array
     {
         return [
+            'id' => $wo->id,
             'order_no' => $wo->order_no,
             'customer_order_no' => $wo->customer_order_no,
             'status' => $wo->status,

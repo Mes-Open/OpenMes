@@ -55,6 +55,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Tables say when a filter hides every row.** A list whose search or column filters
   match nothing now reads *"No rows match the filters."* instead of its "nothing here yet"
   text (shared `DataTable` `noMatchLabel`). `ResourceForm` text fields accept `maxLength`.
+- **ERP: read an order back by number, cancel it, and follow change requests.**
+  `GET /api/v1/erp/work-orders/{id}` now also takes the order number
+  (`?by=order_no`, with `/` sent as `%2F`) and returns the order's `id` and its
+  `change_requests`. The work-order import report gains `results` — one entry per row
+  with `order_no`, `id` and `action` (`created`, `updated`, `skipped`,
+  `change_requested`); the existing counters are unchanged. New
+  `POST /api/v1/erp/work-orders/{id}/cancel` (scope `erp:orders:import`, optional
+  `reason`) cancels an order that has not started at once and, for an order in
+  production, raises a cancellation request for a manager (`202`); a finished order
+  answers `409` with its status. New `GET /api/v1/erp/change-requests`
+  (scope `erp:production:read`, `since`, cursor) tells the ERP whether each request was
+  approved, rejected, applied or withdrawn, with `decided_at` and the rejection reason.
+- **Production → Change requests.** A list of every change request, open ones first,
+  filterable by status, in the admin and the supervisor menus. Requests raised by an ERP
+  show the API key as the requester (*"API key: SAP prod"*) and a *Requested via API
+  key* badge. A cancellation request reads *"This request cancels the work order."*;
+  approving and applying it cancels the order the same way the order's *Cancel* action
+  does.
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -206,6 +225,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   (`100.0`) rather than decimal strings (`"100.00"`), as in the ERP API.
 - A webhook delivery row and its queued job are now created after the database transaction
   that raised the event commits, so a rolled-back change no longer sends an event.
+- **ERP `update_or_create` no longer overwrites orders in production.** Until now a
+  work-order import overwrote the line, quantity, due date and description of an order
+  that was `IN_PROGRESS`, `PAUSED`, `BLOCKED` or in `CHANGE_HOLD`. It now leaves the order
+  untouched and raises a change request with only the fields that differ
+  (`action: change_requested`); a manager approves or rejects it. A later import for the
+  same order revises that request instead of opening another. A different product type,
+  priority, customer order number or unit price on a running order is a row error.
+  `REJECTED` orders are now skipped like `DONE` and `CANCELLED` ones. Orders that have not
+  started (`PENDING`, `ACCEPTED`) are updated directly as before. The CSV importer and
+  *Admin → Import* are unchanged.
 
 - **Worker code is explained in the forms.** The *Code* field on the worker form and the
   *Worker Code* field in the account form's *Worker profile* section now show a hint: what the

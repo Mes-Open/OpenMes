@@ -17,11 +17,13 @@ use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\Erp\KeyIntrospectionController as ErpKeyIntrospectionController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataExportController;
+use App\Http\Controllers\Api\V1\Erp\ChangeRequestExportController as ErpChangeRequestExportController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
 use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
 use App\Http\Controllers\Api\V1\Erp\StockSyncController;
+use App\Http\Controllers\Api\V1\Erp\WorkOrderCancelController as ErpWorkOrderCancelController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\InspectionController;
@@ -130,10 +132,25 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
     Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
         ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
 
-    // OpenMES → ERP: production completion export + single-order state.
+    // ERP → OpenMES: cancel one order — at once before production starts, as a
+    // change request for a manager once it has. `{workOrder}` is an id, or the
+    // order number with `?by=order_no`; numbers often contain `/`, so the
+    // parameter accepts it (URL-encoded as %2F). Resolved in the controller, never
+    // by route-model binding (tenant scope — see ProductionExportController::show).
+    Route::post('/work-orders/{workOrder}/cancel', [ErpWorkOrderCancelController::class, 'store'])
+        ->where('workOrder', '.+')
+        ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
+
+    // OpenMES → ERP: production completion export + single-order state (by id,
+    // or by number with `?by=order_no`).
     Route::get('/production/completions', [ProductionExportController::class, 'completions'])
         ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
     Route::get('/work-orders/{workOrder}', [ProductionExportController::class, 'show'])
+        ->where('workOrder', '.+')
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: what was decided about change requests (incl. the ERP's own).
+    Route::get('/change-requests', [ErpChangeRequestExportController::class, 'index'])
         ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
 
     // OpenMES → ERP: quality / non-conformance export.

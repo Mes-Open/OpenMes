@@ -182,16 +182,19 @@ class WorkOrderManagementController extends Controller
                 'resumed_by' => $stop->resumedBy?->name,
             ])->values();
 
-        $changeRequests = $workOrder->changeRequests()->with('requestedBy:id,name')->get()
+        $changeRequests = $workOrder->changeRequests()->with(['requestedBy:id,name', 'requestedByApiKey.integrationConfig'])->get()
             ->map(fn ($cr) => [
                 'id' => $cr->id,
                 'code' => $cr->code,
                 'title' => $cr->title,
+                'type' => $cr->type->value,
+                'type_label' => $cr->type->label(),
                 'status' => $cr->status->value,
                 'status_label' => $cr->status->label(),
                 'effective_from_label' => $cr->effective_from->label(),
                 'resulting_snapshot_version' => $cr->resulting_snapshot_version,
-                'requested_by' => $cr->requestedBy?->name,
+                'requested_by' => $cr->requesterLabel(),
+                'requested_via_api' => $cr->isFromIntegration(),
                 'created_at' => $cr->created_at?->toISOString(),
             ])->values();
 
