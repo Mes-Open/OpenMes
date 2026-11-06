@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\MasterDataExportRequest;
 use App\Models\Line;
@@ -24,6 +25,7 @@ use Illuminate\Http\JsonResponse;
 class MasterDataExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
 
     public function lines(MasterDataExportRequest $request): JsonResponse
     {
@@ -82,9 +84,7 @@ class MasterDataExportController extends Controller
     private function respond(MasterDataExportRequest $request, Builder $query, \Closure $present): JsonResponse
     {
         // Incremental sync: everything changed at/after the ERP's last poll.
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         if ($request->filled('active')) {
             $query->where('is_active', $request->boolean('active'));

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\AcknowledgeStockDocumentRequest;
 use App\Http\Requests\Api\V1\Erp\StockExportRequest;
@@ -25,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 class StockDocumentExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
 
     public function index(StockExportRequest $request): JsonResponse
     {
@@ -32,9 +34,7 @@ class StockDocumentExportController extends Controller
             ->with(StockDocumentPresenter::RELATIONS)
             ->orderBy('id');
 
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         if ($type = $request->input('type')) {
             $query->where('type', $type);

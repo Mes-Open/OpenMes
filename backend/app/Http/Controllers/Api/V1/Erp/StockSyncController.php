@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ImportStockRequest;
 use App\Http\Requests\Api\V1\Erp\StockExportRequest;
@@ -23,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 class StockSyncController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
 
     public function import(ImportStockRequest $request, StockImportService $service): JsonResponse
     {
@@ -37,9 +39,7 @@ class StockSyncController extends Controller
             ->with(['warehouse:id,code,name,erp_code', 'material:id,code,name', 'productType:id,code,name', 'materialLot:id,lot_number'])
             ->orderBy('id');
 
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         if ($warehouse = $request->input('warehouse')) {
             $query->whereHas('warehouse', fn ($q) => $q->where('code', $warehouse)->orWhere('erp_code', $warehouse));

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Api\V1\Erp\Concerns\ResolvesErpWorkOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ProductionExportRequest;
@@ -26,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 class ProductionExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
     use ResolvesErpWorkOrder;
 
     /** Resolved only when sections are requested: its cost service reads settings. */
@@ -41,9 +43,7 @@ class ProductionExportController extends Controller
             ->orderBy('id');
 
         // Incremental sync: everything changed at/after the ERP's last poll.
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         // Default to completed orders — the usual ERP "post production" grain.
         // `status` may also name several statuses, or `all` for no filter.
