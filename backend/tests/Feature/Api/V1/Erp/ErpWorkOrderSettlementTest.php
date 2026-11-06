@@ -326,6 +326,21 @@ class ErpWorkOrderSettlementTest extends TestCase
         $this->assertEquals(0, $data['costs']['additional']['total']);
     }
 
+    public function test_archived_material_and_lot_keep_their_codes_in_consumption(): void
+    {
+        $wo = $this->settledOrder('WO-ARCHIVED');
+        $allocation = $wo->materialAllocations()->with('material', 'lotPicks.lot')->first();
+        $allocation->lotPicks->first()->lot->delete();
+        $allocation->material->delete();
+
+        $data = $this->getAs("/api/v1/erp/work-orders/{$wo->id}?include=consumption,costs")->assertOk()->json('data');
+
+        $this->assertSame('MAT-A', $data['consumption'][0]['material_code']);
+        $this->assertSame('kg', $data['consumption'][0]['unit_of_measure']);
+        $this->assertSame('LOT-A-1', $data['consumption'][0]['lots'][0]['lot_number']);
+        $this->assertSame('MAT-A', $data['costs']['materials']['items'][0]['material_code']);
+    }
+
     public function test_order_without_settlement_data_returns_empty_sections(): void
     {
         $wo = $this->doneOrder(['order_no' => 'WO-EMPTY']);
