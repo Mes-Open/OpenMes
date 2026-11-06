@@ -22,6 +22,8 @@ trait LooksUpWorkOrder
 
     public function lookup(): string
     {
-        return (string) ($this->query('by') ?? 'id');
+        // input(), not query(): the rule above validates `by` wherever it was sent,
+        // so a JSON body carrying it must not be validated and then ignored.
+        return (string) ($this->input('by') ?? 'id');
     }
 }
