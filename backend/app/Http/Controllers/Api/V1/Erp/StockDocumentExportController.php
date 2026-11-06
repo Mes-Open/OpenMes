@@ -30,7 +30,7 @@ class StockDocumentExportController extends Controller
         $query = StockDocument::query()
             ->with([
                 'warehouse:id,code,name,erp_code',
-                'workOrder:id,order_no',
+                'workOrder:id,order_no,external_system,external_ref',
                 'lines.material:id,code,name',
                 'lines.productType:id,code,name',
                 'lines.materialLot:id,lot_number',
@@ -100,6 +100,8 @@ class StockDocumentExportController extends Controller
             'warehouse_code' => $doc->warehouse?->code,
             'warehouse_erp_code' => $doc->warehouse?->erp_code,
             'work_order_no' => $doc->workOrder?->order_no,
+            'work_order_external_system' => $doc->workOrder?->external_system,
+            'work_order_external_ref' => $doc->workOrder?->external_ref,
             'notes' => $doc->notes,
             'erp_reference' => $doc->erp_reference,
             'erp_synced_at' => $doc->erp_synced_at?->toIso8601String(),
