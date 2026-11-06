@@ -166,6 +166,100 @@ class ErpExportTest extends TestCase
             ->assertStatus(403);
     }
 
+    /** Order numbers the completions export returns for the given query string, sorted. */
+    private function completionOrders(string $query): array
+    {
+        $response = $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson('/api/v1/erp/production/completions'.$query);
+
+        $response->assertOk();
+
+        return collect($response->json('data'))->pluck('order_no')->sort()->values()->all();
+    }
+
+    private function seedStatuses(): void
+    {
+        $this->workOrder(['order_no' => 'WO-DONE', 'status' => WorkOrder::STATUS_DONE, 'completed_at' => now()]);
+        $this->workOrder(['order_no' => 'WO-RUN', 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        $this->workOrder(['order_no' => 'WO-PENDING', 'status' => WorkOrder::STATUS_PENDING]);
+        $this->workOrder(['order_no' => 'WO-CANCELLED', 'status' => WorkOrder::STATUS_CANCELLED]);
+    }
+
+    public function test_completions_without_status_still_default_to_done(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(['WO-DONE'], $this->completionOrders(''));
+        $this->assertSame(['WO-DONE'], $this->completionOrders('?status='));
+    }
+
+    public function test_completions_accept_a_single_status_string(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(['WO-RUN'], $this->completionOrders('?status=IN_PROGRESS'));
+    }
+
+    public function test_completions_accept_a_list_of_statuses(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(
+            ['WO-DONE', 'WO-RUN'],
+            $this->completionOrders('?status[]=DONE&status[]=IN_PROGRESS'),
+        );
+    }
+
+    public function test_completions_status_all_returns_every_status(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(
+            ['WO-CANCELLED', 'WO-DONE', 'WO-PENDING', 'WO-RUN'],
+            $this->completionOrders('?status=all'),
+        );
+    }
+
+    public function test_completions_status_all_stays_tenant_scoped(): void
+    {
+        $this->workOrder(['order_no' => 'WO-MINE', 'status' => WorkOrder::STATUS_PENDING]);
+
+        app(TenantContext::class)->set($this->otherTenantId);
+        WorkOrder::factory()->create(['tenant_id' => $this->otherTenantId, 'order_no' => 'WO-OTHER', 'status' => WorkOrder::STATUS_PENDING]);
+        app(TenantContext::class)->set($this->tenantId);
+
+        $orders = $this->completionOrders('?status=all');
+        $this->assertContains('WO-MINE', $orders);
+        $this->assertNotContains('WO-OTHER', $orders);
+    }
+
+    public function test_completions_reject_unknown_statuses(): void
+    {
+        $key = $this->keyWith([ApiScope::ProductionRead]);
+
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status=BOGUS')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.0');
+
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status[]=DONE&status[]=BOGUS')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.1');
+
+        // `all` is a mode, not a status: it cannot be mixed into a list.
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status[]=DONE&status[]=all')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.1');
+
+        // Statuses are case-sensitive, like the stored values.
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status=done')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.0');
+    }
+
     public function test_erp_api_404s_when_the_module_is_disabled(): void
     {
         // Persist an enabled-module set that omits 'erp' → module off.

@@ -72,6 +72,22 @@ class ApiKeyManagementTest extends TestCase
             ->assertJsonValidationErrors('scopes.0');
     }
 
+    public function test_store_accepts_the_masterdata_read_scope(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/api-keys', [
+                'name' => 'Odoo',
+                'scopes' => ['erp:masterdata:read', 'erp:production:read'],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.scopes', ['erp:masterdata:read', 'erp:production:read']);
+
+        $this->assertSame(
+            ['erp:masterdata:read', 'erp:production:read'],
+            ApiKey::where('name', 'Odoo')->firstOrFail()->scopes,
+        );
+    }
+
     public function test_guest_cannot_manage_keys(): void
     {
         $this->getJson('/api/v1/api-keys')->assertStatus(401);

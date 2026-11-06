@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\V1\ConnectivityController;
 use App\Http\Controllers\Api\V1\CostSourceController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
+use App\Http\Controllers\Api\V1\Erp\KeyIntrospectionController as ErpKeyIntrospectionController;
+use App\Http\Controllers\Api\V1\Erp\MasterDataExportController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
@@ -111,6 +113,19 @@ Route::prefix('auth')->group(function () {
 // per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
 // tree because these are headless service credentials, not user sessions.
 Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(function () {
+    // Key introspection: what this key may do, for any valid key (no scope).
+    Route::get('/me', ErpKeyIntrospectionController::class)->middleware('throttle:erp-read');
+
+    // OpenMES → ERP: read-only dictionaries (lines, warehouses, product types)
+    // the ERP maps its own codes to. `module:warehouse` sits before the scope
+    // check so a disabled Warehouses module 404s even for a key without scope.
+    Route::get('/lines', [MasterDataExportController::class, 'lines'])
+        ->middleware(['scope:erp:masterdata:read', 'throttle:erp-read']);
+    Route::get('/product-types', [MasterDataExportController::class, 'productTypes'])
+        ->middleware(['scope:erp:masterdata:read', 'throttle:erp-read']);
+    Route::get('/warehouses', [MasterDataExportController::class, 'warehouses'])
+        ->middleware(['module:warehouse', 'scope:erp:masterdata:read', 'throttle:erp-read']);
+
     // ERP → OpenMES: bulk work-order import.
     Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
         ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);

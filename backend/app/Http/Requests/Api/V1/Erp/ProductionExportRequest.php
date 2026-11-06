@@ -10,24 +10,71 @@ use Illuminate\Validation\Rule;
  * Filters for the production-completion export. All optional: an ERP typically
  * polls `?since=<last successful sync>` to fetch incremental changes, filters
  * by `status` (defaults to completed orders) and optionally a single `line`.
- * Authorization is handled by the auth.apikey + scope middleware.
+ *
+ * `status` is one status (`?status=DONE`), a list (`?status[]=DONE&status[]=IN_PROGRESS`)
+ * or `all`, so an integration that tracks every status needs one request per
+ * cycle instead of one per status. Authorization is handled by the
+ * auth.apikey + scope middleware.
  */
 class ProductionExportRequest extends FormRequest
 {
+    /** `?status=all` — no status filter at all. */
+    public const STATUS_ALL = 'all';
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * A single status is folded into a one-element list, so the rules below
+     * only have to describe the list form. `all` is kept as-is: it is a mode,
+     * not a status, and is not accepted inside a list.
+     */
+    protected function prepareForValidation(): void
+    {
+        $status = $this->input('status');
+
+        if (is_string($status) && $status !== '' && $status !== self::STATUS_ALL) {
+            $this->merge(['status' => [$status]]);
+        }
     }
 
     public function rules(): array
     {
         return [
             'since' => ['nullable', 'date'],
-            'status' => ['nullable', Rule::in(WorkOrder::STATUSES)],
+            'status' => ['nullable', function (string $attribute, mixed $value, \Closure $fail) {
+                if (! is_array($value) && $value !== self::STATUS_ALL) {
+                    $fail(__('The :attribute must be a work-order status, a list of statuses or "all".', ['attribute' => $attribute]));
+                }
+            }],
+            'status.*' => ['string', Rule::in(WorkOrder::STATUSES)],
             'line' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
             'cursor' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * Statuses to filter by: null means every status (`all`); an absent or
+     * empty `status` keeps the historical default of completed orders only.
+     *
+     * @return list<string>|null
+     */
+    public function statuses(): ?array
+    {
+        $status = $this->input('status');
+
+        if ($status === self::STATUS_ALL) {
+            return null;
+        }
+
+        if (! is_array($status) || $status === []) {
+            return [WorkOrder::STATUS_DONE];
+        }
+
+        return array_values(array_unique($status));
     }
 
     public function perPage(): int
