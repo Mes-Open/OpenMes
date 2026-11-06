@@ -21,6 +21,7 @@ class SoftDeleteRegistry
         // Config / lookup
         'downtime_reasons' => Models\DowntimeReason::class,
         'scrap_reasons' => Models\ScrapReason::class,
+        'unit_aliases' => Models\UnitAlias::class,
         'cost_sources' => Models\CostSource::class,
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,

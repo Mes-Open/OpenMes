@@ -48,7 +48,9 @@ class ErpStockSyncTest extends TestCase
     public function test_stock_import_replaces_balances_and_books_the_difference(): void
     {
         $warehouse = Warehouse::factory()->rawMaterial()->create(['code' => 'RAW-1']);
-        $material = Material::factory()->create(['code' => 'FLOUR-01', 'stock_quantity' => 100]);
+        // The row is in kg, so the material must be too — the factory picks a
+        // random unit, and a mismatch now (rightly) fails the row.
+        $material = Material::factory()->create(['code' => 'FLOUR-01', 'unit_of_measure' => 'kg', 'stock_quantity' => 100]);
 
         $response = $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::StockWrite]))
             ->postJson('/api/v1/erp/stock/import', [

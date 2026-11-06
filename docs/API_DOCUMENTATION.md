@@ -1136,6 +1136,9 @@ fails the batch:
         "skipped": 1,
         "errors": [
             { "row": 7, "field": "material_code", "message": "Material 'GHOST' not found" }
+        ],
+        "warnings": [
+            { "row": 4, "field": "unit_of_measure", "message": "Unknown unit 'Fässer' — saved as sent. Add an alias under Settings → Units of Measure to map it." }
         ]
     }
 }
@@ -1144,8 +1147,76 @@ fails the batch:
 `200` when `errors` is empty, `207 Multi-Status` when some rows failed, `422` when
 the payload itself is malformed (wrong types, missing required keys, too many rows).
 
+`warnings` (master-data and stock imports) lists rows that **were** saved but deserve
+a look — same shape as `errors`. It is always present (an empty array when there is
+nothing to say) and never changes the status code. Clients that ignore unknown keys
+need no change.
+
 `strategy` on the master-data imports: `update_or_create` (default), `skip_existing`,
 `error_on_duplicate`.
+
+### Units of Measure
+
+ERPs name units their own way — `Units`, `szt.`, `Stück`, the UN/ECE codes `C62`,
+`KGM`, `LTR` — while OpenMES stores one name per unit (`pcs`, `kg`, `l`, …). Every
+master-data and stock import translates the `unit_of_measure` it receives through the
+tenant's **unit aliases**, edited by an Admin under **Settings → Units of Measure**
+(`/admin/unit-aliases`).
+
+**Matching.** The incoming unit is trimmed, lower-cased, inner whitespace collapsed and
+a trailing dot dropped, so `"Szt."`, `" szt "` and `"SZT"` are the same alias. It is
+then looked up in the tenant's own aliases, then in the install-wide defaults; a tenant
+alias overrides a default of the same name. A unit that already *is* a canonical unit
+in another case (`"KG"`) resolves to it. Aliases are applied once — never chained.
+
+**Defaults** (pre-filled for the install and every existing tenant, all editable):
+
+| Unit | Aliases |
+|---|---|
+| `pcs` | pcs, pc, piece, pieces, szt, sztuka, sztuk, units, unit, ea, each, st, stk, stück, stueck, C62, H87 |
+| `kg` | kg, KGM, kilogram, kilograms |
+| `g` | g, GRM, gram, grams |
+| `t` | t, TNE, tonne |
+| `l` | l, LTR, litre, liter, litr |
+| `ml` | ml, MLT |
+| `m` | m, MTR, metre, meter, mb |
+| `mm` / `cm` | mm, MMT / cm, CMT |
+| `m2` / `m3` | m2, m², MTK / m3, m³, MTQ |
+| `h` / `min` | h, HUR, hour / min |
+
+**What happens per endpoint:**
+
+| Endpoint | Known unit | Unknown unit | Unit differs from the item's | No unit on the row |
+|---|---|---|---|---|
+| `products/import`, `materials/import` | stored as the canonical unit | stored as sent, row gets a `warnings` entry (still `200`) | — | as before (`pcs` on create, unchanged on update) |
+| `material-lots/import`, `stock/import` | stored in the **item's** unit | — | row **fails** (`field: unit_of_measure`), nothing is written for it | the item's unit, as before |
+| `boms/import` | — recipes carry `quantity_per_unit` only, no unit field | | | |
+
+On a quantity the unit is never converted: a balance of `340` `g` for a material kept
+in `kg` is refused rather than stored as 340 kg. An item whose own unit is an alias
+(`szt`, imported before aliases existed) still accepts rows in `pcs`.
+
+```json
+// POST /api/v1/erp/stock/import → 207 Multi-Status
+{
+    "data": {
+        "imported": 1,
+        "updated": 0,
+        "skipped": 0,
+        "errors": [
+            {
+                "row": 2,
+                "field": "unit_of_measure",
+                "message": "Unit 'g' does not match the unit of 'SUGAR-01' (kg). Quantities are not converted — send the quantity in kg or add a unit alias."
+            }
+        ],
+        "warnings": []
+    }
+}
+```
+
+> **Behaviour change:** before unit checking, a stock or lot row whose unit did not
+> match the item's was accepted and stored with the wrong unit. Such rows now fail.
 
 ### Work Orders (ERP)
 
@@ -1258,7 +1329,9 @@ POST /api/v1/erp/material-lots/import
 
 The ERP is authoritative about what physically exists, so `quantity_available`
 **replaces** the lot's remaining quantity — re-running the sync converges instead of
-inflating stock. Lots are matched by (`material_code`, `lot_number`).
+inflating stock. Lots are matched by (`material_code`, `lot_number`). A lot's
+`unit_of_measure`, when given, must be the material's unit after
+[unit aliases](#units-of-measure) — otherwise the row fails.
 
 `warehouse_code` (top level, or per row) matches a warehouse's `code` **or** its
 `erp_code`. When a warehouse is named, the per-warehouse lot balance is written, the
@@ -1317,7 +1390,9 @@ POST /api/v1/erp/stock/import            # scope: erp:stock:write
 }
 ```
 
-Each row names **exactly one** item — `material_code` or `product_type_code`. The
+Each row names **exactly one** item — `material_code` or `product_type_code`. A row's
+`unit_of_measure`, when given, must be the item's unit after
+[unit aliases](#units-of-measure) — otherwise the row fails. The
 quantity is a snapshot that replaces the OpenMES balance, and the resulting change to
 the global per-material quantity is booked as an audited `adjustment`, so allocation,
 MRP and the shortage reports never see an unexplained jump.

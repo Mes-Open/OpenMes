@@ -18,7 +18,7 @@ import { __ } from '../lib/i18n';
  * Props:
  *   action      — endpoint URL
  *   method      — 'post' (create) | 'put' (edit)
- *   fields      — [{ name, label, type?, required?, placeholder?, help?, options? }]
+ *   fields      — [{ name, label, type?, required?, placeholder?, help?, options?, maxLength? }]
  *                 type: 'text' (default) | 'textarea' | 'number' | 'checkbox' | 'select' | 'image'
  *                 help: gray hint text rendered under the field
  *                 options (select): [{ value, label }]
@@ -176,7 +176,7 @@ export default function ResourceForm({
 }
 
 function Field({ field, value, error, setData, data }) {
-    const { name, label, type = 'text', required, placeholder, help, options, filterByField, min, max, step } = field;
+    const { name, label, type = 'text', required, placeholder, help, options, filterByField, min, max, step, maxLength } = field;
     const set = (v) => setData(name, v);
 
     // The caption used to be a bare <label> with no `htmlFor`, so it named
@@ -288,6 +288,8 @@ function Field({ field, value, error, setData, data }) {
                     min={type === 'number' ? min : undefined}
                     max={type === 'number' ? max : undefined}
                     step={type === 'number' ? step : undefined}
+                    // A text field's length cap, the same limit the server enforces.
+                    maxLength={type === 'number' ? undefined : maxLength}
                     className={INPUT_CLASS}
                     {...a11y}
                 />
