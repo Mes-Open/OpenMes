@@ -156,4 +156,99 @@ class WebhookManagementTest extends TestCase
         $this->assertArrayHasKey('webhooks', $shapes);
         $this->assertNotContains('secret', $shapes['webhooks']['columns']);
     }
+
+    public function test_store_defaults_to_timestamped_signature(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/webhooks', [
+            'name' => 'New ERP hook',
+            'url' => self::VALID_URL,
+            'events' => [WebhookEventRegistry::WORK_ORDER_PROGRESS, WebhookEventRegistry::STOCK_DOCUMENT_POSTED],
+        ])->assertRedirect('/admin/webhooks')->assertSessionHasNoErrors();
+
+        $webhook = Webhook::firstWhere('name', 'New ERP hook');
+        $this->assertFalse($webhook->legacy_signature);
+        $this->assertSame([WebhookEventRegistry::WORK_ORDER_PROGRESS, WebhookEventRegistry::STOCK_DOCUMENT_POSTED], $webhook->events);
+    }
+
+    public function test_store_can_opt_into_legacy_signature(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/webhooks', [
+            'name' => 'Old receiver',
+            'url' => self::VALID_URL,
+            'events' => [WebhookEventRegistry::ISSUE_CREATED],
+            'legacy_signature' => true,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertTrue(Webhook::firstWhere('name', 'Old receiver')->legacy_signature);
+    }
+
+    public function test_update_keeps_legacy_signature_when_omitted_and_can_turn_it_off(): void
+    {
+        $webhook = Webhook::factory()->legacySignature()->create();
+        $base = ['name' => $webhook->name, 'url' => self::VALID_URL, 'events' => [WebhookEventRegistry::ISSUE_CREATED]];
+
+        $this->actingAs($this->admin)->put("/admin/webhooks/{$webhook->id}", $base)->assertSessionHasNoErrors();
+        $this->assertTrue($webhook->fresh()->legacy_signature);
+
+        $this->actingAs($this->admin)->put("/admin/webhooks/{$webhook->id}", $base + ['legacy_signature' => false])
+            ->assertSessionHasNoErrors();
+        $this->assertFalse($webhook->fresh()->legacy_signature);
+    }
+
+    public function test_legacy_signature_must_be_boolean(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/webhooks', [
+            'name' => 'Bad flag',
+            'url' => self::VALID_URL,
+            'events' => [WebhookEventRegistry::ISSUE_CREATED],
+            'legacy_signature' => 'abc',
+        ])->assertSessionHasErrors('legacy_signature');
+
+        $this->assertNull(Webhook::firstWhere('name', 'Bad flag'));
+    }
+
+    public function test_guest_and_operator_cannot_store_or_update(): void
+    {
+        $webhook = Webhook::factory()->create();
+        $payload = ['name' => 'x', 'url' => self::VALID_URL, 'events' => [WebhookEventRegistry::ISSUE_CREATED], 'legacy_signature' => true];
+
+        $this->post('/admin/webhooks', $payload)->assertRedirect();
+        $this->put("/admin/webhooks/{$webhook->id}", $payload)->assertRedirect();
+
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $this->actingAs($operator)->post('/admin/webhooks', $payload)->assertForbidden();
+        $this->actingAs($operator)->put("/admin/webhooks/{$webhook->id}", $payload)->assertForbidden();
+
+        $this->assertFalse($webhook->fresh()->legacy_signature);
+    }
+
+    public function test_edit_page_exposes_legacy_flag_and_new_events(): void
+    {
+        $webhook = Webhook::factory()->legacySignature()->create();
+
+        $this->actingAs($this->admin)->get("/admin/webhooks/{$webhook->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/webhooks/Edit')
+                ->where('webhook.legacy_signature', true)
+                ->where('events', fn ($events) => collect($events)->pluck('key')->intersect([
+                    WebhookEventRegistry::WORK_ORDER_CREATED,
+                    WebhookEventRegistry::WORK_ORDER_PROGRESS,
+                    WebhookEventRegistry::QUALITY_ISSUE_CREATED,
+                    WebhookEventRegistry::STOCK_DOCUMENT_POSTED,
+                ])->count() === 4));
+    }
+
+    public function test_signature_columns_are_synced_for_the_ui(): void
+    {
+        $registry = new \App\Sync\ShapeRegistry;
+        $prop = (new \ReflectionObject($registry))->getProperty('shapes');
+        $prop->setAccessible(true);
+        $shapes = $prop->getValue($registry);
+
+        $this->assertContains('legacy_signature', $shapes['webhooks']['columns']);
+        $this->assertContains('signature_timestamp', $shapes['webhook_deliveries']['columns']);
+        $this->assertContains('signature_scheme', $shapes['webhook_deliveries']['columns']);
+    }
 }

@@ -32,6 +32,10 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Master Data](#master-data)
   - [Warehouse Stock](#warehouse-stock)
   - [Stock Documents](#stock-documents)
+- [Webhooks](#webhooks)
+  - [Events](#events)
+  - [Verifying the signature](#verifying-the-signature)
+  - [Legacy signature](#legacy-signature)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
 
@@ -1412,6 +1416,212 @@ Records the ERP's own document number and stamps `erp_synced_at`, which takes th
 document off the `unsynced_only` backlog. `erp_reference` is optional. Unknown id (or
 another tenant's document) → `404`.
 
+
+---
+
+## Webhooks
+
+Outgoing webhooks push domain events to your endpoint as they happen, so an ERP or
+integration does not have to poll. Endpoints are managed under **Admin → Webhooks**
+(or `GET/POST/PATCH/DELETE /api/v1/webhooks`). Each endpoint subscribes to one or more
+events and has a signing secret.
+
+### Request format
+
+Every delivery is an HTTP `POST` with a JSON body:
+
+```json
+{
+  "event": "work_order.status_changed",
+  "data": { "...": "event-specific payload, see below" },
+  "timestamp": "2026-11-06T09:15:02+00:00"
+}
+```
+
+| Header | Meaning |
+|---|---|
+| `X-OpenMES-Event` | Event key, e.g. `work_order.progress` (`webhook.test` for *Send test*). |
+| `X-OpenMES-Delivery` | Delivery id. It stays the same across retries, so use it to de-duplicate. |
+| `X-OpenMES-Timestamp` | Unix time (seconds) when this attempt was signed. A new value is sent on every attempt. |
+| `X-OpenMES-Signature` | `sha256=<hex HMAC-SHA256>`. See [Verifying the signature](#verifying-the-signature). |
+
+Your custom headers (configured per endpoint) are sent too, but they cannot override the
+`X-OpenMES-*` headers.
+
+Respond with any `2xx` status within 10 seconds. A failure or a non-`2xx` response is
+retried up to 5 attempts in total, with back-off of 10 s, 30 s, 60 s, 300 s and 900 s.
+Each attempt has a fresh timestamp and signature.
+
+### Events
+
+| Event | Fires when | `data` |
+|---|---|---|
+| `work_order.created` | A work order is created. | Work order payload, with `previous_status: null`. |
+| `work_order.status_changed` | A work order's status changes. | Work order payload. |
+| `work_order.progress` | `produced_qty` changes. Throttled, see below. | Work order payload + `previous_produced_qty`. |
+| `issue.created` | Any issue is reported. | Compact, id-based issue payload. |
+| `quality_issue.created` | An issue is reported against a work order. | Same shape as `GET /api/v1/erp/quality/issues`. |
+| `batch.completed` | A batch reaches `DONE`. | `id`, `work_order_id`, `status`, `completed_at`. |
+| `stock_document.posted` | A warehouse document is posted. | Same shape as `GET /api/v1/erp/stock-documents`. |
+
+An event only reaches endpoints of the tenant that owns the entity.
+
+**Work order payload.** The same fields as `GET /api/v1/erp/production/...`, plus `id`,
+`previous_status` and the internal ids `line_id` / `product_type_id`, which are kept for
+older receivers:
+
+```json
+{
+  "id": 42,
+  "order_no": "WO-20261106-0042",
+  "customer_order_no": "PO-4711",
+  "status": "DONE",
+  "planned_qty": 100.0,
+  "produced_qty": 100.0,
+  "unit_price": null,
+  "counting_source": "manual",
+  "line_code": "LINE-A",
+  "product_type_code": "BREAD-01",
+  "completed_at": "2026-11-06T09:15:01+00:00",
+  "updated_at": "2026-11-06T09:15:01+00:00",
+  "previous_status": "IN_PROGRESS",
+  "line_id": 3,
+  "product_type_id": 7
+}
+```
+
+**Progress throttle.** A machine counter can change `produced_qty` many times a second, so
+`work_order.progress` is sent at most once per work order per window. The window is 30 s
+by default and is set with `WEBHOOK_PROGRESS_THROTTLE_SECONDS` (`0` turns the throttle off).
+Changes inside the window are dropped, not queued. The next progress event, or the
+`work_order.status_changed` event when the order finishes, carries the current quantity.
+
+**`stock_document.posted` example:**
+
+```json
+{
+  "id": 9,
+  "document_no": "PR/2026/0009",
+  "type": "product_receipt",
+  "status": "posted",
+  "direction": "in",
+  "warehouse_code": "FG-1",
+  "warehouse_erp_code": "MAG-02",
+  "work_order_no": "WO-20261106-0042",
+  "notes": null,
+  "erp_reference": null,
+  "erp_synced_at": null,
+  "posted_at": "2026-11-06T09:16:00+00:00",
+  "updated_at": "2026-11-06T09:16:00+00:00",
+  "lines": [
+    { "material_code": null, "product_type_code": "BREAD-01", "lot_number": null,
+      "quantity": 100.0, "unit_of_measure": "pcs", "notes": null }
+  ]
+}
+```
+
+**`quality_issue.created` example:**
+
+```json
+{
+  "id": 17,
+  "title": "Seal not closed",
+  "status": "OPEN",
+  "disposition": "pending",
+  "nc_source": null,
+  "non_conforming_qty": 3.0,
+  "issue_type": "Seal defect",
+  "severity": "HIGH",
+  "work_order_no": "WO-20261106-0042",
+  "root_cause": null,
+  "containment_action": null,
+  "reported_at": "2026-11-06T09:20:00+00:00",
+  "acknowledged_at": null,
+  "resolved_at": null,
+  "closed_at": null,
+  "updated_at": "2026-11-06T09:20:00+00:00"
+}
+```
+
+### Verifying the signature
+
+The signature is an HMAC-SHA256 over `"{timestamp}.{raw body}"`, keyed with the endpoint's
+signing secret. The timestamp is part of what is signed, so a captured request cannot be
+replayed later with a new timestamp.
+
+1. **Read the raw request body** as bytes, before any JSON parsing. Re-encoding parsed JSON
+   changes the bytes and the signature will not match.
+2. **Read `X-OpenMES-Timestamp`.** Reject the request if it is missing, not an integer, or
+   more than **300 seconds (5 minutes)** away from your current time: `|now − timestamp| > 300`.
+3. **Build the signed string:** `timestamp + "." + rawBody`.
+4. **Compute** `expected = "sha256=" + hex(HMAC_SHA256(secret, signedString))`.
+5. **Compare** `expected` with `X-OpenMES-Signature` using a **constant-time** comparison.
+   Reject the request on a mismatch.
+6. *(Optional)* Store processed `X-OpenMES-Delivery` ids and ignore a repeat, so a retry
+   after a timeout is not processed twice.
+
+PHP:
+
+```php
+$body = file_get_contents('php://input');
+$ts = $_SERVER['HTTP_X_OPENMES_TIMESTAMP'] ?? '';
+$sig = $_SERVER['HTTP_X_OPENMES_SIGNATURE'] ?? '';
+
+if (! ctype_digit($ts) || abs(time() - (int) $ts) > 300) {
+    http_response_code(400); exit;
+}
+$expected = 'sha256='.hash_hmac('sha256', $ts.'.'.$body, $secret);
+if (! hash_equals($expected, $sig)) {
+    http_response_code(401); exit;
+}
+```
+
+Node.js (Express, with `express.raw({ type: 'application/json' })`):
+
+```js
+const crypto = require('crypto');
+
+function verify(req, secret) {
+  const ts = req.get('X-OpenMES-Timestamp') ?? '';
+  const sig = req.get('X-OpenMES-Signature') ?? '';
+  if (!/^\d+$/.test(ts) || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret)
+    .update(`${ts}.`).update(req.body).digest('hex');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+```
+
+Python:
+
+```python
+import hashlib, hmac, time
+
+def verify(raw_body: bytes, headers, secret: str) -> bool:
+    ts = headers.get("X-OpenMES-Timestamp", "")
+    sig = headers.get("X-OpenMES-Signature", "")
+    if not ts.isdigit() or abs(time.time() - int(ts)) > 300:
+        return False
+    expected = "sha256=" + hmac.new(secret.encode(), ts.encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sig)
+```
+
+### Legacy signature
+
+Endpoints created before timestamped signatures existed were switched to **Legacy
+signature** automatically on upgrade, so they keep working. For them,
+`X-OpenMES-Signature` is `sha256=hex(HMAC_SHA256(secret, rawBody))`, without the
+timestamp. `X-OpenMES-Timestamp` is still sent, but it is not signed. New endpoints use
+the timestamped scheme unless you tick the option.
+
+To migrate a receiver:
+
+1. Deploy the verification above.
+2. Untick **Legacy signature** on the endpoint (Admin → Webhooks → Edit), or `PATCH
+   /api/v1/webhooks/{id}` with `"legacy_signature": false`.
+3. Click **Send test** and check the delivery log. The *Signature* column shows `v1` and
+   *Signed at* shows the timestamp that was sent.
 
 ---
 

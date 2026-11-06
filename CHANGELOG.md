@@ -9,6 +9,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Webhooks: full work-order payloads and new events.** Work-order events now carry the
+  same fields as the ERP production export (`GET /api/v1/erp/production/...`): `order_no`,
+  `customer_order_no`, `status`, quantities, `line_code`, `product_type_code`,
+  `completed_at` and `updated_at`, plus `id` and `previous_status`. The old `line_id` and
+  `product_type_id` keys stay. A receiver no longer has to call the API back to resolve
+  codes. Four new events can be ticked under *Admin → Webhooks → Edit → Subscribed events*:
+  *Work order created*, *Work order progress* (`produced_qty` changed, at most once per
+  order every 30 s, set with `WEBHOOK_PROGRESS_THROTTLE_SECONDS`), *Stock document posted*
+  (same shape as `/api/v1/erp/stock-documents`) and *Quality issue created* (same shape as
+  `/api/v1/erp/quality/issues`, for issues raised against a work order).
+- **Webhooks: timestamped signatures.** Every delivery sends `X-OpenMES-Timestamp` (unix
+  seconds). The delivery log (*Webhooks → Deliveries*) shows it in a new *Signed at* column,
+  next to the *Signature* scheme used (`v1` or *Legacy*). Each endpoint has a new **Legacy
+  signature** option; see *Changed* below. `docs/API_DOCUMENTATION.md` now has a *Webhooks*
+  section with step-by-step signature verification (with a 5-minute tolerance) and PHP,
+  Node and Python examples.
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -149,6 +166,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
+  its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
+  instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
+  migration turns on *Legacy signature* for every webhook that already exists, so they keep
+  the body-only HMAC. Endpoints created after the upgrade (in the admin UI or through
+  `POST /api/v1/webhooks`) use the new scheme. Update your receiver to the verification in
+  `docs/API_DOCUMENTATION.md#verifying-the-signature`, then untick *Legacy signature*.
+- In work-order webhook payloads, `planned_qty` and `produced_qty` are now JSON numbers
+  (`100.0`) rather than decimal strings (`"100.00"`), as in the ERP API.
+- A webhook delivery row and its queued job are now created after the database transaction
+  that raised the event commits, so a rolled-back change no longer sends an event.
+
 - **Worker code is explained in the forms.** The *Code* field on the worker form and the
   *Worker Code* field in the account form's *Worker profile* section now show a hint: what the
   code identifies, an example (`W-201`), and that it must be unique (English and Polish).
@@ -162,6 +191,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   to `CurrencyRegistry`).
 
 ### Security
+
+- **Webhooks: replay protection and tenant isolation.** Because the timestamp is signed, a
+  captured delivery can no longer be replayed outside the receiver's tolerance window.
+  Webhook events are now matched on the tenant that owns the work order, issue, batch or
+  stock document. Before, events raised without a logged-in user (machine counting, MQTT,
+  queue workers) could reach other tenants' endpoints. A webhook whose tenant differs from
+  the entity's (for example one created by a tenant-less super-admin) no longer receives
+  that tenant's events.
 
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the

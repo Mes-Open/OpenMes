@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ProductionExportRequest;
 use App\Models\WorkOrder;
+use App\Support\Integration\WorkOrderPresenter;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -22,7 +23,7 @@ class ProductionExportController extends Controller
     public function completions(ProductionExportRequest $request): JsonResponse
     {
         $query = WorkOrder::query()
-            ->with(['line:id,code,name', 'productType:id,code,name'])
+            ->with(WorkOrderPresenter::RELATIONS)
             ->orderBy('id');
 
         // Incremental sync: everything changed at/after the ERP's last poll.
@@ -40,7 +41,7 @@ class ProductionExportController extends Controller
         $page = $query->cursorPaginate($request->perPage())->withQueryString();
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (WorkOrder $wo) => $this->present($wo)),
+            'data' => collect($page->items())->map(fn (WorkOrder $wo) => WorkOrderPresenter::present($wo)),
             'meta' => $this->cursorMeta($page),
         ]);
     }
@@ -60,26 +61,9 @@ class ProductionExportController extends Controller
      */
     public function show(int $workOrder): JsonResponse
     {
-        $order = WorkOrder::with(['line:id,code,name', 'productType:id,code,name'])
+        $order = WorkOrder::with(WorkOrderPresenter::RELATIONS)
             ->findOrFail($workOrder);
 
-        return response()->json(['data' => $this->present($order)]);
-    }
-
-    private function present(WorkOrder $wo): array
-    {
-        return [
-            'order_no' => $wo->order_no,
-            'customer_order_no' => $wo->customer_order_no,
-            'status' => $wo->status,
-            'planned_qty' => (float) $wo->planned_qty,
-            'produced_qty' => (float) $wo->produced_qty,
-            'unit_price' => $wo->unit_price !== null ? (float) $wo->unit_price : null,
-            'counting_source' => $wo->counting_source,
-            'line_code' => $wo->line?->code,
-            'product_type_code' => $wo->productType?->code,
-            'completed_at' => $wo->completed_at?->toIso8601String(),
-            'updated_at' => $wo->updated_at?->toIso8601String(),
-        ];
+        return response()->json(['data' => WorkOrderPresenter::present($order)]);
     }
 }

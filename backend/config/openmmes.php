@@ -129,4 +129,19 @@ return [
     'warehouse' => [
         'auto_documents' => env('WAREHOUSE_AUTO_DOCUMENTS', true),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhooks
+    |--------------------------------------------------------------------------
+    |
+    | `progress_throttle_seconds` caps work_order.progress (produced_qty
+    | changed) at one event per work order per window, so a machine counter
+    | can't flood the receiver. Updates inside the window are dropped, not
+    | queued — the next event carries the current quantity. 0 disables the cap.
+    |
+    */
+    'webhooks' => [
+        'progress_throttle_seconds' => (int) env('WEBHOOK_PROGRESS_THROTTLE_SECONDS', 30),
+    ],
 ];
