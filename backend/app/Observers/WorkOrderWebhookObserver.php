@@ -26,7 +26,8 @@ class WorkOrderWebhookObserver
     public function created(WorkOrder $workOrder): void
     {
         $event = WebhookEventRegistry::WORK_ORDER_CREATED;
-        if (! $this->dispatcher->hasSubscribers($event, $workOrder->tenant_id)) {
+        $webhooks = $this->dispatcher->subscribersFor($event, $workOrder->tenant_id);
+        if ($webhooks->isEmpty()) {
             return;
         }
 
@@ -34,34 +35,42 @@ class WorkOrderWebhookObserver
             $event,
             WorkOrderPresenter::webhookPayload($workOrder, null),
             $workOrder->tenant_id,
+            $webhooks,
         );
     }
 
     public function updated(WorkOrder $workOrder): void
     {
-        if ($workOrder->wasChanged('status')) {
+        $statusChanged = $workOrder->wasChanged('status');
+        $previousStatus = $statusChanged ? $workOrder->getOriginal('status') : null;
+
+        if ($statusChanged) {
             $event = WebhookEventRegistry::WORK_ORDER_STATUS_CHANGED;
-            if ($this->dispatcher->hasSubscribers($event, $workOrder->tenant_id)) {
+            $webhooks = $this->dispatcher->subscribersFor($event, $workOrder->tenant_id);
+            if ($webhooks->isNotEmpty()) {
                 $this->dispatcher->dispatch(
                     $event,
-                    WorkOrderPresenter::webhookPayload($workOrder, $workOrder->getOriginal('status')),
+                    WorkOrderPresenter::webhookPayload($workOrder, $previousStatus),
                     $workOrder->tenant_id,
+                    $webhooks,
                 );
             }
         }
 
         if ($workOrder->wasChanged('produced_qty')) {
-            $this->progress($workOrder);
+            $this->progress($workOrder, $previousStatus);
         }
     }
 
-    private function progress(WorkOrder $workOrder): void
+    /** $previousStatus is null unless this same update also changed the status. */
+    private function progress(WorkOrder $workOrder, ?string $previousStatus): void
     {
         $event = WebhookEventRegistry::WORK_ORDER_PROGRESS;
 
         // Subscriber check first, so the throttle window isn't consumed while
         // nobody listens (and nothing expensive runs per counter tick).
-        if (! $this->dispatcher->hasSubscribers($event, $workOrder->tenant_id)) {
+        $webhooks = $this->dispatcher->subscribersFor($event, $workOrder->tenant_id);
+        if ($webhooks->isEmpty()) {
             return;
         }
 
@@ -72,9 +81,10 @@ class WorkOrderWebhookObserver
 
         $this->dispatcher->dispatch(
             $event,
-            WorkOrderPresenter::webhookPayload($workOrder, $workOrder->getOriginal('status'))
+            WorkOrderPresenter::webhookPayload($workOrder, $previousStatus)
                 + ['previous_produced_qty' => (float) $workOrder->getOriginal('produced_qty')],
             $workOrder->tenant_id,
+            $webhooks,
         );
     }
 }

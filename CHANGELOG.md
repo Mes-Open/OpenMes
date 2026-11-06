@@ -195,7 +195,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Webhooks: replay protection and tenant isolation.** Because the timestamp is signed, a
   captured delivery can no longer be replayed outside the receiver's tolerance window.
   Webhook events are now matched on the tenant that owns the work order, issue, batch or
-  stock document. Before, events raised without a logged-in user (machine counting, MQTT,
+  stock document (an issue without a work order belongs to the reporting user's tenant, so
+  existing `issue.created` integrations keep receiving those). Before, events raised without a logged-in user (machine counting, MQTT,
   queue workers) could reach other tenants' endpoints. A webhook whose tenant differs from
   the entity's (for example one created by a tenant-less super-admin) no longer receives
   that tenant's events.

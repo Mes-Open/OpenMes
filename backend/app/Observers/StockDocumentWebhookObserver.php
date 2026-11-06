@@ -31,14 +31,18 @@ class StockDocumentWebhookObserver
 
     private function firePosted(StockDocument $document): void
     {
+        if ($document->status !== StockDocument::STATUS_POSTED) {
+            return;
+        }
+
         $event = WebhookEventRegistry::STOCK_DOCUMENT_POSTED;
-        if ($document->status !== StockDocument::STATUS_POSTED
-            || ! $this->dispatcher->hasSubscribers($event, $document->tenant_id)) {
+        $webhooks = $this->dispatcher->subscribersFor($event, $document->tenant_id);
+        if ($webhooks->isEmpty()) {
             return;
         }
 
         $document->loadMissing(['warehouse', 'workOrder', 'lines.material', 'lines.productType', 'lines.materialLot']);
 
-        $this->dispatcher->dispatch($event, StockDocumentPresenter::present($document), $document->tenant_id);
+        $this->dispatcher->dispatch($event, StockDocumentPresenter::present($document), $document->tenant_id, $webhooks);
     }
 }
