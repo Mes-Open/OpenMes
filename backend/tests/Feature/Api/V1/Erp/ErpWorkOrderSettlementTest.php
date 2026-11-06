@@ -362,6 +362,11 @@ class ErpWorkOrderSettlementTest extends TestCase
 
     public function test_completions_with_includes_run_a_constant_number_of_queries(): void
     {
+        // The API-key middleware writes last_used_at on every request, and the
+        // UPDATE is skipped when the second has not changed — so without a
+        // frozen clock the count moves by one depending on timing.
+        $this->freezeSecond();
+
         $url = '/api/v1/erp/production/completions?include=consumption,scrap,costs&limit=100';
         $key = $this->keyWith([ApiScope::ProductionRead]);
 
