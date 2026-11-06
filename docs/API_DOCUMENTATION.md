@@ -1165,11 +1165,14 @@ tenant's **unit aliases**, edited by an Admin under **Settings → Units of Meas
 
 **Matching.** The incoming unit is trimmed, lower-cased, inner whitespace collapsed and
 a trailing dot dropped, so `"Szt."`, `" szt "` and `"SZT"` are the same alias. It is
-then looked up in the tenant's own aliases, then in the install-wide defaults; a tenant
-alias overrides a default of the same name. A unit that already *is* a canonical unit
-in another case (`"KG"`) resolves to it. Aliases are applied once — never chained.
+then looked up in the tenant's own aliases — only those: deleting an alias on the
+settings page really stops it from resolving. (An install without tenants uses its
+install-wide list.) A unit that already *is* a canonical unit in another case (`"KG"`)
+resolves to it. Aliases are applied once — never chained.
 
-**Defaults** (pre-filled for the install and every existing tenant, all editable):
+**Defaults** (pre-filled for the install and for every tenant — existing ones by the
+upgrade, new ones when they are created — all editable; a default an admin deleted is
+not re-added):
 
 | Unit | Aliases |
 |---|---|

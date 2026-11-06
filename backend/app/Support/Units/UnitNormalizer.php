@@ -8,14 +8,14 @@ use App\Support\TenantContext;
 
 /**
  * Turns the unit names an ERP sends into the units OpenMES stores, using the
- * tenant's unit aliases (Settings → Units).
+ * tenant's unit aliases (Settings → Units of Measure).
  *
  * Built once per import call — one query, then an in-memory map — so a
  * 5000-row sync costs one lookup, not one per row.
  *
  * Resolution, in order:
- *  1. the alias dictionary (the tenant's own aliases override the install-wide
- *     defaults stored with tenant NULL);
+ *  1. the alias dictionary — the tenant's own aliases (or, without a tenant,
+ *     the install-wide ones stored with tenant NULL);
  *  2. a canonical unit spelled differently ("KG" → "kg") — known;
  *  3. anything else is unknown: the trimmed original comes back, flagged.
  *
@@ -46,7 +46,13 @@ final class UnitNormalizer
     /**
      * The dictionary for whoever is importing: the logged-in user's tenant, or
      * the API key's tenant for headless ERP calls — the same resolution
-     * TenantScope uses. Rows of other tenants are never read.
+     * TenantScope uses.
+     *
+     * A tenant reads its own aliases and nothing else: every tenant gets its
+     * own copy of the defaults when it is created, so an alias its admin
+     * deleted must stop resolving rather than fall back to the install-wide
+     * row. The install-wide rows (tenant NULL) serve only installs and users
+     * without a tenant. Rows of other tenants are never read.
      */
     public static function forCurrentTenant(): self
     {
@@ -55,16 +61,8 @@ final class UnitNormalizer
             : app(TenantContext::class)->id();
 
         $rows = UnitAlias::withoutGlobalScope(TenantScope::class)
-            ->where(function ($q) use ($tenantId) {
-                $q->whereNull('tenant_id');
-
-                if ($tenantId) {
-                    $q->orWhere('tenant_id', $tenantId);
-                }
-            })
-            // NULL tenant first, so the tenant's own rows override the defaults.
-            ->orderByRaw('tenant_id IS NOT NULL')
-            ->get(['alias_normalized', 'unit', 'tenant_id']);
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId), fn ($q) => $q->whereNull('tenant_id'))
+            ->get(['alias_normalized', 'unit']);
 
         $aliases = [];
         $canonical = [];

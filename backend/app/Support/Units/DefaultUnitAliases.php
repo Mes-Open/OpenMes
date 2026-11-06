@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\DB;
  *
  * The data migration that first seeded them keeps its own literal copy —
  * migrations must not depend on code that can change after they ran. This is
- * the copy UnitAliasSeeder (fresh installs, demo data) uses.
+ * the copy UnitAliasSeeder (fresh installs, demo data) and every tenant
+ * created later (Tenant::created) use.
  */
 final class DefaultUnitAliases
 {
@@ -34,47 +35,57 @@ final class DefaultUnitAliases
     ];
 
     /**
-     * Insert the defaults for the install (tenant NULL) and for every tenant,
-     * skipping any alias a scope already has — safe to run again.
+     * Insert the defaults for the install (tenant NULL) and for every tenant.
+     * Safe to run again — see seedFor().
      */
     public static function seed(): void
     {
-        $scopes = [null, ...DB::table('tenants')->pluck('id')->all()];
+        self::seedFor(null);
+
+        foreach (DB::table('tenants')->pluck('id') as $tenantId) {
+            self::seedFor((int) $tenantId);
+        }
+    }
+
+    /**
+     * Give one scope (a tenant, or the install when null) its own editable
+     * copy of the defaults. An alias the scope already has — live or deleted —
+     * is left alone: a default an admin deleted on purpose must stay deleted,
+     * or the mapping they removed would quietly come back.
+     */
+    public static function seedFor(?int $tenantId): void
+    {
+        $taken = DB::table('unit_aliases')
+            ->when($tenantId === null, fn ($q) => $q->whereNull('tenant_id'), fn ($q) => $q->where('tenant_id', $tenantId))
+            ->pluck('alias_normalized')
+            ->flip()
+            ->all();
+
         $now = now();
+        $rows = [];
 
-        foreach ($scopes as $tenantId) {
-            $taken = DB::table('unit_aliases')
-                ->whereNull('deleted_at')
-                ->when($tenantId === null, fn ($q) => $q->whereNull('tenant_id'), fn ($q) => $q->where('tenant_id', $tenantId))
-                ->pluck('alias_normalized')
-                ->flip()
-                ->all();
+        foreach (self::MAP as $unit => $aliases) {
+            foreach ($aliases as $alias) {
+                $key = UnitNormalizer::key($alias);
 
-            $rows = [];
-
-            foreach (self::MAP as $unit => $aliases) {
-                foreach ($aliases as $alias) {
-                    $key = UnitNormalizer::key($alias);
-
-                    if (isset($taken[$key])) {
-                        continue;
-                    }
-
-                    $taken[$key] = true;
-                    $rows[] = [
-                        'alias' => $alias,
-                        'alias_normalized' => $key,
-                        'unit' => $unit,
-                        'tenant_id' => $tenantId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
+                if (isset($taken[$key])) {
+                    continue;
                 }
-            }
 
-            if ($rows !== []) {
-                DB::table('unit_aliases')->insert($rows);
+                $taken[$key] = true;
+                $rows[] = [
+                    'alias' => $alias,
+                    'alias_normalized' => $key,
+                    'unit' => $unit,
+                    'tenant_id' => $tenantId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
+        }
+
+        if ($rows !== []) {
+            DB::table('unit_aliases')->insert($rows);
         }
     }
 }

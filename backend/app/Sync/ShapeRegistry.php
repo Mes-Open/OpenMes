@@ -49,7 +49,7 @@ class ShapeRegistry
             'table' => 'downtime_reasons',
             'columns' => ['id', 'code', 'name', 'kind', 'is_active', 'created_at', 'updated_at'],
         ],
-        // ERP unit names → OpenMES units (Settings → Units).
+        // ERP unit names → OpenMES units (Settings → Units of Measure).
         'unit_aliases' => UnitAliasesShape::class,
         'scrap_reasons' => [
             'table' => 'scrap_reasons',

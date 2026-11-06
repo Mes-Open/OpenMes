@@ -18,7 +18,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   stock or material-lot row whose unit does not match the item's unit (340 `g` for a
   material kept in `kg`) now fails with a readable `unit_of_measure` error instead of
   being stored with the wrong unit; quantities are never converted. Rows without a unit
-  behave as before.
+  behave as before. Each tenant gets its own copy of the defaults (new tenants on
+  creation), and deleting an alias really stops imports from using it.
+- **Tables say when a filter hides every row.** A list whose search or column filters
+  match nothing now reads *"No rows match the filters."* instead of its "nothing here yet"
+  text (shared `DataTable` `noMatchLabel`). `ResourceForm` text fields accept `maxLength`.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
