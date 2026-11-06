@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * One name an ERP uses for a unit ("Stück", "KGM") and the unit OpenMES stores
  * for it ("pcs", "kg"). Read by App\Support\Units\UnitNormalizer during ERP
- * imports; edited on Settings → Units.
+ * imports; edited on Settings → Units of Measure.
  */
 class UnitAlias extends Model
 {

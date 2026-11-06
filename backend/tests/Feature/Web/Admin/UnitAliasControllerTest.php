@@ -247,4 +247,43 @@ class UnitAliasControllerTest extends TestCase
         $this->assertSame(1, $rows->where('alias', 'units')->count());
         $this->assertSame(UnitAlias::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count(), $rows->count());
     }
+
+    public function test_a_new_tenant_gets_its_own_copy_of_the_defaults(): void
+    {
+        $tenant = Tenant::create(['name' => 'Plant C']);
+
+        $this->assertDatabaseHas('unit_aliases', ['alias_normalized' => 'units', 'unit' => 'pcs', 'tenant_id' => $tenant->id]);
+        $this->assertSame(
+            UnitAlias::withoutGlobalScopes()->whereNull('tenant_id')->count(),
+            UnitAlias::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count(),
+        );
+    }
+
+    public function test_reseeding_does_not_bring_back_a_deleted_default(): void
+    {
+        $tenant = Tenant::create(['name' => 'Plant C']);
+        UnitAlias::withoutGlobalScopes()->where('tenant_id', $tenant->id)->where('alias_normalized', 'st')->first()->delete();
+
+        $this->seed(UnitAliasSeeder::class);
+
+        $this->assertSame(0, UnitAlias::withoutGlobalScopes()->whereNull('deleted_at')
+            ->where('tenant_id', $tenant->id)->where('alias_normalized', 'st')->count());
+    }
+
+    public function test_a_concurrent_duplicate_is_a_field_error_not_a_crash(): void
+    {
+        // Another admin saves the same alias between validation and insert.
+        UnitAlias::creating(function (UnitAlias $alias): void {
+            if ($alias->alias === 'Kiste') {
+                \Illuminate\Support\Facades\DB::table('unit_aliases')->insert([
+                    'alias' => 'kiste', 'alias_normalized' => 'kiste', 'unit' => 'pcs',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        });
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.unit-aliases.store'), ['alias' => 'Kiste', 'unit' => 'pcs'])
+            ->assertSessionHasErrors(['alias' => 'This alias is already defined.']);
+    }
 }

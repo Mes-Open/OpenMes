@@ -47,6 +47,9 @@ return new class extends Migration
 
             foreach (self::MAP as $unit => $aliases) {
                 foreach ($aliases as $alias) {
+                    // Lower-casing alone equals UnitNormalizer::key() for this
+                    // list only because no entry has spaces or a trailing dot —
+                    // keep it that way (no "szt."), or the keys will not match.
                     $key = mb_strtolower($alias);
 
                     if (isset($taken[$key])) {

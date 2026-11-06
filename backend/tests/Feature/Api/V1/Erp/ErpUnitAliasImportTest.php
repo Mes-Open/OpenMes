@@ -264,8 +264,9 @@ class ErpUnitAliasImportTest extends TestCase
 
     public function test_a_tenants_own_alias_overrides_the_default(): void
     {
-        // The defaults map "st" to pcs; this tenant's ERP means metres.
-        UnitAlias::create(['alias' => 'st', 'unit' => 'm', 'tenant_id' => $this->tenantId]);
+        // The defaults map "st" to pcs; this tenant's ERP means metres, so its
+        // admin repoints the tenant's own copy.
+        UnitAlias::where('alias_normalized', 'st')->firstOrFail()->update(['unit' => 'm']);
         $other = Tenant::create(['name' => 'Other'])->id;
 
         $this->importAs('/api/v1/erp/materials/import', [
@@ -281,5 +282,21 @@ class ErpUnitAliasImportTest extends TestCase
         ], tenantId: $other)->assertOk();
 
         $this->assertSame('pcs', Material::withoutGlobalScopes()->where('code', 'BOLT-01')->value('unit_of_measure'));
+    }
+
+    public function test_a_deleted_alias_stops_resolving(): void
+    {
+        // The tenant's copy of "st → pcs" is wrong for this ERP, so the admin
+        // deletes it. It must not fall back to the install-wide default.
+        UnitAlias::where('alias_normalized', 'st')->firstOrFail()->delete();
+
+        $this->importAs('/api/v1/erp/products/import', [
+            'products' => [['code' => 'CABLE-01', 'name' => 'Cable', 'unit_of_measure' => 'st']],
+        ])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.warnings')
+            ->assertJsonPath('data.warnings.0.field', 'unit_of_measure');
+
+        $this->assertSame('st', ProductType::where('code', 'CABLE-01')->value('unit_of_measure'));
     }
 }

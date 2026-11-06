@@ -9,10 +9,12 @@ use App\Http\Requests\Web\Admin\UpdateUnitAliasRequest;
 use App\Models\Material;
 use App\Models\ProductType;
 use App\Models\UnitAlias;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
- * Settings → Units: the names an ERP uses for a unit, and the unit OpenMES
+ * Settings → Units of Measure: the names an ERP uses for a unit, and the unit OpenMES
  * stores for each.
  *
  * ERP imports read this dictionary (App\Support\Units\UnitNormalizer) so that
@@ -42,7 +44,7 @@ class UnitAliasController extends Controller
 
     public function store(StoreUnitAliasRequest $request)
     {
-        UnitAlias::create($request->validated());
+        $this->guardDuplicate(fn () => UnitAlias::create($request->validated()));
 
         return $this->saved(
             $request,
@@ -61,7 +63,7 @@ class UnitAliasController extends Controller
 
     public function update(UpdateUnitAliasRequest $request, UnitAlias $unitAlias)
     {
-        $unitAlias->update($request->validated());
+        $this->guardDuplicate(fn () => $unitAlias->update($request->validated()));
 
         return $this->saved(
             $request,
@@ -77,6 +79,22 @@ class UnitAliasController extends Controller
 
         return redirect()->route('admin.unit-aliases.index')
             ->with('success', __('Unit alias deleted successfully.'));
+    }
+
+    /**
+     * The Form Request checks uniqueness, but two admins saving the same alias
+     * at the same moment can both pass it; the partial unique index then
+     * stops the second. Answer that with the same field error, not a 500.
+     */
+    private function guardDuplicate(callable $write): void
+    {
+        try {
+            $write();
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'alias' => __('This alias is already defined.'),
+            ]);
+        }
     }
 
     /**
