@@ -1314,8 +1314,9 @@ number twice is rejected with `422`.
   copied. Re-sending a routing identical to the newest active version (same steps,
   workstations, times, instructions) changes nothing and is reported as `skipped`,
   so a nightly sync does not stack up versions.
-- `replace_draft` — rewrites the newest **inactive** template that no work order was
-  created from; if there is none, creates a new inactive version. Steps are matched
+- `replace_draft` — rewrites the newest **inactive** template that is newer than the
+  newest active version and that no work order was created from; if there is none,
+  creates a new inactive version. Steps are matched
   by number (updated in place, so their media and checklists survive); steps whose
   number is gone are removed. The template stays inactive until a technologist
   activates it in the UI, so this mode alone does not make a product orderable.
