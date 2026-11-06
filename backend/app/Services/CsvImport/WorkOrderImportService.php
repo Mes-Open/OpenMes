@@ -364,7 +364,7 @@ class WorkOrderImportService
                 'priority' => $row['priority'] ?? 0,
                 'due_date' => $row['due_date'] ?? null,
                 'description' => $row['description'] ?? null,
-            ], $this->optionalErpFields($row)));
+            ], $this->optionalErpFields($row, $existing)));
 
             Log::info('Work order updated via CSV import', [
                 'order_no' => $existing->order_no,
@@ -418,10 +418,14 @@ class WorkOrderImportService
      * when present in the row — so the CSV path (which never supplies them) is
      * unaffected.
      *
+     * extra_data is stored as sent on create and shallow-merged over the stored
+     * value on update, so keys written by other paths (file import, line views)
+     * survive an ERP re-import.
+     *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    protected function optionalErpFields(array $row): array
+    protected function optionalErpFields(array $row, ?WorkOrder $existing = null): array
     {
         $fields = [];
 
@@ -431,6 +435,18 @@ class WorkOrderImportService
 
         if (array_key_exists('unit_price', $row) && $row['unit_price'] !== null) {
             $fields['unit_price'] = $row['unit_price'];
+        }
+
+        foreach (['external_system', 'external_ref', 'customer_name', 'price_currency'] as $key) {
+            if (array_key_exists($key, $row) && $row[$key] !== null) {
+                $fields[$key] = is_string($row[$key]) ? trim($row[$key]) : $row[$key];
+            }
+        }
+
+        if (array_key_exists('extra_data', $row) && is_array($row['extra_data'])) {
+            $fields['extra_data'] = $existing
+                ? array_merge($existing->extra_data ?? [], $row['extra_data'])
+                : $row['extra_data'];
         }
 
         return $fields;

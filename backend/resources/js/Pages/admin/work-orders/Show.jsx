@@ -204,6 +204,7 @@ export default function AdminWorkOrderShow() {
                     {/* LEFT — what the order is, and what its batches are doing. */}
                     <div className="flex min-w-0 flex-col gap-4">
                         <Details workOrder={workOrder} isDuePast={isDuePast} isTerminal={isTerminal} />
+                        <Source workOrder={workOrder} />
                         <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields ?? {}} />
                         <Batches workOrder={workOrder} />
                         <MaterialsReconciliation
@@ -437,22 +438,65 @@ function Details({ workOrder, isDuePast, isTerminal }) {
                         {workOrder.description}
                     </Field>
                 )}
-                {workOrder.extra_data && Object.keys(workOrder.extra_data).length > 0 && (
-                    <div className="col-span-2 md:col-span-3">
-                        <div className="mb-[5px] font-mono text-[9px] tracking-[0.1em] text-om-faint uppercase">
-                            {__('Extra Data')}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {Object.entries(workOrder.extra_data).map(([k, v]) => (
-                                <div key={k} className="rounded-om-sm bg-om-panel px-2 py-1">
-                                    <span className="text-[11px] text-om-faint">{k}</span>
-                                    <p className="text-[13px] font-medium text-om-muted">{String(v)}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
+        </Card>
+    );
+}
+
+/** One extra-data value as plain text — React escapes it; never render it as HTML. */
+function extraValue(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    if (Array.isArray(v)) return v.map((x) => (x === null ? '—' : String(x))).join(', ');
+    if (typeof v === 'object') return JSON.stringify(v); // legacy rows from older importers
+    return String(v);
+}
+
+/**
+ * Where the order came from — the ERP's system, its reference, customer and
+ * free-form data. Read only: it is whatever the source system last sent.
+ */
+function Source({ workOrder }) {
+    const source = workOrder.source ?? {};
+    const extra = workOrder.extra_data && typeof workOrder.extra_data === 'object' ? workOrder.extra_data : {};
+    const extraEntries = Object.entries(extra);
+    const hasSource = source.external_system || source.external_ref || source.customer_name;
+
+    if (!hasSource && extraEntries.length === 0) return null;
+
+    return (
+        <Card title={__('Source')}>
+            <p className="-mt-1 mb-4 text-[12px] text-om-faint">{__('Received from the source system — read only.')}</p>
+            {hasSource && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-[18px] md:grid-cols-3">
+                    <Field label={__('External system')} tone={source.external_system ? 'text-om-ink' : 'text-om-faintest'}>
+                        {source.external_system || '—'}
+                    </Field>
+                    <Field label={__('External reference')} mono tone={source.external_ref ? 'text-om-ink' : 'text-om-faintest'}>
+                        {source.external_ref || '—'}
+                    </Field>
+                    <Field label={__('Customer')} tone={source.customer_name ? 'text-om-ink' : 'text-om-faintest'}>
+                        {source.customer_name || '—'}
+                    </Field>
+                    {source.price_currency && (
+                        <Field label={__('Price currency')} mono>{source.price_currency}</Field>
+                    )}
+                </div>
+            )}
+            {extraEntries.length > 0 && (
+                <div className={hasSource ? 'mt-[18px]' : ''}>
+                    <div className="mb-[5px] font-mono text-[9px] tracking-[0.1em] text-om-faint uppercase">
+                        {__('Extra Data')}
+                    </div>
+                    <dl className="grid grid-cols-2 gap-2">
+                        {extraEntries.map(([k, v]) => (
+                            <div key={k} className="rounded-om-sm bg-om-panel px-2 py-1">
+                                <dt className="text-[11px] text-om-faint">{k}</dt>
+                                <dd className="text-[13px] font-medium break-words text-om-muted">{extraValue(v)}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                </div>
+            )}
         </Card>
     );
 }

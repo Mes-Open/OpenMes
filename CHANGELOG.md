@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **ERP work orders carry their source, customer and price currency.** The ERP import
+  (`POST /api/v1/erp/work-orders/import`) accepts `external_system`, `external_ref`,
+  `customer_name`, `price_currency` (ISO 4217, from the supported currency list) and
+  `extra_data` (an object of simple values, at most two levels and 16 KB) per order, on
+  create and on update. They come back in `GET /erp/work-orders/{id}` and
+  `production/completions`, and stock documents add `work_order_external_system` /
+  `work_order_external_ref`, so the ERP can match what production booked to its own order.
+  The admin work-order page shows them in a read-only *Source* card. Payloads without the
+  new fields behave as before.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
