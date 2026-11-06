@@ -95,6 +95,10 @@ class DeliverWebhookJob implements ShouldQueue
                 // Pin the socket to the IP we just vetted (Host header + TLS SNI
                 // still use the original hostname) — closes the rebinding window.
                 ->withOptions(['curl' => [CURLOPT_RESOLVE => ["{$target['host']}:{$target['port']}:{$target['ip']}"]]])
+                // Never follow a redirect: the Location target was not vetted
+                // or pinned, so a receiver could bounce the request to an
+                // internal address. A 3xx is a non-2xx like any other.
+                ->withoutRedirecting()
                 ->timeout(10)
                 ->withBody($body, 'application/json')
                 ->post($webhook->url);

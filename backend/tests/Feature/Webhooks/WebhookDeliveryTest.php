@@ -298,4 +298,30 @@ class WebhookDeliveryTest extends TestCase
 
         $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->fresh()->status);
     }
+
+    public function test_redirects_are_not_followed(): void
+    {
+        // A receiver answering 302 → cloud metadata must not get the request
+        // bounced there: the Location target was never vetted or pinned.
+        Http::fake([
+            'https://8.8.8.8/*' => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest/meta-data']),
+            '*' => Http::response('metadata', 200),
+        ]);
+
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        try {
+            (new DeliverWebhookJob($delivery->id))->handle();
+            $this->fail('Expected a 3xx to be treated as a failed attempt.');
+        } catch (\RuntimeException $e) {
+            // expected — retried like any other non-2xx.
+        }
+
+        $delivery->refresh();
+        $this->assertSame(302, $delivery->response_code);
+        $this->assertNotSame(WebhookDelivery::STATUS_SUCCESS, $delivery->status);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '169.254.169.254'));
+    }
 }
