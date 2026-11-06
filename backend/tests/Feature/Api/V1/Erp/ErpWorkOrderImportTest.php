@@ -275,4 +275,26 @@ class ErpWorkOrderImportTest extends TestCase
 
         $this->assertDatabaseMissing('work_orders', ['order_no' => 'ERP-BAD']);
     }
+
+    public function test_csv_import_ignores_an_unsupported_mapped_currency(): void
+    {
+        // The legacy CSV mapping accepts any field name, so price_currency can
+        // reach the shared import path without the ERP request's validation.
+        $service = app(\App\Services\CsvImport\WorkOrderImportService::class);
+        $row = fn (string $orderNo, string $currency) => [
+            'row_number' => 2,
+            'order_no' => $orderNo,
+            'line_code' => 'L1',
+            'product_type_code' => 'P1',
+            'planned_qty' => 10,
+            'unit_price' => 5,
+            'price_currency' => $currency,
+        ];
+
+        $result = $service->import([$row('CSV-BAD', 'XYZ'), $row('CSV-OK', ' eur ')], 'update_or_create');
+
+        $this->assertSame(2, $result['successful']);
+        $this->assertNull(WorkOrder::where('order_no', 'CSV-BAD')->value('price_currency'));
+        $this->assertSame('EUR', WorkOrder::where('order_no', 'CSV-OK')->value('price_currency'));
+    }
 }

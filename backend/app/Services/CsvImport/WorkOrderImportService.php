@@ -7,6 +7,7 @@ use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\Erp\Concerns\ReportsImportRows;
 use App\Services\ProcessTemplate\SnapshotService;
+use App\Support\CurrencyRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -415,8 +416,8 @@ class WorkOrderImportService
 
     /**
      * ERP-only columns applied on top of the shared create/update set, and only
-     * when present in the row — so the CSV path (which never supplies them) is
-     * unaffected.
+     * when present in the row. The legacy CSV path normally never supplies them,
+     * but its column mapping is free-form, so price_currency is re-checked here.
      *
      * extra_data is stored as sent on create and shallow-merged over the stored
      * value on update, so keys written by other paths (file import, line views)
@@ -440,6 +441,19 @@ class WorkOrderImportService
         foreach (['external_system', 'external_ref', 'customer_name', 'price_currency'] as $key) {
             if (array_key_exists($key, $row) && $row[$key] !== null) {
                 $fields[$key] = is_string($row[$key]) ? trim($row[$key]) : $row[$key];
+            }
+        }
+
+        // The ERP request validates the currency, but the legacy CSV import
+        // shares this path and its column mapping accepts any field name, so a
+        // mapped price_currency column would land here unchecked. Keep only a
+        // supported code; anything else leaves the stored currency alone.
+        if (isset($fields['price_currency'])) {
+            $currency = CurrencyRegistry::normalise((string) $fields['price_currency']);
+            if (in_array($currency, CurrencyRegistry::codes(), true)) {
+                $fields['price_currency'] = $currency;
+            } else {
+                unset($fields['price_currency']);
             }
         }
 
