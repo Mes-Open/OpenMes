@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\WebhookDelivery;
+use App\Scopes\TenantScope;
 use App\Support\WebhookUrlGuard;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,6 +49,18 @@ class DeliverWebhookJob implements ShouldQueue
             $this->markFailed($delivery, 'Webhook is no longer active.');
 
             return;
+        }
+
+        // A webhook an ERP integration registered stops with its key: a key
+        // that is deleted, disabled or expired must not keep receiving data
+        // (covers expiry, which fires no model event to deactivate the hook).
+        if ($webhook->api_key_id !== null) {
+            $key = $webhook->apiKey()->withoutGlobalScope(TenantScope::class)->first();
+            if (! $key || $key->trashed() || ! $key->isUsable()) {
+                $this->markFailed($delivery, 'Owning API key is no longer active.');
+
+                return;
+            }
         }
 
         // Re-validate at delivery time AND capture the vetted IP to pin the

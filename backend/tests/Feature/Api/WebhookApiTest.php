@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\ApiKey;
 use App\Models\User;
 use App\Models\Webhook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -126,5 +127,25 @@ class WebhookApiTest extends TestCase
         $this->actingAs($operator, 'sanctum')
             ->getJson('/api/v1/webhooks')
             ->assertStatus(403);
+    }
+
+    public function test_admin_sees_key_owned_webhooks_and_creates_unowned_ones(): void
+    {
+        $key = ApiKey::factory()->create();
+        Webhook::factory()->create(['name' => 'Registered by ERP', 'api_key_id' => $key->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/webhooks')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Registered by ERP']);
+
+        $id = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/webhooks', [
+            'name' => 'Admin hook',
+            'url' => 'https://8.8.8.8/hook',
+            'events' => ['issue.created'],
+            'api_key_id' => $key->id, // not a writable field — ignored
+        ])->assertCreated()->json('data.id');
+
+        $this->assertNull(Webhook::findOrFail($id)->api_key_id);
     }
 }

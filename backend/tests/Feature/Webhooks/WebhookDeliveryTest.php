@@ -3,6 +3,7 @@
 namespace Tests\Feature\Webhooks;
 
 use App\Jobs\DeliverWebhookJob;
+use App\Models\ApiKey;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Webhook;
@@ -10,6 +11,7 @@ use App\Models\WebhookDelivery;
 use App\Models\WorkOrder;
 use App\Services\Webhooks\WebhookDispatcher;
 use App\Support\WebhookEventRegistry;
+use App\Support\WebhookNetworkAllowlist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -202,5 +204,98 @@ class WebhookDeliveryTest extends TestCase
 
         $this->assertNotSame('plaintext-secret-value', $raw); // stored ciphertext
         $this->assertSame('plaintext-secret-value', $webhook->fresh()->secret); // decrypts via cast
+    }
+
+    // ── Private-network allowlist + key ownership at delivery time (T2a) ──
+
+    public function test_allowlisted_private_receiver_is_delivered_and_pinned(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+        WebhookNetworkAllowlist::save(['192.168.1.0/24']);
+
+        $webhook = Webhook::factory()->create(['url' => 'http://192.168.1.50:8069/openmes/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->fresh()->status);
+        Http::assertSent(fn ($request) => $request->url() === 'http://192.168.1.50:8069/openmes/hook');
+    }
+
+    public function test_allowlist_is_rechecked_at_delivery_time(): void
+    {
+        Http::fake();
+        WebhookNetworkAllowlist::save(['192.168.1.0/24']);
+        $webhook = Webhook::factory()->create(['url' => 'http://192.168.1.50:8069/openmes/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        // The admin narrows the list after the webhook was saved.
+        WebhookNetworkAllowlist::save([]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $delivery->refresh();
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->status);
+        $this->assertStringContainsString('private/reserved', (string) $delivery->error);
+        Http::assertNothingSent();
+    }
+
+    public function test_loopback_is_blocked_at_delivery_even_when_listed(): void
+    {
+        Http::fake();
+        WebhookNetworkAllowlist::save(['127.0.0.0/8']); // bypassing validation on purpose
+
+        $webhook = Webhook::factory()->create(['url' => 'http://127.0.0.1/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: bool}> */
+    public static function unusableKeys(): array
+    {
+        return [
+            'deactivated' => [['is_active' => false], false],
+            'expired' => [['expires_at' => now()->subDay()], false],
+            'deleted' => [[], true],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unusableKeys')]
+    public function test_webhook_of_an_unusable_key_is_not_delivered(array $state, bool $trash): void
+    {
+        Http::fake();
+        $key = ApiKey::factory()->create();
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook', 'api_key_id' => $key->id]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        // Write the key state quietly so the model events (which would already
+        // deactivate the hook) don't fire — the job must hold on its own.
+        $key->forceFill($state)->saveQuietly();
+        if ($trash) {
+            ApiKey::withoutEvents(fn () => $key->delete());
+        }
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $delivery->refresh();
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->status);
+        $this->assertSame('Owning API key is no longer active.', $delivery->error);
+        Http::assertNothingSent();
+    }
+
+    public function test_webhook_of_a_usable_key_is_delivered(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+        $key = ApiKey::factory()->create();
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook', 'api_key_id' => $key->id]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->fresh()->status);
     }
 }

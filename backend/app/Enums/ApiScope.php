@@ -24,6 +24,9 @@ enum ApiScope: string
     /** Warehouse balance sync and acknowledging exported stock documents (#212). */
     case StockWrite = 'erp:stock:write';
 
+    /** Register and manage the key's own outgoing webhooks (T2a). */
+    case WebhooksManage = 'erp:webhooks:manage';
+
     public function label(): string
     {
         return match ($this) {
@@ -33,6 +36,7 @@ enum ApiScope: string
             self::MasterDataWrite => __('Import products, materials, lots & recipes'),
             self::StockRead => __('Read warehouse stock & documents'),
             self::StockWrite => __('Sync warehouse stock & acknowledge documents'),
+            self::WebhooksManage => __('Manage own webhooks'),
         };
     }
 
