@@ -55,7 +55,6 @@ class MaintenanceEventController extends Controller
     {
         $this->authorize('view', $maintenanceEvent);
         $maintenanceEvent->load(['tool', 'line', 'workstation', 'costSource']);
-
         return response()->json(['data' => $maintenanceEvent]);
     }
 
@@ -77,7 +76,6 @@ class MaintenanceEventController extends Controller
         ]);
         $data['status'] = MaintenanceEvent::STATUS_PENDING;
         $event = MaintenanceEvent::create($data);
-
         return response()->json([
             'message' => 'Maintenance event created',
             'data' => $event->load(['tool', 'line', 'workstation', 'costSource']),
@@ -102,7 +100,6 @@ class MaintenanceEventController extends Controller
             'currency' => ['sometimes', 'nullable', 'string', 'max:10'],
         ]);
         $maintenanceEvent->update($data);
-
         return response()->json([
             'message' => 'Maintenance event updated',
             'data' => $maintenanceEvent->fresh(['tool', 'line', 'workstation', 'costSource']),
@@ -118,7 +115,6 @@ class MaintenanceEventController extends Controller
             ], 422);
         }
         $maintenanceEvent->delete();
-
         return response()->json(['message' => 'Maintenance event deleted']);
     }
 
@@ -134,7 +130,6 @@ class MaintenanceEventController extends Controller
             'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
             'started_at' => now(),
         ]);
-
         return response()->json([
             'message' => 'Started',
             'data' => $maintenanceEvent->fresh(['tool', 'line']),
@@ -156,7 +151,6 @@ class MaintenanceEventController extends Controller
             'status' => MaintenanceEvent::STATUS_COMPLETED,
             'completed_at' => now(),
         ]));
-
         return response()->json([
             'message' => 'Completed',
             'data' => $maintenanceEvent->fresh(['tool', 'line']),
@@ -170,7 +164,6 @@ class MaintenanceEventController extends Controller
             return response()->json(['message' => 'Event is already in a terminal state.'], 422);
         }
         $maintenanceEvent->update(['status' => MaintenanceEvent::STATUS_CANCELLED]);
-
         return response()->json([
             'message' => 'Cancelled',
             'data' => $maintenanceEvent->fresh(),

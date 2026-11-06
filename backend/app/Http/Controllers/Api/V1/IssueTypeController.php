@@ -17,7 +17,7 @@ class IssueTypeController extends Controller
         $query = IssueType::query();
 
         // Filter active only unless explicitly requested
-        if (! $request->boolean('include_inactive')) {
+        if (!$request->boolean('include_inactive')) {
             $query->active();
         }
 
@@ -69,7 +69,7 @@ class IssueTypeController extends Controller
     {
         $this->authorize('update', $issueType);
         $validated = $request->validate([
-            'code' => 'sometimes|string|max:50|unique:issue_types,code,'.$issueType->id,
+            'code' => 'sometimes|string|max:50|unique:issue_types,code,' . $issueType->id,
             'name' => 'sometimes|string|max:255',
             'severity' => 'sometimes|string|in:LOW,MEDIUM,HIGH,CRITICAL',
             'is_blocking' => 'sometimes|boolean',

@@ -40,9 +40,9 @@ class MaintenanceScheduleController extends Controller
             'data' => $page->items(),
             'meta' => [
                 'current_page' => $page->currentPage(),
-                'per_page' => $page->perPage(),
-                'total' => $page->total(),
-                'last_page' => $page->lastPage(),
+                'per_page'     => $page->perPage(),
+                'total'        => $page->total(),
+                'last_page'    => $page->lastPage(),
             ],
         ]);
     }
@@ -50,7 +50,6 @@ class MaintenanceScheduleController extends Controller
     public function show(MaintenanceSchedule $maintenanceSchedule): JsonResponse
     {
         $maintenanceSchedule->load(['tool', 'line', 'workstation', 'assignedTo', 'costSource']);
-
         return response()->json(['data' => $maintenanceSchedule]);
     }
 
@@ -58,11 +57,10 @@ class MaintenanceScheduleController extends Controller
     {
         $validated = $this->validatePayload($request);
         $validated['created_by_id'] = $request->user()?->id;
-        $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_active']     = $request->boolean('is_active', true);
 
         $schedule = MaintenanceSchedule::create($validated);
         $schedule->load(['tool', 'line', 'workstation', 'assignedTo']);
-
         return response()->json(['data' => $schedule], 201);
     }
 
@@ -73,14 +71,12 @@ class MaintenanceScheduleController extends Controller
 
         $maintenanceSchedule->update($validated);
         $maintenanceSchedule->load(['tool', 'line', 'workstation', 'assignedTo']);
-
         return response()->json(['data' => $maintenanceSchedule]);
     }
 
     public function destroy(MaintenanceSchedule $maintenanceSchedule): JsonResponse
     {
         $maintenanceSchedule->delete();
-
         return response()->json(['message' => 'Maintenance schedule deleted']);
     }
 
@@ -109,7 +105,6 @@ class MaintenanceScheduleController extends Controller
         }
 
         $created = $service->run();
-
         return response()->json(['data' => ['generated' => $created]]);
     }
 
@@ -117,22 +112,22 @@ class MaintenanceScheduleController extends Controller
     private function validatePayload(Request $request): array
     {
         return $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:2000',
-            'tool_id' => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
-            'line_id' => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
-            'workstation_id' => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
-            'event_type' => 'required|string|in:planned,corrective,inspection',
-            'assigned_to_id' => 'nullable|exists:users,id',
-            'cost_source_id' => 'nullable|exists:cost_sources,id',
-            'frequency' => 'required|string|in:'.implode(',', MaintenanceSchedule::FREQUENCIES),
-            'interval_value' => 'required|integer|min:1',
-            'preferred_time' => 'nullable|date_format:H:i',
-            'lead_time_days' => 'nullable|integer|min:0|max:30',
-            'next_due_at' => 'required|date',
+            'name'             => 'required|string|max:255',
+            'description'      => 'nullable|string|max:2000',
+            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
+            'event_type'       => 'required|string|in:planned,corrective,inspection',
+            'assigned_to_id'   => 'nullable|exists:users,id',
+            'cost_source_id'   => 'nullable|exists:cost_sources,id',
+            'frequency'        => 'required|string|in:' . implode(',', MaintenanceSchedule::FREQUENCIES),
+            'interval_value'   => 'required|integer|min:1',
+            'preferred_time'   => 'nullable|date_format:H:i',
+            'lead_time_days'   => 'nullable|integer|min:0|max:30',
+            'next_due_at'      => 'required|date',
         ], [
-            'tool_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
-            'line_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
+            'tool_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
             'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
     }

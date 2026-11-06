@@ -13,7 +13,6 @@ class LineApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
-
     protected string $token;
 
     protected function setUp(): void
@@ -91,7 +90,7 @@ class LineApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'data' => [
-                    'id' => $line->id,
+                    'id'   => $line->id,
                     'name' => 'Test Line',
                     'code' => 'TL-01',
                 ],

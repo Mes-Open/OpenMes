@@ -128,7 +128,7 @@ class ScrapReportService
 
                 return [
                     'line_id' => (int) $lineId,
-                    'line_name' => $lineNames->get($lineId, '#'.$lineId),
+                    'line_name' => $lineNames->get($lineId, '#' . $lineId),
                     'scrap_qty' => $scrap,
                     'produced_qty' => $produced,
                     'scrap_rate_pct' => $produced > 0 ? round(($scrap / $produced) * 100, 2) : null,

@@ -14,13 +14,9 @@ class BatchApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
-
     protected User $operator;
-
     protected WorkOrder $workOrder;
-
     protected string $adminToken;
-
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -100,8 +96,8 @@ class BatchApiTest extends TestCase
 
         $this->assertDatabaseHas('batches', [
             'work_order_id' => $this->workOrder->id,
-            'target_qty' => 50,
-            'status' => Batch::STATUS_PENDING,
+            'target_qty'    => 50,
+            'status'        => Batch::STATUS_PENDING,
         ]);
     }
 

@@ -14,15 +14,10 @@ class UserApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
-
     protected User $supervisor;
-
     protected User $operator;
-
     protected string $adminToken;
-
     protected string $supervisorToken;
-
     protected string $operatorToken;
 
     protected function setUp(): void

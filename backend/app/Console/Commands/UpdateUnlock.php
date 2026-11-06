@@ -19,8 +19,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class UpdateUnlock extends Command
 {
-    protected $signature = 'update:unlock';
-
+    protected $signature   = 'update:unlock';
     protected $description = 'Force-release the update apply lock and clear the status cache (emergency use).';
 
     public function handle(): int

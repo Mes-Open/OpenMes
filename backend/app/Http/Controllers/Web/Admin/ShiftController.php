@@ -37,12 +37,12 @@ class ShiftController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'name' => 'required|string|max:50',
-            'code' => 'required|string|max:10|unique:shifts,code',
+            'name'       => 'required|string|max:50',
+            'code'       => 'required|string|max:10|unique:shifts,code',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i',
+            'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
-            'line_id' => 'nullable|exists:lines,id',
+            'line_id'    => 'nullable|exists:lines,id',
         ], $cf->rules('shift')), [], $cf->attributeNames('shift'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -76,12 +76,12 @@ class ShiftController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'name' => 'required|string|max:50',
-            'code' => 'required|string|max:10|unique:shifts,code,'.$shift->id,
+            'name'       => 'required|string|max:50',
+            'code'       => 'required|string|max:10|unique:shifts,code,' . $shift->id,
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i',
+            'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
-            'line_id' => 'nullable|exists:lines,id',
+            'line_id'    => 'nullable|exists:lines,id',
         ], $cf->rules('shift')), [], $cf->attributeNames('shift'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -134,19 +134,19 @@ class ShiftController extends Controller
 
         return $query->get()->contains(function (Shift $existing) use ($start, $end) {
             $eStart = substr($existing->start_time, 0, 5);
-            $eEnd = substr($existing->end_time, 0, 5);
+            $eEnd   = substr($existing->end_time, 0, 5);
 
             // Handle overnight shifts (e.g. 22:00 - 06:00)
             $newCrossesMidnight = $start > $end;
             $existCrossesMidnight = $eStart > $eEnd;
 
-            if (! $newCrossesMidnight && ! $existCrossesMidnight) {
+            if (!$newCrossesMidnight && !$existCrossesMidnight) {
                 // Both within same day
                 return $start < $eEnd && $end > $eStart;
             }
 
             // At least one crosses midnight — normalize to minutes and check
-            $toMin = fn ($t) => (int) substr($t, 0, 2) * 60 + (int) substr($t, 3, 2);
+            $toMin = fn($t) => (int) substr($t, 0, 2) * 60 + (int) substr($t, 3, 2);
             $ns = $toMin($start);
             $ne = $toMin($end) + ($newCrossesMidnight ? 1440 : 0);
             $es = $toMin($eStart);

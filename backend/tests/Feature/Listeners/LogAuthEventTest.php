@@ -19,7 +19,7 @@ class LogAuthEventTest extends TestCase
         parent::setUp();
         // Pretend we're in an HTTP context so the helpers populate IP / UA.
         $this->withServerVariables([
-            'REMOTE_ADDR' => '203.0.113.42',
+            'REMOTE_ADDR'     => '203.0.113.42',
             'HTTP_USER_AGENT' => 'PHPUnit-LogAuthEventTest/1.0',
         ]);
     }

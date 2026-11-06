@@ -35,10 +35,10 @@ class MaintenanceEventControllerTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'title' => 'Routine Maintenance',
-            'event_type' => 'planned',
+            'title'        => 'Routine Maintenance',
+            'event_type'   => 'planned',
             'scheduled_at' => '2026-06-01 08:00:00',
-            'line_id' => Line::factory()->create()->id,
+            'line_id'      => Line::factory()->create()->id,
         ], $overrides);
     }
 
@@ -69,14 +69,14 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), $this->validPayload([
-                'title' => 'Planned Service',
+                'title'      => 'Planned Service',
                 'event_type' => 'planned',
             ]));
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Planned Service',
+            'title'      => 'Planned Service',
             'event_type' => 'planned',
         ]);
     }
@@ -85,14 +85,14 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), $this->validPayload([
-                'title' => 'Corrective Fix',
+                'title'      => 'Corrective Fix',
                 'event_type' => 'corrective',
             ]));
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Corrective Fix',
+            'title'      => 'Corrective Fix',
             'event_type' => 'corrective',
         ]);
     }
@@ -101,14 +101,14 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), $this->validPayload([
-                'title' => 'Quarterly Inspection',
+                'title'      => 'Quarterly Inspection',
                 'event_type' => 'inspection',
             ]));
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Quarterly Inspection',
+            'title'      => 'Quarterly Inspection',
             'event_type' => 'inspection',
         ]);
     }
@@ -121,9 +121,9 @@ class MaintenanceEventControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), [
-                'title' => 'No Schedule',
+                'title'      => 'No Schedule',
                 'event_type' => 'planned',
-                'line_id' => $line->id,
+                'line_id'    => $line->id,
             ]);
 
         $response->assertSessionHasErrors('scheduled_at');
@@ -135,8 +135,8 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), [
-                'title' => 'Orphan Event',
-                'event_type' => 'planned',
+                'title'        => 'Orphan Event',
+                'event_type'   => 'planned',
                 'scheduled_at' => '2026-06-01 08:00:00',
             ]);
 
@@ -150,16 +150,16 @@ class MaintenanceEventControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), [
-                'title' => 'Line-Only Event',
-                'event_type' => 'planned',
+                'title'        => 'Line-Only Event',
+                'event_type'   => 'planned',
                 'scheduled_at' => '2026-06-01 08:00:00',
-                'line_id' => $line->id,
+                'line_id'      => $line->id,
             ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Line-Only Event',
+            'title'   => 'Line-Only Event',
             'line_id' => $line->id,
         ]);
     }
@@ -170,16 +170,16 @@ class MaintenanceEventControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), [
-                'title' => 'Workstation-Only Event',
-                'event_type' => 'planned',
-                'scheduled_at' => '2026-06-01 08:00:00',
+                'title'          => 'Workstation-Only Event',
+                'event_type'     => 'planned',
+                'scheduled_at'   => '2026-06-01 08:00:00',
                 'workstation_id' => $ws->id,
             ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Workstation-Only Event',
+            'title'          => 'Workstation-Only Event',
             'workstation_id' => $ws->id,
         ]);
     }
@@ -187,23 +187,23 @@ class MaintenanceEventControllerTest extends TestCase
     public function test_store_accepts_only_tool(): void
     {
         $tool = Tool::create([
-            'code' => 'TOOL-T01',
-            'name' => 'Test Tool',
+            'code'   => 'TOOL-T01',
+            'name'   => 'Test Tool',
             'status' => Tool::STATUS_AVAILABLE,
         ]);
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.store'), [
-                'title' => 'Tool-Only Event',
-                'event_type' => 'planned',
+                'title'        => 'Tool-Only Event',
+                'event_type'   => 'planned',
                 'scheduled_at' => '2026-06-01 08:00:00',
-                'tool_id' => $tool->id,
+                'tool_id'      => $tool->id,
             ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_events', [
-            'title' => 'Tool-Only Event',
+            'title'   => 'Tool-Only Event',
             'tool_id' => $tool->id,
         ]);
     }
@@ -214,18 +214,18 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $line = Line::factory()->create();
         $event = MaintenanceEvent::create([
-            'title' => 'Existing',
+            'title'      => 'Existing',
             'event_type' => 'planned',
-            'status' => MaintenanceEvent::STATUS_PENDING,
-            'line_id' => $line->id,
+            'status'     => MaintenanceEvent::STATUS_PENDING,
+            'line_id'    => $line->id,
         ]);
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.maintenance-events.update', $event), [
-                'title' => 'Existing',
-                'event_type' => 'calibration',
+                'title'        => 'Existing',
+                'event_type'   => 'calibration',
                 'scheduled_at' => '2026-06-01 08:00:00',
-                'line_id' => $line->id,
+                'line_id'      => $line->id,
             ]);
 
         $response->assertSessionHasErrors('event_type');
@@ -235,17 +235,17 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $line = Line::factory()->create();
         $event = MaintenanceEvent::create([
-            'title' => 'Existing',
+            'title'      => 'Existing',
             'event_type' => 'planned',
-            'status' => MaintenanceEvent::STATUS_PENDING,
-            'line_id' => $line->id,
+            'status'     => MaintenanceEvent::STATUS_PENDING,
+            'line_id'    => $line->id,
         ]);
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.maintenance-events.update', $event), [
-                'title' => 'Existing',
+                'title'      => 'Existing',
                 'event_type' => 'planned',
-                'line_id' => $line->id,
+                'line_id'    => $line->id,
             ]);
 
         $response->assertSessionHasErrors('scheduled_at');
@@ -255,16 +255,16 @@ class MaintenanceEventControllerTest extends TestCase
     {
         $line = Line::factory()->create();
         $event = MaintenanceEvent::create([
-            'title' => 'Existing',
+            'title'      => 'Existing',
             'event_type' => 'planned',
-            'status' => MaintenanceEvent::STATUS_PENDING,
-            'line_id' => $line->id,
+            'status'     => MaintenanceEvent::STATUS_PENDING,
+            'line_id'    => $line->id,
         ]);
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.maintenance-events.update', $event), [
-                'title' => 'Existing',
-                'event_type' => 'planned',
+                'title'        => 'Existing',
+                'event_type'   => 'planned',
                 'scheduled_at' => '2026-06-01 08:00:00',
             ]);
 

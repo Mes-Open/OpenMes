@@ -53,26 +53,26 @@ class GenerateMaintenanceEvents
 
                 try {
                     MaintenanceEvent::create([
-                        'title' => $schedule->name,
-                        'description' => $schedule->description,
-                        'event_type' => $schedule->event_type,
-                        'status' => MaintenanceEvent::STATUS_PENDING,
-                        'tool_id' => $schedule->tool_id,
-                        'line_id' => $schedule->line_id,
+                        'title'          => $schedule->name,
+                        'description'    => $schedule->description,
+                        'event_type'     => $schedule->event_type,
+                        'status'         => MaintenanceEvent::STATUS_PENDING,
+                        'tool_id'        => $schedule->tool_id,
+                        'line_id'        => $schedule->line_id,
                         'workstation_id' => $schedule->workstation_id,
                         'assigned_to_id' => $schedule->assigned_to_id,
                         'cost_source_id' => $schedule->cost_source_id,
-                        'scheduled_at' => $schedule->next_due_at,
-                        'schedule_id' => $schedule->id,
+                        'scheduled_at'   => $schedule->next_due_at,
+                        'schedule_id'    => $schedule->id,
                     ]);
                 } catch (QueryException $e) {
                     // Race with a peer worker: it won the insert between our exists()
                     // check and our create(). The DB-level unique constraint rejected
                     // our duplicate. Log and continue — the event already exists.
                     Log::warning('Maintenance event generation lost insert race', [
-                        'schedule_id' => $schedule->id,
+                        'schedule_id'  => $schedule->id,
                         'scheduled_at' => optional($schedule->next_due_at)->toIso8601String(),
-                        'sql_state' => $e->getCode(),
+                        'sql_state'    => $e->getCode(),
                     ]);
 
                     return;

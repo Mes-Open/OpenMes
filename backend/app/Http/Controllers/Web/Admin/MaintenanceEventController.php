@@ -23,10 +23,10 @@ class MaintenanceEventController extends Controller
     public function index(Request $request)
     {
         return Inertia::render('admin/maintenance-events/Index', [
-            'toolNames' => Tool::pluck('name', 'id'),
-            'lineNames' => Line::pluck('name', 'id'),
+            'toolNames'        => Tool::pluck('name', 'id'),
+            'lineNames'        => Line::pluck('name', 'id'),
             'workstationNames' => Workstation::pluck('name', 'id'),
-            'userNames' => User::pluck('name', 'id'),
+            'userNames'        => User::pluck('name', 'id'),
             // Option lists for the list page's create/edit drawer. Optional, so the
             // queries only run once someone opens it — most visits never do.
             'tools' => Inertia::optional(fn () => Tool::orderBy('name')->get(['id', 'name'])),
@@ -43,11 +43,11 @@ class MaintenanceEventController extends Controller
     public function create()
     {
         return Inertia::render('admin/maintenance-events/Create', [
-            'tools' => Tool::orderBy('name')->get(['id', 'name']),
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
-            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'        => User::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -57,21 +57,21 @@ class MaintenanceEventController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'event_type' => 'required|string|in:planned,corrective,inspection',
-            'tool_id' => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
-            'line_id' => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
-            'workstation_id' => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
-            'cost_source_id' => 'nullable|exists:cost_sources,id',
-            'assigned_to_id' => 'nullable|exists:users,id',
-            'scheduled_at' => 'required|date',
+            'title'            => 'required|string|max:255',
+            'event_type'       => 'required|string|in:planned,corrective,inspection',
+            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
+            'cost_source_id'   => 'nullable|exists:cost_sources,id',
+            'assigned_to_id'   => 'nullable|exists:users,id',
+            'scheduled_at'     => 'required|date',
             'scheduled_end_at' => 'nullable|date|after:scheduled_at',
-            'description' => 'nullable|string|max:2000',
-            'actual_cost' => 'nullable|numeric|min:0',
-            'currency' => 'nullable|string|max:10',
+            'description'      => 'nullable|string|max:2000',
+            'actual_cost'      => 'nullable|numeric|min:0',
+            'currency'         => 'nullable|string|max:10',
         ], [
-            'tool_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
-            'line_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
+            'tool_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
             'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
 
@@ -95,13 +95,13 @@ class MaintenanceEventController extends Controller
                 'id', 'title', 'event_type', 'tool_id', 'line_id', 'workstation_id',
                 'cost_source_id', 'assigned_to_id', 'description', 'actual_cost', 'currency'
             ),
-            'scheduled_at' => $maintenanceEvent->scheduled_at?->format('Y-m-d\TH:i'),
+            'scheduled_at'     => $maintenanceEvent->scheduled_at?->format('Y-m-d\TH:i'),
             'scheduled_end_at' => $maintenanceEvent->scheduled_end_at?->format('Y-m-d\TH:i'),
-            'tools' => Tool::orderBy('name')->get(['id', 'name']),
-            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
-            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'tools'            => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'            => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations'     => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources'      => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'            => User::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -111,24 +111,24 @@ class MaintenanceEventController extends Controller
     public function update(Request $request, MaintenanceEvent $maintenanceEvent)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'event_type' => 'required|string|in:planned,corrective,inspection',
-            'tool_id' => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
-            'line_id' => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
-            'workstation_id' => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
-            'cost_source_id' => 'nullable|exists:cost_sources,id',
-            'assigned_to_id' => 'nullable|exists:users,id',
-            'scheduled_at' => 'required|date',
+            'title'            => 'required|string|max:255',
+            'event_type'       => 'required|string|in:planned,corrective,inspection',
+            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
+            'cost_source_id'   => 'nullable|exists:cost_sources,id',
+            'assigned_to_id'   => 'nullable|exists:users,id',
+            'scheduled_at'     => 'required|date',
             'scheduled_end_at' => 'nullable|date|after:scheduled_at',
-            'started_at' => 'nullable|date',
-            'completed_at' => 'nullable|date|after_or_equal:started_at',
-            'description' => 'nullable|string|max:2000',
+            'started_at'       => 'nullable|date',
+            'completed_at'     => 'nullable|date|after_or_equal:started_at',
+            'description'      => 'nullable|string|max:2000',
             'resolution_notes' => 'nullable|string|max:2000',
-            'actual_cost' => 'nullable|numeric|min:0',
-            'currency' => 'nullable|string|max:10',
+            'actual_cost'      => 'nullable|numeric|min:0',
+            'currency'         => 'nullable|string|max:10',
         ], [
-            'tool_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
-            'line_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
+            'tool_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
             'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
 
@@ -168,7 +168,7 @@ class MaintenanceEventController extends Controller
         }
 
         $maintenanceEvent->update([
-            'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
+            'status'     => MaintenanceEvent::STATUS_IN_PROGRESS,
             'started_at' => now(),
         ]);
 
@@ -188,11 +188,11 @@ class MaintenanceEventController extends Controller
 
         $validated = $request->validate([
             'resolution_notes' => 'nullable|string|max:2000',
-            'actual_cost' => 'nullable|numeric|min:0',
+            'actual_cost'      => 'nullable|numeric|min:0',
         ]);
 
         $maintenanceEvent->update(array_merge($validated, [
-            'status' => MaintenanceEvent::STATUS_COMPLETED,
+            'status'       => MaintenanceEvent::STATUS_COMPLETED,
             'completed_at' => now(),
         ]));
 

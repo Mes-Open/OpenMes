@@ -6,6 +6,7 @@ use App\Enums\DowntimeKind;
 use App\Models\DowntimeReason;
 use App\Models\Line;
 use App\Models\OeeRecord;
+use App\Models\ProductionDowntime;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -35,7 +36,7 @@ class OeeApiTest extends TestCase
         OeeRecord::factory()->create(['line_id' => $otherLine->id, 'record_date' => '2026-05-15']);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/oee?line_id='.$this->line->id.'&date_from=2026-05-12&date_to=2026-05-20');
+            ->getJson('/api/v1/oee?line_id=' . $this->line->id . '&date_from=2026-05-12&date_to=2026-05-20');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -48,7 +49,7 @@ class OeeApiTest extends TestCase
         OeeRecord::factory()->create(['line_id' => $this->line->id, 'record_date' => today()->subDay()->toDateString()]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/oee/'.$this->line->id.'?days=7');
+            ->getJson('/api/v1/oee/' . $this->line->id . '?days=7');
 
         $response->assertStatus(200);
         $this->assertGreaterThanOrEqual(1, count($response->json('data')));
@@ -69,14 +70,14 @@ class OeeApiTest extends TestCase
         $downtimeId = $startResponse->json('data.id');
 
         $stopResponse = $this->actingAs($this->user, 'sanctum')
-            ->patchJson('/api/v1/downtimes/'.$downtimeId);
+            ->patchJson('/api/v1/downtimes/' . $downtimeId);
 
         $stopResponse->assertStatus(200);
         $this->assertNotNull($stopResponse->json('data.ended_at'));
 
         // Cannot stop twice
         $secondStop = $this->actingAs($this->user, 'sanctum')
-            ->patchJson('/api/v1/downtimes/'.$downtimeId);
+            ->patchJson('/api/v1/downtimes/' . $downtimeId);
         $secondStop->assertStatus(422);
     }
 

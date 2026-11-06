@@ -16,15 +16,10 @@ class ConnectivityApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
-
     protected User $supervisor;
-
     protected User $operator;
-
     protected string $adminToken;
-
     protected string $supervisorToken;
-
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -42,20 +37,9 @@ class ConnectivityApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
-    }
-
-    private function authSupervisor()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
-    }
-
-    private function authOperator()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
-    }
+    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
+    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
+    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
 
     private function makeConnection(array $attrs = []): MachineConnection
     {

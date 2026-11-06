@@ -62,7 +62,7 @@ class MaintenanceScheduleController extends Controller
         $validated = $this->validatePayload($request);
 
         $validated['created_by_id'] = $request->user()?->id;
-        $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_active']     = $request->boolean('is_active', true);
         // lead_time_days is NOT NULL DEFAULT 0; a blank field arrives as null.
         $validated['lead_time_days'] ??= 0;
 

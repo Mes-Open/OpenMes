@@ -32,7 +32,6 @@ class UserPolicy
         if ($user->id === $target->id) {
             return false;
         }
-
         return $user->hasRole('Admin');
     }
 
