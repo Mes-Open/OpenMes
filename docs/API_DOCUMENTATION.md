@@ -1206,8 +1206,9 @@ For an order in production:
 - While the ERP's request for that order is still open (submitted or approved, not
   yet applied), a new import **revises the same request** instead of opening a
   second one. A revised request that was already approved goes back to *Submitted*:
-  the manager approved different values. A row identical to the order withdraws the
-  open request (`CANCELLED`) and reports `skipped`.
+  the manager approved different values. Re-sending the **same** proposal (a periodic
+  sync) leaves the request and its approval untouched. A row identical to the order
+  withdraws the open request (`CANCELLED`) and reports `skipped`.
 - Repeating a cancel while the ERP's cancellation request is open returns the same
   request.
 - Applying a change to a running order still requires the manager to pause it first

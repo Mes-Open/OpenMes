@@ -212,6 +212,14 @@ class ErpWorkOrderControlService
             return ['action' => 'skipped', 'change_request_id' => $open?->id];
         }
 
+        // A periodic sync re-sends the same order over and over. The same proposal is
+        // nothing new to decide, so the open request — and a manager's approval of
+        // it — stays exactly as it is. Loose comparison on purpose: the stored copy
+        // went through JSON (150.0 comes back as 150).
+        if ($open !== null && $open->proposedChanges() == $changes) {
+            return ['action' => 'change_requested', 'change_request_id' => $open->id];
+        }
+
         $title = __('ERP change: :fields', ['fields' => implode(', ', $this->erpFieldNames($changes))]);
         $reason = ($reason !== null && $reason !== '')
             ? $reason
