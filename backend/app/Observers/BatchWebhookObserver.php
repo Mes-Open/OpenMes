@@ -24,6 +24,6 @@ class BatchWebhookObserver
             'work_order_id' => $batch->work_order_id,
             'status' => $batch->status,
             'completed_at' => optional($batch->completed_at)->toIso8601String(),
-        ]);
+        ], $batch->workOrder?->tenant_id);
     }
 }
