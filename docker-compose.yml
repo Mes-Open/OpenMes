@@ -281,9 +281,12 @@ services:
 
   # ── OPC UA gateway sidecar (Node.js) ──────────────────────────────────────
   # Bridges an OPC UA server into the OpenMES ingest API. OpenMES cannot speak
-  # OPC UA natively. Requires an API token (Admin → API Tokens).
+  # OPC UA natively. Requires a machine gateway token (Settings → API Tokens),
+  # best kept as OPENMES_API_TOKEN in the .env file next to this one.
   # Example: OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
   #          docker compose --profile connectivity up -d opcua-gateway
+  # An OPC UA server on the Docker host is reached as host.docker.internal —
+  # localhost / 127.0.0.1 inside this container is the container itself.
   opcua-gateway:
     build:
       context: ./opcua-gateway
@@ -294,6 +297,9 @@ services:
       OPENMES_API_TOKEN: ${OPENMES_API_TOKEN}
       OPCUA_CONNECTION_ID: ${OPCUA_CONNECTION_ID:-1}
       OPCUA_PASSWORD: ${OPCUA_PASSWORD:-}
+    extra_hosts:
+      # Docker Desktop defines this already; on Linux it has to be mapped.
+      - "host.docker.internal:host-gateway"
     depends_on:
       - backend
     restart: unless-stopped
