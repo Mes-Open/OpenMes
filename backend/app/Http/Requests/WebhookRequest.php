@@ -40,6 +40,8 @@ class WebhookRequest extends FormRequest
             'headers' => ['nullable', 'array'],
             'headers.*' => ['nullable', 'string', 'max:1024'],
             'is_active' => ['nullable', 'boolean'],
+            // Body-only HMAC (pre-timestamp scheme) for receivers not yet migrated.
+            'legacy_signature' => ['sometimes', 'boolean'],
         ];
     }
 }

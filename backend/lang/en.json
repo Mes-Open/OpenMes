@@ -7302,5 +7302,13 @@
     "Expires :date": "Expires :date",
     "Never expires": "Never expires",
     "Revoke key": "Revoke key",
-    "Revoke API key ':name'? Integrations using it will stop working.": "Revoke API key ':name'? Integrations using it will stop working."
+    "Revoke API key ':name'? Integrations using it will stop working.": "Revoke API key ':name'? Integrations using it will stop working.",
+    "Work order created": "Work order created",
+    "Work order progress": "Work order progress",
+    "Stock document posted": "Stock document posted",
+    "Quality issue created": "Quality issue created",
+    "Legacy signature": "Legacy signature",
+    "Sign the request body only, without the timestamp. Keep on for integrations built before timestamped signatures; turn off once your receiver verifies X-OpenMES-Timestamp.": "Sign the request body only, without the timestamp. Keep on for integrations built before timestamped signatures; turn off once your receiver verifies X-OpenMES-Timestamp.",
+    "Signed at (X-OpenMES-Timestamp)": "Signed at (X-OpenMES-Timestamp)",
+    "Signature": "Signature"
 }

@@ -7302,5 +7302,13 @@
     "Expires :date": "Wygasa :date",
     "Never expires": "Nigdy nie wygasa",
     "Revoke key": "Unieważnij klucz",
-    "Revoke API key ':name'? Integrations using it will stop working.": "Unieważnić klucz API ':name'? Integracje, które go używają, przestaną działać."
+    "Revoke API key ':name'? Integrations using it will stop working.": "Unieważnić klucz API ':name'? Integracje, które go używają, przestaną działać.",
+    "Work order created": "Zlecenie utworzone",
+    "Work order progress": "Postęp zlecenia",
+    "Stock document posted": "Dokument magazynowy zaksięgowany",
+    "Quality issue created": "Problem jakościowy zgłoszony",
+    "Legacy signature": "Podpis w starym formacie",
+    "Sign the request body only, without the timestamp. Keep on for integrations built before timestamped signatures; turn off once your receiver verifies X-OpenMES-Timestamp.": "Podpisuj tylko treść żądania, bez znacznika czasu. Pozostaw włączone dla integracji zbudowanych przed podpisami ze znacznikiem czasu; wyłącz, gdy odbiorca weryfikuje X-OpenMES-Timestamp.",
+    "Signed at (X-OpenMES-Timestamp)": "Podpisano (X-OpenMES-Timestamp)",
+    "Signature": "Podpis"
 }
