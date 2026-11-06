@@ -232,7 +232,7 @@ class ShapeRegistry
         // must not leave the server.
         'webhooks' => [
             'table' => 'webhooks',
-            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'api_key_id', 'last_triggered_at', 'created_at', 'updated_at'],
         ],
         // Delivery log — payload/response_body are excluded to keep the stream
         // light; the status/code/error are enough for the admin list.

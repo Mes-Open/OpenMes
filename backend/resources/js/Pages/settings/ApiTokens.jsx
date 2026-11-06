@@ -4,9 +4,10 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import ErpApiKeys from './ErpApiKeys';
 
 export default function ApiTokens() {
-    const { tokens, newToken, newTokenName, appUrl, csrf_token } = usePage().props;
+    const { tokens, newToken, newTokenName, appUrl, csrf_token, erpEnabled = false, erpScopes = [] } = usePage().props;
     const [copied, setCopied] = useState(false);
     // Pending revoke confirmation — holds the token row + its <form> element so
     // confirming submits the exact same native DELETE form.
@@ -134,6 +135,8 @@ export default function ApiTokens() {
                     </div>
                 )}
             </div>
+
+            {erpEnabled && <ErpApiKeys scopes={erpScopes} />}
 
             {revoke && (
                 <ConfirmDialog

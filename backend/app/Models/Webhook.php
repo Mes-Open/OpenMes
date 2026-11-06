@@ -7,6 +7,7 @@ use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -30,6 +31,7 @@ class Webhook extends Model
         'is_active',
         'last_triggered_at',
         'tenant_id',
+        'api_key_id',
     ];
 
     /** Keep the secret out of array/JSON serialization by default. */
@@ -51,6 +53,22 @@ class Webhook extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(WebhookDelivery::class);
+    }
+
+    /**
+     * The ERP integration key that registered this endpoint over the API, or
+     * null when an administrator created it. Includes trashed keys so a hook
+     * whose key was deleted can still tell why it stopped.
+     */
+    public function apiKey(): BelongsTo
+    {
+        return $this->belongsTo(ApiKey::class)->withTrashed();
+    }
+
+    /** Only the webhooks registered by the given API key. */
+    public function scopeOwnedBy($query, ApiKey $key)
+    {
+        return $query->where('api_key_id', $key->id);
     }
 
     public function scopeActive($query)

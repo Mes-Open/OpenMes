@@ -346,6 +346,14 @@ class SettingsController extends Controller
             'newToken' => session('new_token'),
             'newTokenName' => session('new_token_name'),
             'appUrl' => config('app.url'),
+            // ERP integration keys section (machine-to-machine, scoped). The
+            // list itself is fetched from /api/v1/api-keys, which 404s while
+            // the ERP module is off — so the section only renders when it's on.
+            'erpEnabled' => \App\Support\ModuleRegistry::isModuleEnabled('erp'),
+            'erpScopes' => array_map(
+                fn (\App\Enums\ApiScope $s) => ['value' => $s->value, 'label' => $s->label()],
+                \App\Enums\ApiScope::cases(),
+            ),
         ]);
     }
 
@@ -728,7 +736,10 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // The webhook network allowlist is security config, not portable data.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\WebhookNetworkAllowlist::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.
