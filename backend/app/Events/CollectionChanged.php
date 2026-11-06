@@ -22,16 +22,17 @@ class CollectionChanged implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets;
 
     /**
-     * @param  string  $collection  registry name (e.g. "skills", "work_orders_active")
-     * @param  string  $op  "insert" | "update" | "delete"
-     * @param  array  $row  the changed row, projected to the collection's columns
+     * @param string $collection  registry name (e.g. "skills", "work_orders_active")
+     * @param string $op          "insert" | "update" | "delete"
+     * @param array  $row         the changed row, projected to the collection's columns
      */
     public function __construct(
         public string $collection,
         public string $op,
         public array $row,
         public string|int|null $tenantKey = null,
-    ) {}
+    ) {
+    }
 
     public function broadcastOn(): array
     {

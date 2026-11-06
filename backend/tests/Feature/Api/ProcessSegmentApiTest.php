@@ -14,11 +14,8 @@ class ProcessSegmentApiTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
-
     private User $operator;
-
     private string $adminToken;
-
     private string $operatorToken;
 
     protected function setUp(): void
@@ -48,11 +45,11 @@ class ProcessSegmentApiTest extends TestCase
     public function test_admin_can_create_segment_via_api(): void
     {
         $response = $this->authAdmin()->postJson('/api/v1/process-segments', [
-            'code' => 'PSG-API-1',
-            'name' => 'API created',
-            'segment_type' => ProcessSegment::TYPE_PRODUCTION,
+            'code'                       => 'PSG-API-1',
+            'name'                       => 'API created',
+            'segment_type'               => ProcessSegment::TYPE_PRODUCTION,
             'estimated_duration_minutes' => 30,
-            'required_operators' => 2,
+            'required_operators'         => 2,
         ]);
 
         $response->assertStatus(201)
@@ -72,8 +69,8 @@ class ProcessSegmentApiTest extends TestCase
     public function test_operator_cannot_create_segment(): void
     {
         $response = $this->authOperator()->postJson('/api/v1/process-segments', [
-            'code' => 'PSG-OP',
-            'name' => 'Op tried',
+            'code'         => 'PSG-OP',
+            'name'         => 'Op tried',
             'segment_type' => ProcessSegment::TYPE_PRODUCTION,
             'required_operators' => 1,
         ]);
@@ -84,7 +81,7 @@ class ProcessSegmentApiTest extends TestCase
     {
         $segment = ProcessSegment::factory()->create(['code' => 'PSG-API-UPD', 'name' => 'Old']);
 
-        $response = $this->authAdmin()->patchJson('/api/v1/process-segments/'.$segment->id, [
+        $response = $this->authAdmin()->patchJson('/api/v1/process-segments/' . $segment->id, [
             'name' => 'New name',
         ]);
 
@@ -94,16 +91,16 @@ class ProcessSegmentApiTest extends TestCase
 
     public function test_admin_cannot_delete_segment_in_use(): void
     {
-        $segment = ProcessSegment::factory()->create();
+        $segment  = ProcessSegment::factory()->create();
         $template = ProcessTemplate::factory()->create();
         TemplateStep::create([
             'process_template_id' => $template->id,
-            'process_segment_id' => $segment->id,
-            'step_number' => 1,
-            'name' => 'In use',
+            'process_segment_id'  => $segment->id,
+            'step_number'         => 1,
+            'name'                => 'In use',
         ]);
 
-        $response = $this->authAdmin()->deleteJson('/api/v1/process-segments/'.$segment->id);
+        $response = $this->authAdmin()->deleteJson('/api/v1/process-segments/' . $segment->id);
         $response->assertStatus(422);
         $this->assertDatabaseHas('process_segments', ['id' => $segment->id]);
     }

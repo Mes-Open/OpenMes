@@ -34,7 +34,6 @@ class AdditionalCostController extends Controller
         $data['work_order_id'] = $workOrder->id;
         $data['created_by_id'] = $request->user()->id;
         $cost = AdditionalCost::create($data);
-
         return response()->json([
             'message' => 'Cost added',
             'data' => $cost->load(['costSource', 'createdBy']),
@@ -51,7 +50,6 @@ class AdditionalCostController extends Controller
             'currency' => ['sometimes', 'nullable', 'string', 'max:10'],
         ]);
         $additionalCost->update($data);
-
         return response()->json(['message' => 'Updated', 'data' => $additionalCost->fresh(['costSource'])]);
     }
 
@@ -59,7 +57,6 @@ class AdditionalCostController extends Controller
     {
         $this->authorize('delete', $additionalCost);
         $additionalCost->delete();
-
         return response()->json(['message' => 'Cost deleted']);
     }
 }

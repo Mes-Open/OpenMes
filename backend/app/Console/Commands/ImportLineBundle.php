@@ -64,18 +64,16 @@ class ImportLineBundle extends Command
         $errors = 0;
 
         foreach ((array) $this->argument('paths') as $path) {
-            if (! is_file($path)) {
+            if (!is_file($path)) {
                 $this->error("File not found: {$path}");
                 $errors++;
-
                 continue;
             }
 
             $file = json_decode((string) file_get_contents($path), true);
-            if (! is_array($file)) {
+            if (!is_array($file)) {
                 $this->error("Invalid JSON: {$path}");
                 $errors++;
-
                 continue;
             }
 
@@ -83,7 +81,7 @@ class ImportLineBundle extends Command
             $posMap = [];
 
             foreach (self::ENTITIES as $key => [$modelClass, $keyFields, $refs]) {
-                if (! isset($file[$key]) || ! is_array($file[$key]) || $file[$key] === []) {
+                if (!isset($file[$key]) || !is_array($file[$key]) || $file[$key] === []) {
                     continue;
                 }
                 [$created, $updated, $failed] = $this->upsertEntity($key, $modelClass, $keyFields, $refs, $file[$key], $file, $posMap, $workOrders);
@@ -110,8 +108,8 @@ class ImportLineBundle extends Command
      */
     private function upsertEntity(string $key, string $modelClass, array $keyFields, array $refs, array $rows, array $file, array &$posMap, WorkOrderService $workOrders): array
     {
-        $probe = new $modelClass;
-        if (! Schema::hasTable($probe->getTable())) {
+        $probe = new $modelClass();
+        if (!Schema::hasTable($probe->getTable())) {
             $this->warn("  {$key} skipped: table {$probe->getTable()} does not exist");
 
             return [0, 0, 0];
@@ -133,7 +131,7 @@ class ImportLineBundle extends Command
                 }
 
                 if ($key === 'work_orders'
-                    && (($row['process_snapshot'] ?? null) === 'auto' || ! array_key_exists('process_snapshot', $row))) {
+                    && (($row['process_snapshot'] ?? null) === 'auto' || !array_key_exists('process_snapshot', $row))) {
                     $row['process_snapshot'] = $workOrders->buildProcessSnapshot($row['product_type_id'] ?? null) ?? ['steps' => []];
                 }
 
@@ -167,7 +165,7 @@ class ImportLineBundle extends Command
     {
         $srcPos = (int) $value;
         $src = $file[$srcKey] ?? null;
-        if (! is_array($src) || ! isset($src[$srcPos - 1])) {
+        if (!is_array($src) || !isset($src[$srcPos - 1])) {
             $this->warn("  {$ownerKey}[{$pos}].{$field}: position {$srcPos} of {$srcKey} is not defined in this file, leaving null");
 
             return null;

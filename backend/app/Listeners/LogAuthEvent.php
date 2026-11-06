@@ -31,14 +31,14 @@ class LogAuthEvent
             }
 
             AuditLog::create([
-                'user_id' => $user->getKey(),
-                'entity_type' => 'App\\Models\\User',
-                'entity_id' => $user->getKey(),
-                'action' => 'login',
+                'user_id'      => $user->getKey(),
+                'entity_type'  => 'App\\Models\\User',
+                'entity_id'    => $user->getKey(),
+                'action'       => 'login',
                 'before_state' => null,
-                'after_state' => null,
-                'ip_address' => $this->resolveIp(),
-                'user_agent' => $this->resolveUserAgent(),
+                'after_state'  => null,
+                'ip_address'   => $this->resolveIp(),
+                'user_agent'   => $this->resolveUserAgent(),
             ]);
         } catch (Throwable $e) {
             Log::warning('LogAuthEvent: failed to record login audit entry', [
@@ -53,18 +53,18 @@ class LogAuthEvent
     public function handleLogout(Logout $event): void
     {
         try {
-            $user = $event->user;
+            $user   = $event->user;
             $userId = $user?->getKey();
 
             AuditLog::create([
-                'user_id' => $userId,
-                'entity_type' => 'App\\Models\\User',
-                'entity_id' => $userId,
-                'action' => 'logout',
+                'user_id'      => $userId,
+                'entity_type'  => 'App\\Models\\User',
+                'entity_id'    => $userId,
+                'action'       => 'logout',
                 'before_state' => null,
-                'after_state' => null,
-                'ip_address' => $this->resolveIp(),
-                'user_agent' => $this->resolveUserAgent(),
+                'after_state'  => null,
+                'ip_address'   => $this->resolveIp(),
+                'user_agent'   => $this->resolveUserAgent(),
             ]);
         } catch (Throwable $e) {
             Log::warning('LogAuthEvent: failed to record logout audit entry', [
@@ -82,19 +82,19 @@ class LogAuthEvent
     {
         try {
             $credentials = is_array($event->credentials) ? $event->credentials : [];
-            $username = $credentials['username']
+            $username    = $credentials['username']
                 ?? $credentials['email']
                 ?? '<unknown>';
 
             AuditLog::create([
-                'user_id' => null,
-                'entity_type' => 'App\\Models\\User',
-                'entity_id' => null,
-                'action' => 'login_failed',
+                'user_id'      => null,
+                'entity_type'  => 'App\\Models\\User',
+                'entity_id'    => null,
+                'action'       => 'login_failed',
                 'before_state' => ['username' => $username],
-                'after_state' => null,
-                'ip_address' => $this->resolveIp(),
-                'user_agent' => $this->resolveUserAgent(),
+                'after_state'  => null,
+                'ip_address'   => $this->resolveIp(),
+                'user_agent'   => $this->resolveUserAgent(),
             ]);
         } catch (Throwable $e) {
             Log::warning('LogAuthEvent: failed to record failed-login audit entry', [
@@ -111,9 +111,9 @@ class LogAuthEvent
     public function subscribe(Dispatcher $events): array
     {
         return [
-            Login::class => 'handleLogin',
-            Logout::class => 'handleLogout',
-            Failed::class => 'handleFailed',
+            Login::class   => 'handleLogin',
+            Logout::class  => 'handleLogout',
+            Failed::class  => 'handleFailed',
         ];
     }
 

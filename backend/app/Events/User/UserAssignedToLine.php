@@ -2,8 +2,8 @@
 
 namespace App\Events\User;
 
-use App\Models\Line;
 use App\Models\User;
+use App\Models\Line;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 

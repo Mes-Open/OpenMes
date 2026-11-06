@@ -16,11 +16,8 @@ class IssueServiceTest extends TestCase
     use RefreshDatabase;
 
     protected IssueService $service;
-
     protected WorkOrder $workOrder;
-
     protected IssueType $blockingType;
-
     protected IssueType $nonBlockingType;
 
     protected function setUp(): void
@@ -48,11 +45,11 @@ class IssueServiceTest extends TestCase
         $issue = $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'title' => 'Test issue',
+            'title'         => 'Test issue',
         ]);
 
         $this->assertDatabaseHas('issues', [
-            'id' => $issue->id,
+            'id'    => $issue->id,
             'title' => 'Test issue',
         ]);
     }
@@ -62,7 +59,7 @@ class IssueServiceTest extends TestCase
         $issue = $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'title' => 'Test',
+            'title'         => 'Test',
         ]);
 
         $this->assertEquals(Issue::STATUS_OPEN, $issue->status);
@@ -74,7 +71,7 @@ class IssueServiceTest extends TestCase
         $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'title' => 'Blocking issue',
+            'title'         => 'Blocking issue',
         ]);
 
         $this->assertEquals(WorkOrder::STATUS_BLOCKED, $this->workOrder->fresh()->status);
@@ -85,7 +82,7 @@ class IssueServiceTest extends TestCase
         $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'title' => 'Non-blocking',
+            'title'         => 'Non-blocking',
         ]);
 
         $this->assertEquals(WorkOrder::STATUS_PENDING, $this->workOrder->fresh()->status);
@@ -98,7 +95,7 @@ class IssueServiceTest extends TestCase
         $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'title' => 'Second blocking issue',
+            'title'         => 'Second blocking issue',
         ]);
 
         $this->assertEquals(WorkOrder::STATUS_BLOCKED, $this->workOrder->fresh()->status);
@@ -111,7 +108,7 @@ class IssueServiceTest extends TestCase
         $this->service->createIssue([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'title' => 'Issue on done WO',
+            'title'         => 'Issue on done WO',
         ]);
 
         $this->assertEquals(WorkOrder::STATUS_DONE, $this->workOrder->fresh()->status);
@@ -124,7 +121,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $userId = \App\Models\User::factory()->create()->id;
@@ -140,7 +137,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_RESOLVED,
+            'status'        => Issue::STATUS_RESOLVED,
         ]);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -155,7 +152,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $updated = $this->service->resolveIssue($issue, 'Fixed it');
@@ -170,7 +167,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_ACKNOWLEDGED,
+            'status'        => Issue::STATUS_ACKNOWLEDGED,
         ]);
 
         $updated = $this->service->resolveIssue($issue);
@@ -185,7 +182,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_ACKNOWLEDGED,
+            'status'        => Issue::STATUS_ACKNOWLEDGED,
         ]);
 
         $this->service->resolveIssue($issue);
@@ -200,14 +197,14 @@ class IssueServiceTest extends TestCase
         $issue1 = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_ACKNOWLEDGED,
+            'status'        => Issue::STATUS_ACKNOWLEDGED,
         ]);
 
         // Second blocking issue still open
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $this->service->resolveIssue($issue1);
@@ -221,13 +218,13 @@ class IssueServiceTest extends TestCase
 
         Batch::factory()->create([
             'work_order_id' => $this->workOrder->id,
-            'status' => Batch::STATUS_IN_PROGRESS,
+            'status'        => Batch::STATUS_IN_PROGRESS,
         ]);
 
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $this->service->resolveIssue($issue);
@@ -240,7 +237,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_CLOSED,
+            'status'        => Issue::STATUS_CLOSED,
         ]);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -255,7 +252,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_RESOLVED,
+            'status'        => Issue::STATUS_RESOLVED,
         ]);
 
         $updated = $this->service->closeIssue($issue);
@@ -269,7 +266,7 @@ class IssueServiceTest extends TestCase
         $issue = Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -303,12 +300,12 @@ class IssueServiceTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_RESOLVED,
+            'status'        => Issue::STATUS_RESOLVED,
         ]);
 
         $open = $this->service->getWorkOrderIssues($this->workOrder->id, Issue::STATUS_OPEN);
@@ -327,17 +324,17 @@ class IssueServiceTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
         Issue::factory()->create([
             'work_order_id' => $workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status' => Issue::STATUS_RESOLVED,
+            'status'        => Issue::STATUS_RESOLVED,
         ]);
         Issue::factory()->create([
             'work_order_id' => $workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status' => Issue::STATUS_OPEN,
+            'status'        => Issue::STATUS_OPEN,
         ]);
 
         $stats = $this->service->getLineIssueStats($line->id);

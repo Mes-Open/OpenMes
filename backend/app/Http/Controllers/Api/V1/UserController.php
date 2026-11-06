@@ -22,16 +22,16 @@ class UserController extends Controller
         $query = User::query()->with(['roles', 'lines', 'workstation', 'worker']);
 
         if ($role = $request->query('role')) {
-            $query->whereHas('roles', fn ($q) => $q->where('name', $role));
+            $query->whereHas('roles', fn($q) => $q->where('name', $role));
         }
         if ($lineId = $request->query('line_id')) {
-            $query->whereHas('lines', fn ($q) => $q->where('lines.id', $lineId));
+            $query->whereHas('lines', fn($q) => $q->where('lines.id', $lineId));
         }
         if ($accountType = $request->query('account_type')) {
             $query->where('account_type', $accountType);
         }
         if ($q = $request->query('q')) {
-            $needle = '%'.strtolower($q).'%';
+            $needle = '%' . strtolower($q) . '%';
             $query->where(function ($qb) use ($needle) {
                 $qb->whereRaw('LOWER(username) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(email) LIKE ?', [$needle])
@@ -84,13 +84,13 @@ class UserController extends Controller
                 'force_password_change' => $validated['force_password_change'] ?? false,
             ]);
 
-            if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
+            if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
                 $user->assignRole($validated['role']);
             } elseif ($validated['account_type'] === 'workstation') {
                 $user->assignRole('Operator');
             }
 
-            if (! empty($validated['line_ids'])) {
+            if (!empty($validated['line_ids'])) {
                 $user->lines()->sync($validated['line_ids']);
             }
 
@@ -131,7 +131,7 @@ class UserController extends Controller
             if (array_key_exists('role', $validated)) {
                 $accountType = $validated['account_type'] ?? $user->account_type;
                 if ($accountType === 'user') {
-                    if (! empty($validated['role'])) {
+                    if (!empty($validated['role'])) {
                         $user->syncRoles([$validated['role']]);
                     } else {
                         $user->syncRoles([]);

@@ -23,15 +23,11 @@ use Illuminate\Support\Str;
 class UpdateApplier
 {
     public const STATUS_CACHE_KEY = 'update_apply_status';
-
     public const STATUS_CACHE_TTL = 86400; // 24h
+    public const CHECK_CACHE_KEY  = 'update_check_result';
 
-    public const CHECK_CACHE_KEY = 'update_check_result';
-
-    private const BACKUP_KEEP = 3;
-
-    private const CHECKSUM_ALGO = 'sha256';
-
+    private const BACKUP_KEEP            = 3;
+    private const CHECKSUM_ALGO          = 'sha256';
     private const MAINTENANCE_SECRET_KEY = 'update_maintenance_secret';
 
     /**
@@ -55,9 +51,9 @@ class UpdateApplier
 
         // 1. Download
         $this->setStatus([
-            'state' => 'downloading',
+            'state'    => 'downloading',
             'progress' => 5,
-            'message' => __('Downloading update package…'),
+            'message'  => __('Downloading update package…'),
         ]);
 
         try {
@@ -67,45 +63,42 @@ class UpdateApplier
                 @unlink($tempZip);
                 $msg = __('Failed to download update package. Check server internet connection.');
                 $this->patchAuditRecord($auditRecord, [
-                    'state' => SystemUpdate::STATE_FAILED,
+                    'state'       => SystemUpdate::STATE_FAILED,
                     'finished_at' => now(),
-                    'error' => (string) $msg,
+                    'error'       => (string) $msg,
                 ]);
                 $this->fail($msg);
-
                 return;
             }
         } catch (\Throwable $e) {
             @unlink($tempZip);
-            Log::error('Update download failed: '.$e->getMessage());
+            Log::error('Update download failed: ' . $e->getMessage());
             $msg = __('Failed to download update: :error', ['error' => $e->getMessage()]);
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => $e->getMessage(),
+                'error'       => $e->getMessage(),
             ]);
             $this->fail($msg);
-
             return;
         }
 
         // 1b. Verify checksum
         $this->setStatus([
-            'state' => 'verifying',
+            'state'    => 'verifying',
             'progress' => 20,
-            'message' => __('Verifying integrity…'),
+            'message'  => __('Verifying integrity…'),
         ]);
 
         $checksumResult = $this->verifyChecksumDetailed($tempZip, $remote);
         if ($checksumResult['error'] !== null) {
             @unlink($tempZip);
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => $checksumResult['error'],
+                'error'       => $checksumResult['error'],
             ]);
             $this->fail($checksumResult['error']);
-
             return;
         }
 
@@ -115,22 +108,21 @@ class UpdateApplier
 
         // 2. Extract
         $this->setStatus([
-            'state' => 'extracting',
+            'state'    => 'extracting',
             'progress' => 35,
-            'message' => __('Extracting update package…'),
+            'message'  => __('Extracting update package…'),
         ]);
 
-        $zip = new \ZipArchive;
+        $zip = new \ZipArchive();
         if ($zip->open($tempZip) !== true) {
             @unlink($tempZip);
             $msg = __('Failed to open update package.');
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => (string) $msg,
+                'error'       => (string) $msg,
             ]);
             $this->fail($msg);
-
             return;
         }
 
@@ -143,20 +135,19 @@ class UpdateApplier
         @unlink($tempZip);
 
         // 3. Resolve source root
-        $extracted = glob($tempDir.'/*', GLOB_ONLYDIR);
-        $sourceRoot = $extracted[0] ?? $tempDir;
-        $sourceBackend = is_dir($sourceRoot.'/backend') ? $sourceRoot.'/backend' : $sourceRoot;
+        $extracted   = glob($tempDir . '/*', GLOB_ONLYDIR);
+        $sourceRoot  = $extracted[0] ?? $tempDir;
+        $sourceBackend = is_dir($sourceRoot . '/backend') ? $sourceRoot . '/backend' : $sourceRoot;
 
         if (! is_dir($sourceBackend)) {
             $this->deleteDirectory($tempDir);
             $msg = __('Invalid update package structure.');
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => (string) $msg,
+                'error'       => (string) $msg,
             ]);
             $this->fail($msg);
-
             return;
         }
 
@@ -164,14 +155,14 @@ class UpdateApplier
 
         // 4. Snapshot
         $this->setStatus([
-            'state' => 'backing_up',
+            'state'    => 'backing_up',
             'progress' => 50,
-            'message' => __('Creating safety snapshot…'),
+            'message'  => __('Creating safety snapshot…'),
         ]);
 
         $timestamp = date('Ymd-His');
         $backupDir = storage_path("app/update-backups/{$timestamp}-{$version}");
-        $manifest = ['modified' => [], 'created' => []];
+        $manifest  = ['modified' => [], 'created' => []];
 
         try {
             if (! is_dir($backupDir)) {
@@ -181,31 +172,30 @@ class UpdateApplier
             $manifest = $this->createBackup($sourceBackend, $root, $protected, $backupDir);
 
             @file_put_contents(
-                $backupDir.'/manifest.json',
+                $backupDir . '/manifest.json',
                 json_encode([
-                    'version' => $version,
+                    'version'   => $version,
                     'timestamp' => $timestamp,
-                    'modified' => $manifest['modified'],
-                    'created' => $manifest['created'],
+                    'modified'  => $manifest['modified'],
+                    'created'   => $manifest['created'],
                 ], JSON_PRETTY_PRINT)
             );
 
             Log::info("Update backup created at {$backupDir}", [
-                'version' => $version,
+                'version'        => $version,
                 'modified_count' => count($manifest['modified']),
-                'created_count' => count($manifest['created']),
+                'created_count'  => count($manifest['created']),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Update backup failed: '.$e->getMessage());
+            Log::error('Update backup failed: ' . $e->getMessage());
             $this->deleteDirectory($tempDir);
             $this->deleteDirectory($backupDir);
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => $e->getMessage(),
+                'error'       => $e->getMessage(),
             ]);
             $this->fail(__('Failed to create backup before update: :error', ['error' => $e->getMessage()]));
-
             return;
         }
 
@@ -217,33 +207,32 @@ class UpdateApplier
         } catch (\Throwable $e) {
             Log::error('Failed to enter maintenance mode, aborting update', [
                 'version' => $version,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             $this->deleteDirectory($tempDir);
             $this->deleteDirectory($backupDir);
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => $e->getMessage(),
+                'error'       => $e->getMessage(),
             ]);
             $this->fail(__('Failed to enter maintenance mode before update: :error', ['error' => $e->getMessage()]));
-
             return;
         }
 
         // Detect composer dependency drift BEFORE copying — compare the lock
         // file shipped by the release against the live one. We capture the
         // 'old' hash up-front because copyDirectory will overwrite composer.lock.
-        $oldLockPath = $root.'/composer.lock';
-        $newLockPath = $sourceBackend.'/composer.lock';
+        $oldLockPath = $root . '/composer.lock';
+        $newLockPath = $sourceBackend . '/composer.lock';
         $oldLockHash = file_exists($oldLockPath) ? md5_file($oldLockPath) : null;
         $newLockHash = file_exists($newLockPath) ? md5_file($newLockPath) : null;
         $composerChanged = $oldLockHash !== $newLockHash;
 
         $this->setStatus([
-            'state' => 'copying',
+            'state'    => 'copying',
             'progress' => 70,
-            'message' => __('Installing new files…'),
+            'message'  => __('Installing new files…'),
         ]);
 
         $composerWarning = null;
@@ -267,9 +256,9 @@ class UpdateApplier
             }
 
             $this->setStatus([
-                'state' => 'migrating',
+                'state'    => 'migrating',
                 'progress' => 85,
-                'message' => __('Running database migrations…'),
+                'message'  => __('Running database migrations…'),
             ]);
 
             Artisan::call('migrate', ['--force' => true]);
@@ -280,13 +269,13 @@ class UpdateApplier
         } catch (\Throwable $e) {
             Log::error('Update failed, rolling back', [
                 'version' => $version,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
 
             $this->setStatus([
-                'state' => 'rolling_back',
+                'state'   => 'rolling_back',
                 'message' => __('Update failed — rolling back…'),
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
 
             try {
@@ -304,29 +293,28 @@ class UpdateApplier
                 Artisan::call('view:clear');
                 Artisan::call('cache:clear');
             } catch (\Throwable $clearErr) {
-                Log::warning('Post-rollback cache clear failed: '.$clearErr->getMessage());
+                Log::warning('Post-rollback cache clear failed: ' . $clearErr->getMessage());
             }
 
             $this->deleteDirectory($tempDir);
 
             Log::error('Update failed, rolled back to previous version', [
-                'version' => $version,
+                'version'    => $version,
                 'backup_dir' => $backupDir,
             ]);
 
             $this->setStatus([
-                'state' => 'rolled_back',
+                'state'    => 'rolled_back',
                 'progress' => 100,
-                'message' => __('Update failed and was rolled back: :error', ['error' => $e->getMessage()]),
-                'error' => $e->getMessage(),
+                'message'  => __('Update failed and was rolled back: :error', ['error' => $e->getMessage()]),
+                'error'    => $e->getMessage(),
             ]);
 
             $this->patchAuditRecord($auditRecord, [
-                'state' => SystemUpdate::STATE_ROLLED_BACK,
+                'state'       => SystemUpdate::STATE_ROLLED_BACK,
                 'finished_at' => now(),
-                'error' => $e->getMessage(),
+                'error'       => $e->getMessage(),
             ]);
-
             return;
         }
 
@@ -335,9 +323,9 @@ class UpdateApplier
 
         // 7. Clear caches
         $this->setStatus([
-            'state' => 'migrating',
+            'state'    => 'migrating',
             'progress' => 95,
-            'message' => __('Clearing caches…'),
+            'message'  => __('Clearing caches…'),
         ]);
 
         Artisan::call('config:clear');
@@ -354,20 +342,20 @@ class UpdateApplier
         Log::info("System updated to {$version}", ['files_copied' => $copyCount]);
 
         $this->patchAuditRecord($auditRecord, [
-            'state' => SystemUpdate::STATE_COMPLETED,
-            'finished_at' => now(),
+            'state'        => SystemUpdate::STATE_COMPLETED,
+            'finished_at'  => now(),
             'files_copied' => $copyCount,
         ]);
 
         $this->setStatus([
-            'state' => 'completed',
-            'progress' => 100,
-            'message' => __('Updated to :version successfully (:count files updated).', [
+            'state'            => 'completed',
+            'progress'         => 100,
+            'message'          => __('Updated to :version successfully (:count files updated).', [
                 'version' => $version,
-                'count' => $copyCount,
+                'count'   => $copyCount,
             ]),
-            'files_copied' => $copyCount,
-            'error' => null,
+            'files_copied'     => $copyCount,
+            'error'            => null,
             'composer_warning' => $composerWarning,
         ]);
     }
@@ -388,9 +376,9 @@ class UpdateApplier
     private function runComposerInstall(string $root): ?string
     {
         $this->setStatus([
-            'state' => 'installing_dependencies',
+            'state'    => 'installing_dependencies',
             'progress' => 65,
-            'message' => __('Installing PHP dependencies…'),
+            'message'  => __('Installing PHP dependencies…'),
         ]);
 
         $composerPath = $this->locateComposerBinary($root);
@@ -399,7 +387,6 @@ class UpdateApplier
             Log::warning('composer binary not found, skipping vendor install — release may have broken dependencies', [
                 'root' => $root,
             ]);
-
             return $warning;
         }
 
@@ -421,12 +408,12 @@ class UpdateApplier
 
         if ($result->exitCode() !== 0) {
             Log::error('composer install failed', [
-                'exit' => $result->exitCode(),
-                'output' => $result->output(),
+                'exit'        => $result->exitCode(),
+                'output'      => $result->output(),
                 'errorOutput' => $result->errorOutput(),
             ]);
 
-            throw new \RuntimeException('Composer install failed: '.$result->errorOutput());
+            throw new \RuntimeException('Composer install failed: ' . $result->errorOutput());
         }
 
         Log::info('composer install completed', [
@@ -456,7 +443,7 @@ class UpdateApplier
 
         $candidates = [
             '/usr/local/bin/composer',
-            $root.'/composer.phar',
+            $root . '/composer.phar',
         ];
 
         foreach ($candidates as $candidate) {
@@ -478,20 +465,19 @@ class UpdateApplier
     {
         try {
             return SystemUpdate::create([
-                'user_id' => $userId > 0 ? $userId : null,
-                'from_version' => config('version.current'),
-                'to_version' => $version,
-                'state' => SystemUpdate::STATE_QUEUED,
-                'started_at' => now(),
-                'checksum_verified' => false,
+                'user_id'              => $userId > 0 ? $userId : null,
+                'from_version'         => config('version.current'),
+                'to_version'           => $version,
+                'state'                => SystemUpdate::STATE_QUEUED,
+                'started_at'           => now(),
+                'checksum_verified'    => false,
                 'composer_install_ran' => false,
             ]);
         } catch (\Throwable $e) {
-            Log::warning('Failed to open system_updates audit row: '.$e->getMessage(), [
+            Log::warning('Failed to open system_updates audit row: ' . $e->getMessage(), [
                 'version' => $version,
                 'user_id' => $userId,
             ]);
-
             return null;
         }
     }
@@ -519,7 +505,7 @@ class UpdateApplier
                 ], true)
                 && $record->started_at !== null
             ) {
-                $changes['finished_at'] = $changes['finished_at'] ?? now();
+                $changes['finished_at']      = $changes['finished_at'] ?? now();
                 $changes['duration_seconds'] = max(
                     0,
                     $changes['finished_at']->diffInSeconds($record->started_at)
@@ -528,7 +514,7 @@ class UpdateApplier
 
             $record->update($changes);
         } catch (\Throwable $e) {
-            Log::warning('Failed to patch system_updates audit row: '.$e->getMessage(), [
+            Log::warning('Failed to patch system_updates audit row: ' . $e->getMessage(), [
                 'changes' => array_keys($changes),
             ]);
         }
@@ -552,12 +538,12 @@ class UpdateApplier
             }
 
             $this->patchAuditRecord($record, [
-                'state' => SystemUpdate::STATE_FAILED,
+                'state'       => SystemUpdate::STATE_FAILED,
                 'finished_at' => now(),
-                'error' => $error,
+                'error'       => $error,
             ]);
         } catch (\Throwable $e) {
-            Log::warning('markPendingAuditFailed swallowed: '.$e->getMessage());
+            Log::warning('markPendingAuditFailed swallowed: ' . $e->getMessage());
         }
     }
 
@@ -570,15 +556,15 @@ class UpdateApplier
         $now = now()->toIso8601String();
 
         Cache::put(self::STATUS_CACHE_KEY, [
-            'state' => 'queued',
-            'version' => $version,
-            'started_at' => $now,
-            'updated_at' => $now,
-            'progress' => 0,
-            'message' => __('Queued — waiting for worker.'),
-            'error' => null,
+            'state'              => 'queued',
+            'version'            => $version,
+            'started_at'         => $now,
+            'updated_at'         => $now,
+            'progress'           => 0,
+            'message'            => __('Queued — waiting for worker.'),
+            'error'              => null,
             'started_by_user_id' => $userId,
-            'files_copied' => null,
+            'files_copied'       => null,
         ], self::STATUS_CACHE_TTL);
     }
 
@@ -592,11 +578,11 @@ class UpdateApplier
         Cache::forget(self::MAINTENANCE_SECRET_KEY);
 
         $this->setStatus([
-            'state' => 'failed',
-            'progress' => 100,
-            'message' => $message,
-            'error' => $message,
-            'maintenance_active' => false,
+            'state'                  => 'failed',
+            'progress'               => 100,
+            'message'                => $message,
+            'error'                  => $message,
+            'maintenance_active'     => false,
             'maintenance_bypass_url' => null,
         ]);
     }
@@ -607,7 +593,7 @@ class UpdateApplier
     private function setStatus(array $patch): void
     {
         $existing = Cache::get(self::STATUS_CACHE_KEY) ?? [];
-        $merged = array_merge($existing, $patch, [
+        $merged   = array_merge($existing, $patch, [
             'updated_at' => now()->toIso8601String(),
         ]);
 
@@ -640,15 +626,15 @@ class UpdateApplier
         // is not present in this repo, so Laravel's default maintenance screen
         // will be served instead.
         Artisan::call('down', [
-            '--retry' => 60,
+            '--retry'  => 60,
             '--secret' => $secret,
         ]);
 
-        $bypassUrl = rtrim(url('/'), '/').'/'.$secret;
+        $bypassUrl = rtrim(url('/'), '/') . '/' . $secret;
 
         $this->setStatus([
-            'maintenance_active' => true,
-            'maintenance_bypass_url' => $bypassUrl,
+            'maintenance_active'      => true,
+            'maintenance_bypass_url'  => $bypassUrl,
         ]);
 
         Log::info('Update entered maintenance mode', [
@@ -665,14 +651,14 @@ class UpdateApplier
         try {
             Artisan::call('up');
         } catch (\Throwable $e) {
-            Log::error('Failed to exit maintenance mode: '.$e->getMessage());
+            Log::error('Failed to exit maintenance mode: ' . $e->getMessage());
             // Do not rethrow — leaving the system 'down' is worse than logging.
         }
 
         Cache::forget(self::MAINTENANCE_SECRET_KEY);
 
         $this->setStatus([
-            'maintenance_active' => false,
+            'maintenance_active'     => false,
             'maintenance_bypass_url' => null,
         ]);
 
@@ -697,7 +683,7 @@ class UpdateApplier
         $error = $this->verifyChecksum($zipPath, $remote);
 
         return [
-            'error' => $error,
+            'error'    => $error,
             'verified' => $advertised && $error === null,
         ];
     }
@@ -709,11 +695,10 @@ class UpdateApplier
     private function verifyChecksum(string $zipPath, array $remote): ?string
     {
         $expected = $remote['sha256'] ?? ($remote['assets'][0]['sha256'] ?? null);
-        $version = $remote['version'] ?? 'unknown';
+        $version  = $remote['version'] ?? 'unknown';
 
         if (! is_string($expected) || trim($expected) === '') {
             Log::warning("Update release does not advertise sha256 checksum — integrity check skipped for {$version}");
-
             return null;
         }
 
@@ -721,21 +706,19 @@ class UpdateApplier
         if ($actual === false) {
             Log::error('Update checksum verification failed — unable to hash downloaded file', [
                 'version' => $version,
-                'path' => $zipPath,
+                'path'    => $zipPath,
             ]);
-
             return __('Update package integrity check failed — file does not match expected checksum. Update aborted.');
         }
 
         if (strtolower($actual) !== strtolower(trim($expected))) {
             Log::error('Update checksum mismatch', [
-                'version' => $version,
-                'expected' => strtolower(trim($expected)),
-                'actual' => strtolower($actual),
+                'version'   => $version,
+                'expected'  => strtolower(trim($expected)),
+                'actual'    => strtolower($actual),
                 'algorithm' => self::CHECKSUM_ALGO,
-                'size' => @filesize($zipPath),
+                'size'      => @filesize($zipPath),
             ]);
-
             return __('Update package integrity check failed — file does not match expected checksum. Update aborted.');
         }
 
@@ -760,25 +743,24 @@ class UpdateApplier
                 continue;
             }
 
-            $currentRel = $relPath ? $relPath.'/'.$item : $item;
+            $currentRel = $relPath ? $relPath . '/' . $item : $item;
 
             if (in_array($currentRel, $protected, true)) {
                 continue;
             }
 
-            $srcPath = $source.'/'.$item;
-            $dstPath = $dest.'/'.$item;
+            $srcPath = $source . '/' . $item;
+            $dstPath = $dest . '/' . $item;
 
             if (is_dir($srcPath)) {
                 $sub = $this->createBackup($srcPath, $dstPath, $protected, $backupDir, $currentRel);
                 $manifest['modified'] = array_merge($manifest['modified'], $sub['modified']);
-                $manifest['created'] = array_merge($manifest['created'], $sub['created']);
-
+                $manifest['created']  = array_merge($manifest['created'], $sub['created']);
                 continue;
             }
 
             if (file_exists($dstPath)) {
-                $backupPath = $backupDir.'/files/'.$currentRel;
+                $backupPath   = $backupDir . '/files/' . $currentRel;
                 $backupParent = dirname($backupPath);
                 if (! is_dir($backupParent)) {
                     @mkdir($backupParent, 0755, true);
@@ -802,15 +784,14 @@ class UpdateApplier
      */
     private function restoreBackup(string $backupDir, array $manifest, string $root): void
     {
-        $filesDir = $backupDir.'/files';
+        $filesDir = $backupDir . '/files';
 
         foreach ($manifest['modified'] ?? [] as $rel) {
-            $src = $filesDir.'/'.$rel;
-            $dst = $root.'/'.$rel;
+            $src = $filesDir . '/' . $rel;
+            $dst = $root . '/' . $rel;
 
             if (! file_exists($src)) {
                 Log::warning("Rollback: missing backup file {$rel}");
-
                 continue;
             }
 
@@ -825,7 +806,7 @@ class UpdateApplier
         }
 
         foreach ($manifest['created'] ?? [] as $rel) {
-            $path = $root.'/'.$rel;
+            $path = $root . '/' . $rel;
             if (is_file($path)) {
                 @unlink($path);
             }
@@ -852,7 +833,7 @@ class UpdateApplier
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $path = $base.'/'.$entry;
+            $path = $base . '/' . $entry;
             if (is_dir($path)) {
                 $dirs[$path] = @filemtime($path) ?: 0;
             }
@@ -889,14 +870,14 @@ class UpdateApplier
                 continue;
             }
 
-            $currentRel = $relPath ? $relPath.'/'.$item : $item;
+            $currentRel = $relPath ? $relPath . '/' . $item : $item;
 
             if (in_array($currentRel, $protected, true)) {
                 continue;
             }
 
-            $srcPath = $source.'/'.$item;
-            $dstPath = $dest.'/'.$item;
+            $srcPath = $source . '/' . $item;
+            $dstPath = $dest . '/' . $item;
 
             if (is_dir($srcPath)) {
                 $count += $this->copyDirectory($srcPath, $dstPath, $protected, $currentRel);
@@ -930,7 +911,7 @@ class UpdateApplier
                 continue;
             }
 
-            $path = $dir.'/'.$item;
+            $path = $dir . '/' . $item;
             is_dir($path) ? $this->deleteDirectory($path) : @unlink($path);
         }
 

@@ -156,7 +156,7 @@ class OeeController extends Controller
         $pdf = Pdf::loadView('admin.oee.print-pdf', $data)
             ->setPaper('a4', 'portrait');
 
-        $rangeSlug = $data['dateFrom'].'_'.$data['dateTo'];
+        $rangeSlug = $data['dateFrom'] . '_' . $data['dateTo'];
         $scopeSlug = $data['singleLine'] && $data['perLine']->count() === 1
             ? str(($data['perLine']->first()['line']->code ?? 'line'))->slug()
             : 'all-lines';

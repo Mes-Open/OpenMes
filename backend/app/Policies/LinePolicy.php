@@ -17,7 +17,6 @@ class LinePolicy
         if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
             return true;
         }
-
         return $user->lines()->where('lines.id', $line->id)->exists();
     }
 

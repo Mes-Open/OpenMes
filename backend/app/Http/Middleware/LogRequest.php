@@ -68,15 +68,15 @@ class LogRequest
         }
 
         RequestLog::create([
-            'user_id' => $user->getKey(),
-            'method' => $method,
-            'path' => '/'.$path,
-            'route_name' => optional($request->route())->getName(),
-            'status' => $response->getStatusCode(),
+            'user_id'     => $user->getKey(),
+            'method'      => $method,
+            'path'        => '/'.$path,
+            'route_name'  => optional($request->route())->getName(),
+            'status'      => $response->getStatusCode(),
             'duration_ms' => (int) round((microtime(true) - $start) * 1000),
-            'ip_address' => $request->ip(),
-            'user_agent' => substr($request->userAgent() ?? '', 0, 500),
-            'sampled' => $sampled,
+            'ip_address'  => $request->ip(),
+            'user_agent'  => substr($request->userAgent() ?? '', 0, 500),
+            'sampled'     => $sampled,
         ]);
     }
 }

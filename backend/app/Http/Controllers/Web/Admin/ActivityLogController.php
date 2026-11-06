@@ -59,7 +59,6 @@ class ActivityLogController extends Controller
                 ->get()
                 ->map(function (AuditLog $log) {
                     $log->setAttribute('source', 'audit');
-
                     return $log;
                 });
         }
@@ -83,7 +82,6 @@ class ActivityLogController extends Controller
                     ->get()
                     ->map(function (RequestLog $log) {
                         $log->setAttribute('source', 'request');
-
                         return $log;
                     });
             }
@@ -104,7 +102,7 @@ class ActivityLogController extends Controller
             $perPage,
             $page,
             [
-                'path' => $request->url(),
+                'path'  => $request->url(),
                 'query' => $request->query(),
             ]
         );
@@ -115,17 +113,17 @@ class ActivityLogController extends Controller
         $entityTypes = AuditLog::query()->distinct()->pluck('entity_type')->filter()->sort()->values();
 
         return \Inertia\Inertia::render('admin/logs/Activity', [
-            'logs' => $logs,
-            'users' => $users,
-            'actions' => $actions,
+            'logs'        => $logs,
+            'users'       => $users,
+            'actions'     => $actions,
             'entityTypes' => $entityTypes,
-            'filters' => [
-                'from' => $from->format('Y-m-d'),
-                'to' => $to->format('Y-m-d'),
-                'user_id' => $request->input('user_id', ''),
-                'source' => $request->input('source', ''),
+            'filters'     => [
+                'from'        => $from->format('Y-m-d'),
+                'to'          => $to->format('Y-m-d'),
+                'user_id'     => $request->input('user_id', ''),
+                'source'      => $request->input('source', ''),
                 'entity_type' => $request->input('entity_type', ''),
-                'action' => $request->input('action', ''),
+                'action'      => $request->input('action', ''),
             ],
         ]);
     }
@@ -164,7 +162,6 @@ class ActivityLogController extends Controller
                 ->get()
                 ->map(function (AuditLog $log) {
                     $log->setAttribute('source', 'audit');
-
                     return $log;
                 });
         }
@@ -185,7 +182,6 @@ class ActivityLogController extends Controller
                     ->get()
                     ->map(function (RequestLog $log) {
                         $log->setAttribute('source', 'request');
-
                         return $log;
                     });
             }
@@ -239,7 +235,7 @@ class ActivityLogController extends Controller
         $filename = 'activity_log_'.date('Y-m-d_H-i-s').'.csv';
 
         return Response::make($csv, 200, [
-            'Content-Type' => 'text/csv',
+            'Content-Type'        => 'text/csv',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }

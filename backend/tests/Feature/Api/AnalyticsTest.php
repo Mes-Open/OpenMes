@@ -2,26 +2,24 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\User;
+use App\Models\WorkOrder;
+use App\Models\Line;
+use App\Models\ProductType;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
 use App\Models\IssueType;
-use App\Models\Line;
-use App\Models\ProductType;
-use App\Models\User;
-use App\Models\WorkOrder;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Carbon\Carbon;
 
 class AnalyticsTest extends TestCase
 {
     use RefreshDatabase;
 
     protected User $user;
-
     protected Line $line;
-
     protected ProductType $productType;
 
     protected function setUp(): void
@@ -50,7 +48,7 @@ class AnalyticsTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/overview?line_id='.$this->line->id);
+            ->getJson('/api/v1/analytics/overview?line_id=' . $this->line->id);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -130,7 +128,7 @@ class AnalyticsTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/cycle-time?line_id='.$this->line->id);
+            ->getJson('/api/v1/analytics/cycle-time?line_id=' . $this->line->id);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -157,7 +155,7 @@ class AnalyticsTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/throughput?line_id='.$this->line->id.'&days=7');
+            ->getJson('/api/v1/analytics/throughput?line_id=' . $this->line->id . '&days=7');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -186,7 +184,7 @@ class AnalyticsTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/issue-stats?line_id='.$this->line->id);
+            ->getJson('/api/v1/analytics/issue-stats?line_id=' . $this->line->id);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -221,7 +219,7 @@ class AnalyticsTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/step-performance?line_id='.$this->line->id);
+            ->getJson('/api/v1/analytics/step-performance?line_id=' . $this->line->id);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -254,7 +252,7 @@ class AnalyticsTest extends TestCase
 
         // Get stats for line 1 only
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/analytics/overview?line_id='.$this->line->id);
+            ->getJson('/api/v1/analytics/overview?line_id=' . $this->line->id);
 
         $data = $response->json('data');
         $this->assertEquals(3, $data['total_work_orders']);

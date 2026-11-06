@@ -29,21 +29,19 @@ class ToolController extends Controller
             $query->where('workstation_type_id', $wtId);
         }
         if ($q = $request->query('q')) {
-            $needle = '%'.strtolower($q).'%';
+            $needle = '%' . strtolower($q) . '%';
             $query->where(function ($qb) use ($needle) {
                 $qb->whereRaw('LOWER(name) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(code) LIKE ?', [$needle]);
             });
         }
-
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function show(Tool $tool): JsonResponse
     {
         $this->authorize('view', $tool);
-        $tool->load(['workstationType', 'maintenanceEvents' => fn ($q) => $q->orderByDesc('scheduled_at')->limit(10)]);
-
+        $tool->load(['workstationType', 'maintenanceEvents' => fn($q) => $q->orderByDesc('scheduled_at')->limit(10)]);
         return response()->json(['data' => $tool]);
     }
 
@@ -60,7 +58,6 @@ class ToolController extends Controller
         ]);
         $data['status'] = $data['status'] ?? Tool::STATUS_AVAILABLE;
         $tool = Tool::create($data);
-
         return response()->json(['message' => 'Tool created', 'data' => $tool->load('workstationType')], 201);
     }
 
@@ -76,7 +73,6 @@ class ToolController extends Controller
             'next_service_at' => ['sometimes', 'nullable', 'date'],
         ]);
         $tool->update($data);
-
         return response()->json(['message' => 'Tool updated', 'data' => $tool->fresh(['workstationType'])]);
     }
 
@@ -89,7 +85,6 @@ class ToolController extends Controller
             ], 422);
         }
         $tool->delete();
-
         return response()->json(['message' => 'Tool deleted']);
     }
 
@@ -100,7 +95,6 @@ class ToolController extends Controller
             'status' => ['required', Rule::in(self::STATUSES)],
         ]);
         $tool->update(['status' => $data['status']]);
-
         return response()->json([
             'message' => "Tool status set to {$data['status']}",
             'data' => $tool->fresh(),

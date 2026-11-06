@@ -22,7 +22,7 @@ trait ManagesMachineTags
             ->orderBy('name')
             ->get()
             ->map(fn ($w) => [
-                'id' => $w->id,
+                'id'   => $w->id,
                 'name' => $w->name,
                 'line' => $w->line?->name,
             ])
@@ -33,16 +33,16 @@ trait ManagesMachineTags
     protected function mapTag(MachineTag $t): array
     {
         return [
-            'id' => $t->id,
-            'name' => $t->name,
-            'address' => $t->address,
-            'signal_type' => $t->signal_type,
-            'data_type' => $t->data_type,
-            'register_type' => $t->register_type,
-            'workstation' => $t->workstation?->name,
+            'id'             => $t->id,
+            'name'           => $t->name,
+            'address'        => $t->address,
+            'signal_type'    => $t->signal_type,
+            'data_type'      => $t->data_type,
+            'register_type'  => $t->register_type,
+            'workstation'    => $t->workstation?->name,
             'workstation_id' => $t->workstation_id,
-            'transform' => $t->transform,
-            'is_active' => $t->is_active,
+            'transform'      => $t->transform,
+            'is_active'      => $t->is_active,
         ];
     }
 
@@ -79,13 +79,13 @@ trait ManagesMachineTags
     {
         return MachineTag::create([
             'machine_connection_id' => $connection->id,
-            'workstation_id' => $data['workstation_id'] ?? null,
-            'name' => $data['name'],
-            'address' => $data['address'],
-            'signal_type' => $data['signal_type'],
-            'data_type' => $data['data_type'],
-            'register_type' => $registerType,
-            'transform' => $this->buildTagTransform($data),
+            'workstation_id'        => $data['workstation_id'] ?? null,
+            'name'                  => $data['name'],
+            'address'               => $data['address'],
+            'signal_type'           => $data['signal_type'],
+            'data_type'             => $data['data_type'],
+            'register_type'         => $registerType,
+            'transform'             => $this->buildTagTransform($data),
         ]);
     }
 

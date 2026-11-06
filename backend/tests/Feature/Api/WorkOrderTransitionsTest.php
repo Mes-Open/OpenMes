@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
 use App\Models\IssueType;
+use App\Models\Line;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,15 +17,10 @@ class WorkOrderTransitionsTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
-
     protected User $supervisor;
-
     protected User $operator;
-
     protected string $adminToken;
-
     protected string $supervisorToken;
-
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -42,20 +38,9 @@ class WorkOrderTransitionsTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
-    }
-
-    private function authSupervisor()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
-    }
-
-    private function authOperator()
-    {
-        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
-    }
+    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
+    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
+    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
 
     private function makeWO(string $status = WorkOrder::STATUS_PENDING): WorkOrder
     {
