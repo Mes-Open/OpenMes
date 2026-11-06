@@ -78,6 +78,11 @@ export default function ErpApiKeys({ scopes = [] }) {
             setRevealed({ name: body.data?.name ?? name, key: body.plaintext_key });
             setCopied(false);
             resetForm();
+            // Show the new row from the 201 itself, so the list never depends on
+            // the refetch below (or on live sync) to reflect what just happened.
+            if (body.data?.id) {
+                setKeys((cur) => [body.data, ...(cur ?? []).filter((k) => k.id !== body.data.id)]);
+            }
             toast({ severity: 'success', title: __('Key created.') });
             load();
         } catch {
@@ -91,6 +96,9 @@ export default function ErpApiKeys({ scopes = [] }) {
         try {
             const res = await apiCall(`/api/v1/api-keys/${key.id}/toggle-active`, 'POST');
             if (!res.ok) throw new Error();
+            const body = await res.json().catch(() => ({}));
+            const isActive = typeof body?.data?.is_active === 'boolean' ? body.data.is_active : !key.is_active;
+            setKeys((cur) => (cur ?? []).map((k) => (k.id === key.id ? { ...k, is_active: isActive } : k)));
             toast({ severity: 'success', title: key.is_active ? __('Key deactivated.') : __('Key activated.') });
             load();
         } catch {
@@ -102,6 +110,7 @@ export default function ErpApiKeys({ scopes = [] }) {
         try {
             const res = await apiCall(`/api/v1/api-keys/${key.id}`, 'DELETE');
             if (!res.ok) throw new Error();
+            setKeys((cur) => (cur ?? []).filter((k) => k.id !== key.id));
             toast({ severity: 'success', title: __('Key deleted.') });
             load();
         } catch {
@@ -184,7 +193,8 @@ export default function ErpApiKeys({ scopes = [] }) {
                 </form>
             )}
 
-            {loadError ? (
+            {/* A failed background refresh keeps the rows we already have. */}
+            {loadError && keys === null ? (
                 <p className="text-om-muted text-[12.5px] py-4 text-center">{__('Could not load the keys.')}</p>
             ) : keys === null ? (
                 <p className="text-om-muted text-[12.5px] py-4 text-center">{__('Loading…')}</p>
