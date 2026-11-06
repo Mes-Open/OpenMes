@@ -10,6 +10,7 @@ use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\SerialUnitsRecentShape;
+use App\Sync\Shapes\UnitAliasesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
 /**
@@ -49,10 +50,7 @@ class ShapeRegistry
             'columns' => ['id', 'code', 'name', 'kind', 'is_active', 'created_at', 'updated_at'],
         ],
         // ERP unit names → OpenMES units (Settings → Units).
-        'unit_aliases' => [
-            'table' => 'unit_aliases',
-            'columns' => ['id', 'alias', 'unit', 'created_at', 'updated_at'],
-        ],
+        'unit_aliases' => UnitAliasesShape::class,
         'scrap_reasons' => [
             'table' => 'scrap_reasons',
             'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'sort_order', 'created_at', 'updated_at'],
