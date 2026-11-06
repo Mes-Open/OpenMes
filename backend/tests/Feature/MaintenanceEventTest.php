@@ -34,9 +34,9 @@ class MaintenanceEventTest extends TestCase
     private function createEvent(array $overrides = []): MaintenanceEvent
     {
         return MaintenanceEvent::create(array_merge([
-            'title'      => 'Routine Inspection',
+            'title' => 'Routine Inspection',
             'event_type' => MaintenanceEvent::TYPE_PLANNED,
-            'status'     => MaintenanceEvent::STATUS_PENDING,
+            'status' => MaintenanceEvent::STATUS_PENDING,
         ], $overrides));
     }
 
@@ -62,18 +62,18 @@ class MaintenanceEventTest extends TestCase
         $line = Line::factory()->create();
 
         $response = $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
-            'title'        => 'Quarterly Machine Check',
-            'event_type'   => 'inspection',
+            'title' => 'Quarterly Machine Check',
+            'event_type' => 'inspection',
             'scheduled_at' => '2026-03-01 08:00:00',
-            'line_id'      => $line->id,
-            'description'  => 'Standard quarterly inspection of all presses.',
+            'line_id' => $line->id,
+            'description' => 'Standard quarterly inspection of all presses.',
         ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'title'      => 'Quarterly Machine Check',
+            'title' => 'Quarterly Machine Check',
             'event_type' => 'inspection',
-            'status'     => MaintenanceEvent::STATUS_PENDING,
+            'status' => MaintenanceEvent::STATUS_PENDING,
         ]);
     }
 
@@ -84,14 +84,14 @@ class MaintenanceEventTest extends TestCase
         // Even if someone somehow passes a non-pending status, the controller
         // always sets status = pending on create.
         $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
-            'title'        => 'Auto-Pending Event',
-            'event_type'   => 'planned',
+            'title' => 'Auto-Pending Event',
+            'event_type' => 'planned',
             'scheduled_at' => '2026-03-15 08:00:00',
-            'line_id'      => $line->id,
+            'line_id' => $line->id,
         ]);
 
         $this->assertDatabaseHas('maintenance_events', [
-            'title'  => 'Auto-Pending Event',
+            'title' => 'Auto-Pending Event',
             'status' => MaintenanceEvent::STATUS_PENDING,
         ]);
     }
@@ -102,16 +102,16 @@ class MaintenanceEventTest extends TestCase
         $event = $this->createEvent(['title' => 'Original Title', 'line_id' => $line->id]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.maintenance-events.update', $event), [
-            'title'        => 'Updated Title',
-            'event_type'   => 'corrective',
+            'title' => 'Updated Title',
+            'event_type' => 'corrective',
             'scheduled_at' => '2026-04-01 09:00:00',
-            'line_id'      => $line->id,
+            'line_id' => $line->id,
         ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'         => $event->id,
-            'title'      => 'Updated Title',
+            'id' => $event->id,
+            'title' => 'Updated Title',
             'event_type' => 'corrective',
         ]);
     }
@@ -125,7 +125,7 @@ class MaintenanceEventTest extends TestCase
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
         ]);
 
@@ -145,7 +145,7 @@ class MaintenanceEventTest extends TestCase
 
         // Status must remain in_progress (not change to something else).
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_IN_PROGRESS,
         ]);
     }
@@ -157,13 +157,13 @@ class MaintenanceEventTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->post(route('admin.maintenance-events.complete', $event), [
                 'resolution_notes' => 'All parts replaced successfully.',
-                'actual_cost'      => 450.00,
+                'actual_cost' => 450.00,
             ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'               => $event->id,
-            'status'           => MaintenanceEvent::STATUS_COMPLETED,
+            'id' => $event->id,
+            'status' => MaintenanceEvent::STATUS_COMPLETED,
             'resolution_notes' => 'All parts replaced successfully.',
         ]);
 
@@ -183,7 +183,7 @@ class MaintenanceEventTest extends TestCase
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHas('error');
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_PENDING,
         ]);
     }
@@ -197,7 +197,7 @@ class MaintenanceEventTest extends TestCase
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_CANCELLED,
         ]);
     }
@@ -211,7 +211,7 @@ class MaintenanceEventTest extends TestCase
 
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_CANCELLED,
         ]);
     }
@@ -226,7 +226,7 @@ class MaintenanceEventTest extends TestCase
         $response->assertRedirect(route('admin.maintenance-events.index'));
         $response->assertSessionHas('error');
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_COMPLETED,
         ]);
     }
@@ -243,7 +243,7 @@ class MaintenanceEventTest extends TestCase
     public function test_maintenance_event_type_must_be_valid(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
-            'title'      => 'Bad Type Event',
+            'title' => 'Bad Type Event',
             'event_type' => 'unknown_type',
         ]);
 
@@ -253,8 +253,8 @@ class MaintenanceEventTest extends TestCase
     public function test_actual_cost_must_be_non_negative(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
-            'title'       => 'Negative Cost Event',
-            'event_type'  => 'planned',
+            'title' => 'Negative Cost Event',
+            'event_type' => 'planned',
             'actual_cost' => -50,
         ]);
 
@@ -270,7 +270,7 @@ class MaintenanceEventTest extends TestCase
     public function test_guest_cannot_create_maintenance_event(): void
     {
         $response = $this->post(route('admin.maintenance-events.store'), [
-            'title'      => 'Ghost Event',
+            'title' => 'Ghost Event',
             'event_type' => 'planned',
         ]);
 
@@ -285,7 +285,7 @@ class MaintenanceEventTest extends TestCase
         $response = $this->post(route('admin.maintenance-events.start', $event));
         $response->assertRedirect(route('login'));
         $this->assertDatabaseHas('maintenance_events', [
-            'id'     => $event->id,
+            'id' => $event->id,
             'status' => MaintenanceEvent::STATUS_PENDING,
         ]);
     }

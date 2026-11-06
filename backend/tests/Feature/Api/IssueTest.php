@@ -2,15 +2,15 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Line;
-use App\Models\WorkOrder;
-use App\Models\ProductType;
-use App\Models\ProcessTemplate;
-use App\Models\IssueType;
-use App\Models\Issue;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\Issue;
+use App\Models\IssueType;
+use App\Models\Line;
+use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,9 +20,13 @@ class IssueTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Line $line;
+
     protected WorkOrder $workOrder;
+
     protected IssueType $blockingIssueType;
+
     protected IssueType $nonBlockingIssueType;
 
     protected function setUp(): void

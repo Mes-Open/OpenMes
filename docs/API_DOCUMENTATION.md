@@ -35,6 +35,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Master Data (read)](#master-data-read)
   - [Warehouse Stock](#warehouse-stock)
   - [Stock Documents](#stock-documents)
+  - [Webhooks (ERP)](#webhooks-erp)
 - [Webhooks](#webhooks)
   - [Events](#events)
   - [Verifying the signature](#verifying-the-signature)
@@ -1128,6 +1129,7 @@ Content-Type: application/json
 | `erp:masterdata:read` | Read lines, warehouses and product types (codes, names, activity) |
 | `erp:stock:read` | Read warehouse balances and the stock-document backlog |
 | `erp:stock:write` | Sync warehouse balances, acknowledge stock documents |
+| `erp:webhooks:manage` | Register and manage the key's own outgoing webhooks |
 
 A key sees only its own tenant's data. Missing, inactive or expired key → `401`; key
 without the required scope → `403`.
@@ -2098,6 +2100,138 @@ Content-Type: application/json
 Records the ERP's own document number and stamps `erp_synced_at`, which takes the
 document off the `unsynced_only` backlog. `erp_reference` is optional. Unknown id (or
 another tenant's document) → `404`.
+
+### Webhooks (ERP)
+
+Instead of polling, an integration can register its own receiver and have OpenMES
+push events to it (work-order status changes, issues, batch completions, …). Requires
+the `erp:webhooks:manage` scope.
+
+```http
+GET    /api/v1/erp/webhook-event-types        # catalog of subscribable events
+GET    /api/v1/erp/webhooks                   # this key's webhooks
+GET    /api/v1/erp/webhooks/{id}
+POST   /api/v1/erp/webhooks
+PATCH  /api/v1/erp/webhooks/{id}
+DELETE /api/v1/erp/webhooks/{id}
+```
+
+**Ownership.** A key sees and manages only the webhooks it created itself. Webhooks
+an administrator created in the web UI, or another key created, are invisible: they
+are not listed, and `GET`/`PATCH`/`DELETE` on their id returns `404`, as for an id
+that does not exist. Administrators see every webhook, including key-owned ones, in
+**Webhooks → Endpoints**.
+
+#### Register
+
+```http
+POST /api/v1/erp/webhooks
+X-Api-Key: omk_xxxxxxxxxxxxxxxxxxxxxxxx
+Content-Type: application/json
+
+{
+    "name": "Odoo production feed",
+    "url": "https://erp.example.com/openmes/hook",
+    "events": ["work_order.status_changed", "batch.completed"],
+    "headers": { "X-Odoo-Db": "production" },
+    "secret": "optional-own-secret-min-16-chars",
+    "is_active": true
+}
+```
+
+```json
+{
+    "data": {
+        "id": 12,
+        "name": "Odoo production feed",
+        "url": "https://erp.example.com/openmes/hook",
+        "events": ["work_order.status_changed", "batch.completed"],
+        "headers": { "X-Odoo-Db": "production" },
+        "is_active": true,
+        "last_triggered_at": null,
+        "created_at": "2026-11-06T10:00:00+00:00"
+    },
+    "secret": "Zx8…40 characters…"
+}
+```
+
+- `secret` is returned **only in this `201` response** and is never readable again.
+  Store it now. Leave it out of the request and OpenMES generates one.
+- `name` must be unique among the tenant's live webhooks. `events` must be keys from
+  `/webhook-event-types`.
+- `headers` are extra static headers sent with every delivery. `Host`,
+  `Content-Length`, `Content-Type`, `Transfer-Encoding`, `Connection` and other
+  hop-by-hop headers, and any `X-OpenMES-*` header, are rejected with `422`.
+- One key can own at most **25** webhooks. The 26th returns `422`.
+
+#### Update
+
+`PATCH` is partial: send only the fields you want to change. An omitted `is_active`
+keeps the current state, and the secret is rotated only when you send a new `secret`.
+For example, `{ "is_active": false }` pauses deliveries.
+
+#### Delete
+
+`DELETE` returns `204`. The webhook is soft-deleted and stops receiving events.
+
+#### When the key stops working
+
+Deactivating or deleting the API key deactivates all of its webhooks. Reactivating
+the key does **not** re-enable them; do that with `PATCH { "is_active": true }` or
+from the Webhooks page. A delivery for a webhook whose key has expired, been
+deactivated or been deleted is not sent and is logged as failed.
+
+#### Verifying deliveries
+
+Each delivery is a `POST` with a JSON body and these headers:
+
+| Header | Value |
+|---|---|
+| `X-OpenMES-Event` | the event key, e.g. `work_order.status_changed` |
+| `X-OpenMES-Delivery` | the delivery id (use it to de-duplicate retries) |
+| `X-OpenMES-Signature` | `sha256=` + hex HMAC-SHA256 of the **raw request body**, keyed with the webhook secret |
+
+Compute the HMAC over the bytes you received, before parsing the JSON, and compare it
+in constant time:
+
+```python
+expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+hmac.compare_digest(expected, request.headers["X-OpenMES-Signature"])
+```
+
+A non-2xx response or a timeout (10 s) is retried up to 5 times with backoff
+(10 s, 30 s, 1 min, 5 min, 15 min).
+
+#### Receivers in the local network
+
+By default, webhook URLs must resolve to **public** addresses. This SSRF protection
+applies when a webhook is saved and again on every delivery. Private addresses
+(`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, IPv6 `fc00::/7`) are rejected with
+`422`: *"Webhook URL resolves to a private/reserved address."*
+
+An on-premises ERP in the same LAN as OpenMES (for example Odoo on
+`http://192.168.1.50:8069`) needs an administrator to allow it in **Webhooks →
+Endpoints → Local network receivers**. Enter one entry per line:
+
+- a CIDR range: `192.168.1.0/24`, `fd00:1::/64` (prefix at least `/8`, IPv6 at least `/7`; `/0` is refused);
+- a single address: `10.0.0.5`, stored as `10.0.0.5/32`;
+- an exact hostname: `odoo.lan`. A private address that this name resolves to is
+  allowed. This trusts your DNS for that name, so prefer an IP range when you can.
+
+Only administrators can change the list, and every change is recorded in the audit log
+(`webhook_network_allowlist_updated`, with the user and the list before and after).
+The list is not included in settings export or import.
+
+Whatever is on the list, these addresses are **always** blocked: loopback
+(`127.0.0.0/8`, `::1`), unspecified (`0.0.0.0/8`, `::`), link-local (`169.254.0.0/16`,
+`fe80::/10`), cloud metadata endpoints (`169.254.169.254`, `169.254.170.2`,
+`100.100.100.200`, `fd00:ec2::254`), multicast and other reserved ranges, and IPv6
+forms that embed an IPv4 address (IPv4-compatible `::/96`, NAT64 `64:ff9b::/96`,
+6to4 `2002::/16`, Teredo `2001::/32`). IPv4-mapped IPv6 forms such as
+`::ffff:127.0.0.1` count as their IPv4 address. If a hostname resolves to several
+addresses, every one of them must be allowed. Each delivery is pinned to the address
+that was checked, so DNS rebinding cannot redirect it, and redirects are never
+followed: a `3xx` answer counts as a failed attempt.
 
 
 ---

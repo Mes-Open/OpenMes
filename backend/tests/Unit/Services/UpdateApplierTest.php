@@ -10,13 +10,15 @@ use Tests\TestCase;
 class UpdateApplierTest extends TestCase
 {
     protected UpdateApplier $applier;
+
     protected ?string $tempZip = null;
+
     protected array $createdBackupDirs = [];
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->applier = new UpdateApplier();
+        $this->applier = new UpdateApplier;
         Cache::flush();
     }
 
@@ -42,7 +44,7 @@ class UpdateApplierTest extends TestCase
             if ($item === '.' || $item === '..') {
                 continue;
             }
-            $path = $dir . '/' . $item;
+            $path = $dir.'/'.$item;
             if (is_dir($path)) {
                 $this->recursivelyDelete($path);
             } else {
@@ -55,8 +57,9 @@ class UpdateApplierTest extends TestCase
     private function invokePrivate(string $method, array $args)
     {
         $ref = new ReflectionClass($this->applier);
-        $m   = $ref->getMethod($method);
+        $m = $ref->getMethod($method);
         $m->setAccessible(true);
+
         return $m->invokeArgs($this->applier, $args);
     }
 
@@ -65,6 +68,7 @@ class UpdateApplierTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'update-applier-test-');
         file_put_contents($path, $content);
         $this->tempZip = $path;
+
         return $path;
     }
 
@@ -81,7 +85,7 @@ class UpdateApplierTest extends TestCase
 
     public function test_verify_checksum_passes_when_top_level_hash_matches(): void
     {
-        $zip  = $this->makeTempZip();
+        $zip = $this->makeTempZip();
         $hash = hash_file('sha256', $zip);
 
         $result = $this->invokePrivate('verifyChecksum', [
@@ -94,7 +98,7 @@ class UpdateApplierTest extends TestCase
 
     public function test_verify_checksum_passes_with_asset_level_hash(): void
     {
-        $zip  = $this->makeTempZip();
+        $zip = $this->makeTempZip();
         $hash = hash_file('sha256', $zip);
 
         $result = $this->invokePrivate('verifyChecksum', [
@@ -113,7 +117,7 @@ class UpdateApplierTest extends TestCase
             $zip,
             [
                 'version' => 'v1',
-                'sha256'  => '0000000000000000000000000000000000000000000000000000000000000000',
+                'sha256' => '0000000000000000000000000000000000000000000000000000000000000000',
             ],
         ]);
 
@@ -123,7 +127,7 @@ class UpdateApplierTest extends TestCase
 
     public function test_verify_checksum_is_case_insensitive(): void
     {
-        $zip  = $this->makeTempZip();
+        $zip = $this->makeTempZip();
         $hash = strtoupper(hash_file('sha256', $zip));
 
         $result = $this->invokePrivate('verifyChecksum', [
@@ -139,7 +143,7 @@ class UpdateApplierTest extends TestCase
     public function test_status_state_is_persisted_via_set_status(): void
     {
         $this->invokePrivate('setStatus', [[
-            'state'    => 'copying',
+            'state' => 'copying',
             'progress' => 50,
         ]]);
 
@@ -163,7 +167,7 @@ class UpdateApplierTest extends TestCase
         $names = ['20200101-000000-v1', '20200201-000000-v2', '20200301-000000-v3', '20200401-000000-v4', '20200501-000000-v5'];
         $paths = [];
         foreach ($names as $i => $name) {
-            $path = $base . '/' . $name;
+            $path = $base.'/'.$name;
             @mkdir($path, 0755, true);
             // Stagger mtime so order is deterministic — older index = older mtime.
             @touch($path, time() - ((count($names) - $i) * 60));

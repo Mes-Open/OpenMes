@@ -63,7 +63,7 @@ trait Auditable
     protected function createAuditLog(string $action, ?array $beforeState, ?array $afterState): void
     {
         // Skip if in console (seeding, migrations) but not during unit tests
-        if (app()->runningInConsole() && !app()->runningUnitTests()) {
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
             return;
         }
 
@@ -75,14 +75,14 @@ trait Auditable
         $userAgent = app()->runningInConsole() ? null : request()->userAgent();
 
         AuditLog::create([
-            'user_id'      => $userId,
-            'entity_type'  => get_class($this),
-            'entity_id'    => $this->getKey(),
-            'action'       => $action,
+            'user_id' => $userId,
+            'entity_type' => get_class($this),
+            'entity_id' => $this->getKey(),
+            'action' => $action,
             'before_state' => $beforeState,
-            'after_state'  => $afterState,
-            'ip_address'   => $ipAddress,
-            'user_agent'   => $userAgent,
+            'after_state' => $afterState,
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
         ]);
     }
 

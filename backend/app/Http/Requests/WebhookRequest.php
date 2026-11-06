@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\SafeWebhookUrl;
+use App\Support\TenantContext;
 use App\Support\WebhookEventRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,7 @@ class WebhookRequest extends FormRequest
 
     public function rules(): array
     {
-        $webhookId = $this->route('webhook')?->id;
+        $webhookId = $this->ignoreId();
 
         return [
             'name' => [
@@ -28,7 +29,7 @@ class WebhookRequest extends FormRequest
                 // Names are unique per tenant among live rows (mirrors the
                 // partial unique index on (COALESCE(tenant_id,0), name)).
                 Rule::unique('webhooks', 'name')
-                    ->where('tenant_id', $this->user()?->tenant_id)
+                    ->where('tenant_id', $this->tenantId())
                     ->whereNull('deleted_at')
                     ->ignore($webhookId),
             ],
@@ -43,5 +44,20 @@ class WebhookRequest extends FormRequest
             // Body-only HMAC (pre-timestamp scheme) for receivers not yet migrated.
             'legacy_signature' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /** The webhook being edited, excluded from the unique-name check. */
+    protected function ignoreId(): ?int
+    {
+        return $this->route('webhook')?->id;
+    }
+
+    /**
+     * Tenant the name must be unique in: the signed-in user's, or — for an
+     * API-key request, which has no user — the key's tenant from TenantContext.
+     */
+    protected function tenantId(): ?int
+    {
+        return $this->user()?->tenant_id ?? app(TenantContext::class)->id();
     }
 }

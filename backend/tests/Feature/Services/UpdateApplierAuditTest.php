@@ -21,15 +21,16 @@ class UpdateApplierAuditTest extends TestCase
     private function invoke(UpdateApplier $applier, string $method, array $args)
     {
         $ref = new ReflectionClass($applier);
-        $m   = $ref->getMethod($method);
+        $m = $ref->getMethod($method);
         $m->setAccessible(true);
+
         return $m->invokeArgs($applier, $args);
     }
 
     public function test_open_audit_record_creates_queued_row(): void
     {
-        $user    = \App\Models\User::factory()->create();
-        $applier = new UpdateApplier();
+        $user = \App\Models\User::factory()->create();
+        $applier = new UpdateApplier;
 
         $record = $this->invoke($applier, 'openAuditRecord', ['v9.0.0', $user->id]);
 
@@ -45,7 +46,7 @@ class UpdateApplierAuditTest extends TestCase
     public function test_open_audit_record_handles_unauthenticated_user(): void
     {
         // user_id=0 (no auth) is stored as NULL, not as a dangling FK.
-        $applier = new UpdateApplier();
+        $applier = new UpdateApplier;
 
         $record = $this->invoke($applier, 'openAuditRecord', ['v9.0.0', 0]);
 
@@ -55,8 +56,8 @@ class UpdateApplierAuditTest extends TestCase
 
     public function test_audit_record_transitions_queued_to_completed(): void
     {
-        $user    = \App\Models\User::factory()->create();
-        $applier = new UpdateApplier();
+        $user = \App\Models\User::factory()->create();
+        $applier = new UpdateApplier;
 
         $record = $this->invoke($applier, 'openAuditRecord', ['v9.0.0', $user->id]);
         $this->assertSame(SystemUpdate::STATE_QUEUED, $record->state);
@@ -65,8 +66,8 @@ class UpdateApplierAuditTest extends TestCase
         $this->invoke($applier, 'patchAuditRecord', [$record, ['checksum_verified' => true]]);
         $this->invoke($applier, 'patchAuditRecord', [$record, ['composer_install_ran' => true]]);
         $this->invoke($applier, 'patchAuditRecord', [$record, [
-            'state'        => SystemUpdate::STATE_COMPLETED,
-            'finished_at'  => now(),
+            'state' => SystemUpdate::STATE_COMPLETED,
+            'finished_at' => now(),
             'files_copied' => 17,
         ]]);
 
@@ -85,19 +86,19 @@ class UpdateApplierAuditTest extends TestCase
     {
         // A completed row for the same version must NOT be flipped to failed.
         SystemUpdate::create([
-            'to_version'  => 'v9.0.0',
-            'state'       => SystemUpdate::STATE_COMPLETED,
-            'started_at'  => now()->subMinutes(10),
+            'to_version' => 'v9.0.0',
+            'state' => SystemUpdate::STATE_COMPLETED,
+            'started_at' => now()->subMinutes(10),
             'finished_at' => now()->subMinutes(9),
         ]);
 
         $queued = SystemUpdate::create([
             'to_version' => 'v9.0.0',
-            'state'      => SystemUpdate::STATE_QUEUED,
+            'state' => SystemUpdate::STATE_QUEUED,
             'started_at' => now()->subMinute(),
         ]);
 
-        (new UpdateApplier())->markPendingAuditFailed('v9.0.0', 'worker crashed');
+        (new UpdateApplier)->markPendingAuditFailed('v9.0.0', 'worker crashed');
 
         $this->assertSame(SystemUpdate::STATE_FAILED, $queued->fresh()->state);
         $this->assertSame('worker crashed', $queued->fresh()->error);

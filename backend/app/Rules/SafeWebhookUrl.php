@@ -23,7 +23,8 @@ class SafeWebhookUrl implements ValidationRule
 
         $reason = WebhookUrlGuard::reason($value);
         if ($reason !== null) {
-            $fail($reason);
+            // Guard reasons are English source strings; translate for the UI.
+            $fail(__($reason));
         }
     }
 }

@@ -2,23 +2,25 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\WorkOrder;
-use App\Models\Line;
-use App\Models\ProductType;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\IssueType;
+use App\Models\Line;
+use App\Models\ProductType;
+use App\Models\User;
+use App\Models\WorkOrder;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Carbon\Carbon;
 
 class ReportTest extends TestCase
 {
     use RefreshDatabase;
 
     protected User $user;
+
     protected Line $line;
+
     protected ProductType $productType;
 
     protected function setUp(): void
@@ -43,7 +45,7 @@ class ReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/reports/production-summary?' . http_build_query([
+            ->getJson('/api/v1/reports/production-summary?'.http_build_query([
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
                 'line_id' => $this->line->id,
@@ -104,7 +106,7 @@ class ReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/reports/batch-completion?' . http_build_query([
+            ->getJson('/api/v1/reports/batch-completion?'.http_build_query([
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
                 'line_id' => $this->line->id,
@@ -160,7 +162,7 @@ class ReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/reports/downtime?' . http_build_query([
+            ->getJson('/api/v1/reports/downtime?'.http_build_query([
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
                 'line_id' => $this->line->id,
@@ -205,7 +207,7 @@ class ReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->get('/api/v1/reports/export-csv?' . http_build_query([
+            ->get('/api/v1/reports/export-csv?'.http_build_query([
                 'report_type' => 'batch_completion',
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
@@ -237,7 +239,7 @@ class ReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->get('/api/v1/reports/export-csv?' . http_build_query([
+            ->get('/api/v1/reports/export-csv?'.http_build_query([
                 'report_type' => 'downtime',
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
@@ -268,7 +270,7 @@ class ReportTest extends TestCase
 
         // Request report for last 7 days only
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/reports/production-summary?' . http_build_query([
+            ->getJson('/api/v1/reports/production-summary?'.http_build_query([
                 'start_date' => Carbon::now()->subDays(7)->toDateString(),
                 'end_date' => Carbon::now()->toDateString(),
                 'line_id' => $this->line->id,

@@ -16,7 +16,9 @@ class WorkOrderModelTest extends TestCase
     use RefreshDatabase;
 
     protected WorkOrder $workOrder;
+
     protected IssueType $blockingType;
+
     protected IssueType $nonBlockingType;
 
     protected function setUp(): void
@@ -24,18 +26,18 @@ class WorkOrderModelTest extends TestCase
         parent::setUp();
 
         $this->workOrder = WorkOrder::factory()->create([
-            'planned_qty'  => 100,
+            'planned_qty' => 100,
             'produced_qty' => 0,
-            'status'       => WorkOrder::STATUS_PENDING,
+            'status' => WorkOrder::STATUS_PENDING,
         ]);
 
         $this->blockingType = IssueType::factory()->create([
-            'code'        => 'BLK',
+            'code' => 'BLK',
             'is_blocking' => true,
         ]);
 
         $this->nonBlockingType = IssueType::factory()->create([
-            'code'        => 'NBLK',
+            'code' => 'NBLK',
             'is_blocking' => false,
         ]);
     }
@@ -119,7 +121,7 @@ class WorkOrderModelTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->nonBlockingType->id,
-            'status'        => Issue::STATUS_OPEN,
+            'status' => Issue::STATUS_OPEN,
         ]);
 
         $this->assertFalse($this->workOrder->isBlocked());
@@ -130,7 +132,7 @@ class WorkOrderModelTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status'        => Issue::STATUS_OPEN,
+            'status' => Issue::STATUS_OPEN,
         ]);
 
         $this->assertTrue($this->workOrder->fresh()->isBlocked());
@@ -141,7 +143,7 @@ class WorkOrderModelTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status'        => Issue::STATUS_ACKNOWLEDGED,
+            'status' => Issue::STATUS_ACKNOWLEDGED,
         ]);
 
         $this->assertTrue($this->workOrder->fresh()->isBlocked());
@@ -152,7 +154,7 @@ class WorkOrderModelTest extends TestCase
         Issue::factory()->create([
             'work_order_id' => $this->workOrder->id,
             'issue_type_id' => $this->blockingType->id,
-            'status'        => Issue::STATUS_RESOLVED,
+            'status' => Issue::STATUS_RESOLVED,
         ]);
 
         $this->assertFalse($this->workOrder->fresh()->isBlocked());

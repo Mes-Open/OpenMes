@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Auditable;
 
-use App\Models\AuditLog;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\MaintenanceSchedule;
@@ -25,8 +24,8 @@ class AuditableExtensionTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', [
             'entity_type' => 'App\\Models\\Batch',
-            'entity_id'   => $batch->id,
-            'action'      => 'created',
+            'entity_id' => $batch->id,
+            'action' => 'created',
         ]);
     }
 
@@ -40,8 +39,8 @@ class AuditableExtensionTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', [
             'entity_type' => 'App\\Models\\BatchStep',
-            'entity_id'   => $step->id,
-            'action'      => 'created',
+            'entity_id' => $step->id,
+            'action' => 'created',
         ]);
     }
 
@@ -51,8 +50,8 @@ class AuditableExtensionTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', [
             'entity_type' => 'App\\Models\\MaintenanceSchedule',
-            'entity_id'   => $schedule->id,
-            'action'      => 'created',
+            'entity_id' => $schedule->id,
+            'action' => 'created',
         ]);
     }
 

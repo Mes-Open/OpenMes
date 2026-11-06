@@ -9,7 +9,13 @@ import { __ } from '../../../lib/i18n';
 export function webhookFields(events, { isEdit = false } = {}) {
     return [
         { name: 'name', label: __('Name'), required: true },
-        { name: 'url', label: __('Endpoint URL'), required: true, placeholder: 'https://example.com/hooks/openmes' },
+        {
+            name: 'url',
+            label: __('Endpoint URL'),
+            required: true,
+            placeholder: 'https://example.com/hooks/openmes',
+            help: __('Local network addresses (e.g. 192.168.x.x) must first be allowed under Local network receivers on the Webhooks page.'),
+        },
         {
             name: 'events',
             label: __('Subscribed events'),

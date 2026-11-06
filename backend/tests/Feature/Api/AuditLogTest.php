@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\WorkOrder;
+use App\Models\AuditLog;
 use App\Models\Line;
 use App\Models\ProductType;
-use App\Models\AuditLog;
+use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -154,7 +154,7 @@ class AuditLogTest extends TestCase
         $workOrder->update(['status' => 'BLOCKED']);
 
         $response = $this->actingAs($this->user, 'sanctum')
-            ->getJson('/api/v1/audit-logs/entity?entity_type=WorkOrder&entity_id=' . $workOrder->id);
+            ->getJson('/api/v1/audit-logs/entity?entity_type=WorkOrder&entity_id='.$workOrder->id);
 
         $response->assertStatus(200);
 

@@ -17,6 +17,7 @@ class WorkstationPolicy
         if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
             return true;
         }
+
         return $user->lines()->where('lines.id', $workstation->line_id)->exists();
     }
 

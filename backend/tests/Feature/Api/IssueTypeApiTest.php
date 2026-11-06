@@ -12,8 +12,11 @@ class IssueTypeApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -59,9 +62,9 @@ class IssueTypeApiTest extends TestCase
     public function test_can_get_single_issue_type(): void
     {
         $issueType = IssueType::factory()->create([
-            'code'        => 'MACH_FAIL',
-            'name'        => 'Machine Failure',
-            'severity'    => 'CRITICAL',
+            'code' => 'MACH_FAIL',
+            'name' => 'Machine Failure',
+            'severity' => 'CRITICAL',
             'is_blocking' => true,
         ]);
 
@@ -71,9 +74,9 @@ class IssueTypeApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'data' => [
-                    'id'          => $issueType->id,
-                    'code'        => 'MACH_FAIL',
-                    'name'        => 'Machine Failure',
+                    'id' => $issueType->id,
+                    'code' => 'MACH_FAIL',
+                    'name' => 'Machine Failure',
                     'is_blocking' => true,
                 ],
             ]);
@@ -93,9 +96,9 @@ class IssueTypeApiTest extends TestCase
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
             ->postJson('/api/v1/issue-types', [
-                'code'        => 'NEW_TYPE',
-                'name'        => 'New Issue Type',
-                'severity'    => 'HIGH',
+                'code' => 'NEW_TYPE',
+                'name' => 'New Issue Type',
+                'severity' => 'HIGH',
                 'is_blocking' => false,
             ]);
 
@@ -114,8 +117,8 @@ class IssueTypeApiTest extends TestCase
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
             ->postJson('/api/v1/issue-types', [
-                'code'     => 'NEW_TYPE',
-                'name'     => 'New Issue Type',
+                'code' => 'NEW_TYPE',
+                'name' => 'New Issue Type',
                 'severity' => 'HIGH',
             ]);
 
@@ -137,8 +140,8 @@ class IssueTypeApiTest extends TestCase
 
         $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
             ->postJson('/api/v1/issue-types', [
-                'code'     => 'EXISTING',
-                'name'     => 'Duplicate',
+                'code' => 'EXISTING',
+                'name' => 'Duplicate',
                 'severity' => 'LOW',
             ]);
 
@@ -160,7 +163,7 @@ class IssueTypeApiTest extends TestCase
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('issue_types', [
-            'id'   => $issueType->id,
+            'id' => $issueType->id,
             'name' => 'Updated Name',
         ]);
     }
