@@ -165,6 +165,7 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         Route::post('/materials/import', [MasterDataImportController::class, 'materials']);
         Route::post('/material-lots/import', [MasterDataImportController::class, 'materialLots']);
         Route::post('/boms/import', [MasterDataImportController::class, 'boms']);
+        Route::post('/process-templates/import', [MasterDataImportController::class, 'processTemplates']);
     });
 
     // Warehouse balances (#212): ERP snapshot in, OpenMES view out.

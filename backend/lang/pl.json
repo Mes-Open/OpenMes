@@ -7356,5 +7356,10 @@
     "The :attribute must be an object of simple values.": "Pole :attribute musi być obiektem prostych wartości.",
     "The :attribute may not have more than :max keys.": "Pole :attribute nie może mieć więcej niż :max kluczy.",
     "The :attribute may not be nested more than two levels.": "Pole :attribute nie może być zagnieżdżone głębiej niż na dwa poziomy.",
-    "The :attribute may not be larger than 16 KB.": "Pole :attribute nie może być większe niż 16 KB."
+    "The :attribute may not be larger than 16 KB.": "Pole :attribute nie może być większe niż 16 KB.",
+    "Workstation ':code' not found": "Nie znaleziono stanowiska „:code”",
+    "Workstation ':code' not found on line ':line'": "Nie znaleziono stanowiska „:code” na linii „:line”",
+    "A line code needs a workstation code: steps are routed to workstations": "Kod linii wymaga kodu stanowiska: kroki są przypisywane do stanowisk",
+    "A routing needs at least one step": "Marszruta musi mieć co najmniej jeden krok",
+    "Step number ':number' is listed twice": "Numer kroku „:number” występuje dwukrotnie"
 }
