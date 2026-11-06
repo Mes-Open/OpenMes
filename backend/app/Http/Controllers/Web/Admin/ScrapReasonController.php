@@ -42,12 +42,12 @@ class ScrapReasonController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:20|unique:scrap_reasons,code',
-            'name'        => 'required|string|max:255',
-            'category'    => ['required', Rule::in(ScrapReason::CATEGORIES)],
+            'code' => 'required|string|max:20|unique:scrap_reasons,code',
+            'name' => 'required|string|max:255',
+            'category' => ['required', Rule::in(ScrapReason::CATEGORIES)],
             'description' => 'nullable|string|max:2000',
-            'sort_order'  => 'nullable|integer|min:0|max:65535',
-            'is_active'   => 'boolean',
+            'sort_order' => 'nullable|integer|min:0|max:65535',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -74,12 +74,12 @@ class ScrapReasonController extends Controller
     public function update(Request $request, ScrapReason $scrapReason)
     {
         $validated = $request->validate([
-            'code'        => ['required', 'string', 'max:20', Rule::unique('scrap_reasons', 'code')->ignore($scrapReason->id)],
-            'name'        => 'required|string|max:255',
-            'category'    => ['required', Rule::in(ScrapReason::CATEGORIES)],
+            'code' => ['required', 'string', 'max:20', Rule::unique('scrap_reasons', 'code')->ignore($scrapReason->id)],
+            'name' => 'required|string|max:255',
+            'category' => ['required', Rule::in(ScrapReason::CATEGORIES)],
             'description' => 'nullable|string|max:2000',
-            'sort_order'  => 'nullable|integer|min:0|max:65535',
-            'is_active'   => 'boolean',
+            'sort_order' => 'nullable|integer|min:0|max:65535',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');

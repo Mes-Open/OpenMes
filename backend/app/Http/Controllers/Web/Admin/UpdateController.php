@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Log;
 class UpdateController extends Controller
 {
     private const CHECK_URL = 'https://getopenmes.com/current-version.php';
+
     private const CACHE_KEY = UpdateApplier::CHECK_CACHE_KEY;
+
     private const CACHE_TTL = 3600; // 1 hour
 
     /**
@@ -24,6 +26,7 @@ class UpdateController extends Controller
      * indefinitely. See `update:unlock` for manual recovery.
      */
     public const APPLY_LOCK_KEY = 'update_apply_lock';
+
     public const APPLY_LOCK_TTL = 1800; // 30 min, matches ApplyUpdateJob::$timeout
 
     /** States that mean an update is currently in flight. */
@@ -46,8 +49,9 @@ class UpdateController extends Controller
                     return $response->json();
                 }
             } catch (\Throwable $e) {
-                Log::warning('Update check failed: ' . $e->getMessage());
+                Log::warning('Update check failed: '.$e->getMessage());
             }
+
             return null;
         });
 
@@ -55,16 +59,16 @@ class UpdateController extends Controller
             return response()->json(['available' => false, 'current' => $current]);
         }
 
-        $latest          = $remote['version'] ?? 'v0.0.0';
+        $latest = $remote['version'] ?? 'v0.0.0';
         $updateAvailable = version_compare(ltrim($latest, 'v'), ltrim($current, 'v'), '>');
 
         return response()->json([
-            'available'   => $updateAvailable,
-            'current'     => $current,
-            'latest'      => $latest,
-            'name'        => $remote['name'] ?? $latest,
+            'available' => $updateAvailable,
+            'current' => $current,
+            'latest' => $latest,
+            'name' => $remote['name'] ?? $latest,
             'release_url' => $remote['release_url'] ?? null,
-            'changelog'   => $remote['changelog'] ?? null,
+            'changelog' => $remote['changelog'] ?? null,
         ]);
     }
 
@@ -84,11 +88,12 @@ class UpdateController extends Controller
 
         if (! $lock->get()) {
             $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
+
             return redirect()->back()->with('error', __(
                 'An update is already in progress (:version, started :time). Refresh to see status.',
                 [
                     'version' => is_array($current) ? ($current['version'] ?? '?') : '?',
-                    'time'    => is_array($current) ? ($current['started_at'] ?? '?') : '?',
+                    'time' => is_array($current) ? ($current['started_at'] ?? '?') : '?',
                 ]
             ));
         }
@@ -100,11 +105,12 @@ class UpdateController extends Controller
             $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
             if (is_array($current) && in_array($current['state'] ?? null, self::ACTIVE_STATES, true)) {
                 $lock->release();
+
                 return redirect()->back()->with('error', __(
                     'An update is already in progress (:version, started :time). Refresh to see status.',
                     [
                         'version' => $current['version'] ?? '?',
-                        'time'    => $current['started_at'] ?? '?',
+                        'time' => $current['started_at'] ?? '?',
                     ]
                 ));
             }
@@ -113,6 +119,7 @@ class UpdateController extends Controller
             $remote = Cache::get(self::CACHE_KEY);
             if (! $remote || empty($remote['version'])) {
                 $lock->release();
+
                 return redirect()->back()->with('error', __(
                     'No update information available. Please check for updates first.'
                 ));
@@ -166,20 +173,20 @@ class UpdateController extends Controller
             ->limit(50)
             ->get()
             ->map(fn (SystemUpdate $u) => [
-                'id'                   => $u->id,
-                'from_version'         => $u->from_version,
-                'to_version'           => $u->to_version,
-                'state'                => $u->state,
-                'started_at'           => $u->started_at?->toIso8601String(),
-                'finished_at'          => $u->finished_at?->toIso8601String(),
-                'duration_seconds'     => $u->duration_seconds,
-                'files_copied'         => $u->files_copied,
-                'error'                => $u->error,
+                'id' => $u->id,
+                'from_version' => $u->from_version,
+                'to_version' => $u->to_version,
+                'state' => $u->state,
+                'started_at' => $u->started_at?->toIso8601String(),
+                'finished_at' => $u->finished_at?->toIso8601String(),
+                'duration_seconds' => $u->duration_seconds,
+                'files_copied' => $u->files_copied,
+                'error' => $u->error,
                 'composer_install_ran' => $u->composer_install_ran,
-                'checksum_verified'    => $u->checksum_verified,
-                'user'                 => $u->user ? [
-                    'id'    => $u->user->id,
-                    'name'  => $u->user->name,
+                'checksum_verified' => $u->checksum_verified,
+                'user' => $u->user ? [
+                    'id' => $u->user->id,
+                    'name' => $u->user->name,
                     'email' => $u->user->email,
                 ] : null,
             ]);

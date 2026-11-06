@@ -10,7 +10,6 @@ use App\Models\MqttConnection;
 use App\Models\TopicMapping;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ConnectivityController extends Controller
 {
@@ -20,9 +19,10 @@ class ConnectivityController extends Controller
     {
         $this->authorize('viewAny', MachineConnection::class);
         $query = MachineConnection::query()->with('mqttConnection')->withCount(['topics', 'messages']);
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
@@ -31,6 +31,7 @@ class ConnectivityController extends Controller
         $this->authorize('view', $machineConnection);
         $machineConnection->load(['mqttConnection', 'topics']);
         $machineConnection->loadCount(['topics', 'messages']);
+
         return response()->json(['data' => $machineConnection]);
     }
 
@@ -40,21 +41,22 @@ class ConnectivityController extends Controller
         $validated = $this->validateConnectionPayload($request);
 
         $connection = MachineConnection::create([
-            'name'        => $validated['name'],
+            'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'protocol'    => 'mqtt',
-            'is_active'   => $request->boolean('is_active'),
+            'protocol' => 'mqtt',
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         $mqtt = new MqttConnection($this->mqttFieldsFromValidated($validated, $request) + [
             'machine_connection_id' => $connection->id,
         ]);
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $mqtt->setPasswordAttribute($validated['password']);
         }
         $mqtt->save();
 
         $connection->load('mqttConnection');
+
         return response()->json(['data' => $connection], 201);
     }
 
@@ -64,9 +66,9 @@ class ConnectivityController extends Controller
         $validated = $this->validateConnectionPayload($request);
 
         $machineConnection->update([
-            'name'        => $validated['name'],
+            'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'is_active'   => $request->boolean('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         $mqtt = $machineConnection->mqttConnection
@@ -81,6 +83,7 @@ class ConnectivityController extends Controller
         $mqtt->save();
 
         $machineConnection->load('mqttConnection');
+
         return response()->json(['data' => $machineConnection]);
     }
 
@@ -88,20 +91,20 @@ class ConnectivityController extends Controller
     private function validateConnectionPayload(Request $request): array
     {
         return $request->validate([
-            'name'                    => ['required', 'string', 'max:100'],
-            'description'             => ['nullable', 'string', 'max:500'],
-            'is_active'               => ['boolean'],
-            'broker_host'             => ['required', 'string', 'max:255'],
-            'broker_port'             => ['required', 'integer', 'min:1', 'max:65535'],
-            'client_id'               => ['nullable', 'string', 'max:100'],
-            'username'                => ['nullable', 'string', 'max:100'],
-            'password'                => ['nullable', 'string', 'max:255'],
-            'use_tls'                 => ['boolean'],
-            'ca_cert'                 => ['nullable', 'string'],
-            'keep_alive_seconds'      => ['required', 'integer', 'min:5', 'max:3600'],
-            'qos_default'             => ['required', 'integer', 'in:0,1,2'],
-            'clean_session'           => ['boolean'],
-            'connect_timeout'         => ['required', 'integer', 'min:1', 'max:120'],
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['boolean'],
+            'broker_host' => ['required', 'string', 'max:255'],
+            'broker_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'client_id' => ['nullable', 'string', 'max:100'],
+            'username' => ['nullable', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'max:255'],
+            'use_tls' => ['boolean'],
+            'ca_cert' => ['nullable', 'string'],
+            'keep_alive_seconds' => ['required', 'integer', 'min:5', 'max:3600'],
+            'qos_default' => ['required', 'integer', 'in:0,1,2'],
+            'clean_session' => ['boolean'],
+            'connect_timeout' => ['required', 'integer', 'min:1', 'max:120'],
             'reconnect_delay_seconds' => ['required', 'integer', 'min:1', 'max:300'],
         ]);
     }
@@ -110,16 +113,16 @@ class ConnectivityController extends Controller
     private function mqttFieldsFromValidated(array $validated, Request $request): array
     {
         return [
-            'broker_host'             => $validated['broker_host'],
-            'broker_port'             => $validated['broker_port'],
-            'client_id'               => $validated['client_id'] ?? null,
-            'username'                => $validated['username'] ?? null,
-            'use_tls'                 => $request->boolean('use_tls'),
-            'ca_cert'                 => $validated['ca_cert'] ?? null,
-            'keep_alive_seconds'      => $validated['keep_alive_seconds'],
-            'qos_default'             => $validated['qos_default'],
-            'clean_session'           => $request->boolean('clean_session', true),
-            'connect_timeout'         => $validated['connect_timeout'],
+            'broker_host' => $validated['broker_host'],
+            'broker_port' => $validated['broker_port'],
+            'client_id' => $validated['client_id'] ?? null,
+            'username' => $validated['username'] ?? null,
+            'use_tls' => $request->boolean('use_tls'),
+            'ca_cert' => $validated['ca_cert'] ?? null,
+            'keep_alive_seconds' => $validated['keep_alive_seconds'],
+            'qos_default' => $validated['qos_default'],
+            'clean_session' => $request->boolean('clean_session', true),
+            'connect_timeout' => $validated['connect_timeout'],
             'reconnect_delay_seconds' => $validated['reconnect_delay_seconds'],
         ];
     }
@@ -128,13 +131,15 @@ class ConnectivityController extends Controller
     {
         $this->authorize('delete', $machineConnection);
         $machineConnection->delete();
+
         return response()->json(['message' => 'Connection deleted']);
     }
 
     public function toggleConnectionActive(MachineConnection $machineConnection): JsonResponse
     {
         $this->authorize('update', $machineConnection);
-        $machineConnection->update(['is_active' => !$machineConnection->is_active]);
+        $machineConnection->update(['is_active' => ! $machineConnection->is_active]);
+
         return response()->json(['data' => $machineConnection]);
     }
 
@@ -143,12 +148,13 @@ class ConnectivityController extends Controller
     {
         $this->authorize('view', $machineConnection);
         $mqtt = $machineConnection->mqttConnection;
-        if (!$mqtt) {
+        if (! $mqtt) {
             return response()->json(['data' => null]);
         }
         // Redact password
         $payload = $mqtt->toArray();
         unset($payload['password_encrypted']);
+
         return response()->json(['data' => $payload]);
     }
 
@@ -161,9 +167,10 @@ class ConnectivityController extends Controller
         if ($connId = $request->query('machine_connection_id')) {
             $query->where('machine_connection_id', $connId);
         }
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
         return response()->json(['data' => $query->orderBy('topic_pattern')->get()]);
     }
 
@@ -171,6 +178,7 @@ class ConnectivityController extends Controller
     {
         $this->authorize('viewAny', MachineConnection::class);
         $machineTopic->load(['machineConnection', 'mappings']);
+
         return response()->json(['data' => $machineTopic]);
     }
 
@@ -179,16 +187,17 @@ class ConnectivityController extends Controller
         $this->authorize('create', MachineConnection::class); // admin only
         $validated = $request->validate([
             'machine_connection_id' => ['required', 'integer', 'exists:machine_connections,id'],
-            'topic_pattern'         => ['required', 'string', 'max:500'],
-            'payload_format'        => ['required', 'in:json,plain,csv,hex'],
-            'description'           => ['nullable', 'string', 'max:500'],
-            'is_active'             => ['boolean'],
+            'topic_pattern' => ['required', 'string', 'max:500'],
+            'payload_format' => ['required', 'in:json,plain,csv,hex'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['boolean'],
         ]);
 
         $topic = MachineTopic::create($validated + [
             'is_active' => $request->boolean('is_active', true),
         ]);
         $topic->load('machineConnection');
+
         return response()->json(['data' => $topic], 201);
     }
 
@@ -196,16 +205,17 @@ class ConnectivityController extends Controller
     {
         $this->authorize('create', MachineConnection::class);
         $validated = $request->validate([
-            'topic_pattern'  => ['required', 'string', 'max:500'],
+            'topic_pattern' => ['required', 'string', 'max:500'],
             'payload_format' => ['required', 'in:json,plain,csv,hex'],
-            'description'    => ['nullable', 'string', 'max:500'],
-            'is_active'      => ['boolean'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['boolean'],
         ]);
 
         $machineTopic->update($validated + [
             'is_active' => $request->boolean('is_active', true),
         ]);
         $machineTopic->load('machineConnection');
+
         return response()->json(['data' => $machineTopic]);
     }
 
@@ -213,13 +223,15 @@ class ConnectivityController extends Controller
     {
         $this->authorize('create', MachineConnection::class); // admin only
         $machineTopic->delete();
+
         return response()->json(['message' => 'Topic deleted']);
     }
 
     public function toggleTopicActive(MachineTopic $machineTopic): JsonResponse
     {
         $this->authorize('create', MachineConnection::class);
-        $machineTopic->update(['is_active' => !$machineTopic->is_active]);
+        $machineTopic->update(['is_active' => ! $machineTopic->is_active]);
+
         return response()->json(['data' => $machineTopic]);
     }
 
@@ -232,9 +244,10 @@ class ConnectivityController extends Controller
         if ($topicId = $request->query('machine_topic_id')) {
             $query->where('machine_topic_id', $topicId);
         }
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
         return response()->json(['data' => $query->orderBy('priority')->get()]);
     }
 
@@ -242,6 +255,7 @@ class ConnectivityController extends Controller
     {
         $this->authorize('viewAny', MachineConnection::class);
         $topicMapping->load('topic');
+
         return response()->json(['data' => $topicMapping]);
     }
 
@@ -254,6 +268,7 @@ class ConnectivityController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
         $mapping->load('topic');
+
         return response()->json(['data' => $mapping], 201);
     }
 
@@ -266,6 +281,7 @@ class ConnectivityController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
         $topicMapping->load('topic');
+
         return response()->json(['data' => $topicMapping]);
     }
 
@@ -276,12 +292,12 @@ class ConnectivityController extends Controller
     private function validateMappingPayload(Request $request, bool $includeTopicId): array
     {
         $rules = [
-            'description'    => ['nullable', 'string', 'max:255'],
-            'field_path'     => ['nullable', 'string', 'max:255'],
-            'action_type'    => ['required', 'in:update_batch_step,update_work_order_qty,create_issue,update_line_status,set_work_order_status,log_event,webhook_forward'],
-            'action_params'  => ['nullable'], // object | JSON string
+            'description' => ['nullable', 'string', 'max:255'],
+            'field_path' => ['nullable', 'string', 'max:255'],
+            'action_type' => ['required', 'in:update_batch_step,update_work_order_qty,create_issue,update_line_status,set_work_order_status,log_event,webhook_forward'],
+            'action_params' => ['nullable'], // object | JSON string
             'condition_expr' => ['nullable', 'string', 'max:255'],
-            'priority'       => ['required', 'integer', 'min:1', 'max:9999'],
+            'priority' => ['required', 'integer', 'min:1', 'max:9999'],
         ];
         if ($includeTopicId) {
             $rules['machine_topic_id'] = ['required', 'integer', 'exists:machine_topics,id'];
@@ -309,6 +325,7 @@ class ConnectivityController extends Controller
     {
         $this->authorize('create', MachineConnection::class);
         $topicMapping->delete();
+
         return response()->json(['message' => 'Mapping deleted']);
     }
 
@@ -325,8 +342,12 @@ class ConnectivityController extends Controller
         if ($status = $request->query('processing_status')) {
             $query->where('processing_status', $status);
         }
-        if ($from = $request->query('from')) $query->where('received_at', '>=', $from);
-        if ($to = $request->query('to')) $query->where('received_at', '<=', $to);
+        if ($from = $request->query('from')) {
+            $query->where('received_at', '>=', $from);
+        }
+        if ($to = $request->query('to')) {
+            $query->where('received_at', '<=', $to);
+        }
 
         $perPage = max(1, min((int) $request->query('per_page', 30), 100));
         $page = $query->orderByDesc('received_at')->paginate($perPage);
@@ -346,6 +367,7 @@ class ConnectivityController extends Controller
     {
         $this->authorize('viewAny', MachineConnection::class);
         $machineMessage->load('connection');
+
         return response()->json(['data' => $machineMessage]);
     }
 }

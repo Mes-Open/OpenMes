@@ -15,15 +15,17 @@ class CostSourceController extends Controller
         $this->authorize('viewAny', CostSource::class);
 
         $query = CostSource::query();
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function show(CostSource $costSource): JsonResponse
     {
         $this->authorize('view', $costSource);
+
         return response()->json(['data' => $costSource]);
     }
 
@@ -41,6 +43,7 @@ class CostSourceController extends Controller
         ]);
         $data['is_active'] = $data['is_active'] ?? true;
         $cs = CostSource::create($data);
+
         return response()->json(['message' => 'Cost source created', 'data' => $cs], 201);
     }
 
@@ -57,6 +60,7 @@ class CostSourceController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $costSource->update($data);
+
         return response()->json(['message' => 'Cost source updated', 'data' => $costSource->fresh()]);
     }
 
@@ -67,13 +71,15 @@ class CostSourceController extends Controller
             return response()->json(['message' => 'Cannot delete cost source referenced by costs or maintenance events.'], 422);
         }
         $costSource->delete();
+
         return response()->json(['message' => 'Cost source deleted']);
     }
 
     public function toggleActive(CostSource $costSource): JsonResponse
     {
         $this->authorize('update', $costSource);
-        $costSource->update(['is_active' => !$costSource->is_active]);
+        $costSource->update(['is_active' => ! $costSource->is_active]);
+
         return response()->json(['message' => $costSource->is_active ? 'Activated' : 'Deactivated', 'data' => $costSource]);
     }
 }

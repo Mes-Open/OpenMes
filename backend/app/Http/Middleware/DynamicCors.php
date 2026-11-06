@@ -24,6 +24,7 @@ class DynamicCors
         if ($isPreflight) {
             $response = response('', 204);
             $this->applyCorsHeaders($response, $request, $origin, true);
+
             return $response;
         }
 

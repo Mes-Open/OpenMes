@@ -100,6 +100,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the new per-row `rows` list. See *ERP Integration API → Process Templates* in
   `docs/API_DOCUMENTATION.md`.
 
+- **ERP API: settle a work order in one call.** `GET /api/v1/erp/work-orders/{id}` and
+  `GET /api/v1/erp/production/completions` accept `?include=consumption,scrap,costs`
+  (scope `erp:production:read`, API key only): actual material consumption with material
+  code, unit and picked lots; scrap with quantity, reason and production step; and costs —
+  materials, labour and additional costs with amounts and currency, the same figures as the
+  *Production Cost* report. Without `include` the response is unchanged; an unknown value is
+  a `422`. With `include`, `limit` on the completions list is capped at 100 (default 50) and
+  the sections are loaded per page, not per order. See `docs/API_DOCUMENTATION.md`.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

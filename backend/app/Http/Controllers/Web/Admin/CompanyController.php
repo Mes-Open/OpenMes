@@ -34,14 +34,14 @@ class CompanyController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:companies',
-            'name'        => 'required|string|max:255',
-            'tax_id'      => 'nullable|string|max:50',
-            'type'        => 'required|string|in:supplier,customer,both',
-            'email'       => 'nullable|email|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'address'     => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'code' => 'required|string|max:50|unique:companies',
+            'name' => 'required|string|max:255',
+            'tax_id' => 'nullable|string|max:50',
+            'type' => 'required|string|in:supplier,customer,both',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:2000',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -67,14 +67,14 @@ class CompanyController extends Controller
     public function update(Request $request, Company $company)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:companies,code,' . $company->id,
-            'name'        => 'required|string|max:255',
-            'tax_id'      => 'nullable|string|max:50',
-            'type'        => 'required|string|in:supplier,customer,both',
-            'email'       => 'nullable|email|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'address'     => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'code' => 'required|string|max:50|unique:companies,code,'.$company->id,
+            'name' => 'required|string|max:255',
+            'tax_id' => 'nullable|string|max:50',
+            'type' => 'required|string|in:supplier,customer,both',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:2000',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');

@@ -17,7 +17,7 @@ class WorkstationController extends Controller
         $this->authorize('view', $line);
 
         $query = $line->workstations()->with('workstationType');
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
         $query->withCount(['templateSteps', 'workers']);
@@ -83,7 +83,7 @@ class WorkstationController extends Controller
     {
         $this->authorize('update', $workstation);
 
-        $workstation->update(['is_active' => !$workstation->is_active]);
+        $workstation->update(['is_active' => ! $workstation->is_active]);
 
         return response()->json([
             'message' => $workstation->is_active ? 'Workstation activated' : 'Workstation deactivated',

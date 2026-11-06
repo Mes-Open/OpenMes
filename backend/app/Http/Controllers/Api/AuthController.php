@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\Auth\AuthService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -15,9 +15,6 @@ class AuthController extends Controller
 
     /**
      * Login and generate API token.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function login(Request $request): JsonResponse
     {
@@ -39,9 +36,6 @@ class AuthController extends Controller
 
     /**
      * Logout and revoke all tokens.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {
@@ -54,9 +48,6 @@ class AuthController extends Controller
 
     /**
      * Change password.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function changePassword(Request $request): JsonResponse
     {
@@ -78,9 +69,6 @@ class AuthController extends Controller
 
     /**
      * Get authenticated user info.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function me(Request $request): JsonResponse
     {
@@ -93,9 +81,6 @@ class AuthController extends Controller
 
     /**
      * Refresh token (extend expiration).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function refresh(Request $request): JsonResponse
     {
