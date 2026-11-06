@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\ApiScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
 use App\Http\Requests\UpdateProductionTargetsRequest;
@@ -341,11 +342,17 @@ class SettingsController extends Controller
                 'last_used_at_human' => $t->last_used_at?->diffForHumans(),
             ]);
 
+        $erpEnabled = ModuleRegistry::isModuleEnabled('erp');
+
         return Inertia::render('settings/ApiTokens', [
             'tokens' => $tokens,
             'newToken' => session('new_token'),
             'newTokenName' => session('new_token_name'),
             'appUrl' => config('app.url'),
+            // ERP integration keys are managed client-side against /api/v1/api-keys;
+            // the section only exists while the ERP module (and that API) is on.
+            'erpEnabled' => $erpEnabled,
+            'erpScopes' => $erpEnabled ? ApiScope::options() : [],
         ]);
     }
 

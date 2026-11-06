@@ -250,6 +250,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Web\SettingsController::class, 'revokeApiToken'])->name('api-tokens.revoke')->middleware('role:Admin');
+        // Admin-only ERP integration API keys, for the ERP section of the API Tokens
+        // page. Same controller and Form Request as /api/v1/api-keys, but on the
+        // session (web) guard so the page works whatever SANCTUM_STATEFUL_DOMAINS
+        // says — the same reason /api/collections lives here.
+        Route::middleware(['role:Admin', 'module:erp'])->group(function () {
+            Route::get('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'index'])->name('api-keys.index');
+            Route::post('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'store'])->name('api-keys.store');
+            Route::delete('/api-keys/{apiKey}', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+        });
         // Admin-only role × tab access matrix
         Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
         Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');

@@ -9,6 +9,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **ERP API: key introspection, read-only master data, multi-status export.** An ERP
+  integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
+  granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,
+  and the app version; the key's prefix and hash are never returned. A new scope,
+  `erp:masterdata:read`, lets a key list lines (`/erp/lines`), product types
+  (`/erp/product-types`, with unit of measure and whether an active process template
+  exists) and warehouses (`/erp/warehouses`, with the ERP warehouse code; only while the
+  Warehouses module is on), cursor-paginated with `?since=` and `?active=`, so line and
+  product codes no longer have to be typed in on the ERP side.
+  `/erp/production/completions` accepts several statuses (`status[]=DONE&status[]=IN_PROGRESS`)
+  or `status=all` in one request; without `status` it still returns completed orders only.
+  *Settings → API Tokens* gains an **ERP API keys** section (while the ERP integration module
+  is on) to create a key with a name, scopes — each with a short description — and an
+  optional expiry, copy the full key once, and revoke keys. See the *ERP Integration API*
+  section of `docs/API_DOCUMENTATION.md`.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

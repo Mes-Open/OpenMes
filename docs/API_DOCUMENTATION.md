@@ -28,8 +28,10 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
   - [API Keys and Scopes](#api-keys-and-scopes)
+  - [Key Introspection](#key-introspection)
   - [Work Orders (ERP)](#work-orders-erp)
   - [Master Data](#master-data)
+  - [Master Data (read)](#master-data-read)
   - [Warehouse Stock](#warehouse-stock)
   - [Stock Documents](#stock-documents)
 - [Error Codes](#error-codes)
@@ -1118,11 +1120,18 @@ Content-Type: application/json
 | `erp:production:read` | Read production completions |
 | `erp:quality:read` | Read quality / non-conformance reports |
 | `erp:masterdata:write` | Import products, materials, material lots and recipes |
+| `erp:masterdata:read` | Read lines, warehouses and product types (codes, names, activity) |
 | `erp:stock:read` | Read warehouse balances and the stock-document backlog |
 | `erp:stock:write` | Sync warehouse balances, acknowledge stock documents |
 
-A key sees only its own tenant's data. Missing or inactive key → `401`; key without
-the required scope → `403`.
+A key sees only its own tenant's data. Missing, inactive or expired key → `401`; key
+without the required scope → `403`.
+
+In **Settings → API Tokens**, the **ERP API keys** section (shown while the ERP
+integration module is on) lists keys, creates one with a name, scopes and optional
+expiry — the full `omk_…` key is shown **once**, right after creation — and revokes
+keys. Changing a key's scopes or IP allowlist is done through
+`PATCH /api/v1/api-keys/{id}` (admin session).
 
 **Import response contract.** Every `*/import` endpoint processes rows
 independently and answers with a per-row report — one unresolvable reference never
@@ -1146,6 +1155,40 @@ the payload itself is malformed (wrong types, missing required keys, too many ro
 
 `strategy` on the master-data imports: `update_or_create` (default), `skip_existing`,
 `error_on_duplicate`.
+
+### Key Introspection
+
+```http
+GET /api/v1/erp/me                           # any valid key, no scope needed
+```
+
+Tells an integration what its key may do, so it can report a missing scope up front
+instead of failing on a `403` later. Rate limited like the other reads (`erp-read`).
+The key's id, prefix, hash and IP allowlist are never returned.
+
+```json
+{
+    "data": {
+        "name": "Odoo",
+        "scopes": ["erp:masterdata:read", "erp:production:read"],
+        "missing_scopes": [
+            "erp:orders:import",
+            "erp:quality:read",
+            "erp:masterdata:write",
+            "erp:stock:read",
+            "erp:stock:write"
+        ],
+        "tenant": { "id": 1, "name": "Main plant" },
+        "expires_at": "2027-01-31T23:59:00+00:00",
+        "modules": { "erp": true, "warehouse": false },
+        "app_version": "v0.27.1"
+    }
+}
+```
+
+`expires_at` and `tenant` are `null` when the key has no expiry / no tenant.
+`modules.warehouse` tells whether `/erp/warehouses` and the stock endpoints have
+data behind them.
 
 ### Work Orders (ERP)
 
@@ -1175,6 +1218,25 @@ GET  /api/v1/erp/quality/issues              # scope: erp:quality:read
 
 The export endpoints are cursor-paginated — follow `meta.next_cursor` until it is
 null — and accept `?since=<ISO timestamp>` for incremental polling.
+
+`/production/completions` returns completed (`DONE`) orders by default. `status`
+narrows or widens that:
+
+| Query | Returns |
+|---|---|
+| *(none)* | `DONE` orders only (unchanged default) |
+| `?status=IN_PROGRESS` | orders in that one status |
+| `?status[]=DONE&status[]=IN_PROGRESS` | orders in any of the listed statuses |
+| `?status=all` | orders in every status |
+
+Each value must be one of `PENDING`, `ACCEPTED`, `IN_PROGRESS`, `BLOCKED`, `PAUSED`,
+`CHANGE_HOLD`, `DONE`, `REJECTED`, `CANCELLED` (case-sensitive); anything else —
+including `all` inside a list — is a `422` on `status.N`.
+
+```bash
+curl -H "X-Api-Key: omk_…" \
+  "https://mes.example.com/api/v1/erp/production/completions?status=all&since=2026-11-01T00:00:00Z&limit=500"
+```
 
 ### Master Data
 
@@ -1296,6 +1358,62 @@ picks one explicitly; otherwise the newest active template wins).
 list, so components the ERP dropped are removed) or `merge` (upsert only what is
 listed). A recipe with one unknown material is reported as a single failed row and
 applied not at all — never half-way.
+
+### Master Data (read)
+
+```http
+GET /api/v1/erp/lines                        # scope: erp:masterdata:read
+GET /api/v1/erp/product-types                # scope: erp:masterdata:read
+GET /api/v1/erp/warehouses                   # scope: erp:masterdata:read, Warehouses module
+```
+
+Read-only dictionaries so the ERP side can offer OpenMES codes in a picker instead
+of having them typed in. Same envelope as the other exports (`data` + `meta` with
+`next_cursor`, `has_more`, `count`, `per_page`), ordered by creation.
+
+| Parameter | Meaning |
+|---|---|
+| `since` | ISO timestamp — only rows changed (`updated_at`) at or after it |
+| `active` | `1` / `0` — only active / only inactive rows; both when omitted |
+| `limit` | Page size, 1–500 (default 100) |
+| `cursor` | `meta.next_cursor` of the previous page |
+
+Fields: lines — `code`, `name`, `description`, `is_active`, `updated_at`;
+warehouses — `code`, `erp_code`, `name`, `kind`, `is_default`, `is_active`,
+`updated_at`; product types — see below. Deleted rows are not listed.
+
+`/erp/warehouses` returns `404` while the **Warehouses** module is off (checked
+before the scope).
+
+`GET /api/v1/erp/product-types?active=1`:
+
+```json
+{
+    "data": [
+        {
+            "code": "BREAD-01",
+            "name": "Rye bread 500 g",
+            "unit_of_measure": "pcs",
+            "is_active": true,
+            "has_active_process_template": true,
+            "updated_at": "2026-11-02T08:15:00+00:00"
+        },
+        {
+            "code": "BREAD-02",
+            "name": "Spelt bread 400 g",
+            "unit_of_measure": "pcs",
+            "is_active": true,
+            "has_active_process_template": false,
+            "updated_at": "2026-11-05T12:40:00+00:00"
+        }
+    ],
+    "meta": { "next_cursor": null, "has_more": false, "count": 2, "per_page": 100 }
+}
+```
+
+`has_active_process_template: false` means a work order for that product has no
+routing to follow yet — show a warning on the ERP side before importing orders for
+it rather than waiting for the import error.
 
 ### Warehouse Stock
 

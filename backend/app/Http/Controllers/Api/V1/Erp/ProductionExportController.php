@@ -11,8 +11,8 @@ use Illuminate\Http\JsonResponse;
 /**
  * OpenMES → ERP: production completion export. Emits produced quantities and
  * completion timestamps per work order, cursor-paginated for incremental
- * polling. Requires the `erp:production:read` scope; rate limited via the
- * `erp-read` limiter. Tenant scoping is applied automatically from the API
+ * polling, in one, several or all statuses. Requires the `erp:production:read`
+ * scope; rate limited via the `erp-read` limiter. Tenant scoping is applied automatically from the API
  * key's tenant (TenantContext).
  */
 class ProductionExportController extends Controller
@@ -31,7 +31,10 @@ class ProductionExportController extends Controller
         }
 
         // Default to completed orders — the usual ERP "post production" grain.
-        $query->where('status', $request->input('status', WorkOrder::STATUS_DONE));
+        // `status` may also name several statuses, or `all` for no filter.
+        if (($statuses = $request->statuses()) !== null) {
+            $query->whereIn('status', $statuses);
+        }
 
         if ($line = $request->input('line')) {
             $query->whereHas('line', fn ($q) => $q->where('code', $line));
