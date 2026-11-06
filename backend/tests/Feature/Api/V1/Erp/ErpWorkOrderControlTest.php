@@ -288,6 +288,17 @@ class ErpWorkOrderControlTest extends TestCase
         );
     }
 
+    public function test_cancel_accepts_the_lookup_in_the_json_body(): void
+    {
+        $order = $this->order(WorkOrder::STATUS_PENDING);
+
+        $this->api()->postJson('/api/v1/erp/work-orders/ERP%2F2026%2F1/cancel', ['by' => 'order_no'])
+            ->assertOk()
+            ->assertJsonPath('data.work_order.id', $order->id);
+
+        $this->assertSame(WorkOrder::STATUS_CANCELLED, $order->fresh()->status);
+    }
+
     public function test_cancel_rejects_an_overlong_reason(): void
     {
         $order = $this->order(WorkOrder::STATUS_PENDING);
