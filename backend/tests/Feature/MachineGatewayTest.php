@@ -252,6 +252,33 @@ class MachineGatewayTest extends TestCase
         $this->assertStringContainsString('ECONNREFUSED', $rt['error']);
     }
 
+    public function test_error_heartbeat_leaves_station_freshness_unchanged(): void
+    {
+        $conn = $this->opcuaConnection();
+        $ws = Workstation::factory()->create(['line_id' => Line::factory()]);
+        MachineTag::create([
+            'machine_connection_id' => $conn->id, 'workstation_id' => $ws->id,
+            'name' => 'State', 'address' => 'ns=2;s=State', 'signal_type' => 'state', 'data_type' => 'int16',
+        ]);
+        $state = WorkstationState::create([
+            'workstation_id' => $ws->id, 'state' => 'RUNNING', 'source' => 'machine', 'started_at' => now()->subHour(),
+        ]);
+        $old = now()->subHour()->startOfSecond();
+        WorkstationState::whereKey($state->id)->update(['updated_at' => $old]);
+        $token = $this->gatewayToken();
+
+        $this->withToken($token)
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat", ['status' => 'error', 'message' => 'Lost connection'])
+            ->assertOk();
+        $this->assertTrue($state->fresh()->updated_at->equalTo($old));
+
+        // Positive control: a healthy heartbeat does refresh it.
+        $this->withToken($token)
+            ->postJson("/api/v1/machine-connections/{$conn->id}/heartbeat")
+            ->assertOk();
+        $this->assertTrue($state->fresh()->updated_at->greaterThan($old));
+    }
+
     public function test_ok_heartbeat_clears_a_previous_error(): void
     {
         $conn = $this->opcuaConnection();
@@ -297,13 +324,40 @@ class MachineGatewayTest extends TestCase
         $this->assertNull($rt['endpoint_warning']);
     }
 
-    public function test_runtime_warns_about_a_loopback_endpoint(): void
+    /**
+     * @dataProvider loopbackEndpoints
+     */
+    public function test_runtime_warns_about_a_loopback_endpoint(string $endpoint): void
     {
         $conn = $this->opcuaConnection();
-        $conn->opcuaConnection->update(['endpoint_url' => 'opc.tcp://127.0.0.1:4840']);
+        $conn->opcuaConnection->update(['endpoint_url' => $endpoint]);
 
         $rt = app(RuntimeMonitor::class)->connectionRuntime($conn->fresh());
 
         $this->assertStringContainsString('host.docker.internal', $rt['endpoint_warning']);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function loopbackEndpoints(): array
+    {
+        return [
+            'localhost' => ['opc.tcp://localhost:4840'],
+            'ipv4' => ['opc.tcp://127.0.0.1:4840'],
+            'ipv6 short' => ['opc.tcp://[::1]:4840'],
+            'ipv6 expanded' => ['opc.tcp://[0:0:0:0:0:0:0:1]:4840'],
+            'ipv6 zero padded' => ['opc.tcp://[0000:0000:0000:0000:0000:0000:0000:0001]:4840/path'],
+        ];
+    }
+
+    public function test_runtime_does_not_warn_about_another_ipv6_host(): void
+    {
+        $conn = $this->opcuaConnection();
+        $conn->opcuaConnection->update(['endpoint_url' => 'opc.tcp://[2001:db8::1]:4840']);
+
+        $rt = app(RuntimeMonitor::class)->connectionRuntime($conn->fresh());
+
+        $this->assertNull($rt['endpoint_warning']);
     }
 }

@@ -64,9 +64,14 @@ export default function ApiTokens() {
                             <p className="text-[13px] font-semibold text-om-ink mb-1">{__('Token created: :name', { name: newTokenName })}</p>
                             <p className="text-om-muted text-[12.5px] mb-3">{__('Copy this token now — it will not be shown again.')}</p>
                             {newTokenScope === 'machine-gateway' && (
-                                <p className="text-om-muted text-[12.5px] mb-3">
-                                    {__('Set it as OPENMES_API_TOKEN in the .env file next to docker-compose.yml, then restart the gateway.')}
-                                </p>
+                                <div className="mb-3">
+                                    <p className="text-om-muted text-[12.5px] mb-1">
+                                        {__('Set it as OPENMES_API_TOKEN in the .env file next to docker-compose.yml, then apply it from that folder with the command below. A plain docker compose restart keeps the old token.')}
+                                    </p>
+                                    <code className="block bg-om-chip rounded-om-sm px-3 py-2 font-mono text-xs break-all text-om-ink select-all">
+                                        OPCUA_CONNECTION_ID=&lt;id&gt; docker compose --profile connectivity up -d opcua-gateway
+                                    </code>
+                                </div>
                             )}
                             <div className="flex items-center gap-2">
                                 <code className="flex-1 bg-om-chip rounded-om-sm px-3 py-2 font-mono text-[13px] break-all text-om-ink select-all">

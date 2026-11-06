@@ -4,6 +4,10 @@ import { Section, Field } from '../ui';
 import { LOCAL_ENDPOINT } from './GatewaySetupGuide';
 import { __ } from '../../../../lib/i18n';
 
+// Host part of a loopback endpoint, in any IPv6 spelling. The lookahead leaves
+// the port and path out of the match, so replacing it keeps them.
+const LOOPBACK_ENDPOINT = /^opc\.tcp:\/\/(?:localhost|127\.[\d.]+|\[(?:0{0,4}:){1,7}0{0,3}1\])(?=:|\/|$)/i;
+
 /**
  * Shared create/edit form for MachineConnection (protocol=opcua) + OpcuaConnection config.
  *
@@ -31,7 +35,7 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
     const { data, setData, errors, processing } = form;
 
     // The gateway runs in its own container: loopback there is the container.
-    const isLoopback = /^opc\.tcp:\/\/(localhost|127\.[\d.]+|\[::1\])(:|\/|$)/i.test(data.endpoint_url.trim());
+    const isLoopback = LOOPBACK_ENDPOINT.test(data.endpoint_url.trim());
 
     const submit = (e) => {
         e.preventDefault();
@@ -57,7 +61,7 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
                 {isLoopback ? (
                     <InlineAlert severity="warning" title={__('localhost will not work from the gateway')}>
                         {__('The gateway runs in its own Docker container, so localhost / 127.0.0.1 is the container itself. For a local server on this computer use :address.', { address: LOCAL_ENDPOINT })}{' '}
-                        <button type="button" onClick={() => setData('endpoint_url', data.endpoint_url.trim().replace(/^opc\.tcp:\/\/(localhost|127\.[\d.]+|\[::1\])/i, 'opc.tcp://host.docker.internal'))} className="text-om-accent hover:underline font-medium">
+                        <button type="button" onClick={() => setData('endpoint_url', data.endpoint_url.trim().replace(LOOPBACK_ENDPOINT, 'opc.tcp://host.docker.internal'))} className="text-om-accent hover:underline font-medium">
                             {__('Use this address')}
                         </button>
                     </InlineAlert>

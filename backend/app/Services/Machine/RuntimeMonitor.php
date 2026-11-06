@@ -111,11 +111,20 @@ class RuntimeMonitor
         $host = $endpoint ? parse_url($endpoint, PHP_URL_HOST) : null;
         $host = is_string($host) ? strtolower(trim($host, '[]')) : null;
 
-        if ($host === null || ! ($host === 'localhost' || $host === '::1' || str_starts_with($host, '127.'))) {
+        if ($host === null || ! $this->isLoopbackHost($host)) {
             return null;
         }
 
         return __('The endpoint points to :host. Inside Docker that is the gateway container itself - use host.docker.internal or the machine\'s IP address instead.', ['host' => $host]);
+    }
+
+    private function isLoopbackHost(string $host): bool
+    {
+        // Compared as bytes: ::1 can also be written 0:0:0:0:0:0:0:1.
+        $isIpv6Loopback = filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false
+            && inet_pton($host) === inet_pton('::1');
+
+        return $host === 'localhost' || str_starts_with($host, '127.') || $isIpv6Loopback;
     }
 
     private function cacheKey(string $kind, int|string $key): string

@@ -45,6 +45,9 @@ export default function GatewaySetupGuide({ open = true }) {
                     <p className="mt-2 text-xs text-om-muted">
                         {__('Do not use localhost or 127.0.0.1 - inside Docker they point to the gateway itself, not to this computer.')}
                     </p>
+                    <p className="mt-1 text-xs text-om-muted">
+                        {__('On Linux, a local server listening only on 127.0.0.1 cannot be reached from Docker - make it listen on the Docker bridge address (usually 172.17.0.1), or on 0.0.0.0 behind a firewall.')}
+                    </p>
                     <Link href="/admin/connectivity/opcua/create" className="mt-2 inline-block text-om-accent hover:underline text-xs font-medium">
                         {__('New Connection')} →
                     </Link>

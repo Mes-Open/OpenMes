@@ -146,9 +146,17 @@ docker compose --profile workers up -d queue-worker
 
 The OPC UA gateway runs in its own container, so an OPC UA server on the
 Docker host is `opc.tcp://host.docker.internal:4840`, not `127.0.0.1` — the
-connection page warns about a loopback endpoint. A gateway that is running but
-cannot reach the server reports the reason with its heartbeat, and the page
-shows "Running, but cannot connect to the machine" with that message.
+connection page warns about a loopback endpoint. On Linux that address is the
+Docker bridge, so the server must not listen on `127.0.0.1` only: use the bridge
+address (usually `172.17.0.1`), or `0.0.0.0` behind a firewall. A gateway that
+is running but cannot reach the server, or loses an established connection,
+reports the reason with every heartbeat until the session and subscriptions are
+back, and the page shows "Running, but cannot connect to the machine" with that
+message.
+
+After changing `OPENMES_API_TOKEN` in `.env`, recreate the container with
+`OPCUA_CONNECTION_ID=<id> docker compose --profile connectivity up -d opcua-gateway`;
+`docker compose restart` keeps the old token.
 
 A machine gateway token can only call the three gateway endpoints
 (`gateway-config`, `signals`, `heartbeat`); every other API route rejects it

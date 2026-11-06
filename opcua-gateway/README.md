@@ -26,7 +26,16 @@ practically. A dedicated gateway is the standard, production-correct approach.
 
 > **OPC UA server on the same machine?** Inside the container `localhost` /
 > `127.0.0.1` is the gateway itself. Use `opc.tcp://host.docker.internal:4840`
-> (mapped for Linux too in `docker-compose.yml`) or the host's IP address.
+> (mapped for Linux too in `docker-compose.yml`) or the host's IP address. On
+> Linux that address is the Docker bridge, so a server listening only on
+> `127.0.0.1` stays unreachable: make it listen on the bridge address (usually
+> `172.17.0.1`), or on `0.0.0.0` behind a firewall.
+
+> **Changing the token?** `docker compose restart` keeps the old value. After
+> editing `.env`, recreate the container from the folder with
+> `docker-compose.yml`, with no `OPENMES_API_TOKEN` exported in your shell (it
+> would override `.env`):
+> `OPCUA_CONNECTION_ID=<id> docker compose --profile connectivity up -d opcua-gateway`.
 
 ## Run
 
@@ -61,8 +70,9 @@ OPCUA_CONNECTION_ID=<id> \
 
 The connection page in OpenMES shows whether this gateway is currently running
 (it heartbeats every `HEARTBEAT_MS`). If it is stopped, the page tells the user
-exactly how to start it. If it is running but cannot reach the OPC UA server, it
-sends an error heartbeat and the page shows the reason.
+exactly how to start it. If it is running but cannot reach the OPC UA server, or
+loses an established connection, it sends error heartbeats with the reason until
+the session and subscriptions are back, and the page shows that reason.
 
 ## Troubleshooting
 
