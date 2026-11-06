@@ -55,6 +55,7 @@ enum ApiScope: string
             self::MasterDataRead => __('List line, warehouse and product type codes so the ERP can map its own records.'),
             self::StockRead => __('Export warehouse balances and stock documents to book.'),
             self::StockWrite => __('Replace warehouse balances and acknowledge booked stock documents.'),
+            self::WebhooksManage => __('Register, change and remove webhooks that send OpenMES events to the integration.'),
         };
     }
 
