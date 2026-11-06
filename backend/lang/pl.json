@@ -7271,5 +7271,10 @@
     "Administrator": "Administrator",
     "View: :role": "Widok: :role",
     "your permissions have not changed.": "Twoje uprawnienia się nie zmieniły.",
-    "Back to the administrator view": "Wróć do widoku administratora"
+    "Back to the administrator view": "Wróć do widoku administratora",
+    "Workstation ':code' not found": "Nie znaleziono stanowiska „:code”",
+    "Workstation ':code' not found on line ':line'": "Nie znaleziono stanowiska „:code” na linii „:line”",
+    "A line code needs a workstation code: steps are routed to workstations": "Kod linii wymaga kodu stanowiska: kroki są przypisywane do stanowisk",
+    "A routing needs at least one step": "Marszruta musi mieć co najmniej jeden krok",
+    "Step number ':number' is listed twice": "Numer kroku „:number” występuje dwukrotnie"
 }

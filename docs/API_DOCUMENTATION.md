@@ -1117,7 +1117,7 @@ Content-Type: application/json
 | `erp:orders:import` | Import work orders |
 | `erp:production:read` | Read production completions |
 | `erp:quality:read` | Read quality / non-conformance reports |
-| `erp:masterdata:write` | Import products, materials, material lots and recipes |
+| `erp:masterdata:write` | Import products, materials, material lots, recipes and routings (process templates) |
 | `erp:stock:read` | Read warehouse balances and the stock-document backlog |
 | `erp:stock:write` | Sync warehouse balances, acknowledge stock documents |
 
@@ -1178,7 +1178,13 @@ null — and accept `?since=<ISO timestamp>` for incremental polling.
 
 ### Master Data
 
-All four require the `erp:masterdata:write` scope.
+All five require the `erp:masterdata:write` scope. A full sync calls them in this
+order, so every reference already exists when it is needed:
+
+1. `products/import` (and `materials/import`, `material-lots/import`)
+2. `process-templates/import` — the routing of each product
+3. `boms/import` — recipes attach to the routing imported in step 2
+4. `work-orders/import` — an order freezes the newest active routing and its recipe
 
 #### Products
 
@@ -1206,6 +1212,160 @@ classification code (Pantheon calls it a Classification, `acClassif`). Send the 
 item list and let `only_categories` decide what becomes a product — matching is
 case-insensitive, and rows outside the allowlist come back as `skipped`. Omit
 `only_categories` to accept everything. Products are matched by `code`.
+
+**Default process template.** A work order is accepted only for a product type with
+an active process template. When the ERP has no routing to send, set
+`create_default_template` so each imported product is orderable at once:
+
+```json
+{
+    "create_default_template": true,
+    "default_step_name": "Production",
+    "products": [ { "code": "STOOL-01", "name": "Stool" } ]
+}
+```
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `create_default_template` | boolean | `false` | Give a created or updated product type that has **no** process template (of any state) an active version 1 with a single step. A type that already has a template — active or not — is left untouched. Rows skipped by `strategy` or `only_categories` are not touched either. |
+| `default_step_name` | string, max 255 | `"Production"` in the plant language (Settings → language), e.g. `"Produkcja"` | Name of that single step. |
+
+Rows that got a template are listed in `rows`; the key is absent when none did:
+
+```json
+{
+    "data": {
+        "imported": 1, "updated": 0, "skipped": 0, "errors": [],
+        "rows": [ { "row": 1, "code": "STOOL-01", "template_created": true } ]
+    }
+}
+```
+
+#### Process Templates (Routings)
+
+```http
+POST /api/v1/erp/process-templates/import
+```
+
+One row per product: its routing, as the ordered list of operations the ERP keeps.
+Each row becomes an OpenMES process template with its steps.
+
+```json
+{
+    "mode": "new_version",
+    "templates": [
+        {
+            "product_type_code": "CHAIR-01",
+            "template_name": "Chair — routing 1",
+            "steps": [
+                {
+                    "step_number": 10,
+                    "name": "Cutting",
+                    "workstation_code": "WS-CUT",
+                    "line_code": "L1",
+                    "setup_time_minutes": 15,
+                    "run_time_per_unit_minutes": 2.5
+                },
+                {
+                    "step_number": 20,
+                    "name": "Assembly",
+                    "workstation_code": "WS-ASM",
+                    "setup_time_minutes": 5,
+                    "run_time_per_unit_minutes": 4,
+                    "instruction": "Glue and screw the legs",
+                    "requires_confirmation": true
+                }
+            ]
+        }
+    ]
+}
+```
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `mode` | `new_version` \| `replace_draft` | no (`new_version`) | See below. |
+| `templates` | array, 1–500 | yes | One routing per row. |
+| `templates.*.product_type_code` | string, max 50 | yes | Product type `code`. Unknown → row error. |
+| `templates.*.template_name` | string, max 255 | no | Defaults to the product type's name. |
+| `templates.*.steps` | array, 1–200 | yes | The operations. |
+| `steps.*.step_number` | integer ≥ 1 | yes | The ERP operation number. Unique within one routing. |
+| `steps.*.name` | string, max 255 | yes | Step name shown to operators. |
+| `steps.*.workstation_code` | string, max 50 | no | Workstation `code`. Unknown → row error. |
+| `steps.*.line_code` | string, max 50 | no | Narrows the workstation lookup to this line; needs `workstation_code`. Unknown line, or a workstation not on it → row error. |
+| `steps.*.setup_time_minutes` | integer ≥ 0 | no | Setup (changeover) time per batch, in minutes. |
+| `steps.*.run_time_per_unit_minutes` | number ≥ 0 | no | Run time per piece, in minutes (stored to 2 decimals). |
+| `steps.*.instruction` | string, max 10000 | no | Work instruction text. |
+| `steps.*.requires_confirmation` | boolean | no (`false`) | Operator must confirm the step. |
+
+**Step numbers.** ERP operation numbers (`10`, `20`, `30`…) only order the steps:
+OpenMES stores them as `1, 2, 3…` in ascending order of `step_number`, because a
+step's predecessor is the one numbered one lower. A routing listing the same
+number twice is rejected with `422`.
+
+**Modes.**
+
+- `new_version` (default) — works exactly like adding a version in *Production →
+  Product Types → Process Templates*: the routing becomes version *max + 1*, active,
+  and earlier versions are left as they are. Every new work order (from the ERP, CSV
+  or the UI) uses the **newest active** version, and so does `boms/import`. The
+  recipe (`bom_items`) of the current template is copied onto the new version, each
+  line attached to the step with the same number (or to the whole order when that
+  step no longer exists); quality checks, photos, media and checklists are not
+  copied. Re-sending a routing identical to the newest active version (same steps,
+  workstations, times, instructions) changes nothing and is reported as `skipped`,
+  so a nightly sync does not stack up versions.
+- `replace_draft` — rewrites the newest **inactive** template that no work order was
+  created from; if there is none, creates a new inactive version. Steps are matched
+  by number (updated in place, so their media and checklists survive); steps whose
+  number is gone are removed. The template stays inactive until a technologist
+  activates it in the UI, so this mode alone does not make a product orderable.
+  An active template, or one any work order refers to, is never rewritten.
+
+**Orders already released are never changed.** A work order freezes its routing
+when it is created (`process_snapshot`); neither mode edits an existing active
+version, so orders in progress keep exactly the steps they started with.
+
+A routing with one unknown product type, line or workstation is reported as one
+failed row (`field` points at the step, e.g. `steps.1.workstation_code`) and
+written not at all — never half-way. Each created or rewritten template is recorded
+in the audit log (`process_template.erp_imported`).
+
+**Mapping an ERP routing.** Example for an SAP routing (table `PLPO`); other ERPs
+have the same concepts under other names (Comarch "technologia", Business Central
+"Routing Lines", Odoo "Operations" of a BoM):
+
+| ERP (SAP `PLPO`) | OpenMES field | Note |
+|---|---|---|
+| Material of the routing header (`MAPL-MATNR`) | `product_type_code` | |
+| Routing text (`PLKO-KTEXT`) | `template_name` | optional |
+| Operation number `VORNR` (`0010`, `0020`, `0030`) | `steps.*.step_number` | `10`, `20`, `30` — stored as 1, 2, 3 |
+| Operation short text `LTXA1` | `steps.*.name` | |
+| Work center `ARBPL` | `steps.*.workstation_code` | create workstations with the same codes |
+| Plant / production line of the work center | `steps.*.line_code` | optional |
+| Setup time (`VGW01`, *Rüstzeit*) | `steps.*.setup_time_minutes` | convert to whole minutes |
+| Machine/labour time per base quantity (`VGW02` / `BMSCH`) | `steps.*.run_time_per_unit_minutes` | convert to minutes **per one piece** |
+| Long text of the operation | `steps.*.instruction` | |
+
+Response (`207` — the second routing named a workstation OpenMES does not know):
+
+```json
+{
+    "data": {
+        "imported": 1,
+        "updated": 0,
+        "skipped": 0,
+        "errors": [
+            { "row": 2, "field": "steps.1.workstation_code", "message": "Workstation 'WS-PAINT' not found" }
+        ],
+        "rows": [
+            { "row": 1, "code": "CHAIR-01", "version": 2 }
+        ]
+    }
+}
+```
+
+`rows` lists the version each created (`new_version`) or rewritten (`replace_draft`)
+routing got; skipped rows are not listed.
 
 #### Materials
 

@@ -7271,5 +7271,10 @@
     "Administrator": "Administrator",
     "View: :role": "View: :role",
     "your permissions have not changed.": "your permissions have not changed.",
-    "Back to the administrator view": "Back to the administrator view"
+    "Back to the administrator view": "Back to the administrator view",
+    "Workstation ':code' not found": "Workstation ':code' not found",
+    "Workstation ':code' not found on line ':line'": "Workstation ':code' not found on line ':line'",
+    "A line code needs a workstation code: steps are routed to workstations": "A line code needs a workstation code: steps are routed to workstations",
+    "A routing needs at least one step": "A routing needs at least one step",
+    "Step number ':number' is listed twice": "Step number ':number' is listed twice"
 }
