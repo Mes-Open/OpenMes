@@ -12,6 +12,7 @@ use App\Models\StockMovement;
 use App\Models\Tenant;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
+use App\Models\WorkOrder;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -323,5 +324,37 @@ class ErpStockSyncTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase('insert', $message);
         $this->assertStringNotContainsStringIgnoringCase('material_lots', $message);
         $this->assertStringContainsString('OTHER-01', $message);
+    }
+
+    public function test_stock_documents_include_work_order_external_reference(): void
+    {
+        $warehouse = Warehouse::factory()->rawMaterial()->create(['code' => 'RAW-1']);
+        $order = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenantId,
+            'order_no' => 'WO-ERP-1',
+            'external_system' => 'pantheon',
+            'external_ref' => 'SO-4711/3',
+        ]);
+
+        StockDocument::factory()->posted()->create([
+            'warehouse_id' => $warehouse->id,
+            'work_order_id' => $order->id,
+            'document_no' => 'MI/2026/0100',
+        ]);
+        StockDocument::factory()->posted()->create([
+            'warehouse_id' => $warehouse->id,
+            'document_no' => 'MI/2026/0101',
+        ]);
+
+        $response = $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::StockRead]))
+            ->getJson('/api/v1/erp/stock-documents');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.work_order_no', 'WO-ERP-1')
+            ->assertJsonPath('data.0.work_order_external_system', 'pantheon')
+            ->assertJsonPath('data.0.work_order_external_ref', 'SO-4711/3')
+            // No work order behind the document — both keys are present and null.
+            ->assertJsonPath('data.1.work_order_external_system', null)
+            ->assertJsonPath('data.1.work_order_external_ref', null);
     }
 }

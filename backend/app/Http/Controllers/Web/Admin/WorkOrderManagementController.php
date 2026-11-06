@@ -243,6 +243,14 @@ class WorkOrderManagementController extends Controller
                 'due_date' => $workOrder->due_date?->toDateString(),
                 'description' => $workOrder->description,
                 'extra_data' => $workOrder->extra_data,
+                // What the ERP sent (read only). Kept apart from customer_name
+                // above, which is the linked Customer record.
+                'source' => [
+                    'external_system' => $workOrder->external_system,
+                    'external_ref' => $workOrder->external_ref,
+                    'customer_name' => $workOrder->customer_name,
+                    'price_currency' => $workOrder->effectivePriceCurrency(),
+                ],
                 'custom_fields' => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
                 'estimated_standard_production_minutes' => $workOrder->estimatedStandardProductionMinutes(),

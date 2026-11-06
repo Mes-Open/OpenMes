@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
+use App\Support\CurrencyRegistry;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -179,6 +180,10 @@ class WorkOrder extends Model
     protected $fillable = [
         'order_no',
         'customer_order_no',
+        // Where an ERP-imported order came from (#T3) — read only in the UI.
+        'external_system',
+        'external_ref',
+        'customer_name',
         'customer_id',
         'line_id',
         'product_type_id',
@@ -188,6 +193,7 @@ class WorkOrder extends Model
         'snapshot_version',
         'planned_qty',
         'unit_price',
+        'price_currency',
         'produced_qty',
         'counting_source',
         'status',
@@ -450,6 +456,19 @@ class WorkOrder extends Model
         }
 
         return max(1, $maxOperators);
+    }
+
+    /**
+     * The currency `unit_price` is in: the one the ERP sent, else the
+     * installation currency. Null when the order has no price at all.
+     */
+    public function effectivePriceCurrency(): ?string
+    {
+        if ($this->unit_price === null) {
+            return null;
+        }
+
+        return $this->price_currency ?: CurrencyRegistry::current();
     }
 
     /**

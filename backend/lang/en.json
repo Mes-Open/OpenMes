@@ -7351,5 +7351,10 @@
     "No change requests.": "No change requests.",
     "Requested by": "Requested by",
     "Decided": "Decided",
-    "Page :page of :pages": "Page :page of :pages"
+    "Page :page of :pages": "Page :page of :pages",
+    "Received from the source system — read only.": "Received from the source system — read only.",
+    "The :attribute must be an object of simple values.": "The :attribute must be an object of simple values.",
+    "The :attribute may not have more than :max keys.": "The :attribute may not have more than :max keys.",
+    "The :attribute may not be nested more than two levels.": "The :attribute may not be nested more than two levels.",
+    "The :attribute may not be larger than 16 KB.": "The :attribute may not be larger than 16 KB."
 }

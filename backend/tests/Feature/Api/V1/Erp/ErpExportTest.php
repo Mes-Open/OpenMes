@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
+use App\Support\CurrencyRegistry;
 use App\Support\ModuleRegistry;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -268,5 +269,79 @@ class ErpExportTest extends TestCase
         $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
             ->getJson('/api/v1/erp/production/completions')
             ->assertStatus(404);
+    }
+
+    // ── External source fields ──────────────────────────────────────────────
+
+    private function sourcedOrder(array $overrides = []): WorkOrder
+    {
+        return $this->workOrder(array_merge([
+            'order_no' => 'WO-SRC',
+            'status' => WorkOrder::STATUS_DONE,
+            'completed_at' => now(),
+            'unit_price' => 12.5,
+            'price_currency' => 'EUR',
+            'external_system' => 'pantheon',
+            'external_ref' => 'SO-4711/3',
+            'customer_name' => 'Acme GmbH',
+            'extra_data' => ['color' => 'red', 'sizes' => ['S', 'M']],
+        ], $overrides));
+    }
+
+    public function test_show_includes_external_source_and_currency(): void
+    {
+        $wo = $this->sourcedOrder();
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson("/api/v1/erp/work-orders/{$wo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.price_currency', 'EUR')
+            ->assertJsonPath('data.external_system', 'pantheon')
+            ->assertJsonPath('data.external_ref', 'SO-4711/3')
+            ->assertJsonPath('data.customer_name', 'Acme GmbH')
+            ->assertJsonPath('data.extra_data', ['color' => 'red', 'sizes' => ['S', 'M']]);
+    }
+
+    public function test_completions_include_external_source_fields(): void
+    {
+        $this->sourcedOrder();
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson('/api/v1/erp/production/completions')
+            ->assertOk()
+            ->assertJsonPath('data.0.order_no', 'WO-SRC')
+            ->assertJsonPath('data.0.external_system', 'pantheon')
+            ->assertJsonPath('data.0.external_ref', 'SO-4711/3')
+            ->assertJsonPath('data.0.customer_name', 'Acme GmbH')
+            ->assertJsonPath('data.0.price_currency', 'EUR')
+            ->assertJsonPath('data.0.extra_data.color', 'red');
+    }
+
+    public function test_price_currency_falls_back_to_installation_currency_when_unit_price_set(): void
+    {
+        CurrencyRegistry::save('USD');
+        $priced = $this->sourcedOrder(['order_no' => 'WO-PRICED', 'price_currency' => null]);
+        $unpriced = $this->sourcedOrder(['order_no' => 'WO-UNPRICED', 'price_currency' => null, 'unit_price' => null]);
+        $key = $this->keyWith([ApiScope::ProductionRead]);
+
+        $this->withHeader('X-Api-Key', $key)->getJson("/api/v1/erp/work-orders/{$priced->id}")
+            ->assertOk()->assertJsonPath('data.price_currency', 'USD');
+        $this->withHeader('X-Api-Key', $key)->getJson("/api/v1/erp/work-orders/{$unpriced->id}")
+            ->assertOk()->assertJsonPath('data.price_currency', null);
+    }
+
+    public function test_order_without_source_fields_exports_nulls(): void
+    {
+        $wo = $this->workOrder(['order_no' => 'WO-PLAIN', 'unit_price' => null]);
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson("/api/v1/erp/work-orders/{$wo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.order_no', 'WO-PLAIN')
+            ->assertJsonPath('data.external_system', null)
+            ->assertJsonPath('data.external_ref', null)
+            ->assertJsonPath('data.customer_name', null)
+            ->assertJsonPath('data.price_currency', null)
+            ->assertJsonPath('data.extra_data', null);
     }
 }

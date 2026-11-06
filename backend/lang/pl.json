@@ -7351,5 +7351,10 @@
     "No change requests.": "Brak wniosków o zmianę.",
     "Requested by": "Zgłaszający",
     "Decided": "Rozstrzygnięto",
-    "Page :page of :pages": "Strona :page z :pages"
+    "Page :page of :pages": "Strona :page z :pages",
+    "Received from the source system — read only.": "Otrzymane z systemu źródłowego — tylko do odczytu.",
+    "The :attribute must be an object of simple values.": "Pole :attribute musi być obiektem prostych wartości.",
+    "The :attribute may not have more than :max keys.": "Pole :attribute nie może mieć więcej niż :max kluczy.",
+    "The :attribute may not be nested more than two levels.": "Pole :attribute nie może być zagnieżdżone głębiej niż na dwa poziomy.",
+    "The :attribute may not be larger than 16 KB.": "Pole :attribute nie może być większe niż 16 KB."
 }

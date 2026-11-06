@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Api\V1\Erp;
 
+use App\Rules\ErpExtraData;
+use App\Support\CurrencyRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +14,11 @@ use Illuminate\Validation\Rule;
  * real records: those are checked per row by WorkOrderImportService so one bad
  * reference produces a structured per-row error instead of failing the whole
  * batch with a 422. This request only rejects malformed payloads outright.
+ *
+ * The source fields (external_system, external_ref, customer_name,
+ * price_currency, extra_data) are optional; an absent or null field leaves the
+ * stored value untouched on update. price_currency must be a code from
+ * CurrencyRegistry, and extra_data is limited by ErpExtraData.
  *
  * Authorization is handled upstream by the auth.apikey + scope middleware.
  */
@@ -42,7 +49,29 @@ class ImportWorkOrdersRequest extends FormRequest
             // Shown to the manager when the row becomes a change request because the
             // order is already in production.
             'orders.*.change_reason' => ['nullable', 'string', 'max:1000'],
+            'orders.*.external_system' => ['nullable', 'string', 'max:50'],
+            'orders.*.external_ref' => ['nullable', 'string', 'max:100'],
+            'orders.*.customer_name' => ['nullable', 'string', 'max:255'],
+            'orders.*.price_currency' => ['nullable', 'string', 'size:3', Rule::in(CurrencyRegistry::codes())],
+            'orders.*.extra_data' => ['nullable', 'array', new ErpExtraData],
         ];
+    }
+
+    /** Accept "eur" / " EUR " the same way the currency setting does. */
+    protected function prepareForValidation(): void
+    {
+        $orders = $this->input('orders');
+        if (! is_array($orders)) {
+            return; // the `array` rule reports it
+        }
+
+        foreach ($orders as $i => $order) {
+            if (is_array($order) && isset($order['price_currency']) && is_string($order['price_currency'])) {
+                $orders[$i]['price_currency'] = CurrencyRegistry::normalise($order['price_currency']);
+            }
+        }
+
+        $this->merge(['orders' => $orders]);
     }
 
     public function strategy(): string
