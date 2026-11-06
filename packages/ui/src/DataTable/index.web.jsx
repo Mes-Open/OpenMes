@@ -497,6 +497,9 @@ export function DataTable({
     filtersLabel,
     clearFiltersLabel,
     emptyLabel = '',
+    /** Shown instead of `emptyLabel` when there are rows but the search or the
+     *  column filters hide all of them — "nothing here yet" would be a lie. */
+    noMatchLabel,
     rangeLabel = (start, end, total) => (total === 0 ? '0' : `${start}–${end} / ${total}`),
     pageSize = 6,
     /** Caps the scroll body (sticky header). Default: uncapped — the table grows
@@ -1161,7 +1164,7 @@ export function DataTable({
                                         colSpan={bodyColSpan}
                                         className="p-[34px] text-center text-[13.5px] text-om-faint"
                                     >
-                                        {emptyLabel}
+                                        {(data?.length ?? 0) > 0 && noMatchLabel ? noMatchLabel : emptyLabel}
                                     </td>
                                 </tr>
                             )}

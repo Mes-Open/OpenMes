@@ -288,7 +288,7 @@ export const ADMIN_GROUPS = [
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
-        match: ['/settings', '/admin/custom-fields'],
+        match: ['/settings', '/admin/custom-fields', '/admin/unit-aliases'],
         children: [
             {
                 key: 'systemSettingsGroup',
@@ -308,6 +308,7 @@ export const ADMIN_GROUPS = [
             },
             { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
             { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
+            { label: 'Units of Measure', href: '/admin/unit-aliases', match: ['/admin/unit-aliases'], lucide: 'ruler' },
             { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
             { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
             { label: 'Change Password', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },
