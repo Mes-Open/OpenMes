@@ -9,11 +9,11 @@ class EventLogService
     /**
      * Log an event.
      *
-     * @param string $eventType Event type (e.g., 'WORK_ORDER_CREATED')
-     * @param string|null $entityType Entity class name
-     * @param int|null $entityId Entity ID
-     * @param array $payload Additional data
-     * @param int|null $userId User ID (defaults to current user)
+     * @param  string  $eventType  Event type (e.g., 'WORK_ORDER_CREATED')
+     * @param  string|null  $entityType  Entity class name
+     * @param  int|null  $entityId  Entity ID
+     * @param  array  $payload  Additional data
+     * @param  int|null  $userId  User ID (defaults to current user)
      */
     public function log(
         string $eventType,
