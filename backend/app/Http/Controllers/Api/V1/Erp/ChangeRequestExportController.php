@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ErpChangeRequestExportRequest;
 use App\Http\Resources\Erp\ErpChangeRequestPresenter;
@@ -23,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 class ChangeRequestExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
 
     public function index(ErpChangeRequestExportRequest $request): JsonResponse
     {
@@ -30,9 +32,7 @@ class ChangeRequestExportController extends Controller
             ->with('workOrder:id,order_no')
             ->orderBy('id');
 
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);
