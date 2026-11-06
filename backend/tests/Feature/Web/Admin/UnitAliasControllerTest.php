@@ -212,4 +212,39 @@ class UnitAliasControllerTest extends TestCase
 
         $this->assertDatabaseHas('unit_aliases', ['alias' => 'Fass', 'tenant_id' => $tenantA->id]);
     }
+
+    public function test_an_admin_without_a_tenant_sees_each_default_alias_once(): void
+    {
+        // A tenant always exists (the "Default" one from the multi-tenancy
+        // migration), so the defaults are stored for the install and again for
+        // that tenant. An admin without a tenant must still see one copy — the
+        // install-wide one their imports resolve through.
+        Tenant::create(['name' => 'Plant B']);
+        $this->seed(UnitAliasSeeder::class);
+
+        $rows = collect($this->actingAs($this->admin)
+            ->getJson('/api/collections/unit_aliases')
+            ->assertOk()
+            ->json('rows'));
+
+        $this->assertSame(1, $rows->where('alias', 'units')->count());
+        $this->assertSame($rows->count(), $rows->pluck('alias')->unique()->count());
+        $this->assertSame(UnitAlias::withoutGlobalScopes()->whereNull('tenant_id')->count(), $rows->count());
+    }
+
+    public function test_a_tenant_admin_sees_only_their_own_aliases(): void
+    {
+        $tenant = Tenant::create(['name' => 'Plant B']);
+        $this->seed(UnitAliasSeeder::class);
+        $admin = User::factory()->create(['tenant_id' => $tenant->id]);
+        $admin->assignRole('Admin');
+
+        $rows = collect($this->actingAs($admin)
+            ->getJson('/api/collections/unit_aliases')
+            ->assertOk()
+            ->json('rows'));
+
+        $this->assertSame(1, $rows->where('alias', 'units')->count());
+        $this->assertSame(UnitAlias::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count(), $rows->count());
+    }
 }
