@@ -76,8 +76,9 @@ export const SUPERVISOR_GROUPS = [
         label: 'Production',
         lucide: 'factory',
         href: '/supervisor/issues',
-        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover'],
+        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover', '/supervisor/work-order-change-requests'],
         children: [
+            { label: 'Change requests', href: '/supervisor/work-order-change-requests', match: ['/supervisor/work-order-change-requests'], lucide: 'git-pull-request' },
             { label: 'Issues', href: '/supervisor/issues', match: ['/supervisor/issues'], lucide: 'triangle-alert', module: 'quality' },
             { label: 'Quality Tasks', href: '/supervisor/quality-tasks', match: ['/supervisor/quality-tasks'], lucide: 'clipboard-check', module: 'quality' },
             { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'], lucide: 'arrow-left-right' },

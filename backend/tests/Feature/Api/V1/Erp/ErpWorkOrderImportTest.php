@@ -3,11 +3,15 @@
 namespace Tests\Feature\Api\V1\Erp;
 
 use App\Enums\ApiScope;
+use App\Enums\ChangeRequestStatus;
+use App\Enums\ChangeRequestType;
 use App\Models\ApiKey;
 use App\Models\Line;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\Tenant;
+use App\Models\WorkOrder;
+use App\Models\WorkOrderChangeRequest;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -141,5 +145,274 @@ class ErpWorkOrderImportTest extends TestCase
         $this->withHeader('X-Api-Key', $plaintext)
             ->postJson('/api/v1/erp/work-orders/import', ['orders' => [$this->validOrder()]])
             ->assertStatus(401);
+    }
+
+    // ── P0-B: results, and update_or_create on orders in production ─────────
+
+    private function importAs(string $key, array $orders)
+    {
+        return $this->withHeader('X-Api-Key', $key)->postJson('/api/v1/erp/work-orders/import', ['orders' => $orders]);
+    }
+
+    private function existingOrder(string $status, array $overrides = []): WorkOrder
+    {
+        return WorkOrder::factory()->create(array_merge([
+            'order_no' => 'ERP-1001',
+            'line_id' => Line::where('code', 'L1')->value('id'),
+            'product_type_id' => ProductType::where('code', 'P1')->value('id'),
+            'planned_qty' => 100,
+            'priority' => 0,
+            'due_date' => null,
+            'description' => null,
+            'status' => $status,
+            'tenant_id' => $this->tenantId,
+        ], $overrides));
+    }
+
+    public function test_report_lists_per_row_results_for_create_update_and_skip(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $pending = $this->existingOrder(WorkOrder::STATUS_PENDING, ['order_no' => 'ERP-OLD']);
+        $done = $this->existingOrder(WorkOrder::STATUS_DONE, ['order_no' => 'ERP-DONE']);
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['order_no' => 'ERP-NEW']),
+            $this->validOrder(['order_no' => 'ERP-OLD', 'planned_qty' => 120]),
+            $this->validOrder(['order_no' => 'ERP-DONE', 'planned_qty' => 120]),
+        ])->assertOk();
+
+        // The old counters are untouched.
+        $this->assertSame(1, $response->json('data.imported'));
+        $this->assertSame(1, $response->json('data.updated'));
+        $this->assertSame(1, $response->json('data.skipped'));
+        $this->assertSame(0, $response->json('data.change_requested'));
+
+        $created = WorkOrder::where('order_no', 'ERP-NEW')->firstOrFail();
+        $this->assertSame([
+            ['row' => 1, 'order_no' => 'ERP-NEW', 'id' => $created->id, 'action' => 'created'],
+            ['row' => 2, 'order_no' => 'ERP-OLD', 'id' => $pending->id, 'action' => 'updated'],
+            ['row' => 3, 'order_no' => 'ERP-DONE', 'id' => $done->id, 'action' => 'skipped'],
+        ], $response->json('data.results'));
+    }
+
+    public function test_error_rows_are_reported_in_errors_not_in_results(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['order_no' => 'ERP-A', 'product_type_code' => 'NOPE']),
+        ])->assertStatus(207);
+
+        $this->assertSame([], $response->json('data.results'));
+        $this->assertCount(1, $response->json('data.errors'));
+    }
+
+    public function test_update_of_a_pending_order_applies_at_once(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $order = $this->existingOrder(WorkOrder::STATUS_PENDING);
+
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 150])])
+            ->assertOk()
+            ->assertJsonPath('data.results.0.action', 'updated');
+
+        $this->assertEquals(150, (float) $order->fresh()->planned_qty);
+        $this->assertSame(0, WorkOrderChangeRequest::count());
+    }
+
+    public function test_update_of_an_in_progress_order_raises_a_change_request_and_leaves_the_order_alone(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $order = $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['planned_qty' => 150, 'due_date' => '2026-12-24', 'change_reason' => 'Customer upsized']),
+        ])->assertOk();
+
+        $this->assertSame(1, $response->json('data.change_requested'));
+        $this->assertSame(0, $response->json('data.updated'));
+        $this->assertSame('change_requested', $response->json('data.results.0.action'));
+        $this->assertSame($order->id, $response->json('data.results.0.id'));
+
+        $fresh = $order->fresh();
+        $this->assertEquals(100, (float) $fresh->planned_qty);
+        $this->assertNull($fresh->due_date);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $fresh->status);
+
+        $cr = WorkOrderChangeRequest::findOrFail($response->json('data.results.0.change_request_id'));
+        $this->assertSame(ChangeRequestStatus::Submitted, $cr->status);
+        $this->assertSame(ChangeRequestType::Change, $cr->type);
+        $this->assertEquals(['planned_qty' => 150, 'due_date' => '2026-12-24'], $cr->proposed);
+        $this->assertNull($cr->requested_by_id);
+        $this->assertSame(ApiKey::where('name', 'ERP test key')->value('id'), $cr->requested_by_api_key_id);
+        $this->assertSame('Customer upsized', $cr->reason);
+        $this->assertNotNull($cr->submitted_at);
+    }
+
+    public function test_a_second_update_revises_the_same_open_request(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $first = $this->importAs($key, [$this->validOrder(['planned_qty' => 150])])->json('data.results.0.change_request_id');
+        $second = $this->importAs($key, [$this->validOrder(['planned_qty' => 180])])->json('data.results.0.change_request_id');
+
+        $this->assertSame($first, $second);
+        $this->assertSame(1, WorkOrderChangeRequest::count());
+        $this->assertEquals(['planned_qty' => 180], WorkOrderChangeRequest::find($first)->proposed);
+    }
+
+    public function test_revising_an_approved_request_sends_it_back_for_review(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $id = $this->importAs($key, [$this->validOrder(['planned_qty' => 150])])->json('data.results.0.change_request_id');
+        WorkOrderChangeRequest::whereKey($id)->update([
+            'status' => ChangeRequestStatus::Approved->value,
+            'approved_at' => now(),
+        ]);
+
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 160])])
+            ->assertJsonPath('data.results.0.change_request_id', $id);
+
+        $cr = WorkOrderChangeRequest::find($id);
+        $this->assertSame(ChangeRequestStatus::Submitted, $cr->status);
+        $this->assertNull($cr->approved_at);
+        $this->assertNull($cr->approved_by_id);
+    }
+
+    public function test_repeating_the_same_update_keeps_the_managers_approval(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $id = $this->importAs($key, [$this->validOrder(['planned_qty' => 150, 'due_date' => '2026-12-24'])])
+            ->json('data.results.0.change_request_id');
+        $approvedAt = now()->subMinute()->startOfSecond();
+        WorkOrderChangeRequest::whereKey($id)->update([
+            'status' => ChangeRequestStatus::Approved->value,
+            'approved_at' => $approvedAt,
+        ]);
+        $updatedAt = WorkOrderChangeRequest::find($id)->updated_at;
+
+        // A periodic ERP sync re-sends the very same order: nothing new to decide.
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 150, 'due_date' => '2026-12-24'])])
+            ->assertOk()
+            ->assertJsonPath('data.results.0.action', 'change_requested')
+            ->assertJsonPath('data.results.0.change_request_id', $id);
+
+        $cr = WorkOrderChangeRequest::find($id);
+        $this->assertSame(ChangeRequestStatus::Approved, $cr->status);
+        $this->assertEquals($approvedAt, $cr->approved_at);
+        $this->assertEquals($updatedAt, $cr->updated_at);
+        $this->assertSame(1, WorkOrderChangeRequest::count());
+    }
+
+    public function test_a_field_that_cannot_be_changed_in_production_is_a_row_error(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        ProductType::factory()->create(['code' => 'P2']);
+        $order = $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['product_type_code' => 'P2', 'planned_qty' => 150]),
+        ])->assertStatus(207);
+
+        $this->assertSame('product_type_code', $response->json('data.errors.0.field'));
+        $this->assertSame([], $response->json('data.results'));
+        $this->assertSame(0, WorkOrderChangeRequest::count());
+        $this->assertEquals(100, (float) $order->fresh()->planned_qty);
+    }
+
+    public function test_a_changed_unit_price_on_a_running_order_is_a_row_error(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS, ['unit_price' => 10]);
+
+        $this->importAs($key, [$this->validOrder(['unit_price' => 12])])
+            ->assertStatus(207)
+            ->assertJsonPath('data.errors.0.field', 'unit_price');
+    }
+
+    public function test_an_identical_payload_is_skipped_and_withdraws_the_open_erp_request(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $id = $this->importAs($key, [$this->validOrder(['planned_qty' => 150])])->json('data.results.0.change_request_id');
+
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 100])])
+            ->assertOk()
+            ->assertJsonPath('data.results.0.action', 'skipped')
+            ->assertJsonPath('data.results.0.change_request_id', $id);
+
+        $this->assertSame(ChangeRequestStatus::Cancelled, WorkOrderChangeRequest::find($id)->status);
+    }
+
+    public function test_an_absent_optional_field_is_not_a_difference(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS, ['priority' => 7, 'description' => 'Keep me']);
+
+        // No priority and no description in the row: no opinion, so nothing to do.
+        $this->importAs($key, [$this->validOrder(['planned_qty' => 100])])
+            ->assertOk()
+            ->assertJsonPath('data.results.0.action', 'skipped');
+
+        $this->assertSame(0, WorkOrderChangeRequest::count());
+    }
+
+    public function test_finished_and_rejected_orders_are_skipped_unchanged(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+
+        foreach ([WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED, WorkOrder::STATUS_REJECTED] as $i => $status) {
+            $this->existingOrder($status, ['order_no' => "ERP-T{$i}"]);
+        }
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['order_no' => 'ERP-T0', 'planned_qty' => 999]),
+            $this->validOrder(['order_no' => 'ERP-T1', 'planned_qty' => 999]),
+            $this->validOrder(['order_no' => 'ERP-T2', 'planned_qty' => 999]),
+        ])->assertOk();
+
+        $this->assertSame(3, $response->json('data.skipped'));
+        $this->assertSame(['skipped', 'skipped', 'skipped'], array_column($response->json('data.results'), 'action'));
+        $this->assertSame(0, WorkOrder::where('planned_qty', 999)->count());
+        $this->assertSame(0, WorkOrderChangeRequest::count());
+    }
+
+    public function test_paused_and_change_hold_orders_raise_change_requests_too(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $this->existingOrder(WorkOrder::STATUS_PAUSED, ['order_no' => 'ERP-P']);
+        $this->existingOrder(WorkOrder::STATUS_CHANGE_HOLD, ['order_no' => 'ERP-H']);
+        $this->existingOrder(WorkOrder::STATUS_BLOCKED, ['order_no' => 'ERP-B']);
+
+        $response = $this->importAs($key, [
+            $this->validOrder(['order_no' => 'ERP-P', 'planned_qty' => 150]),
+            $this->validOrder(['order_no' => 'ERP-H', 'planned_qty' => 150]),
+            $this->validOrder(['order_no' => 'ERP-B', 'planned_qty' => 150]),
+        ])->assertOk();
+
+        $this->assertSame(3, $response->json('data.change_requested'));
+        $this->assertSame(3, WorkOrderChangeRequest::count());
+        $this->assertSame(0, WorkOrder::where('planned_qty', 150)->count());
+    }
+
+    public function test_a_line_change_on_a_running_order_is_proposed_by_line_code(): void
+    {
+        $key = $this->keyWith([ApiScope::OrdersImport]);
+        $line2 = Line::factory()->create(['code' => 'L2']);
+        $this->existingOrder(WorkOrder::STATUS_IN_PROGRESS);
+
+        $id = $this->importAs($key, [$this->validOrder(['line_code' => 'L2', 'planned_qty' => 100])])
+            ->assertOk()
+            ->json('data.results.0.change_request_id');
+
+        $cr = WorkOrderChangeRequest::find($id);
+        $this->assertEquals(['line_id' => $line2->id], $cr->proposed);
+        $this->assertSame('ERP change: line_code', $cr->title);
     }
 }

@@ -661,6 +661,11 @@ function ChangeRequests({ items = [] }) {
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span className="font-mono text-[12px] text-om-muted">{cr.code}</span>
                                     <span className="truncate text-[12.5px] font-medium text-om-ink">{cr.title}</span>
+                                    {cr.type === 'CANCEL' && (
+                                        <span className="rounded bg-om-blocked-bg px-2 py-0.5 text-[11.5px] font-medium text-om-blocked">
+                                            {cr.type_label}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {cr.resulting_snapshot_version && (
@@ -674,7 +679,7 @@ function ChangeRequests({ items = [] }) {
                                 </div>
                             </div>
                             <p className="mt-1 text-[12px] text-om-faint">
-                                {cr.effective_from_label}
+                                {cr.type === 'CANCEL' ? __('Cancellation') : cr.effective_from_label}
                                 {cr.requested_by ? ` · ${cr.requested_by}` : ''}
                             </p>
                         </Link>

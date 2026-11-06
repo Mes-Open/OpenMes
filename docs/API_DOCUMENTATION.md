@@ -30,6 +30,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [API Keys and Scopes](#api-keys-and-scopes)
   - [Key Introspection](#key-introspection)
   - [Work Orders (ERP)](#work-orders-erp)
+  - [Change Requests (ERP)](#change-requests-erp)
   - [Master Data](#master-data)
   - [Master Data (read)](#master-data-read)
   - [Warehouse Stock](#warehouse-stock)
@@ -1120,8 +1121,8 @@ Content-Type: application/json
 
 | Scope | Grants |
 |---|---|
-| `erp:orders:import` | Import work orders |
-| `erp:production:read` | Read production completions |
+| `erp:orders:import` | Import and cancel work orders |
+| `erp:production:read` | Read production completions, single work orders and the change-request feed |
 | `erp:quality:read` | Read quality / non-conformance reports |
 | `erp:masterdata:write` | Import products, materials, material lots and recipes |
 | `erp:masterdata:read` | Read lines, warehouses and product types (codes, names, activity) |
@@ -1272,8 +1273,10 @@ in `kg` is refused rather than stored as 340 kg. An item whose own unit is an al
 
 ```http
 POST /api/v1/erp/work-orders/import          # scope: erp:orders:import
+POST /api/v1/erp/work-orders/{id}/cancel     # scope: erp:orders:import
 GET  /api/v1/erp/work-orders/{id}            # scope: erp:production:read
 GET  /api/v1/erp/production/completions      # scope: erp:production:read
+GET  /api/v1/erp/change-requests             # scope: erp:production:read
 GET  /api/v1/erp/quality/issues              # scope: erp:quality:read
 ```
 
@@ -1315,6 +1318,157 @@ including `all` inside a list — is a `422` on `status.N`.
 curl -H "X-Api-Key: omk_…" \
   "https://mes.example.com/api/v1/erp/production/completions?status=all&since=2026-11-01T00:00:00Z&limit=500"
 ```
+
+Optional per order: `customer_order_no`, `unit_price`, `priority`, `due_date`,
+`description`, and `change_reason` — the text a manager reads when the row turns into
+a change request (see below).
+
+#### What an update and a cancel do, by order status
+
+The ERP owns an order until production starts. After that it can only **ask**: the
+update or cancellation becomes a change request that a manager (a user with the
+*approve work order changes* permission) approves or rejects in **Production →
+Change requests**. The ERP reads the decision back from the API.
+
+| Order status | `update_or_create` import | `POST …/cancel` |
+|---|---|---|
+| `PENDING`, `ACCEPTED` | updated at once → `updated` | cancelled at once → `200`, `cancelled` |
+| `IN_PROGRESS`, `PAUSED`, `BLOCKED`, `CHANGE_HOLD` | change request with the fields that differ → `change_requested` (no difference → `skipped`) | change request of type `CANCEL` → `202`, `change_requested` |
+| `DONE`, `CANCELLED`, `REJECTED` | `skipped` | `409` with the current `status` |
+
+For an order in production:
+
+- Only `line_code`, `planned_qty`, `due_date` and `description` can be changed through
+  a request. A different `product_type_code`, `priority`, `customer_order_no` or
+  `unit_price` makes the **row** an error (`field` names it); nothing is requested.
+- Optional fields are compared only when the row carries them — an absent key means
+  "no opinion", not "clear it".
+- While the ERP's request for that order is still open (submitted or approved, not
+  yet applied), a new import **revises the same request** instead of opening a
+  second one. A revised request that was already approved goes back to *Submitted*:
+  the manager approved different values. Re-sending the **same** proposal (a periodic
+  sync) leaves the request and its approval untouched. A row identical to the order
+  withdraws the open request (`CANCELLED`) and reports `skipped`.
+- Repeating a cancel while the ERP's cancellation request is open returns the same
+  request.
+- Applying a change to a running order still requires the manager to pause it first
+  (existing change-control rule). A cancellation cannot be applied while the order is
+  in `CHANGE_HOLD`; the hold has to be released first, as in the UI.
+
+`skip_existing` and `error_on_duplicate` are unchanged. The CSV importer and
+Admin → Import are not ERP calls and keep updating orders directly.
+
+#### Import report
+
+Next to the counters every import returns `results`, one entry per row that was not
+an error (error rows are in `errors`):
+
+```json
+{
+    "data": {
+        "imported": 1,
+        "updated": 1,
+        "skipped": 0,
+        "change_requested": 1,
+        "errors": [],
+        "results": [
+            { "row": 1, "order_no": "WO-2026-001", "id": 812, "action": "created" },
+            { "row": 2, "order_no": "WO-2026-002", "id": 790, "action": "updated" },
+            { "row": 3, "order_no": "WO-2026-003", "id": 774, "action": "change_requested", "change_request_id": 55 }
+        ]
+    }
+}
+```
+
+`action`: `created` | `updated` | `skipped` | `change_requested`. `change_request_id`
+is present whenever the row created, revised or withdrew a request.
+
+#### Reading one order back
+
+```http
+GET /api/v1/erp/work-orders/812
+GET /api/v1/erp/work-orders/WO%2F2026%2F001?by=order_no
+```
+
+`by` is `id` (default) or `order_no` — the order number the ERP knows. URL-encode
+`/`, `?` and `#` in the number (`/` → `%2F`). An unknown number, a non-numeric id with
+`by=id`, or an order of another tenant is `404`; an unknown `by` is `422`. The answer
+includes `id` and `change_requests` — every request raised against the order, in the
+shape described under [Change Requests (ERP)](#change-requests-erp).
+
+#### Cancelling an order
+
+```http
+POST /api/v1/erp/work-orders/WO%2F2026%2F001/cancel?by=order_no
+Content-Type: application/json
+
+{ "reason": "Customer withdrew the order" }
+```
+
+`reason` is optional (max 1000 characters); for a pending order it is kept on the
+order, for a running one it is the change request's reason.
+
+```json
+// 200 — not started, cancelled at once
+{ "data": { "result": "cancelled", "work_order": { "id": 812, "order_no": "WO/2026/001", "status": "CANCELLED" } } }
+
+// 202 — in production, waiting for a manager
+{ "data": { "result": "change_requested", "change_request_id": 56,
+            "change_request": { "id": 56, "type": "CANCEL", "status": "SUBMITTED", "…": "…" },
+            "work_order": { "id": 812, "order_no": "WO/2026/001", "status": "IN_PROGRESS" } } }
+
+// 409 — already finished
+{ "message": "Work order is already DONE.", "status": "DONE", "work_order": { "…": "…" } }
+```
+
+### Change Requests (ERP)
+
+```http
+GET /api/v1/erp/change-requests?since=2026-11-01T00:00:00Z   # scope: erp:production:read
+```
+
+How the ERP learns what was decided. Lists every change request of the key's tenant
+— the ones the ERP raised and the ones raised in OpenMES — cursor-paginated like the
+other exports (`limit` 1–500, `cursor`, `meta.next_cursor`). Filters: `since`
+(on `updated_at`, so every decision moves a request back into the window), `status`
+(`DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`, `APPLIED`, `CANCELLED`) and `type`
+(`CHANGE`, `CANCEL`).
+
+```json
+{
+    "data": [
+        {
+            "id": 55,
+            "code": "CR/2026/0012",
+            "type": "CHANGE",
+            "status": "REJECTED",
+            "work_order_id": 774,
+            "order_no": "WO-2026-003",
+            "title": "ERP change: planned_qty",
+            "proposed": { "planned_qty": 150 },
+            "previous_values": null,
+            "reason": "Customer upsized",
+            "rejection_reason": "Material shortage",
+            "origin": "api_key",
+            "submitted_at": "2026-11-06T08:00:00+00:00",
+            "approved_at": null,
+            "rejected_at": "2026-11-06T09:12:00+00:00",
+            "applied_at": null,
+            "decided_at": "2026-11-06T09:12:00+00:00",
+            "created_at": "2026-11-06T08:00:00+00:00",
+            "updated_at": "2026-11-06T09:12:00+00:00"
+        }
+    ],
+    "meta": { "next_cursor": null, "has_more": false, "count": 1, "per_page": 100 }
+}
+```
+
+- `proposed` / `previous_values` use ERP field names (`line_code`, not an internal line
+  id). `previous_values` is filled when the request is applied; for a `CANCEL` it holds
+  the order's `status` before cancellation.
+- `decided_at` is when the request was rejected or approved (for a withdrawn request,
+  when it was withdrawn); `applied_at` is when the change reached the order.
+- `origin` is `api_key` or `user`; no user names or e-mail addresses are exposed.
 
 ### Master Data
 
