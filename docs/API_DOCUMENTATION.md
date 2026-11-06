@@ -1291,11 +1291,74 @@ GET  /api/v1/erp/quality/issues              # scope: erp:quality:read
             "planned_qty": 500,
             "due_date": "2026-09-01",
             "customer_order_no": "PO-77",
-            "priority": 10
+            "priority": 10,
+            "unit_price": 12.5,
+            "price_currency": "EUR",
+            "external_system": "pantheon",
+            "external_ref": "SO-4711/3",
+            "customer_name": "Acme GmbH",
+            "extra_data": { "color": "red", "sizes": ["S", "M"] }
         }
     ]
 }
 ```
+
+Fields per order (only the first four are required):
+
+| Field | Rules | Notes |
+|-------|-------|-------|
+| `order_no` | string, ≤ 100 | Matches an existing order on re-import |
+| `line_code` | string, ≤ 100 | Must resolve to a line (per-row error otherwise) |
+| `product_type_code` | string, ≤ 100 | Must resolve to a product with an active process template |
+| `planned_qty` | number, 0.01 – 99 999 999 | |
+| `customer_order_no` | string, ≤ 100 | |
+| `unit_price` | number, ≥ 0 | |
+| `price_currency` | ISO 4217 code from the supported list (`PLN`, `EUR`, `USD`, `GBP`, `CHF`, `CZK`, …) | Case-insensitive on input, stored upper-case. Omitted = the installation currency |
+| `external_system` | string, ≤ 50 | The system the order comes from, e.g. `pantheon`, `sap` |
+| `external_ref` | string, ≤ 100 | The order's id in that system, e.g. a sales order line id |
+| `customer_name` | string, ≤ 255 | Free text; not matched to OpenMES customer records |
+| `extra_data` | object, ≤ 100 keys, ≤ 16 KB encoded | Each value a string, number, boolean or null, or a list of those — no deeper nesting |
+| `priority` | integer, 0 – 100 | |
+| `due_date` | date | |
+| `description` | string, ≤ 2000 | |
+
+On re-import (`update_or_create`) a field that is **absent or `null` keeps its stored
+value**. `extra_data` is merged key by key over what is stored, so keys set elsewhere
+survive. A wrong currency, an `extra_data` that is a list, nested deeper than a list of
+values, or larger than 16 KB, or an over-long string is rejected for the whole request
+with `422` (`errors["orders.0.price_currency"]`, …). Orders that are already `DONE` or
+`CANCELLED` are skipped, as before. `(external_system, external_ref)` is indexed but not
+unique: orders are still matched by `order_no`.
+
+`GET /api/v1/erp/work-orders/{id}` and each item of `GET /api/v1/erp/production/completions`
+return the order with its source:
+
+```json
+{
+    "data": {
+        "order_no": "WO-2026-001",
+        "customer_order_no": "PO-77",
+        "status": "DONE",
+        "planned_qty": 500,
+        "produced_qty": 500,
+        "unit_price": 12.5,
+        "price_currency": "EUR",
+        "external_system": "pantheon",
+        "external_ref": "SO-4711/3",
+        "customer_name": "Acme GmbH",
+        "extra_data": { "color": "red", "sizes": ["S", "M"] },
+        "counting_source": "operator",
+        "line_code": "L1",
+        "product_type_code": "BREAD-01",
+        "completed_at": "2026-08-03T18:37:13+00:00",
+        "updated_at": "2026-08-03T18:37:13+00:00"
+    }
+}
+```
+
+`price_currency` is the currency `unit_price` is in: the one the ERP sent, else the
+installation currency (*Settings → System*); `null` when the order has no price. The
+source fields and `extra_data` are `null` for orders that did not come with them.
 
 The export endpoints are cursor-paginated — follow `meta.next_cursor` until it is
 null — and accept `?since=<ISO timestamp>` for incremental polling.
@@ -1728,6 +1791,8 @@ GET /api/v1/erp/stock-documents?unsynced_only=1                   # scope: erp:s
             "warehouse_code": "RAW-1",
             "warehouse_erp_code": "0100",
             "work_order_no": "WO-2026-001",
+            "work_order_external_system": "pantheon",
+            "work_order_external_ref": "SO-4711/3",
             "erp_reference": null,
             "erp_synced_at": null,
             "posted_at": "2026-08-03T18:37:13+00:00",
@@ -1751,7 +1816,10 @@ GET /api/v1/erp/stock-documents?unsynced_only=1                   # scope: erp:s
 `direction` is `in` or `out` — line quantities are always positive, the type carries
 the sign. Defaults to `status=posted`, because a draft is not a real stock movement
 yet; add `&unsynced_only=1` for only what the ERP has not booked, and `?since=` /
-`?type=` / `?warehouse=` to narrow further.
+`?type=` / `?warehouse=` to narrow further. `work_order_external_system` /
+`work_order_external_ref` repeat the source reference the work order was imported
+with, so the ERP can link the document to its own sales order; both are `null` when
+the document has no work order or the order came without one.
 
 #### Acknowledge
 

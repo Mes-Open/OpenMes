@@ -415,4 +415,158 @@ class ErpWorkOrderImportTest extends TestCase
         $this->assertEquals(['line_id' => $line2->id], $cr->proposed);
         $this->assertSame('ERP change: line_code', $cr->title);
     }
+
+    // ── External source fields (system, reference, customer, currency, extra data) ──
+
+    private function import(array $orders): \Illuminate\Testing\TestResponse
+    {
+        return $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::OrdersImport]))
+            ->postJson('/api/v1/erp/work-orders/import', ['orders' => $orders]);
+    }
+
+    public function test_import_stores_external_source_fields_on_create(): void
+    {
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-SRC-1',
+            'unit_price' => 12.5,
+            'price_currency' => ' eur ',
+            'external_system' => 'pantheon',
+            'external_ref' => 'SO-4711/3',
+            'customer_name' => 'Acme GmbH',
+            'extra_data' => ['color' => 'red', 'sizes' => ['S', 'M'], 'rush' => true, 'note' => null],
+        ])])->assertOk()->assertJsonPath('data.imported', 1);
+
+        $order = WorkOrder::where('order_no', 'ERP-SRC-1')->firstOrFail();
+        $this->assertSame('pantheon', $order->external_system);
+        $this->assertSame('SO-4711/3', $order->external_ref);
+        $this->assertSame('Acme GmbH', $order->customer_name);
+        $this->assertSame('EUR', $order->price_currency);
+        $this->assertSame(['color' => 'red', 'sizes' => ['S', 'M'], 'rush' => true, 'note' => null], $order->extra_data);
+    }
+
+    public function test_import_updates_external_source_fields_and_merges_extra_data(): void
+    {
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-SRC-2',
+            'external_system' => 'pantheon',
+            'external_ref' => 'SO-1/1',
+            'customer_name' => 'Old Name',
+            'extra_data' => ['a' => 1, 'b' => 2],
+        ])])->assertOk();
+
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-SRC-2',
+            'external_ref' => 'SO-1/2',
+            'customer_name' => 'New Name',
+            'price_currency' => 'USD',
+            'extra_data' => ['b' => 3, 'c' => [1, 2]],
+        ])])->assertOk()->assertJsonPath('data.updated', 1);
+
+        $order = WorkOrder::where('order_no', 'ERP-SRC-2')->firstOrFail();
+        $this->assertSame('pantheon', $order->external_system, 'an absent field is left as stored');
+        $this->assertSame('SO-1/2', $order->external_ref);
+        $this->assertSame('New Name', $order->customer_name);
+        $this->assertSame('USD', $order->price_currency);
+        $this->assertSame(['a' => 1, 'b' => 3, 'c' => [1, 2]], $order->extra_data);
+    }
+
+    public function test_import_without_new_fields_leaves_them_untouched(): void
+    {
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-SRC-3',
+            'external_system' => 'sap',
+            'external_ref' => 'VBAP-10',
+            'extra_data' => ['k' => 'v'],
+        ])])->assertOk();
+
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-SRC-3',
+            'planned_qty' => 300,
+            'external_ref' => null,
+        ])])->assertOk()->assertJsonPath('data.updated', 1);
+
+        $order = WorkOrder::where('order_no', 'ERP-SRC-3')->firstOrFail();
+        $this->assertEquals(300, (float) $order->planned_qty);
+        $this->assertSame('sap', $order->external_system);
+        $this->assertSame('VBAP-10', $order->external_ref, 'null leaves the stored value alone');
+        $this->assertNull($order->price_currency);
+        $this->assertNull($order->customer_name);
+        $this->assertSame(['k' => 'v'], $order->extra_data);
+    }
+
+    public function test_import_without_source_fields_creates_order_as_before(): void
+    {
+        $this->import([$this->validOrder(['order_no' => 'ERP-PLAIN'])])->assertOk();
+
+        $order = WorkOrder::where('order_no', 'ERP-PLAIN')->firstOrFail();
+        $this->assertNull($order->external_system);
+        $this->assertNull($order->external_ref);
+        $this->assertNull($order->customer_name);
+        $this->assertNull($order->price_currency);
+        $this->assertNull($order->extra_data);
+    }
+
+    public function test_import_accepts_an_empty_extra_data_object_and_currency_without_price(): void
+    {
+        $this->import([$this->validOrder([
+            'order_no' => 'ERP-EDGE',
+            'price_currency' => 'PLN',
+            'extra_data' => new \stdClass,
+        ])])->assertOk()->assertJsonPath('data.imported', 1);
+
+        $this->assertSame('PLN', WorkOrder::where('order_no', 'ERP-EDGE')->value('price_currency'));
+    }
+
+    /** @return array<string, array{string, mixed}> */
+    public static function invalidSourceFields(): array
+    {
+        return [
+            'unknown currency' => ['price_currency', 'XYZ'],
+            'currency too long' => ['price_currency', 'EURO'],
+            'extra_data is a list' => ['extra_data', [1, 2]],
+            'extra_data is a string' => ['extra_data', 'red'],
+            'extra_data nested object' => ['extra_data', ['a' => ['b' => 1]]],
+            'extra_data list of lists' => ['extra_data', ['a' => [[1]]]],
+            'extra_data over 16 KB' => ['extra_data', ['blob' => str_repeat('x', 17000)]],
+            'extra_data too many keys' => ['extra_data', array_combine(
+                array_map(fn ($i) => "k{$i}", range(1, 101)),
+                array_fill(0, 101, 1),
+            )],
+            'external_system too long' => ['external_system', str_repeat('s', 51)],
+            'external_ref too long' => ['external_ref', str_repeat('r', 101)],
+            'customer_name too long' => ['customer_name', str_repeat('c', 256)],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidSourceFields')]
+    public function test_import_rejects_invalid_source_fields_with_422(string $field, mixed $value): void
+    {
+        $this->import([$this->validOrder(['order_no' => 'ERP-BAD', $field => $value])])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors("orders.0.{$field}");
+
+        $this->assertDatabaseMissing('work_orders', ['order_no' => 'ERP-BAD']);
+    }
+
+    public function test_csv_import_ignores_an_unsupported_mapped_currency(): void
+    {
+        // The legacy CSV mapping accepts any field name, so price_currency can
+        // reach the shared import path without the ERP request's validation.
+        $service = app(\App\Services\CsvImport\WorkOrderImportService::class);
+        $row = fn (string $orderNo, string $currency) => [
+            'row_number' => 2,
+            'order_no' => $orderNo,
+            'line_code' => 'L1',
+            'product_type_code' => 'P1',
+            'planned_qty' => 10,
+            'unit_price' => 5,
+            'price_currency' => $currency,
+        ];
+
+        $result = $service->import([$row('CSV-BAD', 'XYZ'), $row('CSV-OK', ' eur ')], 'update_or_create');
+
+        $this->assertSame(2, $result['successful']);
+        $this->assertNull(WorkOrder::where('order_no', 'CSV-BAD')->value('price_currency'));
+        $this->assertSame('EUR', WorkOrder::where('order_no', 'CSV-OK')->value('price_currency'));
+    }
 }
