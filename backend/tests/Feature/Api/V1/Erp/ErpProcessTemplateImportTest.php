@@ -287,6 +287,39 @@ class ErpProcessTemplateImportTest extends TestCase
         $this->assertSame(2, ProcessTemplate::where('product_type_id', $product->id)->max('version'));
     }
 
+    public function test_replace_draft_leaves_a_retired_version_older_than_the_active_one(): void
+    {
+        $product = ProductType::factory()->create(['code' => 'CHAIR']);
+        $retired = ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $product->id, 'version' => 1, 'is_active' => false]);
+        ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $product->id, 'version' => 2, 'is_active' => true]);
+        $retiredSteps = $retired->steps()->get()->toArray();
+
+        // Activating a rewritten v1 would change nothing (orders take the newest
+        // active version), so the draft goes on top as v3 instead.
+        $this->import(['mode' => 'replace_draft', 'templates' => [$this->routing()]])
+            ->assertOk()
+            ->assertJsonPath('data.imported', 1)
+            ->assertJsonPath('data.rows.0.version', 3);
+
+        $this->assertSame($retiredSteps, $retired->fresh()->steps()->get()->toArray());
+        $this->assertFalse(ProcessTemplate::where('version', 3)->sole()->is_active);
+    }
+
+    public function test_reimporting_the_active_routing_is_skipped_when_a_draft_sits_on_top(): void
+    {
+        $product = ProductType::factory()->create(['code' => 'CHAIR']);
+        $this->import(['templates' => [$this->routing()]])->assertOk();
+        // The request cleared the tenant context, so the tenant is set explicitly.
+        ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $product->id, 'tenant_id' => $this->tenantId, 'version' => 2, 'is_active' => false]);
+
+        $this->import(['templates' => [$this->routing()]])
+            ->assertOk()
+            ->assertJsonPath('data.imported', 0)
+            ->assertJsonPath('data.skipped', 1);
+
+        $this->assertSame(2, ProcessTemplate::where('product_type_id', $product->id)->count());
+    }
+
     public function test_boms_import_attaches_to_the_imported_template(): void
     {
         $product = ProductType::factory()->create(['code' => 'CHAIR']);

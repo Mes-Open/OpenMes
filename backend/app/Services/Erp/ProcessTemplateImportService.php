@@ -182,18 +182,20 @@ class ProcessTemplateImportService
     /** @param  array<int, array<string, mixed>>  $steps */
     private function newVersion(ProductType $product, string $name, array $steps): array
     {
-        $latest = $product->processTemplates()->orderByDesc('version')->first();
+        $active = $product->activeProcessTemplate();
 
         // An ERP sync re-sends the same routing every night; that must not
-        // stack up v2, v3, v4… of an unchanged process.
-        if ($latest && $latest->is_active && $this->sameSteps($latest, $steps)) {
+        // stack up v2, v3, v4… of an unchanged process. Compared with the
+        // version new orders get, so an inactive draft on top of it does not
+        // turn an unchanged routing into a new version.
+        if ($active && $this->sameSteps($active, $steps)) {
             return $this->skipped();
         }
 
         // The template the recipe currently lives on — the one the BOM importer
         // would pick. Recipes hang off the template, so without a carry-over the
         // new version (and every order frozen from it) would have no BOM.
-        $bomSource = $product->activeProcessTemplate() ?? $latest;
+        $bomSource = $active ?? $product->processTemplates()->orderByDesc('version')->first();
 
         $template = $this->createTemplate($product, $name, true, $steps);
 
@@ -210,9 +212,14 @@ class ProcessTemplateImportService
     private function replaceDraft(ProductType $product, string $name, array $steps): array
     {
         // A draft is an inactive template no work order was ever frozen from;
-        // an active template or one an order refers to is never rewritten.
+        // an active template or one an order refers to is never rewritten. It
+        // must also be newer than the newest active version: an older, retired
+        // one would stay unused when activated, as orders take the newest active.
+        $activeVersion = $product->activeProcessTemplate()?->version;
+
         $draft = $product->processTemplates()
             ->where('is_active', false)
+            ->when($activeVersion !== null, fn ($q) => $q->where('version', '>', $activeVersion))
             ->orderByDesc('version')
             ->get()
             ->first(fn (ProcessTemplate $t) => ! WorkOrder::where('process_snapshot->template_id', $t->id)->exists());
