@@ -43,8 +43,10 @@ class WorkOrderSettlementPresenter
 
         if (in_array('consumption', $includes, true) || in_array('costs', $includes, true)) {
             // One column list for both sections: two different constraints on the
-            // same path would make the later one win and drop columns.
-            $relations['materialAllocations.material'] = fn ($q) => $q->select('id', 'code', 'name', 'unit_of_measure', 'unit_price', 'price_currency');
+            // same path would make the later one win and drop columns. A material
+            // archived after the order closed is still the material that was used —
+            // the ERP needs its code to post the consumption.
+            $relations['materialAllocations.material'] = fn ($q) => $q->withTrashed()->select('id', 'code', 'name', 'unit_of_measure', 'unit_price', 'price_currency');
         }
 
         if (in_array('consumption', $includes, true)) {
