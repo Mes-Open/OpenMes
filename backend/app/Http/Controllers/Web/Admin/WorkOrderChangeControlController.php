@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Enums\ChangeRequestStatus;
+use App\Enums\ChangeRequestType;
 use App\Http\Controllers\Concerns\ServesBothSections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkOrder\ApplyChangeRequestRequest;
@@ -265,7 +266,9 @@ class WorkOrderChangeControlController extends Controller
 
         return $this->run(
             fn () => $this->changeRequests->apply($changeRequest, $request->user(), $request->validated()),
-            __('Change request applied. The work order is now on a new configuration version.'),
+            $changeRequest->type === ChangeRequestType::Cancellation
+                ? __('Change request applied. The work order is cancelled.')
+                : __('Change request applied. The work order is now on a new configuration version.'),
         );
     }
 
