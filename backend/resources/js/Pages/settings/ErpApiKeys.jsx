@@ -5,7 +5,8 @@ import { __ } from '../../lib/i18n';
 
 /**
  * ERP integration API keys (machine-to-machine, scoped) — the credentials for
- * /api/v1/erp/*. Drives the existing admin endpoints /api/v1/api-keys over
+ * /api/v1/erp/*. Drives the admin endpoints under /settings/api-keys (session
+ * guard, so the page works whatever SANCTUM_STATEFUL_DOMAINS says) over
  * fetch and stays on the page, so feedback is a toast, not a flash.
  * The plaintext key is shown once, right after creation.
  */
@@ -26,7 +27,7 @@ export default function ErpApiKeys({ scopes = [] }) {
 
     const load = useCallback(async () => {
         try {
-            const res = await apiGet('/api/v1/api-keys');
+            const res = await apiGet('/settings/api-keys');
             if (!res.ok) throw new Error();
             const body = await res.json();
             setKeys(Array.isArray(body?.data) ? body.data : []);
@@ -64,7 +65,7 @@ export default function ErpApiKeys({ scopes = [] }) {
 
         setProcessing(true);
         try {
-            const res = await apiCall('/api/v1/api-keys', 'POST', { name: name.trim(), scopes: selected });
+            const res = await apiCall('/settings/api-keys', 'POST', { name: name.trim(), scopes: selected });
             const body = await res.json().catch(() => ({}));
             if (res.status === 422) {
                 const errs = body?.errors ?? {};
@@ -94,7 +95,7 @@ export default function ErpApiKeys({ scopes = [] }) {
 
     async function toggleActive(key) {
         try {
-            const res = await apiCall(`/api/v1/api-keys/${key.id}/toggle-active`, 'POST');
+            const res = await apiCall(`/settings/api-keys/${key.id}/toggle-active`, 'POST');
             if (!res.ok) throw new Error();
             const body = await res.json().catch(() => ({}));
             const isActive = typeof body?.data?.is_active === 'boolean' ? body.data.is_active : !key.is_active;
@@ -108,7 +109,7 @@ export default function ErpApiKeys({ scopes = [] }) {
 
     async function destroy(key) {
         try {
-            const res = await apiCall(`/api/v1/api-keys/${key.id}`, 'DELETE');
+            const res = await apiCall(`/settings/api-keys/${key.id}`, 'DELETE');
             if (!res.ok) throw new Error();
             setKeys((cur) => (cur ?? []).filter((k) => k.id !== key.id));
             toast({ severity: 'success', title: __('Key deleted.') });

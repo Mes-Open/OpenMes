@@ -100,6 +100,17 @@ class ApiTokensErpKeysTest extends TestCase
         $this->assertSoftDeleted('api_keys', ['id' => $id]);
     }
 
+    public function test_admin_toggles_a_key_over_the_session(): void
+    {
+        [$key] = ApiKey::issue(['name' => 'Odoo', 'scopes' => ['erp:production:read']]);
+
+        $this->actingAs($this->admin)->postJson("/settings/api-keys/{$key->id}/toggle-active")->assertOk();
+        $this->assertFalse($key->fresh()->is_active);
+
+        $this->actingAs($this->admin)->postJson("/settings/api-keys/{$key->id}/toggle-active")->assertOk();
+        $this->assertTrue($key->fresh()->is_active);
+    }
+
     public function test_session_key_creation_is_validated(): void
     {
         $this->actingAs($this->admin)
@@ -138,6 +149,7 @@ class ApiTokensErpKeysTest extends TestCase
             ->postJson('/settings/api-keys', ['name' => 'x', 'scopes' => ['erp:production:read']])
             ->assertForbidden();
         $this->actingAs($operator)->deleteJson("/settings/api-keys/{$key->id}")->assertForbidden();
+        $this->actingAs($operator)->postJson("/settings/api-keys/{$key->id}/toggle-active")->assertForbidden();
 
         $this->assertNotSoftDeleted('api_keys', ['id' => $key->id]);
         $this->assertSame(1, ApiKey::count());

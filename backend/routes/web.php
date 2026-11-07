@@ -258,6 +258,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware(['role:Admin', 'module:erp'])->group(function () {
             Route::get('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'index'])->name('api-keys.index');
             Route::post('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'store'])->name('api-keys.store');
+            Route::post('/api-keys/{apiKey}/toggle-active', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'toggleActive'])->name('api-keys.toggle-active');
             Route::delete('/api-keys/{apiKey}', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
         });
         // Admin-only role × tab access matrix
