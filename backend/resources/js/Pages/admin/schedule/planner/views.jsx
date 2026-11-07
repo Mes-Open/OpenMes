@@ -369,11 +369,18 @@ export function WeeklyView({ ctx }) {
                             {days.map((d) => {
                                 const isToday = d.date === today;
                                 return (
-                                    <div key={d.date} className="flex items-baseline justify-center gap-1.5" style={{ padding: '9px 6px', borderRight: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : (d.isWeekend ? 'var(--om-chip)' : 'transparent') }}>
+                                    <button
+                                        type="button"
+                                        key={d.date}
+                                        onClick={() => ctx.onSelectDay(d.date)}
+                                        aria-label={formatDate(parseDate(d.date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                        className="flex items-baseline justify-center gap-1.5 cursor-pointer hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-om-accent focus-visible:-outline-offset-2"
+                                        style={{ padding: '9px 6px', borderTop: 0, borderBottom: 0, borderLeft: 0, borderRight: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : (d.isWeekend ? 'var(--om-chip)' : 'transparent'), font: 'inherit', width: '100%' }}
+                                    >
                                         <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: isToday ? 'var(--om-accent)' : 'var(--om-faint)' }}>{fmtDow(d.date)}</span>
                                         <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: isToday ? 'var(--om-accent)' : (d.isWeekend ? 'var(--om-faint)' : 'var(--om-ink)') }}>{fmtDayMon(d.date)}</span>
                                         {isToday && <div style={{ height: 2, width: 18, background: 'var(--om-accent)', borderRadius: 2, alignSelf: 'center' }} />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
