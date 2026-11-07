@@ -7398,5 +7398,6 @@
     "Could not load the keys.": "Could not load the keys.",
     "No integration keys yet.": "No integration keys yet.",
     "Delete key ':name'? Its webhooks will be deactivated.": "Delete key ':name'? Its webhooks will be deactivated.",
-    "Register, change and remove webhooks that send OpenMES events to the integration.": "Register, change and remove webhooks that send OpenMES events to the integration."
+    "Register, change and remove webhooks that send OpenMES events to the integration.": "Register, change and remove webhooks that send OpenMES events to the integration.",
+    "Change request applied. The work order is cancelled.": "Change request applied. The work order is cancelled."
 }

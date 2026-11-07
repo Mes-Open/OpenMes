@@ -7398,5 +7398,6 @@
     "Could not load the keys.": "Nie udało się wczytać kluczy.",
     "No integration keys yet.": "Brak kluczy integracji.",
     "Delete key ':name'? Its webhooks will be deactivated.": "Usunąć klucz „:name”? Jego webhooki zostaną dezaktywowane.",
-    "Register, change and remove webhooks that send OpenMES events to the integration.": "Rejestrowanie, zmiana i usuwanie webhooków, które wysyłają zdarzenia OpenMES do integracji."
+    "Register, change and remove webhooks that send OpenMES events to the integration.": "Rejestrowanie, zmiana i usuwanie webhooków, które wysyłają zdarzenia OpenMES do integracji.",
+    "Change request applied. The work order is cancelled.": "Wniosek o zmianę zastosowany. Zlecenie zostało anulowane."
 }
