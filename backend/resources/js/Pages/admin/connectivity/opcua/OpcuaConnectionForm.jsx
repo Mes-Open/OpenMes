@@ -1,7 +1,12 @@
 import { Link, useForm } from '@inertiajs/react';
-import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, InlineAlert } from '@openmes/ui';
 import { Section, Field } from '../ui';
+import { LOCAL_ENDPOINT } from './GatewaySetupGuide';
 import { __ } from '../../../../lib/i18n';
+
+// Host part of a loopback endpoint, in any IPv6 spelling. The lookahead leaves
+// the port and path out of the match, so replacing it keeps them.
+const LOOPBACK_ENDPOINT = /^opc\.tcp:\/\/(?:localhost|127\.[\d.]+|\[(?:0{0,4}:){1,7}0{0,3}1\])(?=:|\/|$)/i;
 
 /**
  * Shared create/edit form for MachineConnection (protocol=opcua) + OpcuaConnection config.
@@ -29,6 +34,9 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
 
     const { data, setData, errors, processing } = form;
 
+    // The gateway runs in its own container: loopback there is the container.
+    const isLoopback = LOOPBACK_ENDPOINT.test(data.endpoint_url.trim());
+
     const submit = (e) => {
         e.preventDefault();
         form.submit(method, action);
@@ -50,6 +58,21 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
                 <Field label={__('Endpoint URL')} required error={errors.endpoint_url}>
                     <input type="text" value={data.endpoint_url} onChange={(e) => setData('endpoint_url', e.target.value)} placeholder="opc.tcp://192.168.1.50:4840" required className="form-input w-full font-mono" />
                 </Field>
+                {isLoopback ? (
+                    <InlineAlert severity="warning" title={__('localhost will not work from the gateway')}>
+                        {__('The gateway runs in its own Docker container, so localhost / 127.0.0.1 is the container itself. For a local server on this computer use :address.', { address: LOCAL_ENDPOINT })}{' '}
+                        <button type="button" onClick={() => setData('endpoint_url', data.endpoint_url.trim().replace(LOOPBACK_ENDPOINT, 'opc.tcp://host.docker.internal'))} className="text-om-accent hover:underline font-medium">
+                            {__('Use this address')}
+                        </button>
+                    </InlineAlert>
+                ) : (
+                    <InlineAlert severity="info" title={__('Local OPC UA server (on this computer)?')}>
+                        {__('If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.', { address: LOCAL_ENDPOINT })}{' '}
+                        <button type="button" onClick={() => setData('endpoint_url', LOCAL_ENDPOINT)} className="text-om-accent hover:underline font-medium">
+                            {__('Use the local server address')}
+                        </button>
+                    </InlineAlert>
+                )}
                 <Field label={__('Publishing interval (ms)')} required error={errors.publishing_interval_ms}>
                     <input type="number" value={data.publishing_interval_ms} onChange={(e) => setData('publishing_interval_ms', e.target.value)} min="100" max="60000" required className="form-input w-full" />
                 </Field>
