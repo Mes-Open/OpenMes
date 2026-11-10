@@ -200,6 +200,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
+
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
