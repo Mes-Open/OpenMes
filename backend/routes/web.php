@@ -903,7 +903,8 @@ Route::middleware('auth')->group(function () {
         // ── Connectivity ──────────────────────────────────────────────────────
         Route::get('/connectivity', [ConnectivityController::class, 'index'])->name('connectivity.index');
 
-        Route::prefix('connectivity/counters')->middleware('role:Admin|Supervisor')->group(function () {
+        // Who may open these is the `machine_counters` tab in Settings → Access.
+        Route::prefix('connectivity/counters')->group(function () {
             $controller = \App\Http\Controllers\Web\Admin\MachineCounterController::class;
             Route::get('/', [$controller, 'index'])->name('connectivity.counters.index');
             Route::post('/', [$controller, 'register']);

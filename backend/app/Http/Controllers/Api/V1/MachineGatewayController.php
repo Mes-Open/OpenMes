@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\ApiTokenScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\IngestMachineSignalsRequest;
 use App\Http\Requests\Api\V1\MachineGatewayHeartbeatRequest;
@@ -10,7 +11,10 @@ use App\Models\MachineTag;
 use App\Services\Machine\MachineSignalIngestor;
 use App\Services\Machine\RuntimeMonitor;
 use App\Services\Machine\WorkstationStateMachine;
+use App\Support\MachineTime;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Bridge endpoint for external protocol gateways (OPC UA sidecar, custom REST
@@ -29,7 +33,7 @@ class MachineGatewayController extends Controller
     /**
      * Config the gateway needs to connect and subscribe.
      */
-    public function config(MachineConnection $machineConnection): JsonResponse
+    public function config(Request $request, MachineConnection $machineConnection): JsonResponse
     {
         $machineConnection->load(['opcuaConnection', 'activeTags']);
         $opc = $machineConnection->opcuaConnection;
@@ -47,6 +51,11 @@ class MachineGatewayController extends Controller
                 'security_mode' => $opc->security_mode,
                 'auth_mode' => $opc->auth_mode,
                 'username' => $opc->username,
+                // The password saved in Admin → Connectivity, so it does not
+                // also have to be copied into the gateway's environment.
+                'password' => $opc->auth_mode === 'username' && $opc->password_encrypted && $this->mayReadSecrets($request)
+                    ? Crypt::decryptString($opc->password_encrypted)
+                    : null,
                 'publishing_interval_ms' => $opc->publishing_interval_ms,
             ] : null,
             'tags' => $machineConnection->activeTags->map(fn (MachineTag $t) => [
@@ -57,6 +66,21 @@ class MachineGatewayController extends Controller
                 'data_type' => $t->data_type,
             ])->values(),
         ]);
+    }
+
+    /**
+     * Sessions and full-access tokens of any user also pass this route group;
+     * the machine's password goes only to a token issued for a gateway, or to
+     * an admin, who could set it anyway.
+     */
+    private function mayReadSecrets(Request $request): bool
+    {
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        $abilities = $token instanceof \Laravel\Sanctum\PersonalAccessToken ? (array) $token->abilities : [];
+
+        return in_array(ApiTokenScope::GATEWAY_ABILITY, $abilities, true)
+            || ($user !== null && $user->hasRole('Admin'));
     }
 
     /**
@@ -82,7 +106,7 @@ class MachineGatewayController extends Controller
             if (! $tag) {
                 continue;
             }
-            $at = isset($r['ts']) ? \Illuminate\Support\Carbon::parse($r['ts']) : null;
+            $at = MachineTime::parse($r['ts'] ?? null);
             $this->ingestor->ingest($tag, $r['value'], $at, $r['event_id'] ?? null);
             $machineConnection->increment('messages_received');
             $accepted++;

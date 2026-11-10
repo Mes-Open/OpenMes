@@ -27,7 +27,8 @@ class TopicMappingController extends Controller
         abort_if($mapping->machine_topic_id !== $topic->id, 403);
 
         $mapping->update($request->mappingData() + [
-            'is_active' => $request->boolean('is_active', true),
+            // Not sent by the edit form; keep a disabled mapping disabled.
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $mapping->is_active,
         ]);
 
         return back()->with('success', 'Mapping updated.');

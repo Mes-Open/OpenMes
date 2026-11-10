@@ -222,8 +222,11 @@ services:
       - connectivity
 
   # ── Modbus TCP poller daemon ──────────────────────────────────────────────
-  # One instance per active Modbus machine_connection.
-  # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
+  # One process polls every active Modbus machine_connection and picks up
+  # machines added, switched off or re-addressed in Admin → Connectivity within
+  # a minute — no restart, no per-machine container.
+  # Start: docker compose --profile connectivity up -d modbus-poller
+  # To pin it to one connection instead, add "--connection=<id or name>".
   modbus-poller:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
@@ -242,7 +245,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ${OPENMES_NAME_PREFIX:-openmmes}-modbus-poller
     command:
-      ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
+      ["php", "artisan", "modbus:poll"]
     environment:
       APP_ENV: ${APP_ENV:-production}
       # Plant timezone: every rendered timestamp, report boundary and scheduled job

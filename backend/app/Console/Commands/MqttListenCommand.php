@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Jobs\ProcessMqttMessageJob;
 use App\Models\MachineConnection;
+use App\Services\Connectivity\ReconnectBackoff;
+use App\Services\Machine\RuntimeMonitor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\ConnectionSettings;
@@ -41,6 +43,8 @@ class MqttListenCommand extends Command
     /** @var array<int, array{client: MqttClient, sig: string, conn: MachineConnection}> */
     private array $managed = [];
 
+    private ReconnectBackoff $backoff;
+
     public function handle(): int
     {
         if (! class_exists(MqttClient::class)) {
@@ -50,6 +54,7 @@ class MqttListenCommand extends Command
             return self::FAILURE;
         }
 
+        $this->backoff = new ReconnectBackoff;
         $only = $this->option('connection');
         $dryRun = (bool) $this->option('dry-run');
 
@@ -90,7 +95,8 @@ class MqttListenCommand extends Command
                     $this->error("[{$id}] loop error: {$e->getMessage()}");
                     Log::warning('MQTT client loop error', ['connection_id' => $id, 'error' => $e->getMessage()]);
                     $entry['conn']->markError($e->getMessage());
-                    $this->teardown($id); // dropped → retried on the next reconcile
+                    $this->teardown($id);
+                    $this->backoff->failed($id, microtime(true)); // dropped → retried after a pause
                 }
             }
 
@@ -119,6 +125,14 @@ class MqttListenCommand extends Command
 
         $active = $query->get()->keyBy('id');
 
+        // Tell the connection pages this listener is running for each of
+        // them — including ones whose broker is down, so the page shows the
+        // broker error rather than "listener not running".
+        $runtime = app(RuntimeMonitor::class);
+        foreach ($active->keys() as $id) {
+            $runtime->heartbeat(MachineConnection::PROTOCOL_MQTT, $id);
+        }
+
         // Drop clients whose connection is no longer active/present.
         foreach (array_keys($this->managed) as $id) {
             if (! $active->has($id)) {
@@ -146,19 +160,29 @@ class MqttListenCommand extends Command
                 }
                 $this->line("[{$id}] config changed — reconnecting.");
                 $this->teardown($id);
+                $this->backoff->succeeded($id); // new settings deserve an immediate try
+            }
+
+            // A broker that just failed is not retried on every tick: connecting
+            // blocks, and that would stall every healthy connection with it.
+            if (! $this->backoff->ready($id, microtime(true))) {
+                continue;
             }
 
             try {
                 $conn->update(['status' => 'connecting', 'status_message' => null]);
                 $client = $this->connectAndSubscribe($conn, $cfg, $dryRun);
                 $this->managed[$id] = ['client' => $client, 'sig' => $sig, 'conn' => $conn];
+                $this->backoff->succeeded($id);
                 $conn->markConnected();
                 $this->info("[{$id}] {$conn->name} connected → {$cfg->broker_host}:{$cfg->broker_port}");
             } catch (MqttClientException $e) {
-                $this->error("[{$id}] connect failed: {$e->getMessage()}");
+                $wait = $this->backoff->failed($id, microtime(true));
+                $this->error("[{$id}] connect failed: {$e->getMessage()} — next try in {$wait}s");
                 Log::error('MQTT connect failed', ['connection_id' => $id, 'error' => $e->getMessage()]);
                 $conn->markError($e->getMessage());
             } catch (\Throwable $e) {
+                $this->backoff->failed($id, microtime(true));
                 $this->error("[{$id}] unexpected error: {$e->getMessage()}");
                 Log::error('MQTT listener error', ['connection_id' => $id, 'error' => $e->getMessage()]);
                 $conn->markError($e->getMessage());
@@ -171,23 +195,72 @@ class MqttListenCommand extends Command
         $client = $this->buildClient($cfg);
         $client->connect($this->buildSettings($cfg), $cfg->clean_session);
 
-        foreach ($conn->activeTopics as $topic) {
-            $client->subscribe(
-                $topic->topic_pattern,
-                function (string $incomingTopic, string $message) use ($conn, $dryRun) {
-                    $receivedAt = now()->toIso8601String();
-                    $this->line("[{$conn->id}] {$incomingTopic}: ".substr($message, 0, 120));
+        // One handler per received message, not one callback per subscription:
+        // the client calls every subscription whose pattern matches, so with
+        // `hall1/#` and `hall1/press3/count` both active a count would be
+        // queued — and counted — twice.
+        $client->registerMessageReceivedEventHandler(
+            function (MqttClient $client, string $incomingTopic, string $message, int $qos, bool $retained) use ($conn, $dryRun) {
+                $receivedAt = now()->toIso8601String();
+                $this->line("[{$conn->id}] {$incomingTopic}".($retained ? ' (retained)' : '').': '.substr($message, 0, 120));
 
-                    if (! $dryRun) {
-                        ProcessMqttMessageJob::dispatch($conn->id, $incomingTopic, $message, $receivedAt);
-                    }
-                },
-                $cfg->qos_default,
-            );
-            $this->line("[{$conn->id}]   subscribed: {$topic->topic_pattern}");
+                if (! $dryRun) {
+                    ProcessMqttMessageJob::dispatch($conn->id, $incomingTopic, $message, $receivedAt, $retained);
+                }
+            },
+        );
+
+        // A pattern already covered by a broader one is not subscribed again,
+        // or the broker itself may deliver the message once per subscription.
+        foreach (self::subscriptionPatterns($conn->activeTopics->pluck('topic_pattern')->all()) as $pattern) {
+            $client->subscribe($pattern, null, $cfg->qos_default);
+            $this->line("[{$conn->id}]   subscribed: {$pattern}");
         }
 
         return $client;
+    }
+
+    /**
+     * The topic patterns to subscribe to: duplicates and patterns another
+     * pattern in the list already covers are dropped.
+     *
+     * @param  list<string>  $patterns
+     * @return list<string>
+     */
+    public static function subscriptionPatterns(array $patterns): array
+    {
+        $patterns = array_values(array_unique($patterns));
+
+        return array_values(array_filter($patterns, function (string $pattern) use ($patterns) {
+            foreach ($patterns as $other) {
+                if ($other !== $pattern && self::covers($other, $pattern)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
+    }
+
+    /** Whether every topic matching $narrow also matches $broad. */
+    private static function covers(string $broad, string $narrow): bool
+    {
+        $b = explode('/', $broad);
+        $n = explode('/', $narrow);
+
+        foreach ($b as $i => $part) {
+            if ($part === '#') {
+                return true;
+            }
+            if (! array_key_exists($i, $n) || $n[$i] === '#') {
+                return false;
+            }
+            if ($part !== '+' && ($n[$i] === '+' || $part !== $n[$i])) {
+                return false;
+            }
+        }
+
+        return count($b) === count($n);
     }
 
     /**

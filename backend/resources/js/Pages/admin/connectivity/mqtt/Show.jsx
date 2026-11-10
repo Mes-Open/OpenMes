@@ -500,7 +500,7 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                             className="w-full"
                         />
                     </MiniField>
-                    <MiniField label="Condition">
+                    <MiniField label="Condition" error={form.errors.condition_expr}>
                         <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                     <MiniField label="Priority">
@@ -512,7 +512,7 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                         <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
                     </MiniField>
                 ) : (
-                    <MiniField label="Action params (JSON)">
+                    <MiniField label="Action params (JSON)" error={form.errors.action_params}>
                         <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                 )}
@@ -641,7 +641,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                         className="w-full"
                     />
                 </MiniField>
-                <MiniField label="Condition — e.g. value > 0">
+                <MiniField label="Condition — e.g. value > 0" error={form.errors.condition_expr}>
                     <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} placeholder="value > 0" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
                 <MiniField label="Priority">
@@ -653,7 +653,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                     <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
                 </MiniField>
             ) : (
-                <MiniField label='Action params (JSON) — e.g. {"order_no_path":"$.order_no"}'>
+                <MiniField label='Action params (JSON) — e.g. {"order_no_path":"$.order_no"}' error={form.errors.action_params}>
                     <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
             )}
@@ -668,11 +668,12 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
     );
 }
 
-function MiniField({ label, children }) {
+function MiniField({ label, error, children }) {
     return (
         <div>
             <div className="block text-xs text-om-muted mb-0.5">{__(label)}</div>
             {nameControl(children, __(label))}
+            {error && <p className="mt-0.5 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

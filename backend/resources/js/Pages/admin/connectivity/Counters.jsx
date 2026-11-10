@@ -108,7 +108,11 @@ function ReadingHistory({ counter, readings, onReview }) {
     </section>;
 }
 export default function Counters() {
-    const { counters, selectedId, sources, workstations, steps, readings, canSimulate } = usePage().props;
+    const { counters, selectedId, sources, workstations, steps, readings, canSimulate, auth } = usePage().props;
+    // Counters are their own tab; someone granted only them (a supervisor,
+    // typically) would get a 403 behind the Connectivity button.
+    const tabs = auth?.user?.accessibleTabs;
+    const canOpenConnectivity = ! Array.isArray(tabs) || tabs.includes('connectivity');
     const counter = counters.find(c => c.id === selectedId);
     const register = useForm({ source_type: 'tag', source_id: '' });
     const [review, setReview] = useState(null);
@@ -117,7 +121,9 @@ export default function Counters() {
         <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold">{__('Machine counters')}</h1>
             <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => router.visit('/admin/connectivity')}>{__('Machine Connectivity')}</Button>
+                {canOpenConnectivity && (
+                    <Button variant="outline" onClick={() => router.visit('/admin/connectivity')}>{__('Machine Connectivity')}</Button>
+                )}
                 <Button variant="outline" onClick={() => router.reload({ preserveScroll: true })}>{__('Refresh')}</Button>
             </div>
         </div>

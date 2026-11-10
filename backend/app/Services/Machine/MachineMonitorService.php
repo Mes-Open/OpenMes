@@ -71,11 +71,11 @@ class MachineMonitorService
         $reject = 0;
         foreach ($counters as $c) {
             $delta = (float) ($c->payload['delta'] ?? 0);
-            if (($c->payload['kind'] ?? 'good') === 'reject') {
-                $reject += $delta;
-            } else {
-                $good += $delta;
-            }
+            match (MachineEvent::counterKind($c->payload ?? [])) {
+                'reject' => $reject += $delta,
+                'good' => $good += $delta,
+                null => null,
+            };
         }
 
         $total = $good + $reject;

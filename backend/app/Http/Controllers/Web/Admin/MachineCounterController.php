@@ -10,8 +10,8 @@ use App\Models\MachineTag;
 use App\Models\TopicMapping;
 use App\Models\Workstation;
 use App\Services\Machine\MachineCounterService;
+use App\Support\MachineTime;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
 class MachineCounterController extends Controller
@@ -86,7 +86,7 @@ class MachineCounterController extends Controller
         abort_unless($this->counter($counter)->is_simulated, 404);
         $data = $request->validated();
         $channel = $this->counter($counter);
-        $at = isset($data['timestamp']) ? Carbon::parse($data['timestamp']) : now();
+        $at = MachineTime::parse($data['timestamp'] ?? null) ?? now();
         if ($channel->tag) {
             app(\App\Services\Machine\MachineSignalIngestor::class)->ingest($channel->tag, $data['value'], $at, $data['event_id'] ?? null);
         } else {

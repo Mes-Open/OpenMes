@@ -107,9 +107,40 @@ class MachineConnection extends Model
         return $this->status === self::STATUS_CONNECTED;
     }
 
+    /**
+     * The status to show. The stored one is whatever the collector last wrote,
+     * and nothing resets it when the collector stops (container killed,
+     * connection switched off): a dead Modbus poller would keep drawing a live
+     * green "connected". Only a collector heard from recently can vouch for it.
+     */
+    public function liveStatus(): string
+    {
+        if (! $this->is_active) {
+            return self::STATUS_DISCONNECTED;
+        }
+
+        // REST devices push on their own schedule; there is no collector to watch.
+        $collected = in_array($this->protocol, [self::PROTOCOL_MQTT, self::PROTOCOL_MODBUS, self::PROTOCOL_OPCUA], true);
+        if ($collected && ! app(\App\Services\Machine\RuntimeMonitor::class)->isAlive($this->protocol, $this->id)) {
+            return $this->status === self::STATUS_ERROR ? self::STATUS_ERROR : self::STATUS_DISCONNECTED;
+        }
+
+        return (string) $this->status;
+    }
+
+    public function liveStatusColor(): string
+    {
+        return self::colorFor($this->liveStatus());
+    }
+
     public function statusColor(): string
     {
-        return match ($this->status) {
+        return self::colorFor((string) $this->status);
+    }
+
+    private static function colorFor(string $status): string
+    {
+        return match ($status) {
             self::STATUS_CONNECTED => 'green',
             self::STATUS_CONNECTING => 'yellow',
             self::STATUS_ERROR => 'red',

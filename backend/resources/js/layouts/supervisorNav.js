@@ -21,6 +21,11 @@
  * An entry for an optional feature module carries `module: '<key>'` and is
  * hidden when an admin has switched that module off, matching what the routes
  * do (`module:` middleware) and what the admin tree gets via its tab keys.
+ *
+ * The one exception to "no tab keys": an admin page a supervisor holds only
+ * when an admin ticks it for them in Settings → Access. Such an entry carries
+ * `tab: '<key>'`, points at its /admin URL (TabAccessMiddleware lets the grant
+ * through), and is shown only to a user holding that tab.
  */
 
 export const SUPERVISOR_LINKS = [
@@ -76,11 +81,12 @@ export const SUPERVISOR_GROUPS = [
         label: 'Production',
         lucide: 'factory',
         href: '/supervisor/issues',
-        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover'],
+        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover', '/admin/connectivity/counters'],
         children: [
             { label: 'Issues', href: '/supervisor/issues', match: ['/supervisor/issues'], lucide: 'triangle-alert', module: 'quality' },
             { label: 'Quality Tasks', href: '/supervisor/quality-tasks', match: ['/supervisor/quality-tasks'], lucide: 'clipboard-check', module: 'quality' },
             { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'], lucide: 'arrow-left-right' },
+            { label: 'Machine counters', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], lucide: 'gauge', tab: 'machine_counters' },
         ],
     },
     {

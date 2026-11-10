@@ -100,10 +100,13 @@ export const ADMIN_GROUPS = [
         lucide: 'wifi',
         match: ['/admin/connectivity', '/admin/workstation-types', '/admin/workstation-devices'],
         children: [
-            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, lucide: 'radio' },
-            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], lucide: 'antenna' },
-            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], lucide: 'cable' },
-            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], lucide: 'plug' },
+            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, tab: 'connectivity', lucide: 'radio' },
+            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], tab: 'connectivity', lucide: 'antenna' },
+            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], tab: 'connectivity', lucide: 'cable' },
+            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], tab: 'connectivity', lucide: 'plug' },
+            // Its own tab: a supervisor granted only this sees the group with
+            // just this entry (groupVisible) and none of the configuration.
+            { label: 'Machine counters', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], tab: 'machine_counters', lucide: 'gauge' },
             // The physical end of the same story: what a station is, and which
             // boxes are enrolled as one. Gated by the structure module, which is
             // what TabAccessMiddleware checks for these URLs — without the tab

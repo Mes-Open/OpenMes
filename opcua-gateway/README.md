@@ -64,15 +64,27 @@ OPCUA_CONNECTION_ID=<id> \
 | `OPENMES_API_URL` | yes | `http://localhost:8000` | OpenMES backend base URL |
 | `OPENMES_API_TOKEN` | yes | — | Machine gateway token (Settings → API Tokens) |
 | `OPCUA_CONNECTION_ID` | yes | `1` | machine_connection id (protocol = opcua) |
-| `OPCUA_PASSWORD` | if username auth | — | OPC UA user password |
+| `OPCUA_PASSWORD` | no | — | OPC UA user password, only if none is saved on the connection in OpenMES (the saved one wins) |
 | `HEARTBEAT_MS` | no | `10000` | runtime heartbeat interval |
 | `RECONNECT_MS` | no | `5000` | reconnect backoff |
+| `CONFIG_REFRESH_MS` | no | `60000` | how often the gateway re-reads its connection; added tags, a changed endpoint or deactivating the connection take effect within this time |
+| `OUTBOX_MAX` | no | `10000` | readings kept for retry while OpenMES is unreachable; the oldest are dropped beyond this |
 
 The connection page in OpenMES shows whether this gateway is currently running
 (it heartbeats every `HEARTBEAT_MS`). If it is stopped, the page tells the user
 exactly how to start it. If it is running but cannot reach the OPC UA server, or
 loses an established connection, it sends error heartbeats with the reason until
 the session and subscriptions are back, and the page shows that reason.
+
+## Delivery
+
+Every value change is queued and posted to OpenMES in order, one request at a
+time, stamped with the time the gateway received it and a unique event id. If
+OpenMES is unreachable or answers with an error (restart, deploy, revoked
+token), the queue is retried every 2 seconds, so state changes and alarms from
+that period are not lost; a retried reading carries the same event id and is
+never counted twice. Readings OpenMES rejects as invalid (HTTP 422) are logged
+and dropped.
 
 ## Troubleshooting
 

@@ -7306,5 +7306,6 @@
     "A stop is opened on the line and its running work orders stay blocked until this issue is resolved.": "A stop is opened on the line and its running work orders stay blocked until this issue is resolved.",
     "Whole line": "Whole line",
     "The machine must be on the work order's line.": "The machine must be on the work order's line.",
-    "Select a downtime reason.": "Select a downtime reason."
+    "Select a downtime reason.": "Select a downtime reason.",
+    "The condition must look like \"value > 0\" (operators: ==, !=, >, >=, <, <=, contains).": "The condition must look like \"value > 0\" (operators: ==, !=, >, >=, <, <=, contains)."
 }

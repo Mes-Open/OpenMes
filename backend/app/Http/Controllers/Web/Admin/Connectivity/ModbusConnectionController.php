@@ -24,16 +24,16 @@ class ModbusConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/modbus/Index', [
             'connections' => $connections->map(fn ($c) => [
-                'id'                => $c->id,
-                'name'              => $c->name,
-                'description'       => $c->description,
-                'is_active'         => $c->is_active,
-                'status'            => $c->status,
-                'status_color'      => $c->statusColor(),
-                'tags_count'        => $c->tags_count,
-                'host'              => $c->modbusConnection?->host,
-                'port'              => $c->modbusConnection?->port,
-                'unit_id'           => $c->modbusConnection?->unit_id,
+                'id' => $c->id,
+                'name' => $c->name,
+                'description' => $c->description,
+                'is_active' => $c->is_active,
+                'status' => $c->liveStatus(),
+                'status_color' => $c->liveStatusColor(),
+                'tags_count' => $c->tags_count,
+                'host' => $c->modbusConnection?->host,
+                'port' => $c->modbusConnection?->port,
+                'unit_id' => $c->modbusConnection?->unit_id,
                 'last_connected_at' => $c->last_connected_at?->diffForHumans(),
             ]),
         ]);
@@ -83,26 +83,26 @@ class ModbusConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/modbus/Show', [
             'connection' => [
-                'id'           => $machineConnection->id,
-                'name'         => $machineConnection->name,
-                'description'  => $machineConnection->description,
-                'is_active'    => $machineConnection->is_active,
-                'status'         => $machineConnection->status,
-                'status_color'   => $machineConnection->statusColor(),
+                'id' => $machineConnection->id,
+                'name' => $machineConnection->name,
+                'description' => $machineConnection->description,
+                'is_active' => $machineConnection->is_active,
+                'status' => $machineConnection->liveStatus(),
+                'status_color' => $machineConnection->liveStatusColor(),
                 'status_message' => $machineConnection->status_message,
-                'modbus'       => $modbus ? [
-                    'host'             => $modbus->host,
-                    'port'             => $modbus->port,
-                    'unit_id'          => $modbus->unit_id,
+                'modbus' => $modbus ? [
+                    'host' => $modbus->host,
+                    'port' => $modbus->port,
+                    'unit_id' => $modbus->unit_id,
                     'poll_interval_ms' => $modbus->poll_interval_ms,
-                    'timeout_seconds'  => $modbus->timeout_seconds,
-                    'byte_order'       => $modbus->byte_order,
-                    'word_order'       => $modbus->word_order,
+                    'timeout_seconds' => $modbus->timeout_seconds,
+                    'byte_order' => $modbus->byte_order,
+                    'word_order' => $modbus->word_order,
                 ] : null,
                 'tags' => $machineConnection->tags->map(fn ($t) => $this->mapTag($t))->values(),
             ],
             'workstations' => $this->workstationOptions(),
-            'runtime'      => app(\App\Services\Machine\RuntimeMonitor::class)->connectionRuntime($machineConnection),
+            'runtime' => app(\App\Services\Machine\RuntimeMonitor::class)->connectionRuntime($machineConnection),
         ]);
     }
 
@@ -114,18 +114,18 @@ class ModbusConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/modbus/Edit', [
             'connection' => [
-                'id'          => $machineConnection->id,
-                'name'        => $machineConnection->name,
+                'id' => $machineConnection->id,
+                'name' => $machineConnection->name,
                 'description' => $machineConnection->description,
-                'is_active'   => $machineConnection->is_active,
-                'modbus'      => $modbus ? [
-                    'host'             => $modbus->host,
-                    'port'             => $modbus->port,
-                    'unit_id'          => $modbus->unit_id,
+                'is_active' => $machineConnection->is_active,
+                'modbus' => $modbus ? [
+                    'host' => $modbus->host,
+                    'port' => $modbus->port,
+                    'unit_id' => $modbus->unit_id,
                     'poll_interval_ms' => $modbus->poll_interval_ms,
-                    'timeout_seconds'  => $modbus->timeout_seconds,
-                    'byte_order'       => $modbus->byte_order,
-                    'word_order'       => $modbus->word_order,
+                    'timeout_seconds' => $modbus->timeout_seconds,
+                    'byte_order' => $modbus->byte_order,
+                    'word_order' => $modbus->word_order,
                 ] : null,
             ],
         ]);

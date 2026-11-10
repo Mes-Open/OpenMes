@@ -84,6 +84,48 @@ class MachineGatewayTest extends TestCase
             ->assertJsonPath('tags.0.node_id', 'ns=2;s=State');
     }
 
+    private function opcuaConnectionWithPassword(): MachineConnection
+    {
+        $conn = $this->opcuaConnection();
+        $conn->opcuaConnection->update([
+            'auth_mode' => 'username', 'username' => 'mes',
+            'password_encrypted' => \Illuminate\Support\Facades\Crypt::encryptString('plc-secret'),
+        ]);
+
+        return $conn;
+    }
+
+    public function test_gateway_token_receives_the_saved_opcua_password(): void
+    {
+        $conn = $this->opcuaConnectionWithPassword();
+
+        $this->withToken($this->gatewayToken())
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertOk()
+            ->assertJsonPath('opcua.username', 'mes')
+            ->assertJsonPath('opcua.password', 'plc-secret');
+    }
+
+    public function test_other_users_do_not_receive_the_opcua_password(): void
+    {
+        $conn = $this->opcuaConnectionWithPassword();
+        Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'web']);
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        // A session, and an operator's full-access token, both pass the route.
+        $this->actingAs($operator)
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertOk()
+            ->assertJsonPath('opcua.password', null);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($operator->createToken('full')->plainTextToken)
+            ->getJson("/api/v1/machine-connections/{$conn->id}/gateway-config")
+            ->assertOk()
+            ->assertJsonPath('opcua.password', null);
+    }
+
     public function test_gateway_ingest_drives_pipeline_and_heartbeat(): void
     {
         $conn = $this->opcuaConnection();

@@ -12,10 +12,10 @@ class MqttMessageParser
     public function parse(string $payload, string $format): array
     {
         return match ($format) {
-            'json'  => $this->parseJson($payload),
+            'json' => $this->parseJson($payload),
             'plain' => ['value' => $payload],
-            'csv'   => $this->parseCsv($payload),
-            'hex'   => ['hex' => $payload, 'bytes' => $this->hexToBytes($payload)],
+            'csv' => $this->parseCsv($payload),
+            'hex' => ['hex' => $payload, 'bytes' => $this->hexToBytes($payload)],
             default => ['_raw' => $payload],
         };
     }
@@ -34,7 +34,7 @@ class MqttMessageParser
             return $data;
         }
 
-        if (!str_starts_with($path, '$')) {
+        if (! str_starts_with($path, '$')) {
             return $path; // literal value
         }
 
@@ -65,16 +65,20 @@ class MqttMessageParser
      *
      * The $resolvedValue is the already-resolved field value from payload.
      */
+    /** The condition syntax; also what the mapping form validates against. */
+    public const CONDITION_PATTERN = '/^value\s*(==|!=|>=|<=|>|<|contains)\s*(.+)$/';
+
     public function evaluateCondition(?string $expression, mixed $resolvedValue): bool
     {
         if (empty($expression)) {
             return true;
         }
 
-        // Parse "value <op> literal"
-        $pattern = '/^value\s*(==|!=|>=|<=|>|<|contains)\s*(.+)$/';
-        if (!preg_match($pattern, trim($expression), $matches)) {
-            return true; // unparseable — allow
+        // Parse "value <op> literal". A condition that cannot be read does
+        // not hold: running the action anyway would turn a typo in "only when
+        // the alarm is on" into an issue or a count on every message.
+        if (! preg_match(self::CONDITION_PATTERN, trim($expression), $matches)) {
+            return false;
         }
 
         [, $operator, $literal] = $matches;
@@ -82,21 +86,21 @@ class MqttMessageParser
 
         // Coerce literal type
         $literal = match (strtolower($literal)) {
-            'true'  => true,
+            'true' => true,
             'false' => false,
-            'null'  => null,
+            'null' => null,
             default => is_numeric($literal) ? ($literal + 0) : $literal,
         };
 
         return match ($operator) {
-            '=='       => $resolvedValue == $literal,
-            '!='       => $resolvedValue != $literal,
-            '>'        => is_numeric($resolvedValue) && $resolvedValue > $literal,
-            '>='       => is_numeric($resolvedValue) && $resolvedValue >= $literal,
-            '<'        => is_numeric($resolvedValue) && $resolvedValue < $literal,
-            '<='       => is_numeric($resolvedValue) && $resolvedValue <= $literal,
+            '==' => $resolvedValue == $literal,
+            '!=' => $resolvedValue != $literal,
+            '>' => is_numeric($resolvedValue) && $resolvedValue > $literal,
+            '>=' => is_numeric($resolvedValue) && $resolvedValue >= $literal,
+            '<' => is_numeric($resolvedValue) && $resolvedValue < $literal,
+            '<=' => is_numeric($resolvedValue) && $resolvedValue <= $literal,
             'contains' => is_string($resolvedValue) && str_contains($resolvedValue, (string) $literal),
-            default    => true,
+            default => true,
         };
     }
 
@@ -105,9 +109,10 @@ class MqttMessageParser
     private function parseJson(string $payload): array
     {
         $decoded = json_decode($payload, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
             return ['_raw' => $payload, '_error' => 'Invalid JSON'];
         }
+
         return $decoded;
     }
 
@@ -119,16 +124,18 @@ class MqttMessageParser
                 $rows[] = str_getcsv($line);
             }
         }
+
         return ['rows' => $rows];
     }
 
     private function hexToBytes(string $hex): array
     {
-        $hex   = preg_replace('/\s+/', '', $hex);
+        $hex = preg_replace('/\s+/', '', $hex);
         $bytes = [];
         for ($i = 0; $i < strlen($hex); $i += 2) {
             $bytes[] = hexdec(substr($hex, $i, 2));
         }
+
         return $bytes;
     }
 }

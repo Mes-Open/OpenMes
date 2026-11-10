@@ -176,6 +176,29 @@ class ManagedIssueReportTest extends TestCase
         $this->assertSame(WorkOrder::STATUS_PENDING, $sibling->fresh()->status);
     }
 
+    public function test_a_line_block_holds_sibling_orders_at_every_gate(): void
+    {
+        $sibling = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        $otherLine = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+
+        $this->assertTrue($sibling->fresh()->isBlocked());
+        $this->assertFalse($otherLine->fresh()->isBlocked());
+
+        // Resuming the sibling past the line block is refused.
+        try {
+            app(\App\Services\WorkOrder\WorkOrderStopService::class)->resume($sibling->fresh(), [], $this->admin);
+            $this->fail('A sibling order of a blocked line was resumed.');
+        } catch (\DomainException) {
+            $this->assertSame(WorkOrder::STATUS_BLOCKED, $sibling->fresh()->status);
+        }
+
+        $this->actingAs($this->admin)->post('/admin/issues/'.Issue::sole()->id.'/resolve');
+
+        $this->assertFalse($sibling->fresh()->isBlocked());
+    }
+
     public function test_the_service_resolve_also_releases_the_line(): void
     {
         $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());

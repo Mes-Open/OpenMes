@@ -7306,5 +7306,6 @@
     "A stop is opened on the line and its running work orders stay blocked until this issue is resolved.": "Na linii zostanie otwarty przestój, a jej aktywne zlecenia pozostaną zablokowane do czasu rozwiązania tego problemu.",
     "Whole line": "Cała linia",
     "The machine must be on the work order's line.": "Maszyna musi należeć do linii zlecenia.",
-    "Select a downtime reason.": "Wybierz powód przestoju."
+    "Select a downtime reason.": "Wybierz powód przestoju.",
+    "The condition must look like \"value > 0\" (operators: ==, !=, >, >=, <, <=, contains).": "Warunek musi mieć postać „value > 0” (operatory: ==, !=, >, >=, <, <=, contains)."
 }
