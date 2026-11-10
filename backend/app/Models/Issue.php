@@ -49,6 +49,7 @@ class Issue extends Model
         'source',
         'issue_type_id',
         'blocks_work_order',
+        'blocks_line',
         'title',
         'description',
         'status',
@@ -78,6 +79,7 @@ class Issue extends Model
             'disposition_at' => 'datetime',
             'non_conforming_qty' => 'decimal:2',
             'blocks_work_order' => 'boolean',
+            'blocks_line' => 'boolean',
         ];
     }
 
@@ -232,6 +234,17 @@ class Issue extends Model
     public function scopeBlocking($query)
     {
         return $query->where('blocks_work_order', true)->open();
+    }
+
+    /**
+     * Open issues holding a line stopped (filed with the "blocks the line and
+     * machine" effect). The line is the one of the stop the issue opened.
+     */
+    public function scopeBlockingLine($query, int $lineId)
+    {
+        return $query->blocking()
+            ->where('blocks_line', true)
+            ->whereHas('productionDowntime', fn ($q) => $q->where('line_id', $lineId));
     }
 
     /**

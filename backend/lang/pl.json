@@ -7261,11 +7261,8 @@
     "Select a scrap reason.": "Wybierz przyczynę odpadu.",
     "Enter the scrapped quantity.": "Podaj ilość odpadu.",
     "No effect": "Bez wpływu",
-    "Blocks the work order": "Blokuje zlecenie",
     "Records scrap": "Rejestruje odpad",
     "Effect on production": "Wpływ na produkcję",
-    "The work order stays blocked until this issue is resolved.": "Zlecenie pozostanie zablokowane do czasu rozwiązania zgłoszenia.",
-    "A paused or held work order cannot be blocked — resume it first.": "Wstrzymanego zlecenia nie można zablokować — najpierw je wznów.",
     "View switcher": "Przełącznik widoku",
     "View as": "Wyświetl jako",
     "Administrator": "Administrator",
@@ -7302,5 +7299,12 @@
     "Use this address": "Użyj tego adresu",
     "Local OPC UA server (on this computer)?": "Lokalny serwer OPC UA (na tym komputerze)?",
     "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.": "Jeśli serwer OPC UA (np. symulator do testów) działa lokalnie na tym samym komputerze co OpenMES, użyj :address. Dla prawdziwej maszyny lub sterownika PLC na hali podaj jego adres IP.",
-    "Use the local server address": "Użyj adresu serwera lokalnego"
+    "Use the local server address": "Użyj adresu serwera lokalnego",
+    "Blocks the line and machine": "Blokuje linię i maszynę",
+    "Nothing is blocked, records scrap": "Nic nie blokuje, dodaje scrap",
+    "This work order has no line, so there is no line to block.": "To zlecenie nie ma przypisanej linii, więc nie ma czego zablokować.",
+    "A stop is opened on the line and its running work orders stay blocked until this issue is resolved.": "Na linii zostanie otwarty przestój, a jej aktywne zlecenia pozostaną zablokowane do czasu rozwiązania tego problemu.",
+    "Whole line": "Cała linia",
+    "The machine must be on the work order's line.": "Maszyna musi należeć do linii zlecenia.",
+    "Select a downtime reason.": "Wybierz powód przestoju."
 }

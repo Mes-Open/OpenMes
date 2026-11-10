@@ -3,19 +3,24 @@
 namespace Tests\Feature\Web;
 
 use App\Enums\IssueDisposition;
+use App\Models\DowntimeReason;
 use App\Models\Issue;
 use App\Models\IssueType;
+use App\Models\Line;
+use App\Models\ProductionDowntime;
 use App\Models\ScrapEntry;
 use App\Models\ScrapReason;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\Workstation;
 use App\Support\ProductionFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
  * Filing an issue from the Issues page (POST /admin/issues, /supervisor/issues),
- * where the reporter picks its effect: none, block the work order, or scrap.
+ * where the reporter picks its effect: none, stop the line (and machine), or
+ * scrap without blocking anything.
  */
 class ManagedIssueReportTest extends TestCase
 {
@@ -30,6 +35,8 @@ class ManagedIssueReportTest extends TestCase
     protected WorkOrder $order;
 
     protected IssueType $type;
+
+    protected DowntimeReason $downtimeReason;
 
     protected function setUp(): void
     {
@@ -47,6 +54,16 @@ class ManagedIssueReportTest extends TestCase
 
         $this->order = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS]);
         $this->type = IssueType::factory()->create();
+        $this->downtimeReason = DowntimeReason::factory()->create();
+    }
+
+    /** Payload for the "blocks the line and machine" effect. */
+    private function blockPayload(array $overrides = []): array
+    {
+        return $this->payload(array_merge([
+            'effect' => 'block',
+            'downtime_reason_id' => $this->downtimeReason->id,
+        ], $overrides));
     }
 
     private function payload(array $overrides = []): array
@@ -78,23 +95,94 @@ class ManagedIssueReportTest extends TestCase
         $this->assertSame(0, ScrapEntry::count());
     }
 
-    public function test_block_effect_blocks_the_work_order_even_for_a_non_blocking_type(): void
+    public function test_block_effect_stops_the_whole_line(): void
     {
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+        $sibling = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_PENDING]);
+        $otherLine = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload())
             ->assertSessionHasNoErrors();
 
-        $this->assertTrue(Issue::sole()->blocks_work_order);
+        $issue = Issue::sole();
+        $this->assertTrue($issue->blocks_work_order);
+        $this->assertTrue($issue->blocks_line);
+
+        $downtime = ProductionDowntime::sole();
+        $this->assertSame($issue->production_downtime_id, $downtime->id);
+        $this->assertSame($this->order->line_id, $downtime->line_id);
+        $this->assertNull($downtime->workstation_id);
+        $this->assertSame($this->downtimeReason->id, $downtime->downtime_reason_id);
+        $this->assertNull($downtime->ended_at);
+
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $sibling->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $otherLine->fresh()->status);
+    }
+
+    public function test_block_effect_records_the_chosen_machine_on_the_stop(): void
+    {
+        $machine = Workstation::factory()->create(['line_id' => $this->order->line_id]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload(['workstation_id' => $machine->id]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($machine->id, ProductionDowntime::sole()->workstation_id);
         $this->assertSame(WorkOrder::STATUS_BLOCKED, $this->order->fresh()->status);
     }
 
-    public function test_resolving_a_blocking_issue_unblocks_the_work_order(): void
+    public function test_resolving_a_line_block_ends_the_stop_and_releases_the_line(): void
     {
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']));
+        $sibling = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_PENDING]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
         $issue = Issue::sole();
 
         $this->actingAs($this->admin)->post("/admin/issues/{$issue->id}/resolve")
             ->assertSessionHasNoErrors();
 
+        $this->assertNotNull(ProductionDowntime::sole()->ended_at);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_PENDING, $sibling->fresh()->status);
+    }
+
+    public function test_bulk_resolve_releases_the_line(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+        $issue = Issue::sole();
+
+        $this->actingAs($this->admin)->post('/admin/issues/bulk', ['action' => 'resolve', 'ids' => [$issue->id]])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNotNull(ProductionDowntime::sole()->ended_at);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status);
+    }
+
+    public function test_the_line_stays_blocked_while_another_line_block_is_open(): void
+    {
+        $sibling = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_PENDING]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload(['title' => 'Second']));
+        [$first, $second] = Issue::orderBy('id')->get()->all();
+
+        $this->actingAs($this->admin)->post("/admin/issues/{$first->id}/resolve");
+
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $sibling->fresh()->status);
+
+        $this->actingAs($this->admin)->post("/admin/issues/{$second->id}/resolve");
+
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_PENDING, $sibling->fresh()->status);
+    }
+
+    public function test_the_service_resolve_also_releases_the_line(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+
+        app(\App\Services\IssueService::class)->resolveIssue(Issue::sole());
+
+        $this->assertNotNull(ProductionDowntime::sole()->ended_at);
         $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status);
     }
 
@@ -137,7 +225,7 @@ class ManagedIssueReportTest extends TestCase
 
     public function test_supervisor_can_file_an_issue(): void
     {
-        $this->actingAs($this->supervisor)->post('/supervisor/issues', $this->payload(['effect' => 'block']))
+        $this->actingAs($this->supervisor)->post('/supervisor/issues', $this->blockPayload())
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success');
 
@@ -152,6 +240,8 @@ class ManagedIssueReportTest extends TestCase
                 ->component('shared/issues/Index')
                 ->has('issueTypes')
                 ->has('scrapReasons')
+                ->has('downtimeReasons', 1)
+                ->has('workstations')
                 ->has('reportableWorkOrders', 1)
                 ->where('reportableWorkOrders.0.can_block', true)
                 ->where('reportableWorkOrders.0.scrap_on_steps', false)
@@ -173,7 +263,7 @@ class ManagedIssueReportTest extends TestCase
     {
         $this->order->update(['status' => WorkOrder::STATUS_PENDING]);
 
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']));
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
         $order = $this->order->fresh();
         $this->assertSame(WorkOrder::STATUS_BLOCKED, $order->status);
         $this->assertSame(WorkOrder::STATUS_PENDING, $order->status_before_block);
@@ -188,8 +278,8 @@ class ManagedIssueReportTest extends TestCase
 
     public function test_a_second_block_keeps_the_original_status_to_restore(): void
     {
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']));
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block', 'title' => 'Second']));
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload(['title' => 'Second']));
 
         $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status_before_block);
     }
@@ -200,7 +290,7 @@ class ManagedIssueReportTest extends TestCase
 
         app(\App\Services\IssueService::class)->reportWithEffect(
             data: ['work_order_id' => $this->order->id, 'issue_type_id' => $this->type->id, 'title' => 'x'],
-            blocksWorkOrder: true,
+            lineBlock: ['downtime_reason_id' => $this->downtimeReason->id, 'workstation_id' => null],
             scrap: ['scrap_reason_id' => ScrapReason::factory()->create()->id, 'quantity' => 1],
             userId: $this->admin->id,
         );
@@ -222,6 +312,47 @@ class ManagedIssueReportTest extends TestCase
             ->assertSessionHasErrors('effect');
 
         $this->assertSame(0, Issue::count());
+    }
+
+    public function test_block_effect_requires_a_downtime_reason(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+            ->assertSessionHasErrors('downtime_reason_id');
+
+        $this->assertSame(0, Issue::count());
+        $this->assertSame(0, ProductionDowntime::count());
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $this->order->fresh()->status);
+    }
+
+    public function test_an_inactive_downtime_reason_is_rejected(): void
+    {
+        $inactive = DowntimeReason::factory()->create(['is_active' => false]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload(['downtime_reason_id' => $inactive->id]))
+            ->assertSessionHasErrors('downtime_reason_id');
+
+        $this->assertSame(0, Issue::count());
+    }
+
+    public function test_a_machine_from_another_line_is_rejected(): void
+    {
+        $foreign = Workstation::factory()->create(['line_id' => Line::factory()]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload(['workstation_id' => $foreign->id]))
+            ->assertSessionHasErrors('workstation_id');
+
+        $this->assertSame(0, Issue::count());
+        $this->assertSame(0, ProductionDowntime::count());
+    }
+
+    public function test_block_fields_are_ignored_when_the_effect_is_not_block(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/issues', $this->payload([
+            'downtime_reason_id' => 999999,
+            'workstation_id' => 999999,
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame(0, ProductionDowntime::count());
     }
 
     public function test_scrap_effect_requires_a_reason_and_quantity(): void
@@ -270,8 +401,7 @@ class ManagedIssueReportTest extends TestCase
 
     public function test_scrap_fields_are_ignored_when_the_effect_is_not_scrap(): void
     {
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload([
-            'effect' => 'block',
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload([
             'scrap_reason_id' => 999999,
             'quantity' => 'abc',
         ]))->assertSessionHasNoErrors();
@@ -295,21 +425,36 @@ class ManagedIssueReportTest extends TestCase
     {
         $this->order->update(['status' => WorkOrder::STATUS_REJECTED]);
 
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload())
             ->assertSessionHasErrors('work_order_id');
 
         $this->assertSame(WorkOrder::STATUS_REJECTED, $this->order->fresh()->status);
     }
 
-    public function test_a_paused_work_order_cannot_be_blocked(): void
+    public function test_a_line_block_leaves_a_paused_order_paused_and_restores_nothing_for_it(): void
     {
         $this->order->update(['status' => WorkOrder::STATUS_PAUSED]);
+        $sibling = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
 
-        $this->actingAs($this->admin)->post('/admin/issues', $this->payload(['effect' => 'block']))
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload())->assertSessionHasNoErrors();
+
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_BLOCKED, $sibling->fresh()->status);
+
+        $this->actingAs($this->admin)->post('/admin/issues/'.Issue::sole()->id.'/resolve');
+
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $this->order->fresh()->status);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $sibling->fresh()->status);
+    }
+
+    public function test_an_order_without_a_line_cannot_block(): void
+    {
+        $this->order->update(['line_id' => null]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload())
             ->assertSessionHasErrors('effect');
 
         $this->assertSame(0, Issue::count());
-        $this->assertSame(WorkOrder::STATUS_PAUSED, $this->order->fresh()->status);
     }
 
     public function test_a_paused_work_order_still_accepts_an_issue_without_a_block(): void
