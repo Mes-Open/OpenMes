@@ -46,7 +46,12 @@ All API endpoints (except `/api/health` and `/api/auth/login`) require a Bearer 
 **Via the web UI** (recommended):
 1. Log in as Admin
 2. Go to **Settings → API Tokens**
-3. Create a new token and copy it
+3. Pick the token's **Access** — *Full API access*, *Read-only* or *Machine gateway (OPC UA)* — then create it and copy it
+
+A **read-only** token is refused (`403`, `"This token is read-only."`) on every request
+other than `GET`, `HEAD` and `OPTIONS`, on core and module routes alike. Every token is also
+limited to what its creator's role allows. `GET /api/auth/me` reports the calling token's
+access as `token.scope` (`full`, `read-only` or `machine-gateway`; `null` for a browser session).
 
 **Via the API:**
 

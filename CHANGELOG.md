@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
+  next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
+  saying what the chosen access allows. A read-only token reads everything its creator can
+  read and gets *403 "This token is read-only."* on every request other than GET, HEAD and
+  OPTIONS: on core routes, module routes, and on `/api/auth/refresh`, so it cannot be traded
+  for a full token. Use it for reporting tools and AI assistants that should look but not
+  change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
+  `machine-gateway`; `null` for a browser session) so a client can show only the actions its
+  token allows. Existing tokens keep the access they have.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

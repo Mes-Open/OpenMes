@@ -11,21 +11,29 @@ namespace App\Enums;
  * it. A machine-gateway token carries only `machine-gateway`: it can fetch a
  * machine connection's gateway config, post readings and heartbeats — and
  * nothing else, so a token pasted into a docker-compose `.env` on the shop
- * floor is not an admin key to the whole API.
+ * floor is not an admin key to the whole API. A read-only token carries only
+ * `read`: it sees what its creator sees, and any request other than GET, HEAD
+ * or OPTIONS is refused (RejectWritesWithReadOnlyToken) — the scope to give a
+ * reporting tool or an AI assistant that should look but not touch.
  */
 enum ApiTokenScope: string
 {
     case Full = 'full';
+    case ReadOnly = 'read-only';
     case MachineGateway = 'machine-gateway';
 
     /** Sanctum ability that admits a token to the machine-gateway routes. */
     public const GATEWAY_ABILITY = 'machine-gateway';
+
+    /** Sanctum ability of a read-only token: safe HTTP methods only. */
+    public const READ_ABILITY = 'read';
 
     /** @return list<string> */
     public function abilities(): array
     {
         return match ($this) {
             self::Full => ['*'],
+            self::ReadOnly => [self::READ_ABILITY],
             self::MachineGateway => [self::GATEWAY_ABILITY],
         };
     }
@@ -34,7 +42,17 @@ enum ApiTokenScope: string
     {
         return match ($this) {
             self::Full => __('Full API access'),
+            self::ReadOnly => __('Read-only'),
             self::MachineGateway => __('Machine gateway (OPC UA)'),
+        };
+    }
+
+    public function description(): string
+    {
+        return match ($this) {
+            self::Full => __('Reads and changes data with your permissions.'),
+            self::ReadOnly => __('Reads data with your permissions; every change is refused.'),
+            self::MachineGateway => __('Only for the OPC UA gateway: sends machine readings, nothing else.'),
         };
     }
 
@@ -47,9 +65,12 @@ enum ApiTokenScope: string
     {
         $abilities = is_array($abilities) ? $abilities : [];
 
-        return ! in_array('*', $abilities, true) && in_array(self::GATEWAY_ABILITY, $abilities, true)
-            ? self::MachineGateway
-            : self::Full;
+        return match (true) {
+            in_array('*', $abilities, true) => self::Full,
+            in_array(self::GATEWAY_ABILITY, $abilities, true) => self::MachineGateway,
+            in_array(self::READ_ABILITY, $abilities, true) => self::ReadOnly,
+            default => self::Full,
+        };
     }
 
     /** @return list<string> */

@@ -350,7 +350,7 @@ class SettingsController extends Controller
             'newTokenScope' => session('new_token_scope'),
             'appUrl' => config('app.url'),
             'scopes' => array_map(
-                fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label()],
+                fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label(), 'description' => $scope->description()],
                 \App\Enums\ApiTokenScope::cases(),
             ),
         ]);
