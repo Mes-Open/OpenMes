@@ -36,6 +36,9 @@ class ModbusPollCommand extends Command
     /** How often the running poller re-reads connections, tags and settings. */
     private const REFRESH_SECONDS = 60;
 
+    /** Well inside RuntimeMonitor::STALE_AFTER. */
+    private const HEARTBEAT_SECONDS = 5;
+
     /**
      * @var array<int, array{connection: MachineConnection, modbus: ModbusConnection, tags: Collection, reader: ?ModbusReader, next_poll_at: float}>
      */
@@ -81,6 +84,7 @@ class ModbusPollCommand extends Command
         }
 
         $lastRefresh = microtime(true);
+        $lastHeartbeat = 0.0;
         $failed = false;
 
         while (! $this->shouldStop) {
@@ -89,6 +93,19 @@ class ModbusPollCommand extends Command
             }
 
             $now = microtime(true);
+
+            // On its own clock, not once per poll: poll_interval_ms can be longer
+            // than RuntimeMonitor::STALE_AFTER, and a slow-polled machine would
+            // then read as "not running" for part of every cycle. Sent for every
+            // connection, reachable or not, so an unreachable machine shows its
+            // error rather than a dead poller.
+            if ($now - $lastHeartbeat >= self::HEARTBEAT_SECONDS) {
+                $lastHeartbeat = $now;
+                foreach ($this->managed as $entry) {
+                    $runtime->heartbeat($entry['connection']->protocol, $entry['connection']->id);
+                }
+            }
+
             if ($now - $lastRefresh >= self::REFRESH_SECONDS) {
                 $lastRefresh = $now;
                 $this->reconcile($handle);
@@ -101,7 +118,7 @@ class ModbusPollCommand extends Command
 
             foreach (array_keys($this->managed) as $id) {
                 if ($once || microtime(true) >= $this->managed[$id]['next_poll_at']) {
-                    $failed = ! $this->poll($id, $ingestor, $runtime) || $failed;
+                    $failed = ! $this->poll($id, $ingestor) || $failed;
                 }
             }
 
@@ -190,17 +207,13 @@ class ModbusPollCommand extends Command
     }
 
     /** One poll of one connection. False when the machine could not be read. */
-    private function poll(int $id, MachineSignalIngestor $ingestor, RuntimeMonitor $runtime): bool
+    private function poll(int $id, MachineSignalIngestor $ingestor): bool
     {
         $entry = &$this->managed[$id];
         $connection = $entry['connection'];
         $modbus = $entry['modbus'];
         $cycleStart = microtime(true);
         $entry['next_poll_at'] = $cycleStart + max(100, $modbus->poll_interval_ms) / 1000;
-
-        // The poller is running for this connection even while its machine is
-        // unreachable: the connection page then shows the error, not "not running".
-        $runtime->heartbeat($connection->protocol, $connection->id);
 
         try {
             if ($entry['reader'] === null) {

@@ -248,6 +248,12 @@ class MqttListenCommand extends Command
         $b = explode('/', $broad);
         $n = explode('/', $narrow);
 
+        // A leading wildcard never matches a $-topic (MQTT 3.1.1 §4.7.2), so
+        // `#` does not make `$SYS/broker/#` redundant.
+        if (str_starts_with($narrow, '$') && in_array($b[0], ['+', '#'], true)) {
+            return false;
+        }
+
         foreach ($b as $i => $part) {
             if ($part === '#') {
                 return true;

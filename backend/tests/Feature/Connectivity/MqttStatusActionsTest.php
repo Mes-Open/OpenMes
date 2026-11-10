@@ -91,4 +91,17 @@ class MqttStatusActionsTest extends TestCase
         $this->assertSame('error', $result['status']);
         $this->assertSame(BatchStep::STATUS_IN_PROGRESS, $step->fresh()->status);
     }
+
+    public function test_a_held_or_finished_order_is_not_moved_by_a_machine_message(): void
+    {
+        foreach ([WorkOrder::STATUS_BLOCKED, WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_CHANGE_HOLD, WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED] as $status) {
+            $order = WorkOrder::factory()->create(['status' => $status]);
+
+            $result = $this->execute(TopicMapping::ACTION_SET_WORK_ORDER_STATUS, ['order_no_path' => '$.order', 'status_path' => '$.status'],
+                ['order' => $order->order_no, 'status' => 'in_progress']);
+
+            $this->assertSame('error', $result['status'], $status);
+            $this->assertSame($status, $order->fresh()->status);
+        }
+    }
 }

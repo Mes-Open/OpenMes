@@ -109,6 +109,19 @@ function queueReading(tag, value) {
   flushOutbox();
 }
 
+/**
+ * Take a posted batch off the outbox. By identity, not by position: if the
+ * outbox overflowed while the post was in flight, its oldest entries — the
+ * head of this batch — were already dropped, and removing `batch.length` from
+ * the front would throw away newer readings that were never sent.
+ */
+function removeSent(batch) {
+  const sent = new Set(batch);
+  for (let i = outbox.length - 1; i >= 0; i--) {
+    if (sent.has(outbox[i])) outbox.splice(i, 1);
+  }
+}
+
 async function flushOutbox() {
   if (flushing) return;
   flushing = true;
@@ -129,14 +142,14 @@ async function flushOutbox() {
         continue;
       }
       if (res.ok) {
-        outbox.splice(0, batch.length);
+        removeSent(batch);
         continue;
       }
       if (res.status === 422) {
         // The data itself is rejected; resending it would block the queue forever.
         const body = await res.text().catch(() => "");
         log(`readings rejected (422), dropping ${batch.length}: ${body.slice(0, 300)}`);
-        outbox.splice(0, batch.length);
+        removeSent(batch);
         continue;
       }
       // 401/403/404/5xx: the readings are fine, OpenMES is not accepting them yet.
@@ -201,6 +214,8 @@ async function subscribeTags(subscription, cfg) {
   }
 }
 
+const DEACTIVATED = "Connection is deactivated in OpenMES - not reading the machine";
+
 /** Thrown to start over with the new settings; not an outage. */
 class ConfigChanged extends Error {}
 
@@ -255,7 +270,7 @@ async function run() {
   if (!cfg.connection.is_active) {
     // Switched off in OpenMES (machine down for maintenance): do not read it,
     // say why, and wait to be switched back on.
-    opcuaProblem = "Connection is deactivated in OpenMES - not reading the machine";
+    opcuaProblem = DEACTIVATED;
     log(`${cfg.connection.name} is deactivated in OpenMES - waiting`);
     await heartbeat();
     try { await config.changed; } catch {} finally { config.stop(); }
@@ -263,6 +278,8 @@ async function run() {
   }
 
   log(`config: ${cfg.connection.name}, ${cfg.tags.length} nodes, endpoint ${endpoint}`);
+  // Switched back on: the "deactivated" reason no longer applies.
+  if (opcuaProblem === DEACTIVATED) opcuaProblem = null;
   opcuaProblem ??= `Connecting to ${endpoint}`;
 
   const client = OPCUAClient.create({

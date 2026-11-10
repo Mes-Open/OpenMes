@@ -81,5 +81,7 @@ class MqttMessageRoutingTest extends TestCase
         // Partly overlapping patterns are both needed.
         $this->assertSame(['a/+/c', 'a/b/+'], MqttListenCommand::subscriptionPatterns(['a/+/c', 'a/b/+']));
         $this->assertSame(['#'], MqttListenCommand::subscriptionPatterns(['a/b', '#', '+/c']));
+        // A leading wildcard never matches a $-topic, so it stays subscribed.
+        $this->assertSame(['#', '$SYS/broker/#'], MqttListenCommand::subscriptionPatterns(['#', '$SYS/broker/#']));
     }
 }

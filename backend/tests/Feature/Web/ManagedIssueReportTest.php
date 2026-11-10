@@ -199,6 +199,27 @@ class ManagedIssueReportTest extends TestCase
         $this->assertFalse($sibling->fresh()->isBlocked());
     }
 
+    public function test_a_paused_order_on_a_blocked_line_cannot_be_resumed(): void
+    {
+        // A line block blocks running orders; a paused one keeps its status,
+        // but the line is still stopped.
+        $paused = WorkOrder::factory()->create(['line_id' => $this->order->line_id, 'status' => WorkOrder::STATUS_PAUSED]);
+
+        $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $paused->fresh()->status);
+
+        try {
+            app(\App\Services\WorkOrder\WorkOrderStopService::class)->resume($paused->fresh(), [], $this->admin);
+            $this->fail('A paused order resumed while its line was blocked.');
+        } catch (\DomainException) {
+            $this->assertSame(WorkOrder::STATUS_PAUSED, $paused->fresh()->status);
+        }
+
+        $this->actingAs($this->admin)->post('/admin/issues/'.Issue::sole()->id.'/resolve');
+        app(\App\Services\WorkOrder\WorkOrderStopService::class)->resume($paused->fresh(), [], $this->admin);
+        $this->assertSame(WorkOrder::STATUS_IN_PROGRESS, $paused->fresh()->status);
+    }
+
     public function test_the_service_resolve_also_releases_the_line(): void
     {
         $this->actingAs($this->admin)->post('/admin/issues', $this->blockPayload());

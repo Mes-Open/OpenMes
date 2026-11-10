@@ -284,6 +284,13 @@ class ActionExecutor
             throw new \DomainException('Transfer order status must be changed through the production workflow.');
         }
 
+        // Held orders resume through the stop workflow or by resolving their
+        // issue (a line block holds every order on the line); finished orders
+        // do not reopen. A machine message must not bypass either.
+        if (in_array($workOrder->status, [...WorkOrder::HELD_STATUSES, ...WorkOrder::TERMINAL_STATUSES], true)) {
+            throw new \DomainException("Work order {$workOrder->order_no} is {$workOrder->status}; its status cannot be changed from a machine message.");
+        }
+
         $workOrder->update(['status' => $status]);
 
         return ['order_no' => $workOrder->order_no, 'new_status' => $status];

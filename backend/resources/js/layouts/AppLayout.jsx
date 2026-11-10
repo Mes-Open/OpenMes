@@ -305,10 +305,12 @@ function useNavTree() {
             return {
                 links: withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs),
                 groups: withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
-                // The supervisor tree carries no tab keys: its gate is the route
-                // group's role middleware, not the admin access matrix. Filtering
-                // it through that matrix would hide every entry, since a
-                // supervisor holds no tab:* grants.
+                // The supervisor tree is gated by the route group's role
+                // middleware, not the admin access matrix. Only its entries that
+                // carry a `tab` key (an admin page granted in Settings → Access)
+                // are filtered, above by withGrantedTabs; showTab stays permissive
+                // because group keys here are not tab keys and the tree is
+                // already filtered.
                 showTab: () => true,
             };
         }
