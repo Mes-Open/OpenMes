@@ -42,4 +42,41 @@ class ConnectivityOverviewStatusTest extends TestCase
             'Switched off' => ['disconnected', 'slate'],
         ], collect($this->statuses())->sortKeys()->all());
     }
+
+    public function test_every_connection_list_carries_the_protocol_counts_for_its_tabs(): void
+    {
+        MachineConnection::create(['name' => 'A', 'protocol' => 'mqtt', 'is_active' => true]);
+        MachineConnection::create(['name' => 'B', 'protocol' => 'modbus', 'is_active' => true]);
+        MachineConnection::create(['name' => 'C', 'protocol' => 'modbus', 'is_active' => false]);
+        Role::findOrCreate('Admin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        foreach (['/admin/connectivity', '/admin/connectivity/mqtt', '/admin/connectivity/modbus', '/admin/connectivity/opcua'] as $url) {
+            $counts = $this->actingAs($admin)->get($url)->assertOk()
+                ->getOriginalContent()->getData()['page']['props']['counts'];
+            $this->assertSame(['modbus' => 2, 'mqtt' => 1], collect($counts)->sortKeys()->all(), $url);
+        }
+    }
+
+    public function test_any_connection_can_be_switched_on_and_off_from_its_tile(): void
+    {
+        $modbus = MachineConnection::create(['name' => 'Press', 'protocol' => 'modbus', 'is_active' => true]);
+        Role::findOrCreate('Admin', 'web');
+        Role::findOrCreate('Operator', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $url = "/admin/connectivity/connections/{$modbus->id}/toggle-active";
+
+        $this->actingAs($operator)->post($url)->assertForbidden();
+        $this->assertTrue($modbus->fresh()->is_active);
+
+        $this->actingAs($admin)->post($url)->assertRedirect();
+        $this->assertFalse($modbus->fresh()->is_active);
+        $this->actingAs($admin)->post($url)->assertRedirect();
+        $this->assertTrue($modbus->fresh()->is_active);
+    }
 }
+

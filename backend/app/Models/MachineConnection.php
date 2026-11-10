@@ -128,6 +128,28 @@ class MachineConnection extends Model
         return (string) $this->status;
     }
 
+    /**
+     * How many connections exist per protocol — the counts on the
+     * Connectivity tabs, which every connection list shows.
+     *
+     * @return array<string, int>
+     */
+    public static function protocolCounts(): array
+    {
+        return static::query()
+            ->selectRaw('protocol, count(*) as total')
+            ->groupBy('protocol')
+            ->pluck('total', 'protocol')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /** Why the connection is in error, when it is; null otherwise. */
+    public function liveStatusMessage(): ?string
+    {
+        return $this->liveStatus() === self::STATUS_ERROR ? $this->status_message : null;
+    }
+
     public function liveStatusColor(): string
     {
         return self::colorFor($this->liveStatus());

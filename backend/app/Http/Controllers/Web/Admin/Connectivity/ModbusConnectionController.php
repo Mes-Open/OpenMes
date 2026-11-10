@@ -23,6 +23,7 @@ class ModbusConnectionController extends Controller
             ->get();
 
         return Inertia::render('admin/connectivity/modbus/Index', [
+            'counts' => MachineConnection::protocolCounts(),
             'connections' => $connections->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
@@ -30,6 +31,7 @@ class ModbusConnectionController extends Controller
                 'is_active' => $c->is_active,
                 'status' => $c->liveStatus(),
                 'status_color' => $c->liveStatusColor(),
+                'status_message' => $c->liveStatusMessage(),
                 'tags_count' => $c->tags_count,
                 'host' => $c->modbusConnection?->host,
                 'port' => $c->modbusConnection?->port,

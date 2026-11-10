@@ -5,6 +5,7 @@ import AppLayout from '../../../../layouts/AppLayout';
 import { __, formatNumber, formatTime } from '../../../../lib/i18n';
 import useConfirm from '../../../../components/useConfirm';
 import { nameControl } from '../../../../lib/fieldName';
+import { statusLabel } from '../ui';
 
 const STATUS_DOT = {
     green:  'bg-om-running',
@@ -59,14 +60,14 @@ export default function MqttShow() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                             </svg>
-                            MQTT Connections
+                            {__('MQTT Connections')}
                         </a>
                         <div className="flex items-center gap-3">
                             <span className={`w-3 h-3 rounded-full ${dot} ${connection.status === 'connected' ? 'animate-pulse' : ''}`} />
                             <h1 className="text-2xl font-bold text-om-ink">{connection.name}</h1>
                             {!connection.is_active && (
                                 <span className="text-xs px-2 py-0.5 bg-om-chip text-om-muted rounded-full">
-                                    Inactive
+                                    {__('Inactive')}
                                 </span>
                             )}
                         </div>
@@ -83,18 +84,18 @@ export default function MqttShow() {
                             href={`/admin/connectivity/mqtt/${connection.id}/edit`}
                             className="px-4 py-2 text-sm font-medium bg-om-chip text-om-muted rounded-om-sm hover:bg-om-line2 transition-colors"
                         >
-                            Edit
+                            {__('Edit')}
                         </a>
                         <button
                             type="button"
                             onClick={handleToggle}
-                            className={`px-4 py-2 text-sm font-medium rounded-om-sm transition-colors ${
+                            className={`px-4 py-2 text-sm font-medium rounded-om-sm transition-colors cursor-pointer ${
                                 connection.is_active
                                     ? 'bg-om-downtime-bg text-om-downtime hover:bg-om-downtime-bg'
                                     : 'bg-om-running-bg text-om-running hover:bg-om-running-bg'
                             }`}
                         >
-                            {connection.is_active ? 'Disable' : 'Enable'}
+                            {connection.is_active ? __('Disable') : __('Enable')}
                         </button>
                     </div>
                 </div>
@@ -103,13 +104,13 @@ export default function MqttShow() {
                 <div className="grid grid-cols-3 gap-4">
                     <StatCard value={connection.topics.length} label="Topics" />
                     <StatCard value={formatNumber(Number(connection.messages_received))} label="Messages received" />
-                    <StatCard value={connection.status} label={connection.last_connected_at ?? 'Never'} capitalize />
+                    <StatCard value={statusLabel(connection.status)} label={connection.last_connected_at ?? __('Never')} />
                 </div>
 
                 {/* Topics & Mappings */}
                 <div>
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-semibold text-om-ink">Topics &amp; Mappings</h2>
+                        <h2 className="text-lg font-semibold text-om-ink">{__('Topics & Mappings')}</h2>
                     </div>
 
                     <div className="space-y-4">
@@ -118,7 +119,7 @@ export default function MqttShow() {
                                 <svg className="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
                                 </svg>
-                                <p className="text-sm">No topics subscribed yet.</p>
+                                <p className="text-sm">{__('No topics subscribed yet.')}</p>
                             </div>
                         ) : (
                             connection.topics.map((topic) => (
@@ -158,7 +159,7 @@ function StatCard({ value, label, capitalize }) {
             <p className={`text-2xl font-bold text-om-ink ${capitalize ? 'capitalize' : ''}`}>
                 {value}
             </p>
-            <p className="text-xs text-om-muted mt-1">{label}</p>
+            <p className="text-xs text-om-muted mt-1">{__(label)}</p>
         </div>
     );
 }
@@ -169,7 +170,7 @@ function TopicCard({ topic, connectionId }) {
     const { confirm, dialog } = useConfirm();
 
     const handleDeleteTopic = () => {
-        confirm({ title: 'Delete this topic and all its mappings?' }, () => {
+        confirm({ title: __('Delete this topic and all its mappings?') }, () => {
             router.delete(`/admin/connectivity/mqtt/${connectionId}/topics/${topic.id}`, { preserveScroll: true });
         });
     };
@@ -221,7 +222,7 @@ function TopicCard({ topic, connectionId }) {
             <div className="divide-y divide-om-line2">
                 {topic.mappings.length === 0 ? (
                     <p className="px-4 py-3 text-xs text-om-faint italic">
-                        No mappings defined — messages will be logged only.
+                        {__('No mappings defined — messages will be logged only.')}
                     </p>
                 ) : (
                     topic.mappings.map((mapping) => (
@@ -245,7 +246,7 @@ function TopicCard({ topic, connectionId }) {
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    Add mapping rule
+                    {__('Add mapping rule')}
                 </button>
                 {addMappingOpen && (
                     <AddMappingForm
@@ -279,9 +280,9 @@ function EditTopicForm({ topic, connectionId, onClose }) {
         <div className="px-4 py-3 border-b border-om-line2 bg-om-chip/40">
             <form onSubmit={submit} className="flex gap-3 items-end flex-wrap">
                 <div className="flex-1 min-w-48">
-                    <div className="block text-xs font-medium text-om-muted mb-1">Pattern</div>
+                    <div className="block text-xs font-medium text-om-muted mb-1">{__('Pattern')}</div>
                     <input
-                        aria-label="Pattern"
+                        aria-label={__('Pattern')}
                         type="text"
                         value={form.data.topic_pattern}
                         onChange={(e) => form.setData('topic_pattern', e.target.value)}
@@ -290,18 +291,18 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                     />
                 </div>
                 <div>
-                    <div className="block text-xs font-medium text-om-muted mb-1">Format</div>
+                    <div className="block text-xs font-medium text-om-muted mb-1">{__('Format')}</div>
                     <Dropdown
-                        aria-label="Format"
+                        aria-label={__('Format')}
                         value={form.data.payload_format}
                         onChange={(v) => form.setData('payload_format', v)}
                         options={['json', 'plain', 'csv', 'hex'].map((f) => ({ value: f, label: f.toUpperCase() }))}
                     />
                 </div>
                 <div className="flex-1 min-w-36">
-                    <div className="block text-xs font-medium text-om-muted mb-1">Description</div>
+                    <div className="block text-xs font-medium text-om-muted mb-1">{__('Description')}</div>
                     <input
-                        aria-label="Description"
+                        aria-label={__('Description')}
                         type="text"
                         value={form.data.description}
                         onChange={(e) => form.setData('description', e.target.value)}
@@ -310,10 +311,10 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="primary" type="submit" loading={form.processing}>
-                        Save
+                        {__('Save')}
                     </Button>
                     <Button variant="secondary" type="button" onClick={onClose}>
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                 </div>
             </form>
@@ -324,12 +325,12 @@ function EditTopicForm({ topic, connectionId, onClose }) {
 function MappingRow({ mapping, topic, connectionId }) {
     const [editOpen, setEditOpen] = useState(false);
     const color = ACTION_COLORS[mapping.action_type] ?? 'bg-om-chip text-om-muted';
-    const label = ACTION_LABELS[mapping.action_type] ?? mapping.action_type;
+    const label = ACTION_LABELS[mapping.action_type] ? __(ACTION_LABELS[mapping.action_type]) : mapping.action_type;
     const priority = String(mapping.priority).padStart(3, '0');
     const { confirm, dialog } = useConfirm();
 
     const handleDelete = () => {
-        confirm({ title: 'Delete this mapping?' }, () => {
+        confirm({ title: __('Delete this mapping?') }, () => {
             router.delete(
                 `/admin/connectivity/mqtt/${connectionId}/topics/${topic.id}/mappings/${mapping.id}`,
                 { preserveScroll: true },
@@ -353,7 +354,7 @@ function MappingRow({ mapping, topic, connectionId }) {
                     )}
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>{label}</span>
                     {mapping.condition_expr && (
-                        <span className="font-mono text-om-faint text-xs">if: {mapping.condition_expr}</span>
+                        <span className="font-mono text-om-faint text-xs">{__('if: :condition', { condition: mapping.condition_expr })}</span>
                     )}
                 </div>
                 {mapping.description && <p className="text-om-faint">{mapping.description}</p>}
@@ -432,7 +433,7 @@ function CountStepFields({ value, onChange }) {
                     value={p.line_id != null ? String(p.line_id) : ''}
                     onChange={(v) => set({ line_id: v ? Number(v) : '', workstation_id: '' })}
                     options={[
-                        { value: '', label: deviceLine ? `— Device line (${deviceLine}) —` : '— Select line —' },
+                        { value: '', label: deviceLine ? __('— Device line (:line) —', { line: deviceLine }) : __('— Select line —') },
                         ...lines.map((l) => ({ value: String(l.id), label: l.name })),
                     ]}
                     className="w-full"
@@ -442,9 +443,9 @@ function CountStepFields({ value, onChange }) {
                 <Dropdown
                     value={p.workstation_id != null ? String(p.workstation_id) : ''}
                     onChange={(v) => set({ workstation_id: v ? Number(v) : '', step_number: '' })}
-                    placeholder={lineWorkstations.length ? '— Select station —' : '— No stations on this line —'}
+                    placeholder={lineWorkstations.length ? __('— Select station —') : __('— No stations on this line —')}
                     options={[
-                        { value: '', label: '— Select station —' },
+                        { value: '', label: __('— Select station —') },
                         ...lineWorkstations.map((w) => ({ value: String(w.id), label: w.name })),
                     ]}
                     className="w-full"
@@ -496,7 +497,7 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                         <Dropdown
                             value={form.data.action_type}
                             onChange={(v) => form.setData('action_type', v)}
-                            options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                            options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: __(lbl) }))}
                             className="w-full"
                         />
                     </MiniField>
@@ -576,7 +577,7 @@ function AddTopicForm({ connectionId }) {
                                 onChange={(v) => form.setData('payload_format', v)}
                                 options={[
                                     { value: 'json', label: 'JSON' },
-                                    { value: 'plain', label: 'Plain text' },
+                                    { value: 'plain', label: __('Plain text') },
                                     { value: 'csv', label: 'CSV' },
                                     { value: 'hex', label: 'Hex' },
                                 ]}
@@ -723,14 +724,14 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
 
     return (
         <div>
-            <h2 className="text-lg font-semibold text-om-ink mb-3">Live Message Log</h2>
+            <h2 className="text-lg font-semibold text-om-ink mb-3">{__('Live Message Log')}</h2>
             <div className="bg-om-ink rounded-om border border-gray-700 overflow-hidden">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-om-ink/60">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-om-running animate-pulse" />
-                            <span className="text-xs text-om-faint">Live (polling)</span>
+                            <span className="text-xs text-om-faint">{__('Live (polling)')}</span>
                         </div>
                         <span className="text-xs text-om-muted">{messages.length} new messages</span>
                     </div>
@@ -738,10 +739,10 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                         <Checkbox
                             checked={autoScroll}
                             onChange={(next) => setAutoScroll(next)}
-                            label="Auto-scroll"
+                            label={__('Auto-scroll')}
                         />
                         <button onClick={() => setMessages([])} className="text-xs text-om-muted hover:text-om-faintest transition-colors">
-                            Clear
+                            {__('Clear')}
                         </button>
                     </div>
                 </div>
@@ -772,7 +773,7 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                     ))}
 
                     {initialMessages.length === 0 && messages.length === 0 && (
-                        <div className="text-om-muted text-center py-8">Waiting for messages...</div>
+                        <div className="text-om-muted text-center py-8">{__('Waiting for messages...')}</div>
                     )}
                 </div>
             </div>

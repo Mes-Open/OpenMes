@@ -18,7 +18,7 @@ class TopicMappingController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return back()->with('success', 'Mapping added.');
+        return back()->with('success', __('Mapping added.'));
     }
 
     public function update(TopicMappingRequest $request, MachineConnection $mqttConnection, MachineTopic $topic, TopicMapping $mapping)
@@ -31,7 +31,7 @@ class TopicMappingController extends Controller
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $mapping->is_active,
         ]);
 
-        return back()->with('success', 'Mapping updated.');
+        return back()->with('success', __('Mapping updated.'));
     }
 
     public function destroy(MachineConnection $mqttConnection, MachineTopic $topic, TopicMapping $mapping)
@@ -41,6 +41,6 @@ class TopicMappingController extends Controller
 
         $mapping->delete();
 
-        return back()->with('success', 'Mapping deleted.');
+        return back()->with('success', __('Mapping deleted.'));
     }
 }

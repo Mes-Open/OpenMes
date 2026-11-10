@@ -25,6 +25,7 @@ class OpcuaConnectionController extends Controller
             ->get();
 
         return Inertia::render('admin/connectivity/opcua/Index', [
+            'counts' => MachineConnection::protocolCounts(),
             'connections' => $connections->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
@@ -32,6 +33,7 @@ class OpcuaConnectionController extends Controller
                 'is_active' => $c->is_active,
                 'status' => $c->liveStatus(),
                 'status_color' => $c->liveStatusColor(),
+                'status_message' => $c->liveStatusMessage(),
                 'tags_count' => $c->tags_count,
                 'endpoint_url' => $c->opcuaConnection?->endpoint_url,
                 'security_policy' => $c->opcuaConnection?->security_policy,

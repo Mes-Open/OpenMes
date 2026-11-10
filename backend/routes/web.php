@@ -902,6 +902,8 @@ Route::middleware('auth')->group(function () {
 
         // ── Connectivity ──────────────────────────────────────────────────────
         Route::get('/connectivity', [ConnectivityController::class, 'index'])->name('connectivity.index');
+        // Switch any connection on or off from its tile, whatever the protocol.
+        Route::post('/connectivity/connections/{machineConnection}/toggle-active', [ConnectivityController::class, 'toggleActive'])->name('connectivity.toggle-active');
 
         // Who may open these is the `machine_counters` tab in Settings → Access.
         Route::prefix('connectivity/counters')->group(function () {

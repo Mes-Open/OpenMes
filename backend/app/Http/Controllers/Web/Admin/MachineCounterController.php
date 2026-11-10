@@ -18,10 +18,15 @@ class MachineCounterController extends Controller
 {
     public function __construct(private readonly MachineCounterService $counters) {}
 
+    /** Reading statuses a person has to look at (Review in the reading history). */
+    private const REVIEWABLE = ['unassigned', 'blocked', 'partial', 'quality_unknown'];
+
     public function index(Request $request)
     {
         $selected = $request->integer('counter');
-        $counters = MachineCounter::whereHas('connection')->with(['tag', 'mapping.topic', 'connection', 'step.batch.workOrder', 'workstation'])->orderBy('id')->get();
+        $counters = MachineCounter::whereHas('connection')->with(['tag', 'mapping.topic', 'connection', 'step.batch.workOrder', 'workstation'])
+            ->withCount(['readings as pending_review_count' => fn ($q) => $q->whereNull('reviewed_at')->whereIn('status', self::REVIEWABLE)])
+            ->orderBy('id')->get();
         $counter = $counters->firstWhere('id', $selected) ?? $counters->first();
         $tags = MachineTag::whereHas('connection')->whereIn('signal_type', ['good_count', 'reject_count', 'cycle_complete'])->get();
         $mappings = TopicMapping::whereHas('topic.machineConnection')->whereIn('action_type', [TopicMapping::ACTION_COUNT_STEP, TopicMapping::ACTION_UPDATE_WORK_ORDER_QTY])->get();
@@ -31,7 +36,7 @@ class MachineCounterController extends Controller
         return Inertia::render('admin/connectivity/Counters', [
             'counters' => $counters->map(fn ($c) => [...$c->toArray(), 'label' => $c->tag?->name ?? ('MQTT #'.$c->topic_mapping_id)]),
             'selectedId' => $counter?->id,
-            'readings' => $counter?->readings()->when($request->boolean('review'), fn ($q) => $q->whereNull('reviewed_at')->whereIn('status', ['unassigned', 'blocked', 'partial', 'quality_unknown']))->orderByDesc('id')->paginate(40)->withQueryString(),
+            'readings' => $counter?->readings()->when($request->boolean('review'), fn ($q) => $q->whereNull('reviewed_at')->whereIn('status', self::REVIEWABLE))->orderByDesc('id')->paginate(40)->withQueryString(),
             'sources' => $tags->map(fn ($t) => ['type' => 'tag', 'id' => $t->id, 'label' => $t->name])->concat(
                 $mappings->map(fn ($m) => ['type' => 'mapping', 'id' => $m->id, 'label' => 'MQTT #'.$m->id.' '.$m->description]))->values(),
             'workstations' => Workstation::whereHas('line')->get(['id', 'name', 'line_id']),

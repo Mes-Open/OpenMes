@@ -25,7 +25,7 @@ class MachineTopicController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return back()->with('success', 'Topic added.');
+        return back()->with('success', __('Topic added.'));
     }
 
     public function update(Request $request, MachineConnection $mqttConnection, MachineTopic $topic)
@@ -48,7 +48,7 @@ class MachineTopicController extends Controller
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $topic->is_active,
         ]);
 
-        return back()->with('success', 'Topic updated.');
+        return back()->with('success', __('Topic updated.'));
     }
 
     public function destroy(MachineConnection $mqttConnection, MachineTopic $topic)
@@ -56,7 +56,7 @@ class MachineTopicController extends Controller
         $this->authorizeTopicBelongsToConnection($topic, $mqttConnection);
         $topic->delete();
 
-        return back()->with('success', 'Topic deleted.');
+        return back()->with('success', __('Topic deleted.'));
     }
 
     private function authorizeTopicBelongsToConnection(MachineTopic $topic, MachineConnection $connection): void
