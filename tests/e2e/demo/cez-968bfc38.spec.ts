@@ -1,0 +1,106 @@
+import { test, expect } from '@playwright/test';
+
+test('planner sees how many people are missing and which lines are not staffing-tracked', async ({ page }, testInfo) => {
+  test.setTimeout(290_000);
+  page.setDefaultTimeout(30_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto('/login');
+  await page.getByLabel(/username/i).fill(process.env.ADMIN_USERNAME!);
+  await page.getByLabel(/password/i).fill(process.env.ADMIN_PASSWORD!);
+  await page.getByRole('button', { name: /sign in|log in|login/i }).click();
+  await expect(page.getByText('Welcome to OpenMES').first()).toBeVisible({ timeout: 60_000 });
+  const shop = page.getByText('Precision machine shop').locator('xpath=ancestor::*[.//input[@type="radio"]][1]').getByRole('radio');
+  await shop.click();
+  await page.getByRole('button', { name: 'Install this example company' }).click();
+  await expect(page.getByText('Welcome to OpenMES')).toHaveCount(0, { timeout: 200_000 });
+  await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => {});
+  await expect(page.getByRole('button', { name: /^Admin$/i })).toBeVisible({ timeout: 60_000 });
+  await page.screenshot({ path: testInfo.outputPath('01-installed.png'), fullPage: true });
+
+  await page.getByRole('button', { name: /^Production$/i }).click();
+  await page.getByRole('button', { name: /Production Lines/i }).click();
+  await page.getByRole('link', { name: 'All Production Lines' }).click();
+  await expect(page.getByText('Inspection & Packing').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('02-lines.png'), fullPage: true });
+  await page.getByRole('link', { name: /Inspection & Packing/ }).first().click();
+  await expect(page.getByText('Assigned Operators').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('03-line-qc.png'), fullPage: true });
+  await page.getByRole('link', { name: 'Product Types' }).click();
+  await expect(page).toHaveURL(/product-types/);
+  await expect(page.getByText('Bronze Bushing').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('04-product-types.png'), fullPage: true });
+  await page.getByRole('button', { name: /View Details/ }).first().click();
+  await expect(page.getByText('Process Templates').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('05-product-type.png'), fullPage: true });
+  await page.locator('a[href*="/process-templates/"]').first().click();
+  await expect(page.getByLabel('Edit').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('06-template.png'), fullPage: true });
+  await page.getByLabel('Edit', { exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: testInfo.outputPath('06b-after-edit-click.png'), fullPage: true });
+  const dlg = page.getByRole('dialog').first();
+  await expect(dlg.getByLabel('Operators Required')).toBeVisible();
+  await dlg.getByLabel('Operators Required').fill('3');
+  await page.screenshot({ path: testInfo.outputPath('06c-ops3.png'), fullPage: true });
+  await dlg.getByRole('button', { name: 'Save Changes' }).click();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: testInfo.outputPath('06d-saved.png'), fullPage: true });
+  // Sawing line: nobody assigned -> staffing is not tracked there
+  const allLines = page.getByRole('link', { name: 'All Production Lines' });
+  if (!(await allLines.isVisible())) await page.getByRole('button', { name: /Production Lines/i }).click();
+  await allLines.click();
+  await page.getByRole('link', { name: /Sawing & Billet/ }).first().click();
+  await expect(page.getByText('Assigned Operators').first()).toBeVisible();
+  for (let n = 0; n < 2; n++) {
+    await page.getByRole('button', { name: 'Remove operator' }).first().click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForTimeout(1200);
+  }
+  await expect(page.getByText('No operators assigned yet')).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('06e-saw-no-operators.png'), fullPage: true });
+  await page.getByRole('button', { name: /^Orders$/i }).click();
+  await page.getByRole('link', { name: 'All Orders' }).click();
+  await expect(page).toHaveURL(/work-orders/);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: testInfo.outputPath('07-orders.png'), fullPage: true });
+  await page.getByText('New Work Order', { exact: true }).click();
+  const wo = page.getByRole('dialog').first();
+  await expect(wo.getByLabel(/^Order No/i)).toBeVisible();
+  await wo.getByLabel(/^Order No/i).fill('WO-STAFF-01');
+  await wo.getByLabel(/^Line/i).click();
+  await page.getByRole('option', { name: 'CNC Turning' }).click();
+  await wo.getByLabel(/^Product Type/i).click();
+  await page.getByRole('option', { name: /Bronze Bushing/ }).click();
+  await wo.getByLabel(/^Planned Qty/i).fill('40');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('08-wo-filled.png'), fullPage: true });
+  await wo.getByRole('button', { name: /^(Create|Save)/ }).click();
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: testInfo.outputPath('09-wo-created.png'), fullPage: true });
+  await page.getByRole('link', { name: 'Scheduler' }).first().click();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: testInfo.outputPath('10-scheduler.png'), fullPage: true });
+  await page.getByRole('link', { name: /Automatic scheduling/ }).click();
+  await expect(page.getByText('New simulation')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('11-auto.png'), fullPage: true });
+  await page.getByRole('button', { name: /^Simulate/ }).click();
+  await expect(page.getByTestId('staffing-panel')).toBeVisible({ timeout: 90000 });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: testInfo.outputPath('12-simulated.png'), fullPage: true });
+  await expect(page.getByText('Needs 3 operators, 2 available.')).toBeVisible();
+  await expect(page.getByText(/Sawing & Billet Prep — Staffing not tracked — scheduled on machine capacity only/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Assign operators' })).toBeVisible();
+  await page.getByText('Needs 3 operators, 2 available.').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath('13-reason-visible.png'), fullPage: true });
+
+  // Ignore operator availability: no people reasons
+  await page.getByText('Operator availability', { exact: true }).click();
+  await page.getByRole('button', { name: /^Simulate/ }).click();
+  await expect(page.getByText('Operator availability was ignored for this run.')).toBeVisible({ timeout: 90000 });
+  await expect(page.getByText('Needs 3 operators, 2 available.')).toHaveCount(0);
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: testInfo.outputPath('14-ignored.png'), fullPage: true });
+});
