@@ -86,7 +86,7 @@ class FiniteScheduler
     /** People shared between lines, when the provider says who they are. */
     private ?SharedOperatorPool $pool = null;
 
-    /** @var array<int, true> skills some operation of this run requires */
+    /** @var array<int, array<int, true>> line id => skills some operation of this run that may run there requires */
     private array $requiredSkillIds = [];
 
     /** @var array<int, ?string> skill id => name, looked up once per run */
@@ -155,9 +155,6 @@ class FiniteScheduler
 
             foreach ($demands as $demand) {
                 $sequence++;
-                foreach ($demand->requiredSkillIds as $skillId) {
-                    $this->requiredSkillIds[(int) $skillId] = true;
-                }
 
                 if ($blocked === ScheduledOperationStatus::InfeasibleMaterial) {
                     $orderResults[] = $this->unplaced($order, $demand, $sequence, $blocked, [[
@@ -348,6 +345,11 @@ class FiniteScheduler
         }
 
         $candidates = $this->candidates($order, $demand);
+        foreach ($candidates as $candidate) {
+            foreach ($demand->requiredSkillIds as $skillId) {
+                $this->requiredSkillIds[$candidate['line_id']][(int) $skillId] = true;
+            }
+        }
         if ($candidates === []) {
             return $this->unplaced($order, $demand, $sequence, ScheduledOperationStatus::InfeasibleNoEligibleWorkstation, [[
                 'code' => 'no_eligible_workstation',
@@ -598,17 +600,24 @@ class FiniteScheduler
             'qualified_keys' => $keys,
         ];
 
+        $headcount = null;
         $available = $this->workforce->availableOperators($lineId, $from, $to);
         if ($available !== null) {
             $inUse = $this->timeline->laborInUse($lineId, $start, $end);
             if ($available - $inUse < $demand->requiredOperators) {
-                return $shortfall('workforce_capacity', $available, $inUse, []);
+                $headcount = $shortfall('workforce_capacity', $available, $inUse, []);
+            } else {
+                $pooled = $this->pooledShortfall($demand, $lineId, $start, $end, $from, $to);
+                if ($pooled !== null) {
+                    $headcount = $shortfall('workforce_capacity', $available, $available - $pooled['spare'], [], $pooled['busy_lines']);
+                }
             }
-
-            $pooled = $this->pooledShortfall($demand, $lineId, $start, $end, $from, $to);
-            if ($pooled !== null) {
-                return $shortfall('workforce_capacity', $available, $available - $pooled['spare'], [], $pooled['busy_lines']);
-            }
+        }
+        // A skilled step short of people in general is first of all short of
+        // the people holding its skills, when those are short too: that is the
+        // reason the planner can act on. Otherwise the headcount is.
+        if ($headcount !== null && $demand->requiredSkillIds === []) {
+            return $headcount;
         }
 
         if ($demand->requiredSkillIds !== []) {
@@ -628,6 +637,9 @@ class FiniteScheduler
                     return $shortfall('qualification', $qualified, $qualified - $pooled['spare'], $demand->requiredSkillIds, $pooled['busy_lines'], $keys);
                 }
             }
+        }
+        if ($headcount !== null) {
+            return $headcount;
         }
 
         // The counts pass; whether the people behind them can be told apart
@@ -909,7 +921,7 @@ class FiniteScheduler
             'window_end' => ResourceCalendar::toCarbon($waited['end'])->toIso8601String(),
         ];
 
-        if ($waited['busy_lines'] !== []) {
+        if ($waited['busy_lines'] !== [] && ($waited['code'] !== 'qualification' || $waited['qualified_keys'] === [])) {
             return [
                 'code' => 'waited_for_operators',
                 'message' => __('Waited for operators busy on :lines.', ['lines' => $this->lineNames($waited['busy_lines'])]),
@@ -924,14 +936,21 @@ class FiniteScheduler
             'count' => count($workers),
             'skills' => $this->skillList($skills),
             'names' => implode(', ', array_column($workers, 'name')),
+            'lines' => $this->lineNames($waited['busy_lines']),
         ];
+        $one = count($workers) === 1;
+        $message = match (true) {
+            $waited['busy_lines'] === [] && $one => __('Waited: only :count qualified operator for :skills (:names), busy with other work.', $params),
+            $waited['busy_lines'] === [] => __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', $params),
+            $one => __('Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.', $params),
+            default => __('Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.', $params),
+        };
 
         return [
             'code' => 'waited_for_qualified_operators',
-            'message' => count($workers) === 1
-                ? __('Waited: only :count qualified operator for :skills (:names), busy with other work.', $params)
-                : __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', $params),
+            'message' => $message,
             'line_id' => $waited['line_id'],
+            'busy_lines' => $waited['busy_lines'],
             'available' => count($workers),
             'required_skill_ids' => $waited['skill_ids'],
             'required_skills' => $skills,
@@ -1154,7 +1173,7 @@ class FiniteScheduler
      * `respected: false`.
      *
      * `single_holder_skills` lists, per line, the skills some step of the run
-     * requires that only one person assigned there holds — a single point of
+     * that may run on that line requires and only one person assigned there holds — a single point of
      * failure the planner should know about. Skills nobody requires are left
      * out, and so are skills nobody there holds (those steps cannot be placed
      * and say so).
@@ -1189,12 +1208,13 @@ class FiniteScheduler
     /** @return list<array{skill_id: int, skill_name: ?string, holder_name: ?string}> */
     private function singleHolderSkills(?ExplainsWorkforceCapacity $explains, int $lineId): array
     {
-        $holders = $this->requiredSkillIds === [] ? null : $explains?->skillHolders($lineId);
+        $required = $this->requiredSkillIds[$lineId] ?? [];
+        $holders = $required === [] ? null : $explains?->skillHolders($lineId);
         if ($holders === null) {
             return [];
         }
 
-        $single = array_values(array_filter(array_keys($this->requiredSkillIds), fn (int $id) => count($holders[$id] ?? []) === 1));
+        $single = array_values(array_filter(array_keys($required), fn (int $id) => count($holders[$id] ?? []) === 1));
         $out = [];
         foreach ($this->namedSkills($single) as $skill) {
             $out[] = [

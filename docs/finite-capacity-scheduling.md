@@ -185,7 +185,11 @@ outside the run carries no skills and can be anyone's on its line.
 A step that waited for a qualified person busy on its own line says so:
 *"Waited: only 1 qualified operator for Painting (Jan Kowalski), busy with other
 work."* (`waited_for_qualified_operators`, with `available`, `required_skills`,
-`qualified_workers` and the window). A step left unplaced for lack of qualified
+`qualified_workers` and the window). When the qualified person is held on
+another line it adds where: *"…, busy with other work on CNC Turning."*
+(`busy_lines`). A skilled step that finds nobody free at all is reported by its
+qualified people too when they are short, since that is what the planner can act
+on. A step left unplaced for lack of qualified
 people names the scarcest of its skills on the line and who holds it, absences
 ignored: *"Painting is held only by Jan Kowalski."* (`bottleneck_skill`,
 `skill_holders`). When several resources would finish a step at the same time,
@@ -193,7 +197,8 @@ the one only people held back wins the tie, so the reason shown is the one that
 bound.
 
 The `workforce` section lists, per line, `single_holder_skills`: the skills some
-step of the run requires that exactly one person assigned to the line holds
+step of the run that may run on that line requires, held there by exactly one
+person assigned to the line
 (`skill_id`, `skill_name`, `holder_name`). The *Staffing* panel shows each as
 *"Painting — single qualified operator: Jan Kowalski"*. Providers that explain
 their counts (`ExplainsWorkforceCapacity`) supply `skillHolders()` and

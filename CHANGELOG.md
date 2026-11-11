@@ -213,10 +213,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   step on another machine now starts after it instead of alongside it. People are matched to
   every step running at the same moment, each step to people holding its skills, so someone
   with two skills counts once. The step's reason says why it waited: *"Waited: only 1
-  qualified operator for Painting (Jan Kowalski), busy with other work."* A step that cannot be
+  qualified operator for Painting (Jan Kowalski), busy with other work."* — with *"on CNC
+  Turning"* added when another line holds them. A step that cannot be
   placed for lack of qualified people now names the scarcest skill and who holds it:
   *"Painting is held only by Jan Kowalski."* The *Staffing* panel flags every required skill
-  only one person on a line holds — *"Painting — single qualified operator: Jan Kowalski"* —
+  only one person on a line holds, on the lines where a step needing it can run — *"Painting — single qualified operator: Jan Kowalski"* —
   and the simulation's `workforce` section lists them as `single_holder_skills`. When several
   machines would finish a step at the same time, it now goes to the one only people held
   back, so its reason shows the real cause. Providers that only return counts, or that do not

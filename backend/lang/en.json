@@ -7329,5 +7329,7 @@
     ":skill is held by :names.": ":skill is held by :names.",
     "Nobody on this line holds :skill.": "Nobody on this line holds :skill.",
     ":skill — single qualified operator: :name": ":skill — single qualified operator: :name",
-    "Only one person on this line holds this skill.": "Only one person on this line holds this skill."
+    "Only one person on this line holds this skill.": "Only one person on this line holds this skill.",
+    "Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.": "Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.",
+    "Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.": "Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines."
 }

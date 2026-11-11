@@ -49,7 +49,13 @@ function reasonText(reason) {
             count: reason.available,
             skills: skillNames(reason.required_skills),
             names: reason.qualified_workers.map((w) => w.name).join(', '),
+            lines: lineNames(reason.busy_lines ?? []),
         };
+        if (reason.busy_lines?.length) {
+            return reason.available === 1
+                ? __('Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.', params)
+                : __('Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.', params);
+        }
         return reason.available === 1
             ? __('Waited: only :count qualified operator for :skills (:names), busy with other work.', params)
             : __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', params);

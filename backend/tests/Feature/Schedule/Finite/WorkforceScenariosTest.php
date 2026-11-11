@@ -549,7 +549,10 @@ class WorkforceScenariosTest extends TestCase
         // B's only person is P, so B takes P at 06:00; Q is free but cannot do A's step.
         $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
         $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $a));
-        $this->assertSame([['line_id' => $lineB->id, 'line_name' => $lineB->name, 'operators' => 1]], $this->waitedReason($result, $a)['busy_lines']);
+        $waited = collect($this->opsFor($result, $a)[0]['reasons'])->firstWhere('code', 'waited_for_qualified_operators');
+        $this->assertSame([['line_id' => $lineB->id, 'line_name' => $lineB->name, 'operators' => 1]], $waited['busy_lines']);
+        $this->assertSame("Waited: only 1 qualified operator for {$skill->name} ({$p->name}), busy with other work on {$lineB->name}.", $waited['message']);
+        $this->assertNull($this->waitedReason($result, $a), 'the skilled reason replaces the generic one');
     }
 
     public function test_a_people_reason_separates_this_lines_own_work_from_other_lines(): void
@@ -884,9 +887,57 @@ class WorkforceScenariosTest extends TestCase
 
         $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
         $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b));
-        // Held on the other line: the existing reason says where.
-        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $this->waitedReason($result, $b)['busy_lines']);
-        $this->assertNull($this->qualifiedWaitReason($result, $b));
+        // Held on the other line: the skilled reason says who and where.
+        $waited = $this->qualifiedWaitReason($result, $b);
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $waited['busy_lines']);
+        $this->assertSame([['name' => $p->name]], $waited['qualified_workers']);
+        $this->assertNull($this->waitedReason($result, $b));
+    }
+
+    public function test_a_skilled_step_with_nobody_free_at_all_names_its_qualified_person(): void
+    {
+        // As in the machine-shop example: the only Welding holder and a second
+        // account both staff the sawing and the turning line, and turning work
+        // already takes them both.
+        $this->recordSkills();
+        [$saw, $sawType] = $this->lineWithStations(2);
+        $turn = $this->line();
+        $skill = $this->line(['name' => 'Welding']);
+        $tomasz = Worker::factory()->create(['workstation_id' => null]);
+        $tomasz->skills()->attach($skill->id);
+        User::factory()->create(['worker_id' => $tomasz->id])->lines()->attach([$saw->id, $turn->id]);
+        $this->sharedOperator($saw, $turn);
+        $this->job($turn, WorkstationType::factory()->create(), 60, ['required_operators' => 2], [
+            'planned_start_at' => $this->at('2026-10-12 06:00'),
+            'planned_end_at' => $this->at('2026-10-12 07:00'),
+        ]);
+        $this->station($turn);
+        $weld = $this->job($saw, $sawType, 30, ['required_skill_ids' => [$skill->id]]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $weld));
+        $waited = $this->qualifiedWaitReason($result, $weld);
+        $this->assertSame("Waited: only 1 qualified operator for Welding ({$tomasz->name}), busy with other work on {$turn->name}.", $waited['message']);
+        $this->assertNull($this->waitedReason($result, $weld));
+    }
+
+    public function test_single_holder_skills_are_listed_only_on_lines_the_skilled_steps_can_run_on(): void
+    {
+        $this->recordSkills();
+        [$saw, $sawType] = $this->lineWithStations(1);
+        [$turn] = $this->lineWithStations(1);
+        $skill = $this->line(['name' => 'Welding']);
+        $tomasz = Worker::factory()->create(['workstation_id' => null]);
+        $tomasz->skills()->attach($skill->id);
+        User::factory()->create(['worker_id' => $tomasz->id])->lines()->attach([$saw->id, $turn->id]);
+        $this->job($saw, $sawType, 30, ['required_skill_ids' => [$skill->id]]);
+
+        $workforce = $this->workforceOf($this->schedule());
+
+        // He is the only welder on both lines, but only sawing has welding work.
+        $this->assertSame([['skill_id' => $skill->id, 'skill_name' => 'Welding', 'holder_name' => $tomasz->name]], $workforce[$saw->id]['single_holder_skills']);
+        $this->assertSame([], $workforce[$turn->id]['single_holder_skills']);
     }
 
     public function test_workforce_section_lists_required_skills_with_a_single_holder(): void
