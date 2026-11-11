@@ -148,6 +148,42 @@ class AutoScheduleHttpTest extends TestCase
         $this->assertTrue($simulation->fresh()->isDraft());
     }
 
+    public function test_the_page_flags_a_draft_whose_staffing_changed(): void
+    {
+        $line = $this->line();
+        $operator = $this->user('Operator');
+        $operator->lines()->attach($line->id);
+        $order = $this->order($line, [['estimated_duration_minutes' => 60]]);
+        $admin = $this->user('Admin');
+
+        $this->actingAs($admin)->post('/admin/schedule/simulations', ['horizon_days' => 7])->assertRedirect('/admin/schedule/auto');
+        $simulation = ScheduleSimulation::sole();
+
+        $this->actingAs($admin)->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('draft.status', 'draft')->where('draftStale', null));
+
+        $this->actingAs($admin)->delete("/admin/lines/{$line->id}/unassign-operator/{$operator->id}")->assertRedirect();
+
+        $message = 'Staffing changed since this draft was generated — generate it again.';
+        $this->actingAs($admin)->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('draftStale.code', 'staffing')
+                ->where('draftStale.message', $message));
+
+        $this->actingAs($admin)->post("/admin/schedule/simulations/{$simulation->id}/apply")
+            ->assertRedirect('/admin/schedule/auto')
+            ->assertSessionHas('error', $message);
+        $this->assertTrue($simulation->fresh()->isDraft());
+        $this->assertNull($order->fresh()->planned_start_at);
+
+        // The warning is no wider exposed than the page itself.
+        auth()->logout();
+        $this->get('/admin/schedule/auto')->assertRedirect('/login');
+        $this->actingAs($operator)->get('/admin/schedule/auto')->assertForbidden();
+    }
+
     public function test_generate_validates_its_input(): void
     {
         $admin = $this->user('Admin');

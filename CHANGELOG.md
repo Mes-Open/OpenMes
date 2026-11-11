@@ -201,6 +201,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Auto-schedule drafts go stale when staffing changes.** A simulation generated with
+  *Respect operator availability* now notices when, after *Generate*, an operator is assigned
+  to or removed from a line, a worker moves station, is deactivated or flagged logistics, a
+  crew's lines change, or someone on a line is reported absent on a day of the horizon. The
+  page shows *"Staffing changed since this draft was generated — generate it again."* above
+  the simulation, before *Apply* is clicked, and *Apply* refuses with the same message. Any
+  other stale reason (changed orders, shifts, maintenance) is flagged there the same way.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.

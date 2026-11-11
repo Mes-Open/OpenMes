@@ -280,10 +280,23 @@ class WorkforceScenariosTest extends TestCase
         $this->assertEquals($this->at('2026-10-12 22:00'), $this->start($this->schedule(), $order));
     }
 
-    public function test_probe_an_absence_recorded_after_the_draft_makes_it_stale(): void
-    {
-        $this->markTestIncomplete('Known scheduler gap, fixed by its own follow-up task — delete this line there.');
+    // ── A draft goes stale when its staffing changes ────────────────────────
 
+    private const STAFFING_CHANGED = 'Staffing changed since this draft was generated — generate it again.';
+
+    private function assertApplyRefusedFor(ScheduleSimulationService $service, $draft, User $user, string $message): void
+    {
+        try {
+            $service->apply($draft->fresh(), $user);
+            $this->fail('Apply should have refused a stale draft.');
+        } catch (\DomainException $e) {
+            $this->assertSame($message, $e->getMessage());
+        }
+        $this->assertTrue($draft->fresh()->isDraft());
+    }
+
+    public function test_an_absence_recorded_after_the_draft_makes_it_stale(): void
+    {
         [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
         $this->job($line, $type, 60);
         $user = User::factory()->create();
@@ -293,8 +306,147 @@ class WorkforceScenariosTest extends TestCase
         // The only operator calls in sick for Monday after the plan was drafted.
         $this->absent($workers, '2026-10-12');
 
-        $this->expectException(\DomainException::class);
-        $service->apply($draft->fresh(), $user);
+        $this->assertSame('staffing', $service->staleReason($draft->fresh())['code']);
+        $this->assertApplyRefusedFor($service, $draft, $user, self::STAFFING_CHANGED);
+    }
+
+    public function test_a_new_operator_assigned_to_a_line_makes_the_draft_stale(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(), $user);
+        $this->assertNull($service->staleReason($draft->fresh()));
+
+        User::factory()->create()->lines()->attach($line->id);
+
+        $this->assertApplyRefusedFor($service, $draft, $user, self::STAFFING_CHANGED);
+    }
+
+    public function test_unassigning_an_operator_makes_the_draft_stale(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 0);
+        $operator = User::factory()->create();
+        $operator->lines()->attach($line->id);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(), $user);
+
+        $operator->lines()->detach($line->id);
+
+        $this->assertApplyRefusedFor($service, $draft, $user, self::STAFFING_CHANGED);
+    }
+
+    public function test_a_deactivated_worker_makes_the_draft_stale(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 2);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(), $user);
+
+        $workers[0]->update(['is_active' => false]);
+
+        $this->assertApplyRefusedFor($service, $draft, $user, self::STAFFING_CHANGED);
+    }
+
+    public function test_staffing_changes_are_ignored_when_the_draft_ignored_people(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(['respectWorkforce' => false]), $user);
+        $this->assertNull($draft->fresh()->summary['staffing_fingerprint']);
+
+        User::factory()->create()->lines()->attach($line->id);
+        $this->absent($workers, '2026-10-12');
+
+        $this->assertNull($service->staleReason($draft->fresh()));
+        $this->assertSame(1, $service->apply($draft->fresh(), $user)['applied']);
+    }
+
+    public function test_a_non_staffing_change_without_workforce_reports_its_own_cause(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(['respectWorkforce' => false]), $user);
+
+        $this->absent($workers, '2026-10-12');
+        \App\Models\MaintenanceEvent::create([
+            'title' => 'PM', 'event_type' => \App\Models\MaintenanceEvent::TYPE_PLANNED, 'status' => \App\Models\MaintenanceEvent::STATUS_PENDING,
+            'line_id' => $line->id, 'scheduled_at' => $this->at('2026-10-13 06:00'), 'scheduled_end_at' => $this->at('2026-10-13 08:00'),
+        ]);
+
+        $this->assertSame('inputs', $service->staleReason($draft->fresh())['code']);
+        $this->assertApplyRefusedFor($service, $draft, $user,
+            'Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.');
+    }
+
+    public function test_an_absence_outside_the_horizon_does_not_make_the_draft_stale(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        // The horizon runs 2026-10-12 06:00 to 2026-10-26 06:00.
+        $draft = $service->generate($this->request(), $user);
+
+        $this->absent($workers, '2026-10-11', '2026-10-27', '2026-11-30');
+
+        $this->assertNull($service->staleReason($draft->fresh()));
+        $this->assertSame(1, $service->apply($draft->fresh(), $user)['applied']);
+    }
+
+    public function test_an_absence_of_someone_who_staffs_no_line_does_not_make_the_draft_stale(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 1);
+        // Logistics staff are never counted as operators, so their absence changes nothing.
+        $unassigned = Worker::factory()->create(['workstation_id' => $line->workstations()->value('id'), 'is_logistics' => true]);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(), $user);
+
+        $this->absent([$unassigned], '2026-10-12');
+
+        $this->assertSame(1, $service->apply($draft->fresh(), $user)['applied']);
+    }
+
+    public function test_the_staffing_fingerprint_is_deterministic(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 2, people: 3);
+        User::factory()->create()->lines()->attach($line->id);
+        $this->absent([$workers[2], $workers[0]], '2026-10-13');
+        $this->job($line, $type, 60);
+
+        $first = $this->schedule()['staffing_fingerprint'];
+
+        $this->assertIsString($first);
+        $this->assertSame($first, $this->schedule()['staffing_fingerprint']);
+        $this->absences['2026-10-13'] = array_reverse($this->absences['2026-10-13']);
+        $this->assertSame($first, $this->schedule()['staffing_fingerprint']);
+        $this->assertNull($this->schedule(['respectWorkforce' => false])['staffing_fingerprint']);
+    }
+
+    public function test_a_draft_saved_without_a_staffing_fingerprint_still_applies(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(), $user);
+        $summary = $draft->summary;
+        unset($summary['staffing_fingerprint']);
+        $draft->update(['summary' => $summary]);
+
+        User::factory()->create()->lines()->attach($line->id);
+
+        $this->assertSame(1, $service->apply($draft->fresh(), $user)['applied']);
     }
 
     // ── Explaining a people shortfall ───────────────────────────────────────

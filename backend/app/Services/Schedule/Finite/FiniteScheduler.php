@@ -5,6 +5,7 @@ namespace App\Services\Schedule\Finite;
 use App\Enums\ScheduledOperationStatus;
 use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
+use App\Extension\Contracts\WorkforceProvider;
 use App\Models\Line;
 use App\Models\ScheduledOperation;
 use App\Models\WorkOrder;
@@ -72,6 +73,7 @@ class FiniteScheduler
         private readonly WorkforceCapacityProvider $workforce,
         private readonly MaterialAllocationService $materials,
         private readonly ChangeoverResolver $changeovers,
+        private readonly WorkforceProvider $people,
     ) {}
 
     /**
@@ -81,7 +83,8 @@ class FiniteScheduler
      *     resources: list<array<string, mixed>>,
      *     counts: array<string, int>,
      *     workforce: list<array{line_id: int, line_name: string, tracked: bool, assigned: ?int, respected: bool}>,
-     *     inputs_fingerprint: string
+     *     inputs_fingerprint: string,
+     *     staffing_fingerprint: ?string
      * }
      */
     public function schedule(SchedulingRequest $request): array
@@ -165,6 +168,8 @@ class FiniteScheduler
             'counts' => $this->counts($operations),
             'workforce' => $this->workforceByLine($request->start, $request->end),
             'inputs_fingerprint' => $this->inputsFingerprint($orders->pluck('id')->all(), $request->start, $request->end),
+            // A run that ignored people did not read them, so nothing there can make it stale.
+            'staffing_fingerprint' => $request->respectWorkforce ? $this->staffingFingerprint($request->start, $request->end) : null,
         ];
     }
 
@@ -254,6 +259,16 @@ class FiniteScheduler
             Line::where('is_active', true)->orderBy('id')->get()->map(fn ($l) => [$l->id, (string) $l->planning_efficiency_pct])->all(),
             Workstation::where('is_active', true)->orderBy('id')->get()->map(fn ($w) => [$w->id, $w->line_id, $w->workstation_type_id])->all(),
         ]));
+    }
+
+    /**
+     * A digest of the staffing a run counted: who staffs each line and who of
+     * them is absent on each day of the horizon. Read fresh, never through the
+     * capacity provider's per-run cache, so a later call sees later changes.
+     */
+    public function staffingFingerprint(CarbonInterface $start, CarbonInterface $end): string
+    {
+        return AssignedStaff::fingerprint($this->people, $start, $end);
     }
 
     /**

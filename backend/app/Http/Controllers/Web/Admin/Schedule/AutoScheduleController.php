@@ -46,6 +46,8 @@ class AutoScheduleController extends Controller
 
         return Inertia::render('admin/schedule/AutoSchedule', [
             'draft' => $draft ? $this->presenter->simulation($draft) : null,
+            // Checked on load, so the planner is warned before clicking Apply.
+            'draftStale' => $draft ? $this->simulations->staleReason($draft) : null,
             'committed' => $committed->map(fn ($op) => $this->presenter->operation($op))->values(),
             'stationsByType' => Workstation::with('line:id,name')
                 ->where('is_active', true)

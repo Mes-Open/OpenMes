@@ -5,7 +5,6 @@ namespace App\Services\Schedule\Finite;
 use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
-use App\Models\User;
 use App\Models\Worker;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Schema;
@@ -128,36 +127,7 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
     /** @return array<int|string, list<string>> */
     private function staff(): array
     {
-        if ($this->staff !== null) {
-            return $this->staff;
-        }
-
-        $staff = [];
-        $users = User::with('lines:id')->whereHas('lines')->get(['id', 'worker_id']);
-        foreach ($users as $user) {
-            foreach ($user->lines as $line) {
-                $staff[$line->id][] = $user->worker_id ? 'w:'.$user->worker_id : 'u:'.$user->id;
-            }
-        }
-
-        $workers = Worker::active()->where('is_logistics', false)->with('workstation:id,line_id')->get(['id', 'workstation_id']);
-        foreach ($workers as $worker) {
-            $staff[$worker->workstation?->line_id ?? 'none'][] = 'w:'.$worker->id;
-        }
-
-        // A crew explicitly assigned to lines staffs all of them.
-        foreach ($this->people->crewsForCapacity() as $crew) {
-            if (! $crew->relationLoaded('lines') || $crew->lines->isEmpty()) {
-                continue;
-            }
-            $members = $crew->workers->filter(fn ($w) => ($w->is_active ?? true) && ! ($w->is_logistics ?? false))
-                ->map(fn ($w) => 'w:'.$w->id)->all();
-            foreach ($crew->lines as $line) {
-                $staff[$line->id] = [...($staff[$line->id] ?? []), ...$members];
-            }
-        }
-
-        return $this->staff = array_map(fn (array $ids) => array_values(array_unique($ids)), $staff);
+        return $this->staff ??= AssignedStaff::byLine($this->people);
     }
 
     /** @return array<int, list<int>>|null */

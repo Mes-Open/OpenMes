@@ -58,6 +58,7 @@ class ScheduleSimulationService
                     'resources' => $result['resources'],
                     'workforce' => $result['workforce'],
                     'inputs_fingerprint' => $result['inputs_fingerprint'],
+                    'staffing_fingerprint' => $result['staffing_fingerprint'],
                 ],
                 'created_by_id' => $user->id,
             ]);
@@ -91,26 +92,9 @@ class ScheduleSimulationService
         $operations = $simulation->operations()->get()->groupBy('work_order_id');
         $orders = WorkOrder::with('batches.steps')->whereIn('id', $operations->keys())->get()->keyBy('id');
 
-        if ($orders->count() !== $operations->count()) {
-            throw new \DomainException(__('Some work orders in this schedule no longer exist. Generate it again.'));
-        }
-        // Each order must still be exactly what the draft was calculated from.
-        // Drafts saved before fingerprints existed fall back to the timestamp.
-        $fingerprints = collect($simulation->summary['work_orders'] ?? [])->pluck('fingerprint', 'work_order_id');
-        $changed = $orders->filter(fn (WorkOrder $o) => $fingerprints->get($o->id) !== null
-            ? $fingerprints->get($o->id) !== $o->schedulingFingerprint()
-            : $o->updated_at && $o->updated_at->greaterThan($simulation->created_at));
-        if ($changed->isNotEmpty()) {
-            throw new \DomainException(__('Work orders changed after this schedule was generated (:orders). Generate it again.', [
-                'orders' => $changed->pluck('order_no')->implode(', '),
-            ]));
-        }
-        // …and so must everything else it read: work planned around, shifts,
-        // maintenance, changeover rules, line efficiency, stations.
-        $inputs = $simulation->summary['inputs_fingerprint'] ?? null;
-        if ($inputs !== null
-            && $inputs !== $this->scheduler->inputsFingerprint($operations->keys()->all(), $simulation->horizon_start, $simulation->horizon_end)) {
-            throw new \DomainException(__('Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.'));
+        $stale = $this->staleReasonFor($simulation, $operations, $orders);
+        if ($stale !== null) {
+            throw new \DomainException($stale['message']);
         }
 
         return DB::transaction(function () use ($simulation, $user, $operations, $orders) {
@@ -163,6 +147,61 @@ class ScheduleSimulationService
 
             return ['applied' => $applied, 'skipped' => $skipped, 'warnings' => array_values(array_unique($warnings))];
         });
+    }
+
+    /**
+     * Why a draft can no longer be applied as calculated, or null while it
+     * still can. The planner page asks on load, so the warning shows before
+     * anyone clicks Apply; apply() refuses for the same reason.
+     *
+     * @return array{code: 'missing_orders'|'orders'|'inputs'|'staffing', message: string}|null
+     */
+    public function staleReason(ScheduleSimulation $simulation): ?array
+    {
+        $operations = $simulation->operations()->get()->groupBy('work_order_id');
+        $orders = WorkOrder::with('batches.steps')->whereIn('id', $operations->keys())->get()->keyBy('id');
+
+        return $this->staleReasonFor($simulation, $operations, $orders);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, ScheduledOperation>>  $operations  grouped by work order
+     * @param  \Illuminate\Support\Collection<int, WorkOrder>  $orders  keyed by id
+     * @return array{code: string, message: string}|null
+     */
+    private function staleReasonFor(ScheduleSimulation $simulation, $operations, $orders): ?array
+    {
+        if ($orders->count() !== $operations->count()) {
+            return ['code' => 'missing_orders', 'message' => __('Some work orders in this schedule no longer exist. Generate it again.')];
+        }
+        // Each order must still be exactly what the draft was calculated from.
+        // Drafts saved before fingerprints existed fall back to the timestamp.
+        $fingerprints = collect($simulation->summary['work_orders'] ?? [])->pluck('fingerprint', 'work_order_id');
+        $changed = $orders->filter(fn (WorkOrder $o) => $fingerprints->get($o->id) !== null
+            ? $fingerprints->get($o->id) !== $o->schedulingFingerprint()
+            : $o->updated_at && $o->updated_at->greaterThan($simulation->created_at));
+        if ($changed->isNotEmpty()) {
+            return ['code' => 'orders', 'message' => __('Work orders changed after this schedule was generated (:orders). Generate it again.', [
+                'orders' => $changed->pluck('order_no')->implode(', '),
+            ])];
+        }
+        // …and so must everything else it read: work planned around, shifts,
+        // maintenance, changeover rules, line efficiency, stations.
+        $inputs = $simulation->summary['inputs_fingerprint'] ?? null;
+        if ($inputs !== null
+            && $inputs !== $this->scheduler->inputsFingerprint($operations->keys()->all(), $simulation->horizon_start, $simulation->horizon_end)) {
+            return ['code' => 'inputs', 'message' => __('Planned work, shifts, maintenance or changeover rules changed after this schedule was generated. Generate it again.')];
+        }
+        // …and the people it counted, when it counted them. Drafts saved before
+        // this digest existed, or that ignored people, carry none.
+        $staffing = $simulation->summary['staffing_fingerprint'] ?? null;
+        if ($staffing !== null
+            && ($simulation->parameters['respect_workforce'] ?? true)
+            && $staffing !== $this->scheduler->staffingFingerprint($simulation->horizon_start, $simulation->horizon_end)) {
+            return ['code' => 'staffing', 'message' => __('Staffing changed since this draft was generated — generate it again.')];
+        }
+
+        return null;
     }
 
     public function discard(ScheduleSimulation $simulation): void

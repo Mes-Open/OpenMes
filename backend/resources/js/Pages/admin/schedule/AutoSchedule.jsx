@@ -399,7 +399,7 @@ function GenerateForm({ defaults, canDecide }) {
 const NAV_LINK = 'inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold text-om-ink hover:bg-om-chip';
 
 export default function AutoSchedule() {
-    const { draft, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
+    const { draft, draftStale = null, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
     const { confirm, dialog } = useConfirm();
     const [showOnlyProblems, setShowOnlyProblems] = useState(false);
     const placed = (draft?.counts?.scheduled ?? 0) + (draft?.counts?.scheduled_late ?? 0);
@@ -460,6 +460,9 @@ export default function AutoSchedule() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Already translated by the server; Apply refuses for the same reason. */}
+                        {draftStale && <InlineAlert severity="warning" title={draftStale.message} />}
 
                         <StaffingPanel workforce={draft.workforce} canAssignOperators={canAssignOperators} />
 
