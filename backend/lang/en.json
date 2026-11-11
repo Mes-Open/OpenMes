@@ -7346,5 +7346,9 @@
     "No counters yet. Open one from a machine source below.": "No counters yet. Open one from a machine source below.",
     "Pick a counter on the left, or open one from a machine source.": "Pick a counter on the left, or open one from a machine source.",
     "To review: :count": "To review: :count",
-    "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address.": "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address."
+    "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address.": "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address.",
+    "Sort by": "Sort by",
+    "Newest entered": "Newest entered",
+    "Recent activity": "Recent activity",
+    "Recently completed": "Recently completed"
 }

@@ -7346,5 +7346,9 @@
     "No counters yet. Open one from a machine source below.": "Brak liczników. Otwórz licznik dla źródła maszyny poniżej.",
     "Pick a counter on the left, or open one from a machine source.": "Wybierz licznik z listy po lewej albo otwórz licznik dla źródła maszyny.",
     "To review: :count": "Do weryfikacji: :count",
-    "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address.": "127.0.0.1 / localhost w Dockerze oznacza sam kontener — wpisz host.docker.internal albo adres IP maszyny."
+    "127.0.0.1 / localhost inside Docker is the container itself — use host.docker.internal or the machine's IP address.": "127.0.0.1 / localhost w Dockerze oznacza sam kontener — wpisz host.docker.internal albo adres IP maszyny.",
+    "Sort by": "Sortuj według",
+    "Newest entered": "Najnowsze utworzone",
+    "Recent activity": "Ostatnia aktywność",
+    "Recently completed": "Ostatnio zakończone"
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Breadcrumbs, Button, Icon, StatusBadge, Tabs, TextField } from '@openmes/ui';
+import { Breadcrumbs, Button, Dropdown, Icon, StatusBadge, Tabs, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTitle from '../../../components/PageTitle';
 import ResourceTable from '../../../components/ResourceTable';
@@ -137,6 +137,15 @@ export default function TraceabilityIndex() {
 
 /* ── Browse: find the thing to trace ─────────────────────────────────── */
 
+/** Orders list ordering; the first one is the default. */
+const WO_SORTS = [
+    { value: 'created_at:desc', label: 'Newest entered' },
+    { value: 'updated_at:desc', label: 'Recent activity' },
+    { value: 'completed_at:desc', label: 'Recently completed' },
+    { value: 'planned_start_at:asc', label: 'Planned start' },
+    { value: 'due_date:asc', label: 'Due date' },
+];
+
 const WO_BROWSE_COLUMNS = ['order_no', 'customer', 'line', 'product', 'qty', 'status', 'due_date', 'completed_at', 'customer_order_no', 'created_at'];
 
 const PALLET_STATUS_STYLES = {
@@ -156,6 +165,7 @@ function BrowseTable({ tab }) {
     } = usePage().props;
 
     const traceAction = (identifier) => (r) => [{ label: 'Trace', icon: 'open', href: traceLink(identifier(r)) }];
+    const [woSort, setWoSort] = useState(WO_SORTS[0].value);
 
     if (tab === 'units') {
         return (
@@ -258,13 +268,23 @@ function BrowseTable({ tab }) {
 
     return (
         <ResourceTable
-            key="orders"
+            // Keyed by the sort so the live query is rebuilt in the chosen order.
+            key={`orders-${woSort}`}
             shape="work_orders_all"
             title={__('Traceability')}
             detailHref={(r) => traceLink(r.order_no)}
             columns={columns}
-            orderBy="created_at"
-            orderDir="desc"
+            orderBy={woSort.split(':')[0]}
+            orderDir={woSort.split(':')[1]}
+            toolbarActions={(
+                <Dropdown
+                    aria-label={__('Sort by')}
+                    value={woSort}
+                    onChange={setWoSort}
+                    options={WO_SORTS.map((o) => ({ value: o.value, label: __(o.label) }))}
+                    className="min-w-[190px]"
+                />
+            )}
             actions={traceAction((r) => r.order_no)}
             enableSelection={false}
             emptyText="No work orders yet."
