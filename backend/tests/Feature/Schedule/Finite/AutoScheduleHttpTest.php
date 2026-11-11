@@ -60,6 +60,47 @@ class AutoScheduleHttpTest extends TestCase
                 ->where('canDecide', true));
     }
 
+    public function test_the_draft_shows_people_shortfalls_and_untracked_lines(): void
+    {
+        $lineA = $this->line(['name' => 'Line A']);
+        $lineB = $this->line(['name' => 'Line B']);
+        foreach ([1, 2] as $i) {
+            $this->user('Operator')->lines()->attach($lineA->id);
+        }
+        $this->order($lineA, [['estimated_duration_minutes' => 60, 'required_operators' => 3]], ['priority' => 2]);
+        $this->order($lineB, [['estimated_duration_minutes' => 60, 'required_operators' => 3]], ['priority' => 1]);
+        $admin = $this->user('Admin');
+        $this->get('/admin/schedule/auto')->assertRedirect('/login');
+
+        $this->actingAs($admin)->post('/admin/schedule/simulations', ['horizon_days' => 7])->assertRedirect('/admin/schedule/auto');
+
+        $this->actingAs($admin)->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/schedule/AutoSchedule')
+                ->where('draft.workforce.0.line_id', $lineA->id)
+                ->where('draft.workforce.0.tracked', true)
+                ->where('draft.workforce.0.assigned', 2)
+                ->where('draft.workforce.1.line_id', $lineB->id)
+                ->where('draft.workforce.1.tracked', false)
+                ->where('draft.workforce.1.assigned', null)
+                ->where('draft.operations.0.status', 'infeasible_workforce_capacity')
+                ->where('draft.operations.0.reasons.0.code', 'workforce_capacity')
+                ->where('draft.operations.0.reasons.0.required', 3)
+                ->where('draft.operations.0.reasons.0.available', 2)
+                ->where('draft.operations.0.reasons.0.message', 'Needs 3 operators, 2 available.')
+                ->where('draft.operations.1.status', 'scheduled'));
+
+        // The staffing breakdown is no wider exposed than the page itself.
+        $this->actingAs($this->user('Operator'))->get('/admin/schedule/auto')->assertForbidden();
+
+        $id = ScheduleSimulation::sole()->id;
+        $this->actingAs($admin, 'sanctum')->getJson("/api/v1/schedule/simulations/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.workforce.1.tracked', false)
+            ->assertJsonPath('data.operations.0.reasons.0.required', 3);
+    }
+
     public function test_supervisor_with_the_schedule_tab_can_simulate_and_apply(): void
     {
         $order = $this->order($this->line(), [['estimated_duration_minutes' => 60]]);

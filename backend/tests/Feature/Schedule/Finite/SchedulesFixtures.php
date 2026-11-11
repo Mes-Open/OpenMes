@@ -88,6 +88,7 @@ trait SchedulesFixtures
             scope: $overrides['scope'] ?? SchedulingRequest::SCOPE_UNPLANNED,
             respectMaterial: $overrides['respectMaterial'] ?? true,
             workOrderIds: $overrides['workOrderIds'] ?? null,
+            respectWorkforce: $overrides['respectWorkforce'] ?? true,
         );
     }
 

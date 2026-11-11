@@ -36,8 +36,42 @@ function reasonText(reason) {
         })).join(' · ');
     }
 
+    if (isPeopleReason(reason)) {
+        return peopleText(reason);
+    }
+
     return reason.message;
 }
+
+/** A people reason carrying the numbers (drafts from before they did only have the message). */
+const isPeopleReason = (reason) => (reason.code === 'workforce_capacity' || reason.code === 'qualification') && typeof reason.required === 'number';
+
+/** "Needs 3 operators, 2 available (1 absent: Jan Kowalski). 1 busy with other work." — in the reader's language. */
+function peopleText(reason) {
+    const absent = reason.absent_workers ?? [];
+    const params = {
+        required: reason.required,
+        available: reason.available,
+        absent: absent.length,
+        names: absent.map((w) => w.name ?? `#${w.id}`).join(', '),
+        skills: (reason.required_skills ?? []).map((s) => s.name ?? `#${s.id}`).join(', '),
+    };
+    let text;
+    if (reason.code === 'qualification') {
+        text = absent.length
+            ? __('Needs :required operators qualified in :skills, :available available (:absent absent: :names).', params)
+            : __('Needs :required operators qualified in :skills, :available available.', params);
+    } else {
+        text = absent.length
+            ? __('Needs :required operators, :available available (:absent absent: :names).', params)
+            : __('Needs :required operators, :available available.', params);
+    }
+
+    return reason.in_use > 0 ? `${text} ${__(':count busy with other work.', { count: reason.in_use })}` : text;
+}
+
+/** "2026-10-12T06:00:00+02:00" → "12.10 06:00", plant time as the server wrote it. */
+const isoStamp = (iso) => (iso ? shortStamp(`${iso.slice(0, 10)} ${iso.slice(11, 16)}`) : '—');
 
 // ─── Workstation override (manual selection, audited server-side) ────────────
 
@@ -116,12 +150,62 @@ function Reasons({ op }) {
 
     return (
         <ul className="mt-1 space-y-0.5">
-            {shown.map((r, i) => <li key={i} className="text-[12px] text-om-muted">{reasonText(r)}</li>)}
+            {shown.map((r, i) => (
+                <li key={i} className="text-[12px] text-om-muted">
+                    {reasonText(r)}
+                    {isPeopleReason(r) && r.window_start && (
+                        <div className="text-[11px] text-om-faint" style={{ fontFamily: MONO }}>
+                            {__('Window :from – :to', { from: isoStamp(r.window_start), to: isoStamp(r.window_end) })}
+                        </div>
+                    )}
+                </li>
+            ))}
         </ul>
     );
 }
 
-function OperationsTable({ operations, stationsByType, canDecide, emptyText }) {
+// ─── Staffing ────────────────────────────────────────────────────────────────
+
+const UNTRACKED_TEXT = () => __('Staffing not tracked — scheduled on machine capacity only');
+
+/** Which lines the run counted people on, and which it scheduled on machines alone. */
+function StaffingPanel({ workforce, canAssignOperators }) {
+    if (!workforce?.length) return null; // drafts from before staffing was reported
+
+    if (workforce.some((w) => w.respected === false)) {
+        return <InlineAlert severity="info" title={__('Operator availability was ignored for this run.')} />;
+    }
+
+    const tracked = workforce.filter((w) => w.tracked);
+    const untracked = workforce.filter((w) => !w.tracked);
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="staffing-panel">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing')}</div>
+            {tracked.length > 0 && (
+                <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-om-ink">
+                    {tracked.map((w) => (
+                        <li key={w.line_id}>
+                            <span className="font-semibold">{w.line_name}</span>
+                            {w.assigned != null && <span className="text-om-muted"> · {__(':count operators assigned', { count: w.assigned })}</span>}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {untracked.map((w) => (
+                <InlineAlert key={w.line_id} severity="warning" title={`${w.line_name} — ${UNTRACKED_TEXT()}`}>
+                    {canAssignOperators ? (
+                        <Link href={`/admin/lines/${w.line_id}#operators`} className="text-[12px] font-semibold text-om-accent hover:underline">
+                            {__('Assign operators')}
+                        </Link>
+                    ) : null}
+                </InlineAlert>
+            ))}
+        </div>
+    );
+}
+
+function OperationsTable({ operations, stationsByType, canDecide, emptyText, untrackedLineIds }) {
     if (!operations.length) {
         return <div className="rounded-om-sm border border-dashed border-om-line bg-om-card px-4 py-8 text-center text-[13px] text-om-muted">{emptyText}</div>;
     }
@@ -158,6 +242,13 @@ function OperationsTable({ operations, stationsByType, canDecide, emptyText }) {
                             </td>
                             <td className={cell}>
                                 <StationCell op={op} stationsByType={stationsByType} canDecide={canDecide} />
+                                {untrackedLineIds?.has(op.line_id) && (
+                                    <div className="mt-1">
+                                        <span className="inline-block rounded-om-sm bg-om-downtime-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-om-downtime" title={UNTRACKED_TEXT()}>
+                                            {__('staffing not tracked')}
+                                        </span>
+                                    </div>
+                                )}
                             </td>
                             <td className={`${cell} whitespace-nowrap text-[12.5px] text-om-ink`} style={{ fontFamily: MONO }}>{shortStamp(op.planned_start_label)}</td>
                             <td className={`${cell} whitespace-nowrap text-[12.5px] text-om-ink`} style={{ fontFamily: MONO }}>{shortStamp(op.planned_end_label)}</td>
@@ -308,12 +399,13 @@ function GenerateForm({ defaults, canDecide }) {
 const NAV_LINK = 'inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold text-om-ink hover:bg-om-chip';
 
 export default function AutoSchedule() {
-    const { draft, committed = [], stationsByType = {}, defaults, canDecide } = usePage().props;
+    const { draft, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
     const { confirm, dialog } = useConfirm();
     const [showOnlyProblems, setShowOnlyProblems] = useState(false);
     const placed = (draft?.counts?.scheduled ?? 0) + (draft?.counts?.scheduled_late ?? 0);
     const problems = (draft?.operations ?? []).filter((op) => op.status !== 'scheduled');
     const draftOps = showOnlyProblems ? problems : (draft?.operations ?? []);
+    const untrackedLineIds = new Set((draft?.workforce ?? []).filter((w) => !w.tracked && w.respected !== false).map((w) => w.line_id));
 
     const apply = () => confirm(
         {
@@ -369,6 +461,8 @@ export default function AutoSchedule() {
                             )}
                         </div>
 
+                        <StaffingPanel workforce={draft.workforce} canAssignOperators={canAssignOperators} />
+
                         <div className="flex justify-end">
                             <Checkbox size="sm" checked={showOnlyProblems} onChange={setShowOnlyProblems} label={`${__('Only late or infeasible')} (${problems.length})`} />
                         </div>
@@ -376,6 +470,7 @@ export default function AutoSchedule() {
                             operations={draftOps}
                             stationsByType={stationsByType}
                             canDecide={canDecide}
+                            untrackedLineIds={untrackedLineIds}
                             emptyText={showOnlyProblems && draft.operations?.length
                                 ? __('Every operation is scheduled on time.')
                                 : __('No work orders to schedule — every active order already has a time plan, or none has a routing.')}

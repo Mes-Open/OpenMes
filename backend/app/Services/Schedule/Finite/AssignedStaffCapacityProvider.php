@@ -2,11 +2,13 @@
 
 namespace App\Services\Schedule\Finite;
 
+use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
 use App\Models\User;
 use App\Models\Worker;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Counts people from what core already records: the operator accounts assigned
@@ -25,7 +27,7 @@ use Carbon\CarbonInterface;
  * One instance serves one scheduling run, so the assignments and each day's
  * absences are read once.
  */
-class AssignedStaffCapacityProvider implements WorkforceCapacityProvider
+class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, WorkforceCapacityProvider
 {
     /**
      * line id (or 'none') => people, keyed `w:<worker id>` or, for an account
@@ -62,6 +64,47 @@ class AssignedStaffCapacityProvider implements WorkforceCapacityProvider
 
         return count(array_filter($present, fn (string $key) => str_starts_with($key, 'w:')
             && array_diff($skillIds, $skills[(int) substr($key, 2)] ?? []) === []));
+    }
+
+    public function assignedCount(?int $lineId): ?int
+    {
+        $count = count($this->staff()[$lineId ?? 'none'] ?? []);
+
+        return $count === 0 ? null : $count;
+    }
+
+    public function absentWorkerIds(?int $lineId, CarbonInterface $start, CarbonInterface $end): array
+    {
+        $staff = $this->staff()[$lineId ?? 'none'] ?? [];
+
+        return array_values(array_filter(
+            $this->absentBetween($start, $end),
+            fn (int $id) => in_array('w:'.$id, $staff, true),
+        ));
+    }
+
+    public function workerNames(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return Worker::whereKey($ids)->pluck('name', 'id')->map(fn ($name) => (string) $name)->all();
+    }
+
+    public function skillNames(array $ids): array
+    {
+        if ($ids === [] || ! (new Worker)->isRelation('skills')) {
+            return [];
+        }
+
+        $related = (new Worker)->skills()->getRelated();
+        if (! Schema::hasColumn($related->getTable(), 'name')) {
+            return [];
+        }
+
+        return $related->newQuery()->whereKey($ids)->pluck('name', $related->getKeyName())
+            ->map(fn ($name) => (string) $name)->all();
     }
 
     /**

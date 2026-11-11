@@ -7302,5 +7302,17 @@
     "Use this address": "Użyj tego adresu",
     "Local OPC UA server (on this computer)?": "Lokalny serwer OPC UA (na tym komputerze)?",
     "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.": "Jeśli serwer OPC UA (np. symulator do testów) działa lokalnie na tym samym komputerze co OpenMES, użyj :address. Dla prawdziwej maszyny lub sterownika PLC na hali podaj jego adres IP.",
-    "Use the local server address": "Użyj adresu serwera lokalnego"
+    "Use the local server address": "Użyj adresu serwera lokalnego",
+    "Needs :required operators, :available available.": "Wymaga :required operatorów, dostępnych :available.",
+    "Needs :required operators, :available available (:absent absent: :names).": "Wymaga :required operatorów, dostępnych :available (nieobecni — :absent: :names).",
+    "Needs :required operators qualified in :skills, :available available.": "Wymaga :required operatorów z kwalifikacjami :skills, dostępnych :available.",
+    "Needs :required operators qualified in :skills, :available available (:absent absent: :names).": "Wymaga :required operatorów z kwalifikacjami :skills, dostępnych :available (nieobecni — :absent: :names).",
+    ":count busy with other work.": "Zajęci inną pracą: :count.",
+    "Window :from – :to": "Okno :from – :to",
+    "Staffing": "Obsada",
+    "Staffing not tracked — scheduled on machine capacity only": "Obsada nieśledzona — zaplanowano tylko według zdolności maszyn",
+    "staffing not tracked": "obsada nieśledzona",
+    "Assign operators": "Przypisz operatorów",
+    ":count operators assigned": "Przypisanych operatorów: :count",
+    "Operator availability was ignored for this run.": "Dostępność operatorów została pominięta w tej symulacji."
 }

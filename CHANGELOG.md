@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Auto-schedule explains people shortfalls.** When *Scheduler → Automatic scheduling*
+  cannot place a step for lack of people, the simulation now says how many it needs and how
+  many there were: *"Needs 3 operators, 2 available (1 absent: Jan Kowalski)."*, plus how many
+  were busy with other work and which window was checked. A qualification shortfall also names
+  the skills. The same numbers (`required`, `available`, `in_use`, `window_start`/`window_end`,
+  `absent_workers`, `required_skills`) are in the reason JSON of the finite-schedule API. A
+  new *Staffing* panel lists the operators assigned per line. A line nobody is assigned to is
+  flagged *"Staffing not tracked — scheduled on machine capacity only"*, with a link to assign
+  operators, and its steps carry a *staffing not tracked* chip. The simulation's `workforce`
+  section reports the same per line.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

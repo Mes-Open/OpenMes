@@ -274,17 +274,6 @@ class WorkforceScenariosTest extends TestCase
         $this->assertEquals($this->at('2026-10-12 22:00'), $this->start($this->schedule(), $order));
     }
 
-    public function test_probe_workforce_reason_says_how_many_people_are_missing(): void
-    {
-        [$line, $type] = $this->cell(stations: 1, people: 2);
-        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
-
-        $reason = collect($this->opsFor($this->schedule(), $order)[0]['reasons'])->firstWhere('code', 'workforce_capacity');
-
-        $this->assertArrayHasKey('required', $reason, 'material reasons carry shortages; people reasons carry nothing');
-        $this->assertArrayHasKey('available', $reason);
-    }
-
     public function test_probe_an_absence_recorded_after_the_draft_makes_it_stale(): void
     {
         [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
@@ -300,17 +289,151 @@ class WorkforceScenariosTest extends TestCase
         $service->apply($draft->fresh(), $user);
     }
 
-    public function test_probe_result_says_which_lines_are_not_staffing_tracked(): void
+    // ── Explaining a people shortfall ───────────────────────────────────────
+
+    private function peopleReason(array $result, $order, string $code = 'workforce_capacity'): ?array
+    {
+        return collect($this->opsFor($result, $order)[0]['reasons'])->firstWhere('code', $code);
+    }
+
+    /** @return array<int, array<string, mixed>> line id => workforce entry */
+    private function workforceOf(array $result): array
+    {
+        return collect($result['workforce'])->keyBy('line_id')->all();
+    }
+
+    public function test_workforce_reason_says_how_many_people_are_missing(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 2);
+        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
+
+        $reason = $this->peopleReason($this->schedule(), $order);
+
+        $this->assertSame(3, $reason['required']);
+        $this->assertSame(2, $reason['available']);
+        $this->assertSame(0, $reason['in_use']);
+        $this->assertSame($line->id, $reason['line_id']);
+        // Every window is one short; the earliest one is reported.
+        $this->assertSame($this->at('2026-10-12 06:00')->toIso8601String(), $reason['window_start']);
+        $this->assertSame($this->at('2026-10-12 07:00')->toIso8601String(), $reason['window_end']);
+        $this->assertSame([], $reason['absent_worker_ids']);
+        $this->assertSame('Needs 3 operators, 2 available.', $reason['message']);
+    }
+
+    public function test_workforce_reason_names_who_is_absent_in_the_window(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 3);
+        $this->absent([$workers[0]], '2026-10-12');
+        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
+
+        $reason = $this->peopleReason($this->schedule(['end' => $this->at('2026-10-13 00:00')]), $order);
+
+        $this->assertSame(3, $reason['required']);
+        $this->assertSame(2, $reason['available']);
+        $this->assertSame([$workers[0]->id], $reason['absent_worker_ids']);
+        $this->assertSame([['id' => $workers[0]->id, 'name' => $workers[0]->name]], $reason['absent_workers']);
+        $this->assertSame("Needs 3 operators, 2 available (1 absent: {$workers[0]->name}).", $reason['message']);
+    }
+
+    public function test_workforce_reason_counts_people_held_by_other_work(): void
+    {
+        [$line, $type] = $this->cell(stations: 2, people: 2);
+        // Takes one of the two people for the whole Monday shift.
+        $this->job($line, $type, 480, attrs: ['priority' => 2]);
+        $order = $this->job($line, $type, 60, ['required_operators' => 2], ['priority' => 1]);
+
+        $reason = $this->peopleReason($this->schedule(['end' => $this->at('2026-10-13 00:00')]), $order);
+
+        $this->assertSame(2, $reason['available']);
+        $this->assertSame(1, $reason['in_use']);
+        $this->assertSame('Needs 2 operators, 2 available. 1 busy with other work.', $reason['message']);
+    }
+
+    public function test_qualification_reason_names_the_required_skills(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$qualified]] = $this->cell(stations: 1, people: 2);
+        $skill = $this->line(['name' => 'Welding']); // stands in for a skill row
+        $qualified->skills()->attach($skill->id);
+        $order = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$skill->id]]);
+
+        $result = $this->schedule(['end' => $this->at('2026-10-13 00:00')]);
+        $reason = $this->peopleReason($result, $order, 'qualification');
+
+        $this->assertSame(ScheduledOperationStatus::InfeasibleQualification, $this->opStatus($result, $order));
+        $this->assertSame(2, $reason['required']);
+        $this->assertSame(1, $reason['available']);
+        $this->assertSame([$skill->id], $reason['required_skill_ids']);
+        $this->assertSame([['id' => $skill->id, 'name' => 'Welding']], $reason['required_skills']);
+        $this->assertSame('Needs 2 operators qualified in Welding, 1 available.', $reason['message']);
+    }
+
+    public function test_a_provider_that_cannot_explain_still_reports_the_numbers(): void
+    {
+        $this->fakeWorkforce(2);
+        [$line, $type] = $this->cell(stations: 1, people: 0);
+        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
+
+        $result = $this->schedule();
+        $reason = $this->peopleReason($result, $order);
+
+        $this->assertSame(3, $reason['required']);
+        $this->assertSame(2, $reason['available']);
+        $this->assertSame([], $reason['absent_worker_ids']);
+        $this->assertSame(['tracked' => true, 'assigned' => null], array_intersect_key($this->workforceOf($result)[$line->id], ['tracked' => 0, 'assigned' => 0]));
+    }
+
+    // ── Which lines are staffing-tracked ────────────────────────────────────
+
+    public function test_result_says_which_lines_are_not_staffing_tracked(): void
     {
         [$staffed, $type] = $this->cell(stations: 1, people: 1);
+        User::factory()->create()->lines()->attach($staffed->id);
         $untracked = $this->line();
         $this->station($untracked, $type);
         $this->job($staffed, $type, 60);
-        $this->job($untracked, $type, 60);
+        $loose = $this->job($untracked, $type, 60, ['required_operators' => 3]);
 
         $result = $this->schedule();
+        $workforce = $this->workforceOf($result);
 
-        $this->assertArrayHasKey('workforce', $result, 'planner cannot tell a staffed line from an unconstrained one');
+        $this->assertSame(['line_id' => $staffed->id, 'line_name' => $staffed->name, 'tracked' => true, 'assigned' => 2, 'respected' => true], $workforce[$staffed->id]);
+        $this->assertSame(['line_id' => $untracked->id, 'line_name' => $untracked->name, 'tracked' => false, 'assigned' => null, 'respected' => true], $workforce[$untracked->id]);
+        // Nobody is assigned, so three operators are not checked: machine capacity only.
+        $this->assertSame(ScheduledOperationStatus::Scheduled, $this->opStatus($result, $loose));
+    }
+
+    public function test_ignoring_people_adds_no_people_reasons(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 2);
+        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
+
+        $result = $this->schedule(['respectWorkforce' => false]);
+
+        $this->assertSame(ScheduledOperationStatus::Scheduled, $this->opStatus($result, $order));
+        $codes = array_column($this->opsFor($result, $order)[0]['reasons'], 'code');
+        $this->assertNotContains('workforce_capacity', $codes);
+        $this->assertNotContains('qualification', $codes);
+        $this->assertTrue($this->workforceOf($result)[$line->id]['tracked']);
+        $this->assertFalse($this->workforceOf($result)[$line->id]['respected']);
+    }
+
+    public function test_the_draft_keeps_the_staffing_section_and_the_numbers(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 2);
+        $untracked = $this->line();
+        $order = $this->job($line, $type, 60, ['required_operators' => 3]);
+
+        $draft = app(ScheduleSimulationService::class)->generate($this->request(), User::factory()->create());
+
+        $workforce = collect($draft->fresh()->summary['workforce'])->keyBy('line_id');
+        $this->assertTrue($workforce[$line->id]['tracked']);
+        $this->assertSame(2, $workforce[$line->id]['assigned']);
+        $this->assertFalse($workforce[$untracked->id]['tracked']);
+
+        $reasons = $draft->operations()->where('work_order_id', $order->id)->sole()->reasons;
+        $this->assertSame(3, $reasons[0]['required']);
+        $this->assertSame(2, $reasons[0]['available']);
     }
 
     /** Stand in for the workforce module's Worker::skills() relation. */

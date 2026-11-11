@@ -56,6 +56,7 @@ class ScheduleSimulationService
                     'counts' => $result['counts'],
                     'work_orders' => $result['work_orders'],
                     'resources' => $result['resources'],
+                    'workforce' => $result['workforce'],
                     'inputs_fingerprint' => $result['inputs_fingerprint'],
                 ],
                 'created_by_id' => $user->id,

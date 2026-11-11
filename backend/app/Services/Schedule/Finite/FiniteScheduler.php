@@ -3,6 +3,7 @@
 namespace App\Services\Schedule\Finite;
 
 use App\Enums\ScheduledOperationStatus;
+use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Models\Line;
 use App\Models\ScheduledOperation;
@@ -78,7 +79,9 @@ class FiniteScheduler
      *     operations: list<array<string, mixed>>,
      *     work_orders: list<array<string, mixed>>,
      *     resources: list<array<string, mixed>>,
-     *     counts: array<string, int>
+     *     counts: array<string, int>,
+     *     workforce: list<array{line_id: int, line_name: string, tracked: bool, assigned: ?int, respected: bool}>,
+     *     inputs_fingerprint: string
      * }
      */
     public function schedule(SchedulingRequest $request): array
@@ -160,6 +163,7 @@ class FiniteScheduler
             'work_orders' => $summaries,
             'resources' => $this->resourceLoads(),
             'counts' => $this->counts($operations),
+            'workforce' => $this->workforceByLine($request->start, $request->end),
             'inputs_fingerprint' => $this->inputsFingerprint($orders->pluck('id')->all(), $request->start, $request->end),
         ];
     }
@@ -311,10 +315,14 @@ class FiniteScheduler
 
         $best = null;
         $failures = [];
+        $labor = [];
         foreach ($candidates as $candidate) {
             $slot = $this->findSlot($demand, $candidate, $earliest, $horizonEnd);
             if (! $slot['ok']) {
                 $failures = [...$failures, ...$slot['failures']];
+                foreach ($slot['labor'] as $code => $detail) {
+                    $labor[$code] = $this->closerShortfall($labor[$code] ?? null, $detail);
+                }
 
                 continue;
             }
@@ -324,7 +332,7 @@ class FiniteScheduler
         }
 
         if ($best === null) {
-            return $this->unplaced($order, $demand, $sequence, $this->failureStatus($failures), $this->failureReasons($failures));
+            return $this->unplaced($order, $demand, $sequence, $this->failureStatus($failures), $this->failureReasons($failures, $labor));
         }
 
         return $this->book($order, $demand, $best['candidate'], $best['slot'], $sequence);
@@ -382,7 +390,10 @@ class FiniteScheduler
      * Earliest slot on one resource from $earliest, or the constraints that
      * kept pushing it past the horizon.
      *
-     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int}|array{ok: false, failures: list<string>}
+     * The people shortfalls come back per code as the window closest to
+     * working, so the reason can say how many were missing and when.
+     *
+     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
      */
     private function findSlot(OperationDemand $demand, array $candidate, int $earliest, int $horizonEnd): array
     {
@@ -390,6 +401,7 @@ class FiniteScheduler
         $factor = $this->lines->get($candidate['line_id'])?->planningEfficiencyFactor() ?? 1.0;
         $keys = [$candidate['key'], ...$candidate['related']];
         $failures = [];
+        $closest = [];
 
         $t = $earliest;
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
@@ -440,7 +452,8 @@ class FiniteScheduler
 
             $labor = $this->laborShortfall($demand, $candidate['line_id'], $t, $end);
             if ($labor !== null) {
-                $failures[] = $labor;
+                $failures[] = $labor['code'];
+                $closest[$labor['code']] = $this->closerShortfall($closest[$labor['code']] ?? null, $labor);
                 $t = min(array_filter([
                     $t + self::LABOR_PROBE_MINUTES,
                     $this->timeline->nextLaborRelease($candidate['line_id'], $t),
@@ -454,15 +467,36 @@ class FiniteScheduler
 
         $failures[] = 'resource_capacity';
 
-        return ['ok' => false, 'failures' => array_values(array_unique($failures))];
+        return ['ok' => false, 'failures' => array_values(array_unique($failures)), 'labor' => $closest];
+    }
+
+    /**
+     * Of two failing windows, the one nearer to being staffed: the smaller
+     * deficit, then the earlier start.
+     *
+     * @param  array<string, mixed>|null  $current
+     * @param  array<string, mixed>  $candidate
+     * @return array<string, mixed>
+     */
+    private function closerShortfall(?array $current, array $candidate): array
+    {
+        if ($current === null) {
+            return $candidate;
+        }
+        $deficit = fn (array $d) => $d['available'] - $d['in_use'] - $d['required'];
+
+        return [-$deficit($candidate), $candidate['start']] < [-$deficit($current), $current['start']] ? $candidate : $current;
     }
 
     /**
      * Which people constraint a window breaks, if any: too few operators on the
-     * line, or too few holding the step's skills. Untracked (null) never
-     * constrains, and neither does anything when the run ignores people.
+     * line, or too few holding the step's skills — with the counts behind it.
+     * Untracked (null) never constrains, and neither does anything when the run
+     * ignores people.
+     *
+     * @return array{code: string, line_id: int, required: int, available: int, in_use: int, start: int, end: int, skill_ids: list<int>}|null
      */
-    private function laborShortfall(OperationDemand $demand, int $lineId, int $start, int $end): ?string
+    private function laborShortfall(OperationDemand $demand, int $lineId, int $start, int $end): ?array
     {
         if (! $this->respectWorkforce) {
             return null;
@@ -471,16 +505,32 @@ class FiniteScheduler
         $from = ResourceCalendar::toCarbon($start);
         $to = ResourceCalendar::toCarbon($end);
 
+        $shortfall = fn (string $code, int $available, int $inUse, array $skills) => [
+            'code' => $code,
+            'line_id' => $lineId,
+            'required' => $demand->requiredOperators,
+            'available' => $available,
+            'in_use' => $inUse,
+            'start' => $start,
+            'end' => $end,
+            'skill_ids' => $skills,
+        ];
+
         $available = $this->workforce->availableOperators($lineId, $from, $to);
-        if ($available !== null && $available - $this->timeline->laborInUse($lineId, $start, $end) < $demand->requiredOperators) {
-            return 'workforce_capacity';
+        if ($available !== null) {
+            $inUse = $this->timeline->laborInUse($lineId, $start, $end);
+            if ($available - $inUse < $demand->requiredOperators) {
+                return $shortfall('workforce_capacity', $available, $inUse, []);
+            }
         }
 
         if ($demand->requiredSkillIds !== []) {
             $qualified = $this->workforce->qualifiedOperators($lineId, $from, $to, $demand->requiredSkillIds);
-            if ($qualified !== null
-                && $qualified - $this->timeline->laborInUse($lineId, $start, $end, $demand->requiredSkillIds) < $demand->requiredOperators) {
-                return 'qualification';
+            if ($qualified !== null) {
+                $inUse = $this->timeline->laborInUse($lineId, $start, $end, $demand->requiredSkillIds);
+                if ($qualified - $inUse < $demand->requiredOperators) {
+                    return $shortfall('qualification', $qualified, $inUse, $demand->requiredSkillIds);
+                }
             }
         }
 
@@ -619,9 +669,10 @@ class FiniteScheduler
 
     /**
      * @param  list<string>  $failures
-     * @return list<array<string, string>>
+     * @param  array<string, array<string, mixed>>  $labor  closest failing window per people code
+     * @return list<array<string, mixed>>
      */
-    private function failureReasons(array $failures): array
+    private function failureReasons(array $failures, array $labor = []): array
     {
         $messages = [
             'qualification' => __('Not enough qualified operators are available.'),
@@ -630,9 +681,102 @@ class FiniteScheduler
         ];
 
         return array_values(array_map(
-            fn ($code) => ['code' => $code, 'message' => $messages[$code]],
+            fn ($code) => isset($labor[$code])
+                ? $this->peopleReason($code, $labor[$code])
+                : ['code' => $code, 'message' => $messages[$code]],
             array_intersect(array_keys($messages), array_unique($failures)),
         ));
+    }
+
+    /**
+     * A people reason with the numbers behind it: how many the step needs,
+     * how many were there in the window closest to working, how many of them
+     * other work held, and who was away. Looked up once per unplaced step.
+     *
+     * @param  array<string, mixed>  $detail  from {@see laborShortfall()}
+     * @return array<string, mixed>
+     */
+    private function peopleReason(string $code, array $detail): array
+    {
+        $from = ResourceCalendar::toCarbon($detail['start']);
+        $to = ResourceCalendar::toCarbon($detail['end']);
+        $explains = $this->workforce instanceof ExplainsWorkforceCapacity ? $this->workforce : null;
+
+        $absentIds = $explains?->absentWorkerIds($detail['line_id'], $from, $to) ?? [];
+        $names = $explains?->workerNames($absentIds) ?? [];
+        $absent = array_map(fn (int $id) => ['id' => $id, 'name' => $names[$id] ?? null], $absentIds);
+
+        $params = [
+            'required' => $detail['required'],
+            'available' => $detail['available'],
+            'absent' => count($absent),
+            'names' => implode(', ', array_map(fn ($w) => $w['name'] ?? '#'.$w['id'], $absent)),
+        ];
+
+        $reason = [
+            'code' => $code,
+            'line_id' => $detail['line_id'],
+            'required' => $detail['required'],
+            'available' => $detail['available'],
+            'in_use' => $detail['in_use'],
+            'window_start' => $from->toIso8601String(),
+            'window_end' => $to->toIso8601String(),
+            'absent_worker_ids' => $absentIds,
+            'absent_workers' => $absent,
+        ];
+
+        if ($code === 'qualification') {
+            $skillNames = $explains?->skillNames($detail['skill_ids']) ?? [];
+            $skills = array_map(fn (int $id) => ['id' => $id, 'name' => $skillNames[$id] ?? null], $detail['skill_ids']);
+            $params['skills'] = implode(', ', array_map(fn ($s) => $s['name'] ?? '#'.$s['id'], $skills));
+            $reason['required_skill_ids'] = $detail['skill_ids'];
+            $reason['required_skills'] = $skills;
+            $message = $absent === []
+                ? __('Needs :required operators qualified in :skills, :available available.', $params)
+                : __('Needs :required operators qualified in :skills, :available available (:absent absent: :names).', $params);
+        } else {
+            $message = $absent === []
+                ? __('Needs :required operators, :available available.', $params)
+                : __('Needs :required operators, :available available (:absent absent: :names).', $params);
+        }
+
+        if ($detail['in_use'] > 0) {
+            $message .= ' '.__(':count busy with other work.', ['count' => $detail['in_use']]);
+        }
+
+        return ['message' => $message] + $reason;
+    }
+
+    /**
+     * Whether each active line's staffing constrains the run: a line nobody is
+     * assigned to is scheduled on machine capacity alone, and the planner must
+     * be able to see that. Reported even when the run ignores people, flagged
+     * `respected: false`.
+     *
+     * @return list<array{line_id: int, line_name: string, tracked: bool, assigned: ?int, respected: bool}>
+     */
+    private function workforceByLine(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $explains = $this->workforce instanceof ExplainsWorkforceCapacity ? $this->workforce : null;
+
+        return $this->lines
+            ->sortBy(fn (Line $line) => [mb_strtolower((string) $line->name), $line->id])
+            ->map(function (Line $line) use ($explains, $start, $end) {
+                $assigned = $explains?->assignedCount($line->id);
+                $tracked = $explains !== null
+                    ? $assigned !== null
+                    : $this->workforce->availableOperators($line->id, $start, $end) !== null;
+
+                return [
+                    'line_id' => (int) $line->id,
+                    'line_name' => (string) $line->name,
+                    'tracked' => $tracked,
+                    'assigned' => $assigned,
+                    'respected' => $this->respectWorkforce,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

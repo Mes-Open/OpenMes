@@ -7302,5 +7302,17 @@
     "Use this address": "Use this address",
     "Local OPC UA server (on this computer)?": "Local OPC UA server (on this computer)?",
     "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.": "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.",
-    "Use the local server address": "Use the local server address"
+    "Use the local server address": "Use the local server address",
+    "Needs :required operators, :available available.": "Needs :required operators, :available available.",
+    "Needs :required operators, :available available (:absent absent: :names).": "Needs :required operators, :available available (:absent absent: :names).",
+    "Needs :required operators qualified in :skills, :available available.": "Needs :required operators qualified in :skills, :available available.",
+    "Needs :required operators qualified in :skills, :available available (:absent absent: :names).": "Needs :required operators qualified in :skills, :available available (:absent absent: :names).",
+    ":count busy with other work.": ":count busy with other work.",
+    "Window :from – :to": "Window :from – :to",
+    "Staffing": "Staffing",
+    "Staffing not tracked — scheduled on machine capacity only": "Staffing not tracked — scheduled on machine capacity only",
+    "staffing not tracked": "staffing not tracked",
+    "Assign operators": "Assign operators",
+    ":count operators assigned": ":count operators assigned",
+    "Operator availability was ignored for this run.": "Operator availability was ignored for this run."
 }

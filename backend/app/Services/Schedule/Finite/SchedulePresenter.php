@@ -72,6 +72,7 @@ class SchedulePresenter
             'counts' => $simulation->summary['counts'] ?? [],
             'work_orders' => $simulation->summary['work_orders'] ?? [],
             'resources' => $simulation->summary['resources'] ?? [],
+            'workforce' => $simulation->summary['workforce'] ?? [],
             'created_at' => $simulation->created_at?->toIso8601String(),
             'created_label' => $simulation->created_at?->format('Y-m-d H:i'),
             'created_by' => $simulation->createdBy?->name,
