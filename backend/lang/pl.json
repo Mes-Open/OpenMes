@@ -7321,5 +7321,6 @@
     "Recently completed": "Ostatnio zakończone",
     "Staffing changed since this draft was generated — generate it again.": "Obsada zmieniła się od wygenerowania tego szkicu — wygeneruj go ponownie.",
     "Waited for operators busy on :lines.": "Czekało na operatorów zajętych na: :lines.",
-    ":count busy with other work on :lines.": "Zajęci inną pracą na :lines: :count."
+    ":count busy with other work on :lines.": "Zajęci inną pracą na :lines: :count.",
+    ":count busy with other work, :held of them on :lines.": "Zajęci inną pracą: :count, w tym :held na :lines."
 }

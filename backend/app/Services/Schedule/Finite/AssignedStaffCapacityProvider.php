@@ -84,13 +84,20 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
 
     public function qualifiedOperators(?int $lineId, CarbonInterface $start, CarbonInterface $end, array $skillIds): ?int
     {
+        $qualified = $this->qualifiedOperatorKeys($lineId, $start, $end, $skillIds);
+
+        return $qualified === null ? null : count($qualified);
+    }
+
+    public function qualifiedOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end, array $skillIds): ?array
+    {
         $present = $this->present($lineId, $start, $end);
         $skills = $this->skills();
         if ($present === null || $skills === null) {
             return null;
         }
 
-        return count(array_filter($present, fn (string $key) => str_starts_with($key, 'w:')
+        return array_values(array_filter($present, fn (string $key) => str_starts_with($key, 'w:')
             && array_diff($skillIds, $skills[(int) substr($key, 2)] ?? []) === []));
     }
 

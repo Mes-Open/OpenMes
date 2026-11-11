@@ -79,9 +79,14 @@ function peopleText(reason) {
 
     if (!(reason.in_use > 0)) return text;
 
-    return reason.busy_lines?.length
-        ? `${text} ${__(':count busy with other work on :lines.', { count: reason.in_use, lines: lineNames(reason.busy_lines) })}`
-        : `${text} ${__(':count busy with other work.', { count: reason.in_use })}`;
+    // Of those busy, how many other lines hold; the rest work on this one.
+    const busyLines = reason.busy_lines ?? [];
+    const held = Math.min(reason.in_use, busyLines.reduce((sum, l) => sum + (l.operators ?? 0), 0));
+    const lines = lineNames(busyLines);
+    if (held === 0) return `${text} ${__(':count busy with other work.', { count: reason.in_use })}`;
+    if (held === reason.in_use) return `${text} ${__(':count busy with other work on :lines.', { count: held, lines })}`;
+
+    return `${text} ${__(':count busy with other work, :held of them on :lines.', { count: reason.in_use, held, lines })}`;
 }
 
 /** "2026-10-12T06:00:00+02:00" → "12.10 06:00", plant time as the server wrote it. */

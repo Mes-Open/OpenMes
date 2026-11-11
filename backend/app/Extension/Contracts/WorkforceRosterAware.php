@@ -34,4 +34,14 @@ interface WorkforceRosterAware
      * @return list<string>|null
      */
     public function presentOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end): ?array;
+
+    /**
+     * Of those present, who holds every one of the given skills — the count
+     * equals {@see WorkforceCapacityProvider::qualifiedOperators()}. Null when
+     * qualification is not tracked on the line.
+     *
+     * @param  list<int>  $skillIds
+     * @return list<string>|null
+     */
+    public function qualifiedOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end, array $skillIds): ?array;
 }

@@ -144,6 +144,7 @@ both at the same moment. When a capacity provider also implements
 ```php
 public function assignedOperatorKeys(): array;   // line id => person keys
 public function presentOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end): ?array;
+public function qualifiedOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end, array $skillIds): ?array;
 ```
 
 A key names one person on every line (core uses `w:<worker id>`, or
@@ -159,12 +160,18 @@ people.
 When a step has to wait for people held on another line, its reason says so:
 *"Waited for operators busy on Line A."*, with the window it was refused. An
 unplaced step's people reason names those lines too: *"1 busy with other work on
-Line A."* The JSON carries `busy_lines` (`line_id`, `line_name`, `operators`).
+Line A."*, or *"3 busy with other work, 2 of them on Line A."* when part of the
+work is the line's own. The JSON carries `busy_lines` (`line_id`, `line_name`, `operators`).
 
 Each line's presence is read for the window being tried. With line-specific
 shift calendars, an absence near a shift-date boundary can be attributed to the
-neighbouring day for the other lines in the group. Skills are still checked per
-line.
+neighbouring day for the other lines in the group.
+
+A skilled step runs the same check with only the qualified people allowed to
+take it (`qualifiedOperatorKeys()`), so its only qualified person is not
+counted as free while another line holds them. Booked work on the other lines
+still counts by headcount; competition between skilled steps for the same
+multi-skilled person is not modelled yet.
 
 A provider that only returns counts does not implement the interface, and
 each line keeps counting its own people, exactly as before.

@@ -530,6 +530,66 @@ class WorkforceScenariosTest extends TestCase
         $this->assertEquals($this->at('2026-10-13 07:00'), $this->start($result, $b));
     }
 
+    public function test_a_skilled_step_waits_for_its_only_qualified_person_held_on_another_line(): void
+    {
+        $this->recordSkills();
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $skill = $this->line(); // stands in for a skill row
+        // P holds the skill and staffs both lines (a worker on A, an account on B); Q works A only.
+        $p = Worker::factory()->create(['workstation_id' => $stationA->id]);
+        $p->skills()->attach($skill->id);
+        User::factory()->create(['worker_id' => $p->id])->lines()->attach($lineB->id);
+        Worker::factory()->create(['workstation_id' => $stationA->id]);
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 2]);
+        $a = $this->job($lineA, $typeA, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // B's only person is P, so B takes P at 06:00; Q is free but cannot do A's step.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $a));
+        $this->assertSame([['line_id' => $lineB->id, 'line_name' => $lineB->name, 'operators' => 1]], $this->waitedReason($result, $a)['busy_lines']);
+    }
+
+    public function test_a_people_reason_separates_this_lines_own_work_from_other_lines(): void
+    {
+        [$lineA, $typeA] = $this->lineWithStations(2);
+        [$lineL, $typeL, $stationL] = $this->lineWithStations(2);
+        $this->sharedOperator($lineA, $lineL);
+        $this->sharedOperator($lineA, $lineL);
+        Worker::factory()->create(['workstation_id' => $stationL->id]); // line L's own
+        $this->job($lineA, $typeA, 480, attrs: ['priority' => 5]);
+        $this->job($lineA, $typeA, 480, attrs: ['priority' => 4]);
+        $this->job($lineL, $typeL, 480, attrs: ['priority' => 3]);
+        $late = $this->job($lineL, $typeL, 60, attrs: ['priority' => 1]);
+
+        $reason = $this->peopleReason($this->schedule(['end' => $this->at('2026-10-13 00:00')]), $late);
+
+        $this->assertSame(3, $reason['in_use']);
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 2]], $reason['busy_lines']);
+        $this->assertSame("Needs 1 operators, 3 available. 3 busy with other work, 2 of them on {$lineA->name}.", $reason['message']);
+    }
+
+    public function test_the_waited_reason_is_dropped_when_something_else_pushed_the_step_last(): void
+    {
+        [$lineA, $typeA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $this->sharedOperator($lineA, $lineB);
+        // Line B is planned by hand 07:00–09:00, so after waiting at 06:00 the step hits that.
+        $this->job($lineB, $typeB, 120, attrs: [
+            'planned_start_at' => $this->at('2026-10-12 07:00'),
+            'planned_end_at' => $this->at('2026-10-12 09:00'),
+        ]);
+        $this->job($lineA, $typeA, 60, attrs: ['priority' => 2]);
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 09:00'), $this->start($result, $b));
+        $this->assertNull($this->waitedReason($result, $b));
+    }
+
     public function test_the_shared_pool_adds_no_queries_per_order(): void
     {
         $lines = [];

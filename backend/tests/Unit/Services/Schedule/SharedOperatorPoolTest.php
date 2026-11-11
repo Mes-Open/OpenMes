@@ -70,6 +70,19 @@ class SharedOperatorPoolTest extends TestCase
         $this->assertSame(0, $pool->spare(2, [1 => ['s'], 2 => ['s']], [1 => 1], 1)['spare']);
     }
 
+    public function test_only_the_eligible_may_fill_the_new_places(): void
+    {
+        // 'p' is the only one qualified; line 2's booking can only use 'p'.
+        $pool = new SharedOperatorPool([1 => ['p', 'q'], 2 => ['p']]);
+        $present = [1 => ['p', 'q'], 2 => ['p']];
+
+        $this->assertSame(1, $pool->spare(1, $present, [2 => 1], 1)['spare'], 'by headcount q is free');
+        $this->assertSame(['spare' => 0, 'busy' => [2 => 1]], $pool->spare(1, $present, [2 => 1], 1, ['p']));
+        // Line 1's own booking moves off 'p' so 'p' can take the skilled place.
+        $pool = new SharedOperatorPool([1 => ['p', 'q', 'r'], 2 => ['q']]);
+        $this->assertSame(1, $pool->spare(1, [1 => ['p', 'q', 'r'], 2 => ['q']], [1 => 1, 2 => 1], 1, ['p'])['spare']);
+    }
+
     public function test_spare_stops_at_what_is_needed(): void
     {
         $pool = new SharedOperatorPool([1 => ['a', 'b', 'c'], 2 => ['a', 'b', 'c']]);
