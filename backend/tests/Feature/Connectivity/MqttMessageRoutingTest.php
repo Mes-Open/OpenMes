@@ -10,6 +10,7 @@ use App\Models\MachineConnection;
 use App\Models\MachineMessage;
 use App\Models\MachineTopic;
 use App\Models\TopicMapping;
+use App\Services\Connectivity\MqttSubscriptionRejections;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -83,5 +84,35 @@ class MqttMessageRoutingTest extends TestCase
         $this->assertSame(['#'], MqttListenCommand::subscriptionPatterns(['a/b', '#', '+/c']));
         // A leading wildcard never matches a $-topic, so it stays subscribed.
         $this->assertSame(['#', '$SYS/broker/#'], MqttListenCommand::subscriptionPatterns(['#', '$SYS/broker/#']));
+    }
+
+    public function test_a_refused_broad_subscription_falls_back_to_the_patterns_it_covered(): void
+    {
+        $patterns = ['hall1/#', 'hall1/press3/count', 'hall1/+/state', 'hall2/+/count', 'hall2/press1/count'];
+        $subscribed = MqttListenCommand::subscriptionPatterns($patterns);
+        $this->assertSame(['hall1/#', 'hall2/+/count'], $subscribed);
+
+        // The broker's ACL refuses `hall1/#`: the narrower hall1 patterns it
+        // made redundant are subscribed instead, nothing else twice.
+        $this->assertSame(
+            ['hall1/press3/count', 'hall1/+/state'],
+            MqttListenCommand::fallbackPatterns($patterns, ['hall1/#'], $subscribed),
+        );
+
+        // One of those refused as well: nothing left to fall back to.
+        $subscribed = [...$subscribed, 'hall1/press3/count', 'hall1/+/state'];
+        $this->assertSame([], MqttListenCommand::fallbackPatterns($patterns, ['hall1/#', 'hall1/+/state'], $subscribed));
+    }
+
+    public function test_refusals_logged_by_the_mqtt_client_are_collected(): void
+    {
+        $rejections = new MqttSubscriptionRejections;
+        // The client wraps its own logger in one that rewrites the message but
+        // keeps the context.
+        $rejections->notice('MQTT [broker:1883] [client]: The broker rejected the subscription to [{topicFilter}].', ['topicFilter' => 'hall1/#']);
+        $rejections->debug('Subscribing to topic [{topicFilter}] with maximum QoS [{qos}].', ['topicFilter' => 'hall2/+/count', 'qos' => 0]);
+
+        $this->assertSame(['hall1/#'], $rejections->take());
+        $this->assertSame([], $rejections->take());
     }
 }

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\MachineConnection;
 use App\Models\ModbusConnection;
 use App\Services\Connectivity\ReconnectBackoff;
+use App\Services\Connectivity\WorkerPool;
 use App\Services\Machine\MachineSignalIngestor;
 use App\Services\Machine\Modbus\ModbusReader;
 use App\Services\Machine\RuntimeMonitor;
@@ -13,19 +14,26 @@ use Illuminate\Database\Eloquent\Collection;
 use ModbusTcpClient\Network\IOException;
 
 /**
- * Long-running Modbus TCP poller. One process serves every active Modbus
- * machine_connection: each is connected and, every poll_interval_ms, all of
- * its active tags are read and fed into the MachineSignalIngestor.
+ * Long-running Modbus TCP poller: every poll_interval_ms, all active tags of a
+ * connection are read and fed into the MachineSignalIngestor.
  *
  *   php artisan modbus:poll                  every active Modbus connection
  *   php artisan modbus:poll --connection=3   just this one (id or name)
  *
- * The set of connections, their tags and their address settings are re-read
- * every REFRESH_SECONDS, so a machine added, switched off, moved to a new IP or
- * given a new tag in Admin → Connectivity needs no restart. A machine that
- * cannot be reached is retried with a growing pause (ReconnectBackoff), so a
- * PLC powered down for the night costs the others one connect timeout now and
- * then rather than on every cycle.
+ * Without --connection the command is a supervisor: it runs one worker,
+ * `modbus:poll --connection=<id>`, per active connection. Modbus reads block,
+ * so a PLC that is switched off holds its worker for the connect or read
+ * timeout; in a shared loop that would also stop every healthy machine from
+ * being read and lose their state changes meanwhile. The supervisor starts
+ * workers for new connections, stops those switched off or deleted, and
+ * restarts one that dies.
+ *
+ * A worker re-reads its connection, tags and address settings every
+ * REFRESH_SECONDS, so a machine moved to a new IP or given a new tag in
+ * Admin → Connectivity needs no restart. A machine that cannot be reached is
+ * retried with a growing pause (ReconnectBackoff).
+ *
+ * --once polls every connection a single time in this process (testing).
  */
 class ModbusPollCommand extends Command
 {
@@ -35,6 +43,9 @@ class ModbusPollCommand extends Command
 
     /** How often the running poller re-reads connections, tags and settings. */
     private const REFRESH_SECONDS = 60;
+
+    /** How often the supervisor checks which connections need a worker. */
+    private const SUPERVISE_SECONDS = 5;
 
     /** Well inside RuntimeMonitor::STALE_AFTER. */
     private const HEARTBEAT_SECONDS = 5;
@@ -76,6 +87,10 @@ class ModbusPollCommand extends Command
         if (function_exists('pcntl_signal')) {
             pcntl_signal(SIGTERM, fn () => $this->shouldStop = true);
             pcntl_signal(SIGINT, fn () => $this->shouldStop = true);
+        }
+
+        if (($handle === null || $handle === '') && ! $once) {
+            return $this->supervise();
         }
 
         $this->reconcile($handle);
@@ -132,6 +147,50 @@ class ModbusPollCommand extends Command
         $this->shutdown();
 
         return $once && $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /** One worker per active Modbus connection, until stopped. */
+    private function supervise(): int
+    {
+        $pool = new WorkerPool(
+            fn (int $id) => [PHP_BINARY, base_path('artisan'), 'modbus:poll', '--connection='.$id],
+            fn (int $id, string $line) => $this->line("[{$id}] {$line}"),
+        );
+        $this->info('Modbus supervisor started: one worker per active connection.');
+
+        $lastSync = 0.0;
+        $announced = null;
+        while (! $this->shouldStop) {
+            if (function_exists('pcntl_signal_dispatch')) {
+                pcntl_signal_dispatch();
+            }
+
+            $now = microtime(true);
+            if ($now - $lastSync >= self::SUPERVISE_SECONDS) {
+                $lastSync = $now;
+                $ids = MachineConnection::query()
+                    ->where('protocol', MachineConnection::PROTOCOL_MODBUS)
+                    ->where('is_active', true)
+                    ->whereHas('modbusConnection')
+                    ->pluck('id')
+                    ->all();
+                $pool->sync($ids, $now);
+
+                if (($ids === []) !== $announced) {
+                    $announced = $ids === [];
+                    if ($announced) {
+                        $this->line('No active Modbus connections yet — waiting for one to be added.');
+                    }
+                }
+            }
+
+            $pool->pump(microtime(true));
+            usleep(200_000);
+        }
+
+        $pool->stopAll();
+
+        return self::SUCCESS;
     }
 
     /**
@@ -223,7 +282,6 @@ class ModbusPollCommand extends Command
                 $reader = app(ModbusReader::class, ['modbus' => $modbus]);
                 $reader->connect();
                 $entry['reader'] = $reader;
-                $this->backoff->succeeded($id);
                 $connection->markConnected();
             }
 
@@ -246,6 +304,10 @@ class ModbusPollCommand extends Command
                     $this->warn("{$connection->name}: tag {$tag->name}: {$e->getMessage()}");
                 }
             }
+
+            // Only now, not on connect: a gateway that accepts the TCP
+            // connection while its PLC never answers must keep backing off.
+            $this->backoff->succeeded($id);
 
             return true;
         } catch (\Throwable $e) {

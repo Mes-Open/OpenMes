@@ -143,6 +143,12 @@ async function flushOutbox() {
       }
       if (res.ok) {
         removeSent(batch);
+        // OpenMES takes the batch but turns away readings it cannot use (a
+        // state value no workstation state matches): fix the tag's value map.
+        const body = await res.json().catch(() => ({}));
+        for (const r of body.rejected ?? []) {
+          log(`reading rejected for tag ${r.tag_id}: ${String(r.error).slice(0, 200)}`);
+        }
         continue;
       }
       if (res.status === 422) {

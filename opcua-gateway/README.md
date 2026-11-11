@@ -82,9 +82,12 @@ Every value change is queued and posted to OpenMES in order, one request at a
 time, stamped with the time the gateway received it and a unique event id. If
 OpenMES is unreachable or answers with an error (restart, deploy, revoked
 token), the queue is retried every 2 seconds, so state changes and alarms from
-that period are not lost; a retried reading carries the same event id and is
-never counted twice. Readings OpenMES rejects as invalid (HTTP 422) are logged
-and dropped.
+that period are not lost. A retried reading carries the same event id, and
+OpenMES skips an event id it has already taken, so a resent batch never counts
+parts, records a state change or raises an alarm twice. A batch OpenMES rejects
+as malformed (HTTP 422) is logged and dropped. A single reading it cannot use,
+such as a state value that matches no workstation state, is logged as
+`reading rejected for tag …` while the rest of the batch goes through.
 
 ## Troubleshooting
 
@@ -94,3 +97,4 @@ and dropped.
 | `config fetch failed: 403` | token without gateway access |
 | `config fetch failed: 404` | `OPCUA_CONNECTION_ID` does not exist |
 | `retry N, next in …` / connection refused | OPC UA endpoint unreachable — see the note on `127.0.0.1` above |
+| `reading rejected for tag N: Unknown workstation state: …` | the state tag's value map does not translate this machine value; add it in the tag's Value map |

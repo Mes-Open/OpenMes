@@ -11,6 +11,7 @@ use App\Models\Workstation;
 use App\Models\WorkstationState;
 use App\Services\Machine\RuntimeMonitor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -175,6 +176,62 @@ class MachineGatewayTest extends TestCase
             ->latest('event_timestamp')
             ->first();
         $this->assertEquals(7, $counter->payload['delta']);
+    }
+
+    private function stateTag(MachineConnection $conn, Workstation $ws): MachineTag
+    {
+        return MachineTag::create([
+            'machine_connection_id' => $conn->id, 'workstation_id' => $ws->id,
+            'name' => 'State', 'address' => 'ns=2;s=State', 'signal_type' => 'state',
+            'data_type' => 'int16', 'transform' => ['value_map' => ['1' => 'RUNNING', '3' => 'FAULT']],
+        ]);
+    }
+
+    public function test_a_resent_batch_does_not_record_state_changes_or_alarms_twice(): void
+    {
+        $conn = $this->opcuaConnection();
+        $ws = Workstation::factory()->create(['line_id' => Line::factory()]);
+        $state = $this->stateTag($conn, $ws);
+        $alarm = MachineTag::create([
+            'machine_connection_id' => $conn->id, 'workstation_id' => $ws->id,
+            'name' => 'Alarm', 'address' => 'ns=2;s=Alarm', 'signal_type' => 'alarm', 'data_type' => 'bool',
+        ]);
+        $batch = ['readings' => [
+            ['tag_id' => $state->id, 'value' => 3, 'event_id' => 'opcua-1-a'],
+            ['tag_id' => $alarm->id, 'value' => true, 'event_id' => 'opcua-1-b'],
+            ['tag_id' => $state->id, 'value' => 1, 'event_id' => 'opcua-1-c'],
+        ]];
+
+        $this->actingAs($this->admin)->postJson("/api/v1/machine-connections/{$conn->id}/signals", $batch)
+            ->assertOk()->assertJsonPath('accepted', 3);
+        // The answer was lost: the gateway sends the same batch again.
+        $this->actingAs($this->admin)->postJson("/api/v1/machine-connections/{$conn->id}/signals", $batch)
+            ->assertOk()->assertJsonPath('accepted', 0)->assertJsonPath('duplicates', 3);
+
+        $this->assertSame(2, MachineEvent::where('workstation_id', $ws->id)->where('event_type', 'state_change')->count());
+        $this->assertSame(1, MachineEvent::where('workstation_id', $ws->id)->where('event_type', 'alarm')->count());
+        $this->assertSame('RUNNING', WorkstationState::where('workstation_id', $ws->id)->whereNull('ended_at')->first()->state);
+        $this->assertSame(3, (int) $conn->fresh()->messages_received);
+    }
+
+    public function test_an_unusable_reading_is_rejected_alone_and_the_rest_go_through(): void
+    {
+        $conn = $this->opcuaConnection();
+        $ws = Workstation::factory()->create(['line_id' => Line::factory()]);
+        $state = $this->stateTag($conn, $ws);
+
+        // 7 is in no value map, so it reaches the state machine as "7".
+        $this->actingAs($this->admin)->postJson("/api/v1/machine-connections/{$conn->id}/signals", ['readings' => [
+            ['tag_id' => $state->id, 'value' => 7, 'event_id' => 'opcua-1-x'],
+            ['tag_id' => $state->id, 'value' => 3, 'event_id' => 'opcua-1-y'],
+        ]])
+            ->assertOk()
+            ->assertJsonPath('accepted', 1)
+            ->assertJsonPath('rejected.0.index', 0)
+            ->assertJsonPath('rejected.0.tag_id', $state->id)
+            ->assertJsonPath('rejected.0.event_id', 'opcua-1-x');
+
+        $this->assertSame('FAULT', WorkstationState::where('workstation_id', $ws->id)->whereNull('ended_at')->first()->state);
     }
 
     // ── Gateway token scope (#387) ───────────────────────────────
@@ -366,9 +423,7 @@ class MachineGatewayTest extends TestCase
         $this->assertNull($rt['endpoint_warning']);
     }
 
-    /**
-     * @dataProvider loopbackEndpoints
-     */
+    #[DataProvider('loopbackEndpoints')]
     public function test_runtime_warns_about_a_loopback_endpoint(string $endpoint): void
     {
         $conn = $this->opcuaConnection();

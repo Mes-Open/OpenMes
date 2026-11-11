@@ -2,13 +2,19 @@
 
 namespace Tests\Feature\Machine;
 
+use App\Console\Commands\ModbusPollCommand;
 use App\Models\MachineConnection;
 use App\Models\MachineTag;
 use App\Models\ModbusConnection;
+use App\Services\Connectivity\ReconnectBackoff;
+use App\Services\Machine\MachineSignalIngestor;
 use App\Services\Machine\Modbus\ModbusReader;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ModbusTcpClient\Exception\ModbusException;
 use ModbusTcpClient\Network\IOException;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 /**
@@ -140,5 +146,34 @@ class ModbusPollLinkLossTest extends TestCase
         $this->assertSame(MachineConnection::STATUS_ERROR, $this->connection->fresh()->status);
         $this->assertSame(MachineConnection::STATUS_CONNECTED, $other->fresh()->status);
         $this->assertSame(1, (int) $other->fresh()->messages_received);
+    }
+
+    public function test_a_plc_that_accepts_the_connection_but_never_answers_keeps_backing_off(): void
+    {
+        // A TCP bridge in front of a dead PLC: connect() succeeds, every read times out.
+        $this->fakeReader(['Bad tag' => new IOException('Read total timeout expired'), 'Temperature' => 21]);
+
+        $command = $this->app->make(ModbusPollCommand::class);
+        $command->setLaravel($this->app);
+        $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput));
+        $backoff = new ReconnectBackoff(0.000001, 60.0);
+        $connection = $this->connection->load(['modbusConnection', 'activeTags']);
+        $state = fn (string $name) => (new \ReflectionProperty(ModbusPollCommand::class, $name));
+        $state('backoff')->setValue($command, $backoff);
+        $state('managed')->setValue($command, [$connection->id => [
+            'connection' => $connection, 'modbus' => $connection->modbusConnection,
+            'tags' => $connection->activeTags, 'reader' => null, 'next_poll_at' => 0.0,
+        ]]);
+        $poll = new \ReflectionMethod(ModbusPollCommand::class, 'poll');
+        $ingestor = $this->app->make(MachineSignalIngestor::class);
+
+        $this->assertFalse($poll->invoke($command, $connection->id, $ingestor));
+        usleep(10);
+        $this->assertFalse($poll->invoke($command, $connection->id, $ingestor));
+
+        // Two failures in a row, not two "first" failures: the connect that
+        // succeeded in between did not reset the count.
+        $failures = (new \ReflectionProperty(ReconnectBackoff::class, 'state'))->getValue($backoff)[$connection->id]['failures'];
+        $this->assertSame(2, $failures);
     }
 }

@@ -222,9 +222,10 @@ services:
       - connectivity
 
   # ── Modbus TCP poller daemon ──────────────────────────────────────────────
-  # One process polls every active Modbus machine_connection and picks up
-  # machines added, switched off or re-addressed in Admin → Connectivity within
-  # a minute — no restart, no per-machine container.
+  # One container serves every active Modbus machine_connection: it runs a
+  # worker process per machine, so a PLC that is switched off cannot hold up
+  # the others, and picks up machines added, switched off or re-addressed in
+  # Admin → Connectivity on its own — no restart, no per-machine container.
   # Start: docker compose --profile connectivity up -d modbus-poller
   # To pin it to one connection instead, add "--connection=<id or name>".
   modbus-poller:
