@@ -86,6 +86,28 @@ class AssignedStaffCapacityTest extends TestCase
         $this->assertSame(2, $this->provider()->availableOperators($line->id, $this->at('2026-10-12 06:00'), $this->at('2026-10-12 14:00')));
     }
 
+    public function test_it_names_the_people_it_counts_with_the_same_key_on_every_line(): void
+    {
+        $lineA = $this->line();
+        $lineB = $this->line();
+        [$worker, $other] = $this->staff($lineA, 2);
+        User::factory()->create(['worker_id' => $worker->id])->lines()->attach($lineB->id);
+        $this->absentOnTuesday([$worker->id]);
+        $provider = $this->provider();
+
+        $this->assertInstanceOf(\App\Extension\Contracts\WorkforceRosterAware::class, $provider);
+        $keys = $provider->assignedOperatorKeys();
+        $this->assertEqualsCanonicalizing(['w:'.$worker->id, 'w:'.$other->id], $keys[$lineA->id]);
+        $this->assertSame(['w:'.$worker->id], $keys[$lineB->id]);
+
+        $monday = [$this->at('2026-10-12 06:00'), $this->at('2026-10-12 14:00')];
+        $tuesday = [$this->at('2026-10-13 06:00'), $this->at('2026-10-13 14:00')];
+        $this->assertCount($provider->availableOperators($lineA->id, ...$monday), $provider->presentOperatorKeys($lineA->id, ...$monday));
+        $this->assertSame(['w:'.$other->id], $provider->presentOperatorKeys($lineA->id, ...$tuesday));
+        $this->assertSame([], $provider->presentOperatorKeys($lineB->id, ...$tuesday));
+        $this->assertNull($provider->presentOperatorKeys($this->line()->id, ...$monday));
+    }
+
     public function test_absent_workers_are_not_available_on_their_day(): void
     {
         $line = $this->line();

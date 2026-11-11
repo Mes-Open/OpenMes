@@ -151,6 +151,100 @@ class Timeline
     }
 
     /**
+     * The first booking end on any of the lines after $t.
+     *
+     * @param  list<int>  $lineKeys
+     */
+    public function nextLaborReleaseAmong(array $lineKeys, int $t): ?int
+    {
+        $next = null;
+        foreach ($lineKeys as $lineKey) {
+            $release = $this->nextLaborRelease($lineKey, $t);
+            if ($release !== null) {
+                $next = min($next ?? $release, $release);
+            }
+        }
+
+        return $next;
+    }
+
+    /**
+     * Operator demand per line through [start, end), as the stretches where it
+     * stays the same: each segment is half-open and lists, per line with any
+     * booking active in it, the operators booked there. Stretches with nothing
+     * booked on any of the lines are left out; consecutive stretches with the
+     * same demand are merged.
+     *
+     * @param  list<int>  $lineKeys
+     * @return list<array{start: int, end: int, demand: array<int, int>}>
+     */
+    public function laborSegments(array $lineKeys, int $start, int $end): array
+    {
+        $points = [$start => true, $end => true];
+        $active = [];
+        foreach ($lineKeys as $lineKey) {
+            foreach ($this->labor[$lineKey] ?? [] as $slot) {
+                if ($slot['start'] >= $end || $slot['end'] <= $start || $slot['operators'] <= 0) {
+                    continue;
+                }
+                $from = max($start, $slot['start']);
+                $to = min($end, $slot['end']);
+                $points[$from] = true;
+                $points[$to] = true;
+                $active[] = [$lineKey, $from, $to, $slot['operators']];
+            }
+        }
+        if ($active === []) {
+            return [];
+        }
+
+        $points = array_keys($points);
+        sort($points);
+
+        $segments = [];
+        for ($i = 0, $n = count($points) - 1; $i < $n; $i++) {
+            [$from, $to] = [$points[$i], $points[$i + 1]];
+            $demand = [];
+            foreach ($active as [$lineKey, $s, $e, $operators]) {
+                if ($s <= $from && $e >= $to) {
+                    $demand[$lineKey] = ($demand[$lineKey] ?? 0) + $operators;
+                }
+            }
+            if ($demand === []) {
+                continue;
+            }
+            ksort($demand);
+            $last = array_key_last($segments);
+            if ($last !== null && $segments[$last]['end'] === $from && $segments[$last]['demand'] === $demand) {
+                $segments[$last]['end'] = $to;
+
+                continue;
+            }
+            $segments[] = ['start' => $from, 'end' => $to, 'demand' => $demand];
+        }
+
+        return $segments;
+    }
+
+    /**
+     * Whether any of the lines has operators booked within [start, end).
+     *
+     * @param  list<int>  $lineKeys
+     */
+    public function hasLaborBetween(array $lineKeys, int $start, int $end): bool
+    {
+        foreach ($lineKeys as $lineKey) {
+            foreach ($this->labor[$lineKey] ?? [] as $slot) {
+                if ($slot['start'] < $end && $slot['end'] > $start && $slot['operators'] > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Booked working-time footprint per resource key, for the load summary.
      *
      * @return array<string, list<array{start: int, end: int}>>

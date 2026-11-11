@@ -135,6 +135,40 @@ Without `Worker::skills()` qualification is not tracked. Crew break windows are
 left to the shift calendar. A workforce module may bind its own provider
 instead.
 
+### One person on several lines
+
+Someone assigned to two lines is one person: the scheduler never books them on
+both at the same moment. When a capacity provider also implements
+`App\Extension\Contracts\WorkforceRosterAware`, it names the people it counts:
+
+```php
+public function assignedOperatorKeys(): array;   // line id => person keys
+public function presentOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end): ?array;
+```
+
+A key names one person on every line (core uses `w:<worker id>`, or
+`u:<user id>` for an account with no worker). Lines that share anyone form a
+group. A window on one line of a group fits only if the operators booked across
+the whole group at each moment, plus the new step's operators, can all be
+given distinct people eligible for their line. This is a bipartite matching
+check, so booked work is rerouted to its own people when that frees a shared
+person. Another line that is already short (an absence after its work was
+committed) keeps that shortage to itself and never takes this line's own
+people.
+
+When a step has to wait for people held on another line, its reason says so:
+*"Waited for operators busy on Line A."*, with the window it was refused. An
+unplaced step's people reason names those lines too: *"1 busy with other work on
+Line A."* The JSON carries `busy_lines` (`line_id`, `line_name`, `operators`).
+
+Each line's presence is read for the window being tried. With line-specific
+shift calendars, an absence near a shift-date boundary can be attributed to the
+neighbouring day for the other lines in the group. Skills are still checked per
+line.
+
+A provider that only returns counts does not implement the interface, and
+each line keeps counting its own people, exactly as before.
+
 Untick **Count available operators** on the simulation form (API:
 `respect_workforce: false`) to schedule a run on machines alone.
 

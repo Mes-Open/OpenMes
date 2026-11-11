@@ -6,6 +6,7 @@ use App\Enums\ScheduledOperationStatus;
 use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
+use App\Extension\Contracts\WorkforceRosterAware;
 use App\Models\Line;
 use App\Models\ScheduledOperation;
 use App\Models\WorkOrder;
@@ -45,6 +46,11 @@ use Illuminate\Support\Collection;
  *     is retried an hour later, when booked people free up, or at the next
  *     shift start, whichever is first; an absence counts against the shifts
  *     that start on its date, so a night shift belongs to the evening it began.
+ *     Someone who staffs several lines is one person: when the provider names
+ *     its people ({@see WorkforceRosterAware}), lines sharing anyone are
+ *     checked as one pool ({@see SharedOperatorPool}), so work booked on one
+ *     line holds its people on the others. A provider that only counts keeps
+ *     each line separate.
  *
  * Nothing is written here: the result is plain data, persisted (or not) by
  * {@see ScheduleSimulationService}. Already-running steps are pinned from the
@@ -71,6 +77,9 @@ class FiniteScheduler
 
     private bool $respectWorkforce = true;
 
+    /** People shared between lines, when the provider says who they are. */
+    private ?SharedOperatorPool $pool = null;
+
     public function __construct(
         private readonly OperationProjector $projector,
         private readonly WorkforceCapacityProvider $workforce,
@@ -95,6 +104,9 @@ class FiniteScheduler
         $this->calendar = ResourceCalendar::forHorizon($request->start, $request->end);
         $this->timeline = new Timeline;
         $this->respectWorkforce = $request->respectWorkforce;
+        $this->pool = $this->respectWorkforce && $this->workforce instanceof WorkforceRosterAware
+            ? new SharedOperatorPool($this->workforce->assignedOperatorKeys())
+            : null;
         $this->lines = Line::where('is_active', true)->get()->keyBy('id');
         $this->workstations = Workstation::where('is_active', true)
             ->whereIn('line_id', $this->lines->keys())
@@ -411,7 +423,10 @@ class FiniteScheduler
      * The people shortfalls come back per code as the window closest to
      * working, so the reason can say how many were missing and when.
      *
-     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
+     * A placed slot carries `waited`: the first window it was refused because
+     * people it could use were busy on another line, or null.
+     *
+     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
      */
     private function findSlot(OperationDemand $demand, array $candidate, int $earliest, int $horizonEnd): array
     {
@@ -420,6 +435,8 @@ class FiniteScheduler
         $keys = [$candidate['key'], ...$candidate['related']];
         $failures = [];
         $closest = [];
+        $waited = null;
+        $laborLines = $this->pool?->groupOf($candidate['line_id']) ?? [$candidate['line_id']];
 
         $t = $earliest;
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
@@ -472,20 +489,23 @@ class FiniteScheduler
             if ($labor !== null) {
                 $failures[] = $labor['code'];
                 $closest[$labor['code']] = $this->closerShortfall($closest[$labor['code']] ?? null, $labor);
+                if ($waited === null && $labor['busy_lines'] !== []) {
+                    $waited = $labor;
+                }
                 // Try again an hour on, when booked people free up, or when the
                 // next shift starts — whichever comes first. The shift start
                 // keeps the retry on a shift boundary when back-to-back shifts
                 // merge into one window, instead of landing mid-shift.
                 $t = min(array_filter([
                     $t + self::LABOR_PROBE_MINUTES,
-                    $this->timeline->nextLaborRelease($candidate['line_id'], $t),
+                    $this->timeline->nextLaborReleaseAmong($laborLines, $t),
                     $this->calendar->nextShiftStart($candidate['line_id'], $t),
                 ]));
 
                 continue;
             }
 
-            return ['ok' => true, 'start' => $t, 'end' => $end, 'setup' => $setup['minutes'], 'duration' => $duration, 'rule_id' => $setup['rule_id']];
+            return ['ok' => true, 'start' => $t, 'end' => $end, 'setup' => $setup['minutes'], 'duration' => $duration, 'rule_id' => $setup['rule_id'], 'waited' => $waited];
         }
 
         $failures[] = 'resource_capacity';
@@ -515,9 +535,10 @@ class FiniteScheduler
      * Which people constraint a window breaks, if any: too few operators on the
      * line, or too few holding the step's skills — with the counts behind it.
      * Untracked (null) never constrains, and neither does anything when the run
-     * ignores people.
+     * ignores people. `busy_lines` names the other lines holding people this
+     * line could have used.
      *
-     * @return array{code: string, line_id: int, required: int, available: int, in_use: int, start: int, end: int, skill_ids: list<int>}|null
+     * @return array{code: string, line_id: int, required: int, available: int, in_use: int, start: int, end: int, skill_ids: list<int>, busy_lines: list<array{line_id: int, line_name: string, operators: int}>}|null
      */
     private function laborShortfall(OperationDemand $demand, int $lineId, int $start, int $end): ?array
     {
@@ -528,7 +549,7 @@ class FiniteScheduler
         $from = ResourceCalendar::toCarbon($start);
         $to = ResourceCalendar::toCarbon($end);
 
-        $shortfall = fn (string $code, int $available, int $inUse, array $skills) => [
+        $shortfall = fn (string $code, int $available, int $inUse, array $skills, array $busy = []) => [
             'code' => $code,
             'line_id' => $lineId,
             'required' => $demand->requiredOperators,
@@ -537,6 +558,7 @@ class FiniteScheduler
             'start' => $start,
             'end' => $end,
             'skill_ids' => $skills,
+            'busy_lines' => $busy,
         ];
 
         $available = $this->workforce->availableOperators($lineId, $from, $to);
@@ -544,6 +566,11 @@ class FiniteScheduler
             $inUse = $this->timeline->laborInUse($lineId, $start, $end);
             if ($available - $inUse < $demand->requiredOperators) {
                 return $shortfall('workforce_capacity', $available, $inUse, []);
+            }
+
+            $pooled = $this->pooledShortfall($demand, $lineId, $start, $end, $from, $to, $inUse);
+            if ($pooled !== null) {
+                return $shortfall('workforce_capacity', $available, $available - $pooled['spare'], [], $pooled['busy_lines']);
             }
         }
 
@@ -558,6 +585,73 @@ class FiniteScheduler
         }
 
         return null;
+    }
+
+    /**
+     * The line's own check passed; whether people it shares with other lines
+     * are held there. Null when they are not, or nothing is shared.
+     *
+     * Fast paths keep the common case cheap: a line sharing nobody, a window
+     * where its own people alone cover the step, or a window with nothing
+     * booked on the other lines needs no matching. Each line's presence is
+     * read for this same window — with line-specific shift calendars an
+     * absence near a shift-date boundary may be attributed a day off for the
+     * other lines.
+     *
+     * @return array{spare: int, busy_lines: list<array{line_id: int, line_name: string, operators: int}>}|null
+     */
+    private function pooledShortfall(OperationDemand $demand, int $lineId, int $start, int $end, CarbonInterface $from, CarbonInterface $to, int $inUse): ?array
+    {
+        if ($this->pool === null || ! $this->pool->isShared($lineId)) {
+            return null;
+        }
+
+        $roster = $this->workforce;
+        $own = $roster->presentOperatorKeys($lineId, $from, $to);
+        if ($own === null || $this->pool->privateCount($lineId, $own) - $inUse >= $demand->requiredOperators) {
+            return null;
+        }
+
+        $group = $this->pool->groupOf($lineId);
+        $others = array_values(array_diff($group, [$lineId]));
+        if (! $this->timeline->hasLaborBetween($others, $start, $end)) {
+            return null;
+        }
+
+        $present = [$lineId => $own];
+        foreach ($others as $other) {
+            $present[$other] = $roster->presentOperatorKeys($other, $from, $to) ?? [];
+        }
+
+        $worst = null;
+        $seen = [];
+        foreach ($this->timeline->laborSegments($group, $start, $end) as $segment) {
+            // The same booked load recurs across a window; it has the same answer.
+            $key = implode(',', array_map(fn ($line, $n) => $line.':'.$n, array_keys($segment['demand']), $segment['demand']));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result = $this->pool->spare($lineId, $present, $segment['demand'], $demand->requiredOperators);
+            if ($worst === null || $result['spare'] < $worst['spare']) {
+                $worst = $result;
+            }
+            if ($worst['spare'] === 0) {
+                break; // it cannot get any worse
+            }
+        }
+
+        if ($worst === null || $worst['spare'] >= $demand->requiredOperators) {
+            return null;
+        }
+
+        $busy = [];
+        foreach ($worst['busy'] as $line => $operators) {
+            $busy[] = ['line_id' => (int) $line, 'line_name' => (string) ($this->lines->get($line)?->name ?? '#'.$line), 'operators' => $operators];
+        }
+        usort($busy, fn ($a, $b) => [mb_strtolower($a['line_name']), $a['line_id']] <=> [mb_strtolower($b['line_name']), $b['line_id']]);
+
+        return ['spare' => $worst['spare'], 'busy_lines' => $busy];
     }
 
     /**
@@ -587,13 +681,14 @@ class FiniteScheduler
             'setup' => null,
             'duration' => $remaining,
             'rule_id' => null,
+            'waited' => null,
         ], $sequence, ['code' => 'in_progress', 'message' => __('Already running — kept where it is.')]);
     }
 
     /**
      * Record a placement on the timeline and build its result row.
      *
-     * @param  array{start: int, end: int, setup: ?int, duration: int, rule_id: ?int}  $slot
+     * @param  array{start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>}  $slot
      * @param  array<string, mixed>|null  $note
      * @return array<string, mixed>
      */
@@ -606,6 +701,17 @@ class FiniteScheduler
         $end = ResourceCalendar::toCarbon($slot['end']);
 
         $reasons = $note ? [$note] : [];
+        if ($slot['waited'] !== null) {
+            $waited = $slot['waited'];
+            $reasons[] = [
+                'code' => 'waited_for_operators',
+                'message' => __('Waited for operators busy on :lines.', ['lines' => $this->lineNames($waited['busy_lines'])]),
+                'line_id' => $waited['line_id'],
+                'busy_lines' => $waited['busy_lines'],
+                'window_start' => ResourceCalendar::toCarbon($waited['start'])->toIso8601String(),
+                'window_end' => ResourceCalendar::toCarbon($waited['end'])->toIso8601String(),
+            ];
+        }
         if ($slot['rule_id'] !== null) {
             $reasons[] = [
                 'code' => 'changeover',
@@ -746,6 +852,7 @@ class FiniteScheduler
             'window_end' => $to->toIso8601String(),
             'absent_worker_ids' => $absentIds,
             'absent_workers' => $absent,
+            'busy_lines' => $detail['busy_lines'] ?? [],
         ];
 
         if ($code === 'qualification') {
@@ -764,10 +871,18 @@ class FiniteScheduler
         }
 
         if ($detail['in_use'] > 0) {
-            $message .= ' '.__(':count busy with other work.', ['count' => $detail['in_use']]);
+            $message .= ' '.($reason['busy_lines'] !== []
+                ? __(':count busy with other work on :lines.', ['count' => $detail['in_use'], 'lines' => $this->lineNames($reason['busy_lines'])])
+                : __(':count busy with other work.', ['count' => $detail['in_use']]));
         }
 
         return ['message' => $message] + $reason;
+    }
+
+    /** @param  list<array{line_name: string}>  $busyLines */
+    private function lineNames(array $busyLines): string
+    {
+        return implode(', ', array_column($busyLines, 'line_name'));
     }
 
     /**

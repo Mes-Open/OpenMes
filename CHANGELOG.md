@@ -201,6 +201,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Auto-schedule no longer books one operator on two lines at once.** An operator assigned
+  to several lines (Admin → Lines → Operators, or as a worker on another line's station) is
+  now counted as one person across those lines. Work on line B waits while the people it
+  shares with line A are busy there, and its reason says why: *"Waited for operators busy on
+  Line A."* An unplaced step names the line too: *"1 busy with other work on Line A."*
+  Capacity providers that only return counts behave as before; providers can name their
+  people through the new optional `WorkforceRosterAware` contract.
+
 - **Absences no longer block the night shift that started the evening before.** An absence
   recorded for a date now takes the worker out of the shifts that *start* on that date, the
   payroll convention. With a 22:00–06:00 night shift and the only operator away on Tuesday,

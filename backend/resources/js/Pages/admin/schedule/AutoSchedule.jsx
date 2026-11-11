@@ -40,8 +40,18 @@ function reasonText(reason) {
         return peopleText(reason);
     }
 
+    if (reason.code === 'waited_for_operators' && reason.busy_lines?.length) {
+        return __('Waited for operators busy on :lines.', { lines: lineNames(reason.busy_lines) });
+    }
+
     return reason.message;
 }
+
+/** "Line A, Line B" — the lines holding shared people. */
+const lineNames = (busyLines) => busyLines.map((l) => l.line_name ?? `#${l.line_id}`).join(', ');
+
+/** A reason that names the window it is about. */
+const hasWindow = (reason) => (isPeopleReason(reason) || reason.code === 'waited_for_operators') && reason.window_start;
 
 /** A people reason carrying the numbers (drafts from before they did only have the message). */
 const isPeopleReason = (reason) => (reason.code === 'workforce_capacity' || reason.code === 'qualification') && typeof reason.required === 'number';
@@ -67,7 +77,11 @@ function peopleText(reason) {
             : __('Needs :required operators, :available available.', params);
     }
 
-    return reason.in_use > 0 ? `${text} ${__(':count busy with other work.', { count: reason.in_use })}` : text;
+    if (!(reason.in_use > 0)) return text;
+
+    return reason.busy_lines?.length
+        ? `${text} ${__(':count busy with other work on :lines.', { count: reason.in_use, lines: lineNames(reason.busy_lines) })}`
+        : `${text} ${__(':count busy with other work.', { count: reason.in_use })}`;
 }
 
 /** "2026-10-12T06:00:00+02:00" → "12.10 06:00", plant time as the server wrote it. */
@@ -153,7 +167,7 @@ function Reasons({ op }) {
             {shown.map((r, i) => (
                 <li key={i} className="text-[12px] text-om-muted">
                     {reasonText(r)}
-                    {isPeopleReason(r) && r.window_start && (
+                    {hasWindow(r) && (
                         <div className="text-[11px] text-om-faint" style={{ fontFamily: MONO }}>
                             {__('Window :from – :to', { from: isoStamp(r.window_start), to: isoStamp(r.window_end) })}
                         </div>

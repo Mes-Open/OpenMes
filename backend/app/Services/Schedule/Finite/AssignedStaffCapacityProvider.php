@@ -5,6 +5,7 @@ namespace App\Services\Schedule\Finite;
 use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
+use App\Extension\Contracts\WorkforceRosterAware;
 use App\Models\Shift;
 use App\Models\Worker;
 use Carbon\Carbon;
@@ -33,10 +34,13 @@ use Illuminate\Support\Facades\Schema;
  * tracked either. Break windows are left to the shift calendar: they are short
  * compared with the windows the scheduler asks about.
  *
+ * The person keys are the same on every line, so the scheduler can see that
+ * someone assigned to two lines is one person ({@see WorkforceRosterAware}).
+ *
  * One instance serves one scheduling run, so the assignments, the shifts and
  * each day's absences are read once.
  */
-class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, WorkforceCapacityProvider
+class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, WorkforceCapacityProvider, WorkforceRosterAware
 {
     /**
      * line id (or 'none') => people, keyed `w:<worker id>` or, for an account
@@ -56,6 +60,18 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
 
     /** @var Collection<int, Shift>|null */
     private ?Collection $shifts = null;
+
+    /** @var array<int, true>|null lines with a shift of their own */
+    private ?array $ownCalendar = null;
+
+    /**
+     * Absent worker ids per calendar and window. Every line on the global
+     * calendar attributes a window to the same dates, so the scheduler asking
+     * about several lines for one window works the dates out once.
+     *
+     * @var array<string, list<int>>
+     */
+    private array $absentInWindow = [];
 
     public function __construct(private readonly WorkforceProvider $people) {}
 
@@ -93,6 +109,16 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
             $this->absentBetween($lineId, $start, $end),
             fn (int $id) => in_array('w:'.$id, $staff, true),
         ));
+    }
+
+    public function assignedOperatorKeys(): array
+    {
+        return array_filter($this->staff(), fn ($line) => is_int($line), ARRAY_FILTER_USE_KEY);
+    }
+
+    public function presentOperatorKeys(?int $lineId, CarbonInterface $start, CarbonInterface $end): ?array
+    {
+        return $this->present($lineId, $start, $end);
     }
 
     public function workerNames(array $ids): array
@@ -170,12 +196,20 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
     private function absentBetween(?int $lineId, CarbonInterface $start, CarbonInterface $end): array
     {
         $this->shifts ??= Shift::where('is_active', true)->get();
-        $dates = ShiftOccurrences::attributedDates(
-            $this->shifts,
-            $lineId,
-            ResourceCalendar::toMinutes($start),
-            ResourceCalendar::toMinutes($end),
-        );
+        $this->ownCalendar ??= $this->shifts->whereNotNull('line_id')
+            ->mapWithKeys(fn (Shift $s) => [(int) $s->line_id => true])->all();
+        $from = ResourceCalendar::toMinutes($start);
+        $to = ResourceCalendar::toMinutes($end);
+        $calendar = $lineId !== null && isset($this->ownCalendar[$lineId]) ? (string) $lineId : 'global';
+        $memo = $calendar.'|'.$from.'|'.$to;
+        if (isset($this->absentInWindow[$memo])) {
+            return $this->absentInWindow[$memo];
+        }
+        if (count($this->absentInWindow) > 20000) {
+            $this->absentInWindow = [];
+        }
+
+        $dates = ShiftOccurrences::attributedDates($this->shifts, $lineId, $from, $to);
 
         $ids = [];
         foreach ($dates as $date) {
@@ -185,6 +219,6 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
             ))];
         }
 
-        return array_values(array_unique($ids));
+        return $this->absentInWindow[$memo] = array_values(array_unique($ids));
     }
 }

@@ -347,8 +347,6 @@ class WorkforceScenariosTest extends TestCase
 
     public function test_probe_a_person_on_two_lines_is_not_booked_on_both_at_once(): void
     {
-        $this->markTestIncomplete('Known scheduler gap, fixed by its own follow-up task — delete this line there.');
-
         $lineA = $this->line();
         $lineB = $this->line();
         $type = WorkstationType::factory()->create();
@@ -363,6 +361,210 @@ class WorkforceScenariosTest extends TestCase
 
         $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
         $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b), 'one person cannot run both lines at 06:00');
+
+        $waited = collect($this->opsFor($result, $b)[0]['reasons'])->firstWhere('code', 'waited_for_operators');
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $waited['busy_lines']);
+        $this->assertSame("Waited for operators busy on {$lineA->name}.", $waited['message']);
+        $this->assertSame($this->at('2026-10-12 06:00')->toIso8601String(), $waited['window_start']);
+        $this->assertSame(ScheduledOperationStatus::Scheduled, $this->opStatus($result, $b));
+        $this->assertNull(collect($this->opsFor($result, $a)[0]['reasons'])->firstWhere('code', 'waited_for_operators'));
+    }
+
+    // ── One person, several lines: a shared pool ────────────────────────────
+
+    /** A line with $stations machines of its own equipment class, so work never crosses lines. */
+    private function lineWithStations(int $stations): array
+    {
+        $line = $this->line();
+        $type = WorkstationType::factory()->create();
+        $first = null;
+        for ($i = 0; $i < $stations; $i++) {
+            $first ??= $this->station($line, $type);
+            if ($i > 0) {
+                $this->station($line, $type);
+            }
+        }
+
+        return [$line, $type, $first];
+    }
+
+    /** An operator account assigned to every given line. */
+    private function sharedOperator(Line ...$lines): User
+    {
+        $user = User::factory()->create();
+        $user->lines()->attach(array_map(fn (Line $l) => $l->id, $lines));
+
+        return $user;
+    }
+
+    private function waitedReason(array $result, $order): ?array
+    {
+        return collect($this->opsFor($result, $order)[0]['reasons'])->firstWhere('code', 'waited_for_operators');
+    }
+
+    public function test_a_person_on_one_line_only_is_unchanged(): void
+    {
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(1);
+        [$lineB, $typeB, $stationB] = $this->lineWithStations(1);
+        Worker::factory()->create(['workstation_id' => $stationA->id]);
+        Worker::factory()->create(['workstation_id' => $stationB->id]);
+        $a = $this->job($lineA, $typeA, 60, attrs: ['priority' => 2]);
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertNull($this->waitedReason($result, $b));
+    }
+
+    public function test_two_shared_and_one_own_operator_are_matched_across_lines(): void
+    {
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(3);
+        $this->sharedOperator($lineA, $lineB);
+        $this->sharedOperator($lineA, $lineB);
+        Worker::factory()->create(['workstation_id' => $stationA->id]); // line A's own
+        $a = $this->job($lineA, $typeA, 60, attrs: ['priority' => 3]);
+        $b1 = $this->job($lineB, $typeB, 60, attrs: ['priority' => 2]);
+        $b2 = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+        $b3 = $this->job($lineB, $typeB, 60, attrs: ['priority' => 0]);
+
+        $result = $this->schedule();
+
+        // A takes its own operator so both shared ones can work B.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b1));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b2));
+        // Three people, three jobs at 06:00: the fourth waits.
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b3));
+    }
+
+    public function test_shared_operators_held_on_the_busier_line_push_the_other_line(): void
+    {
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(3);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $this->sharedOperator($lineA, $lineB);
+        $this->sharedOperator($lineA, $lineB);
+        Worker::factory()->create(['workstation_id' => $stationA->id]);
+        $as = [
+            $this->job($lineA, $typeA, 60, attrs: ['priority' => 5]),
+            $this->job($lineA, $typeA, 60, attrs: ['priority' => 4]),
+            $this->job($lineA, $typeA, 60, attrs: ['priority' => 3]),
+        ];
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        foreach ($as as $order) {
+            $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $order));
+        }
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b));
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 2]], $this->waitedReason($result, $b)['busy_lines']);
+    }
+
+    public function test_a_count_only_provider_keeps_each_line_separate(): void
+    {
+        $this->fakeWorkforce(1);
+        [$lineA, $typeA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $this->sharedOperator($lineA, $lineB);
+        $a = $this->job($lineA, $typeA, 60, attrs: ['priority' => 2]);
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // It cannot say who it counted, so each line keeps its own one operator.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertNull($this->waitedReason($result, $b));
+    }
+
+    public function test_an_unplaced_reason_names_the_line_holding_shared_people(): void
+    {
+        [$lineA, $typeA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $this->sharedOperator($lineA, $lineB);
+        $this->job($lineA, $typeA, 480, attrs: ['priority' => 2]); // the whole Monday shift
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule(['end' => $this->at('2026-10-13 00:00')]);
+        $reason = $this->peopleReason($result, $b);
+
+        $this->assertSame(ScheduledOperationStatus::InfeasibleWorkforceCapacity, $this->opStatus($result, $b));
+        $this->assertSame(1, $reason['available']);
+        $this->assertSame(1, $reason['in_use']);
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $reason['busy_lines']);
+        $this->assertSame("Needs 1 operators, 1 available. 1 busy with other work on {$lineA->name}.", $reason['message']);
+    }
+
+    public function test_committed_work_on_another_line_holds_a_shared_operator(): void
+    {
+        [$lineA, $typeA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $this->sharedOperator($lineA, $lineB);
+        // Planned by hand on line A: Monday 06:00–10:00.
+        $this->job($lineA, $typeA, 240, attrs: [
+            'planned_start_at' => $this->at('2026-10-12 06:00'),
+            'planned_end_at' => $this->at('2026-10-12 10:00'),
+        ]);
+        $b = $this->job($lineB, $typeB, 60);
+
+        $this->assertEquals($this->at('2026-10-12 10:00'), $this->start($this->schedule(), $b));
+    }
+
+    public function test_an_absent_shared_operator_frees_nobody(): void
+    {
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $shared = Worker::factory()->create(['workstation_id' => $stationA->id]);
+        User::factory()->create(['worker_id' => $shared->id])->lines()->attach($lineB->id);
+        $this->absent([$shared], '2026-10-12');
+        $a = $this->job($lineA, $typeA, 60, attrs: ['priority' => 2]);
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // One worker (also an account on B) staffs both lines: away Monday, then one at a time.
+        $this->assertEquals($this->at('2026-10-13 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-13 07:00'), $this->start($result, $b));
+    }
+
+    public function test_the_shared_pool_adds_no_queries_per_order(): void
+    {
+        $lines = [];
+        for ($i = 0; $i < 3; $i++) {
+            $lines[] = $this->lineWithStations(2);
+        }
+        $this->sharedOperator(...array_column($lines, 0));
+        $this->sharedOperator($lines[0][0], $lines[1][0]);
+        Worker::factory()->create(['workstation_id' => $lines[2][2]->id]);
+
+        $count = function (int $orders) use ($lines): int {
+            \App\Models\WorkOrder::query()->delete();
+            for ($i = 0; $i < $orders; $i++) {
+                [$line, $type] = $lines[$i % 3];
+                $this->job($line, $type, 60, attrs: ['priority' => $orders - $i]);
+            }
+            $queries = 0;
+            $counting = true;
+            \Illuminate\Support\Facades\DB::listen(function () use (&$queries, &$counting) {
+                if ($counting) {
+                    $queries++;
+                }
+            });
+            $result = $this->schedule();
+            $counting = false;
+            $this->assertCount($orders, $result['operations']);
+            $this->assertNotContains(false, array_map(fn ($op) => $op['status']->isScheduled(), $result['operations']));
+
+            return $queries;
+        };
+
+        // Both runs queue work behind earlier work, so both read the changeover rules once.
+        $few = $count(9);
+        $many = $count(24);
+        $this->assertSame($few, $many, 'scheduling 24 orders must not query more than scheduling 9');
     }
 
     public function test_probe_a_multi_skilled_operator_is_not_booked_for_two_skilled_steps_at_once(): void
