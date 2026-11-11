@@ -7314,5 +7314,9 @@
     "staffing not tracked": "staffing not tracked",
     "Assign operators": "Assign operators",
     ":count operators assigned": ":count operators assigned",
-    "Operator availability was ignored for this run.": "Operator availability was ignored for this run."
+    "Operator availability was ignored for this run.": "Operator availability was ignored for this run.",
+    "Sort by": "Sort by",
+    "Newest entered": "Newest entered",
+    "Recent activity": "Recent activity",
+    "Recently completed": "Recently completed"
 }

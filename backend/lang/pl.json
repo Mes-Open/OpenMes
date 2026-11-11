@@ -7314,5 +7314,9 @@
     "staffing not tracked": "obsada nieśledzona",
     "Assign operators": "Przypisz operatorów",
     ":count operators assigned": "Przypisanych operatorów: :count",
-    "Operator availability was ignored for this run.": "Dostępność operatorów została pominięta w tej symulacji."
+    "Operator availability was ignored for this run.": "Dostępność operatorów została pominięta w tej symulacji.",
+    "Sort by": "Sortuj według",
+    "Newest entered": "Najnowsze utworzone",
+    "Recent activity": "Ostatnia aktywność",
+    "Recently completed": "Ostatnio zakończone"
 }
