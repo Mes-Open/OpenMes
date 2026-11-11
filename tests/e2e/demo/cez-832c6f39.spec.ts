@@ -21,10 +21,6 @@ test('an absence the day after a night shift starts does not block that night', 
   // The night that starts tonight (or tomorrow when it is already late) and the
   // day after it — the "Tuesday" of the story.
   const now = new Date();
-  const nightStart = new Date(now);
-  if (now.getHours() >= 20) nightStart.setDate(nightStart.getDate() + 1);
-  const absenceDay = new Date(nightStart);
-  absenceDay.setDate(absenceDay.getDate() + 1);
 
   await page.goto('/login');
   await page.getByLabel(/username/i).fill(process.env.ADMIN_USERNAME!);
@@ -125,14 +121,78 @@ test('an absence the day after a night shift starts does not block that night', 
   await page.getByRole('button', { name: 'Create Worker' }).click();
   await expect(page.getByText(/Worker created|Nina Night/i).first()).toBeVisible();
 
+  // ── Production → Product Types → Bronze Bushing: make step 1 an 8 h step ──
+  await page.getByRole('button', { name: /^Production$/i }).click();
+  await page.getByRole('link', { name: 'Product Types', exact: true }).click();
+  await page.getByPlaceholder('Search…').first().fill('Bronze').catch(() => {});
+  await page.waitForTimeout(1500);
+  await shot('product-types');
+  await page.getByRole('button', { name: 'View Details' }).first().click();
+  await page.waitForTimeout(2000);
+  await shot('product-type');
+  await page.getByRole('link', { name: /Bronze Bushing — turning v1/ }).click();
+  await expect(page.getByText('Bar setup').first()).toBeVisible();
+  await page.waitForTimeout(1500);
+  await shot('template');
+  await page.getByRole('button', { name: 'Edit', exact: true }).nth(1).click();
+  const std = page.getByRole('dialog').first();
+  await std.getByLabel(/Estimated Duration/).fill('480');
+  await shot('step-480');
+  await std.getByRole('button', { name: /Update|Save/ }).click();
+  await expect(page.getByText('~480 min').first()).toBeVisible();
+  await page.waitForTimeout(800);
+
+  // ── Orders → All Orders → New Work Order ──
+  await page.getByRole('button', { name: /^Orders$/i }).click();
+  await page.getByRole('link', { name: 'All Orders' }).click();
+  await expect(page).toHaveURL(/work-orders/);
+  await page.waitForTimeout(2500);
+  await page.getByText('New Work Order', { exact: true }).click();
+  const wo = page.getByRole('dialog').first();
+  await expect(wo.getByLabel(/^Order No/i)).toBeVisible();
+  await page.waitForTimeout(1500);
+  await wo.getByLabel(/^Order No/i).fill('WO-NIGHT-01');
+  await wo.getByLabel(/^Line/i).click();
+  await page.getByRole('option', { name: 'CNC Turning' }).click();
+  await wo.getByLabel(/^Product Type/i).click();
+  await page.getByRole('option', { name: /Bronze Bushing/ }).click();
+  await wo.getByLabel(/^Planned Qty/i).fill('10');
+  await wo.getByRole('button', { name: /^(Create|Save)/ }).click();
+  await page.waitForTimeout(2000);
+  await shot('wo-created');
+
+  // ── Scheduler → Automatic scheduling → Simulate ──
+  await page.getByRole('link', { name: 'Scheduler' }).first().click();
+  await page.getByRole('link', { name: /Automatic scheduling/ }).click();
+  await expect(page.getByText('New simulation')).toBeVisible();
+  await shot('auto-schedule');
+  await page.getByRole('button', { name: /^Simulate/ }).click();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeVisible({ timeout: 90000 });
+  await page.waitForTimeout(1000);
+  await shot('draft');
+
+  // Where the 8 h night operation lands before anyone is absent.
+    const row = page.getByRole('row').filter({ hasText: 'WO-NIGHT-01' }).first();
+  await expect(row).toContainText(/\d\d\.\d\d 22:00\d\d\.\d\d 06:00/);
+  await expect(row).toContainText('8 h');
+  const text = (await row.innerText()).replace(/\s+/g, '');
+  const m = text.match(/(\d\d)\.(\d\d)22:00(\d\d)\.(\d\d)06:00/)!;
+  const planned = `${m[1]}.${m[2]} 22:00`;
+  const plannedEnd = `${m[3]}.${m[4]} 06:00`;
+  const absenceDay2 = new Date(now.getFullYear(), Number(m[4]) - 1, Number(m[3]));
+  await shot('night-op-planned-before-absence');
+
   // ── HR → Worker Absences: Nina is away the day after the night starts ──
+  if (!(await page.getByRole('link', { name: 'Worker Absences' }).isVisible())) {
+    await page.getByRole('button', { name: /^HR/ }).click();
+  }
   await page.getByRole('link', { name: 'Worker Absences' }).click();
   await page.waitForTimeout(1500);
   await page.getByText('New Absence', { exact: true }).click();
   const ad = page.getByRole('dialog').first();
   await ad.getByLabel(/^Worker/).click();
   await page.getByRole('option', { name: /Nina Night/ }).click();
-  const dayName = `${WEEKDAYS[absenceDay.getDay()]}, ${absenceDay.getDate()} ${MONTHS[absenceDay.getMonth()]} ${absenceDay.getFullYear()}`;
+  const dayName = `${WEEKDAYS[absenceDay2.getDay()]}, ${absenceDay2.getDate()} ${MONTHS[absenceDay2.getMonth()]} ${absenceDay2.getFullYear()}`;
   for (const field of [/^Starts on/, /^Ends on/]) {
     await ad.getByLabel(field).click();
     const dayBtn = page.getByRole('button', { name: dayName });
@@ -147,14 +207,18 @@ test('an absence the day after a night shift starts does not block that night', 
   await page.waitForTimeout(1500);
   await expect(page.getByText('Absence recorded successfully.')).toBeVisible();
 
-  // ── Production → Product Types → Bronze Bushing: make step 1 an 8 h step ──
-  await page.getByRole('button', { name: /^Production$/i }).click();
-  await page.getByRole('link', { name: 'Product Types', exact: true }).click();
-  await page.getByPlaceholder('Search…').first().fill('Bronze').catch(() => {});
-  await page.waitForTimeout(1500);
-  await shot('product-types');
-  await page.getByRole('button', { name: 'View Details' }).first().click();
-  await page.waitForTimeout(2000);
-  await shot('product-type');
-  await expect(page.getByText('NOPE-PROBE')).toBeVisible({ timeout: 2000 });
+
+  // ── Scheduler again: the same night is still free ──
+  await page.getByRole('link', { name: 'Scheduler' }).first().click();
+  await page.getByRole('link', { name: /Automatic scheduling/ }).click();
+  await expect(page.getByText('New simulation')).toBeVisible();
+  await page.getByRole('button', { name: /^Simulate/ }).click();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeVisible({ timeout: 90000 });
+  await page.waitForTimeout(1000);
+  const row2 = page.getByRole('row').filter({ hasText: 'WO-NIGHT-01' }).first();
+  await expect(row2).toContainText(planned);
+  await expect(row2).toContainText(plannedEnd);
+  await expect(page.getByText(/Not enough operators/i)).toHaveCount(0);
+  await page.waitForTimeout(1000);
+  await shot('night-op-planned-with-absence');
 });
