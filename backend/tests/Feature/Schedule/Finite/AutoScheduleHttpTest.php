@@ -84,6 +84,7 @@ class AutoScheduleHttpTest extends TestCase
                 ->where('draft.workforce.1.line_id', $lineB->id)
                 ->where('draft.workforce.1.tracked', false)
                 ->where('draft.workforce.1.assigned', null)
+                ->where('draft.workforce.0.single_holder_skills', [])
                 ->where('draft.operations.0.status', 'infeasible_workforce_capacity')
                 ->where('draft.operations.0.reasons.0.code', 'workforce_capacity')
                 ->where('draft.operations.0.reasons.0.required', 3)

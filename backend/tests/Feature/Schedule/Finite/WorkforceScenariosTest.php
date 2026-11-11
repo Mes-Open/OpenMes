@@ -668,10 +668,10 @@ class WorkforceScenariosTest extends TestCase
         $this->assertSame($few, $many, 'scheduling 24 orders must not query more than scheduling 9');
     }
 
-    public function test_probe_a_multi_skilled_operator_is_not_booked_for_two_skilled_steps_at_once(): void
-    {
-        $this->markTestIncomplete('Known scheduler gap, fixed by its own follow-up task — delete this line there.');
+    // ── One person, one step at a time: people matched to skilled steps ────
 
+    public function test_a_multi_skilled_operator_is_not_booked_for_two_skilled_steps_at_once(): void
+    {
         $this->recordSkills();
         [$line, $type, [$both]] = $this->cell(stations: 2, people: 2);
         $skillA = $this->line();
@@ -684,6 +684,299 @@ class WorkforceScenariosTest extends TestCase
 
         $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
         $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b), 'only one person holds either skill');
+        $waited = $this->qualifiedWaitReason($result, $b);
+        $this->assertSame(1, $waited['available']);
+        $this->assertSame([['name' => $both->name]], $waited['qualified_workers']);
+        $this->assertSame([$skillB->id], $waited['required_skill_ids']);
+        $this->assertSame("Waited: only 1 qualified operator for {$skillB->name} ({$both->name}), busy with other work.", $waited['message']);
+        $this->assertSame($this->at('2026-10-12 06:00')->toIso8601String(), $waited['window_start']);
+        $this->assertNull($this->qualifiedWaitReason($result, $a));
+    }
+
+    private function qualifiedWaitReason(array $result, $order): ?array
+    {
+        return collect($this->opsFor($result, $order)[0]['reasons'])->firstWhere('code', 'waited_for_qualified_operators');
+    }
+
+    public function test_two_operators_with_disjoint_skills_work_in_parallel(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y]] = $this->cell(stations: 2, people: 2);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $x->skills()->attach($skillA->id);
+        $y->skills()->attach($skillB->id);
+        $a = $this->job($line, $type, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 2]);
+        $b = $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertNull($this->qualifiedWaitReason($result, $b));
+    }
+
+    public function test_a_two_person_skilled_step_waits_for_a_holder_busy_on_another_skill(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y]] = $this->cell(stations: 3, people: 3);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        // X holds A and B, Y holds A, the third holds nothing.
+        $x->skills()->attach([$skillA->id, $skillB->id]);
+        $y->skills()->attach($skillA->id);
+        $first = $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 2]);
+        $pair = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$skillA->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // B's step takes X, so at 06:00 only Y of the A holders is free.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $first));
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $pair));
+        $this->assertSame(2, $this->qualifiedWaitReason($result, $pair)['available']);
+    }
+
+    public function test_a_third_holder_lets_the_two_person_skilled_step_start_at_once(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y, $w]] = $this->cell(stations: 3, people: 3);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $x->skills()->attach([$skillA->id, $skillB->id]);
+        $y->skills()->attach($skillA->id);
+        $w->skills()->attach($skillA->id);
+        $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 2]);
+        $pair = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$skillA->id]], ['priority' => 1]);
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($this->schedule(), $pair));
+    }
+
+    public function test_a_two_person_skilled_step_with_one_holder_names_the_bottleneck(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$jan]] = $this->cell(stations: 2, people: 2);
+        $welding = $this->line(['name' => 'Welding']);
+        $painting = $this->line(['name' => 'Painting']);
+        $jan->skills()->attach([$welding->id, $painting->id]);
+        $order = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$painting->id]]);
+
+        $result = $this->schedule(['end' => $this->at('2026-10-13 00:00')]);
+        $reason = $this->peopleReason($result, $order, 'qualification');
+
+        $this->assertSame(ScheduledOperationStatus::InfeasibleQualification, $this->opStatus($result, $order));
+        $this->assertSame(['id' => $painting->id, 'name' => 'Painting'], $reason['bottleneck_skill']);
+        $this->assertSame([['name' => $jan->name]], $reason['skill_holders']);
+        $this->assertSame("Needs 2 operators qualified in Painting, 1 available. Painting is held only by {$jan->name}.", $reason['message']);
+    }
+
+    public function test_the_bottleneck_is_the_scarcest_of_the_required_skills(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y, $z]] = $this->cell(stations: 1, people: 3);
+        $common = $this->line(['name' => 'Common']);
+        $rare = $this->line(['name' => 'Rare']);
+        $x->skills()->attach([$common->id, $rare->id]);
+        $y->skills()->attach($common->id);
+        $z->skills()->attach($common->id);
+        $order = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$common->id, $rare->id]]);
+
+        $reason = $this->peopleReason($this->schedule(['end' => $this->at('2026-10-13 00:00')]), $order, 'qualification');
+
+        $this->assertSame(['id' => $rare->id, 'name' => 'Rare'], $reason['bottleneck_skill']);
+        $this->assertStringEndsWith("Rare is held only by {$x->name}.", $reason['message']);
+    }
+
+    public function test_a_count_only_provider_keeps_the_old_skill_count(): void
+    {
+        $this->fakeWorkforce(2, qualified: 1);
+        [$line, $type] = $this->cell(stations: 2, people: 0);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $a = $this->job($line, $type, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 2]);
+        $b = $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // Without names it cannot tell the A holder from the B holder: counts as before.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertNull($this->qualifiedWaitReason($result, $b));
+        $this->assertSame([], $this->workforceOf($result)[$line->id]['single_holder_skills']);
+    }
+
+    public function test_without_recorded_skills_nothing_changes(): void
+    {
+        [$line, $type] = $this->cell(stations: 2, people: 2);
+        $skill = $this->line();
+        $a = $this->job($line, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 2]);
+        $b = $this->job($line, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertSame([], $this->workforceOf($result)[$line->id]['single_holder_skills']);
+    }
+
+    public function test_an_unskilled_step_runs_beside_a_skilled_one(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x]] = $this->cell(stations: 2, people: 2);
+        $skill = $this->line();
+        $x->skills()->attach($skill->id);
+        $skilled = $this->job($line, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 2]);
+        $plain = $this->job($line, $type, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $skilled));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $plain));
+    }
+
+    public function test_an_unskilled_step_booked_first_leaves_the_holder_for_the_skilled_one(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x]] = $this->cell(stations: 2, people: 2);
+        $skill = $this->line();
+        $x->skills()->attach($skill->id);
+        $plain = $this->job($line, $type, 60, attrs: ['priority' => 2]);
+        $skilled = $this->job($line, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        // The unskilled step can be anybody's, so X stays free for the skilled one.
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $plain));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $skilled));
+    }
+
+    public function test_an_unskilled_step_waits_when_only_the_busy_holder_is_left(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y]] = $this->cell(stations: 3, people: 2);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $x->skills()->attach([$skillA->id, $skillB->id]);
+        $y->skills()->attach($skillB->id);
+        // A takes X; B can only be Y then; nobody is left for the plain step.
+        $this->job($line, $type, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 3]);
+        $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 2]);
+        $plain = $this->job($line, $type, 60, attrs: ['priority' => 1]);
+
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($this->schedule(), $plain));
+    }
+
+    public function test_a_multi_skilled_person_shared_by_two_lines_works_one_skilled_step_at_a_time(): void
+    {
+        $this->recordSkills();
+        [$lineA, $typeA, $stationA] = $this->lineWithStations(1);
+        [$lineB, $typeB] = $this->lineWithStations(1);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        // P holds both skills and staffs both lines; Q works line A only, unskilled.
+        $p = Worker::factory()->create(['workstation_id' => $stationA->id]);
+        $p->skills()->attach([$skillA->id, $skillB->id]);
+        User::factory()->create(['worker_id' => $p->id])->lines()->attach($lineB->id);
+        Worker::factory()->create(['workstation_id' => $stationA->id]);
+        $a = $this->job($lineA, $typeA, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 2]);
+        $b = $this->job($lineB, $typeB, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b));
+        // Held on the other line: the existing reason says where.
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $this->waitedReason($result, $b)['busy_lines']);
+        $this->assertNull($this->qualifiedWaitReason($result, $b));
+    }
+
+    public function test_workforce_section_lists_required_skills_with_a_single_holder(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x, $y]] = $this->cell(stations: 2, people: 2);
+        $untracked = $this->line();
+        $solo = $this->line(['name' => 'Welding']);
+        $shared = $this->line(['name' => 'Painting']);
+        $unused = $this->line(['name' => 'Gluing']);
+        $x->skills()->attach([$solo->id, $shared->id, $unused->id]);
+        $y->skills()->attach($shared->id);
+        $this->job($line, $type, 60, ['required_skill_ids' => [$solo->id]]);
+        $this->job($line, $type, 60, ['required_skill_ids' => [$shared->id]]);
+
+        $workforce = $this->workforceOf($this->schedule());
+
+        // Painting has two holders and nobody needs Gluing.
+        $this->assertSame([['skill_id' => $solo->id, 'skill_name' => 'Welding', 'holder_name' => $x->name]], $workforce[$line->id]['single_holder_skills']);
+        $this->assertSame([], $workforce[$untracked->id]['single_holder_skills']);
+    }
+
+    public function test_single_holder_skills_are_reported_when_people_are_ignored(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x]] = $this->cell(stations: 2, people: 2);
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $x->skills()->attach([$skillA->id, $skillB->id]);
+        $a = $this->job($line, $type, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 2]);
+        $b = $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 1]);
+
+        $result = $this->schedule(['respectWorkforce' => false]);
+
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $b));
+        $this->assertNull($this->qualifiedWaitReason($result, $b));
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
+        $this->assertCount(2, $this->workforceOf($result)[$line->id]['single_holder_skills']);
+    }
+
+    public function test_the_draft_keeps_single_holder_skills_and_the_wait_reason(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$x]] = $this->cell(stations: 2, people: 2);
+        $skillA = $this->line(['name' => 'Welding']);
+        $skillB = $this->line(['name' => 'Painting']);
+        $x->skills()->attach([$skillA->id, $skillB->id]);
+        $this->job($line, $type, 60, ['required_skill_ids' => [$skillA->id]], ['priority' => 2]);
+        $b = $this->job($line, $type, 60, ['required_skill_ids' => [$skillB->id]], ['priority' => 1]);
+
+        $draft = app(ScheduleSimulationService::class)->generate($this->request(), User::factory()->create());
+
+        $entry = collect($draft->fresh()->summary['workforce'])->keyBy('line_id')[$line->id];
+        $this->assertSame(['Painting', 'Welding'], array_column($entry['single_holder_skills'], 'skill_name'));
+        $reasons = $draft->operations()->where('work_order_id', $b->id)->sole()->reasons;
+        $this->assertSame('waited_for_qualified_operators', collect($reasons)->firstWhere('code', 'waited_for_qualified_operators')['code']);
+    }
+
+    public function test_skilled_matching_adds_no_queries_per_order(): void
+    {
+        $this->recordSkills();
+        [$line, $type, $workers] = $this->cell(stations: 2, people: 2);
+        $skill = $this->line();
+        foreach ($workers as $worker) {
+            $worker->skills()->attach($skill->id);
+        }
+
+        $count = function (int $orders) use ($line, $type, $skill): int {
+            \App\Models\WorkOrder::query()->delete();
+            for ($i = 0; $i < $orders; $i++) {
+                $this->job($line, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => $orders - $i]);
+            }
+            $queries = 0;
+            $counting = true;
+            \Illuminate\Support\Facades\DB::listen(function () use (&$queries, &$counting) {
+                if ($counting) {
+                    $queries++;
+                }
+            });
+            $result = $this->schedule();
+            $counting = false;
+            $this->assertNotContains(false, array_map(fn ($op) => $op['status']->isScheduled(), $result['operations']));
+
+            return $queries;
+        };
+
+        // Both runs make orders wait for the two qualified people, so both name them once.
+        $few = $count(9);
+        $many = $count(24);
+        $this->assertSame($few, $many, 'scheduling 24 skilled orders must not query more than scheduling 9');
     }
 
     // ── A draft goes stale when its staffing changes ────────────────────────
@@ -931,7 +1224,9 @@ class WorkforceScenariosTest extends TestCase
         $this->assertSame(1, $reason['available']);
         $this->assertSame([$skill->id], $reason['required_skill_ids']);
         $this->assertSame([['id' => $skill->id, 'name' => 'Welding']], $reason['required_skills']);
-        $this->assertSame('Needs 2 operators qualified in Welding, 1 available.', $reason['message']);
+        $this->assertSame(['id' => $skill->id, 'name' => 'Welding'], $reason['bottleneck_skill']);
+        $this->assertSame([['name' => $qualified->name]], $reason['skill_holders']);
+        $this->assertSame("Needs 2 operators qualified in Welding, 1 available. Welding is held only by {$qualified->name}.", $reason['message']);
     }
 
     public function test_a_provider_that_cannot_explain_still_reports_the_numbers(): void
@@ -963,8 +1258,8 @@ class WorkforceScenariosTest extends TestCase
         $result = $this->schedule();
         $workforce = $this->workforceOf($result);
 
-        $this->assertSame(['line_id' => $staffed->id, 'line_name' => $staffed->name, 'tracked' => true, 'assigned' => 2, 'respected' => true], $workforce[$staffed->id]);
-        $this->assertSame(['line_id' => $untracked->id, 'line_name' => $untracked->name, 'tracked' => false, 'assigned' => null, 'respected' => true], $workforce[$untracked->id]);
+        $this->assertSame(['line_id' => $staffed->id, 'line_name' => $staffed->name, 'tracked' => true, 'assigned' => 2, 'respected' => true, 'single_holder_skills' => []], $workforce[$staffed->id]);
+        $this->assertSame(['line_id' => $untracked->id, 'line_name' => $untracked->name, 'tracked' => false, 'assigned' => null, 'respected' => true, 'single_holder_skills' => []], $workforce[$untracked->id]);
         // Nobody is assigned, so three operators are not checked: machine capacity only.
         $this->assertSame(ScheduledOperationStatus::Scheduled, $this->opStatus($result, $loose));
     }

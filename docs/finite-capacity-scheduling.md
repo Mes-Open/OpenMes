@@ -169,9 +169,35 @@ neighbouring day for the other lines in the group.
 
 A skilled step runs the same check with only the qualified people allowed to
 take it (`qualifiedOperatorKeys()`), so its only qualified person is not
-counted as free while another line holds them. Booked work on the other lines
-still counts by headcount; competition between skilled steps for the same
-multi-skilled person is not modelled yet.
+counted as free while another line holds them.
+
+A person also works one step at a time, whatever skills they hold. Where the
+provider names its people and records skills, every step booked in the window
+(on the line or anywhere in its group) is a set of places that only people
+holding that step's skills may fill, and the new step must fit on top with
+distinct people. So when the only person holding both *Welding* and *Painting*
+is on a Welding step, a Painting step waits for them even on another free
+machine. Bookings record counts, not names, so each stretch of constant booked
+load is matched on its own: one person may cover different steps in different
+stretches of a long window, but every stretch is staffable. Work committed
+outside the run carries no skills and can be anyone's on its line.
+
+A step that waited for a qualified person busy on its own line says so:
+*"Waited: only 1 qualified operator for Painting (Jan Kowalski), busy with other
+work."* (`waited_for_qualified_operators`, with `available`, `required_skills`,
+`qualified_workers` and the window). A step left unplaced for lack of qualified
+people names the scarcest of its skills on the line and who holds it, absences
+ignored: *"Painting is held only by Jan Kowalski."* (`bottleneck_skill`,
+`skill_holders`). When several resources would finish a step at the same time,
+the one only people held back wins the tie, so the reason shown is the one that
+bound.
+
+The `workforce` section lists, per line, `single_holder_skills`: the skills some
+step of the run requires that exactly one person assigned to the line holds
+(`skill_id`, `skill_name`, `holder_name`). The *Staffing* panel shows each as
+*"Painting — single qualified operator: Jan Kowalski"*. Providers that explain
+their counts (`ExplainsWorkforceCapacity`) supply `skillHolders()` and
+`operatorNames()` for this.
 
 A provider that only returns counts does not implement the interface, and
 each line keeps counting its own people, exactly as before.

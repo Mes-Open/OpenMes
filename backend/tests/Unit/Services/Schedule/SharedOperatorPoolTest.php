@@ -93,6 +93,66 @@ class SharedOperatorPoolTest extends TestCase
         $this->assertSame(2, $pool->spare(1, $present, [2 => 1], 5)['spare']);
     }
 
+    public function test_people_with_disjoint_skills_fill_concurrent_steps(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['x', 'y']]);
+
+        // X does the booked A step; the new B step can be Y.
+        $result = $pool->matchSlots(['1|1' => ['x'], '1|2' => ['y']], ['1|1' => 1], ['y'], 1);
+
+        $this->assertSame(1, $result['spare']);
+        $this->assertSame([], $result['holders']);
+    }
+
+    public function test_one_person_holding_two_skills_fills_one_step_at_a_time(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['both', 'none']]);
+
+        $result = $pool->matchSlots(['1|1' => ['both']], ['1|1' => 1], ['both'], 1);
+
+        $this->assertSame(0, $result['spare']);
+        $this->assertSame(['both' => '1|1'], $result['holders']);
+    }
+
+    public function test_a_booked_unskilled_step_is_moved_off_the_only_qualified_person(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['q', 'p']]);
+
+        // The unskilled step may be either; matched to q first, it is moved to p.
+        $result = $pool->matchSlots(['1|' => ['q', 'p']], ['1|' => 1], ['q'], 1);
+
+        $this->assertSame(1, $result['spare']);
+        $this->assertSame([], $result['holders']);
+    }
+
+    public function test_a_two_person_step_gets_what_is_left(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['x', 'y', 'z']]);
+
+        // X is held on the booked B step; of the A holders X and Y only Y is left.
+        $result = $pool->matchSlots(['1|2' => ['x']], ['1|2' => 1], ['x', 'y'], 2);
+
+        $this->assertSame(1, $result['spare']);
+        $this->assertSame(['x' => '1|2'], $result['holders']);
+    }
+
+    public function test_skilled_labor_segments_split_the_load_by_skills(): void
+    {
+        $timeline = new Timeline;
+        $timeline->bookLabor(1, 0, 60, 1, [7, 3]);
+        $timeline->bookLabor(1, 0, 30, 2);
+        $timeline->bookLabor(2, 30, 60, 1, [3, 7]);
+
+        $this->assertSame([
+            ['start' => 0, 'end' => 30, 'demand' => ['1|' => 2, '1|3,7' => 1]],
+            ['start' => 30, 'end' => 60, 'demand' => ['1|3,7' => 1, '2|3,7' => 1]],
+        ], $timeline->skilledLaborSegments([1, 2], 0, 60));
+        $this->assertTrue($timeline->hasSkilledLaborBetween([2], 0, 60));
+        $this->assertFalse($timeline->hasSkilledLaborBetween([2], 0, 30));
+        $this->assertSame([1, [3, 7]], Timeline::parseSlotKind('1|3,7'));
+        $this->assertSame([4, []], Timeline::parseSlotKind(Timeline::slotKind(4, [])));
+    }
+
     public function test_labor_segments_are_half_open_and_merged(): void
     {
         $t = new Timeline;

@@ -7322,5 +7322,12 @@
     "Staffing changed since this draft was generated — generate it again.": "Staffing changed since this draft was generated — generate it again.",
     "Waited for operators busy on :lines.": "Waited for operators busy on :lines.",
     ":count busy with other work on :lines.": ":count busy with other work on :lines.",
-    ":count busy with other work, :held of them on :lines.": ":count busy with other work, :held of them on :lines."
+    ":count busy with other work, :held of them on :lines.": ":count busy with other work, :held of them on :lines.",
+    "Waited: only :count qualified operator for :skills (:names), busy with other work.": "Waited: only :count qualified operator for :skills (:names), busy with other work.",
+    "Waited: only :count qualified operators for :skills (:names), all busy with other work.": "Waited: only :count qualified operators for :skills (:names), all busy with other work.",
+    ":skill is held only by :names.": ":skill is held only by :names.",
+    ":skill is held by :names.": ":skill is held by :names.",
+    "Nobody on this line holds :skill.": "Nobody on this line holds :skill.",
+    ":skill — single qualified operator: :name": ":skill — single qualified operator: :name",
+    "Only one person on this line holds this skill.": "Only one person on this line holds this skill."
 }

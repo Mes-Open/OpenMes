@@ -7,6 +7,7 @@ use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
 use App\Extension\Contracts\WorkforceRosterAware;
 use App\Models\Shift;
+use App\Models\User;
 use App\Models\Worker;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -54,6 +55,9 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
     private ?array $skills = null;
 
     private bool $skillsLoaded = false;
+
+    /** @var array<string, string> person key => display name, as looked up so far */
+    private array $names = [];
 
     /** @var array<string, list<int>> date => absent worker ids */
     private array $absent = [];
@@ -150,6 +154,51 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
 
         return $related->newQuery()->whereKey($ids)->pluck('name', $related->getKeyName())
             ->map(fn ($name) => (string) $name)->all();
+    }
+
+    public function skillHolders(?int $lineId): ?array
+    {
+        $staff = $this->staff()[$lineId ?? 'none'] ?? [];
+        $skills = $this->skills();
+        if ($staff === [] || $skills === null) {
+            return null;
+        }
+
+        $holders = [];
+        foreach ($staff as $key) {
+            if (! str_starts_with($key, 'w:')) {
+                continue; // an account with no worker record holds no skills
+            }
+            foreach ($skills[(int) substr($key, 2)] ?? [] as $skillId) {
+                $holders[$skillId][] = $key;
+            }
+        }
+        ksort($holders);
+
+        return $holders;
+    }
+
+    public function operatorNames(array $keys): array
+    {
+        $missing = ['w' => [], 'u' => []];
+        foreach (array_unique($keys) as $key) {
+            [$kind, $id] = array_pad(explode(':', $key, 2), 2, '');
+            if (! isset($this->names[$key]) && isset($missing[$kind]) && ctype_digit($id)) {
+                $missing[$kind][] = (int) $id;
+            }
+        }
+        if ($missing['w'] !== []) {
+            foreach ($this->workerNames($missing['w']) as $id => $name) {
+                $this->names['w:'.$id] = $name;
+            }
+        }
+        if ($missing['u'] !== []) {
+            foreach (User::whereKey($missing['u'])->pluck('name', 'id') as $id => $name) {
+                $this->names['u:'.$id] = (string) $name;
+            }
+        }
+
+        return array_intersect_key($this->names, array_flip($keys));
     }
 
     /**

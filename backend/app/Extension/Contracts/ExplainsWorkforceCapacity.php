@@ -7,8 +7,8 @@ use Carbon\CarbonInterface;
 /**
  * Optional companion to {@see WorkforceCapacityProvider}: a provider that can
  * say who it counted lets the scheduler explain a people shortfall — who is
- * assigned to a line, who of them is away in a window, and what the people and
- * skills it names are called.
+ * assigned to a line, who of them is away in a window, who holds each skill,
+ * and what the people and skills it names are called.
  *
  * A separate interface so existing capacity providers keep loading; the
  * scheduler asks only when a provider implements it, and otherwise reports
@@ -42,4 +42,20 @@ interface ExplainsWorkforceCapacity
      * @return array<int, string> skill id => display name; empty when skills are not recorded
      */
     public function skillNames(array $ids): array;
+
+    /**
+     * Who assigned to the line holds each skill, absences ignored — the
+     * people a skilled step on the line could ever use. Keys are the person
+     * keys of {@see WorkforceRosterAware}; a skill nobody there holds is left
+     * out. Null when skills are not recorded or the line is not tracked.
+     *
+     * @return array<int, list<string>>|null skill id => person keys
+     */
+    public function skillHolders(?int $lineId): ?array;
+
+    /**
+     * @param  list<string>  $keys  person keys, as in {@see WorkforceRosterAware}
+     * @return array<string, string> person key => display name
+     */
+    public function operatorNames(array $keys): array;
 }

@@ -20,9 +20,6 @@ namespace App\Services\Schedule\Finite;
  */
 final class SharedOperatorPool
 {
-    /** Slot kind of the places being asked for; never a line id. */
-    private const NEW_SLOT = 'new';
-
     /** @var array<int, list<int>> line id => the lines of its group, sorted */
     private array $groups = [];
 
@@ -126,31 +123,47 @@ final class SharedOperatorPool
      */
     public function spare(int $lineId, array $present, array $demand, int $needed, ?array $eligible = null): array
     {
-        // Persons are numbered; each demand slot (line) may take one of the
-        // persons present on its line.
-        $index = [];
-        $candidates = [];
-        foreach ($present as $line => $keys) {
-            foreach ($keys as $key) {
-                $candidates[$line][] = $index[$key] ??= count($index);
+        $result = $this->matchSlots($present, $demand, $eligible ?? ($present[$lineId] ?? []), $needed);
+
+        $busy = [];
+        foreach ($result['holders'] as $kind) {
+            if ($kind !== $lineId) {
+                $busy[$kind] = ($busy[$kind] ?? 0) + 1;
             }
         }
-        // New places are their own kind of slot, so they can be narrower than the line.
-        $new = self::NEW_SLOT;
-        $candidates[$new] = $eligible === null
-            ? ($candidates[$lineId] ?? [])
-            : array_values(array_filter(array_map(fn (string $key) => $index[$key] ?? null, $eligible), fn ($p) => $p !== null));
+        ksort($busy);
 
-        $slots = [];
-        foreach ($demand as $line => $count) {
+        return ['spare' => $result['spare'], 'busy' => $busy];
+    }
+
+    /**
+     * The matching behind {@see spare()}, over any kind of slot: booked places
+     * of each kind must each be filled by a distinct person from that kind's
+     * candidates, and so must up to $needed new places from $eligible. A person
+     * fills one place at a time, whatever else they could do — so someone
+     * holding two skills is never counted for two concurrent steps.
+     *
+     * Kinds are opaque: a line id, or a line and the skills its step needs.
+     *
+     * @param  array<int|string, list<string>>  $candidates  slot kind => person keys that may fill it
+     * @param  array<int|string, int>  $booked  slot kind => places already booked at that moment
+     * @param  list<string>  $eligible  who may fill the new places
+     * @return array{spare: int, holders: array<string, int|string>} holders: eligible person key => the booked kind holding them
+     */
+    public function matchSlots(array $candidates, array $booked, array $eligible, int $needed): array
+    {
+        $slots = []; // slot index => kind, or null for a new place
+        foreach ($booked as $kind => $count) {
             for ($i = 0; $i < $count; $i++) {
-                $slots[] = $line;
+                $slots[] = $kind;
             }
         }
+        $eligible = array_values(array_unique($eligible));
 
-        $owner = []; // person => slot
-        $try = function (int $slot, array &$seen) use (&$try, &$owner, &$slots, &$candidates): bool {
-            foreach ($candidates[$slots[$slot]] ?? [] as $person) {
+        $owner = []; // person => slot index
+        $try = function (int $slot, array &$seen) use (&$try, &$owner, &$slots, $candidates, $eligible): bool {
+            $kind = $slots[$slot];
+            foreach ($kind === null ? $eligible : ($candidates[$kind] ?? []) as $person) {
                 if (isset($seen[$person])) {
                     continue;
                 }
@@ -171,26 +184,26 @@ final class SharedOperatorPool
         }
 
         // Augmenting paths keep every slot already matched matched, so each
-        // success here is one more operator for $lineId on top of the booked load.
+        // success here is one more person on top of the booked load.
         $spare = 0;
         while ($spare < $needed) {
-            $slots[] = $new;
+            $slots[] = null;
             $seen = [];
             if (! $try(array_key_last($slots), $seen)) {
+                array_pop($slots);
                 break;
             }
             $spare++;
         }
 
-        $busy = [];
-        foreach ($candidates[$new] as $person) {
-            $line = isset($owner[$person]) ? $slots[$owner[$person]] : null;
-            if ($line !== null && $line !== $lineId && $line !== $new) {
-                $busy[$line] = ($busy[$line] ?? 0) + 1;
+        $holders = [];
+        foreach ($eligible as $person) {
+            $kind = isset($owner[$person]) ? $slots[$owner[$person]] : null;
+            if ($kind !== null) {
+                $holders[$person] = $kind;
             }
         }
-        ksort($busy);
 
-        return ['spare' => $spare, 'busy' => $busy];
+        return ['spare' => $spare, 'holders' => $holders];
     }
 }

@@ -195,6 +195,44 @@ class AssignedStaffCapacityTest extends TestCase
         $this->assertSame(1, $count([$skillA->id, $skillB->id]));
     }
 
+    public function test_skill_holders_ignore_absences_and_accounts_without_a_worker(): void
+    {
+        $this->assertNull($this->provider()->skillHolders($this->line()->id), 'skills not recorded');
+
+        \Illuminate\Support\Facades\Schema::create('test_worker_skill', function ($table) {
+            $table->foreignId('worker_id');
+            $table->foreignId('skill_id');
+        });
+        Worker::resolveRelationUsing('skills', fn (Worker $w) => $w->belongsToMany(Line::class, 'test_worker_skill', 'worker_id', 'skill_id'));
+        $this->beforeApplicationDestroyed(fn () => $this->forgetSkillsRelation());
+
+        $line = $this->line();
+        [$welder, $both] = $this->staff($line, 2);
+        User::factory()->create()->lines()->attach($line->id); // an account with no worker record
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $welder->skills()->attach([$skillA->id]);
+        $both->skills()->attach([$skillA->id, $skillB->id]);
+        $this->absentOnTuesday([$both->id]);
+        $provider = $this->provider();
+
+        $holders = $provider->skillHolders($line->id);
+        $this->assertEqualsCanonicalizing(['w:'.$welder->id, 'w:'.$both->id], $holders[$skillA->id]);
+        $this->assertSame(['w:'.$both->id], $holders[$skillB->id], 'an absence does not take a skill away');
+        $this->assertNull($provider->skillHolders($this->line()->id), 'a line nobody staffs is not tracked');
+    }
+
+    public function test_it_names_workers_and_accounts_by_key(): void
+    {
+        $line = $this->line();
+        [$worker] = $this->staff($line, 1);
+        $account = User::factory()->create();
+
+        $names = $this->provider()->operatorNames(['w:'.$worker->id, 'u:'.$account->id, 'x:1', 'w:'.($worker->id + 1000)]);
+
+        $this->assertSame(['w:'.$worker->id => $worker->name, 'u:'.$account->id => $account->name], $names);
+    }
+
     private function forgetSkillsRelation(): void
     {
         $property = new \ReflectionProperty(\Illuminate\Database\Eloquent\Model::class, 'relationResolvers');

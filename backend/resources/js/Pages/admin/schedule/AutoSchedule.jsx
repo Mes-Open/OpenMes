@@ -44,14 +44,28 @@ function reasonText(reason) {
         return __('Waited for operators busy on :lines.', { lines: lineNames(reason.busy_lines) });
     }
 
+    if (reason.code === 'waited_for_qualified_operators' && Array.isArray(reason.qualified_workers)) {
+        const params = {
+            count: reason.available,
+            skills: skillNames(reason.required_skills),
+            names: reason.qualified_workers.map((w) => w.name).join(', '),
+        };
+        return reason.available === 1
+            ? __('Waited: only :count qualified operator for :skills (:names), busy with other work.', params)
+            : __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', params);
+    }
+
     return reason.message;
 }
 
 /** "Line A, Line B" — the lines holding shared people. */
 const lineNames = (busyLines) => busyLines.map((l) => l.line_name ?? `#${l.line_id}`).join(', ');
 
+/** "Welding, Painting" — the skills a step requires. */
+const skillNames = (skills) => (skills ?? []).map((s) => s.name ?? `#${s.id}`).join(', ');
+
 /** A reason that names the window it is about. */
-const hasWindow = (reason) => (isPeopleReason(reason) || reason.code === 'waited_for_operators') && reason.window_start;
+const hasWindow = (reason) => (isPeopleReason(reason) || reason.code === 'waited_for_operators' || reason.code === 'waited_for_qualified_operators') && reason.window_start;
 
 /** A people reason carrying the numbers (drafts from before they did only have the message). */
 const isPeopleReason = (reason) => (reason.code === 'workforce_capacity' || reason.code === 'qualification') && typeof reason.required === 'number';
@@ -64,7 +78,7 @@ function peopleText(reason) {
         available: reason.available,
         absent: absent.length,
         names: absent.map((w) => w.name ?? `#${w.id}`).join(', '),
-        skills: (reason.required_skills ?? []).map((s) => s.name ?? `#${s.id}`).join(', '),
+        skills: skillNames(reason.required_skills),
     };
     let text;
     if (reason.code === 'qualification') {
@@ -77,16 +91,30 @@ function peopleText(reason) {
             : __('Needs :required operators, :available available.', params);
     }
 
-    if (!(reason.in_use > 0)) return text;
+    if (reason.in_use > 0) {
+        // Of those busy, how many other lines hold; the rest work on this one.
+        const busyLines = reason.busy_lines ?? [];
+        const held = Math.min(reason.in_use, busyLines.reduce((sum, l) => sum + (l.operators ?? 0), 0));
+        const lines = lineNames(busyLines);
+        if (held === 0) text += ` ${__(':count busy with other work.', { count: reason.in_use })}`;
+        else if (held === reason.in_use) text += ` ${__(':count busy with other work on :lines.', { count: held, lines })}`;
+        else text += ` ${__(':count busy with other work, :held of them on :lines.', { count: reason.in_use, held, lines })}`;
+    }
 
-    // Of those busy, how many other lines hold; the rest work on this one.
-    const busyLines = reason.busy_lines ?? [];
-    const held = Math.min(reason.in_use, busyLines.reduce((sum, l) => sum + (l.operators ?? 0), 0));
-    const lines = lineNames(busyLines);
-    if (held === 0) return `${text} ${__(':count busy with other work.', { count: reason.in_use })}`;
-    if (held === reason.in_use) return `${text} ${__(':count busy with other work on :lines.', { count: held, lines })}`;
+    return reason.bottleneck_skill ? `${text} ${bottleneckText(reason)}` : text;
+}
 
-    return `${text} ${__(':count busy with other work, :held of them on :lines.', { count: reason.in_use, held, lines })}`;
+/** "Painting is held only by Jan Kowalski." — the scarcest required skill on the line. */
+function bottleneckText(reason) {
+    const holders = reason.skill_holders ?? [];
+    const params = {
+        skill: reason.bottleneck_skill.name ?? `#${reason.bottleneck_skill.id}`,
+        names: holders.map((h) => h.name).join(', '),
+    };
+    if (holders.length === 0) return __('Nobody on this line holds :skill.', params);
+    if (holders.length === 1) return __(':skill is held only by :names.', params);
+
+    return __(':skill is held by :names.', params);
 }
 
 /** "2026-10-12T06:00:00+02:00" → "12.10 06:00", plant time as the server wrote it. */
@@ -207,6 +235,21 @@ function StaffingPanel({ workforce, canAssignOperators }) {
                         <li key={w.line_id}>
                             <span className="font-semibold">{w.line_name}</span>
                             {w.assigned != null && <span className="text-om-muted"> · {__(':count operators assigned', { count: w.assigned })}</span>}
+                            {(w.single_holder_skills ?? []).length > 0 && (
+                                <span className="mt-1 flex flex-wrap gap-1.5">
+                                    {w.single_holder_skills.map((s) => (
+                                        <span
+                                            key={s.skill_id}
+                                            data-testid="single-qualified-skill"
+                                            title={__('Only one person on this line holds this skill.')}
+                                            className="inline-flex items-center gap-1 rounded-full border border-om-downtime/30 bg-om-downtime-bg px-2 py-0.5 text-[11.5px] font-medium text-om-downtime"
+                                        >
+                                            <Icon name="triangle-alert" size={12} />
+                                            {__(':skill — single qualified operator: :name', { skill: s.skill_name ?? `#${s.skill_id}`, name: s.holder_name ?? '—' })}
+                                        </span>
+                                    ))}
+                                </span>
+                            )}
                         </li>
                     ))}
                 </ul>

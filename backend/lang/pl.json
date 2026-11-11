@@ -7322,5 +7322,12 @@
     "Staffing changed since this draft was generated — generate it again.": "Obsada zmieniła się od wygenerowania tego szkicu — wygeneruj go ponownie.",
     "Waited for operators busy on :lines.": "Czekało na operatorów zajętych na: :lines.",
     ":count busy with other work on :lines.": "Zajęci inną pracą na :lines: :count.",
-    ":count busy with other work, :held of them on :lines.": "Zajęci inną pracą: :count, w tym :held na :lines."
+    ":count busy with other work, :held of them on :lines.": "Zajęci inną pracą: :count, w tym :held na :lines.",
+    "Waited: only :count qualified operator for :skills (:names), busy with other work.": "Czekało: tylko :count operator z kwalifikacją :skills (:names), zajęty inną pracą.",
+    "Waited: only :count qualified operators for :skills (:names), all busy with other work.": "Czekało: tylko :count operatorów z kwalifikacją :skills (:names), wszyscy zajęci inną pracą.",
+    ":skill is held only by :names.": "Umiejętność :skill ma tylko :names.",
+    ":skill is held by :names.": "Umiejętność :skill mają: :names.",
+    "Nobody on this line holds :skill.": "Nikt na tej linii nie ma umiejętności :skill.",
+    ":skill — single qualified operator: :name": ":skill — jedyny wykwalifikowany operator: :name",
+    "Only one person on this line holds this skill.": "Tylko jedna osoba na tej linii ma tę umiejętność."
 }

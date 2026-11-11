@@ -208,6 +208,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Line A."* An unplaced step names the line too: *"1 busy with other work on Line A."*
   Capacity providers that only return counts behave as before; providers can name their
   people through the new optional `WorkforceRosterAware` contract.
+- **Auto-schedule no longer books one multi-skilled operator on two skilled steps at once.**
+  When the only person holding both *Welding* and *Painting* is on a Welding step, a Painting
+  step on another machine now starts after it instead of alongside it. People are matched to
+  every step running at the same moment, each step to people holding its skills, so someone
+  with two skills counts once. The step's reason says why it waited: *"Waited: only 1
+  qualified operator for Painting (Jan Kowalski), busy with other work."* A step that cannot be
+  placed for lack of qualified people now names the scarcest skill and who holds it:
+  *"Painting is held only by Jan Kowalski."* The *Staffing* panel flags every required skill
+  only one person on a line holds — *"Painting — single qualified operator: Jan Kowalski"* —
+  and the simulation's `workforce` section lists them as `single_holder_skills`. When several
+  machines would finish a step at the same time, it now goes to the one only people held
+  back, so its reason shows the real cause. Providers that only return counts, or that do not
+  record skills, behave as before.
 
 - **Absences no longer block the night shift that started the evening before.** An absence
   recorded for a date now takes the worker out of the shifts that *start* on that date, the
