@@ -571,6 +571,47 @@ class WorkforceScenariosTest extends TestCase
         $this->assertSame("Needs 1 operators, 3 available. 3 busy with other work, 2 of them on {$lineA->name}.", $reason['message']);
     }
 
+    public function test_the_waited_reason_survives_the_shared_person_moving_on_to_this_line(): void
+    {
+        // As in the machine-shop example: A's last step runs on a bench of line B
+        // itself, so the shared person goes from A's work to B's own bench.
+        $lineA = $this->line();
+        $lineB = $this->line();
+        $lathe = $this->station($lineA);
+        $saw = $this->station($lineB);
+        $bench = $this->station($lineB);
+        $this->sharedOperator($lineA, $lineB);
+        $this->order($lineA, [
+            ['estimated_duration_minutes' => 60, 'workstation_id' => $lathe->id],
+            ['estimated_duration_minutes' => 30, 'workstation_id' => $bench->id],
+        ], ['priority' => 2]);
+        $b = $this->order($lineB, [['estimated_duration_minutes' => 10, 'workstation_id' => $saw->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 07:30'), $this->start($result, $b));
+        $waited = $this->waitedReason($result, $b);
+        $this->assertSame([['line_id' => $lineA->id, 'line_name' => $lineA->name, 'operators' => 1]], $waited['busy_lines']);
+        $this->assertSame("Waited for operators busy on {$lineA->name}.", $waited['message']);
+    }
+
+    public function test_the_waited_reason_is_dropped_when_people_are_simply_away_later(): void
+    {
+        [$lineA, $typeA] = $this->lineWithStations(1);
+        [$lineB, $typeB, $stationB] = $this->lineWithStations(1);
+        $shared = Worker::factory()->create(['workstation_id' => $stationB->id]);
+        User::factory()->create(['worker_id' => $shared->id])->lines()->attach($lineA->id);
+        // A takes the shared worker all Monday; on Tuesday they are away.
+        $this->job($lineA, $typeA, 480, attrs: ['priority' => 2]);
+        $this->absent([$shared], '2026-10-13');
+        $b = $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-14 06:00'), $this->start($result, $b));
+        $this->assertNull($this->waitedReason($result, $b), 'the last thing holding it was the absence');
+    }
+
     public function test_the_waited_reason_is_dropped_when_something_else_pushed_the_step_last(): void
     {
         [$lineA, $typeA] = $this->lineWithStations(1);

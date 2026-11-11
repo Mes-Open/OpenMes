@@ -424,9 +424,10 @@ class FiniteScheduler
      * The people shortfalls come back per code as the window closest to
      * working, so the reason can say how many were missing and when.
      *
-     * A placed slot carries `waited`: the window it was last refused in, when
-     * that refusal was people it could use being busy on another line; null
-     * when the last thing that pushed it was anything else.
+     * A placed slot carries `waited`: the last window it was refused because
+     * people it could use were busy on another line, as long as every later
+     * refusal was people busy with other work too; null once a machine
+     * conflict, a changeover or a plain lack of people pushed it instead.
      *
      * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
      */
@@ -493,7 +494,15 @@ class FiniteScheduler
             if ($labor !== null) {
                 $failures[] = $labor['code'];
                 $closest[$labor['code']] = $this->closerShortfall($closest[$labor['code']] ?? null, $labor);
-                $waited = $labor['busy_lines'] !== [] ? $labor : null;
+                // People held on another line: that is why it waits. People
+                // busy on this line keep that reason — typically the shared
+                // person moving on to this line's own work. Anything else (an
+                // absence, nobody free at all) is a different cause.
+                if ($labor['busy_lines'] !== []) {
+                    $waited = $labor;
+                } elseif ($labor['in_use'] === 0) {
+                    $waited = null;
+                }
                 // Try again an hour on, when booked people free up, or when the
                 // next shift starts — whichever comes first. The shift start
                 // keeps the retry on a shift boundary when back-to-back shifts
