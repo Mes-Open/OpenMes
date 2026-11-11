@@ -5,8 +5,11 @@ namespace App\Services\Schedule\Finite;
 use App\Extension\Contracts\ExplainsWorkforceCapacity;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
+use App\Models\Shift;
 use App\Models\Worker;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -14,7 +17,14 @@ use Illuminate\Support\Facades\Schema;
  * to a line (Admin → Lines → Operators), the active workers assigned to its
  * workstations and the workers of any crew the workforce module assigns to it —
  * once each, an account linked to a worker being that worker — less those the
- * workforce module reports absent on a day of the window.
+ * workforce module reports absent on a date the window belongs to.
+ *
+ * An absence on date D takes a person out of the shifts that start on D, the
+ * payroll convention: each minute of the window counts towards the start date
+ * of the shift it lies in ({@see ShiftOccurrences::attributedDates()}), a
+ * minute outside every shift towards its calendar date. So the night shift
+ * Monday 22:00 – Tuesday 06:00 is Monday's: a Tuesday absence leaves it alone,
+ * a Monday absence blocks it.
  *
  * A line nobody is assigned to is not tracked, so it answers null and the
  * scheduler stays machine-constrained there — an installation that never
@@ -23,8 +33,8 @@ use Illuminate\Support\Facades\Schema;
  * tracked either. Break windows are left to the shift calendar: they are short
  * compared with the windows the scheduler asks about.
  *
- * One instance serves one scheduling run, so the assignments and each day's
- * absences are read once.
+ * One instance serves one scheduling run, so the assignments, the shifts and
+ * each day's absences are read once.
  */
 class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, WorkforceCapacityProvider
 {
@@ -43,6 +53,9 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
 
     /** @var array<string, list<int>> date => absent worker ids */
     private array $absent = [];
+
+    /** @var Collection<int, Shift>|null */
+    private ?Collection $shifts = null;
 
     public function __construct(private readonly WorkforceProvider $people) {}
 
@@ -77,7 +90,7 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
         $staff = $this->staff()[$lineId ?? 'none'] ?? [];
 
         return array_values(array_filter(
-            $this->absentBetween($start, $end),
+            $this->absentBetween($lineId, $start, $end),
             fn (int $id) => in_array('w:'.$id, $staff, true),
         ));
     }
@@ -107,7 +120,8 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
     }
 
     /**
-     * Workers staffing the line who are not absent on any day of the window;
+     * Workers staffing the line who are not absent on any date the window
+     * belongs to;
      * null when nobody is assigned to the line at all.
      *
      * @return list<string>|null
@@ -119,7 +133,7 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
             return null;
         }
 
-        $away = array_map(fn (int $id) => 'w:'.$id, $this->absentBetween($start, $end));
+        $away = array_map(fn (int $id) => 'w:'.$id, $this->absentBetween($lineId, $start, $end));
 
         return array_values(array_diff($staff, $away));
     }
@@ -147,13 +161,28 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
             ->all();
     }
 
-    /** @return list<int> */
-    private function absentBetween(CarbonInterface $start, CarbonInterface $end): array
+    /**
+     * Workers absent on a date [$start, $end) belongs to on the line's shift
+     * calendar.
+     *
+     * @return list<int>
+     */
+    private function absentBetween(?int $lineId, CarbonInterface $start, CarbonInterface $end): array
     {
+        $this->shifts ??= Shift::where('is_active', true)->get();
+        $dates = ShiftOccurrences::attributedDates(
+            $this->shifts,
+            $lineId,
+            ResourceCalendar::toMinutes($start),
+            ResourceCalendar::toMinutes($end),
+        );
+
         $ids = [];
-        for ($day = $start->copy()->startOfDay(); $day->lessThan($end); $day = $day->addDay()) {
-            $key = $day->toDateString();
-            $ids = [...$ids, ...($this->absent[$key] ??= array_map('intval', $this->people->absentWorkerIds($day)))];
+        foreach ($dates as $date) {
+            $ids = [...$ids, ...($this->absent[$date] ??= array_map(
+                'intval',
+                $this->people->absentWorkerIds(Carbon::parse($date, config('app.timezone'))->startOfDay()),
+            ))];
         }
 
         return array_values(array_unique($ids));

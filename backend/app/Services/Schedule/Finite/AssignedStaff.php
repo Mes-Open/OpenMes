@@ -3,6 +3,7 @@
 namespace App\Services\Schedule\Finite;
 
 use App\Extension\Contracts\WorkforceProvider;
+use App\Models\Shift;
 use App\Models\User;
 use App\Models\Worker;
 use Carbon\CarbonInterface;
@@ -63,7 +64,9 @@ final class AssignedStaff
      * staffs each line, and, for each day of the window, which of those people
      * are absent. Worker activity and the logistics flag count through their
      * effect on the line map; an absence of someone who staffs no line, or on a
-     * day outside the window, changes nothing the scheduler used.
+     * day outside the window, changes nothing the scheduler used. When a shift
+     * crosses midnight the window starts a day early: that day's night shift
+     * runs into it.
      */
     public static function fingerprint(WorkforceProvider $people, CarbonInterface $start, CarbonInterface $end): string
     {
@@ -80,8 +83,15 @@ final class AssignedStaff
             }
         }
 
+        // An absence counts against the shifts starting on its date, so with a
+        // shift crossing midnight the day before the horizon reaches into it.
+        $first = $start->toImmutable()->startOfDay();
+        if (self::anyShiftCrossesMidnight()) {
+            $first = $first->subDay();
+        }
+
         $absent = [];
-        for ($day = $start->toImmutable()->startOfDay(); $day->lessThan($end); $day = $day->addDay()) {
+        for ($day = $first; $day->lessThan($end); $day = $day->addDay()) {
             $ids = array_values(array_unique(array_filter(
                 array_map('intval', $people->absentWorkerIds($day)),
                 fn (int $id) => isset($staffed[$id]),
@@ -93,5 +103,11 @@ final class AssignedStaff
         }
 
         return md5(json_encode([$staff, $absent]));
+    }
+
+    private static function anyShiftCrossesMidnight(): bool
+    {
+        return Shift::where('is_active', true)->get(['start_time', 'end_time'])
+            ->contains(fn (Shift $s) => strtotime((string) $s->end_time) < strtotime((string) $s->start_time));
     }
 }

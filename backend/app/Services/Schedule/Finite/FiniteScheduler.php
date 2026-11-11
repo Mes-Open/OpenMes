@@ -41,7 +41,10 @@ use Illuminate\Support\Collection;
  *     already booked; and, where the workforce provider tracks people, must
  *     leave enough operators — and enough qualified ones when the step requires
  *     skills — for the whole window. An operation may pause across non-working
- *     time but never interleaves with another job.
+ *     time but never interleaves with another job. A window short of people
+ *     is retried an hour later, when booked people free up, or at the next
+ *     shift start, whichever is first; an absence counts against the shifts
+ *     that start on its date, so a night shift belongs to the evening it began.
  *
  * Nothing is written here: the result is plain data, persisted (or not) by
  * {@see ScheduleSimulationService}. Already-running steps are pinned from the
@@ -469,9 +472,14 @@ class FiniteScheduler
             if ($labor !== null) {
                 $failures[] = $labor['code'];
                 $closest[$labor['code']] = $this->closerShortfall($closest[$labor['code']] ?? null, $labor);
+                // Try again an hour on, when booked people free up, or when the
+                // next shift starts — whichever comes first. The shift start
+                // keeps the retry on a shift boundary when back-to-back shifts
+                // merge into one window, instead of landing mid-shift.
                 $t = min(array_filter([
                     $t + self::LABOR_PROBE_MINUTES,
                     $this->timeline->nextLaborRelease($candidate['line_id'], $t),
+                    $this->calendar->nextShiftStart($candidate['line_id'], $t),
                 ]));
 
                 continue;

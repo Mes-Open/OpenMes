@@ -23,7 +23,9 @@ interface ExplainsWorkforceCapacity
     public function assignedCount(?int $lineId): ?int;
 
     /**
-     * Workers assigned to the line who are absent on any day of the window.
+     * Workers assigned to the line who are absent on a date the window belongs
+     * to — the start date of each shift it covers, the calendar date outside
+     * shifts (see {@see WorkforceCapacityProvider}).
      *
      * @return list<int>
      */

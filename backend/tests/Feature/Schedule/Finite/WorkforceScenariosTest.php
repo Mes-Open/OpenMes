@@ -226,6 +226,123 @@ class WorkforceScenariosTest extends TestCase
         $this->assertSame(ScheduledOperationStatus::InfeasibleQualification, $this->opStatus($result, $order));
     }
 
+    // ── Night shifts: an absence counts against the shift starting that day ──
+
+    /** Replace the day shift with a 22:00–06:00 night shift on $days. */
+    private function nightsOnly(array $days = [1, 2, 3, 4, 5], string $start = '22:00'): void
+    {
+        Shift::query()->update(['is_active' => false]);
+        Shift::create(['name' => 'Night', 'code' => 'N', 'start_time' => $start, 'end_time' => '06:00', 'days_of_week' => $days, 'is_active' => true]);
+    }
+
+    public function test_night_shift_started_before_an_absence_day_is_not_blocked(): void
+    {
+        $this->nightsOnly();
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        // Away on Tuesday — i.e. Tuesday's night shift, not Monday's.
+        $this->absent($workers, '2026-10-13');
+        $order = $this->job($line, $type, 480);
+
+        $result = $this->schedule();
+        $op = $this->opsFor($result, $order)[0];
+
+        $this->assertEquals($this->at('2026-10-12 22:00'), $op['planned_start_at']);
+        $this->assertEquals($this->at('2026-10-13 06:00'), $op['planned_end_at']);
+        $this->assertSame(ScheduledOperationStatus::Scheduled, $op['status']);
+    }
+
+    public function test_monday_absence_blocks_the_monday_night_shift(): void
+    {
+        $this->nightsOnly();
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->absent($workers, '2026-10-12');
+        $order = $this->job($line, $type, 480);
+
+        $this->assertEquals($this->at('2026-10-13 22:00'), $this->start($this->schedule(), $order));
+    }
+
+    public function test_monday_absence_does_not_block_the_sunday_night_shift(): void
+    {
+        $this->nightsOnly([7, 1, 2, 3, 4, 5]);
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->absent($workers, '2026-10-12');
+        $order = $this->job($line, $type, 480);
+
+        $op = $this->opsFor($this->schedule(['start' => $this->at('2026-10-11 22:00')]), $order)[0];
+
+        $this->assertEquals($this->at('2026-10-11 22:00'), $op['planned_start_at']);
+        $this->assertEquals($this->at('2026-10-12 06:00'), $op['planned_end_at']);
+    }
+
+    public function test_day_shift_absence_semantics_are_unchanged(): void
+    {
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->absent($workers, '2026-10-13');
+        $order = $this->job($line, $type, 60);
+        $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($this->schedule(), $order));
+
+        $this->absences = [];
+        $this->absent($workers, '2026-10-12');
+        $this->assertEquals($this->at('2026-10-13 06:00'), $this->start($this->schedule(), $order));
+    }
+
+    public function test_two_night_step_is_not_blocked_by_an_absence_on_the_morning_it_ends(): void
+    {
+        $this->nightsOnly();
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        // Wednesday's own night is not used: the step ends Wednesday 06:00.
+        $this->absent($workers, '2026-10-14');
+        $order = $this->job($line, $type, 960);
+
+        $op = $this->opsFor($this->schedule(), $order)[0];
+
+        $this->assertEquals($this->at('2026-10-12 22:00'), $op['planned_start_at']);
+        $this->assertEquals($this->at('2026-10-14 06:00'), $op['planned_end_at']);
+    }
+
+    public function test_two_night_step_skips_an_absent_night(): void
+    {
+        $this->nightsOnly();
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->absent($workers, '2026-10-13');
+        $order = $this->job($line, $type, 960);
+
+        $ops = $this->opsFor($this->schedule(), $order);
+
+        $this->assertCount(1, $ops);
+        $this->assertEquals($this->at('2026-10-14 22:00'), $ops[0]['planned_start_at']);
+        $this->assertEquals($this->at('2026-10-16 06:00'), $ops[0]['planned_end_at']);
+    }
+
+    public function test_a_staffing_rejection_retries_at_the_next_shift_start_not_mid_shift(): void
+    {
+        // Night 22:30–06:00 runs straight into Day 06:00–14:00, so the calendar
+        // reads one window; Monday's absence blocks Monday's night but not
+        // Tuesday's day shift, which must start on time.
+        $this->nightsOnly(start: '22:30');
+        Shift::create(['name' => 'Day 2', 'code' => 'D2', 'start_time' => '06:00', 'end_time' => '14:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->absent($workers, '2026-10-12');
+        $order = $this->job($line, $type, 60);
+
+        $this->assertEquals($this->at('2026-10-13 06:00'), $this->start($this->schedule(), $order));
+    }
+
+    public function test_an_absence_the_day_before_the_horizon_stales_a_night_shift_draft(): void
+    {
+        $this->nightsOnly([7, 1, 2, 3, 4, 5]);
+        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
+        $this->job($line, $type, 60);
+        $user = User::factory()->create();
+        $service = app(ScheduleSimulationService::class);
+        $draft = $service->generate($this->request(['start' => $this->at('2026-10-12 00:00')]), $user);
+
+        // Sunday's night shift runs into Monday, the first day of the horizon.
+        $this->absent($workers, '2026-10-11');
+
+        $this->assertSame('staffing', $service->staleReason($draft->fresh())['code']);
+    }
+
     // ── Gap probes: what a planner would expect but the scheduler does not do ─
 
     public function test_probe_a_person_on_two_lines_is_not_booked_on_both_at_once(): void
@@ -264,20 +381,6 @@ class WorkforceScenariosTest extends TestCase
 
         $this->assertEquals($this->at('2026-10-12 06:00'), $this->start($result, $a));
         $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $b), 'only one person holds either skill');
-    }
-
-    public function test_probe_night_shift_started_before_an_absence_day_is_not_blocked(): void
-    {
-        $this->markTestIncomplete('Known scheduler gap, fixed by its own follow-up task — delete this line there.');
-
-        Shift::query()->update(['is_active' => false]);
-        Shift::create(['name' => 'Night', 'code' => 'N', 'start_time' => '22:00', 'end_time' => '06:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
-        [$line, $type, $workers] = $this->cell(stations: 1, people: 1);
-        // Away on Tuesday — i.e. Tuesday's night shift, not Monday's.
-        $this->absent($workers, '2026-10-13');
-        $order = $this->job($line, $type, 480);
-
-        $this->assertEquals($this->at('2026-10-12 22:00'), $this->start($this->schedule(), $order));
     }
 
     // ── A draft goes stale when its staffing changes ────────────────────────

@@ -201,6 +201,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Absences no longer block the night shift that started the evening before.** An absence
+  recorded for a date now takes the worker out of the shifts that *start* on that date, the
+  payroll convention. With a 22:00–06:00 night shift and the only operator away on Tuesday,
+  *Scheduler → Automatic scheduling* now plans an 8 h step Monday 22:00 → Tuesday 06:00,
+  instead of starting it Wednesday 00:00 in the middle of a shift and splitting it across two
+  nights. A Monday absence still blocks Monday's night shift. After a staffing conflict the
+  scheduler retries at the next shift start as well as an hour later, so back-to-back shifts
+  no longer get work started mid-shift. A draft also goes stale on an absence the day before
+  its horizon when a shift crosses midnight. The workforce contracts' docblocks now state this
+  meaning for providers outside core; the capacity grid's crew axis already counted night
+  shifts this way.
 - **Auto-schedule drafts go stale when staffing changes.** A simulation generated with
   *Respect operator availability* now notices when, after *Generate*, an operator is assigned
   to or removed from a line, a worker moves station, is deactivated or flagged logistics, a
