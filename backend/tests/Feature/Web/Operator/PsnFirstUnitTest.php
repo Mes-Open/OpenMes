@@ -84,6 +84,37 @@ class PsnFirstUnitTest extends TestCase
         $this->assertNull(SerialUnit::where('psn', 'P-0100')->value('serial_no'));
     }
 
+    public function test_an_sn_label_issued_ahead_goes_onto_the_unit_started_on_its_psn(): void
+    {
+        LotSequence::create(['name' => 'SN', 'product_type_id' => $this->wo->product_type_id, 'purpose' => LotSequence::PURPOSE_UNIT_SERIAL, 'prefix' => '', 'pattern' => 'SN[seq]', 'pad_size' => 4, 'next_number' => 1, 'reset_period' => 'none']);
+        $started = SerialUnit::findOrFail($this->send('operator.unit-labels.start', ['psn' => 'P-0500', 'work_order_id' => $this->wo->id])->assertCreated()->json('unit.id'));
+        // Labels printed ahead of the line, each registered with a number pair.
+        $this->send('operator.unit-labels.issue-batch', ['work_order_id' => $this->wo->id, 'quantity' => 2])->assertCreated()
+            ->assertJsonPath('units.0.serial_no', 'SN0001')->assertJsonPath('units.0.psn', 'P-0001');
+
+        $this->send('operator.unit-labels.apply', ['serial_no' => 'SN0001', 'psn' => 'P-0500', 'work_order_id' => $this->wo->id])->assertOk()
+            ->assertJsonPath('unit.id', $started->id)->assertJsonPath('unit.serial_no', 'SN0001');
+
+        $this->assertSame(2, SerialUnit::count(), 'the placeholder of SN0001 is gone, SN0002 still waits');
+        $this->assertNull(SerialUnit::where('psn', 'P-0001')->first());
+        $issued = $started->history()->get()->firstWhere(fn ($h) => ($h->parameters['event'] ?? null) === 'issued');
+        $this->assertSame('SN0001', $issued->parameters['serial_no']);
+        $this->assertSame('P-0001', $issued->parameters['superseded_psn']);
+    }
+
+    public function test_an_issued_number_already_in_use_is_not_taken_over(): void
+    {
+        LotSequence::create(['name' => 'SN', 'product_type_id' => $this->wo->product_type_id, 'purpose' => LotSequence::PURPOSE_UNIT_SERIAL, 'prefix' => '', 'pattern' => 'SN[seq]', 'pad_size' => 4, 'next_number' => 1, 'reset_period' => 'none']);
+        $this->send('operator.unit-labels.start', ['psn' => 'P-0600', 'work_order_id' => $this->wo->id])->assertCreated();
+        $this->send('operator.unit-labels.issue-batch', ['work_order_id' => $this->wo->id, 'quantity' => 1])->assertCreated();
+        // The issued unit got a component: it is a real unit now, not a placeholder.
+        $this->send('operator.unit-labels.component', ['serial_no' => 'SN0001', 'identifier' => 'CMP-9'])->assertOk();
+
+        $this->send('operator.unit-labels.apply', ['serial_no' => 'SN0001', 'psn' => 'P-0600'])->assertStatus(422);
+        $this->assertNull(SerialUnit::where('psn', 'P-0600')->value('serial_no'));
+        $this->assertSame(2, SerialUnit::count());
+    }
+
     public function test_a_psn_batch_starts_units_without_a_serial_number(): void
     {
         $this->send('operator.unit-labels.issue-batch', ['work_order_id' => $this->wo->id, 'quantity' => 3, 'psn_only' => true])->assertCreated()

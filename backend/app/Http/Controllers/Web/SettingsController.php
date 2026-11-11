@@ -632,6 +632,8 @@ class SettingsController extends Controller
             'unit_psn_pattern' => trim($validated['unit_psn_pattern'] ?? ''),
             'unit_psn_required' => (bool) ($validated['unit_psn_required'] ?? false),
             'unit_psn_unique' => (bool) ($validated['unit_psn_unique'] ?? false),
+            'unit_pack_requires_serial' => (bool) ($validated['unit_pack_requires_serial'] ?? false),
+            'unit_pack_requires_order' => (bool) ($validated['unit_pack_requires_order'] ?? false),
             'unit_test_fail_policy' => $validated['unit_test_fail_policy'] ?? \App\Support\UnitSerialisation::FAIL_BLOCK,
             'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
             'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,

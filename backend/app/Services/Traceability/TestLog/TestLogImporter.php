@@ -35,7 +35,7 @@ class TestLogImporter
      * `operator` attributes every run to that user; `actor` is who to fall back
      * to when the log names nobody we know (the API token's user, for a tester).
      *
-     * @param  array{work_order?: ?WorkOrder, workstation?: ?Workstation, operator?: ?User, actor?: ?User, source?: ?string}  $options
+     * @param  array{work_order?: ?WorkOrder, workstation?: ?Workstation, operator?: ?User, actor?: ?User, source?: ?string, record_only?: bool}  $options
      * @return array{status: string, unit: SerialUnit, entry: ?UnitStepHistory}
      */
     public function import(TestRun $run, array $options = []): array
@@ -99,6 +99,7 @@ class TestLogImporter
                     ...$run->extra,
                 ], fn ($v) => $v !== null && $v !== []),
                 'result' => $run->verdict,
+                'skip_fail_policy' => ! empty($options['record_only']),
                 'notes' => $this->notes($run),
                 'processed_at' => $run->processedAt(),
             ]);
