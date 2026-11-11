@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import { StatusDot } from '../ui';
+import GatewaySetupGuide from './GatewaySetupGuide';
 import { __ } from '../../../../lib/i18n';
 
 export default function OpcuaIndex() {
@@ -37,6 +38,8 @@ export default function OpcuaIndex() {
                         {__('New Connection')}
                     </Link>
                 </div>
+
+                <GatewaySetupGuide open={connections.length === 0} />
 
                 {connections.length === 0 ? (
                     <div className="text-center py-16 text-om-faint">

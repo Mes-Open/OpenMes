@@ -6,6 +6,9 @@ import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
 import { __ } from '../../../lib/i18n';
 
+const requiredLabel = (r) => (r.required ? __('Yes') : '—');
+const statusLabel = (r) => (r.is_active ? __('Active') : __('Inactive'));
+
 export default function CustomFieldsIndex() {
     const { definitions = [], entities = [] } = usePage().props;
     const [entity, setEntity] = useState('');
@@ -53,10 +56,11 @@ export default function CustomFieldsIndex() {
         },
         {
             id: 'required',
-            accessorFn: (r) => (r.required ? 1 : 0),
+            // Search, sort and filter on what the cell shows, not a 1/0 flag.
+            accessorFn: requiredLabel,
             header: __('Required'),
             meta: { align: 'center' },
-            cell: ({ row }) => (row.original.required ? __('Yes') : '—'),
+            cell: ({ row }) => requiredLabel(row.original),
         },
         {
             id: 'position',
@@ -67,12 +71,12 @@ export default function CustomFieldsIndex() {
         },
         {
             id: 'status',
-            accessorFn: (r) => (r.is_active ? 1 : 0),
+            accessorFn: statusLabel,
             header: __('Status'),
             meta: { align: 'center' },
             cell: ({ row }) => (
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${row.original.is_active ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-muted'}`}>
-                    {row.original.is_active ? __('Active') : __('Inactive')}
+                    {statusLabel(row.original)}
                 </span>
             ),
         },

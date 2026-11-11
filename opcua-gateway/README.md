@@ -18,7 +18,24 @@ practically. A dedicated gateway is the standard, production-correct approach.
    (`opc.tcp://host:4840`), security and auth.
 2. Add **nodes** (tags): node id (`ns=2;s=State`), data type, signal type
    (state/good_count/…), and the workstation it belongs to.
-3. **Admin → API Tokens** — create a token for the gateway.
+3. **Settings → API Tokens** — create a token with access
+   **Machine gateway (OPC UA)** (the *Create one* link on the connection page
+   opens this with the scope already picked). Such a token can only fetch the
+   gateway config and post readings/heartbeats. Put it in the `.env` file next
+   to `docker-compose.yml` as `OPENMES_API_TOKEN=…`.
+
+> **OPC UA server on the same machine?** Inside the container `localhost` /
+> `127.0.0.1` is the gateway itself. Use `opc.tcp://host.docker.internal:4840`
+> (mapped for Linux too in `docker-compose.yml`) or the host's IP address. On
+> Linux that address is the Docker bridge, so a server listening only on
+> `127.0.0.1` stays unreachable: make it listen on the bridge address (usually
+> `172.17.0.1`), or on `0.0.0.0` behind a firewall.
+
+> **Changing the token?** `docker compose restart` keeps the old value. After
+> editing `.env`, recreate the container from the folder with
+> `docker-compose.yml`, with no `OPENMES_API_TOKEN` exported in your shell (it
+> would override `.env`):
+> `OPCUA_CONNECTION_ID=<id> docker compose --profile connectivity up -d opcua-gateway`.
 
 ## Run
 
@@ -45,7 +62,7 @@ OPCUA_CONNECTION_ID=<id> \
 | Var | Required | Default | Notes |
 |---|---|---|---|
 | `OPENMES_API_URL` | yes | `http://localhost:8000` | OpenMES backend base URL |
-| `OPENMES_API_TOKEN` | yes | — | Sanctum API token |
+| `OPENMES_API_TOKEN` | yes | — | Machine gateway token (Settings → API Tokens) |
 | `OPCUA_CONNECTION_ID` | yes | `1` | machine_connection id (protocol = opcua) |
 | `OPCUA_PASSWORD` | if username auth | — | OPC UA user password |
 | `HEARTBEAT_MS` | no | `10000` | runtime heartbeat interval |
@@ -53,4 +70,15 @@ OPCUA_CONNECTION_ID=<id> \
 
 The connection page in OpenMES shows whether this gateway is currently running
 (it heartbeats every `HEARTBEAT_MS`). If it is stopped, the page tells the user
-exactly how to start it.
+exactly how to start it. If it is running but cannot reach the OPC UA server, or
+loses an established connection, it sends error heartbeats with the reason until
+the session and subscriptions are back, and the page shows that reason.
+
+## Troubleshooting
+
+| Log line | Cause |
+|---|---|
+| `config fetch failed: 401` | `OPENMES_API_TOKEN` missing, mistyped or revoked |
+| `config fetch failed: 403` | token without gateway access |
+| `config fetch failed: 404` | `OPCUA_CONNECTION_ID` does not exist |
+| `retry N, next in …` / connection refused | OPC UA endpoint unreachable — see the note on `127.0.0.1` above |

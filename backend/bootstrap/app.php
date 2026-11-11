@@ -66,6 +66,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // the browser and not to the mobile app or an integration, which
             // is the half that matters least.
             \App\Http\Middleware\EnsurePasswordChanged::class,
+            // Machine-gateway tokens work on the gateway routes only — applied to
+            // the whole group so module route files are covered too (fail closed).
+            \App\Http\Middleware\RejectMachineGatewayToken::class,
         ]);
 
         // Register Spatie Permission middleware
@@ -79,6 +82,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'scope' => \App\Http\Middleware\EnsureApiScope::class,
             // Gate a route on an optional feature module (ModuleRegistry) being on.
             'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+            // Sanctum token abilities (machine-gateway routes).
+            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -32,6 +32,8 @@ const DISPOSITION_LABELS = {
     return_to_supplier: 'Return to supplier',
     use_as_is: 'Use as is',
 };
+// No disposition yet reads as "Pending", same as an explicit `pending`.
+const dispositionLabel = (r) => __(DISPOSITION_LABELS[r.disposition] ?? r.disposition ?? 'Pending');
 const NC_SOURCE_LABELS = { internal: 'Internal', external: 'External', supplier: 'Supplier' };
 
 // Action lifecycle (open → in_progress → done → verified) mapped onto the
@@ -98,17 +100,18 @@ export default function IssuesIndex() {
         { key: 'reported_at', filter: 'date', label: __('Reported'), className: 'text-om-muted', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
         {
             key: 'status', label: __('Status'),
-           
+            value: (r) => __(r.status),
             render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{__(r.status)}</span>,
         },
         {
             key: 'disposition', label: __('Disposition'),
-           
+            value: dispositionLabel,
             allLabel: __('All dispositions'),
-            options: Object.keys(DISPOSITION_LABELS).map((value) => ({ value, label: __(DISPOSITION_LABELS[value]) })),
+            // Labels as values: the filter compares against the accessor above.
+            options: Object.values(DISPOSITION_LABELS).map((label) => __(label)),
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DISPOSITION_STYLES[r.disposition] ?? 'bg-om-chip text-om-muted'}`}>
-                    {__(DISPOSITION_LABELS[r.disposition] ?? r.disposition ?? 'Pending')}
+                    {dispositionLabel(r)}
                 </span>
             ),
         },

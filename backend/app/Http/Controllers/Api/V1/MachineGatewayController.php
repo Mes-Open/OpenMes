@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\IngestMachineSignalsRequest;
+use App\Http\Requests\Api\V1\MachineGatewayHeartbeatRequest;
 use App\Models\MachineConnection;
 use App\Models\MachineTag;
 use App\Services\Machine\MachineSignalIngestor;
@@ -97,10 +98,28 @@ class MachineGatewayController extends Controller
      * what keeps an unchanging machine — one sitting in FAULT, say — from
      * reading as "No data" on the plant overview: its stations are marked as
      * heard from.
+     *
+     * A gateway that is running but cannot reach its machine sends
+     * `status: error` with the reason: it still counts as alive (the container
+     * is up), the connection is put into error with that message, and the
+     * stations are NOT marked as heard from — nothing was read from them.
      */
-    public function heartbeat(MachineConnection $machineConnection, WorkstationStateMachine $states): JsonResponse
-    {
+    public function heartbeat(
+        MachineGatewayHeartbeatRequest $request,
+        MachineConnection $machineConnection,
+        WorkstationStateMachine $states,
+    ): JsonResponse {
         $this->runtime->heartbeat($machineConnection->protocol, $machineConnection->id);
+
+        if ($request->isError()) {
+            $machineConnection->markError((string) $request->validated('message'));
+
+            return response()->json(['ok' => true]);
+        }
+
+        if ($machineConnection->status !== MachineConnection::STATUS_CONNECTED) {
+            $machineConnection->markConnected();
+        }
         $states->markConnectionSignal($machineConnection);
 
         return response()->json(['ok' => true]);
