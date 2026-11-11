@@ -7302,5 +7302,9 @@
     "Use this address": "Use this address",
     "Local OPC UA server (on this computer)?": "Local OPC UA server (on this computer)?",
     "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.": "If the OPC UA server (e.g. a simulator for testing) runs locally on the same computer as OpenMES, use :address. For a real machine or PLC on the shop floor, use its IP address.",
-    "Use the local server address": "Use the local server address"
+    "Use the local server address": "Use the local server address",
+    "Sort by": "Sort by",
+    "Newest entered": "Newest entered",
+    "Recent activity": "Recent activity",
+    "Recently completed": "Recently completed"
 }

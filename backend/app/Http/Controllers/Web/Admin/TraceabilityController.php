@@ -140,7 +140,9 @@ class TraceabilityController extends Controller
                     'completed_by' => $s->completedBy?->name,
                     'started_at' => $s->started_at ? Carbon::parse($s->started_at)->format('Y-m-d H:i') : null,
                     'completed_at' => $s->completed_at ? Carbon::parse($s->completed_at)->format('Y-m-d H:i') : null,
-                    'duration_minutes' => $s->duration_minutes ?? self::minutesBetween($s->started_at, $s->completed_at),
+                    // The stored duration_minutes is whole minutes (floored); the stamps
+                    // give the real run time to the second.
+                    'duration_minutes' => self::minutesBetween($s->started_at, $s->completed_at) ?? $s->duration_minutes,
                     'waited_minutes' => $i > 0 ? self::minutesBetween($steps[$i - 1]->completed_at, $s->started_at) : null,
                     'consumptions' => ($byStep[$s->id] ?? collect())->map(fn ($c) => [
                         'lot_number' => $c->materialLot?->lot_number,
@@ -182,8 +184,12 @@ class TraceabilityController extends Controller
         ];
     }
 
-    /** Whole minutes from one stamp to the next; null unless both exist and are in order. */
-    private static function minutesBetween($from, $to): ?int
+    /**
+     * Minutes from one stamp to the next, to the second (fractional), so a step
+     * that ran 48 s reads "48s" rather than being floored to 0. Null unless both
+     * exist and are in order.
+     */
+    private static function minutesBetween($from, $to): ?float
     {
         if (! $from || ! $to) {
             return null;
@@ -191,11 +197,11 @@ class TraceabilityController extends Controller
         $a = Carbon::parse($from);
         $b = Carbon::parse($to);
 
-        return $b->lt($a) ? null : (int) $a->diffInMinutes($b);
+        return $b->lt($a) ? null : round($a->diffInSeconds($b) / 60, 4);
     }
 
     /** First start to last finish across the batch's steps. */
-    private function batchLeadTime($steps): ?int
+    private function batchLeadTime($steps): ?float
     {
         $starts = $steps->pluck('started_at')->filter();
         $ends = $steps->pluck('completed_at')->filter();
