@@ -219,8 +219,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *"Painting is held only by Jan Kowalski."* The *Staffing* panel flags every required skill
   only one person on a line holds, on the lines where a step needing it can run — *"Painting — single qualified operator: Jan Kowalski"* —
   and the simulation's `workforce` section lists them as `single_holder_skills`. When several
-  machines would finish a step at the same time, it now goes to the one only people held
-  back, so its reason shows the real cause. Providers that only return counts, or that do not
+  machines of one line would finish a step at the same time, it now goes to the one only
+  people held back, so its reason shows the real cause; the order's own line still wins over
+  another line. Steps already in the plan keep holding the people with their skills when the
+  planner generates again. Providers that only return counts, or that do not
   record skills, behave as before.
 
 - **Absences no longer block the night shift that started the evening before.** An absence

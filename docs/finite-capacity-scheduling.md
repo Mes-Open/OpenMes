@@ -192,9 +192,16 @@ qualified people too when they are short, since that is what the planner can act
 on. A step left unplaced for lack of qualified
 people names the scarcest of its skills on the line and who holds it, absences
 ignored: *"Painting is held only by Jan Kowalski."* (`bottleneck_skill`,
-`skill_holders`). When several resources would finish a step at the same time,
-the one only people held back wins the tie, so the reason shown is the one that
-bound.
+`skill_holders`). When several stations of one line would finish a step at
+the same time, the one only people held back wins the tie, so the reason shown
+is the one that bound; across lines the order's own line still wins. When only
+some of the qualified people were busy the reason says so: *"Waited: 2 of 3
+qualified operators for Welding (…) busy with other work."*
+
+Operations already committed to the plan hold people with their step's skills,
+read from the order's frozen routing, so generating again does not hand a
+committed Painting step to someone who cannot paint. An order planned only as a
+whole (a minute plan, no operations) holds anyone on its line, as before.
 
 The `workforce` section lists, per line, `single_holder_skills`: the skills some
 step of the run that may run on that line requires, held there by exactly one

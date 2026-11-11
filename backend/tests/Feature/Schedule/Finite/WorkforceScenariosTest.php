@@ -940,6 +940,83 @@ class WorkforceScenariosTest extends TestCase
         $this->assertSame([], $workforce[$turn->id]['single_holder_skills']);
     }
 
+    public function test_committed_skilled_work_holds_its_skill_holder_across_runs(): void
+    {
+        $this->recordSkills();
+        [$line, $type, [$both]] = $this->cell(stations: 2, people: 2);
+        $stations = \App\Models\Workstation::where('line_id', $line->id)->orderBy('id')->pluck('id');
+        $painting = $this->line();
+        $welding = $this->line();
+        $both->skills()->attach([$painting->id, $welding->id]);
+        // Applied earlier: a Painting step on the first station, Monday 06:00–07:00.
+        $applied = $this->job($line, $type, 60, ['required_skill_ids' => [$painting->id]], [
+            'status' => \App\Models\WorkOrder::STATUS_ACCEPTED,
+            'planned_start_at' => $this->at('2026-10-12 06:00'),
+            'planned_end_at' => $this->at('2026-10-12 07:00'),
+        ]);
+        \App\Models\ScheduledOperation::create([
+            'work_order_id' => $applied->id, 'step_number' => 10, 'workstation_id' => $stations[0],
+            'line_id' => $line->id, 'planned_start_at' => $this->at('2026-10-12 06:00'), 'planned_end_at' => $this->at('2026-10-12 07:00'),
+            'status' => ScheduledOperationStatus::Scheduled, 'required_operators' => 1, 'resource_source' => \App\Models\ScheduledOperation::SOURCE_AUTO,
+        ]);
+        $weld = $this->job($line, $type, 60, ['required_skill_ids' => [$welding->id]]);
+
+        $result = $this->schedule();
+
+        // The other person cannot paint, so the committed step keeps the only holder busy.
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $weld));
+        $this->assertNotNull($this->qualifiedWaitReason($result, $weld));
+    }
+
+    public function test_the_wait_says_how_many_of_the_qualified_people_were_busy(): void
+    {
+        $this->recordSkills();
+        [$line, $type, $workers] = $this->cell(stations: 3, people: 3);
+        $skill = $this->line(['name' => 'Welding']);
+        foreach ($workers as $worker) {
+            $worker->skills()->attach($skill->id);
+        }
+        $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$skill->id]], ['priority' => 2]);
+        $pair = $this->job($line, $type, 60, ['required_operators' => 2, 'required_skill_ids' => [$skill->id]], ['priority' => 1]);
+
+        $result = $this->schedule();
+
+        $this->assertEquals($this->at('2026-10-12 07:00'), $this->start($result, $pair));
+        $waited = $this->qualifiedWaitReason($result, $pair);
+        $this->assertSame(3, $waited['available']);
+        $this->assertSame(2, $waited['busy']);
+        $this->assertStringStartsWith('Waited: 2 of 3 qualified operators for Welding (', $waited['message']);
+        $this->assertStringEndsWith(') busy with other work.', $waited['message']);
+    }
+
+    public function test_a_tie_with_a_station_on_another_line_still_goes_to_the_own_line(): void
+    {
+        $this->recordSkills();
+        $type = WorkstationType::factory()->create();
+        $other = WorkstationType::factory()->create();
+        $own = $this->line();
+        $far = $this->line();
+        $ownStation = $this->station($own, $type);
+        $farStation = $this->station($far, $type);
+        $farBench = $this->station($far, $other);
+        $skill = $this->line();
+        $mine = Worker::factory()->create(['workstation_id' => $ownStation->id]);
+        $theirs = Worker::factory()->create(['workstation_id' => $farStation->id]);
+        $mine->skills()->attach($skill->id);
+        $theirs->skills()->attach($skill->id);
+        // The own station's machine is busy 06:00–07:00 ...
+        $this->order($own, [['estimated_duration_minutes' => 60, 'workstation_id' => $ownStation->id]], ['priority' => 3]);
+        // ... and the far line's only welder is busy then too.
+        $this->order($far, [['estimated_duration_minutes' => 60, 'workstation_id' => $farBench->id, 'required_skill_ids' => [$skill->id]]], ['priority' => 2]);
+        $order = $this->job($own, $type, 60, ['required_skill_ids' => [$skill->id]], ['priority' => 1]);
+
+        $op = $this->opsFor($this->schedule(), $order)[0];
+
+        // Both stations free up at 07:00; the order's own line wins the tie.
+        $this->assertEquals($this->at('2026-10-12 07:00'), $op['planned_start_at']);
+        $this->assertSame($ownStation->id, $op['workstation_id']);
+    }
+
     public function test_workforce_section_lists_required_skills_with_a_single_holder(): void
     {
         $this->recordSkills();

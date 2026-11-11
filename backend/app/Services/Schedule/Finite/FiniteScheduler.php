@@ -35,8 +35,8 @@ use Illuminate\Support\Collection;
  *  4. Each operation is tried on every eligible resource — the workstation the
  *     routing or batch step fixes, else the active stations of its equipment
  *     class (workstation_type_id), else the order's line as a whole — and lands
- *     where it finishes first. Ties prefer a resource that only people held
- *     back, then the order's own line, then the lower station id.
+ *     where it finishes first. Ties prefer the order's own line, then — among
+ *     its stations — one that only people held back, then the lower station id.
  *  5. On a resource, a slot must fit the shift calendar minus maintenance,
  *     stretched by the line's planning efficiency; must not overlap anything
  *     already booked; and, where the workforce provider tracks people, must
@@ -318,16 +318,36 @@ class FiniteScheduler
             $key = $op->workstation_id ? 'ws:'.$op->workstation_id : 'line:'.$op->line_id;
             $this->timeline->book($key, $start, $end, $this->attributesOf($op->workOrder));
             if ($op->line_id) {
-                $this->timeline->bookLabor((int) $op->line_id, $start, $end, (int) $op->required_operators);
+                $this->timeline->bookLabor((int) $op->line_id, $start, $end, (int) $op->required_operators, $this->stepSkills($op->workOrder, (int) $op->step_number));
             }
         }
 
+        // A minute plan is one block for the whole order, not step by step, so
+        // no one step's skills apply to it: anyone on its line may staff it.
         foreach ($minutePlanned as $order) {
             $start = ResourceCalendar::toMinutes($order->planned_start_at);
             $end = ResourceCalendar::toMinutes($order->planned_end_at);
             $this->timeline->book('line:'.$order->line_id, $start, $end, $this->attributesOf($order));
             $this->timeline->bookLabor((int) $order->line_id, $start, $end, (int) round($order->operatorFactor()));
         }
+    }
+
+    /**
+     * The skills a routing step requires, from the order's frozen snapshot —
+     * the same source {@see OperationProjector} reads — so committed work
+     * holds people who hold them, not just anyone on the line.
+     *
+     * @return list<int>
+     */
+    private function stepSkills(?WorkOrder $order, int $stepNumber): array
+    {
+        foreach ($order?->process_snapshot['steps'] ?? [] as $step) {
+            if ((int) ($step['step_number'] ?? 0) === $stepNumber) {
+                return array_values(array_map('intval', $step['required_skill_ids'] ?? []));
+            }
+        }
+
+        return [];
     }
 
     /**
@@ -376,10 +396,12 @@ class FiniteScheduler
 
                 continue;
             }
-            // On a tie, the resource only people held back: its machine was
-            // free, so the reason it carries is the one that really bound.
+            // On a tie between stations of the same line, the one only people
+            // held back: its machine was free, so the reason it carries is the
+            // one that really bound. Across lines the own line still wins.
             if ($best === null || $slot['end'] < $best['slot']['end']
-                || ($slot['end'] === $best['slot']['end'] && $slot['waited'] !== null && $best['slot']['waited'] === null)) {
+                || ($slot['end'] === $best['slot']['end'] && $candidate['line_id'] === $best['candidate']['line_id']
+                    && $slot['waited'] !== null && $best['slot']['waited'] === null)) {
                 $best = ['candidate' => $candidate, 'slot' => $slot];
             }
         }
@@ -666,7 +688,12 @@ class FiniteScheduler
      * Only needed where skills are involved — the step needs some, or a step
      * booked in the window does; otherwise the headcount checks already are
      * the matching. Each stretch of constant booked load is matched on its
-     * own, as {@see pooledShortfall()} does.
+     * own, as {@see pooledShortfall()} does. Who may fill a booked step is read
+     * for the new step's window, not the booked step's own: over a multi-day
+     * window an absence on a day the booked step does not cover still takes
+     * that person out of it, which can leave its places unfilled and overstate
+     * what is spare — the same approximation the pooled check makes. Windows
+     * are mostly within one shift, where the two coincide.
      *
      * @return array{spare: int, eligible_keys: list<string>, busy_lines: list<array{line_id: int, line_name: string, operators: int}>}|null
      */
@@ -938,10 +965,17 @@ class FiniteScheduler
             'names' => implode(', ', array_column($workers, 'name')),
             'lines' => $this->lineNames($waited['busy_lines']),
         ];
+        // Of them, how many were busy: "all" only when it was every one.
+        $busy = min((int) $waited['in_use'], count($workers));
+        $params['busy'] = $busy;
         $one = count($workers) === 1;
+        $all = $busy >= count($workers);
+        $held = $waited['busy_lines'] !== [];
         $message = match (true) {
-            $waited['busy_lines'] === [] && $one => __('Waited: only :count qualified operator for :skills (:names), busy with other work.', $params),
-            $waited['busy_lines'] === [] => __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', $params),
+            ! $all && ! $held => __('Waited: :busy of :count qualified operators for :skills (:names) busy with other work.', $params),
+            ! $all => __('Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.', $params),
+            ! $held && $one => __('Waited: only :count qualified operator for :skills (:names), busy with other work.', $params),
+            ! $held => __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', $params),
             $one => __('Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.', $params),
             default => __('Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.', $params),
         };
@@ -952,6 +986,7 @@ class FiniteScheduler
             'line_id' => $waited['line_id'],
             'busy_lines' => $waited['busy_lines'],
             'available' => count($workers),
+            'busy' => $busy,
             'required_skill_ids' => $waited['skill_ids'],
             'required_skills' => $skills,
             'qualified_workers' => $workers,
