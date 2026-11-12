@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Auto-schedule staffing breakdown.** After *Simulate* on *Scheduler → Automatic
+  scheduling*, a *Staffing by shift* table lists every line, day and shift run of the horizon
+  with present/assigned operators (e.g. *2/3*), who is absent by name, the planned
+  person-hours and peak operators, and the shortfall in red. Lines without tracked staffing are
+  marked *staffing not tracked*. A step that people pushed past the slot its machines allowed
+  now says so: *"Delayed by staffing: 12.10 06:00 → 13.10 06:00 — Needs 3 operators, 2
+  available (1 absent: Jan Kowalski)."* — its status stays *Scheduled* / *Scheduled late*. An
+  *Absences in this horizon* list names each absent person with the work orders their absence
+  delayed or blocked. The same data is in the simulation API as `staffing` and as the
+  `delayed_by_staffing` reason.
 - **Auto-schedule explains people shortfalls.** When *Scheduler → Automatic scheduling*
   cannot place a step for lack of people, the simulation now says how many it needs and how
   many there were: *"Needs 3 operators, 2 available (1 absent: Jan Kowalski)."*, plus how many

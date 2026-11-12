@@ -107,6 +107,7 @@ class FiniteScheduler
      *     resources: list<array<string, mixed>>,
      *     counts: array<string, int>,
      *     workforce: list<array{line_id: int, line_name: string, tracked: bool, assigned: ?int, respected: bool, single_holder_skills: list<array{skill_id: int, skill_name: ?string, holder_name: ?string}>}>,
+     *     staffing: array{shifts: list<array<string, mixed>>, absences: list<array<string, mixed>>},
      *     inputs_fingerprint: string,
      *     staffing_fingerprint: ?string
      * }
@@ -191,12 +192,17 @@ class FiniteScheduler
             $summaries[] = $this->summarizeOrder($order, $orderResults, isset($shortages[$order->id]));
         }
 
+        $workforce = $this->workforceByLine($request->start, $request->end);
+
         return [
             'operations' => $operations,
             'work_orders' => $summaries,
             'resources' => $this->resourceLoads(),
             'counts' => $this->counts($operations),
-            'workforce' => $this->workforceByLine($request->start, $request->end),
+            'workforce' => $workforce,
+            'staffing' => (new StaffingOverview(
+                $this->calendar->shifts(), $this->lines, $this->timeline, $this->workforce, $workforce, $horizonStart, $horizonEnd,
+            ))->build($operations),
             'inputs_fingerprint' => $this->inputsFingerprint($orders->pluck('id')->all(), $request->start, $request->end),
             // A run that ignored people did not read them, so nothing there can make it stale.
             'staffing_fingerprint' => $request->respectWorkforce ? $this->staffingFingerprint($request->start, $request->end) : null,
@@ -474,7 +480,11 @@ class FiniteScheduler
      * refusal was people busy with other work too; null once a machine
      * conflict, a changeover or a plain lack of people pushed it instead.
      *
-     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
+     * It also carries `machine_start`, the start the machines alone allowed on
+     * this resource, and `first_labor`, the people shortfall that refused it
+     * (null when people never refused a window).
+     *
+     * @return array{ok: true, start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>, machine_start: ?int, first_labor: ?array<string, mixed>}|array{ok: false, failures: list<string>, labor: array<string, array<string, mixed>>}
      */
     private function findSlot(OperationDemand $demand, array $candidate, int $earliest, int $horizonEnd): array
     {
@@ -485,6 +495,10 @@ class FiniteScheduler
         $closest = [];
         $waited = null;
         $laborLines = $this->pool?->groupOf($candidate['line_id']) ?? [$candidate['line_id']];
+        // Where the machines alone would have put the step, and the people
+        // check that refused that window — see delayedByStaffingReason().
+        $machineStart = null;
+        $firstLabor = null;
 
         $t = $earliest;
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
@@ -536,6 +550,12 @@ class FiniteScheduler
             }
 
             $labor = $this->laborShortfall($demand, $candidate['line_id'], $t, $end);
+            if ($machineStart === null) {
+                // Every check above is a machine check, so the first window to
+                // reach people is where a people-blind run would have placed it.
+                $machineStart = $t;
+                $firstLabor = $labor;
+            }
             if ($labor !== null) {
                 $failures[] = $labor['code'];
                 $closest[$labor['code']] = $this->closerShortfall($closest[$labor['code']] ?? null, $labor);
@@ -564,7 +584,10 @@ class FiniteScheduler
                 continue;
             }
 
-            return ['ok' => true, 'start' => $t, 'end' => $end, 'setup' => $setup['minutes'], 'duration' => $duration, 'rule_id' => $setup['rule_id'], 'waited' => $waited];
+            return [
+                'ok' => true, 'start' => $t, 'end' => $end, 'setup' => $setup['minutes'], 'duration' => $duration,
+                'rule_id' => $setup['rule_id'], 'waited' => $waited, 'machine_start' => $machineStart, 'first_labor' => $firstLabor,
+            ];
         }
 
         $failures[] = 'resource_capacity';
@@ -881,13 +904,15 @@ class FiniteScheduler
             'duration' => $remaining,
             'rule_id' => null,
             'waited' => null,
+            'machine_start' => null,
+            'first_labor' => null,
         ], $sequence, ['code' => 'in_progress', 'message' => __('Already running — kept where it is.')]);
     }
 
     /**
      * Record a placement on the timeline and build its result row.
      *
-     * @param  array{start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>}  $slot
+     * @param  array{start: int, end: int, setup: ?int, duration: int, rule_id: ?int, waited: ?array<string, mixed>, machine_start: ?int, first_labor: ?array<string, mixed>}  $slot
      * @param  array<string, mixed>|null  $note
      * @return array<string, mixed>
      */
@@ -922,6 +947,11 @@ class FiniteScheduler
             ];
         }
 
+        // Last, so it never displaces the reasons above; the status stays as is.
+        if (($slot['first_labor'] ?? null) !== null && $slot['machine_start'] !== null && $slot['start'] > $slot['machine_start']) {
+            $reasons[] = $this->delayedByStaffingReason($slot['machine_start'], $slot['start'], $slot['first_labor']);
+        }
+
         return $this->row($order, $demand, $sequence, $status, $reasons) + [
             'line_id' => $candidate['line_id'],
             'workstation_id' => $candidate['workstation']?->id,
@@ -930,6 +960,46 @@ class FiniteScheduler
             'planned_end_at' => $end,
             'duration_minutes' => $slot['duration'],
             'setup_minutes' => $slot['setup'],
+        ];
+    }
+
+    /**
+     * A placed step that people pushed past the slot the machines allowed:
+     * from where to where, and the people reason for the machine window —
+     * worded exactly like an unplaced step's, absent names included.
+     *
+     * The comparison is on the resource the step landed on. Once people
+     * refused the machine slot the delay is theirs, even if a machine
+     * conflict further on added to it.
+     *
+     * @param  array<string, mixed>  $labor  from {@see laborShortfall()}, for the machine window
+     * @return array<string, mixed>
+     */
+    private function delayedByStaffingReason(int $machineStart, int $plannedStart, array $labor): array
+    {
+        $cause = $this->peopleReason($labor['code'], $labor);
+        $from = ResourceCalendar::toCarbon($machineStart);
+        $to = ResourceCalendar::toCarbon($plannedStart);
+
+        return [
+            'code' => 'delayed_by_staffing',
+            'message' => __('Delayed by staffing: :from → :to — :reason', [
+                'from' => $from->format('Y-m-d H:i'),
+                'to' => $to->format('Y-m-d H:i'),
+                'reason' => $cause['message'],
+            ]),
+            'machine_start' => $from->toIso8601String(),
+            'planned_start' => $to->toIso8601String(),
+            'delay_minutes' => $plannedStart - $machineStart,
+            'line_id' => $cause['line_id'],
+            'required' => $cause['required'],
+            'available' => $cause['available'],
+            'in_use' => $cause['in_use'],
+            'window_start' => $cause['window_start'],
+            'window_end' => $cause['window_end'],
+            'absent_worker_ids' => $cause['absent_worker_ids'],
+            'absent_workers' => $cause['absent_workers'],
+            'cause' => $cause,
         ];
     }
 

@@ -137,6 +137,24 @@ class Timeline
         return $peak;
     }
 
+    /**
+     * Operator-minutes booked on a line within [start, end): each booking's
+     * operators times the part of it inside the window — the person-hours a
+     * plan asks of that stretch, times sixty.
+     */
+    public function laborMinutes(int $lineKey, int $start, int $end): int
+    {
+        $total = 0;
+        foreach ($this->labor[$lineKey] ?? [] as $slot) {
+            $overlap = min($end, $slot['end']) - max($start, $slot['start']);
+            if ($overlap > 0) {
+                $total += $slot['operators'] * $overlap;
+            }
+        }
+
+        return $total;
+    }
+
     /** The first booking end on the line after $t, to retry once people free up. */
     public function nextLaborRelease(int $lineKey, int $t): ?int
     {

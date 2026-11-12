@@ -7333,5 +7333,16 @@
     "Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.": "Czekało: tylko :count operator z kwalifikacją :skills (:names), zajęty inną pracą na: :lines.",
     "Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.": "Czekało: tylko :count operatorów z kwalifikacją :skills (:names), wszyscy zajęci inną pracą, część na: :lines.",
     "Waited: :busy of :count qualified operators for :skills (:names) busy with other work.": "Czekało: :busy z :count operatorów z kwalifikacją :skills (:names) zajętych inną pracą.",
-    "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.": "Czekało: :busy z :count operatorów z kwalifikacją :skills (:names) zajętych inną pracą, część na: :lines."
+    "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.": "Czekało: :busy z :count operatorów z kwalifikacją :skills (:names) zajętych inną pracą, część na: :lines.",
+    "Delayed by staffing: :from → :to — :reason": "Opóźnione przez obsadę: :from → :to — :reason",
+    "Staffing by shift": "Obsada według zmian",
+    "Present": "Obecni",
+    "Absent": "Nieobecni",
+    "Planned person-hours": "Planowane roboczogodziny",
+    "Peak operators": "Szczyt operatorów",
+    "No staffing demand in this horizon.": "Brak zapotrzebowania na obsadę w tym horyzoncie.",
+    "Absences in this horizon": "Nieobecności w tym horyzoncie",
+    "Affected work orders": "Dotknięte zlecenia",
+    "No work orders affected.": "Brak dotkniętych zleceń.",
+    ":count operations blocked": "Zablokowane operacje: :count"
 }

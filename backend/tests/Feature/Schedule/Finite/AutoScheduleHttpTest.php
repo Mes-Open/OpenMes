@@ -2,10 +2,14 @@
 
 namespace Tests\Feature\Schedule\Finite;
 
+use App\Extension\Contracts\Null\NullWorkforceProvider;
+use App\Extension\Contracts\WorkforceProvider;
 use App\Models\ScheduledOperation;
 use App\Models\ScheduleSimulation;
 use App\Models\User;
+use App\Models\Worker;
 use App\Models\WorkstationType;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
@@ -325,5 +329,101 @@ class AutoScheduleHttpTest extends TestCase
             ->assertJsonValidationErrors('horizon_days');
         $this->actingAs($admin, 'sanctum')->getJson('/api/v1/schedule/operations?status[]=bogus')
             ->assertUnprocessable();
+    }
+
+    // ── staffing breakdown ──────────────────────────────────────────────────
+
+    /** Line A: one station, three workers, the first away on Monday; a 3-person step. Line B: untracked. */
+    private function staffingScenario(): array
+    {
+        $lineA = $this->line(['name' => 'Line A']);
+        $lineB = $this->line(['name' => 'Line B']);
+        $station = $this->station($lineA);
+        $workers = collect(['Jan Kowalski', 'Anna Nowak', 'Piotr Lis'])
+            ->map(fn ($name) => Worker::factory()->create(['workstation_id' => $station->id, 'name' => $name]));
+        $absent = ['2026-10-12' => [$workers[0]->id]];
+        $this->app->bind(WorkforceProvider::class, fn () => new class($absent) extends NullWorkforceProvider
+        {
+            public function __construct(private array $absent) {}
+
+            public function absentWorkerIds(CarbonInterface $date): array
+            {
+                return $this->absent[$date->toDateString()] ?? [];
+            }
+        });
+        $orderA = $this->order($lineA, [['estimated_duration_minutes' => 120, 'required_operators' => 3]], ['priority' => 2]);
+        $this->order($lineB, [['estimated_duration_minutes' => 60]], ['priority' => 1]);
+
+        return [$lineA, $lineB, $orderA];
+    }
+
+    public function test_page_props_carry_the_staffing_breakdown(): void
+    {
+        [$lineA, $lineB, $orderA] = $this->staffingScenario();
+        $admin = $this->user('Admin');
+
+        $this->actingAs($admin)->post('/admin/schedule/simulations', ['horizon_days' => 7])->assertRedirect('/admin/schedule/auto');
+
+        $this->actingAs($admin)->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/schedule/AutoSchedule')
+                ->where('draft.staffing.shifts.0.line_id', $lineA->id)
+                ->where('draft.staffing.shifts.0.date', '2026-10-12')
+                ->where('draft.staffing.shifts.0.assigned', 3)
+                ->where('draft.staffing.shifts.0.present', 2)
+                ->where('draft.staffing.shifts.0.absent.0.name', 'Jan Kowalski')
+                ->where('draft.staffing.shifts.0.shortfall', 1)
+                ->where('draft.staffing.shifts.1.date', '2026-10-13')
+                ->where('draft.staffing.shifts.1.peak_operators', 3)
+                ->where('draft.staffing.shifts.1.shortfall', 0)
+                ->where('draft.staffing.shifts.2.line_id', $lineB->id)
+                ->where('draft.staffing.shifts.2.tracked', false)
+                ->where('draft.staffing.shifts.2.shortfall', null)
+                ->where('draft.staffing.absences.0.name', 'Jan Kowalski')
+                ->where('draft.staffing.absences.0.affected_orders.0.order_no', $orderA->order_no)
+                ->where('draft.operations.0.work_order_id', $orderA->id)
+                ->where('draft.operations.0.status', 'scheduled')
+                ->where('draft.operations.0.reasons', fn ($reasons) => collect($reasons)->contains('code', 'delayed_by_staffing')));
+
+        $id = ScheduleSimulation::sole()->id;
+        $this->actingAs($admin, 'sanctum')->getJson("/api/v1/schedule/simulations/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.staffing.shifts.0.present', 2)
+            ->assertJsonPath('data.staffing.absences.0.affected_orders.0.work_order_id', $orderA->id);
+    }
+
+    public function test_staffing_breakdown_is_not_exposed_to_guests_or_wrong_roles(): void
+    {
+        $this->staffingScenario();
+        $this->actingAs($this->user('Admin'))->post('/admin/schedule/simulations', ['horizon_days' => 7]);
+        $id = ScheduleSimulation::sole()->id;
+        auth()->logout();
+
+        $this->get('/admin/schedule/auto')->assertRedirect('/login');
+        $this->getJson("/api/v1/schedule/simulations/{$id}")->assertUnauthorized();
+
+        $operator = $this->user('Operator');
+        $this->actingAs($operator)->get('/admin/schedule/auto')->assertForbidden();
+        $this->actingAs($this->user('Supervisor'))->get('/admin/schedule/auto')->assertForbidden();
+
+        // A role with the tab reads it, but cannot decide.
+        $this->actingAs($this->user('Operator', scheduleTab: true))->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('canDecide', false)->has('draft.staffing.shifts'));
+
+        $this->actingAs($operator, 'sanctum')->getJson("/api/v1/schedule/simulations/{$id}")->assertForbidden();
+    }
+
+    public function test_an_invalid_generate_request_produces_no_staffing_breakdown(): void
+    {
+        $this->staffingScenario();
+        $admin = $this->user('Admin');
+
+        $this->actingAs($admin)->post('/admin/schedule/simulations', ['horizon_days' => 0])->assertSessionHasErrors(['horizon_days']);
+
+        $this->actingAs($admin)->get('/admin/schedule/auto')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('draft', null));
     }
 }

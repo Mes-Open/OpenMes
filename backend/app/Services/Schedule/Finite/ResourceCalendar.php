@@ -69,6 +69,16 @@ class ResourceCalendar
             ->get();
     }
 
+    /**
+     * The active shifts this calendar was built from.
+     *
+     * @return Collection<int, Shift>
+     */
+    public function shifts(): Collection
+    {
+        return $this->shifts;
+    }
+
     public static function toMinutes(CarbonInterface $moment): int
     {
         return intdiv($moment->getTimestamp(), 60);

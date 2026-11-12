@@ -5,7 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
-import { __, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatNumber } from '../../../lib/i18n';
 
 const MONO = 'var(--font-mono)';
 
@@ -38,6 +38,14 @@ function reasonText(reason) {
 
     if (isPeopleReason(reason)) {
         return peopleText(reason);
+    }
+
+    if (reason.code === 'delayed_by_staffing' && reason.machine_start) {
+        return __('Delayed by staffing: :from → :to — :reason', {
+            from: isoStamp(reason.machine_start),
+            to: isoStamp(reason.planned_start),
+            reason: reason.cause ? reasonText(reason.cause) : '',
+        });
     }
 
     if (reason.code === 'waited_for_operators' && reason.busy_lines?.length) {
@@ -78,7 +86,8 @@ const lineNames = (busyLines) => busyLines.map((l) => l.line_name ?? `#${l.line_
 const skillNames = (skills) => (skills ?? []).map((s) => s.name ?? `#${s.id}`).join(', ');
 
 /** A reason that names the window it is about. */
-const hasWindow = (reason) => (isPeopleReason(reason) || reason.code === 'waited_for_operators' || reason.code === 'waited_for_qualified_operators') && reason.window_start;
+const WINDOW_CODES = ['waited_for_operators', 'waited_for_qualified_operators', 'delayed_by_staffing'];
+const hasWindow = (reason) => (isPeopleReason(reason) || WINDOW_CODES.includes(reason.code)) && reason.window_start;
 
 /** A people reason carrying the numbers (drafts from before they did only have the message). */
 const isPeopleReason = (reason) => (reason.code === 'workforce_capacity' || reason.code === 'qualification') && typeof reason.required === 'number';
@@ -211,7 +220,11 @@ function Reasons({ op }) {
     return (
         <ul className="mt-1 space-y-0.5">
             {shown.map((r, i) => (
-                <li key={i} className="text-[12px] text-om-muted">
+                <li
+                    key={i}
+                    className={r.code === 'delayed_by_staffing' ? 'text-[12px] font-medium text-om-downtime' : 'text-[12px] text-om-muted'}
+                    data-testid={r.code === 'delayed_by_staffing' ? 'delayed-by-staffing' : undefined}
+                >
                     {reasonText(r)}
                     {hasWindow(r) && (
                         <div className="text-[11px] text-om-faint" style={{ fontFamily: MONO }}>
@@ -276,6 +289,118 @@ function StaffingPanel({ workforce, canAssignOperators }) {
                     ) : null}
                 </InlineAlert>
             ))}
+        </div>
+    );
+}
+
+/** "2026-10-12" + its run start → "Mon 12.10", the weekday in the reader's language. */
+const dayLabel = (row) => `${formatDate(row.start, { weekday: 'short' })} ${row.date.slice(8, 10)}.${row.date.slice(5, 7)}`;
+
+/** Per line, day and shift run: who is there, what the plan asks, how many are missing. */
+function StaffingByShift({ staffing }) {
+    const rows = staffing?.shifts ?? [];
+    // The shift column only earns its place when some line runs several shifts a day.
+    const perDay = {};
+    rows.forEach((r) => { perDay[`${r.line_id}|${r.date}`] = (perDay[`${r.line_id}|${r.date}`] ?? 0) + 1; });
+    const multiShift = Object.values(perDay).some((n) => n > 1);
+
+    const head = 'px-3 py-2 text-left text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint whitespace-nowrap';
+    const cell = 'px-3 py-2 align-top text-[12.5px] text-om-ink';
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="staffing-by-shift">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing by shift')}</div>
+            {rows.length === 0 ? (
+                <div className="text-[12.5px] text-om-muted">{__('No staffing demand in this horizon.')}</div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="border-b border-om-line" style={{ fontFamily: MONO }}>
+                                <th className={head}>{__('Day')}</th>
+                                <th className={head}>{__('Line')}</th>
+                                {multiShift && <th className={head}>{__('Shift')}</th>}
+                                <th className={head}>{__('Present')}</th>
+                                <th className={head}>{__('Absent')}</th>
+                                <th className={`${head} text-right`}>{__('Planned person-hours')}</th>
+                                <th className={`${head} text-right`}>{__('Peak operators')}</th>
+                                <th className={`${head} text-right`}>{__('Shortfall')}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-om-line">
+                            {rows.map((r) => (
+                                <tr key={`${r.line_id}-${r.start}`} data-testid="staffing-row">
+                                    <td className={`${cell} whitespace-nowrap`} style={{ fontFamily: MONO }}>{dayLabel(r)}</td>
+                                    <td className={`${cell} whitespace-nowrap font-semibold`}>{r.line_name}</td>
+                                    {multiShift && <td className={`${cell} whitespace-nowrap`}>{r.shift_name}</td>}
+                                    <td className={`${cell} whitespace-nowrap`} style={{ fontFamily: MONO }}>
+                                        {r.tracked ? (
+                                            r.assigned != null ? `${r.present}/${r.assigned}` : r.present
+                                        ) : (
+                                            <span className="inline-block rounded-om-sm bg-om-downtime-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-om-downtime" title={UNTRACKED_TEXT()} style={{ fontFamily: 'inherit' }}>
+                                                {__('staffing not tracked')}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className={cell}>
+                                        {r.absent?.length ? r.absent.map((w) => w.name ?? `#${w.id}`).join(', ') : <span className="text-om-faint">—</span>}
+                                    </td>
+                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>{formatNumber(r.person_hours, { maximumFractionDigits: 1 })}</td>
+                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>{r.peak_operators}</td>
+                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>
+                                        {r.shortfall == null ? (
+                                            <span className="text-om-faint">—</span>
+                                        ) : r.shortfall > 0 ? (
+                                            <span className="font-semibold text-om-blocked" data-testid="staffing-shortfall">{r.shortfall}</span>
+                                        ) : (
+                                            <span className="text-om-muted">0</span>
+                                        )}
+                                        {r.blocked_operations > 0 && (
+                                            <div className="text-[11px] text-om-blocked">{__(':count operations blocked', { count: r.blocked_operations })}</div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Each person away during the horizon, and the work orders their absence delayed or blocked. */
+function HorizonAbsences({ absences }) {
+    if (!absences?.length) return null;
+    const day = (date) => `${date.slice(8, 10)}.${date.slice(5, 7)}`;
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="horizon-absences">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Absences in this horizon')}</div>
+            <ul className="divide-y divide-om-line">
+                {absences.map((a) => (
+                    <li key={a.worker_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12.5px] text-om-ink">
+                        <span className="font-semibold">{a.name ?? `#${a.worker_id}`}</span>
+                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{a.dates.map(day).join(', ')}</span>
+                        <span className="text-om-muted">{a.lines.map((l) => l.name).join(', ')}</span>
+                        {a.affected_orders.length ? (
+                            <span>
+                                <span className="text-om-muted">{__('Affected work orders')}: </span>
+                                {a.affected_orders.map((o, i) => (
+                                    <span key={o.work_order_id}>
+                                        {i > 0 && ', '}
+                                        <Link href={`/admin/work-orders/${o.work_order_id}`} className="font-semibold text-om-accent hover:underline" style={{ fontFamily: MONO }}>
+                                            {o.order_no}
+                                        </Link>
+                                    </span>
+                                ))}
+                            </span>
+                        ) : (
+                            <span className="text-om-faint">{__('No work orders affected.')}</span>
+                        )}
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }
@@ -540,6 +665,12 @@ export default function AutoSchedule() {
                         {draftStale && <InlineAlert severity="warning" title={draftStale.message} />}
 
                         <StaffingPanel workforce={draft.workforce} canAssignOperators={canAssignOperators} />
+                        {draft.staffing && (
+                            <>
+                                <StaffingByShift staffing={draft.staffing} />
+                                <HorizonAbsences absences={draft.staffing.absences} />
+                            </>
+                        )}
 
                         <div className="flex justify-end">
                             <Checkbox size="sm" checked={showOnlyProblems} onChange={setShowOnlyProblems} label={`${__('Only late or infeasible')} (${problems.length})`} />

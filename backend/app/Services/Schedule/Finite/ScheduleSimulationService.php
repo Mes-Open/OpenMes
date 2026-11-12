@@ -57,6 +57,7 @@ class ScheduleSimulationService
                     'work_orders' => $result['work_orders'],
                     'resources' => $result['resources'],
                     'workforce' => $result['workforce'],
+                    'staffing' => $result['staffing'],
                     'inputs_fingerprint' => $result['inputs_fingerprint'],
                     'staffing_fingerprint' => $result['staffing_fingerprint'],
                 ],

@@ -300,6 +300,37 @@ It also has a list of `reasons`. Each reason contains a machine-readable `code`
 
 An order is late when its last operation ends after the end of its `due_date`.
 
+### Delayed by staffing
+
+A step that is placed (`scheduled` or `scheduled_late`) but later than the
+machines alone allowed gets a last reason with code `delayed_by_staffing`:
+*"Delayed by staffing: 2026-10-12 06:00 → 2026-10-13 06:00 — Needs 3
+operators, 2 available (1 absent: Jan Kowalski)."* It carries `machine_start`
+(the earliest start the calendar, conflicts and changeovers allowed on the
+resource the step landed on), `planned_start`, `delay_minutes`, the people
+counts and `absent_workers` for that machine window, and the full people
+reason as `cause`. The status does not change. A step pushed only by machines,
+or a run that ignores people, gets no such reason.
+
+## Staffing per shift
+
+Every simulation's `summary.staffing` (and the `staffing` key of the
+simulation API) holds:
+
+- `shifts` — one row per active line and shift run in the horizon: `date`
+  (the date the run started), `shift_name`, `tracked`, `assigned`, `present`,
+  `absent` (`{id, name}`), `person_hours` and `peak_operators` booked in the
+  run, `blocked_operations`, and `shortfall`. The shortfall is the larger of
+  the booked peak minus the people present and, for each people reason whose
+  window starts in the run, what the step needed on top of what was booked
+  minus who was there. Untracked lines have `null` counts and shortfall. Rows
+  with no demand, absence or shortfall are left out.
+- `absences` — each absent person with their `dates`, `lines` and the
+  `affected_orders` whose people reasons name them.
+
+Counts are per line: a person assigned to two lines appears on both. Drafts
+generated before this breakdown existed have `staffing: null`.
+
 ## API
 
 All endpoints require the `Admin` or `Supervisor` role (Sanctum).

@@ -29,7 +29,7 @@ final class ShiftOccurrences
      * by start. A zero-length window returns the runs containing $from.
      *
      * @param  Collection<int, Shift>  $shifts
-     * @return list<array{start: int, end: int, date: string}>
+     * @return list<array{start: int, end: int, date: string, shift_id: int, shift_name: string}>
      */
     public static function occurrences(Collection $shifts, ?int $lineId, int $from, int $to): array
     {
@@ -139,7 +139,7 @@ final class ShiftOccurrences
      * The runs of $shifts that start on $day.
      *
      * @param  Collection<int, Shift>  $shifts
-     * @return list<array{start: int, end: int, date: string}>
+     * @return list<array{start: int, end: int, date: string, shift_id: int, shift_name: string}>
      */
     private static function runsOn(Collection $shifts, Carbon $day): array
     {
@@ -159,7 +159,13 @@ final class ShiftOccurrences
             if ($end->lessThan($start)) {
                 $end->addDay();
             }
-            $runs[] = ['start' => ResourceCalendar::toMinutes($start), 'end' => ResourceCalendar::toMinutes($end), 'date' => $date];
+            $runs[] = [
+                'start' => ResourceCalendar::toMinutes($start),
+                'end' => ResourceCalendar::toMinutes($end),
+                'date' => $date,
+                'shift_id' => (int) $shift->id,
+                'shift_name' => (string) $shift->name,
+            ];
         }
 
         return $runs;

@@ -7333,5 +7333,16 @@
     "Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.": "Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.",
     "Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.": "Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.",
     "Waited: :busy of :count qualified operators for :skills (:names) busy with other work.": "Waited: :busy of :count qualified operators for :skills (:names) busy with other work.",
-    "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.": "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines."
+    "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.": "Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.",
+    "Delayed by staffing: :from → :to — :reason": "Delayed by staffing: :from → :to — :reason",
+    "Staffing by shift": "Staffing by shift",
+    "Present": "Present",
+    "Absent": "Absent",
+    "Planned person-hours": "Planned person-hours",
+    "Peak operators": "Peak operators",
+    "No staffing demand in this horizon.": "No staffing demand in this horizon.",
+    "Absences in this horizon": "Absences in this horizon",
+    "Affected work orders": "Affected work orders",
+    "No work orders affected.": "No work orders affected.",
+    ":count operations blocked": ":count operations blocked"
 }
