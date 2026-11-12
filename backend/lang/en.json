@@ -7307,5 +7307,9 @@
     "Reads and changes data with your permissions.": "Reads and changes data with your permissions.",
     "Reads data with your permissions; every change is refused.": "Reads data with your permissions; every change is refused.",
     "Only for the OPC UA gateway: sends machine readings, nothing else.": "Only for the OPC UA gateway: sends machine readings, nothing else.",
-    "This token is read-only.": "This token is read-only."
+    "This token is read-only.": "This token is read-only.",
+    "Sort by": "Sort by",
+    "Newest entered": "Newest entered",
+    "Recent activity": "Recent activity",
+    "Recently completed": "Recently completed"
 }
