@@ -28,6 +28,12 @@ class CollectionController extends Controller
 
         $user = $request->user();
 
+        // Mirror the channel authorization in routes/channels.php: these synced
+        // collections are Admin/Supervisor only. Without this the HTTP snapshot
+        // returns the full dataset to any authenticated user (e.g. an Operator),
+        // while the live-delta channel correctly denies them.
+        abort_unless($user && $user->hasAnyRole(['Admin', 'Supervisor']), 403);
+
         $query = DB::table($shape->table())->select($shape->columns());
 
         $where = $shape->where($user);
