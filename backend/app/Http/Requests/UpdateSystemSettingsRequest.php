@@ -88,6 +88,8 @@ class UpdateSystemSettingsRequest extends FormRequest
             'unit_psn_pattern' => ['nullable', 'string', 'max:200', $this->validRegex()],
             'unit_psn_required' => 'nullable|boolean',
             'unit_psn_unique' => 'nullable|boolean',
+            'unit_pack_requires_serial' => 'nullable|boolean',
+            'unit_pack_requires_order' => 'nullable|boolean',
             'unit_test_fail_policy' => ['nullable', Rule::in(\App\Support\UnitSerialisation::FAIL_POLICIES)],
             'unit_test_max_attempts' => 'nullable|integer|min:1|max:99',
             'unit_test_attempts_scope' => ['nullable', Rule::in(\App\Support\UnitSerialisation::ATTEMPT_SCOPES)],
