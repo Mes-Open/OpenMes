@@ -1042,8 +1042,10 @@ Returns a CSV file download.
 
 ### Shift Handover
 
-Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. Handovers are
-tenant-scoped: a handover of another tenant is never listed and returns `404`.
+Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. When the
+calling account belongs to a tenant, handovers are limited to that tenant: another tenant's
+handover is never listed and returns `404`. Accounts without a tenant (single-tenant installs)
+see all handovers.
 
 #### Current Balance and Recent Handovers
 
@@ -1052,17 +1054,10 @@ GET /api/v1/shift-handover?line_id=3
 Authorization: Bearer <token>
 ```
 
-Query parameters (all optional):
-
-| Parameter | Description |
-|---|---|
-| `line_id` | Scopes the live `balance` to one line. Does **not** filter `recent` — as on the web page, `recent` spans all lines. |
-| `recent_line_id` | Only handovers of this line in `recent`. |
-| `business_date_from`, `business_date_to` | Business date range for `recent`, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
-| `per_page` | Paginates `recent` (1–100) and adds `recent_meta`. Without it, `recent` holds the 20 most recent handovers. |
-| `page` | Page of `recent` when `per_page` is given. |
-
-`recent` is ordered newest first (by `confirmed_at`). Invalid parameters return `422`.
+`line_id` (optional) scopes the live `balance` to one line; a missing or non-numeric value means
+all lines. It does **not** filter `recent`: as on the web page, `recent` is always the 20 newest
+handovers across all lines, newest first (by `confirmed_at`). For older handovers or filtering,
+use [the history endpoint](#handover-history).
 
 ```json
 {
@@ -1102,19 +1097,48 @@ Query parameters (all optional):
         "notes": "Conveyor jammed twice; maintenance informed.",
         "confirmed_by_id": 7
       }
-    ],
-    "recent_meta": { "current_page": 1, "per_page": 20, "total": 57, "last_page": 3 }
+    ]
   }
 }
 ```
 
-`recent_meta` is present only when `per_page` is given. Timestamps (`shift_start`, `shift_end`,
-`confirmed_at`) are `YYYY-MM-DD HH:MM` in the application timezone. `discrepancies` and
-`breakdown` are the snapshot captured when the shift was closed; `discrepancies` is an object
-keyed by discrepancy (`unpacked`, `awaiting_shipment`, `over_packed`, each with `label`, `value`,
-`severity`), or an empty array `[]` when there were none. `line_name`, `shift_name` and
-`confirmed_by` resolve even if the line, shift or user has since been deleted; `shift_name` falls
-back to the name stored in the snapshot.
+Handover fields (the same in `recent`, history and the single-handover response):
+
+- Timestamps (`shift_start`, `shift_end`, `confirmed_at`) are `YYYY-MM-DD HH:MM` in the
+  application timezone.
+- `discrepancies` and `breakdown` are the snapshot captured when the shift was closed, and are
+  always JSON objects (`{}` when empty). `discrepancies` is keyed by discrepancy (`unpacked`,
+  `awaiting_shipment`, `over_packed`), each with `label`, `value` and `severity`.
+- `shift_name` is the shift name captured in the snapshot, so renaming a shift later does not
+  change history; older handovers without one show the shift's current name.
+- `line_name`, `shift_name` and `confirmed_by` resolve even if the line, shift or user has since
+  been deleted.
+
+#### Handover History
+
+```http
+GET /api/v1/shift-handover/history?line_id=3&business_date_from=2026-11-01&business_date_to=2026-11-07&per_page=50
+Authorization: Bearer <token>
+```
+
+Always paginated, newest first (by `confirmed_at`). Does not compute the live balance. Query
+parameters (all optional):
+
+| Parameter | Description |
+|---|---|
+| `line_id` | Only handovers of this line (positive integer). |
+| `business_date_from`, `business_date_to` | Business date range, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
+| `per_page` | Page size, 1–100 (default 25). |
+| `page` | Page number (default 1). |
+
+Invalid parameters return `422`.
+
+```json
+{
+  "data": [ { "id": 42, "business_date": "2026-11-10", "...": "same fields as a recent item" } ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 57, "last_page": 3 }
+}
+```
 
 #### Get One Handover
 
@@ -1124,7 +1148,7 @@ Authorization: Bearer <token>
 ```
 
 Returns `{ "data": { ... } }` with the same fields as one `recent` item. `404` when the handover
-does not exist or belongs to another tenant.
+does not exist or is outside the caller's tenant.
 
 #### Close the Shift
 
@@ -1137,7 +1161,9 @@ Content-Type: application/json
 ```
 
 Both fields are optional (`notes` up to 2000 characters). The server recomputes the balance and
-stores it as the handover snapshot; returns `201` with the stored handover.
+stores it as the handover snapshot; returns `201` with the stored handover record (its database
+columns plus `line` and `confirmed_by` objects, a different shape from the items above). Fetch
+`GET /api/v1/shift-handover/{id}` for the handover fields described above.
 
 ---
 

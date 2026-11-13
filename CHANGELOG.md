@@ -12,12 +12,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Shift handover details and history in the REST API.** Items in `recent` of
   `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
   `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
-  and `confirmed_by_id`, next to the existing fields (unchanged). The list can be filtered with
-  `recent_line_id` and `business_date_from`/`business_date_to`, and paginated on request with
-  `per_page`/`page` (the response then adds `recent_meta`); without `per_page` it still returns
-  the 20 latest handovers, and `line_id` still scopes only the live balance. New
-  `GET /api/v1/shift-handover/{id}` returns one handover. Both stay Supervisor/Admin only and
-  tenant-scoped. Line, shift and user names stay visible after those records are deleted.
+  and `confirmed_by_id`, next to the existing fields (unchanged); `recent` is still the 20 latest
+  handovers across all lines. New `GET /api/v1/shift-handover/history` pages through older
+  handovers (`per_page`, default 25, max 100) and filters them by `line_id` and
+  `business_date_from`/`business_date_to`; new `GET /api/v1/shift-handover/{id}` returns one
+  handover. Both stay Supervisor/Admin only and limited to the caller's tenant.
+  `discrepancies` and `breakdown` are always JSON objects, and `shift_name` is the name saved
+  with the handover, so renaming a shift does not rewrite history.
+- **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
+  now show the line, shift and confirming user of a past handover even after that line, shift
+  or user has been deleted.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

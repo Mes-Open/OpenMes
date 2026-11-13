@@ -7,6 +7,7 @@ use App\Http\Requests\ShiftHandoverRequest;
 use App\Models\Line;
 use App\Models\ShiftHandover;
 use App\Services\Packaging\ShiftHandoverCalculator;
+use App\Support\ShiftHandoverPresenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -71,23 +72,15 @@ class ShiftHandoverController extends Controller
             ->with('success', __('Shift closed and snapshot saved.'));
     }
 
-    private function recentHandovers()
+    private function recentHandovers(): array
     {
-        return ShiftHandover::with(['line:id,name', 'confirmedBy:id,name'])
+        // Same shape as the REST API (Api\V1\ShiftHandoverController).
+        return ShiftHandover::with(ShiftHandoverPresenter::relations())
             ->orderByDesc('confirmed_at')
+            ->orderByDesc('id')
             ->limit(20)
             ->get()
-            ->map(fn (ShiftHandover $h) => [
-                'id' => $h->id,
-                'business_date' => $h->business_date?->toDateString(),
-                'shift_start' => $h->shift_start?->format('Y-m-d H:i'),
-                'line_name' => $h->line?->name,
-                'produced_qty' => $h->produced_qty,
-                'good_qty' => $h->good_qty,
-                'packed_qty' => $h->packed_qty,
-                'shipped_qty' => $h->shipped_qty,
-                'confirmed_by' => $h->confirmedBy?->name,
-                'confirmed_at' => $h->confirmed_at?->format('Y-m-d H:i'),
-            ]);
+            ->map(ShiftHandoverPresenter::present(...))
+            ->all();
     }
 }
