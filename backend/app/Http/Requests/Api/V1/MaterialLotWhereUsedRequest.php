@@ -18,7 +18,8 @@ class MaterialLotWhereUsedRequest extends FormRequest
         return [
             'max_depth' => ['sometimes', 'integer', 'min:0', 'max:'.LotWhereUsedService::MAX_DEPTH],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:'.LotWhereUsedService::MAX_LIMIT],
-            'include_removed' => ['sometimes', 'boolean'],
+            // `true` / `false` too, as query strings carry them; read with $request->boolean().
+            'include_removed' => ['sometimes', 'nullable', 'in:0,1,true,false'],
         ];
     }
 }

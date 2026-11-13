@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\IndexMaterialLotRequest;
 use App\Http\Requests\Api\V1\MaterialLotWhereUsedRequest;
 use App\Models\BatchStep;
 use App\Models\BatchStepLotConsumption;
@@ -28,7 +29,7 @@ use Illuminate\Validation\Rule;
  */
 class MaterialLotController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexMaterialLotRequest $request): JsonResponse
     {
         $query = MaterialLot::query()->with(['material', 'source', 'inspection']);
 
@@ -39,9 +40,9 @@ class MaterialLotController extends Controller
             $query->where('status', $status);
         }
         // Our own lot number, exact - so a lot named in a complaint is found in one call.
-        $lotNumber = $request->query('lot_number');
-        if (is_string($lotNumber) && trim($lotNumber) !== '') {
-            $query->where('lot_number', trim($lotNumber));
+        $lotNumber = trim((string) $request->validated('lot_number'));
+        if ($lotNumber !== '') {
+            $query->where('lot_number', $lotNumber);
         }
         if ($supplier = $request->query('supplier_lot_no')) {
             $query->where('supplier_lot_no', 'like', '%'.$supplier.'%');

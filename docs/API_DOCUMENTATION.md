@@ -767,17 +767,23 @@ work order.
 |-----------|---------|---------|
 | `max_depth` | 10 (0–20) | How many levels of containing units to walk up. `0` returns the directly bound units only. |
 | `limit` | 1000 (1–5000) | Most units returned in total (direct and containing). |
-| `include_removed` | `false` | Also follow bindings that were taken out again (`unbound_at` set). By default only parts still installed count. |
+| `include_removed` | `false` | `0`, `1`, `true` or `false`. Also follow bindings that were taken out again (`unbound_at` set). By default only parts still installed count. |
 
-`precision` says how exact the answer is:
+`precision` says how exact the returned answer is:
 
-- `unit` - the lot has component bindings; `direct_units` and `parent_units`
-  are exactly the affected units.
-- `batch` - no unit was ever bound to the lot, only batch-step consumption was
-  recorded. `direct_units` is empty; `batch_level` lists the consuming batches
-  and how many units each produced (`candidate_units`). Every candidate *may*
-  contain the lot - it is an upper bound, not a list of affected units.
+- `unit` - the lot has component bindings (still installed ones; removed ones
+  too with `include_removed=1`); `direct_units` and `parent_units` are exactly
+  the affected units. `has_unit_bindings` is `true`.
+- `batch` - no such binding, only batch-step consumption was recorded.
+  `direct_units` is empty; `batch_level` lists the consuming batches and how
+  many units each produced (`candidate_units`). Every candidate *may* contain
+  the lot - it is an upper bound, not a list of affected units.
 - `none` - neither bindings nor consumption are recorded.
+
+When every binding of the lot was taken out again and `include_removed` is
+off, `precision` is `batch` or `none`, and `totals.removed_bindings` (always
+reported) says how many there are - ask again with `include_removed=1` to see
+those units.
 
 `batch_level` is always returned, also next to unit bindings as a cross-check
 (`bound_units` against `candidate_units` per batch shows how complete the
@@ -786,12 +792,17 @@ through lots produced from it use `genealogy/forward`.
 
 A unit is matched when its binding resolved to the lot, or when it was scanned
 by the lot number before the lot existed (`bindings[].match` is `material_lot`
-or `identifier`). `top_level` marks the outermost units - installed in nothing
+or `identifier`; the identifier is compared ignoring case and spaces, as the
+station scan is). `top_level` marks the outermost units - installed in nothing
 else - which is what left the plant. Cycles in the binding data are walked
 once. When `limit` or `max_depth` cut the walk short, `truncated` is `true` and
 `truncated_by` names which (`limit`, `depth`); `totals.direct_units` still
 counts every directly bound unit, while `work_orders` (sorted by order
-number) and the other totals cover the returned units only.
+number) and the other totals cover the returned units only. A unit whose
+containing unit was cut off has `top_level: null` (unknown) and an empty
+`contained_in`; it is left out of `top_level_units` and counted in
+`totals.top_level_unknown_units` - with `max_depth=0` that is every direct
+unit that sits inside another.
 
 ```json
 {
@@ -805,7 +816,7 @@ number) and the other totals cover the returned units only.
         "truncated_by": [],
         "totals": {
             "direct_units": 2, "direct_units_returned": 2, "parent_units": 1, "top_level_units": 2,
-            "removed_bindings": 0, "work_orders": 2, "by_status": { "completed": 2, "shipped": 1 }
+            "top_level_unknown_units": 0, "removed_bindings": 0, "work_orders": 2, "by_status": { "completed": 2, "shipped": 1 }
         },
         "work_orders": [
             { "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },

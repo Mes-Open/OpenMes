@@ -13,6 +13,7 @@ use App\Models\SerialUnitComponent;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\Traceability\SerialTraceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -153,7 +154,10 @@ class MaterialLotWhereUsedTest extends TestCase
             DB::flushQueryLog();
             DB::enableQueryLog();
             $this->whereUsed($lot)->assertOk();
-            $queries = count(DB::getQueryLog());
+            // Only the traceability tables: auth / settings lookups vary with caches.
+            $queries = collect(DB::getQueryLog())->pluck('query')
+                ->filter(fn (string $sql) => preg_match('/from "(serial_unit_components|serial_units|work_orders|product_types|materials|batches|batch_steps|pallets|batch_step_lot_consumption)"/', $sql))
+                ->count();
             DB::disableQueryLog();
 
             return $queries;
@@ -165,6 +169,7 @@ class MaterialLotWhereUsedTest extends TestCase
         $many = $count();
 
         $this->assertSame(22, $this->whereUsed($lot)->json('data.totals.direct_units'));
+        $this->assertGreaterThan(5, $few); // the filter does see the service's queries
         $this->assertSame($few, $many);
     }
 
@@ -174,22 +179,58 @@ class MaterialLotWhereUsedTest extends TestCase
         $unit = SerialUnit::factory()->create(['serial_no' => 'PIN-R']);
         $this->bindLot($unit, $lot, ['unbound_at' => now(), 'unbind_reason' => 'wrong part']);
 
+        // Precision describes what is returned: with only removed bindings and
+        // include_removed off, there is nothing unit-level to show.
         $without = $this->whereUsed($lot)->assertOk()->json('data');
-        $this->assertSame('unit', $without['precision']);
+        $this->assertSame('none', $without['precision']);
+        $this->assertFalse($without['has_unit_bindings']);
         $this->assertSame([], $without['direct_units']);
         $this->assertSame(1, $without['totals']['removed_bindings']);
 
         $with = $this->whereUsed($lot, ['include_removed' => 1])->assertOk()->json('data');
+        $this->assertSame('unit', $with['precision']);
+        $this->assertTrue($with['has_unit_bindings']);
         $this->assertSame(['PIN-R'], array_column($with['direct_units'], 'serial_no'));
         $this->assertFalse($with['direct_units'][0]['bindings'][0]['installed']);
         $this->assertSame('wrong part', $with['direct_units'][0]['bindings'][0]['unbind_reason']);
     }
 
+    public function test_only_removed_bindings_fall_back_to_batch_precision(): void
+    {
+        $lot = MaterialLot::factory()->create();
+        $batch = Batch::factory()->create();
+        $step = BatchStep::factory()->create(['batch_id' => $batch->id]);
+        BatchStepLotConsumption::create(['batch_step_id' => $step->id, 'material_lot_id' => $lot->id, 'quantity_consumed' => 1, 'consumed_at' => now()]);
+        $this->bindLot(SerialUnit::factory()->create(['batch_id' => $batch->id]), $lot, ['unbound_at' => now()]);
+
+        $data = $this->whereUsed($lot)->assertOk()->json('data');
+
+        $this->assertSame('batch', $data['precision']);
+        $this->assertSame(1, $data['totals']['removed_bindings']);
+    }
+
+    public function test_include_removed_accepts_true_and_false_strings(): void
+    {
+        $lot = MaterialLot::factory()->create();
+        $this->bindLot(SerialUnit::factory()->create(['serial_no' => 'PIN-R']), $lot, ['unbound_at' => now()]);
+
+        $this->whereUsed($lot, ['include_removed' => 'true'])->assertOk()
+            ->assertJsonPath('data.params.include_removed', true)
+            ->assertJsonPath('data.direct_units.0.serial_no', 'PIN-R');
+        $this->whereUsed($lot, ['include_removed' => 'false'])->assertOk()
+            ->assertJsonPath('data.params.include_removed', false)
+            ->assertJsonPath('data.direct_units', []);
+    }
+
     public function test_identifier_only_bindings_scanned_before_the_lot_existed_are_found(): void
     {
-        $lot = MaterialLot::factory()->create(['lot_number' => 'LATE-LOT-1']);
+        // Normalising off: the scan is stored as typed (lower case, spaces).
+        DB::table('system_settings')->updateOrInsert(['key' => 'unit_identifier_normalize'], ['value' => json_encode(false)]);
         $unit = SerialUnit::factory()->create(['serial_no' => 'SN-LATE']);
-        $this->bind($unit, ['identifier' => 'LATE-LOT-1']);
+        app(SerialTraceService::class)->bindComponent($unit, ' late-lot -1', $this->user);
+        $this->assertDatabaseHas('serial_unit_components', ['identifier' => 'late-lot -1', 'material_lot_id' => null]);
+
+        $lot = MaterialLot::factory()->create(['lot_number' => 'LATE-LOT-1']);
 
         $data = $this->whereUsed($lot)->assertOk()->json('data');
 
@@ -225,6 +266,49 @@ class MaterialLotWhereUsedTest extends TestCase
         $this->assertSame($batch->id, $fallback['work_orders'][0]['batches'][0]['id']);
         $this->assertSame(3, $fallback['work_orders'][0]['batches'][0]['candidate_units']);
         $this->assertSame(0, $fallback['work_orders'][0]['batches'][0]['bound_units']);
+    }
+
+    public function test_batch_level_still_shows_a_consumption_on_a_deleted_batch(): void
+    {
+        $lot = MaterialLot::factory()->create();
+        $wo = WorkOrder::factory()->create(['order_no' => 'WO-GONE']);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        $step = BatchStep::factory()->create(['batch_id' => $batch->id]);
+        BatchStepLotConsumption::create(['batch_step_id' => $step->id, 'material_lot_id' => $lot->id, 'quantity_consumed' => 4, 'consumed_at' => now()]);
+
+        $batch->delete(); // soft-deletes its steps too
+        $this->assertSoftDeleted($step);
+
+        $data = $this->whereUsed($lot)->assertOk()->json('data');
+
+        $this->assertSame('batch', $data['precision']);
+        $this->assertSame('WO-GONE', $data['batch_level']['work_orders'][0]['work_order']['order_no']);
+        $this->assertSame($batch->id, $data['batch_level']['work_orders'][0]['batches'][0]['id']);
+    }
+
+    public function test_deleted_material_and_product_are_still_named(): void
+    {
+        $material = Material::factory()->create(['code' => 'PIN-12', 'name' => 'Pinion 12T']);
+        $lot = MaterialLot::factory()->create(['material_id' => $material->id]);
+        $wo = WorkOrder::factory()->create();
+        $productName = $wo->productType->name;
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        $step = BatchStep::factory()->create(['batch_id' => $batch->id]);
+        BatchStepLotConsumption::create(['batch_step_id' => $step->id, 'material_lot_id' => $lot->id, 'quantity_consumed' => 1, 'consumed_at' => now()]);
+        $unit = SerialUnit::factory()->create(['work_order_id' => $wo->id, 'batch_id' => $batch->id, 'material_id' => $material->id]);
+        $this->bindLot($unit, $lot);
+
+        $wo->productType->delete();
+        $material->delete();
+        $this->assertSoftDeleted($material);
+
+        $data = $this->whereUsed($lot)->assertOk()->json('data');
+
+        $this->assertSame('PIN-12', $data['lot']['material']['code']);
+        $this->assertSame('Pinion 12T', $data['direct_units'][0]['material']['name']);
+        $this->assertSame($productName, $data['direct_units'][0]['work_order']['product']);
+        $this->assertSame($productName, $data['work_orders'][0]['work_order']['product']);
+        $this->assertSame($productName, $data['batch_level']['work_orders'][0]['work_order']['product']);
     }
 
     public function test_a_lot_with_no_usage_reports_precision_none(): void
@@ -272,7 +356,19 @@ class MaterialLotWhereUsedTest extends TestCase
         $this->assertSame(['D-1'], array_column($shallow['parent_units'], 'serial_no'));
         $this->assertTrue($shallow['truncated']);
         $this->assertSame(['depth'], $shallow['truncated_by']);
-        $this->assertFalse($shallow['parent_units'][0]['top_level']); // it has a parent we did not walk to
+        // D-1 sits in D-2, which max_depth cut off: unknown, not "top level" nor "inside nothing".
+        $this->assertNull($shallow['parent_units'][0]['top_level']);
+        $this->assertSame([], $shallow['parent_units'][0]['contained_in']);
+        $this->assertSame(0, $shallow['totals']['top_level_units']);
+        $this->assertSame(1, $shallow['totals']['top_level_unknown_units']);
+
+        $direct = $this->whereUsed($lot, ['max_depth' => 0])->assertOk()->json('data');
+        $this->assertSame([], $direct['parent_units']);
+        $this->assertNull($direct['direct_units'][0]['top_level']);
+        $this->assertSame(0, $direct['totals']['top_level_units']);
+        $this->assertSame(1, $direct['totals']['top_level_unknown_units']);
+        $this->assertSame(['depth'], $direct['truncated_by']);
+        $this->assertSame(0, $direct['work_orders'][0]['top_level_units']);
 
         foreach (['D-3', 'D-4'] as $sn) {
             $this->bindLot(SerialUnit::factory()->create(['serial_no' => $sn]), $lot);
@@ -345,6 +441,17 @@ class MaterialLotWhereUsedTest extends TestCase
         $this->actingAs($this->user, 'sanctum')
             ->getJson('/api/v1/material-lots?supplier_lot_no=SUP-1')
             ->assertOk()->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_index_rejects_a_non_string_lot_number(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v1/material-lots?lot_number[]=x')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['lot_number']);
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v1/material-lots?lot_number='.str_repeat('L', 256))
+            ->assertUnprocessable();
     }
 
     public function test_index_lot_number_filter_is_tenant_scoped(): void

@@ -7,6 +7,7 @@ use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\SerialUnit;
 use App\Models\SerialUnitComponent;
+use App\Models\WorkOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -46,15 +47,25 @@ class LotWhereUsedService
     ): array {
         $maxDepth = max(0, min($maxDepth, self::MAX_DEPTH));
         $limit = max(1, min($limit, self::MAX_LIMIT));
-        $lot->loadMissing('material:id,code,name');
+        // A recall must still name the part after its material was deleted.
+        $lot->load(['material' => fn ($q) => $q->withTrashed()->select('id', 'code', 'name')]);
 
         // --- 1. Units the lot was bound into directly --------------------------
-        $hasUnitBindings = $this->directBindings($lot)->exists();
-        $removedBindings = $this->directBindings($lot)->whereNotNull('unbound_at')->count();
+        // One scan for every count: active / removed bindings, distinct units.
+        $stats = $this->directBindings($lot)
+            ->selectRaw('COUNT(*) AS bindings')
+            ->selectRaw('SUM(CASE WHEN unbound_at IS NULL THEN 1 ELSE 0 END) AS active_bindings')
+            ->selectRaw('COUNT(DISTINCT serial_unit_id) AS units')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN unbound_at IS NULL THEN serial_unit_id END) AS active_units')
+            ->toBase()
+            ->first();
+        $removedBindings = (int) $stats->bindings - (int) $stats->active_bindings;
+        // Precision describes what is returned: removed bindings count only when asked for.
+        $hasUnitBindings = $includeRemoved ? (int) $stats->bindings > 0 : (int) $stats->active_bindings > 0;
+        $directTotal = $includeRemoved ? (int) $stats->units : (int) $stats->active_units;
 
         $direct = $this->directBindings($lot)
             ->when(! $includeRemoved, fn (Builder $q) => $q->whereNull('unbound_at'));
-        $directTotal = (clone $direct)->distinct()->count('serial_unit_id');
         $directIds = (clone $direct)
             ->select('serial_unit_id')
             ->distinct()
@@ -76,6 +87,7 @@ class LotWhereUsedService
         // --- 2. Walk up: the units that contain them ---------------------------
         $depthOf = array_fill_keys($directIds, 0);
         $parentsOf = []; // child id => [parent id => installed?]
+        $cutOff = []; // child id => true: an installed parent of it was not walked (depth / limit)
         $frontier = $directIds;
         $truncatedByLimit = $directTotal > count($directIds);
         $truncatedByDepth = false;
@@ -101,17 +113,19 @@ class LotWhereUsedService
                 $installed = $edge->unbound_at === null;
                 $parentsOf[$childId][$parentId] = ($parentsOf[$childId][$parentId] ?? false) || $installed;
 
-                if ($depth > $maxDepth) {
-                    $truncatedByDepth = true;
-
-                    continue;
-                }
                 // Already seen (a diamond, or a cycle in corrupted data): never re-walk.
                 if (isset($depthOf[$parentId])) {
                     continue;
                 }
-                if (count($depthOf) >= $limit) {
-                    $truncatedByLimit = true;
+                if ($depth > $maxDepth || count($depthOf) >= $limit) {
+                    if ($depth > $maxDepth) {
+                        $truncatedByDepth = true;
+                    } else {
+                        $truncatedByLimit = true;
+                    }
+                    if ($installed) {
+                        $cutOff[$childId] = true;
+                    }
 
                     continue;
                 }
@@ -136,7 +150,7 @@ class LotWhereUsedService
         }
 
         $rows = collect($depthOf)
-            ->map(function (int $depth, int $id) use ($units, $parentsOf, $childrenOf, $bindingsByUnit) {
+            ->map(function (int $depth, int $id) use ($units, $parentsOf, $childrenOf, $bindingsByUnit, $depthOf, $cutOff) {
                 $unit = $units->get($id);
                 if (! $unit) {
                     return null; // outside the caller's tenant - not theirs to see
@@ -145,10 +159,15 @@ class LotWhereUsedService
                     ? ['id' => $other, 'serial_no' => $units[$other]->serial_no, 'psn' => $units[$other]->psn]
                     : null;
 
+                // Outermost unit: installed in nothing. Unknown (null) when the
+                // parent it is installed in lies beyond max_depth / limit.
+                $installedInReturned = collect($parentsOf[$id] ?? [])
+                    ->contains(fn (bool $installed, int $parent) => $installed && isset($depthOf[$parent]));
+                $topLevel = $installedInReturned ? false : (isset($cutOff[$id]) ? null : true);
+
                 $row = $this->unitRow($unit) + [
                     'depth' => $depth,
-                    // Outermost known unit: nothing it is still installed in.
-                    'top_level' => ! in_array(true, $parentsOf[$id] ?? [], true),
+                    'top_level' => $topLevel,
                     'contained_in' => collect(array_keys($parentsOf[$id] ?? []))->map($ref)->filter()->values()->all(),
                 ];
                 if ($depth === 0) {
@@ -202,6 +221,7 @@ class LotWhereUsedService
                 'direct_units_returned' => $directRows->count(),
                 'parent_units' => $parentRows->count(),
                 'top_level_units' => $rows->where('top_level', true)->count(),
+                'top_level_unknown_units' => $rows->whereNull('top_level')->count(),
                 'removed_bindings' => $removedBindings,
                 'work_orders' => $rows->pluck('work_order.id')->filter()->unique()->count(),
                 'by_status' => $rows->countBy('status')->sortKeys()->all(),
@@ -219,17 +239,15 @@ class LotWhereUsedService
      */
     private function directBindings(MaterialLot $lot): Builder
     {
-        $number = (string) $lot->lot_number;
-        $identifiers = array_values(array_unique(array_filter([
-            $number,
-            strtoupper((string) preg_replace('/\s+/u', '', $number)),
-        ])));
+        $folded = strtoupper(str_replace(' ', '', (string) $lot->lot_number));
 
-        return SerialUnitComponent::query()->where(function (Builder $q) use ($lot, $identifiers) {
+        return SerialUnitComponent::query()->where(function (Builder $q) use ($lot, $folded) {
             $q->where('material_lot_id', $lot->id)
                 ->orWhere(fn (Builder $q) => $q->whereNull('material_lot_id')
                     ->whereNull('component_serial_unit_id')
-                    ->whereIn('identifier', $identifiers));
+                    // Both sides folded (case, spaces) the way bindComponent matches
+                    // a scan to a lot, so the plant's normalise setting doesn't matter.
+                    ->whereRaw("UPPER(REPLACE(identifier, ' ', '')) = ?", [$folded]));
         });
     }
 
@@ -239,12 +257,37 @@ class LotWhereUsedService
         return SerialUnit::query()
             ->select(['id', 'serial_no', 'psn', 'status', 'work_order_id', 'batch_id', 'pallet_id', 'material_id', 'produced_at', 'shipped_at'])
             ->with([
-                'workOrder' => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'status', 'product_type_id', 'customer_order_no'),
-                'workOrder.productType:id,name,code',
+                ...$this->workOrderEagerLoad('workOrder'),
                 'batch' => fn ($q) => $q->withTrashed()->select('id', 'batch_number', 'lot_number'),
                 'pallet' => fn ($q) => $q->withTrashed()->select('id', 'pallet_no', 'status'),
-                'material:id,code,name',
+                'material' => fn ($q) => $q->withTrashed()->select('id', 'code', 'name'),
             ]);
+    }
+
+    /**
+     * Eager loads for a work order and its product, soft-deleted ones included
+     * (a recall must still name them), under the given relation path.
+     *
+     * @return array<string, \Closure>
+     */
+    private function workOrderEagerLoad(string $path): array
+    {
+        return [
+            $path => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'status', 'product_type_id', 'customer_order_no'),
+            $path.'.productType' => fn ($q) => $q->withTrashed()->select('id', 'name', 'code'),
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function workOrderRow(?WorkOrder $workOrder): ?array
+    {
+        return $workOrder ? [
+            'id' => $workOrder->id,
+            'order_no' => $workOrder->order_no,
+            'status' => $workOrder->status,
+            'customer_order_no' => $workOrder->customer_order_no,
+            'product' => $workOrder->productType?->name,
+        ] : null;
     }
 
     /** @return array<string, mixed> */
@@ -258,13 +301,7 @@ class LotWhereUsedService
             'psn' => $unit->psn,
             'status' => $unit->status,
             'material' => $unit->material?->only(['id', 'code', 'name']),
-            'work_order' => $unit->workOrder ? [
-                'id' => $unit->workOrder->id,
-                'order_no' => $unit->workOrder->order_no,
-                'status' => $unit->workOrder->status,
-                'customer_order_no' => $unit->workOrder->customer_order_no,
-                'product' => $unit->workOrder->productType?->name,
-            ] : null,
+            'work_order' => $this->workOrderRow($unit->workOrder),
             'batch' => $unit->batch?->only(['id', 'batch_number', 'lot_number']),
             'pallet' => $unit->pallet ? [
                 'id' => $unit->pallet->id,
@@ -312,10 +349,10 @@ class LotWhereUsedService
         $consumptions = BatchStepLotConsumption::query()
             ->where('material_lot_id', $lot->id)
             ->with([
-                'batchStep:id,batch_id',
+                // Deleting a batch soft-deletes its steps: the consumption must still show.
+                'batchStep' => fn ($q) => $q->withTrashed()->select('id', 'batch_id'),
                 'batchStep.batch' => fn ($q) => $q->withTrashed()->select('id', 'batch_number', 'lot_number', 'work_order_id'),
-                'batchStep.batch.workOrder' => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'status', 'product_type_id', 'customer_order_no'),
-                'batchStep.batch.workOrder.productType:id,name,code',
+                ...$this->workOrderEagerLoad('batchStep.batch.workOrder'),
             ])
             ->get(['id', 'batch_step_id', 'material_lot_id', 'quantity_consumed']);
 
@@ -341,13 +378,7 @@ class LotWhereUsedService
                 $batch = $group->first()->batchStep->batch;
 
                 return [
-                    'work_order' => $batch->workOrder ? [
-                        'id' => $batch->workOrder->id,
-                        'order_no' => $batch->workOrder->order_no,
-                        'status' => $batch->workOrder->status,
-                        'customer_order_no' => $batch->workOrder->customer_order_no,
-                        'product' => $batch->workOrder->productType?->name,
-                    ] : null,
+                    'work_order' => $this->workOrderRow($batch->workOrder),
                     'batch' => [
                         'id' => $batch->id,
                         'batch_number' => $batch->batch_number,
