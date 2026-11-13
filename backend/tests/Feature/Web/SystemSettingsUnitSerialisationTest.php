@@ -45,6 +45,8 @@ class SystemSettingsUnitSerialisationTest extends TestCase
         $this->assertTrue($s->get('unit_identifier_normalize'));
         $this->assertTrue($s->get('unit_psn_unique'));
         $this->assertFalse($s->get('unit_psn_required'));
+        $this->assertFalse($s->get('unit_pack_requires_serial'));
+        $this->assertFalse($s->get('unit_pack_requires_order'));
         $this->assertSame(1, $s->get('unit_test_max_attempts'));
         $this->assertSame('SN-1001-0001', $s->normalize(' sn-1001 -0001 '));
     }
@@ -60,6 +62,8 @@ class SystemSettingsUnitSerialisationTest extends TestCase
                 'unit_identifier_normalize' => false,
                 'unit_test_fail_policy' => 'scrap',
                 'unit_test_max_attempts' => 5,
+                'unit_pack_requires_serial' => true,
+                'unit_pack_requires_order' => true,
             ]))
             ->assertSessionHasNoErrors();
 
@@ -69,6 +73,8 @@ class SystemSettingsUnitSerialisationTest extends TestCase
         $this->assertFalse($stored('unit_psn_unique'));
         $this->assertSame('scrap', $stored('unit_test_fail_policy'));
         $this->assertSame(5, $stored('unit_test_max_attempts'));
+        $this->assertTrue($stored('unit_pack_requires_serial'));
+        $this->assertTrue($stored('unit_pack_requires_order'));
 
         app(UnitSerialisation::class)->forget();
         // Normalisation off: surrounding whitespace still goes, the identifier itself is kept as scanned.

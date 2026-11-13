@@ -100,6 +100,6 @@ class ApiTokenScopeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('tokens.0.scope', 'machine-gateway')
-                ->has('scopes', 2));
+                ->has('scopes', 3));
     }
 }

@@ -24,6 +24,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   are rejected with `422`. The API documentation for this endpoint has been corrected to
   match what it actually accepts.
 
+- **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
+  next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
+  saying what the chosen access allows. A read-only token reads everything its creator can
+  read and gets *403 "This token is read-only."* on every request other than GET, HEAD and
+  OPTIONS: on core routes, module routes, and on `/api/auth/refresh`, so it cannot be traded
+  for a full token. Use it for reporting tools and AI assistants that should look but not
+  change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
+  `machine-gateway`; `null` for a browser session) so a client can show only the actions its
+  token allows. Existing tokens keep the access they have.
+- **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
+  started on its process serial at the first station and an SN label from a batch printed
+  ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
+  the unit's PSN: the unit takes the serial number, the batch's placeholder for that number
+  is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
+  number kept as superseded). A pre-issued number that already has a component, a carton or
+  any processing is still refused as before.
+- **Packing can require a serial number and a work order.** *Settings → System → Unit
+  serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
+  a work order* (both off by default). When on, the packing station refuses a unit that has
+  only its process serial, or one not assigned to an order - for plants whose ERP receives
+  finished units by serial number on an order.
+- **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
+  without applying the failed-test policy, so old failed runs do not block or scrap units.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -205,6 +228,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is now refused, and concurrent decisions no longer create a second lot.
 
 ### Fixed
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
 
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's

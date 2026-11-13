@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ApiTokenScope;
 use App\Http\Controllers\Controller;
 use App\Services\Auth\AuthService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -15,9 +17,6 @@ class AuthController extends Controller
 
     /**
      * Login and generate API token.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function login(Request $request): JsonResponse
     {
@@ -39,9 +38,6 @@ class AuthController extends Controller
 
     /**
      * Logout and revoke all tokens.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {
@@ -54,9 +50,6 @@ class AuthController extends Controller
 
     /**
      * Change password.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function changePassword(Request $request): JsonResponse
     {
@@ -78,24 +71,26 @@ class AuthController extends Controller
 
     /**
      * Get authenticated user info.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function me(Request $request): JsonResponse
     {
         $user = $this->authService->me($request->user());
 
+        // What the calling token may do, so a client (e.g. an MCP server) can
+        // offer only the actions that will succeed. Null for session auth.
+        $token = $request->user()->currentAccessToken();
+
         return response()->json([
             'data' => $user,
+            'token' => $token instanceof PersonalAccessToken ? [
+                'scope' => ApiTokenScope::fromAbilities($token->abilities)->value,
+                'abilities' => $token->abilities,
+            ] : null,
         ]);
     }
 
     /**
      * Refresh token (extend expiration).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function refresh(Request $request): JsonResponse
     {
