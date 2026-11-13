@@ -27,6 +27,8 @@ Schedule::command('quality:notify-overdue-actions')->dailyAt('07:00');
 Schedule::command('priority:recalculate')->hourly()->withoutOverlapping();
 // Uploads the importer abandoned (previewed but never run, validated and left).
 Schedule::command('imports:prune-uploads')->dailyAt('03:20');
+// Polled counters write an "unchanged" reading every poll; keep a week of them.
+Schedule::command('machine-counters:prune-readings')->dailyAt('03:40')->withoutOverlapping();
 // Hourly, but the command sends at most once a day and only in the hour its own
 // installation id maps to — a fixed time would have every OpenMES in the world
 // arrive at getopenmes.com within the same minute.

@@ -229,7 +229,7 @@ class LineProgressService
         $byStation = [];
         foreach ($rows as $event) {
             $payload = json_decode((string) $event->payload, true) ?: [];
-            if (($payload['kind'] ?? 'good') === 'reject') {
+            if (MachineEvent::counterKind($payload) !== 'good') {
                 continue;
             }
             $byStation[$event->workstation_id] = ($byStation[$event->workstation_id] ?? 0) + (float) ($payload['delta'] ?? 0);
