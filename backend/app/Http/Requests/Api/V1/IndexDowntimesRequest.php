@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Http\Requests\Concerns\PaginatesOptionally;
+use App\Rules\VisibleToCaller;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -26,7 +27,7 @@ class IndexDowntimesRequest extends FormRequest
     {
         return [
             'line_id' => ['nullable', 'integer'],
-            'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
+            'workstation_id' => ['nullable', 'bail', 'integer', VisibleToCaller::workstation()],
             'date' => ['nullable', 'date'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],

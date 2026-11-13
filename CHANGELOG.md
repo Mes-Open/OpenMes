@@ -14,12 +14,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   integration asking for a week across several lines got a silently truncated list. Both
   now accept `page` and `per_page` (1–100) and then answer with a `meta` block
   (`current_page`, `per_page`, `total`, `last_page`). Downtimes gain `date_from` / `date_to`
-  (by the day the stop started, inclusive), `workstation_id` and `active` (open or finished
-  stops only); OEE gains `workstation_id`. `lean=1` on either embeds only the id and name of
-  each related line, shift, workstation, reason and reporter, which keeps large answers
-  small. All of it is opt-in: without these parameters both endpoints answer exactly as
-  before, so the mobile app is unaffected. Malformed filters on `GET /api/v1/downtimes`
-  (a non-numeric `line_id`, an unparseable `date`) now return 422 instead of a server error.
+  (by the plant-local day the stop started, inclusive), `workstation_id` and `active` (open
+  or finished stops only); OEE gains `workstation_id`. `lean=1` on either embeds only the id
+  and name of each related line, shift, workstation, reason and reporter, which keeps large
+  answers small. All of it is opt-in: without these parameters both endpoints answer exactly
+  as before, so the mobile app is unaffected. Line and workstation ids are checked within the
+  caller's tenant only, so another tenant's id is answered like one that does not exist.
+  Malformed filters (a non-numeric `line_id`, an unparseable `date`) now return 422 on both
+  endpoints instead of a server error.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

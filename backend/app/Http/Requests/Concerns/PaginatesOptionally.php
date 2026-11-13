@@ -15,11 +15,17 @@ trait PaginatesOptionally
     /** Upper bound for `per_page`. */
     public const MAX_PER_PAGE = 100;
 
+    /**
+     * Upper bound for `page`. Far past any real list, but keeps the OFFSET
+     * (page × per_page) a sane integer instead of whatever a client sends.
+     */
+    public const MAX_PAGE = 100000;
+
     /** Validation rules for `page` / `per_page`. */
     protected function paginationRules(): array
     {
         return [
-            'page' => ['nullable', 'integer', 'min:1'],
+            'page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PAGE],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ];
     }

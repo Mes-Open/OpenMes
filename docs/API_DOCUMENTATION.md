@@ -1052,11 +1052,13 @@ Send `page` and/or `per_page` to switch to a paginated response that carries a
 
 | Parameter | Type | Description |
 |---|---|---|
-| `page` | integer ≥ 1 | Page to return. Turns pagination on. |
+| `page` | integer 1–100000 | Page to return. Turns pagination on. |
 | `per_page` | integer 1–100 | Page size. Turns pagination on. Defaults to the legacy cap (100 for OEE, 50 for downtimes) when only `page` is sent. |
 | `lean` | `1`/`0`/`true`/`false` | Embed only the identifying columns of each relation (see each endpoint) instead of the full records. Works with or without pagination. |
 
-Out-of-range values (`per_page=0`, `per_page=101`, `page=0`, …) return `422`.
+Out-of-range values (`per_page=0`, `per_page=101`, `page=0`, `page=100001`, …) return `422`.
+Ids are checked against the caller's tenant only: a line or workstation that
+belongs to another tenant is answered exactly like an id that does not exist.
 Rows are ordered newest first; rows that tie on the date are ordered by `id`
 descending, so pages never overlap or skip a row.
 
@@ -1071,10 +1073,12 @@ Query parameters (all optional and combinable):
 
 | Parameter | Type | Description |
 |---|---|---|
-| `line_id` | integer | Filter by line (must exist, otherwise `422`) |
-| `workstation_id` | integer | Filter by workstation (must exist, otherwise `422`) |
+| `line_id` | integer | Filter by line (must exist in your tenant, otherwise `422`) |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
 | `date_from` | date | Records with `record_date` on or after this day |
-| `date_to` | date | Records with `record_date` on or before this day |
+| `date_to` | date | Records with `record_date` on or before this day (inclusive) |
+
+`record_date` is a calendar date, compared as such; the plant timezone does not apply.
 | `page`, `per_page`, `lean` | | See above |
 
 With `lean=1`, `line` carries `id`, `name`, `code` and `shift` carries `id`, `name`.
@@ -1133,15 +1137,19 @@ Query parameters (all optional and combinable):
 | Parameter | Type | Description |
 |---|---|---|
 | `line_id` | integer | Filter by line (an unknown id returns an empty list) |
-| `workstation_id` | integer | Filter by workstation (must exist, otherwise `422`) |
-| `date` | date | Downtimes that started on this day |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
+| `date` | date | Downtimes that started on this day (same as `date_from` = `date_to` = this day) |
 | `date_from` | date | Downtimes that started on or after this day |
 | `date_to` | date | Downtimes that started on or before this day (inclusive) |
 | `active` | `1`/`0`/`true`/`false` | `1`: only open downtimes (no `ended_at`); `0`: only finished ones |
 | `page`, `per_page`, `lean` | | See above |
 
-Date filters match on the day the downtime **started**; a stop that began
-before `date_from` and ran into the range is not included.
+Date filters match on the **plant-local** day the downtime **started** (the
+timezone set under *Settings*), not the UTC day: with the plant in Europe/Warsaw,
+a stop at 00:30 local time on 15 January (`started_at` `2026-01-14T23:30:00Z` in
+the response) is found by `date=2026-01-15`. Only the date part of the
+parameter is used. A stop that began before `date_from` and ran into the range
+is not included.
 
 With `lean=1`, `reason` carries `id`, `code`, `name`, `kind`; `line` and
 `workstation` carry `id`, `name`, `code`; `reported_by` carries `id`, `name`,

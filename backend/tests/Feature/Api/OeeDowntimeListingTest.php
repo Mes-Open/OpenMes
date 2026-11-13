@@ -6,8 +6,10 @@ use App\Models\DowntimeReason;
 use App\Models\Line;
 use App\Models\OeeRecord;
 use App\Models\ProductionDowntime;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workstation;
+use App\Support\TimezoneRegistry;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -28,10 +30,22 @@ class OeeDowntimeListingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        TimezoneRegistry::flush();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
         $this->line = Line::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        // The timezone test changes process-wide state; put it back.
+        Carbon::setTestNow();
+        TimezoneRegistry::flush();
+        date_default_timezone_set('UTC');
+        config(['app.timezone' => 'UTC']);
+
+        parent::tearDown();
     }
 
     /** One OEE record per day, newest = $start, going back $count days. */
@@ -172,7 +186,7 @@ class OeeDowntimeListingTest extends TestCase
 
     public function test_oee_rejects_out_of_bounds_paging_and_bad_filters(): void
     {
-        foreach (['per_page=0', 'per_page=101', 'per_page=abc', 'page=0', 'page=-1', 'workstation_id=999999', 'date_from=not-a-date', 'lean=maybe'] as $qs) {
+        foreach (['per_page=0', 'per_page=101', 'per_page=abc', 'page=0', 'page=-1', 'page=100001', 'line_id=abc', 'workstation_id=abc', 'workstation_id=999999', 'date_from=not-a-date', 'lean=maybe'] as $qs) {
             $key = explode('=', $qs)[0];
             $this->actingAs($this->admin, 'sanctum')
                 ->getJson("/api/v1/oee?{$qs}")
@@ -321,12 +335,94 @@ class OeeDowntimeListingTest extends TestCase
 
     public function test_downtimes_rejects_out_of_bounds_paging_and_bad_filters(): void
     {
-        foreach (['per_page=0', 'per_page=101', 'page=0', 'date=garbage', 'date_from=garbage', 'date_to=garbage', 'line_id=abc', 'active=maybe', 'workstation_id=999999'] as $qs) {
+        foreach (['per_page=0', 'per_page=101', 'page=0', 'page=100001', 'workstation_id=abc', 'date=garbage', 'date_from=garbage', 'date_to=garbage', 'line_id=abc', 'active=maybe', 'workstation_id=999999'] as $qs) {
             $key = explode('=', $qs)[0];
             $this->actingAs($this->admin, 'sanctum')
                 ->getJson("/api/v1/downtimes?{$qs}")
                 ->assertStatus(422)
                 ->assertJsonValidationErrors($key);
+        }
+    }
+
+    public function test_highest_allowed_page_is_accepted(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/oee?page=100000')
+            ->assertOk()->assertJsonPath('data', []);
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/downtimes?page=100000')
+            ->assertOk()->assertJsonPath('data', []);
+    }
+
+    // ── Plant-local days ─────────────────────────────────────────────────
+
+    public function test_downtime_days_are_plant_local_days(): void
+    {
+        // 23:30 UTC on 14 Jan is 00:30 on 15 Jan in Warsaw (UTC+1 in winter).
+        TimezoneRegistry::save('Europe/Warsaw');
+        TimezoneRegistry::apply();
+        Carbon::setTestNow(Carbon::parse('2026-01-14 23:30:00', 'UTC'));
+
+        // Stamped the way every writer stamps a stop: now(), in the plant zone.
+        $stop = $this->downtime(['started_at' => now(), 'ended_at' => null, 'duration_minutes' => null]);
+        Carbon::setTestNow();
+
+        $ids = fn (string $qs) => array_column(
+            $this->actingAs($this->admin, 'sanctum')->getJson("/api/v1/downtimes?{$qs}")->assertOk()->json('data'),
+            'id',
+        );
+
+        $this->assertSame('2026-01-14T23:30:00.000000Z', $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/downtimes')->json('data.0.started_at'));
+        $this->assertSame([$stop->id], $ids('date_from=2026-01-15&date_to=2026-01-15'));
+        $this->assertSame([$stop->id], $ids('date=2026-01-15'));
+        $this->assertSame([$stop->id], $ids('date_from=2026-01-15&per_page=10'));
+        $this->assertSame([], $ids('date_to=2026-01-14'));
+        $this->assertSame([], $ids('date=2026-01-14'));
+    }
+
+    public function test_oee_record_date_is_compared_as_a_plain_date(): void
+    {
+        // A DATE has no zone: the plant zone must not move the day boundaries.
+        TimezoneRegistry::save('Pacific/Auckland');
+        TimezoneRegistry::apply();
+        $this->seedOeeDays(3, '2026-01-15');
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/oee?date_from=2026-01-14&date_to=2026-01-14');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertStringStartsWith('2026-01-14', OeeRecord::find($response->json('data.0.id'))->record_date->toDateString());
+    }
+
+    // ── Tenant isolation ─────────────────────────────────────────────────
+
+    public function test_other_tenants_ids_look_like_unknown_ids(): void
+    {
+        $mine = Tenant::create(['name' => 'Mine']);
+        $theirs = Tenant::create(['name' => 'Theirs']);
+        $user = User::factory()->create(['tenant_id' => $mine->id]);
+        $user->assignRole('Admin');
+
+        $myLine = Line::factory()->create(['tenant_id' => $mine->id]);
+        $myStation = Workstation::factory()->create(['line_id' => $myLine->id]);
+        $theirLine = Line::factory()->create(['tenant_id' => $theirs->id]);
+        $theirStation = Workstation::factory()->create(['line_id' => $theirLine->id]);
+
+        $cases = [
+            '/api/v1/oee?line_id=' => ['line_id', $myLine->id, $theirLine->id],
+            '/api/v1/oee?workstation_id=' => ['workstation_id', $myStation->id, $theirStation->id],
+            '/api/v1/downtimes?workstation_id=' => ['workstation_id', $myStation->id, $theirStation->id],
+        ];
+
+        foreach ($cases as $url => [$key, $own, $foreign]) {
+            $this->actingAs($user, 'sanctum')->getJson($url.$own)->assertOk();
+
+            $unknown = $this->actingAs($user, 'sanctum')->getJson($url.'999999');
+            $other = $this->actingAs($user, 'sanctum')->getJson($url.$foreign);
+
+            $unknown->assertStatus(422)->assertJsonValidationErrors($key);
+            $other->assertStatus(422)->assertJsonValidationErrors($key);
+            $this->assertSame($unknown->json(), $other->json(), "{$url}: a foreign id must answer like an unknown one");
         }
     }
 
