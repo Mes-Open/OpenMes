@@ -19,6 +19,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Batches](#batches)
   - [Batch Steps](#batch-steps)
   - [Serial Units and Test Runs](#serial-units-and-test-runs)
+  - [Material Lots and Genealogy](#material-lots-and-genealogy)
   - [Issues](#issues)
   - [Issue Types](#issue-types)
   - [CSV Import](#csv-import)
@@ -720,6 +721,141 @@ POST /api/v1/serial-units/{id}/components   { "identifier": "<lot number or comp
 The generic history write and the component scan, for integrations that
 already know the unit's id. A tester should prefer `POST /api/v1/test-runs`,
 which addresses the unit by serial number and de-duplicates runs.
+
+---
+
+### Material Lots and Genealogy
+
+Material lots (ISA-95 material lots: inbound deliveries and lots produced in
+house) with their genealogy. Requires a Sanctum token; any role may read.
+
+#### List / Look Up Lots
+
+```http
+GET /api/v1/material-lots?lot_number=<our lot number>
+GET /api/v1/material-lots?supplier_lot_no=<part of the supplier's lot number>
+GET /api/v1/material-lots?material_id=<id>&status=released&available_only=1
+GET /api/v1/material-lots?expiring_within_days=30&per_page=100
+Authorization: Bearer <token>
+```
+
+`lot_number` is an exact match on the plant's own lot number;
+`supplier_lot_no` is a substring match. All filters combine. Newest received
+first, `per_page` 1–100 (default 30), with `meta.current_page`, `per_page`,
+`total` and `last_page`.
+
+```http
+GET /api/v1/material-lots/{id}                       # the lot with material, inspection, sublots
+GET /api/v1/material-lots/{id}/genealogy/forward     # batch steps / work orders that consumed it, plus a recall view
+GET /api/v1/material-lots/{id}/genealogy/backward    # inspection, supplier and the upstream lots it was made from
+```
+
+#### Where-Used (unit level)
+
+```http
+GET /api/v1/material-lots/{id}/where-used?max_depth=10&limit=1000&include_removed=0
+Authorization: Bearer <token>
+```
+
+The containment answer for a lot in one call: every serialised unit the lot
+was scanned into as a component, and - walking up the component bindings -
+every unit that contains one of those (a pinion inside a repair kit inside a
+carton), with each unit's work order, batch, pallet and status, and a count per
+work order.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `max_depth` | 10 (0–20) | How many levels of containing units to walk up. `0` returns the directly bound units only. |
+| `limit` | 1000 (1–5000) | Most units returned in total (direct and containing). |
+| `include_removed` | `false` | Also follow bindings that were taken out again (`unbound_at` set). By default only parts still installed count. |
+
+`precision` says how exact the answer is:
+
+- `unit` - the lot has component bindings; `direct_units` and `parent_units`
+  are exactly the affected units.
+- `batch` - no unit was ever bound to the lot, only batch-step consumption was
+  recorded. `direct_units` is empty; `batch_level` lists the consuming batches
+  and how many units each produced (`candidate_units`). Every candidate *may*
+  contain the lot - it is an upper bound, not a list of affected units.
+- `none` - neither bindings nor consumption are recorded.
+
+`batch_level` is always returned, also next to unit bindings as a cross-check
+(`bound_units` against `candidate_units` per batch shows how complete the
+scanning was). It covers the lot's own consumption only; for multi-stage chains
+through lots produced from it use `genealogy/forward`.
+
+A unit is matched when its binding resolved to the lot, or when it was scanned
+by the lot number before the lot existed (`bindings[].match` is `material_lot`
+or `identifier`). `top_level` marks the outermost units - installed in nothing
+else - which is what left the plant. Cycles in the binding data are walked
+once. When `limit` or `max_depth` cut the walk short, `truncated` is `true` and
+`truncated_by` names which (`limit`, `depth`); `totals.direct_units` still
+counts every directly bound unit, while `work_orders` (sorted by order
+number) and the other totals cover the returned units only.
+
+```json
+{
+    "data": {
+        "lot": { "id": 42, "lot_number": "PIN-2026-001", "supplier_lot_no": "SUP-881", "status": "consumed",
+                 "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" } },
+        "precision": "unit",
+        "has_unit_bindings": true,
+        "params": { "max_depth": 10, "limit": 1000, "include_removed": false },
+        "truncated": false,
+        "truncated_by": [],
+        "totals": {
+            "direct_units": 2, "direct_units_returned": 2, "parent_units": 1, "top_level_units": 2,
+            "removed_bindings": 0, "work_orders": 2, "by_status": { "completed": 2, "shipped": 1 }
+        },
+        "work_orders": [
+            { "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+              "direct_units": 0, "parent_units": 1, "top_level_units": 1, "by_status": { "shipped": 1 } },
+            { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+              "direct_units": 2, "parent_units": 0, "top_level_units": 1, "by_status": { "completed": 2 } }
+        ],
+        "direct_units": [
+            {
+                "id": 101, "serial_no": "PIN-A", "psn": null, "status": "completed",
+                "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" },
+                "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                "batch": { "id": 31, "batch_number": 1, "lot_number": "B-2026-031" },
+                "pallet": null,
+                "produced_at": "2026-11-02T08:14:00+00:00", "shipped_at": null,
+                "depth": 0, "top_level": false,
+                "contained_in": [ { "id": 201, "serial_no": "KIT-1", "psn": null } ],
+                "bindings": [ { "identifier": "PIN-2026-001", "match": "material_lot", "quantity": 1, "installed": true,
+                                "bound_at": "2026-11-02T08:10:00+00:00", "unbound_at": null, "unbind_reason": null } ],
+                "contains": []
+            }
+        ],
+        "parent_units": [
+            {
+                "id": 201, "serial_no": "KIT-1", "psn": null, "status": "shipped",
+                "material": null,
+                "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+                "batch": null,
+                "pallet": { "id": 5, "pallet_no": "PAL-000777", "status": "shipped" },
+                "produced_at": null, "shipped_at": "2026-11-05T13:00:00+00:00",
+                "depth": 1, "top_level": true,
+                "contained_in": [],
+                "contains": [ { "id": 101, "serial_no": "PIN-A", "psn": null } ]
+            }
+        ],
+        "batch_level": {
+            "work_orders": [
+                { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                  "quantity_consumed": 2, "candidate_units": 2,
+                  "batches": [ { "id": 31, "batch_number": 1, "lot_number": "B-2026-031",
+                                 "quantity_consumed": 2, "candidate_units": 2, "bound_units": 2 } ] }
+            ],
+            "totals": { "work_orders": 1, "batches": 1, "candidate_units": 2, "quantity_consumed": 2 }
+        }
+    }
+}
+```
+
+The example shows one of the two direct units. `404` when the lot does not
+exist or belongs to another tenant, `422` for an out-of-range parameter.
 
 ---
 
