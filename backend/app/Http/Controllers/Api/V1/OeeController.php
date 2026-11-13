@@ -3,46 +3,62 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\IndexDowntimesRequest;
+use App\Http\Requests\Api\V1\IndexOeeRecordsRequest;
 use App\Models\DowntimeReason;
 use App\Models\Line;
 use App\Models\OeeRecord;
 use App\Models\ProductionDowntime;
 use App\Services\Production\DowntimeService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OeeController extends Controller
 {
+    /** Rows the unpaginated GET /oee has always returned; also its default page size. */
+    private const OEE_LEGACY_CAP = 100;
+
+    /** Rows the unpaginated GET /downtimes has always returned; also its default page size. */
+    private const DOWNTIME_LEGACY_CAP = 50;
+
     public function __construct(
         protected DowntimeService $downtimeService,
     ) {}
 
     /**
      * Get OEE records with filters.
+     *
+     * Without `page`/`per_page` this is the legacy response: the newest 100
+     * records, no `meta`. Sending either switches to a paginated response.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexOeeRecordsRequest $request): JsonResponse
     {
-        $request->validate([
-            'line_id' => 'nullable|exists:lines,id',
-            'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date',
-        ]);
-
-        $query = OeeRecord::with(['line', 'shift']);
+        $query = OeeRecord::with($request->boolean('lean')
+            ? ['line:id,name,code', 'shift:id,name']
+            : ['line', 'shift']);
 
         if ($request->line_id) {
             $query->where('line_id', $request->line_id);
         }
+        if ($request->filled('workstation_id')) {
+            $query->where('workstation_id', $request->integer('workstation_id'));
+        }
+        // whereDate keeps both bounds inclusive on every driver: SQLite stores a
+        // `date` cast as 'Y-m-d 00:00:00', which a plain string `<=` against
+        // 'Y-m-d' would treat as later than the day itself.
         if ($request->date_from) {
-            $query->where('record_date', '>=', $request->date_from);
+            $query->whereDate('record_date', '>=', $request->date('date_from')->toDateString());
         }
         if ($request->date_to) {
-            $query->where('record_date', '<=', $request->date_to);
+            $query->whereDate('record_date', '<=', $request->date('date_to')->toDateString());
         }
 
-        return response()->json([
-            'data' => $query->orderByDesc('record_date')->limit(100)->get(),
-        ]);
+        // `id` breaks ties between records of the same day so pages never
+        // overlap or skip a row.
+        $query->orderByDesc('record_date')->orderByDesc('id');
+
+        return $this->listResponse($request, $query, self::OEE_LEGACY_CAP);
     }
 
     /**
@@ -119,20 +135,72 @@ class OeeController extends Controller
 
     /**
      * List downtimes with filters.
+     *
+     * Without `page`/`per_page` this is the legacy response: the newest 50
+     * downtimes, no `meta`. Sending either switches to a paginated response.
+     * Date filters match on the day the downtime started.
      */
-    public function downtimes(Request $request): JsonResponse
+    public function downtimes(IndexDowntimesRequest $request): JsonResponse
     {
-        $query = ProductionDowntime::with(['reason', 'line', 'workstation', 'reportedBy']);
+        $query = ProductionDowntime::with($request->boolean('lean')
+            ? [
+                'reason:id,code,name,kind',
+                'line:id,name,code',
+                'workstation:id,name,code',
+                'reportedBy:id,name,username',
+            ]
+            : ['reason', 'line', 'workstation', 'reportedBy']);
 
         if ($request->line_id) {
             $query->where('line_id', $request->line_id);
         }
+        if ($request->filled('workstation_id')) {
+            $query->where('workstation_id', $request->integer('workstation_id'));
+        }
         if ($request->date) {
             $query->whereDate('started_at', $request->date);
         }
+        if ($request->filled('date_from')) {
+            $query->whereDate('started_at', '>=', $request->date('date_from')->toDateString());
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('started_at', '<=', $request->date('date_to')->toDateString());
+        }
+        if ($request->filled('active')) {
+            $request->boolean('active')
+                ? $query->whereNull('ended_at')
+                : $query->whereNotNull('ended_at');
+        }
+
+        // `id` breaks ties between downtimes started in the same second so
+        // pages never overlap or skip a row.
+        $query->orderByDesc('started_at')->orderByDesc('id');
+
+        return $this->listResponse($request, $query, self::DOWNTIME_LEGACY_CAP);
+    }
+
+    /**
+     * The legacy capped list, or — when the caller sent `page`/`per_page` —
+     * one page plus the `meta` block the other paginated v1 endpoints use.
+     */
+    private function listResponse(IndexOeeRecordsRequest|IndexDowntimesRequest $request, Builder $query, int $legacyCap): JsonResponse
+    {
+        if (! $request->wantsPagination()) {
+            return response()->json([
+                'data' => $query->limit($legacyCap)->get(),
+            ]);
+        }
+
+        $page = $query->paginate($request->perPage($legacyCap), ['*'], 'page', $request->pageNumber());
 
         return response()->json([
-            'data' => $query->orderByDesc('started_at')->limit(50)->get(),
+            'data' => $page->items(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+            ],
         ]);
     }
 }
