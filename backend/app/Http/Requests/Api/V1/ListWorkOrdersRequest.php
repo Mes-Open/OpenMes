@@ -79,6 +79,9 @@ class ListWorkOrdersRequest extends FormRequest
             'due_from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'due_to' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:due_from'],
 
+            // `full` (default): every column. `summary`: scalar columns only.
+            'fields' => ['sometimes', 'nullable', Rule::in(['full', 'summary'])],
+
             'include' => ['sometimes', 'nullable', 'array'],
             'include.*' => ['string', Rule::in(array_keys(self::INCLUDES))],
 
@@ -116,6 +119,17 @@ class ListWorkOrdersRequest extends FormRequest
         }
 
         return array_values(array_unique(array_map(fn (string $token) => self::INCLUDES[$token], $tokens)));
+    }
+
+    /**
+     * The work_orders columns to select: null (every column) unless the client
+     * asked for `fields=summary`.
+     *
+     * @return list<string>|null
+     */
+    public function columns(): ?array
+    {
+        return $this->validated('fields') === 'summary' ? WorkOrderService::LIST_SUMMARY_COLUMNS : null;
     }
 
     public function wantsPagination(): bool

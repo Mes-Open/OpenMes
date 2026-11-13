@@ -856,6 +856,19 @@ class WorkOrderService
     public const LIST_RELATIONS = ['line', 'productType', 'batches.steps'];
 
     /**
+     * The scalar columns of a summary listing (`fields=summary`). Leaves out the
+     * JSON blobs (`process_snapshot`, `extra_data`, `custom_fields`), which make
+     * up most of a full row. `id`, `line_id` and `product_type_id` must stay:
+     * the eager-loaded relations are matched on them.
+     */
+    public const LIST_SUMMARY_COLUMNS = [
+        'id', 'order_no', 'customer_order_no', 'status', 'priority',
+        'planned_qty', 'produced_qty', 'line_id', 'product_type_id',
+        'due_date', 'planned_start_at', 'planned_end_at', 'completed_at',
+        'description', 'created_at', 'updated_at',
+    ];
+
+    /**
      * The work orders a user may see, filtered and in priority order: the query
      * behind `GET /api/v1/work-orders`, left unexecuted so the caller can page it.
      *
@@ -864,13 +877,21 @@ class WorkOrderService
      * description, or product type name/code), `due_from` / `due_to` (inclusive
      * calendar dates compared against `due_date`).
      *
+     * `$columns` limits the selected work_orders columns (e.g.
+     * LIST_SUMMARY_COLUMNS); null selects every column, as the list always has.
+     *
      * @param  \App\Models\User  $user
      * @param  list<string>  $relations
+     * @param  list<string>|null  $columns
      * @return \Illuminate\Database\Eloquent\Builder<WorkOrder>
      */
-    public function queryWorkOrdersForUser($user, array $filters = [], array $relations = self::LIST_RELATIONS)
+    public function queryWorkOrdersForUser($user, array $filters = [], array $relations = self::LIST_RELATIONS, ?array $columns = null)
     {
         $query = WorkOrder::forUser($user)->with($relations);
+
+        if ($columns !== null) {
+            $query->select(array_map(fn (string $column) => 'work_orders.'.$column, $columns));
+        }
 
         if ($user->hasRole('Operator') && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
             $query->availableForProduction();

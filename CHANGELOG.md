@@ -15,7 +15,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   matches the order number, customer order number, description and product type name or code,
   ignoring case; `due_from` / `due_to` limit the list to a due-date range; and `include`
   (`line`, `product_type`, `batches`, `batches.steps`) picks which related data comes with each
-  order, so a client that only needs the list can skip the batch steps. A request without
+  order, so a client that only needs the list can skip the batch steps. `fields=summary`
+  returns only each order's summary columns (number, status, quantities, dates, line and
+  product) and leaves out the large routing snapshot and custom data, which shrinks a page of
+  orders several times over. A request without
   these parameters gets the same response as before — every order, with batches and steps.
   `per_page` on its own still returns the full list, as existing clients expect. Bad values
   are rejected with `422`. The API documentation for this endpoint has been corrected to

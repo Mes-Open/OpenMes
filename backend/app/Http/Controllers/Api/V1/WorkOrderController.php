@@ -30,6 +30,7 @@ class WorkOrderController extends Controller
             $request->user(),
             $request->filters(),
             $request->relations(),
+            $request->columns(),
         );
 
         if (! $request->wantsPagination()) {

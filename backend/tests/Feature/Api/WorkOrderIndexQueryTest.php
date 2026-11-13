@@ -12,6 +12,7 @@ use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -379,6 +380,101 @@ class WorkOrderIndexQueryTest extends TestCase
         $this->getJson('/api/v1/work-orders?include=line,issues')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('include.1');
+    }
+
+    // ── Summary fields ──────────────────────────────────────────────────────
+
+    public function test_summary_fields_omit_the_json_blobs_and_keep_the_summary_columns(): void
+    {
+        $this->actingAsRole('Admin');
+        $order = $this->order([
+            'customer_order_no' => 'PO-1',
+            'extra_data' => ['note' => str_repeat('x', 200)],
+            'planned_start_at' => '2026-03-01 08:00:00',
+        ]);
+        $this->assertNotEmpty($order->fresh()->process_snapshot);
+
+        $row = $this->getJson('/api/v1/work-orders?fields=summary&include=line,product_type')->assertOk()->json('data.0');
+
+        $this->assertSame(
+            array_merge(WorkOrderService::LIST_SUMMARY_COLUMNS, ['line', 'product_type']),
+            array_keys($row),
+        );
+        foreach (['process_snapshot', 'extra_data', 'custom_fields', 'tenant_id'] as $blob) {
+            $this->assertArrayNotHasKey($blob, $row);
+        }
+        $this->assertSame($order->id, $row['id']);
+        $this->assertSame('PO-1', $row['customer_order_no']);
+        $this->assertSame($order->line_id, $row['line']['id']);
+        $this->assertSame($order->product_type_id, $row['product_type']['id']);
+    }
+
+    public function test_summary_fields_are_selected_in_sql_not_hidden_afterwards(): void
+    {
+        $this->actingAsRole('Admin');
+        $this->order();
+
+        DB::enableQueryLog();
+        $this->getJson('/api/v1/work-orders?fields=summary&include=line')->assertOk();
+        $sql = collect(DB::getQueryLog())->pluck('query')->first(fn ($q) => str_contains($q, 'from "work_orders"'));
+
+        $this->assertNotNull($sql);
+        $this->assertStringNotContainsString('process_snapshot', $sql);
+        $this->assertStringNotContainsString('"work_orders".*', $sql);
+        $this->assertStringContainsString('"work_orders"."line_id"', $sql);
+    }
+
+    public function test_summary_fields_keep_the_default_relations_when_include_is_absent(): void
+    {
+        $this->actingAsRole('Admin');
+        $this->orderWithBatchSteps();
+
+        $row = $this->getJson('/api/v1/work-orders?fields=summary')->assertOk()->json('data.0');
+
+        $this->assertArrayNotHasKey('process_snapshot', $row);
+        $this->assertArrayHasKey('line', $row);
+        $this->assertArrayHasKey('product_type', $row);
+        $this->assertCount(2, $row['batches'][0]['steps']);
+    }
+
+    public function test_summary_fields_combine_with_search_paging_and_operator_scope(): void
+    {
+        $operator = $this->actingAsRole('Operator');
+        $mine = Line::factory()->create();
+        $other = Line::factory()->create();
+        $operator->lines()->attach($mine->id);
+
+        $hit = $this->order(['order_no' => 'WO-LEAN-1', 'line_id' => $mine->id]);
+        $this->order(['order_no' => 'WO-LEAN-2', 'line_id' => $other->id]);
+        $this->order(['order_no' => 'WO-FAT-3', 'line_id' => $mine->id]);
+
+        $response = $this->getJson('/api/v1/work-orders?fields=summary&search=lean&include=batches&page=1&per_page=5')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+
+        $this->assertSame([$hit->id], array_column($response->json('data'), 'id'));
+        $this->assertArrayNotHasKey('process_snapshot', $response->json('data.0'));
+        $this->assertSame([], $response->json('data.0.batches'));
+    }
+
+    public function test_full_fields_equal_the_default_response(): void
+    {
+        $this->actingAsRole('Admin');
+        $this->orderWithBatchSteps();
+
+        $full = $this->getJson('/api/v1/work-orders?fields=full')->assertOk()->json();
+
+        $this->getJson('/api/v1/work-orders')->assertOk()->assertExactJson($full);
+        $this->assertArrayHasKey('process_snapshot', $full['data'][0]);
+    }
+
+    public function test_unknown_fields_value_is_rejected(): void
+    {
+        $this->actingAsRole('Admin');
+
+        $this->getJson('/api/v1/work-orders?fields=lean')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('fields');
     }
 
     // ── Combined filters ────────────────────────────────────────────────────
