@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
+  accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
+  one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
+  matches the order number, customer order number, description and product type name or code,
+  ignoring case; `due_from` / `due_to` limit the list to a due-date range; and `include`
+  (`line`, `product_type`, `batches`, `batches.steps`) picks which related data comes with each
+  order, so a client that only needs the list can skip the batch steps. A request without
+  these parameters gets the same response as before — every order, with batches and steps.
+  `per_page` on its own still returns the full list, as existing clients expect. Bad values
+  are rejected with `422`. The API documentation for this endpoint has been corrected to
+  match what it actually accepts.
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
