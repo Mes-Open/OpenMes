@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
+  next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
+  saying what the chosen access allows. A read-only token reads everything its creator can
+  read and gets *403 "This token is read-only."* on every request other than GET, HEAD and
+  OPTIONS: on core routes, module routes, and on `/api/auth/refresh`, so it cannot be traded
+  for a full token. Use it for reporting tools and AI assistants that should look but not
+  change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
+  `machine-gateway`; `null` for a browser session) so a client can show only the actions its
+  token allows. Existing tokens keep the access they have.
 - **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
   started on its process serial at the first station and an SN label from a batch printed
   ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
@@ -204,6 +213,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is now refused, and concurrent decisions no longer create a second lot.
 
 ### Fixed
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
 
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
