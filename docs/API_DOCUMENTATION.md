@@ -234,11 +234,11 @@ Query parameters (all optional, combinable):
 |---|---|---|
 | `status` | string or list | Exact status (`PENDING`, `ACCEPTED`, `IN_PROGRESS`, `BLOCKED`, `PAUSED`, `CHANGE_HOLD`, `DONE`, `REJECTED`, `CANCELLED`). Repeat as `status[]=PENDING&status[]=PAUSED` to match any of several. An unknown status matches nothing. |
 | `line_id` | integer | Orders on this line. |
-| `search` | string, max 255 | Case-insensitive substring match on `order_no`, `customer_order_no`, `description`, and the product type's `name` or `code`. `%` and `_` act as wildcards. |
-| `due_from` | date (`YYYY-MM-DD`) | Orders due on or after this day. Orders with no due date are excluded. |
-| `due_to` | date (`YYYY-MM-DD`) | Orders due on or before this day (the whole day counts). Must not be before `due_from`. |
+| `search` | string, max 255 | Case-insensitive substring match on `order_no`, `customer_order_no`, `description`, and the product type's `name` or `code`. The term is matched literally: `%`, `_` and `\` are not wildcards. |
+| `due_from` | date, exactly `YYYY-MM-DD` | Orders due on or after this day. Orders with no due date are excluded. Other formats (`10.03.2026`, times, relative dates) are a `422`. |
+| `due_to` | date, exactly `YYYY-MM-DD` | Orders due on or before this day (the whole day counts). Must not be before `due_from`. |
 | `include` | comma list or list | Relations to embed, from `line`, `product_type`, `batches`, `batches.steps`. Default: `line,product_type,batches.steps`. `batches` alone embeds the batches without their steps. Any other value is a `422`. |
-| `page` | integer, min 1 | Turns pagination on and selects the page. The response then carries `meta`. |
+| `page` | integer, 1–1000000 | Turns pagination on and selects the page. The response then carries `meta`. |
 | `per_page` | integer, 1–100 | Page size when `page` is given (default 25). **Ignored without `page`**: older clients send `per_page` alone and expect the full, unpaginated list. |
 
 Default response (`GET /api/v1/work-orders`), abbreviated:
@@ -288,7 +288,7 @@ Lean, paginated search (`GET /api/v1/work-orders?search=chair&status=IN_PROGRESS
 ```
 
 A page past the last one returns an empty `data` array with the same `meta`. Invalid
-parameters (`page=0`, `per_page=500` with `page`, a malformed date, `due_to` before
+parameters (`page=0`, `per_page=500` with `page`, a date not in `YYYY-MM-DD` form, `due_to` before
 `due_from`, an unknown `include`, a non-numeric `line_id`, a `search` longer than 255
 characters) return `422` with the usual `errors` object.
 

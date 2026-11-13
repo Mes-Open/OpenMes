@@ -7306,5 +7306,6 @@
     "Sort by": "Sort by",
     "Newest entered": "Newest entered",
     "Recent activity": "Recent activity",
-    "Recently completed": "Recently completed"
+    "Recently completed": "Recently completed",
+    "The status must be a string or a list of strings.": "The status must be a string or a list of strings."
 }

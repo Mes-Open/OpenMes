@@ -5,8 +5,10 @@ namespace App\Services\WorkOrder;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProcessTemplate;
+use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Support\ProductionFlow;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
@@ -884,30 +886,60 @@ class WorkOrderService
         }
 
         if (isset($filters['search']) && $filters['search'] !== '') {
-            // whereLike(caseSensitive: false) compiles to ILIKE on Postgres and
-            // LIKE on SQLite; the term is always a bound parameter.
-            $needle = '%'.$filters['search'].'%';
-            $query->where(function ($q) use ($needle) {
-                $q->whereLike('order_no', $needle)
-                    ->orWhereLike('customer_order_no', $needle)
-                    ->orWhereLike('description', $needle)
-                    ->orWhereHas('productType', fn ($pt) => $pt->where(
-                        fn ($p) => $p->whereLike('name', $needle)->orWhereLike('code', $needle)
-                    ));
+            $search = $filters['search'];
+            // An uncorrelated `IN (SELECT id …)` rather than whereHas's correlated
+            // EXISTS; ProductType::query() keeps the soft-delete scope whereHas had.
+            $productTypeIds = ProductType::query()
+                ->where(fn ($p) => $this->whereContains($p, 'name', $search)
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'code', $search)))
+                ->select('id');
+
+            $query->where(function ($q) use ($search, $productTypeIds) {
+                $this->whereContains($q, 'work_orders.order_no', $search)
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'work_orders.customer_order_no', $search))
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'work_orders.description', $search))
+                    ->orWhereIn('work_orders.product_type_id', $productTypeIds);
             });
         }
 
+        // `due_date` is a timestamp: a day filter covers that whole calendar day,
+        // as explicit bounds (no `::date` cast, so an index on due_date can serve it).
         if (isset($filters['due_from'])) {
-            $query->whereDate('due_date', '>=', $filters['due_from']);
+            $query->where('due_date', '>=', Carbon::createFromFormat('!Y-m-d', $filters['due_from']));
         }
 
         if (isset($filters['due_to'])) {
-            $query->whereDate('due_date', '<=', $filters['due_to']);
+            $query->where('due_date', '<', Carbon::createFromFormat('!Y-m-d', $filters['due_to'])->addDay());
         }
 
         // Default ordering
         $query->byPriority();
 
         return $query;
+    }
+
+    /**
+     * Case-insensitive literal substring match: `%`, `_` and `\` in the term
+     * match themselves, not as LIKE wildcards.
+     *
+     * Laravel's whereLike() cannot emit an ESCAPE clause and SQLite's LIKE has
+     * no default escape character, so the clause is written out. Only the
+     * (wrapped, code-supplied) column name is interpolated; the term is bound.
+     * ILIKE on Postgres, LIKE (ASCII case-insensitive) elsewhere.
+     *
+     * @template TBuilder of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     *
+     * @param  TBuilder  $query
+     * @return TBuilder
+     */
+    private function whereContains($query, string $column, string $term)
+    {
+        $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+
+        return $query->whereRaw(
+            $query->getGrammar()->wrap($column)." {$operator} ? escape '\\'",
+            [$pattern],
+        );
     }
 }

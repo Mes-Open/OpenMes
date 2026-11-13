@@ -25,8 +25,7 @@ class WorkOrderController extends Controller
      */
     public function index(ListWorkOrdersRequest $request): JsonResponse
     {
-        $this->authorize('viewAny', WorkOrder::class);
-
+        // Authorized (viewAny) by ListWorkOrdersRequest, before validation.
         $query = $this->workOrderService->queryWorkOrdersForUser(
             $request->user(),
             $request->filters(),

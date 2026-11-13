@@ -7306,5 +7306,6 @@
     "Sort by": "Sortuj według",
     "Newest entered": "Najnowsze utworzone",
     "Recent activity": "Ostatnia aktywność",
-    "Recently completed": "Ostatnio zakończone"
+    "Recently completed": "Ostatnio zakończone",
+    "The status must be a string or a list of strings.": "Status musi być tekstem lub listą tekstów."
 }

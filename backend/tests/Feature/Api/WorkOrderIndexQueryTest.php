@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Requests\Api\V1\ListWorkOrdersRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\WorkOrder\WorkOrderService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -167,6 +169,8 @@ class WorkOrderIndexQueryTest extends TestCase
         $this->getJson('/api/v1/work-orders?page=1&per_page=101')->assertUnprocessable()->assertJsonValidationErrors('per_page');
         $this->getJson('/api/v1/work-orders?page=1&per_page=abc')->assertUnprocessable()->assertJsonValidationErrors('per_page');
         $this->getJson('/api/v1/work-orders?page=0')->assertUnprocessable()->assertJsonValidationErrors('page');
+        $this->getJson('/api/v1/work-orders?page=1000001')->assertUnprocessable()->assertJsonValidationErrors('page');
+        $this->getJson('/api/v1/work-orders?page=1000000')->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/work-orders?page=1&per_page=100')->assertOk();
     }
 
@@ -236,6 +240,37 @@ class WorkOrderIndexQueryTest extends TestCase
             ->assertJsonValidationErrors('search');
     }
 
+    public function test_search_underscore_is_literal_not_a_wildcard(): void
+    {
+        $this->actingAsRole('Admin');
+        $hit = $this->order(['order_no' => 'WO_1']);
+        $this->order(['order_no' => 'WOX1']);
+
+        $this->assertSearchFinds('WO_1', $hit);
+    }
+
+    public function test_search_percent_and_backslash_are_literal(): void
+    {
+        $this->actingAsRole('Admin');
+        $percent = $this->order(['description' => 'Discount 50% applied']);
+        $this->order(['description' => 'Batch of 500 units']);
+        $backslash = $this->order(['description' => 'Path C:\\jobs\\7']);
+        $this->order(['description' => 'Path C:jobs7']);
+
+        $this->assertSearchFinds('50%', $percent);
+        $this->assertSearchFinds('C:\\jobs', $backslash);
+    }
+
+    public function test_search_ignores_soft_deleted_product_types(): void
+    {
+        $this->actingAsRole('Admin');
+        $product = ProductType::factory()->create(['name' => 'Obsolete Widget']);
+        $this->order(['product_type_id' => $product->id]);
+        $product->delete();
+
+        $this->getJson('/api/v1/work-orders?search=obsolete')->assertOk()->assertExactJson(['data' => []]);
+    }
+
     private function assertSearchFinds(string $term, WorkOrder $expected): void
     {
         $response = $this->getJson('/api/v1/work-orders?search='.urlencode($term))->assertOk();
@@ -267,6 +302,18 @@ class WorkOrderIndexQueryTest extends TestCase
 
         $this->getJson('/api/v1/work-orders?due_from=not-a-date')->assertUnprocessable()->assertJsonValidationErrors('due_from');
         $this->getJson('/api/v1/work-orders?due_from=2026-03-10&due_to=2026-03-01')->assertUnprocessable()->assertJsonValidationErrors('due_to');
+    }
+
+    public function test_due_dates_must_be_strict_iso_dates(): void
+    {
+        $this->actingAsRole('Admin');
+
+        // Accepted by the loose `date` rule, but ambiguous (Postgres reads the
+        // first as 3 Oct) or relative: both must be rejected.
+        $this->getJson('/api/v1/work-orders?due_from=10.03.2026')->assertUnprocessable()->assertJsonValidationErrors('due_from');
+        $this->getJson('/api/v1/work-orders?due_to='.urlencode('2026-03-10 +1 week'))->assertUnprocessable()->assertJsonValidationErrors('due_to');
+        $this->getJson('/api/v1/work-orders?due_from=2026-03-10T00:00:00')->assertUnprocessable()->assertJsonValidationErrors('due_from');
+        $this->getJson('/api/v1/work-orders?due_from=2026-03-10&due_to=2026-03-10')->assertOk();
     }
 
     // ── Lean listing ────────────────────────────────────────────────────────
@@ -306,6 +353,23 @@ class WorkOrderIndexQueryTest extends TestCase
         $this->assertArrayHasKey('product_type', $row);
         $this->assertCount(2, $row['batches'][0]['steps']);
         $this->assertArrayNotHasKey('line', $row);
+    }
+
+    public function test_default_relations_equal_the_explicit_include_list(): void
+    {
+        // The default comes from WorkOrderService::LIST_RELATIONS; every one of
+        // them must be requestable, and asking for them explicitly must give the
+        // same response as asking for nothing.
+        $this->assertEmpty(array_diff(WorkOrderService::LIST_RELATIONS, ListWorkOrdersRequest::INCLUDES));
+
+        $this->actingAsRole('Admin');
+        $this->orderWithBatchSteps();
+        $this->order();
+
+        $tokens = array_keys(array_intersect(ListWorkOrdersRequest::INCLUDES, WorkOrderService::LIST_RELATIONS));
+        $explicit = $this->getJson('/api/v1/work-orders?include='.implode(',', $tokens))->assertOk()->json();
+
+        $this->getJson('/api/v1/work-orders')->assertOk()->assertExactJson($explicit);
     }
 
     public function test_unknown_include_is_rejected(): void
@@ -357,6 +421,21 @@ class WorkOrderIndexQueryTest extends TestCase
     }
 
     // ── Validation of legacy filters / authorization ────────────────────────
+
+    public function test_status_of_the_wrong_type_is_rejected_with_a_translated_message(): void
+    {
+        $this->actingAsRole('Admin');
+
+        // Only a JSON body can carry a non-string, non-array status.
+        $this->json('GET', '/api/v1/work-orders', ['status' => 5])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status' => 'The status must be a string or a list of strings.']);
+
+        $this->assertSame(
+            'Status musi być tekstem lub listą tekstów.',
+            __('The status must be a string or a list of strings.', [], 'pl'),
+        );
+    }
 
     public function test_non_numeric_line_id_is_rejected(): void
     {
