@@ -9,6 +9,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
+  accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
+  one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
+  matches the order number, customer order number, description and product type name or code,
+  ignoring case; `due_from` / `due_to` limit the list to a due-date range; and `include`
+  (`line`, `product_type`, `batches`, `batches.steps`) picks which related data comes with each
+  order, so a client that only needs the list can skip the batch steps. `fields=summary`
+  returns only each order's summary columns (number, status, quantities, dates, line and
+  product) and leaves out the large routing snapshot and custom data, which shrinks a page of
+  orders several times over. A request without
+  these parameters gets the same response as before — every order, with batches and steps.
+  `per_page` on its own still returns the full list, as existing clients expect. Bad values
+  are rejected with `422`. The API documentation for this endpoint has been corrected to
+  match what it actually accepts.
+
 - **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
   next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
   saying what the chosen access allows. A read-only token reads everything its creator can

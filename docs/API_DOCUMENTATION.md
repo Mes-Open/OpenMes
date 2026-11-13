@@ -224,52 +224,92 @@ GET /api/v1/work-orders
 Authorization: Bearer <token>
 ```
 
-Query parameters:
+Returns the work orders the caller may see (Admins and Supervisors: all; Operators: orders on
+their assigned lines that are open for production), ordered by priority score, priority,
+due date and creation time.
+
+**Default response.** Without `page`, every matching order comes back in one `data` array
+with no `meta`, and each order includes `line`, `product_type` and `batches` with their
+`steps`. This is the behaviour existing clients rely on and it does not change. On a large
+plant it is a big response (megabytes): use `page`, `include` and `fields=summary` to keep
+it small.
+
+Query parameters (all optional, combinable):
 
 | Parameter | Type | Description |
 |---|---|---|
-| `status` | string | Filter by status: `pending`, `accepted`, `in_progress`, `completed`, `paused`, `rejected` |
-| `line_id` | integer | Filter by line |
-| `due_before` | date | Filter by due date (YYYY-MM-DD) |
-| `week_number` | integer | Filter by production week |
-| `month_number` | integer | Filter by production month |
-| `production_year` | integer | Filter by production year |
-| `search` | string | Search in order_no and product_name |
-| `per_page` | integer | Results per page (default: 15, max: 100) |
-| `page` | integer | Page number |
+| `status` | string or list | Exact status (`PENDING`, `ACCEPTED`, `IN_PROGRESS`, `BLOCKED`, `PAUSED`, `CHANGE_HOLD`, `DONE`, `REJECTED`, `CANCELLED`). Repeat as `status[]=PENDING&status[]=PAUSED` to match any of several. An unknown status matches nothing. |
+| `line_id` | integer | Orders on this line. |
+| `search` | string, max 255 | Case-insensitive substring match on `order_no`, `customer_order_no`, `description`, and the product type's `name` or `code`. The term is matched literally: `%`, `_` and `\` are not wildcards. |
+| `due_from` | date, exactly `YYYY-MM-DD` | Orders due on or after this day. Orders with no due date are excluded. Other formats (`10.03.2026`, times, relative dates) are a `422`. |
+| `due_to` | date, exactly `YYYY-MM-DD` | Orders due on or before this day (the whole day counts). Must not be before `due_from`. |
+| `include` | comma list or list | Relations to embed, from `line`, `product_type`, `batches`, `batches.steps`. Default: `line,product_type,batches.steps`. `batches` alone embeds the batches without their steps. Any other value is a `422`. |
+| `fields` | `full` or `summary` | `full` (default): every work-order column. `summary`: only `id`, `order_no`, `customer_order_no`, `status`, `priority`, `planned_qty`, `produced_qty`, `line_id`, `product_type_id`, `due_date`, `planned_start_at`, `planned_end_at`, `completed_at`, `description`, `created_at`, `updated_at`, plus the relations `include` selects. The large JSON columns (`process_snapshot`, `extra_data`, `custom_fields`) are not read from the database at all. Any other value is a `422`. |
+| `page` | integer, 1–1000000 | Turns pagination on and selects the page. The response then carries `meta`. |
+| `per_page` | integer, 1–100 | Page size when `page` is given (default 25). **Ignored without `page`**: older clients send `per_page` alone and expect the full, unpaginated list. |
 
-Response:
+Default response (`GET /api/v1/work-orders`), abbreviated:
 ```json
 {
     "data": [
         {
             "id": 42,
             "order_no": "WO-2025-0042",
-            "product_name": "Wooden Chair Model A",
-            "quantity": 100,
-            "status": "in_progress",
+            "customer_order_no": "PO-7781",
+            "status": "IN_PROGRESS",
+            "planned_qty": "100.00",
+            "produced_qty": "65.00",
             "priority": 2,
-            "due_date": "2025-04-10",
-            "week_number": 15,
-            "month_number": 4,
-            "production_year": 2025,
-            "line": {
-                "id": 1,
-                "name": "Line A"
-            },
-            "product_type": {
-                "id": 3,
-                "name": "Wooden Chair"
-            },
-            "batches_count": 2,
-            "produced_quantity": 65,
-            "created_at": "2025-04-01T08:00:00Z",
-            "updated_at": "2025-04-02T14:30:00Z"
+            "due_date": "2025-04-10T00:00:00.000000Z",
+            "description": "Wooden Chair Model A",
+            "line": { "id": 1, "name": "Line A", "code": "LA" },
+            "product_type": { "id": 3, "name": "Wooden Chair", "code": "WCH" },
+            "batches": [
+                { "id": 7, "batch_number": 1, "status": "IN_PROGRESS", "steps": [ { "id": 31, "step_number": 1, "status": "DONE" } ] }
+            ]
         }
-    ],
-    "meta": { ... }
+    ]
 }
 ```
+
+Lean, paginated search (`GET /api/v1/work-orders?search=chair&status=IN_PROGRESS&fields=summary&include=line,product_type&page=1&per_page=20`), relations abbreviated:
+```json
+{
+    "data": [
+        {
+            "id": 42,
+            "order_no": "WO-2025-0042",
+            "customer_order_no": "PO-7781",
+            "status": "IN_PROGRESS",
+            "priority": 2,
+            "planned_qty": "100.00",
+            "produced_qty": "65.00",
+            "line_id": 1,
+            "product_type_id": 3,
+            "due_date": "2025-04-10T00:00:00.000000Z",
+            "planned_start_at": "2025-04-07T06:00:00.000000Z",
+            "planned_end_at": "2025-04-09T14:00:00.000000Z",
+            "completed_at": null,
+            "description": "Wooden Chair Model A",
+            "created_at": "2025-04-01T08:00:00.000000Z",
+            "updated_at": "2025-04-02T14:30:00.000000Z",
+            "line": { "id": 1, "name": "Line A", "code": "LA" },
+            "product_type": { "id": 3, "name": "Wooden Chair", "code": "WCH" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 20,
+        "total": 1,
+        "last_page": 1
+    }
+}
+```
+
+A page past the last one returns an empty `data` array with the same `meta`. Invalid
+parameters (`page=0`, `per_page=500` with `page`, a date not in `YYYY-MM-DD` form, `due_to` before
+`due_from`, an unknown `include`, a non-numeric `line_id`, a `search` longer than 255
+characters) return `422` with the usual `errors` object.
 
 #### Get Work Order
 
