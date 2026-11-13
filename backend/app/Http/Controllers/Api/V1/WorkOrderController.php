@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ListWorkOrdersRequest;
 use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
 {
@@ -18,20 +18,38 @@ class WorkOrderController extends Controller
 
     /**
      * Get list of work orders (filtered by user's assigned lines).
+     *
+     * Without `page` the response is the legacy one: every matching order in a
+     * bare `data` array. With `page` it is a page of `per_page` orders plus a
+     * `meta` block. See ListWorkOrdersRequest for the full query contract.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListWorkOrdersRequest $request): JsonResponse
     {
         $this->authorize('viewAny', WorkOrder::class);
 
-        $user = $request->user();
+        $query = $this->workOrderService->queryWorkOrdersForUser(
+            $request->user(),
+            $request->filters(),
+            $request->relations(),
+        );
 
-        // Get filters from request
-        $filters = $request->only(['status', 'line_id']);
+        if (! $request->wantsPagination()) {
+            return response()->json([
+                'data' => $query->get(),
+            ]);
+        }
 
-        $workOrders = $this->workOrderService->getWorkOrdersForUser($user, $filters);
+        // The priority ordering can tie; the id tie-breaker keeps pages stable.
+        $page = $query->orderBy('work_orders.id')->paginate($request->perPage());
 
         return response()->json([
-            'data' => $workOrders,
+            'data' => $page->items(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+            ],
         ]);
     }
 

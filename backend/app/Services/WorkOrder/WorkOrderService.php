@@ -847,8 +847,28 @@ class WorkOrderService
      */
     public function getWorkOrdersForUser($user, array $filters = [])
     {
-        $query = WorkOrder::forUser($user)
-            ->with(['line', 'productType', 'batches.steps']);
+        return $this->queryWorkOrdersForUser($user, $filters)->get();
+    }
+
+    /** Relations the work-order list has always eager-loaded. */
+    public const LIST_RELATIONS = ['line', 'productType', 'batches.steps'];
+
+    /**
+     * The work orders a user may see, filtered and in priority order: the query
+     * behind `GET /api/v1/work-orders`, left unexecuted so the caller can page it.
+     *
+     * Filters (all optional): `status` (one or a list), `line_id`, `search`
+     * (case-insensitive substring of the order number, customer order number,
+     * description, or product type name/code), `due_from` / `due_to` (inclusive
+     * calendar dates compared against `due_date`).
+     *
+     * @param  \App\Models\User  $user
+     * @param  list<string>  $relations
+     * @return \Illuminate\Database\Eloquent\Builder<WorkOrder>
+     */
+    public function queryWorkOrdersForUser($user, array $filters = [], array $relations = self::LIST_RELATIONS)
+    {
+        $query = WorkOrder::forUser($user)->with($relations);
 
         if ($user->hasRole('Operator') && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
             $query->availableForProduction();
@@ -863,9 +883,31 @@ class WorkOrderService
             $query->forLine($filters['line_id']);
         }
 
+        if (isset($filters['search']) && $filters['search'] !== '') {
+            // whereLike(caseSensitive: false) compiles to ILIKE on Postgres and
+            // LIKE on SQLite; the term is always a bound parameter.
+            $needle = '%'.$filters['search'].'%';
+            $query->where(function ($q) use ($needle) {
+                $q->whereLike('order_no', $needle)
+                    ->orWhereLike('customer_order_no', $needle)
+                    ->orWhereLike('description', $needle)
+                    ->orWhereHas('productType', fn ($pt) => $pt->where(
+                        fn ($p) => $p->whereLike('name', $needle)->orWhereLike('code', $needle)
+                    ));
+            });
+        }
+
+        if (isset($filters['due_from'])) {
+            $query->whereDate('due_date', '>=', $filters['due_from']);
+        }
+
+        if (isset($filters['due_to'])) {
+            $query->whereDate('due_date', '<=', $filters['due_to']);
+        }
+
         // Default ordering
         $query->byPriority();
 
-        return $query->get();
+        return $query;
     }
 }
