@@ -1182,7 +1182,7 @@ class MachineShopDemoSeeder extends Seeder
      * happened on.
      *
      * The step is part of the record rather than something worked out later: an
-     * issue's text names an operation ("turning pass", "bearing seat", "lathe 2"),
+     * issue's text names an operation ("roughing pass", "bearing seat", "lathe 2"),
      * and choosing the order by line and the step by position put a broken
      * turning insert on a grinding step and an oversize ground bearing seat on a
      * turning step. MachineShopLifecycleSeeder reads this same list to put each
@@ -1190,13 +1190,17 @@ class MachineShopDemoSeeder extends Seeder
      * operation. Step names are the base routing's, which the lifecycle seeder
      * keeps when it expands the routings.
      *
+     * The two live blocking problems are on different parts on purpose: the
+     * lifecycle plan runs one order of a part at a time, so two live problems on
+     * one part could never both stop a running order.
+     *
      * [line, type, product, step, title, description, status, hours ago | null = right now]
      *
      * @var array<int, array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string, 6: string, 7: int|null}>
      */
     public const ISSUES = [
-        ['TURN', 'TOOL_BREAKAGE', 'SHAFT40', 'Finish turning', 'Insert shattered mid-cut on the turning pass',
-            'Third insert this shift. Feed and speed are per the sheet, so I suspect a hard spot in the blank. Stopped and set the part aside.',
+        ['TURN', 'TOOL_BREAKAGE', 'PINION18', 'Turn blank', 'Insert shattered mid-cut on the roughing pass',
+            'Third insert this shift. Feed and speed are per the sheet, so I suspect a hard spot in the billet. Stopped and set the billet aside.',
             Issue::STATUS_OPEN, null],
         ['MILL', 'CHIP_JAM', 'HOUSING', 'Bore machining', 'Chips packing in the pocket on the housing',
             'Through-spindle coolant is not clearing the deep pocket. Pecking it for now, which is costing about four minutes a part.',
@@ -1232,13 +1236,13 @@ class MachineShopDemoSeeder extends Seeder
     /**
      * Where each seeded issue happened, keyed by its title.
      *
-     * @return array<string, array{product: string, step: string}>
+     * @return array<string, array{line: string, product: string, step: string}>
      */
     public static function issueContexts(): array
     {
         $contexts = [];
-        foreach (self::ISSUES as [, , $product, $step, $title]) {
-            $contexts[$title] = ['product' => $product, 'step' => $step];
+        foreach (self::ISSUES as [$line, , $product, $step, $title]) {
+            $contexts[$title] = ['line' => $line, 'product' => $product, 'step' => $step];
         }
 
         return $contexts;
@@ -1253,10 +1257,12 @@ class MachineShopDemoSeeder extends Seeder
      * notion of issues at all — a problem reaches the board only as a blocked
      * order, which is what a blocking issue type does on the shop floor.
      *
-     * Each issue goes on an order of the part it names: a problem still being
-     * worked on onto a running order (which a blocking type then stops), history
-     * onto a finished one. The issue's line breaks ties, so that line's monitor
-     * shows it.
+     * Each issue goes on an order of the part it names. Among those, in order of
+     * preference: one whose state fits (a problem still being worked on onto a
+     * running order, which a blocking type then stops; history onto a finished
+     * one), then one on the issue's own line, so that line's shift monitor shows
+     * it, then one no other live problem has taken. A live problem shares a running
+     * order rather than land on finished history.
      *
      * @param  array<string, Line>  $lines
      * @param  array<int, User>  $users
@@ -1295,9 +1301,9 @@ class MachineShopDemoSeeder extends Seeder
                 ->orderBy('order_no')
                 ->get()
                 ->sortBy(fn (WorkOrder $wo) => [
-                    $live && in_array($wo->id, $taken, true) ? 1 : 0,
                     in_array($wo->status, $live ? $running : [WorkOrder::STATUS_DONE], true) ? 0 : 1,
                     $wo->line_id === $lineId ? 0 : 1,
+                    $live && in_array($wo->id, $taken, true) ? 1 : 0,
                 ])
                 ->first();
         };

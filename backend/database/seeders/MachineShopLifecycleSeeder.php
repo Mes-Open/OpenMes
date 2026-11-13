@@ -627,7 +627,8 @@ class MachineShopLifecycleSeeder extends Seeder
             $cursor[$pt] = $this->weekStart->copy()->addMinutes($i * 20 + mt_rand(0, 10));
         }
 
-        $counts = [];
+        /** @var array<int, array{wo: WorkOrder, start: Carbon, end: Carbon, minutes: float}> $plan */
+        $plan = [];
         foreach ($orders as $wo) {
             $template = $this->activeTemplate($wo->product_type_id);
             $qty = (float) $wo->planned_qty;
@@ -641,7 +642,13 @@ class MachineShopLifecycleSeeder extends Seeder
             }
             [$start, $end] = $this->place($from, $minutes);
             $cursor[$wo->product_type_id] = $end->copy()->addMinutes(mt_rand(15, 45));
+            $plan[$wo->id] = ['wo' => $wo, 'start' => $start, 'end' => $end, 'minutes' => $minutes];
+        }
 
+        $this->keepLivePartsRunning($plan);
+
+        $counts = [];
+        foreach ($plan as ['wo' => $wo, 'start' => $start, 'end' => $end, 'minutes' => $minutes]) {
             $status = match (true) {
                 $end->lte($this->realNow->copy()->subMinutes(30)) => WorkOrder::STATUS_DONE,
                 $start->lte($this->realNow->copy()->subMinutes(10)) => WorkOrder::STATUS_IN_PROGRESS,
@@ -677,6 +684,79 @@ class MachineShopLifecycleSeeder extends Seeder
             }
         }
         $this->log('week planned: '.json_encode($counts));
+    }
+
+    /**
+     * Keep an order of every part with a live problem running right now — and
+     * running long enough to have reached the step the problem names.
+     *
+     * One lane per part leaves a part between orders now and then (and before its
+     * first order on a Monday morning). The live problems then had nothing running
+     * to be live on: they turned into history and nothing was blocked. Where that
+     * is the case, the part's order around now is kept running instead — the one
+     * that last started, or the one before it if that started too recently to have
+     * reached the step — by starting it earlier and/or finishing it later, and the
+     * orders after it in the lane move back behind it.
+     *
+     * @param  array<int, array{wo: WorkOrder, start: Carbon, end: Carbon, minutes: float}>  $plan
+     */
+    private function keepLivePartsRunning(array &$plan): void
+    {
+        $now = $this->realNow;
+        $productIds = ProductType::pluck('id', 'code');
+
+        foreach (MachineShopDemoSeeder::ISSUES as [, , $product, $stepName, , , $status]) {
+            $productTypeId = $productIds[$product] ?? null;
+            if (! $productTypeId || ! in_array($status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true)) {
+                continue;
+            }
+            $lane = collect($plan)->filter(fn ($p) => $p['wo']->product_type_id === $productTypeId)
+                ->sortBy(fn ($p) => $p['start']->getTimestamp())->keys()->values();
+            if ($lane->isEmpty()) {
+                continue;
+            }
+
+            // Long enough for a first batch to reach the step, with room for a stoppage.
+            $lead = (int) ceil($this->minutesToStep($this->activeTemplate($productTypeId), $stepName, 10) * 1.25) + 90;
+            $startBy = $now->copy()->subMinutes($lead);
+            $runningUntil = $now->copy()->addHour();
+            if ($lane->contains(fn ($id) => $plan[$id]['start']->lte($startBy) && $plan[$id]['end']->gt($runningUntil))) {
+                continue;
+            }
+
+            $between = ! $lane->contains(fn ($id) => $plan[$id]['start']->lte($now) && $plan[$id]['end']->gt($now->copy()->subMinutes(30)));
+            $i = $lane->filter(fn ($id) => $plan[$id]['start']->lte($now))->keys()->last() ?? 0;
+            if ($i > 0 && $plan[$lane[$i]]['start']->gt($startBy)) {
+                $i--;
+            }
+            $id = $lane[$i];
+            $plan[$id]['start'] = $plan[$id]['start']->lte($startBy) ? $plan[$id]['start'] : $startBy->copy();
+            $plan[$id]['end'] = $plan[$id]['end']->gt($runningUntil) ? $plan[$id]['end'] : $now->copy()->addHours(3);
+            $this->log(sprintf('  kept %s (%s) running for its live problem — the lane was %s', $plan[$id]['wo']->order_no, $product, $between ? 'between orders' : 'not far enough in'));
+
+            $cursor = $plan[$id]['end']->copy()->addMinutes(20);
+            foreach ($lane->slice($i + 1) as $next) {
+                if ($plan[$next]['start']->lt($cursor)) {
+                    [$plan[$next]['start'], $plan[$next]['end']] = $this->place($cursor, $plan[$next]['minutes']);
+                }
+                $cursor = $plan[$next]['end']->copy()->addMinutes(20);
+            }
+        }
+    }
+
+    /** Planned minutes from a batch's start to the start of the named step. */
+    private function minutesToStep(?ProcessTemplate $template, string $stepName, float $qty): float
+    {
+        $minutes = 0.0;
+        foreach (($template?->steps ?? collect())->sortBy('step_number') as $step) {
+            if ($step->name === $stepName) {
+                break;
+            }
+            [$s, $r] = $this->stationTimes($step->workstation_id);
+            $minutes += $s + $r * $qty + 8;
+        }
+
+        return $minutes;
     }
 
     /** @return array{0: Carbon, 1: Carbon} */
@@ -722,73 +802,92 @@ class MachineShopLifecycleSeeder extends Seeder
     /**
      * The order book's issues were written against order numbers whose state the
      * re-plan has changed. Move each issue onto an order of the part it names
-     * (MachineShopDemoSeeder::ISSUES) whose state fits it: open blocking problems
-     * onto running orders (which they then block), the rest of the open ones onto
-     * running orders, closed history onto finished ones.
+     * (MachineShopDemoSeeder::ISSUES) whose state fits it: open problems onto
+     * running orders (blocking ones then stop them), closed history onto finished
+     * ones. Among those, an order on the issue's own line comes first, so that
+     * line's shift monitor shows it — though the re-plan puts every order of a part
+     * on the part's primary line, so this only decides anything for parts that run
+     * on more than one.
      *
      * One issue at a time, not one order's worth at a time: issues that shared an
      * order in the order book are about different parts, and moving them as a
      * group carried a pinion's hardness failure onto a housing.
+     *
+     * Nothing is left behind on an order whose state the re-plan rewrote. A live
+     * problem with no running order of its part free to carry it (planWeek keeps
+     * one running, so this is a fallback) becomes resolved history on the part's
+     * most recent finished order; history with no finished order of its part to
+     * belong to — on a Monday morning, before anything has finished — is dropped,
+     * as there is no run it could have happened on.
      */
     private function reassignIssues(): void
     {
         $used = [];
         $products = ProductType::pluck('id', 'code');
-        $isOpen = fn (Issue $i) => in_array($i->status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true);
-        // The named part first, sharing an order (if allowed) before falling back to another part.
-        $pick = function (array $statuses, ?int $productTypeId, bool $anyPart = true, bool $share = true) use (&$used) {
-            $q = fn () => WorkOrder::whereIn('status', $statuses)->where('order_no', 'like', 'WO-MS-%');
-            $ofPart = fn () => $productTypeId ? $q()->where('product_type_id', $productTypeId)->orderBy('planned_start_at') : null;
+        $lines = Line::pluck('id', 'code');
+        $running = [WorkOrder::STATUS_IN_PROGRESS, WorkOrder::STATUS_BLOCKED];
+        $live = [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED];
 
-            return $ofPart()?->whereNotIn('id', $used)->first()
-                ?? ($share ? $ofPart()?->first() : null)
-                ?? ($anyPart ? $q()->whereNotIn('id', $used)->orderBy('planned_start_at')->first() : null);
+        // Orders of the part in one of the states: on the issue's line first, then
+        // ones no other issue has taken, then the most recent.
+        $pick = function (array $statuses, int $productTypeId, ?int $lineId, bool $share) use (&$used): ?WorkOrder {
+            return WorkOrder::whereIn('status', $statuses)->where('order_no', 'like', 'WO-MS-%')
+                ->where('product_type_id', $productTypeId)
+                ->orderByDesc('planned_start_at')->get()
+                ->reject(fn (WorkOrder $wo) => ! $share && in_array($wo->id, $used, true))
+                ->sortBy(fn (WorkOrder $wo) => [
+                    $wo->line_id === $lineId ? 0 : 1,
+                    in_array($wo->id, $used, true) ? 1 : 0,
+                ])
+                ->first();
         };
 
-        $issues = Issue::whereNotNull('work_order_id')->with('workOrder')->orderBy('id')->get()
-            ->sortByDesc(fn (Issue $i) => $isOpen($i) && $i->blocks_work_order);
+        $issues = Issue::whereNotNull('work_order_id')->orderBy('id')->get()
+            ->sortByDesc(fn (Issue $i) => $i->isBlocking());
 
         foreach ($issues as $issue) {
-            $wo = $issue->workOrder;
             $context = $this->issueContext($issue);
-            $productTypeId = $products[$context['product'] ?? ''] ?? $wo?->product_type_id;
-            $openBlocking = $isOpen($issue) && $issue->blocks_work_order;
+            $productTypeId = $products[$context['product'] ?? ''] ?? null;
+            if (! $productTypeId) {
+                continue;
+            }
+            $lineId = $lines[$context['line']] ?? null;
+            $blocking = $issue->isBlocking();
 
-            if ($isOpen($issue)) {
-                // BLOCKED too: an order an earlier issue just blocked is still a running one.
+            if (in_array($issue->status, $live, true)) {
                 // A live problem gets a running order to itself: an order stops on one
                 // step, so two problems on different operations cannot both be live on it.
-                $target = $pick([WorkOrder::STATUS_IN_PROGRESS, WorkOrder::STATUS_BLOCKED], $productTypeId, anyPart: $context === null, share: $context === null);
-                if (! $target && $context) {
-                    // No order of that part is free to carry it (none running yet early
-                    // in the week, or another problem already stopped it), and the
-                    // problem cannot be live on another part: it becomes history on a
-                    // finished order of the part instead.
-                    $target = $pick([WorkOrder::STATUS_DONE], $productTypeId, anyPart: false);
+                $target = $pick($running, $productTypeId, $lineId, share: false);
+                if (! $target) {
+                    $target = $pick([WorkOrder::STATUS_DONE], $productTypeId, $lineId, share: true);
                     if ($target) {
                         Issue::whereKey($issue->id)->update(['status' => Issue::STATUS_RESOLVED, 'acknowledged_at' => $this->realNow, 'resolved_at' => $this->realNow]);
-                        $openBlocking = false;
+                        $blocking = false;
+                        $this->log("  ! no running {$context['product']} order: \"{$issue->title}\" filed as resolved history");
                     }
                 }
             } else {
-                $target = ($wo && $wo->status === WorkOrder::STATUS_DONE && $wo->product_type_id === $productTypeId && ! in_array($wo->id, $used, true))
-                    ? $wo : $pick([WorkOrder::STATUS_DONE], $productTypeId, anyPart: $context === null);
+                $target = $pick([WorkOrder::STATUS_DONE], $productTypeId, $lineId, share: true);
             }
+
             if (! $target) {
+                Issue::whereKey($issue->id)->forceDelete();
+                $this->log("  ! no finished {$context['product']} order yet: \"{$issue->title}\" dropped");
+
                 continue;
             }
             $used[] = $target->id;
             Issue::whereKey($issue->id)->update(['work_order_id' => $target->id, 'batch_step_id' => null]);
-            if ($openBlocking) {
+            if ($blocking) {
                 DB::table('work_orders')->where('id', $target->id)->update(['status' => WorkOrder::STATUS_BLOCKED]);
             }
         }
     }
 
     /**
-     * Where a seeded issue happened: the part and the routing step its text names.
+     * Where a seeded issue happened: its line, part and the routing step its text names.
      *
-     * @return array{product: string, step: string}|null
+     * @return array{line: string, product: string, step: string}|null
      */
     private function issueContext(?Issue $issue): ?array
     {
@@ -797,7 +896,7 @@ class MachineShopLifecycleSeeder extends Seeder
         return $issue ? ($this->issueContexts[$issue->title] ?? null) : null;
     }
 
-    /** @var array<string, array{product: string, step: string}>|null */
+    /** @var array<string, array{line: string, product: string, step: string}>|null */
     private ?array $issueContexts = null;
 
     private function warehouses(): void
@@ -1070,7 +1169,18 @@ class MachineShopLifecycleSeeder extends Seeder
                 $haltStep ??= $this->issueContext($issue)['step'] ?? null;
             }
             $span = max(20, $start->diffInMinutes($this->realNow->copy()->subMinutes(15), false));
-            $cutoff = $start->copy()->addMinutes((int) max(20, $span * 0.65));
+            $soft = $start->copy()->addMinutes((int) max(20, $span * 0.65));
+            if ($haltStep) {
+                // The order stops on the operation its blocking problem names — a
+                // broken turning insert stops it at turning, not wherever the clock
+                // happened to run out: past the soft cutoff it halts the first time a
+                // batch starts that step. Should no batch reach it before the hard
+                // cutoff, blockAt pins the issue to the last time the step ran.
+                $halt = ['step' => $haltStep, 'from' => $soft];
+                $cutoff = $this->realNow->copy()->subMinutes(15);
+            } else {
+                $cutoff = $soft;
+            }
         } elseif ($finalStatus === WorkOrder::STATUS_IN_PROGRESS) {
             $cutoff = $this->realNow->copy()->subMinutes(3);
         }
@@ -1103,21 +1213,6 @@ class MachineShopLifecycleSeeder extends Seeder
             $gap = max(0, (int) ($slack / max(1, count($plan))));
         }
 
-        if ($finalStatus === WorkOrder::STATUS_BLOCKED && $haltStep) {
-            // The order stops on the operation its blocking problem names — a broken
-            // turning insert stops it at turning, not wherever the clock happened to
-            // run out. A rehearsal (rolled back) finds the last time a batch starts
-            // that step before now; the real run then halts there.
-            $seed = mt_rand();
-            $hardCutoff = $this->realNow->copy()->subMinutes(15);
-            $starts = $this->rehearseStepStarts($wo, $plan, $start, $hardCutoff, $factor, $gap ?? 0, $haltStep, $seed);
-            if ($starts !== []) {
-                $halt = ['step' => $haltStep, 'from' => end($starts)->copy()->subMinute()];
-                $cutoff = $hardCutoff;
-            }
-            mt_srand($seed);
-        }
-
         $this->runOrder($wo, $plan, $start, $cutoff, $factor, scrap: true, gap: $gap ?? 0, halt: $halt);
         $wo->refresh();
 
@@ -1142,41 +1237,6 @@ class MachineShopLifecycleSeeder extends Seeder
     /** When a blocked order's replay halted on the step its blocking issue names. */
     private ?Carbon $haltedAt = null;
 
-    /** @var array<int, Carbon>|null start times of the rehearsed step, while rehearsing */
-    private ?array $rehearsal = null;
-
-    /**
-     * Run the order up to the cutoff inside a transaction that is rolled back, and
-     * return when each of its batches started the given step. The random sequence
-     * is seeded the same before the rehearsal and the real run, so both take the
-     * same path.
-     *
-     * @param  array<int, float>  $plan
-     * @return array<int, Carbon>
-     */
-    private function rehearseStepStarts(WorkOrder $wo, array $plan, Carbon $start, Carbon $cutoff, float $factor, int $gap, string $step, int $seed): array
-    {
-        $rollback = new \RuntimeException('rehearsal over');
-        $this->rehearsal = [];
-        mt_srand($seed);
-        try {
-            DB::transaction(function () use ($wo, $plan, $start, $cutoff, $factor, $gap, $step, $rollback) {
-                $this->runOrder($wo, $plan, $start, $cutoff, $factor, scrap: true, gap: $gap, halt: ['step' => $step, 'from' => null]);
-                throw $rollback;
-            });
-        } catch (\RuntimeException $e) {
-            if ($e !== $rollback) {
-                throw $e;
-            }
-        } finally {
-            $starts = $this->rehearsal;
-            $this->rehearsal = null;
-            $wo->refresh();
-        }
-
-        return $starts;
-    }
-
     /** @return array<int, float> */
     private function batchPlan(float $qty, int $max = self::MAX_BATCH): array
     {
@@ -1198,8 +1258,10 @@ class MachineShopLifecycleSeeder extends Seeder
         return $minutes;
     }
 
-    /** @param array<int, float> $plan */
-    /** @param array{step: string, from: Carbon|null}|null $halt stop on this step once past this time */
+    /**
+     * @param  array<int, float>  $plan
+     * @param  array{step: string, from: Carbon}|null  $halt  stop on this step once past this time
+     */
     private function runOrder(WorkOrder $wo, array $plan, Carbon $t, ?Carbon $cutoff, float $factor, bool $scrap, int $gap = 0, ?array $halt = null): Carbon
     {
         foreach ($plan as $qty) {
@@ -1232,7 +1294,7 @@ class MachineShopLifecycleSeeder extends Seeder
     }
 
     /**
-     * @param  array{step: string, from: Carbon|null}|null  $halt
+     * @param  array{step: string, from: Carbon}|null  $halt
      * @return array{0: Carbon, 1: bool}
      */
     private function runBatch(WorkOrder $wo, float $qty, Carbon $t, ?Carbon $cutoff, float $factor, bool $scrap, ?array $halt = null): array
@@ -1256,9 +1318,7 @@ class MachineShopLifecycleSeeder extends Seeder
             $user = $line ? ($this->operators[$line] ?? $this->supervisor) : $this->supervisor;
             $prefix = $this->prefixOf($step->workstation_id);
 
-            if ($halt && $step->name === $halt['step'] && $this->rehearsal !== null) {
-                $this->rehearsal[] = $t->copy();
-            } elseif ($halt && $step->name === $halt['step'] && $t->gte($halt['from'])) {
+            if ($halt && $step->name === $halt['step'] && $t->gte($halt['from'])) {
                 // The problem happens here: the step starts and the order stops on it.
                 Carbon::setTestNow($t);
                 $this->batches->startStep($step, $user);
@@ -1386,12 +1446,12 @@ class MachineShopLifecycleSeeder extends Seeder
 
     /**
      * Downtime as each kind of station has it. A furnace has no spindle, a CMM no
-     * chip conveyor and a packing bench no offsets to correct.
+     * chip conveyor, a bar feeder neither, and a packing bench no offsets to correct.
      */
     private function downtimeNote(string $code, string $prefix): string
     {
         $kind = match ($prefix) {
-            'LATHE', 'MILL', 'BARFEED' => 'cnc',
+            'LATHE', 'MILL' => 'cnc',
             'FURN', 'TEMPER', 'QUENCH' => 'heat',
             default => strtolower($prefix),
         };
@@ -1401,6 +1461,7 @@ class MachineShopLifecycleSeeder extends Seeder
             'breakdown' => match ($kind) {
                 'cnc', 'grind' => 'Spindle drive fault — maintenance called',
                 'saw' => 'Blade drive tripped — maintenance called',
+                'barfeed' => 'Bar jammed in the feeder channel — maintenance called',
                 'heat' => $prefix === 'QUENCH' ? 'Quench bath agitator failed — maintenance called' : 'Burner fault — maintenance called',
                 'cmm' => 'Probe head fault — service called',
                 'debur' => 'Wash unit pump failed — maintenance called',
@@ -1409,6 +1470,7 @@ class MachineShopLifecycleSeeder extends Seeder
             'quality_issue' => match ($kind) {
                 'cnc', 'grind' => 'First-off part rejected, offsets corrected',
                 'saw' => 'First cut out of length, stop reset',
+                'barfeed' => 'Bar pushed past the stop, feed length reset',
                 'heat' => 'Test piece under hardness, cycle repeated',
                 'cmm' => 'Results drifting, machine re-calibrated',
                 'debur' => 'Burrs found at inspection, parts re-deburred',
@@ -1416,6 +1478,7 @@ class MachineShopLifecycleSeeder extends Seeder
             },
             'cleaning' => match ($kind) {
                 'cnc', 'saw' => 'Chip conveyor cleared',
+                'barfeed' => 'Feeder channel cleaned and re-oiled',
                 'grind' => 'Swarf tray and coolant filter cleaned',
                 'heat' => $prefix === 'QUENCH' ? 'Quench tank skimmed' : 'Hearth and basket cleaned',
                 'cmm' => 'Table and stylus cleaned',
@@ -1425,6 +1488,7 @@ class MachineShopLifecycleSeeder extends Seeder
             default => match ($kind) {
                 'cnc', 'grind' => 'Fixture and program change',
                 'saw' => 'Blade and length stop changed',
+                'barfeed' => 'Guide tube changed for the next bar size',
                 'heat' => 'Cycle changed for the next grade',
                 'cmm' => 'Fixture and measuring program change',
                 'debur' => 'Bench reset for the next part',
@@ -1967,6 +2031,12 @@ class MachineShopLifecycleSeeder extends Seeder
                 $created = $this->realNow->copy()->subDays(mt_rand(1, 4))->setTime(mt_rand(8, 15), mt_rand(0, 59));
             }
             DB::table('work_orders')->where('id', $wo->id)->update(['created_at' => $created, 'updated_at' => $created]);
+            // The release baseline was written when the order book was snapshotted;
+            // it cannot be older than the order it belongs to. An undated backlog
+            // order has no planned start to anchor either to, which is how it came
+            // out days earlier.
+            DB::table('work_order_snapshots')->where('work_order_id', $wo->id)->where('created_at', '<', $created)
+                ->update(['created_at' => $created, 'updated_at' => $created]);
         }
     }
 
@@ -1993,27 +2063,37 @@ class MachineShopLifecycleSeeder extends Seeder
      * Every other issue is pinned to a step of its order and timed inside it —
      * a step of the operation the issue names, never one picked by position: the
      * middle step of a pinion's routing is a turning step, whatever went wrong.
+     *
+     * An order that has not run the named step yet (a live problem on an order
+     * still early in its routing) gets the issue on the batch step it concerns all
+     * the same, reported just after the order last moved; with no such step at
+     * all the issue is left off any step, but still timed by the order's own run.
+     * Either way the seed-time timestamps never survive.
      */
     private function pinHistoricalIssues(): void
     {
         $parkedIds = array_column($this->parkedIssues, 'issue_id');
         foreach (Issue::whereNull('batch_step_id')->whereNotNull('work_order_id')->whereNotIn('id', $parkedIds)->with('issueType')->get() as $issue) {
             $context = $this->issueContext($issue);
-            $steps = BatchStep::whereHas('batch', fn ($q) => $q->where('work_order_id', $issue->work_order_id))
-                ->whereNotNull('started_at')->whereNotNull('workstation_id')->get()
+            $orderSteps = BatchStep::whereHas('batch', fn ($q) => $q->where('work_order_id', $issue->work_order_id))->get();
+            $steps = $orderSteps->filter(fn ($s) => $s->started_at && $s->workstation_id)
                 ->filter(fn ($s) => $context
                     ? $s->name === $context['step']
                     : (in_array($this->prefixOf($s->workstation_id), self::SCRAP_STATIONS, true) || $issue->issueType?->code === 'MATERIAL_CERT'))
                 ->sortBy('started_at')->values();
-            if ($steps->isEmpty()) {
-                continue;
+            $lastMoved = $orderSteps->filter(fn ($s) => $s->started_at)->sortByDesc('started_at')->first()?->started_at;
+
+            if ($steps->isNotEmpty()) {
+                $step = $issue->issueType?->code === 'MATERIAL_CERT' ? $steps->first() : $steps[intdiv($steps->count(), 2)];
+                $at = $step->started_at->copy()->addMinutes(mt_rand(5, 25));
+            } else {
+                $step = $context ? $orderSteps->where('name', $context['step'])->sortByDesc('id')->first() : null;
+                $at = ($lastMoved ?? $this->realNow->copy()->subMinutes(30))->copy()->addMinutes(mt_rand(5, 25));
             }
-            $step = $issue->issueType?->code === 'MATERIAL_CERT' ? $steps->first() : $steps[intdiv($steps->count(), 2)];
-            $at = $step->started_at->copy()->addMinutes(mt_rand(5, 25));
-            if ($at->gt($this->realNow)) {
+            if ($at->gt($this->realNow->copy()->subMinutes(5))) {
                 $at = $this->realNow->copy()->subMinutes(5);
             }
-            $updates = ['batch_step_id' => $step->id, 'reported_at' => $at, 'created_at' => $at, 'updated_at' => $at];
+            $updates = ['batch_step_id' => $step?->id, 'reported_at' => $at, 'created_at' => $at, 'updated_at' => $at];
             foreach (['acknowledged_at' => 10, 'resolved_at' => 55, 'closed_at' => 120] as $col => $offset) {
                 if ($issue->{$col} !== null) {
                     $stamp = $at->copy()->addMinutes($offset);

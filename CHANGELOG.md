@@ -197,7 +197,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
   housing. Each seeded issue now names its part and routing step, lands on an order of that
   part and on a batch step of that operation, and a blocked order stops on the step its
-  blocking issue describes. Scrap notes follow the operation instead of the station type (no
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
   more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
   spindle fault on the furnace), undated backlog orders stay in the backlog, and order
   descriptions no longer claim a state or customer the order does not have.
