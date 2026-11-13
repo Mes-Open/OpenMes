@@ -24,6 +24,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [CSV Import](#csv-import)
   - [Analytics](#analytics)
   - [Reports](#reports)
+  - [Shift Handover](#shift-handover)
   - [Audit Logs](#audit-logs)
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
@@ -1036,6 +1037,107 @@ Authorization: Bearer <token>
 ```
 
 Returns a CSV file download.
+
+---
+
+### Shift Handover
+
+Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. Handovers are
+tenant-scoped: a handover of another tenant is never listed and returns `404`.
+
+#### Current Balance and Recent Handovers
+
+```http
+GET /api/v1/shift-handover?line_id=3
+Authorization: Bearer <token>
+```
+
+Query parameters (all optional):
+
+| Parameter | Description |
+|---|---|
+| `line_id` | Scopes the live `balance` to one line. Does **not** filter `recent` — as on the web page, `recent` spans all lines. |
+| `recent_line_id` | Only handovers of this line in `recent`. |
+| `business_date_from`, `business_date_to` | Business date range for `recent`, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
+| `per_page` | Paginates `recent` (1–100) and adds `recent_meta`. Without it, `recent` holds the 20 most recent handovers. |
+| `page` | Page of `recent` when `per_page` is given. |
+
+`recent` is ordered newest first (by `confirmed_at`). Invalid parameters return `422`.
+
+```json
+{
+  "data": {
+    "lines": [{ "id": 3, "name": "Assembly 1", "code": "A1" }],
+    "selected_line_id": 3,
+    "balance": { "line_id": 3, "shift_id": 1, "window": { "...": "..." }, "produced_qty": 120, "...": "..." },
+    "recent": [
+      {
+        "id": 42,
+        "business_date": "2026-11-10",
+        "shift_start": "2026-11-10 06:00",
+        "line_name": "Assembly 1",
+        "produced_qty": 480,
+        "good_qty": 466,
+        "packed_qty": 400,
+        "shipped_qty": 200,
+        "confirmed_by": "Sam Supervisor",
+        "confirmed_at": "2026-11-10 14:05",
+        "shift_end": "2026-11-10 14:00",
+        "line_id": 3,
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "scrap_qty": 14,
+        "wip_open_pallets_qty": 24,
+        "wip_unpacked_qty": 42,
+        "discrepancies": {
+          "unpacked": { "label": "Good output not yet packed", "value": 42, "severity": "warning" },
+          "awaiting_shipment": { "label": "Packed but not yet shipped", "value": 200, "severity": "info" }
+        },
+        "breakdown": {
+          "wip_total_qty": 66,
+          "open_pallets_count": 1,
+          "open_pallets": [],
+          "shift": { "name": "Morning", "code": "I", "start": "06:00", "end": "14:00" }
+        },
+        "notes": "Conveyor jammed twice; maintenance informed.",
+        "confirmed_by_id": 7
+      }
+    ],
+    "recent_meta": { "current_page": 1, "per_page": 20, "total": 57, "last_page": 3 }
+  }
+}
+```
+
+`recent_meta` is present only when `per_page` is given. Timestamps (`shift_start`, `shift_end`,
+`confirmed_at`) are `YYYY-MM-DD HH:MM` in the application timezone. `discrepancies` and
+`breakdown` are the snapshot captured when the shift was closed; `discrepancies` is an object
+keyed by discrepancy (`unpacked`, `awaiting_shipment`, `over_packed`, each with `label`, `value`,
+`severity`), or an empty array `[]` when there were none. `line_name`, `shift_name` and
+`confirmed_by` resolve even if the line, shift or user has since been deleted; `shift_name` falls
+back to the name stored in the snapshot.
+
+#### Get One Handover
+
+```http
+GET /api/v1/shift-handover/42
+Authorization: Bearer <token>
+```
+
+Returns `{ "data": { ... } }` with the same fields as one `recent` item. `404` when the handover
+does not exist or belongs to another tenant.
+
+#### Close the Shift
+
+```http
+POST /api/v1/shift-handover
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "line_id": 3, "notes": "End of A-shift." }
+```
+
+Both fields are optional (`notes` up to 2000 characters). The server recomputes the balance and
+stores it as the handover snapshot; returns `201` with the stored handover.
 
 ---
 

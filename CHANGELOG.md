@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Shift handover details and history in the REST API.** Items in `recent` of
+  `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
+  `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
+  and `confirmed_by_id`, next to the existing fields (unchanged). The list can be filtered with
+  `recent_line_id` and `business_date_from`/`business_date_to`, and paginated on request with
+  `per_page`/`page` (the response then adds `recent_meta`); without `per_page` it still returns
+  the 20 latest handovers, and `line_id` still scopes only the live balance. New
+  `GET /api/v1/shift-handover/{id}` returns one handover. Both stay Supervisor/Admin only and
+  tenant-scoped. Line, shift and user names stay visible after those records are deleted.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.

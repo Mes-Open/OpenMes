@@ -784,6 +784,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Shift handover — REST twin of web Supervisor\ShiftHandoverController.
         Route::get('/shift-handover', [ShiftHandoverController::class, 'index']);
         Route::post('/shift-handover', [ShiftHandoverController::class, 'store']);
+        Route::get('/shift-handover/{shiftHandover}', [ShiftHandoverController::class, 'show'])->whereNumber('shiftHandover');
 
         // Machine monitor — live fleet status + manual state override (#87).
         Route::get('/machine-monitor', [MachineMonitorController::class, 'index']);
