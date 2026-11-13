@@ -7306,5 +7306,11 @@
     "Sort by": "Sort by",
     "Newest entered": "Newest entered",
     "Recent activity": "Recent activity",
-    "Recently completed": "Recently completed"
+    "Recently completed": "Recently completed",
+    "Pack only units with a serial number": "Pack only units with a serial number",
+    "Refuse packing a unit that has only its process serial, e.g. when the ERP receives finished units by serial number.": "Refuse packing a unit that has only its process serial, e.g. when the ERP receives finished units by serial number.",
+    "Pack only units on a work order": "Pack only units on a work order",
+    "Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.": "Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.",
+    "Unit :psn has no serial number yet - apply its product label before packing.": "Unit :psn has no serial number yet - apply its product label before packing.",
+    "Unit :sn is not on a work order and cannot be packed.": "Unit :sn is not on a work order and cannot be packed."
 }

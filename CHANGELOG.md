@@ -9,6 +9,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
+  started on its process serial at the first station and an SN label from a batch printed
+  ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
+  the unit's PSN: the unit takes the serial number, the batch's placeholder for that number
+  is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
+  number kept as superseded). A pre-issued number that already has a component, a carton or
+  any processing is still refused as before.
+- **Packing can require a serial number and a work order.** *Settings → System → Unit
+  serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
+  a work order* (both off by default). When on, the packing station refuses a unit that has
+  only its process serial, or one not assigned to an order - for plants whose ERP receives
+  finished units by serial number on an order.
+- **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
+  without applying the failed-test policy, so old failed runs do not block or scrap units.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
