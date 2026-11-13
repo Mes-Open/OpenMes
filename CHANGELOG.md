@@ -191,6 +191,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.

@@ -537,7 +537,7 @@ class MachineShopDemoSeeder extends Seeder
                 'due_date' => now()->addDays(12)->setTime(14, 0),
                 'planned_start_at' => now()->addDays(9)->setTime(6, 0),
                 'planned_end_at' => now()->addDays(11)->setTime(14, 0),
-                'description' => 'Base plates — Stalbud, milled flat both sides.',
+                'description' => 'Base plates — milled flat both sides, light cuts so they do not spring.',
             ],
             [
                 'order_no' => 'WO-MS-0008',
@@ -550,7 +550,7 @@ class MachineShopDemoSeeder extends Seeder
                 'planned_start_at' => now()->subDays(5)->setTime(6, 0),
                 'planned_end_at' => now()->subDays(3)->setTime(14, 0),
                 'completed_at' => now()->subDays(3)->setTime(13, 30),
-                'description' => 'Drive shafts — previous batch, shipped complete.',
+                'description' => 'Drive shafts — repeat order to the current drawing revision.',
             ],
 
             // ── Not scheduled yet ────────────────────────────────────────────
@@ -1178,6 +1178,73 @@ class MachineShopDemoSeeder extends Seeder
     // ── Reported issues ──────────────────────────────────────────────────────
 
     /**
+     * Problems the floor reported, each tied to the part and the routing step it
+     * happened on.
+     *
+     * The step is part of the record rather than something worked out later: an
+     * issue's text names an operation ("turning pass", "bearing seat", "lathe 2"),
+     * and choosing the order by line and the step by position put a broken
+     * turning insert on a grinding step and an oversize ground bearing seat on a
+     * turning step. MachineShopLifecycleSeeder reads this same list to put each
+     * issue on an order of the named part and on a batch step of the named
+     * operation. Step names are the base routing's, which the lifecycle seeder
+     * keeps when it expands the routings.
+     *
+     * [line, type, product, step, title, description, status, hours ago | null = right now]
+     *
+     * @var array<int, array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string, 6: string, 7: int|null}>
+     */
+    public const ISSUES = [
+        ['TURN', 'TOOL_BREAKAGE', 'SHAFT40', 'Finish turning', 'Insert shattered mid-cut on the turning pass',
+            'Third insert this shift. Feed and speed are per the sheet, so I suspect a hard spot in the blank. Stopped and set the part aside.',
+            Issue::STATUS_OPEN, null],
+        ['MILL', 'CHIP_JAM', 'HOUSING', 'Bore machining', 'Chips packing in the pocket on the housing',
+            'Through-spindle coolant is not clearing the deep pocket. Pecking it for now, which is costing about four minutes a part.',
+            Issue::STATUS_OPEN, null],
+
+        ['GRIND', 'OUT_OF_TOLERANCE', 'SHAFT40', 'Cylindrical grinding', 'Bearing seat grinding 8 microns oversize',
+            'Wheel has glazed. Dressed it and re-measured — parts already ground are being quarantined for inspection.',
+            Issue::STATUS_ACKNOWLEDGED, 5],
+        ['MILL', 'SURFACE_FINISH', 'MANIFOLD', 'Port machining', 'Chatter marks on the manifold face',
+            'Long reach tool ringing at the programmed speed. Dropped the RPM and increased feed; finish is acceptable now.',
+            Issue::STATUS_RESOLVED, 19],
+        ['TURN', 'COOLANT_QUALITY', 'FLANGE150', 'Face & bore', 'Coolant smells off on lathe 2',
+            'Concentration tested low and the tramp oil skimmer was full. Emptied it and topped up to 8%.',
+            Issue::STATUS_RESOLVED, 27],
+
+        ['HEAT', 'HARDNESS_FAIL', 'PINION18', 'Case hardening', 'Pinion batch came out at 54 HRC',
+            'Below the 58 HRC minimum. Furnace chart shows the soak ended early. Batch re-treated and re-tested.',
+            Issue::STATUS_CLOSED, 3 * 24 + 5],
+        ['MILL', 'PROGRAM_ERROR', 'BASEPLATE', 'Drill pattern', 'Wrong work offset on the second operation',
+            'G55 called instead of G56 after a fixture change. Caught on the first part; two blanks scrapped.',
+            Issue::STATUS_CLOSED, 5 * 24 + 8],
+        ['SAW', 'MATERIAL_CERT', 'FLANGE150', 'Blank check', 'Plate delivered without a mill certificate',
+            'Flange work ships with material certificates. Plate quarantined until the supplier sent the paperwork through.',
+            Issue::STATUS_CLOSED, 8 * 24 + 4],
+        ['TURN', 'SPINDLE_ALARM', 'SHAFT40', 'Finish turning', 'Spindle overload alarm on lathe 1',
+            'Tripped twice during a heavy cut. Service found a worn drive belt and replaced it.',
+            Issue::STATUS_CLOSED, 11 * 24 + 6],
+        ['QC', 'FIXTURE_ISSUE', 'HOUSING', 'CMM inspection', 'CMM fixture not repeating between parts',
+            'Locating pin had worn oval, so measurements drifted. Pin replaced and the fixture re-qualified.',
+            Issue::STATUS_CLOSED, 13 * 24 + 3],
+    ];
+
+    /**
+     * Where each seeded issue happened, keyed by its title.
+     *
+     * @return array<string, array{product: string, step: string}>
+     */
+    public static function issueContexts(): array
+    {
+        $contexts = [];
+        foreach (self::ISSUES as [, , $product, $step, $title]) {
+            $contexts[$title] = ['product' => $product, 'step' => $step];
+        }
+
+        return $contexts;
+    }
+
+    /**
      * Problems the floor reported.
      *
      * Placed so they are visible rather than merely present: the shift monitor
@@ -1185,6 +1252,11 @@ class MachineShopDemoSeeder extends Seeder
      * reported_at falls inside the shift being viewed, and the planner has no
      * notion of issues at all — a problem reaches the board only as a blocked
      * order, which is what a blocking issue type does on the shop floor.
+     *
+     * Each issue goes on an order of the part it names: a problem still being
+     * worked on onto a running order (which a blocking type then stops), history
+     * onto a finished one. The issue's line breaks ties, so that line's monitor
+     * shows it.
      *
      * @param  array<string, Line>  $lines
      * @param  array<int, User>  $users
@@ -1205,56 +1277,41 @@ class MachineShopDemoSeeder extends Seeder
             return;
         }
 
-        $onLine = function (string $lineCode) use ($lines): ?WorkOrder {
-            $line = $lines[$lineCode] ?? null;
+        $running = [WorkOrder::STATUS_IN_PROGRESS, WorkOrder::STATUS_BLOCKED];
+        $products = ProductType::pluck('id', 'code');
+        // Orders already carrying a live problem, so two do not pile onto one order.
+        $taken = [];
 
-            return $line
-                ? WorkOrder::where('line_id', $line->id)->orderBy('order_no')->first()
-                : null;
+        $orderFor = function (string $lineCode, string $productCode, bool $live) use ($lines, $products, $running, &$taken): ?WorkOrder {
+            $productId = $products[$productCode] ?? null;
+            if (! $productId) {
+                return null;
+            }
+            $lineId = isset($lines[$lineCode]) ? $lines[$lineCode]->id : null;
+
+            return WorkOrder::where('order_no', 'like', 'WO-MS-%')
+                ->where('product_type_id', $productId)
+                ->whereNotNull('planned_start_at')
+                ->orderBy('order_no')
+                ->get()
+                ->sortBy(fn (WorkOrder $wo) => [
+                    $live && in_array($wo->id, $taken, true) ? 1 : 0,
+                    in_array($wo->status, $live ? $running : [WorkOrder::STATUS_DONE], true) ? 0 : 1,
+                    $wo->line_id === $lineId ? 0 : 1,
+                ])
+                ->first();
         };
 
-        // [line, type, title, description, status, hours ago | null = right now]
-        $defs = [
-            ['TURN', 'TOOL_BREAKAGE', 'Insert shattered mid-cut on the roughing pass',
-                'Third insert this shift. Feed and speed are per the sheet, so I suspect a hard spot in the bar. Stopped and set the bar aside.',
-                Issue::STATUS_OPEN, null],
-            ['MILL', 'CHIP_JAM', 'Chips packing in the pocket on the housing',
-                'Through-spindle coolant is not clearing the deep pocket. Pecking it for now, which is costing about four minutes a part.',
-                Issue::STATUS_OPEN, null],
-
-            ['GRIND', 'OUT_OF_TOLERANCE', 'Bearing seat grinding 8 microns oversize',
-                'Wheel has glazed. Dressed it and re-measured — parts already ground are being quarantined for inspection.',
-                Issue::STATUS_ACKNOWLEDGED, 5],
-            ['MILL', 'SURFACE_FINISH', 'Chatter marks on the manifold face',
-                'Long reach tool ringing at the programmed speed. Dropped the RPM and increased feed; finish is acceptable now.',
-                Issue::STATUS_RESOLVED, 19],
-            ['TURN', 'COOLANT_QUALITY', 'Coolant smells off on lathe 2',
-                'Concentration tested low and the tramp oil skimmer was full. Emptied it and topped up to 8%.',
-                Issue::STATUS_RESOLVED, 27],
-
-            ['HEAT', 'HARDNESS_FAIL', 'Pinion batch came out at 54 HRC',
-                'Below the 58 HRC minimum. Furnace chart shows the soak ended early. Batch re-treated and re-tested.',
-                Issue::STATUS_CLOSED, 3 * 24 + 5],
-            ['MILL', 'PROGRAM_ERROR', 'Wrong work offset on the second operation',
-                'G55 called instead of G56 after a fixture change. Caught on the first part; two blanks scrapped.',
-                Issue::STATUS_CLOSED, 5 * 24 + 8],
-            ['SAW', 'MATERIAL_CERT', 'Bar delivered without a mill certificate',
-                'ValvCo work needs certification. Bar quarantined until the supplier sent the paperwork through.',
-                Issue::STATUS_CLOSED, 8 * 24 + 4],
-            ['TURN', 'SPINDLE_ALARM', 'Spindle overload alarm on lathe 1',
-                'Tripped twice during a heavy cut. Service found a worn drive belt and replaced it.',
-                Issue::STATUS_CLOSED, 11 * 24 + 6],
-            ['QC', 'FIXTURE_ISSUE', 'CMM fixture not repeating between parts',
-                'Locating pin had worn oval, so measurements drifted. Pin replaced and the fixture re-qualified.',
-                Issue::STATUS_CLOSED, 13 * 24 + 3],
-        ];
-
-        foreach ($defs as $i => [$lineCode, $typeCode, $title, $description, $status, $hoursAgo]) {
-            $workOrder = $onLine($lineCode);
+        foreach (self::ISSUES as $i => [$lineCode, $typeCode, $productCode, , $title, $description, $status, $hoursAgo]) {
+            $live = in_array($status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true);
+            $workOrder = $orderFor($lineCode, $productCode, $live);
             $typeId = $types[$typeCode] ?? null;
 
             if (! $workOrder || ! $typeId) {
                 continue;
+            }
+            if ($live) {
+                $taken[] = $workOrder->id;
             }
 
             // `now()` rather than a computed offset: whichever shift the monitor
@@ -1280,9 +1337,11 @@ class MachineShopDemoSeeder extends Seeder
             );
 
             // A blocking type stops the order on the shop floor, and a stopped
-            // order is the only way a problem reaches the planner board.
-            if (IssueType::find($typeId)?->is_blocking
-                && in_array($status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED], true)) {
+            // order is the only way a problem reaches the planner board. Only a
+            // running order can be stopped: blocking a finished or unstarted one
+            // would contradict its own history.
+            if ($live && IssueType::find($typeId)?->is_blocking
+                && in_array($workOrder->status, $running, true)) {
                 $workOrder->forceFill(['status' => WorkOrder::STATUS_BLOCKED])->saveQuietly();
             }
         }
