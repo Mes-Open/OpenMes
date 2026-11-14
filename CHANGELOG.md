@@ -201,6 +201,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
