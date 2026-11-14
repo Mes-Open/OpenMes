@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Paging and range filters for the OEE and downtime APIs.** `GET /api/v1/oee` and
+  `GET /api/v1/downtimes` used to return only the newest 100 records / 50 downtimes, so an
+  integration asking for a week across several lines got a silently truncated list. Both
+  now accept `page` and `per_page` (1–100) and then answer with a `meta` block
+  (`current_page`, `per_page`, `total`, `last_page`). Downtimes gain `date_from` / `date_to`
+  (by the plant-local day the stop started, inclusive), `workstation_id` and `active` (open
+  or finished stops only); OEE gains `workstation_id`. `lean=1` on either embeds only the id
+  and name of each related line, shift, workstation, reason and reporter, which keeps large
+  answers small. All of it is opt-in: without these parameters both endpoints answer exactly
+  as before, so the mobile app is unaffected. Line and workstation ids are checked within the
+  caller's tenant only, so another tenant's id is answered like one that does not exist.
+  Malformed filters (a non-numeric `line_id`, an unparseable `date`) now return 422 on both
+  endpoints instead of a server error.
 - **Shift handover details and history in the REST API.** Items in `recent` of
   `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
   `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
