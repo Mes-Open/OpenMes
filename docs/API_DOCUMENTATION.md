@@ -24,6 +24,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [CSV Import](#csv-import)
   - [Analytics](#analytics)
   - [Reports](#reports)
+  - [OEE and Downtimes](#oee-and-downtimes)
   - [Audit Logs](#audit-logs)
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
@@ -1081,6 +1082,166 @@ Authorization: Bearer <token>
 ```
 
 Returns a CSV file download.
+
+---
+
+### OEE and Downtimes
+
+Open to every authenticated user (operators report downtime from the shop floor).
+
+Both list endpoints below keep their original response when called without
+`page` / `per_page`: a plain `data` array, newest first, capped at **100** OEE
+records or **50** downtimes, with no `meta` and no way to reach older rows.
+Send `page` and/or `per_page` to switch to a paginated response that carries a
+`meta` block; this is the way to read a full date range without silent truncation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `page` | integer 1–100000 | Page to return. Turns pagination on. |
+| `per_page` | integer 1–100 | Page size. Turns pagination on. Defaults to the legacy cap (100 for OEE, 50 for downtimes) when only `page` is sent. |
+| `lean` | `1`/`0`/`true`/`false` | Embed only the identifying columns of each relation (see each endpoint) instead of the full records. Works with or without pagination. |
+
+Out-of-range values (`per_page=0`, `per_page=101`, `page=0`, `page=100001`, …) return `422`.
+Ids are checked against the caller's tenant only: a line or workstation that
+belongs to another tenant is answered exactly like an id that does not exist.
+Rows are ordered newest first; rows that tie on the date are ordered by `id`
+descending, so pages never overlap or skip a row.
+
+#### List OEE Records
+
+```http
+GET /api/v1/oee
+Authorization: Bearer <token>
+```
+
+Query parameters (all optional and combinable):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `line_id` | integer | Filter by line (must exist in your tenant, otherwise `422`) |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
+| `date_from` | date | Records with `record_date` on or after this day |
+| `date_to` | date | Records with `record_date` on or before this day (inclusive) |
+
+`record_date` is a calendar date, compared as such; the plant timezone does not apply.
+| `page`, `per_page`, `lean` | | See above |
+
+With `lean=1`, `line` carries `id`, `name`, `code` and `shift` carries `id`, `name`.
+
+Paginated response (`GET /api/v1/oee?date_from=2026-06-24&date_to=2026-06-30&per_page=2&lean=1`):
+```json
+{
+    "data": [
+        {
+            "id": 812,
+            "line_id": 1,
+            "workstation_id": null,
+            "shift_id": 2,
+            "record_date": "2026-06-30T00:00:00.000000Z",
+            "planned_minutes": 480,
+            "operating_minutes": 420,
+            "downtime_minutes": 60,
+            "availability_pct": "87.50",
+            "performance_pct": "91.20",
+            "quality_pct": "97.40",
+            "oee_pct": "77.72",
+            "line": { "id": 1, "name": "Assembly 1", "code": "L1" },
+            "shift": { "id": 2, "name": "Morning" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 2,
+        "total": 21,
+        "last_page": 11
+    }
+}
+```
+
+(Record fields abbreviated.) Without `page`/`per_page` the same request returns
+`{"data": [...]}` with up to 100 records and no `meta`.
+
+#### OEE for One Line
+
+```http
+GET /api/v1/oee/{line}?days=7
+Authorization: Bearer <token>
+```
+
+Records for the line over the last `days` days (today included), newest first.
+
+#### List Downtimes
+
+```http
+GET /api/v1/downtimes
+Authorization: Bearer <token>
+```
+
+Query parameters (all optional and combinable):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `line_id` | integer | Filter by line (an unknown id returns an empty list) |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
+| `date` | date | Downtimes that started on this day (same as `date_from` = `date_to` = this day) |
+| `date_from` | date | Downtimes that started on or after this day |
+| `date_to` | date | Downtimes that started on or before this day (inclusive) |
+| `active` | `1`/`0`/`true`/`false` | `1`: only open downtimes (no `ended_at`); `0`: only finished ones |
+| `page`, `per_page`, `lean` | | See above |
+
+Date filters match on the **plant-local** day the downtime **started** (the
+timezone set under *Settings*), not the UTC day: with the plant in Europe/Warsaw,
+a stop at 00:30 local time on 15 January (`started_at` `2026-01-14T23:30:00Z` in
+the response) is found by `date=2026-01-15`. Only the date part of the
+parameter is used. A stop that began before `date_from` and ran into the range
+is not included.
+
+With `lean=1`, `reason` carries `id`, `code`, `name`, `kind`; `line` and
+`workstation` carry `id`, `name`, `code`; `reported_by` carries `id`, `name`,
+`username`.
+
+Paginated response (`GET /api/v1/downtimes?line_id=1&date_from=2026-06-24&date_to=2026-06-30&page=1&per_page=1&lean=1`):
+```json
+{
+    "data": [
+        {
+            "id": 311,
+            "line_id": 1,
+            "workstation_id": 4,
+            "downtime_reason_id": 3,
+            "started_at": "2026-06-30T08:12:00.000000Z",
+            "ended_at": "2026-06-30T08:40:00.000000Z",
+            "duration_minutes": 28,
+            "notes": "Jammed feeder",
+            "reason": { "id": 3, "code": "jam", "name": "Material jam", "kind": "unplanned" },
+            "line": { "id": 1, "name": "Assembly 1", "code": "L1" },
+            "workstation": { "id": 4, "name": "Press 2", "code": "WS-P2" },
+            "reported_by": { "id": 5, "name": "Alex Smith", "username": "operator1" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 1,
+        "total": 14,
+        "last_page": 14
+    }
+}
+```
+
+(Record fields abbreviated.) Without `page`/`per_page` the same request returns
+`{"data": [...]}` with up to 50 downtimes and no `meta`.
+
+#### Start / Stop a Downtime
+
+```http
+POST /api/v1/downtimes
+PATCH /api/v1/downtimes/{downtime}
+Authorization: Bearer <token>
+```
+
+`POST` takes `line_id`, `downtime_reason_id` (required), `workstation_id`, `notes`.
+`PATCH` stops an open downtime; stopping one that already ended returns `422`.
+Active reasons are listed by `GET /api/v1/downtime-reasons`.
 
 ---
 
