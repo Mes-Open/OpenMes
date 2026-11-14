@@ -321,7 +321,7 @@ export default function System() {
     const [restoreCountdown, setRestoreCountdown] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
 
-    const { csrf_token, locale: uiLocale } = usePage().props;
+    const { csrf_token } = usePage().props;
     // Errors from the plain (non-Inertia) forms on the Data tab — import and
     // sample data — arrive as page props, not through useForm's own `errors`.
     const pageErrors = usePage().props.errors ?? {};
@@ -379,10 +379,6 @@ export default function System() {
 
     function handleSubmit(e) {
         e.preventDefault();
-        // Language and timezone are both read once at bootstrap (see lib/i18n:
-        // loadLocale / setTimezone), so a change only takes effect after a full
-        // reload — an Inertia (SPA) redirect swaps neither the locale chunk nor
-        // the zone the format* helpers use. Reload when either actually changed.
         // The language is posted only from the General tab, where its picker is:
         // saving it there also switches this admin's own session language, so
         // saving any other tab must not touch it.
@@ -390,8 +386,6 @@ export default function System() {
         // The CORS allowlist likewise only from the Security tab, where its
         // fields are: a stored value saved elsewhere could only fail there unseen.
         const sendsCors = tab === 'security';
-        const needsReload = (sendsLanguage && data.language !== uiLocale)
-            || data.app_timezone !== settings.app_timezone;
         transform((form) => {
             const { language, cors_allowed_origins, cors_allowed_methods, cors_max_age, ...rest } = form;
             return {
@@ -401,11 +395,10 @@ export default function System() {
             };
         });
         post('/settings/system', {
+            // A new UI language or timezone needs a fresh page load: the server
+            // answers those saves with a full visit (Inertia::location), which
+            // keeps the "saved" flash — a reload from here would drop it.
             onSuccess: () => {
-                if (needsReload) {
-                    window.location.reload();
-                    return;
-                }
                 // Sidebar links prefetch pages and keep them for ~30s. A saved
                 // setting (e.g. the currency) changes what those pages render,
                 // so drop the cache or the next click shows the old values.
@@ -677,6 +670,7 @@ export default function System() {
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Currency')}</h2>
                                 <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
                                 <Dropdown
+                                    aria-label={__('Currency')}
                                     options={[
                                         ...(!currencies.some((c) => c.code === data.default_currency) && data.default_currency
                                             ? [{ value: String(data.default_currency), label: data.default_currency }]

@@ -674,6 +674,7 @@ class SettingsController extends Controller
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.
+        $timezoneChanged = ! empty($validated['app_timezone']) && $validated['app_timezone'] !== TimezoneRegistry::current();
         if (! empty($validated['app_timezone'])) {
             TimezoneRegistry::save($validated['app_timezone']);
             TimezoneRegistry::apply();
@@ -692,8 +693,20 @@ class SettingsController extends Controller
         // over a stale login-screen choice in the session (#205), and even when
         // the system language itself did not change. Saving any other tab
         // leaves this admin's own choice alone.
+        $languageChanged = isset($map['language']) && $map['language'] !== app()->getLocale();
         if (isset($map['language'])) {
             $request->session()->put('locale', $map['language']);
+        }
+
+        // A new UI language or plant timezone is read once when the page boots
+        // (locale chunk, date helpers), so the browser has to load the page
+        // afresh. A full visit from the server, rather than the page reloading
+        // itself after an Inertia redirect, so the flash survives into it.
+        if ($languageChanged || $timezoneChanged) {
+            // In the language the page will load in, not the one it was saved from.
+            $request->session()->flash('success', __('System settings updated.', [], $languageChanged ? $map['language'] : null));
+
+            return \Inertia\Inertia::location(route('settings.system', $this->tabSavedFrom()));
         }
 
         return redirect()->route('settings.system', $this->tabSavedFrom())

@@ -112,6 +112,32 @@ class SystemSettingsLanguageTest extends TestCase
         $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
     }
 
+    public function test_a_new_ui_language_is_a_full_page_visit_that_keeps_the_saved_message(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('en')]);
+
+        // The page must load afresh for a new UI language; a full visit from
+        // the server (not a reload in the browser) keeps the "saved" flash.
+        $this->actingAs($this->admin)
+            ->withHeaders(['X-Inertia' => 'true'])
+            ->post('/settings/system', $this->payload(['language' => 'pl']))
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location')
+            // Worded in the language the page reloads in.
+            ->assertSessionHas('success', __('System settings updated.', [], 'pl'));
+    }
+
+    public function test_saving_without_a_new_language_stays_an_inertia_redirect(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('en')]);
+
+        $this->actingAs($this->admin)
+            ->withHeaders(['X-Inertia' => 'true'])
+            ->post('/settings/system', $this->payload(['schedule_view_mode' => 'monthly']))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+    }
+
     public function test_saving_the_unchanged_system_language_applies_it_to_the_admins_session(): void
     {
         DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
