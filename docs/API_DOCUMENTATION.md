@@ -19,12 +19,14 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Batches](#batches)
   - [Batch Steps](#batch-steps)
   - [Serial Units and Test Runs](#serial-units-and-test-runs)
+  - [Material Lots and Genealogy](#material-lots-and-genealogy)
   - [Issues](#issues)
   - [Issue Types](#issue-types)
   - [CSV Import](#csv-import)
   - [Analytics](#analytics)
   - [Reports](#reports)
   - [OEE and Downtimes](#oee-and-downtimes)
+  - [Shift Handover](#shift-handover)
   - [Audit Logs](#audit-logs)
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
@@ -769,6 +771,152 @@ which addresses the unit by serial number and de-duplicates runs.
 
 ---
 
+### Material Lots and Genealogy
+
+Material lots (ISA-95 material lots: inbound deliveries and lots produced in
+house) with their genealogy. Requires a Sanctum token; any role may read.
+
+#### List / Look Up Lots
+
+```http
+GET /api/v1/material-lots?lot_number=<our lot number>
+GET /api/v1/material-lots?supplier_lot_no=<part of the supplier's lot number>
+GET /api/v1/material-lots?material_id=<id>&status=released&available_only=1
+GET /api/v1/material-lots?expiring_within_days=30&per_page=100
+Authorization: Bearer <token>
+```
+
+`lot_number` is an exact match on the plant's own lot number;
+`supplier_lot_no` is a substring match. All filters combine. Newest received
+first, `per_page` 1–100 (default 30), with `meta.current_page`, `per_page`,
+`total` and `last_page`.
+
+```http
+GET /api/v1/material-lots/{id}                       # the lot with material, inspection, sublots
+GET /api/v1/material-lots/{id}/genealogy/forward     # batch steps / work orders that consumed it, plus a recall view
+GET /api/v1/material-lots/{id}/genealogy/backward    # inspection, supplier and the upstream lots it was made from
+```
+
+#### Where-Used (unit level)
+
+```http
+GET /api/v1/material-lots/{id}/where-used?max_depth=10&limit=1000&include_removed=0
+Authorization: Bearer <token>
+```
+
+The containment answer for a lot in one call: every serialised unit the lot
+was scanned into as a component, and - walking up the component bindings -
+every unit that contains one of those (a pinion inside a repair kit inside a
+carton), with each unit's work order, batch, pallet and status, and a count per
+work order.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `max_depth` | 10 (0–20) | How many levels of containing units to walk up. `0` returns the directly bound units only. |
+| `limit` | 1000 (1–5000) | Most units returned in total (direct and containing). |
+| `include_removed` | `false` | `0`, `1`, `true` or `false`. Also follow bindings that were taken out again (`unbound_at` set). By default only parts still installed count. |
+
+`precision` says how exact the returned answer is:
+
+- `unit` - the lot has component bindings (still installed ones; removed ones
+  too with `include_removed=1`); `direct_units` and `parent_units` are exactly
+  the affected units. `has_unit_bindings` is `true`.
+- `batch` - no such binding, only batch-step consumption was recorded.
+  `direct_units` is empty; `batch_level` lists the consuming batches and how
+  many units each produced (`candidate_units`). Every candidate *may* contain
+  the lot - it is an upper bound, not a list of affected units.
+- `none` - neither bindings nor consumption are recorded.
+
+When every binding of the lot was taken out again and `include_removed` is
+off, `precision` is `batch` or `none`, and `totals.removed_bindings` (always
+reported) says how many there are - ask again with `include_removed=1` to see
+those units.
+
+`batch_level` is always returned, also next to unit bindings as a cross-check
+(`bound_units` against `candidate_units` per batch shows how complete the
+scanning was). It covers the lot's own consumption only; for multi-stage chains
+through lots produced from it use `genealogy/forward`.
+
+A unit is matched when its binding resolved to the lot, or when it was scanned
+by the lot number before the lot existed (`bindings[].match` is `material_lot`
+or `identifier`; the identifier is compared ignoring case and spaces, as the
+station scan is). `top_level` marks the outermost units - installed in nothing
+else - which is what left the plant. Cycles in the binding data are walked
+once. When `limit` or `max_depth` cut the walk short, `truncated` is `true` and
+`truncated_by` names which (`limit`, `depth`); `totals.direct_units` still
+counts every directly bound unit, while `work_orders` (sorted by order
+number) and the other totals cover the returned units only. A unit whose
+containing unit was cut off has `top_level: null` (unknown) and an empty
+`contained_in`; it is left out of `top_level_units` and counted in
+`totals.top_level_unknown_units` - with `max_depth=0` that is every direct
+unit that sits inside another.
+
+```json
+{
+    "data": {
+        "lot": { "id": 42, "lot_number": "PIN-2026-001", "supplier_lot_no": "SUP-881", "status": "consumed",
+                 "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" } },
+        "precision": "unit",
+        "has_unit_bindings": true,
+        "params": { "max_depth": 10, "limit": 1000, "include_removed": false },
+        "truncated": false,
+        "truncated_by": [],
+        "totals": {
+            "direct_units": 2, "direct_units_returned": 2, "parent_units": 1, "top_level_units": 2,
+            "top_level_unknown_units": 0, "removed_bindings": 0, "work_orders": 2, "by_status": { "completed": 2, "shipped": 1 }
+        },
+        "work_orders": [
+            { "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+              "direct_units": 0, "parent_units": 1, "top_level_units": 1, "by_status": { "shipped": 1 } },
+            { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+              "direct_units": 2, "parent_units": 0, "top_level_units": 1, "by_status": { "completed": 2 } }
+        ],
+        "direct_units": [
+            {
+                "id": 101, "serial_no": "PIN-A", "psn": null, "status": "completed",
+                "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" },
+                "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                "batch": { "id": 31, "batch_number": 1, "lot_number": "B-2026-031" },
+                "pallet": null,
+                "produced_at": "2026-11-02T08:14:00+00:00", "shipped_at": null,
+                "depth": 0, "top_level": false,
+                "contained_in": [ { "id": 201, "serial_no": "KIT-1", "psn": null } ],
+                "bindings": [ { "identifier": "PIN-2026-001", "match": "material_lot", "quantity": 1, "installed": true,
+                                "bound_at": "2026-11-02T08:10:00+00:00", "unbound_at": null, "unbind_reason": null } ],
+                "contains": []
+            }
+        ],
+        "parent_units": [
+            {
+                "id": 201, "serial_no": "KIT-1", "psn": null, "status": "shipped",
+                "material": null,
+                "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+                "batch": null,
+                "pallet": { "id": 5, "pallet_no": "PAL-000777", "status": "shipped" },
+                "produced_at": null, "shipped_at": "2026-11-05T13:00:00+00:00",
+                "depth": 1, "top_level": true,
+                "contained_in": [],
+                "contains": [ { "id": 101, "serial_no": "PIN-A", "psn": null } ]
+            }
+        ],
+        "batch_level": {
+            "work_orders": [
+                { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                  "quantity_consumed": 2, "candidate_units": 2,
+                  "batches": [ { "id": 31, "batch_number": 1, "lot_number": "B-2026-031",
+                                 "quantity_consumed": 2, "candidate_units": 2, "bound_units": 2 } ] }
+            ],
+            "totals": { "work_orders": 1, "batches": 1, "candidate_units": 2, "quantity_consumed": 2 }
+        }
+    }
+}
+```
+
+The example shows one of the two direct units. `404` when the lot does not
+exist or belongs to another tenant, `422` for an out-of-range parameter.
+
+---
+
 ### Issues
 
 Issues (Andon system) track problems reported during production.
@@ -1242,6 +1390,133 @@ Authorization: Bearer <token>
 `POST` takes `line_id`, `downtime_reason_id` (required), `workstation_id`, `notes`.
 `PATCH` stops an open downtime; stopping one that already ended returns `422`.
 Active reasons are listed by `GET /api/v1/downtime-reasons`.
+
+---
+
+### Shift Handover
+
+Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. When the
+calling account belongs to a tenant, handovers are limited to that tenant: another tenant's
+handover is never listed and returns `404`. Accounts without a tenant (single-tenant installs)
+see all handovers.
+
+#### Current Balance and Recent Handovers
+
+```http
+GET /api/v1/shift-handover?line_id=3
+Authorization: Bearer <token>
+```
+
+`line_id` (optional) scopes the live `balance` to one line; a missing or non-numeric value means
+all lines. It does **not** filter `recent`: as on the web page, `recent` is always the 20 newest
+handovers across all lines, newest first (by `confirmed_at`). For older handovers or filtering,
+use [the history endpoint](#handover-history).
+
+```json
+{
+  "data": {
+    "lines": [{ "id": 3, "name": "Assembly 1", "code": "A1" }],
+    "selected_line_id": 3,
+    "balance": { "line_id": 3, "shift_id": 1, "window": { "...": "..." }, "produced_qty": 120, "...": "..." },
+    "recent": [
+      {
+        "id": 42,
+        "business_date": "2026-11-10",
+        "shift_start": "2026-11-10 06:00",
+        "line_name": "Assembly 1",
+        "produced_qty": 480,
+        "good_qty": 466,
+        "packed_qty": 400,
+        "shipped_qty": 200,
+        "confirmed_by": "Sam Supervisor",
+        "confirmed_at": "2026-11-10 14:05",
+        "shift_end": "2026-11-10 14:00",
+        "line_id": 3,
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "scrap_qty": 14,
+        "wip_open_pallets_qty": 24,
+        "wip_unpacked_qty": 42,
+        "discrepancies": {
+          "unpacked": { "label": "Good output not yet packed", "value": 42, "severity": "warning" },
+          "awaiting_shipment": { "label": "Packed but not yet shipped", "value": 200, "severity": "info" }
+        },
+        "breakdown": {
+          "wip_total_qty": 66,
+          "open_pallets_count": 1,
+          "open_pallets": [],
+          "shift": { "name": "Morning", "code": "I", "start": "06:00", "end": "14:00" }
+        },
+        "notes": "Conveyor jammed twice; maintenance informed.",
+        "confirmed_by_id": 7
+      }
+    ]
+  }
+}
+```
+
+Handover fields (the same in `recent`, history and the single-handover response):
+
+- Timestamps (`shift_start`, `shift_end`, `confirmed_at`) are `YYYY-MM-DD HH:MM` in the
+  application timezone.
+- `discrepancies` and `breakdown` are the snapshot captured when the shift was closed, and are
+  always JSON objects (`{}` when empty). `discrepancies` is keyed by discrepancy (`unpacked`,
+  `awaiting_shipment`, `over_packed`), each with `label`, `value` and `severity`.
+- `shift_name` is the shift name captured in the snapshot, so renaming a shift later does not
+  change history; older handovers without one show the shift's current name.
+- `line_name`, `shift_name` and `confirmed_by` resolve even if the line, shift or user has since
+  been deleted.
+
+#### Handover History
+
+```http
+GET /api/v1/shift-handover/history?line_id=3&business_date_from=2026-11-01&business_date_to=2026-11-07&per_page=50
+Authorization: Bearer <token>
+```
+
+Always paginated, newest first (by `confirmed_at`). Does not compute the live balance. Query
+parameters (all optional):
+
+| Parameter | Description |
+|---|---|
+| `line_id` | Only handovers of this line (positive integer). |
+| `business_date_from`, `business_date_to` | Business date range, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
+| `per_page` | Page size, 1–100 (default 25). |
+| `page` | Page number (default 1). |
+
+Invalid parameters return `422`.
+
+```json
+{
+  "data": [ { "id": 42, "business_date": "2026-11-10", "...": "same fields as a recent item" } ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 57, "last_page": 3 }
+}
+```
+
+#### Get One Handover
+
+```http
+GET /api/v1/shift-handover/42
+Authorization: Bearer <token>
+```
+
+Returns `{ "data": { ... } }` with the same fields as one `recent` item. `404` when the handover
+does not exist or is outside the caller's tenant.
+
+#### Close the Shift
+
+```http
+POST /api/v1/shift-handover
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "line_id": 3, "notes": "End of A-shift." }
+```
+
+Both fields are optional (`notes` up to 2000 characters). The server recomputes the balance and
+stores it as the handover snapshot; returns `201` with the stored handover record (its database
+columns plus `line` and `confirmed_by` objects, a different shape from the items above). Fetch
+`GET /api/v1/shift-handover/{id}` for the handover fields described above.
 
 ---
 
