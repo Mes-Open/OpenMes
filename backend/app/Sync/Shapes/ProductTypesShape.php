@@ -39,4 +39,9 @@ class ProductTypesShape extends Shape
     {
         return null; // admin sees all
     }
+
+    public function tabs(): array
+    {
+        return ['production'];
+    }
 }

@@ -64,15 +64,30 @@ OPCUA_CONNECTION_ID=<id> \
 | `OPENMES_API_URL` | yes | `http://localhost:8000` | OpenMES backend base URL |
 | `OPENMES_API_TOKEN` | yes | — | Machine gateway token (Settings → API Tokens) |
 | `OPCUA_CONNECTION_ID` | yes | `1` | machine_connection id (protocol = opcua) |
-| `OPCUA_PASSWORD` | if username auth | — | OPC UA user password |
+| `OPCUA_PASSWORD` | no | — | OPC UA user password, only if none is saved on the connection in OpenMES (the saved one wins) |
 | `HEARTBEAT_MS` | no | `10000` | runtime heartbeat interval |
 | `RECONNECT_MS` | no | `5000` | reconnect backoff |
+| `CONFIG_REFRESH_MS` | no | `60000` | how often the gateway re-reads its connection; added tags, a changed endpoint or deactivating the connection take effect within this time |
+| `OUTBOX_MAX` | no | `10000` | readings kept for retry while OpenMES is unreachable; the oldest are dropped beyond this |
 
 The connection page in OpenMES shows whether this gateway is currently running
 (it heartbeats every `HEARTBEAT_MS`). If it is stopped, the page tells the user
 exactly how to start it. If it is running but cannot reach the OPC UA server, or
 loses an established connection, it sends error heartbeats with the reason until
 the session and subscriptions are back, and the page shows that reason.
+
+## Delivery
+
+Every value change is queued and posted to OpenMES in order, one request at a
+time, stamped with the time the gateway received it and a unique event id. If
+OpenMES is unreachable or answers with an error (restart, deploy, revoked
+token), the queue is retried every 2 seconds, so state changes and alarms from
+that period are not lost. A retried reading carries the same event id, and
+OpenMES skips an event id it has already taken, so a resent batch never counts
+parts, records a state change or raises an alarm twice. A batch OpenMES rejects
+as malformed (HTTP 422) is logged and dropped. A single reading it cannot use,
+such as a state value that matches no workstation state, is logged as
+`reading rejected for tag …` while the rest of the batch goes through.
 
 ## Troubleshooting
 
@@ -82,3 +97,4 @@ the session and subscriptions are back, and the page shows that reason.
 | `config fetch failed: 403` | token without gateway access |
 | `config fetch failed: 404` | `OPCUA_CONNECTION_ID` does not exist |
 | `retry N, next in …` / connection refused | OPC UA endpoint unreachable — see the note on `127.0.0.1` above |
+| `reading rejected for tag N: Unknown workstation state: …` | the state tag's value map does not translate this machine value; add it in the tag's Value map |

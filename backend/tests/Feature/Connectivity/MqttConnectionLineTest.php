@@ -130,4 +130,47 @@ class MqttConnectionLineTest extends TestCase
 
         $this->assertDatabaseCount('topic_mappings', 0);
     }
+
+    public function test_a_condition_that_cannot_be_read_is_rejected(): void
+    {
+        $conn = MachineConnection::create([
+            'name' => 'C', 'protocol' => 'mqtt', 'is_active' => false, 'status' => 'disconnected',
+        ]);
+        $topic = MachineTopic::create([
+            'machine_connection_id' => $conn->id, 'topic_pattern' => 't', 'payload_format' => 'json', 'is_active' => true,
+        ]);
+        $store = fn (string $condition) => $this->actingAs($this->admin)->post(
+            route('admin.connectivity.mqtt.topics.mappings.store', [$conn, $topic]),
+            ['action_type' => 'log_event', 'priority' => 100, 'condition_expr' => $condition]
+        );
+
+        // "alarm == 1" instead of "value == 1": saved, it would never be readable.
+        $store('alarm == 1')->assertSessionHasErrors('condition_expr');
+        $this->assertDatabaseCount('topic_mappings', 0);
+
+        $store('value == 1')->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('topic_mappings', 1);
+    }
+
+    public function test_editing_a_disabled_topic_or_mapping_keeps_it_disabled(): void
+    {
+        $conn = MachineConnection::create(['name' => 'C', 'protocol' => 'mqtt', 'is_active' => false, 'status' => 'disconnected']);
+        $topic = MachineTopic::create(['machine_connection_id' => $conn->id, 'topic_pattern' => 'hall1/press3', 'payload_format' => 'json', 'is_active' => false]);
+        $mapping = \App\Models\TopicMapping::create(['machine_topic_id' => $topic->id, 'action_type' => 'log_event', 'priority' => 100, 'is_active' => false]);
+
+        // The edit forms send the fields they show, and no is_active.
+        $this->actingAs($this->admin)->put(
+            route('admin.connectivity.mqtt.topics.update', [$conn, $topic]),
+            ['topic_pattern' => 'hall1/press3/count', 'payload_format' => 'json']
+        )->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->put(
+            route('admin.connectivity.mqtt.topics.mappings.update', [$conn, $topic, $mapping]),
+            ['action_type' => 'log_event', 'priority' => 50]
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame('hall1/press3/count', $topic->fresh()->topic_pattern);
+        $this->assertFalse($topic->fresh()->is_active);
+        $this->assertSame(50, $mapping->fresh()->priority);
+        $this->assertFalse($mapping->fresh()->is_active);
+    }
 }

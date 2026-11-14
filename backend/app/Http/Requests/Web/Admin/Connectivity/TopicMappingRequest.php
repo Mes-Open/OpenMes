@@ -26,8 +26,15 @@ class TopicMappingRequest extends FormRequest
             'field_path' => ['nullable', 'string', 'max:255'],
             'action_type' => ['required', Rule::in(array_keys(TopicMapping::ACTION_LABELS))],
             'action_params' => ['nullable', 'string'],
-            'condition_expr' => ['nullable', 'string', 'max:255'],
+            'condition_expr' => ['nullable', 'string', 'max:255', 'regex:'.\App\Services\Connectivity\MqttMessageParser::CONDITION_PATTERN],
             'priority' => ['required', 'integer', 'min:1', 'max:9999'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'condition_expr.regex' => __('The condition must look like "value > 0" (operators: ==, !=, >, >=, <, <=, contains).'),
         ];
     }
 

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
+import { usePage } from '@inertiajs/react';
 import { useHotShapes } from './LiveShapesProvider';
 import { countAlerts } from '../lib/alerts';
 import { usePlantToday } from '../lib/usePlantToday';
@@ -21,7 +22,12 @@ import { usePlantToday } from '../lib/usePlantToday';
  */
 export default function LiveAlertCount({ fallback = 0, children }) {
     const hot = useHotShapes();
-    if (!hot) return children(fallback);
+    const roles = usePage().props.auth?.user?.roles ?? [];
+    // Only Admin and Supervisor get an alert count (HandleInertiaRequests::alertCount),
+    // and only they may read the collections behind it — anyone else keeps the
+    // server value instead of requesting snapshots they would be refused.
+    const counts = roles.includes('Admin') || roles.includes('Supervisor');
+    if (!hot || !counts) return children(fallback);
     return <Live hot={hot} fallback={fallback}>{children}</Live>;
 }
 
