@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\IndexMaterialLotRequest;
+use App\Http\Requests\Api\V1\MaterialLotWhereUsedRequest;
 use App\Models\BatchStep;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\MaterialSublot;
+use App\Services\Traceability\LotWhereUsedService;
 use App\Services\Traceability\TraceabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +29,7 @@ use Illuminate\Validation\Rule;
  */
 class MaterialLotController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexMaterialLotRequest $request): JsonResponse
     {
         $query = MaterialLot::query()->with(['material', 'source', 'inspection']);
 
@@ -35,6 +38,11 @@ class MaterialLotController extends Controller
         }
         if ($status = $request->query('status')) {
             $query->where('status', $status);
+        }
+        // Our own lot number, exact - so a lot named in a complaint is found in one call.
+        $lotNumber = trim((string) $request->validated('lot_number'));
+        if ($lotNumber !== '') {
+            $query->where('lot_number', $lotNumber);
         }
         if ($supplier = $request->query('supplier_lot_no')) {
             $query->where('supplier_lot_no', 'like', '%'.$supplier.'%');
@@ -100,6 +108,26 @@ class MaterialLotController extends Controller
                 // traceability console's recall-impact panel).
                 'recall' => $tracer->recallImpact(collect([$materialLot])),
             ],
+        ]);
+    }
+
+    /**
+     * Unit-level where-used: the serial units the lot was bound into, the units
+     * that contain those (sub-assembly → product, walked up the component
+     * bindings), a per-work-order summary, and the batch-level consumption the
+     * answer falls back to when no unit bindings exist. `precision` says which.
+     */
+    public function whereUsed(MaterialLotWhereUsedRequest $request, MaterialLot $materialLot, LotWhereUsedService $whereUsed): JsonResponse
+    {
+        $data = $request->validated();
+
+        return response()->json([
+            'data' => $whereUsed->whereUsed(
+                $materialLot,
+                (int) ($data['max_depth'] ?? LotWhereUsedService::DEFAULT_MAX_DEPTH),
+                (int) ($data['limit'] ?? LotWhereUsedService::DEFAULT_LIMIT),
+                $request->boolean('include_removed'),
+            ),
         ]);
     }
 

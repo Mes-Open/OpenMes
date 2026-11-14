@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Unit-level where-used for a material lot (API).** `GET /api/v1/material-lots/{id}/where-used`
+  answers "which units contain this lot?" in one call: every serial unit the lot was scanned
+  into as a component, and every unit that contains one of those up the component bindings
+  (a pinion inside a repair kit inside a carton), each with its work order, batch, pallet
+  and status, plus counts per work order and which units are outermost. A `precision` field
+  says how exact the answer is: `unit` when the lot has component bindings, `batch` when
+  only batch-step consumption was recorded (the consuming batches are then listed with how
+  many units each produced - an upper bound, not a list of affected units), `none` otherwise.
+  The walk is cycle-safe and bounded (`max_depth`, `limit`, flagged when cut short);
+  `include_removed` also follows parts that were taken out again. Same access as the lot
+  genealogy endpoints.
+- **Find a material lot by its lot number (API).** `GET /api/v1/material-lots` takes
+  `lot_number` (exact match on the plant's own lot number) next to the existing filters.
 - **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
   accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
   one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
