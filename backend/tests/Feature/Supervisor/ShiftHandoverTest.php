@@ -8,11 +8,13 @@ use App\Models\Pallet;
 use App\Models\ScrapEntry;
 use App\Models\ScrapReason;
 use App\Models\Shift;
+use App\Models\ShiftHandover;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -94,6 +96,26 @@ class ShiftHandoverTest extends TestCase
         $this->actingAs($this->operator)
             ->get(route('supervisor.shift-handover.index'))
             ->assertForbidden();
+    }
+
+    public function test_recent_handovers_keep_the_name_of_a_deleted_line(): void
+    {
+        $handover = ShiftHandover::factory()->create([
+            'line_id' => $this->line->id,
+            'notes' => 'Handed over.',
+        ]);
+        $lineName = $this->line->name;
+        $this->line->delete();
+
+        $this->actingAs($this->supervisor)
+            ->get(route('supervisor.shift-handover.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('supervisor/shift-handover/Index')
+                ->where('recent.0.id', $handover->id)
+                ->where('recent.0.line_name', $lineName)
+                ->where('recent.0.notes', 'Handed over.')
+                ->etc());
     }
 
     public function test_preview_computes_balance_for_line(): void

@@ -24,6 +24,7 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [CSV Import](#csv-import)
   - [Analytics](#analytics)
   - [Reports](#reports)
+  - [Shift Handover](#shift-handover)
   - [Audit Logs](#audit-logs)
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
@@ -1081,6 +1082,133 @@ Authorization: Bearer <token>
 ```
 
 Returns a CSV file download.
+
+---
+
+### Shift Handover
+
+Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. When the
+calling account belongs to a tenant, handovers are limited to that tenant: another tenant's
+handover is never listed and returns `404`. Accounts without a tenant (single-tenant installs)
+see all handovers.
+
+#### Current Balance and Recent Handovers
+
+```http
+GET /api/v1/shift-handover?line_id=3
+Authorization: Bearer <token>
+```
+
+`line_id` (optional) scopes the live `balance` to one line; a missing or non-numeric value means
+all lines. It does **not** filter `recent`: as on the web page, `recent` is always the 20 newest
+handovers across all lines, newest first (by `confirmed_at`). For older handovers or filtering,
+use [the history endpoint](#handover-history).
+
+```json
+{
+  "data": {
+    "lines": [{ "id": 3, "name": "Assembly 1", "code": "A1" }],
+    "selected_line_id": 3,
+    "balance": { "line_id": 3, "shift_id": 1, "window": { "...": "..." }, "produced_qty": 120, "...": "..." },
+    "recent": [
+      {
+        "id": 42,
+        "business_date": "2026-11-10",
+        "shift_start": "2026-11-10 06:00",
+        "line_name": "Assembly 1",
+        "produced_qty": 480,
+        "good_qty": 466,
+        "packed_qty": 400,
+        "shipped_qty": 200,
+        "confirmed_by": "Sam Supervisor",
+        "confirmed_at": "2026-11-10 14:05",
+        "shift_end": "2026-11-10 14:00",
+        "line_id": 3,
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "scrap_qty": 14,
+        "wip_open_pallets_qty": 24,
+        "wip_unpacked_qty": 42,
+        "discrepancies": {
+          "unpacked": { "label": "Good output not yet packed", "value": 42, "severity": "warning" },
+          "awaiting_shipment": { "label": "Packed but not yet shipped", "value": 200, "severity": "info" }
+        },
+        "breakdown": {
+          "wip_total_qty": 66,
+          "open_pallets_count": 1,
+          "open_pallets": [],
+          "shift": { "name": "Morning", "code": "I", "start": "06:00", "end": "14:00" }
+        },
+        "notes": "Conveyor jammed twice; maintenance informed.",
+        "confirmed_by_id": 7
+      }
+    ]
+  }
+}
+```
+
+Handover fields (the same in `recent`, history and the single-handover response):
+
+- Timestamps (`shift_start`, `shift_end`, `confirmed_at`) are `YYYY-MM-DD HH:MM` in the
+  application timezone.
+- `discrepancies` and `breakdown` are the snapshot captured when the shift was closed, and are
+  always JSON objects (`{}` when empty). `discrepancies` is keyed by discrepancy (`unpacked`,
+  `awaiting_shipment`, `over_packed`), each with `label`, `value` and `severity`.
+- `shift_name` is the shift name captured in the snapshot, so renaming a shift later does not
+  change history; older handovers without one show the shift's current name.
+- `line_name`, `shift_name` and `confirmed_by` resolve even if the line, shift or user has since
+  been deleted.
+
+#### Handover History
+
+```http
+GET /api/v1/shift-handover/history?line_id=3&business_date_from=2026-11-01&business_date_to=2026-11-07&per_page=50
+Authorization: Bearer <token>
+```
+
+Always paginated, newest first (by `confirmed_at`). Does not compute the live balance. Query
+parameters (all optional):
+
+| Parameter | Description |
+|---|---|
+| `line_id` | Only handovers of this line (positive integer). |
+| `business_date_from`, `business_date_to` | Business date range, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
+| `per_page` | Page size, 1–100 (default 25). |
+| `page` | Page number (default 1). |
+
+Invalid parameters return `422`.
+
+```json
+{
+  "data": [ { "id": 42, "business_date": "2026-11-10", "...": "same fields as a recent item" } ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 57, "last_page": 3 }
+}
+```
+
+#### Get One Handover
+
+```http
+GET /api/v1/shift-handover/42
+Authorization: Bearer <token>
+```
+
+Returns `{ "data": { ... } }` with the same fields as one `recent` item. `404` when the handover
+does not exist or is outside the caller's tenant.
+
+#### Close the Shift
+
+```http
+POST /api/v1/shift-handover
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "line_id": 3, "notes": "End of A-shift." }
+```
+
+Both fields are optional (`notes` up to 2000 characters). The server recomputes the balance and
+stores it as the handover snapshot; returns `201` with the stored handover record (its database
+columns plus `line` and `confirmed_by` objects, a different shape from the items above). Fetch
+`GET /api/v1/shift-handover/{id}` for the handover fields described above.
 
 ---
 

@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Shift handover details and history in the REST API.** Items in `recent` of
+  `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
+  `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
+  and `confirmed_by_id`, next to the existing fields (unchanged); `recent` is still the 20 latest
+  handovers across all lines. New `GET /api/v1/shift-handover/history` pages through older
+  handovers (`per_page`, default 25, max 100) and filters them by `line_id` and
+  `business_date_from`/`business_date_to`; new `GET /api/v1/shift-handover/{id}` returns one
+  handover. Both stay Supervisor/Admin only and limited to the caller's tenant.
+  `discrepancies` and `breakdown` are always JSON objects, and `shift_name` is the name saved
+  with the handover, so renaming a shift does not rewrite history.
+- **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
+  now show the line, shift and confirming user of a past handover even after that line, shift
+  or user has been deleted.
 - **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
   accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
   one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
