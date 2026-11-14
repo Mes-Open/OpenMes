@@ -274,7 +274,14 @@ export default function System() {
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             if (next === 'general') url.searchParams.delete('tab'); else url.searchParams.set('tab', next);
-            router.replace({ url: url.pathname + url.search, preserveState: true, preserveScroll: true });
+            // The flash belongs to the save that produced it: switching tab drops
+            // it, or "System settings updated." would stand over a tab never saved.
+            router.replace({
+                url: url.pathname + url.search,
+                props: (props) => ({ ...props, flash: {} }),
+                preserveState: true,
+                preserveScroll: true,
+            });
         }
     };
     // The targets card's figures are real queries (shift FPY, planned minutes),
@@ -289,7 +296,17 @@ export default function System() {
         }
         if (targetsRequested.current) return;
         targetsRequested.current = true;
-        router.reload({ only: ['productionTargets'] });
+        // To the Production tab's own address, not router.reload(): a reload
+        // goes to the page URL from before the click, and its response would
+        // put that URL back over ?tab=production (breadcrumb stuck on General).
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'production');
+        router.visit(url.pathname + url.search, {
+            only: ['productionTargets'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     }, [tab, productionTargets]);
     const [sampleConfirm, setSampleConfirm] = useState(false);
     // Which example company the admin picked; defaults to the first on offer.
@@ -1293,6 +1310,7 @@ export default function System() {
                                         <p className={`${HELP_CLASS} mt-1`}>
                                             {__('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).')}
                                         </p>
+                                        {errors.cors_allowed_methods && <p className={ERROR_CLASS}>{errors.cors_allowed_methods}</p>}
                                     </div>
                                     <div>
                                         <label className={LABEL_CLASS} htmlFor="cors_max_age">{__('Preflight Cache (seconds)')}</label>
@@ -1309,6 +1327,7 @@ export default function System() {
                                         <p className={`${HELP_CLASS} mt-1`}>
                                             {__('How long browsers cache preflight responses. 0 uses the default of 600 seconds.')}
                                         </p>
+                                        {errors.cors_max_age && <p className={ERROR_CLASS}>{errors.cors_max_age}</p>}
                                     </div>
                                 </div>
                             </div>
