@@ -243,6 +243,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/material-lots/{materialLot}', [MaterialLotController::class, 'show']);
     Route::get('/material-lots/{materialLot}/genealogy/forward', [MaterialLotController::class, 'forwardGenealogy']);
     Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
+    Route::get('/material-lots/{materialLot}/where-used', [MaterialLotController::class, 'whereUsed']);
     Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
 
     // Engineering CAD documents (#179). View/download for any grantee of
