@@ -245,6 +245,26 @@ class ShiftHandoverTest extends TestCase
         $this->assertArrayNotHasKey('balance', $response->json());
     }
 
+    public function test_history_treats_an_empty_per_page_as_the_default(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/shift-handover/history?per_page=')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 25);
+    }
+
+    public function test_history_accepts_only_an_upper_date_bound(): void
+    {
+        $before = ShiftHandover::factory()->create(['business_date' => '2026-11-04']);
+        ShiftHandover::factory()->create(['business_date' => '2026-11-08']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/shift-handover/history?business_date_to=2026-11-05')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $before->id);
+    }
+
     public function test_history_supports_per_page_and_page(): void
     {
         $handovers = collect(range(1, 5))->map(fn (int $i) => ShiftHandover::factory()->create([

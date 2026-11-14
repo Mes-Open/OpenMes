@@ -118,6 +118,22 @@ class ShiftHandoverTest extends TestCase
                 ->etc());
     }
 
+    public function test_recent_handovers_leave_out_the_breakdown(): void
+    {
+        ShiftHandover::factory()->create([
+            'line_id' => $this->line->id,
+            'breakdown' => ['open_pallets' => [['id' => 1, 'pallet_no' => 'PAL-000001', 'qty' => 10]]],
+        ]);
+
+        $this->actingAs($this->supervisor)
+            ->get(route('supervisor.shift-handover.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('recent.0.discrepancies')
+                ->missing('recent.0.breakdown')
+                ->etc());
+    }
+
     public function test_preview_computes_balance_for_line(): void
     {
         $this->seedBalance();

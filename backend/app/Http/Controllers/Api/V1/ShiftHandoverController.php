@@ -58,7 +58,9 @@ class ShiftHandoverController extends Controller
             ))
             ->orderByDesc('confirmed_at')
             ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 25));
+            // `?: 25` also covers a present-but-empty `per_page=`, which would
+            // otherwise fall through to the model's default page size of 15.
+            ->paginate($request->integer('per_page') ?: 25);
 
         return response()->json([
             'data' => collect($page->items())->map(ShiftHandoverPresenter::present(...))->all(),

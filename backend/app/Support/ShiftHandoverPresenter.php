@@ -57,4 +57,14 @@ class ShiftHandoverPresenter
             'confirmed_by_id' => $h->confirmed_by,
         ];
     }
+
+    /**
+     * present() without `breakdown`, for the web page's recent list: the
+     * breakdown carries up to 100 open pallets per row and the page shows
+     * none of it, so 20 rows of it would only bloat the Inertia props.
+     */
+    public static function summary(ShiftHandover $h): array
+    {
+        return array_diff_key(self::present($h), ['breakdown' => true]);
+    }
 }

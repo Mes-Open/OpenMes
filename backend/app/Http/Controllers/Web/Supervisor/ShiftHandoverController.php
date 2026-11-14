@@ -74,13 +74,14 @@ class ShiftHandoverController extends Controller
 
     private function recentHandovers(): array
     {
-        // Same shape as the REST API (Api\V1\ShiftHandoverController).
+        // Same shape as the REST API (Api\V1\ShiftHandoverController), minus
+        // the breakdown the page does not show.
         return ShiftHandover::with(ShiftHandoverPresenter::relations())
             ->orderByDesc('confirmed_at')
             ->orderByDesc('id')
             ->limit(20)
             ->get()
-            ->map(ShiftHandoverPresenter::present(...))
+            ->map(ShiftHandoverPresenter::summary(...))
             ->all();
     }
 }
