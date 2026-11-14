@@ -18,6 +18,7 @@ use App\Services\Material\MaterialAllocationService;
 use App\Services\Traceability\BindingException;
 use App\Services\Traceability\SerialTraceService;
 use App\Services\WorkOrder\BatchService;
+use App\Support\UnitSerialisation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -299,6 +300,14 @@ class UnitPackingService
     {
         if (in_array($unit->status, [...SerialUnit::TERMINAL_STATUSES, SerialUnit::STATUS_BLOCKED], true)) {
             throw new BindingException(__('Unit :sn is :status and cannot be packed.', ['sn' => $unit->display_id, 'status' => $unit->status_label]));
+        }
+        // Plants whose ERP receives finished units by serial number on an order.
+        $settings = app(UnitSerialisation::class);
+        if ($settings->get('unit_pack_requires_serial') && blank($unit->serial_no)) {
+            throw new BindingException(__('Unit :psn has no serial number yet - apply its product label before packing.', ['psn' => $unit->display_id]));
+        }
+        if ($settings->get('unit_pack_requires_order') && ! $unit->work_order_id) {
+            throw new BindingException(__('Unit :sn is not on a work order and cannot be packed.', ['sn' => $unit->display_id]));
         }
     }
 

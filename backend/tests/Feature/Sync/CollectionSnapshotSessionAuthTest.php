@@ -4,6 +4,7 @@ namespace Tests\Feature\Sync;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -20,7 +21,9 @@ class CollectionSnapshotSessionAuthTest extends TestCase
 
     public function test_authenticated_session_gets_the_snapshot(): void
     {
+        Role::findOrCreate('Admin', 'web');
         $user = User::factory()->create();
+        $user->assignRole('Admin');
 
         // No Origin / Referer / stateful-domain set — pure session auth, as it
         // would be for any host the deployment is actually served on.
