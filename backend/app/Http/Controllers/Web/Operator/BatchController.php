@@ -480,6 +480,11 @@ class BatchController extends Controller
             return back()->with('error', 'This work order does not belong to the selected line.');
         }
 
+        $batchable = \App\Support\ProductionRules::batchableQty($workOrder);
+        if ($batchable !== null && (float) $request->input('target_qty') - $batchable > 0.001) {
+            return back()->withErrors(['target_qty' => \App\Support\ProductionRules::exceedsPlanMessage($batchable)])->withInput();
+        }
+
         try {
             $lotNumber = $request->input('lot_number');
 

@@ -102,12 +102,27 @@ class SystemSettingsLanguageTest extends TestCase
     {
         DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
 
-        // Exactly what the page posts: the stored system language, unchanged.
+        // Exactly what the page posts from any tab but General: no language.
         $this->actingAs($this->admin)
             ->withSession(['locale' => 'en'])
-            ->post('/settings/system', $this->payload(['language' => 'pl', 'schedule_view_mode' => 'monthly']))
+            ->post('/settings/system', $this->payload(['schedule_view_mode' => 'monthly']))
             ->assertSessionHasNoErrors()
             ->assertSessionHas('locale', 'en');
+
+        $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
+    }
+
+    public function test_saving_the_unchanged_system_language_applies_it_to_the_admins_session(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        // The picker shows Polish while this admin switched their own session to
+        // English; saving the General tab must show the language they saved.
+        $this->actingAs($this->admin)
+            ->withSession(['locale' => 'en'])
+            ->post('/settings/system', $this->payload(['language' => 'pl']))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('locale', 'pl');
 
         $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
     }

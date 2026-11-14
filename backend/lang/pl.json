@@ -7307,5 +7307,6 @@
     "Display Saturday and Sunday columns in the weekly schedule view.": "Wyświetlaj kolumny soboty i niedzieli w tygodniowym widoku harmonogramu.",
     "How the packaging station receives input from a barcode scanner.": "W jaki sposób stanowisko pakowania otrzymuje dane ze skanera kodów kreskowych.",
     "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "Gdy włączone, utworzenie palety na stanowisku pakowania deklaruje konsumpcję z BOM dla wyprodukowanej ilości i odejmuje ją ze stanu w tym kamieniu milowym, zamiast w sposób ciągły.",
-    "System settings updated.": "Ustawienia systemowe zostały zaktualizowane."
+    "System settings updated.": "Ustawienia systemowe zostały zaktualizowane.",
+    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Nadprodukcja jest wyłączona: dla tego zlecenia można zarejestrować jeszcze tylko :qty."
 }

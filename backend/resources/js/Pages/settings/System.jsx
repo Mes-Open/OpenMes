@@ -304,14 +304,14 @@ export default function System() {
     const [restoreCountdown, setRestoreCountdown] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
 
-    const { csrf_token } = usePage().props;
+    const { csrf_token, locale: uiLocale } = usePage().props;
     // Errors from the plain (non-Inertia) forms on the Data tab — import and
     // sample data — arrive as page props, not through useForm's own `errors`.
     const pageErrors = usePage().props.errors ?? {};
 
     const { confirm, dialog } = useConfirm();
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
         block_negative_stock: settings.block_negative_stock ?? false,
@@ -366,8 +366,17 @@ export default function System() {
         // loadLocale / setTimezone), so a change only takes effect after a full
         // reload — an Inertia (SPA) redirect swaps neither the locale chunk nor
         // the zone the format* helpers use. Reload when either actually changed.
-        const needsReload = data.language !== settings.language
+        // The language is posted only from the General tab, where its picker is:
+        // saving it there also switches this admin's own session language, so
+        // saving any other tab must not touch it.
+        const sendsLanguage = tab === 'general';
+        const needsReload = (sendsLanguage && data.language !== uiLocale)
             || data.app_timezone !== settings.app_timezone;
+        transform((form) => {
+            if (sendsLanguage) return form;
+            const { language, ...rest } = form;
+            return rest;
+        });
         post('/settings/system', {
             onSuccess: () => {
                 if (needsReload) {

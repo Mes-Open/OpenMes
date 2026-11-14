@@ -7307,5 +7307,6 @@
     "Display Saturday and Sunday columns in the weekly schedule view.": "Display Saturday and Sunday columns in the weekly schedule view.",
     "How the packaging station receives input from a barcode scanner.": "How the packaging station receives input from a barcode scanner.",
     "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.",
-    "System settings updated.": "System settings updated."
+    "System settings updated.": "System settings updated.",
+    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Overproduction is turned off: only :qty more can be recorded for this work order."
 }

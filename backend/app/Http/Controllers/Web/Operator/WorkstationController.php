@@ -375,6 +375,10 @@ class WorkstationController extends Controller
         $newProduced = (float) $workOrder->produced_qty + $addedQty;
         $planned = (float) $workOrder->planned_qty;
 
+        if (\App\Support\ProductionRules::exceedsPlan($workOrder, $newProduced)) {
+            return back()->with('error', \App\Support\ProductionRules::exceedsPlanMessage($planned - (float) $workOrder->produced_qty));
+        }
+
         $updates = ['produced_qty' => $newProduced];
 
         // Auto-start if not yet in progress
@@ -436,6 +440,11 @@ class WorkstationController extends Controller
 
         $today = now()->toDateString();
         $qty = (float) $validated['quantity'];
+
+        $recorded = (float) WorkOrderShiftEntry::where('work_order_id', $workOrder->id)->sum('quantity');
+        if (\App\Support\ProductionRules::exceedsPlan($workOrder, $recorded + $qty)) {
+            return back()->with('error', \App\Support\ProductionRules::exceedsPlanMessage((float) $workOrder->planned_qty - $recorded));
+        }
 
         // Find or create shift entry for today, then add quantity
         $entry = WorkOrderShiftEntry::firstOrCreate(

@@ -70,10 +70,9 @@ class BatchController extends Controller
         ]);
 
         // Check if adding this batch would exceed planned qty
-        $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
-        $allowOverproduction = \App\Support\ProductionRules::allowOverproduction();
+        $total = \App\Support\ProductionRules::batchedQty($workOrder) + (float) $validated['target_qty'];
 
-        if (! $allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
+        if (\App\Support\ProductionRules::exceedsPlan($workOrder, $total)) {
             return response()->json([
                 'message' => 'Total batch quantity would exceed planned quantity',
             ], 422);
@@ -120,6 +119,13 @@ class BatchController extends Controller
         $validated = $request->validate([
             'target_qty' => ['required', 'numeric', 'min:0.01'],
         ]);
+
+        $total = \App\Support\ProductionRules::batchedQty($batch->workOrder, except: $batch) + (float) $validated['target_qty'];
+        if (\App\Support\ProductionRules::exceedsPlan($batch->workOrder, $total)) {
+            return response()->json([
+                'message' => 'Total batch quantity would exceed planned quantity',
+            ], 422);
+        }
 
         $batch->update(['target_qty' => $validated['target_qty']]);
 

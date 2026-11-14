@@ -56,6 +56,16 @@ class ProductionCorrectionController extends Controller
                 ->with('info', __('No changes made.'));
         }
 
+        // Only a raise can go over the plan; lowering a mistaken entry always works.
+        if ($newQty > $oldQty) {
+            $workOrder = $shiftEntry->workOrder;
+            $others = (float) WorkOrderShiftEntry::where('work_order_id', $workOrder->id)
+                ->whereKeyNot($shiftEntry->getKey())->sum('quantity');
+            if (\App\Support\ProductionRules::exceedsPlan($workOrder, $others + $newQty)) {
+                return back()->withErrors(['quantity' => \App\Support\ProductionRules::exceedsPlanMessage((float) $workOrder->planned_qty - $others)])->withInput();
+            }
+        }
+
         try {
             DB::transaction(function () use ($shiftEntry, $oldQty, $newQty) {
                 // Log the correction in audit

@@ -650,11 +650,6 @@ class SettingsController extends Controller
                 : null,
         ];
 
-        $previousLanguage = json_decode(
-            DB::table('system_settings')->where('key', 'language')->value('value') ?? 'null',
-            true
-        );
-
         foreach ($map as $key => $value) {
             DB::table('system_settings')->updateOrInsert(
                 ['key' => $key],
@@ -686,10 +681,12 @@ class SettingsController extends Controller
 
         Cache::forget(\App\Http\Middleware\DynamicCors::CACHE_KEY);
 
-        // A changed system language shows straight away for the admin who set
-        // it, even over a stale login-screen choice in this session (#205).
-        // Saving any other setting leaves this admin's own choice alone.
-        if (isset($map['language']) && $map['language'] !== $previousLanguage) {
+        // The page posts the language only from the General tab, where its
+        // picker is. Saved there, it shows straight away for this admin — even
+        // over a stale login-screen choice in the session (#205), and even when
+        // the system language itself did not change. Saving any other tab
+        // leaves this admin's own choice alone.
+        if (isset($map['language'])) {
             $request->session()->put('locale', $map['language']);
         }
 
