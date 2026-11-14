@@ -122,6 +122,54 @@ class MachineCounterTest extends TestCase
         $this->assertEquals(1, $this->second->fresh()->passed_qty);
     }
 
+    public function test_utc_machine_timestamps_are_stored_in_plant_time(): void
+    {
+        $previous = date_default_timezone_get();
+        config(['app.timezone' => 'America/Chicago']);
+        date_default_timezone_set('America/Chicago');
+
+        try {
+            // setUp configured the counter while the test still ran in UTC;
+            // restate that moment in plant time, as a real process would write it.
+            $this->counter->forceFill(['configured_at' => now()->subSeconds(5)])->save();
+
+            // A machine clock reporting UTC ("…Z"), as OPC UA and most gateways do.
+            $this->service->ingest($this->counter, 100, now()->subSeconds(2)->utc());
+            $second = $this->service->ingest($this->counter, 103, now()->utc());
+
+            // Stored as UTC wall time, the first reading would sit six hours in
+            // the future and every later one would be refused as out of order.
+            $this->assertSame('applied', $second->status);
+            $this->assertEquals(3, $this->first->fresh()->passed_qty);
+
+            $stored = \Illuminate\Support\Facades\DB::table('machine_counters')->where('id', $this->counter->id)->value('last_read_at');
+            $this->assertSame(now()->format('Y-m-d H'), substr((string) $stored, 0, 13));
+        } finally {
+            date_default_timezone_set($previous);
+        }
+    }
+
+    public function test_opcua_gateway_readings_are_counted_once_even_when_retried(): void
+    {
+        $token = $this->admin->createToken('opcua-gateway', ['machine-gateway'])->plainTextToken;
+        $post = fn (array $readings) => $this->withToken($token)
+            ->postJson("/api/v1/machine-connections/{$this->counter->machine_connection_id}/signals", ['readings' => $readings])
+            ->assertOk();
+        $tagId = $this->counter->machine_tag_id;
+        $this->travel(1)->seconds();
+
+        // Exactly what the gateway sends: its receive time in UTC and an event id.
+        $post([['tag_id' => $tagId, 'value' => 100, 'ts' => now()->utc()->toIso8601ZuluString('millisecond'), 'event_id' => 'opcua-1-1-a']]);
+        $this->travel(1)->seconds();
+        $retried = ['tag_id' => $tagId, 'value' => 104, 'ts' => now()->utc()->toIso8601ZuluString('millisecond'), 'event_id' => 'opcua-1-1-b'];
+        $post([$retried]);
+        // OpenMES answered, but the gateway never saw it and sends the same reading again.
+        $post([$retried]);
+
+        $this->assertEquals(4, $this->first->fresh()->passed_qty);
+        $this->assertSame(['baseline', 'applied'], $this->counter->readings()->where('status', '!=', 'configured')->orderBy('id')->pluck('status')->all());
+    }
+
     public function test_old_and_future_readings_do_not_move_the_baseline(): void
     {
         $this->read(100);

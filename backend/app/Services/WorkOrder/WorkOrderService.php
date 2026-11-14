@@ -5,8 +5,10 @@ namespace App\Services\WorkOrder;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProcessTemplate;
+use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Support\ProductionFlow;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
@@ -847,8 +849,49 @@ class WorkOrderService
      */
     public function getWorkOrdersForUser($user, array $filters = [])
     {
-        $query = WorkOrder::forUser($user)
-            ->with(['line', 'productType', 'batches.steps']);
+        return $this->queryWorkOrdersForUser($user, $filters)->get();
+    }
+
+    /** Relations the work-order list has always eager-loaded. */
+    public const LIST_RELATIONS = ['line', 'productType', 'batches.steps'];
+
+    /**
+     * The scalar columns of a summary listing (`fields=summary`). Leaves out the
+     * JSON blobs (`process_snapshot`, `extra_data`, `custom_fields`), which make
+     * up most of a full row. `id`, `line_id` and `product_type_id` must stay:
+     * the eager-loaded relations are matched on them.
+     */
+    public const LIST_SUMMARY_COLUMNS = [
+        'id', 'order_no', 'customer_order_no', 'status', 'priority',
+        'planned_qty', 'produced_qty', 'line_id', 'product_type_id',
+        'due_date', 'planned_start_at', 'planned_end_at', 'completed_at',
+        'description', 'created_at', 'updated_at',
+    ];
+
+    /**
+     * The work orders a user may see, filtered and in priority order: the query
+     * behind `GET /api/v1/work-orders`, left unexecuted so the caller can page it.
+     *
+     * Filters (all optional): `status` (one or a list), `line_id`, `search`
+     * (case-insensitive substring of the order number, customer order number,
+     * description, or product type name/code), `due_from` / `due_to` (inclusive
+     * calendar dates compared against `due_date`).
+     *
+     * `$columns` limits the selected work_orders columns (e.g.
+     * LIST_SUMMARY_COLUMNS); null selects every column, as the list always has.
+     *
+     * @param  \App\Models\User  $user
+     * @param  list<string>  $relations
+     * @param  list<string>|null  $columns
+     * @return \Illuminate\Database\Eloquent\Builder<WorkOrder>
+     */
+    public function queryWorkOrdersForUser($user, array $filters = [], array $relations = self::LIST_RELATIONS, ?array $columns = null)
+    {
+        $query = WorkOrder::forUser($user)->with($relations);
+
+        if ($columns !== null) {
+            $query->select(array_map(fn (string $column) => 'work_orders.'.$column, $columns));
+        }
 
         if ($user->hasRole('Operator') && ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
             $query->availableForProduction();
@@ -863,9 +906,61 @@ class WorkOrderService
             $query->forLine($filters['line_id']);
         }
 
+        if (isset($filters['search']) && $filters['search'] !== '') {
+            $search = $filters['search'];
+            // An uncorrelated `IN (SELECT id …)` rather than whereHas's correlated
+            // EXISTS; ProductType::query() keeps the soft-delete scope whereHas had.
+            $productTypeIds = ProductType::query()
+                ->where(fn ($p) => $this->whereContains($p, 'name', $search)
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'code', $search)))
+                ->select('id');
+
+            $query->where(function ($q) use ($search, $productTypeIds) {
+                $this->whereContains($q, 'work_orders.order_no', $search)
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'work_orders.customer_order_no', $search))
+                    ->orWhere(fn ($c) => $this->whereContains($c, 'work_orders.description', $search))
+                    ->orWhereIn('work_orders.product_type_id', $productTypeIds);
+            });
+        }
+
+        // `due_date` is a timestamp: a day filter covers that whole calendar day,
+        // as explicit bounds (no `::date` cast, so an index on due_date can serve it).
+        if (isset($filters['due_from'])) {
+            $query->where('due_date', '>=', Carbon::createFromFormat('!Y-m-d', $filters['due_from']));
+        }
+
+        if (isset($filters['due_to'])) {
+            $query->where('due_date', '<', Carbon::createFromFormat('!Y-m-d', $filters['due_to'])->addDay());
+        }
+
         // Default ordering
         $query->byPriority();
 
-        return $query->get();
+        return $query;
+    }
+
+    /**
+     * Case-insensitive literal substring match: `%`, `_` and `\` in the term
+     * match themselves, not as LIKE wildcards.
+     *
+     * Laravel's whereLike() cannot emit an ESCAPE clause and SQLite's LIKE has
+     * no default escape character, so the clause is written out. Only the
+     * (wrapped, code-supplied) column name is interpolated; the term is bound.
+     * ILIKE on Postgres, LIKE (ASCII case-insensitive) elsewhere.
+     *
+     * @template TBuilder of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     *
+     * @param  TBuilder  $query
+     * @return TBuilder
+     */
+    private function whereContains($query, string $column, string $term)
+    {
+        $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+
+        return $query->whereRaw(
+            $query->getGrammar()->wrap($column)." {$operator} ? escape '\\'",
+            [$pattern],
+        );
     }
 }

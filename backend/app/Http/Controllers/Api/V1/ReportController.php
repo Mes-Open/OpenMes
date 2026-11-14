@@ -182,7 +182,7 @@ class ReportController extends Controller
                     ->sum(fn ($i) => Carbon::parse($i->reported_at)->diffInMinutes($i->resolved_at));
 
                 return [
-                    'type' => $typeIssues->first()->issueType->name,
+                    'type' => $typeIssues->first()->issueType?->name,
                     'count' => $typeIssues->count(),
                     'downtime_minutes' => $typeDowntime,
                     'downtime_hours' => round($typeDowntime / 60, 2),
@@ -196,9 +196,10 @@ class ReportController extends Controller
                 return [
                     'id' => $issue->id,
                     'title' => $issue->title,
-                    'type' => $issue->issueType->name,
+                    'type' => $issue->issueType?->name,
                     'status' => $issue->status,
-                    'work_order_no' => $issue->workOrder->order_no,
+                    // Null for issues raised outside an order, e.g. inbound-inspection NCs.
+                    'work_order_no' => $issue->workOrder?->order_no,
                     'reported_at' => $issue->reported_at,
                     'resolved_at' => $issue->resolved_at,
                     'downtime_minutes' => $downtime,

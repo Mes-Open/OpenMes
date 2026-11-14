@@ -182,7 +182,7 @@ class ModuleRegistry
     /** A TabRegistry tab is enabled unless its (optional) module is switched off. */
     public static function isTabEnabled(string $tab): bool
     {
-        return self::isModuleEnabled($tab);
+        return self::isModuleEnabled(TabRegistry::moduleFor($tab));
     }
 
     /**

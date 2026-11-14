@@ -47,4 +47,9 @@ class DataImportsRecentShape extends Shape
 
         return $recent." AND entity IN ('".implode("', '", $allowed)."')";
     }
+
+    public function tabs(): array
+    {
+        return ['import'];
+    }
 }

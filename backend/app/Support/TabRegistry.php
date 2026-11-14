@@ -97,6 +97,11 @@ class TabRegistry
         // rest of that area.
         'shift_monitor' => ['label' => 'Shift Monitor', 'prefixes' => ['/admin/shift-monitor', '/admin/shift-overview', '/admin/shift-board']],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
+        // Assigning machine counters to orders and reviewing their readings is
+        // shop-floor work; configuring brokers, PLC addresses and gateways is
+        // not. Its own tab so a supervisor can be given the first without the
+        // second. Switched off with the Connectivity module (`module`).
+        'machine_counters' => ['label' => 'Machine counters', 'prefixes' => ['/admin/connectivity/counters'], 'module' => 'connectivity'],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
         'modules' => ['label' => 'Modules', 'prefixes' => ['/admin/modules']],
@@ -117,6 +122,15 @@ class TabRegistry
     public static function all(): array
     {
         return app(\App\Extension\FilterRegistry::class)->filter('tabs.registry', self::TABS);
+    }
+
+    /**
+     * The feature module that switches a tab off — its own key unless the tab
+     * declares another (a tab carved out of a module's area).
+     */
+    public static function moduleFor(string $key): string
+    {
+        return self::all()[$key]['module'] ?? $key;
     }
 
     public static function keys(): array
@@ -146,7 +160,7 @@ class TabRegistry
         return array_values(array_filter(
             self::keys(),
             fn (string $key) => $user->can(self::permission($key))
-                && (! in_array($key, $optional, true) || in_array($key, $enabled, true)),
+                && (! in_array(self::moduleFor($key), $optional, true) || in_array(self::moduleFor($key), $enabled, true)),
         ));
     }
 
@@ -171,7 +185,7 @@ class TabRegistry
         return array_values(array_filter(
             self::keys(),
             fn (string $key) => in_array(self::permission($key), $granted, true)
-                && (! in_array($key, $optional, true) || in_array($key, $enabled, true)),
+                && (! in_array(self::moduleFor($key), $optional, true) || in_array(self::moduleFor($key), $enabled, true)),
         ));
     }
 

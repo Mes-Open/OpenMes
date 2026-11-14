@@ -40,9 +40,11 @@ Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant,
         return false;
     }
 
-    // Admin lists are Admin/Supervisor only. Refine per-collection as operator
-    // screens move onto Reverb.
-    return $user->hasAnyRole(['Admin', 'Supervisor']);
+    // Same gate as the snapshot (CollectionController): the collection's own
+    // access rule, so a user never gets live rows they can't load, or the reverse.
+    $shape = app(\App\Sync\ShapeRegistry::class)->find($collection);
+
+    return $shape !== null && $shape->allows($user);
 });
 
 /**

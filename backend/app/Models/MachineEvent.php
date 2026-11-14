@@ -22,6 +22,21 @@ class MachineEvent extends Model
 
     public const TYPE_TELEMETRY = 'telemetry';
 
+    /**
+     * Which output a counter event adds to: 'good', 'reject', or null for a
+     * total counter. A total counts good and rejected parts together, so it is
+     * not good output: added as good next to the station's good counter, it
+     * would roughly double what the station made.
+     */
+    public static function counterKind(array $payload): ?string
+    {
+        return match ($payload['kind'] ?? 'good') {
+            'reject' => 'reject',
+            'total' => null,
+            default => 'good',
+        };
+    }
+
     protected $fillable = [
         'workstation_id',
         'machine_connection_id',

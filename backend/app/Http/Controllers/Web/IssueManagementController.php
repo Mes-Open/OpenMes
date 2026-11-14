@@ -9,6 +9,7 @@ use App\Http\Requests\StoreIssueActionRequest;
 use App\Http\Requests\StoreManagedIssueRequest;
 use App\Http\Requests\UpdateIssueActionRequest;
 use App\Models\Batch;
+use App\Models\DowntimeReason;
 use App\Models\Issue;
 use App\Models\IssueAction;
 use App\Models\IssueType;
@@ -16,6 +17,7 @@ use App\Models\Line;
 use App\Models\ScrapReason;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\Workstation;
 use App\Services\CustomFieldService;
 use App\Services\IssueService;
 use App\Services\Quality\IssueActionService;
@@ -41,6 +43,8 @@ class IssueManagementController extends Controller
             // "Report issue" dialog: what can be picked.
             'issueTypes' => IssueType::active()->orderBy('name')->get(['id', 'name', 'is_blocking']),
             'scrapReasons' => ScrapReason::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'downtimeReasons' => DowntimeReason::active()->orderBy('name')->get(['id', 'code', 'name']),
+            'workstations' => Workstation::where('is_active', true)->orderBy('name')->get(['id', 'line_id', 'code', 'name']),
             'reportableWorkOrders' => $this->reportableWorkOrders(),
             'issueCustomFields' => $cf->clientConfig('issue'),
         ]);
@@ -66,7 +70,8 @@ class IssueManagementController extends Controller
                 'line_id' => $wo->line_id,
                 // Same test as WorkOrder::usesStepLedger(), without a query per order.
                 'scrap_on_steps' => $transfer && (! empty($wo->process_snapshot['steps']) || $wo->has_step_batches),
-                'can_block' => in_array($wo->status, [...WorkOrder::BLOCKABLE_STATUSES, WorkOrder::STATUS_BLOCKED], true),
+                // Blocking stops the order's line, so an order without one can't.
+                'can_block' => $wo->line_id !== null,
             ])
             ->all();
     }
@@ -89,7 +94,12 @@ class IssueManagementController extends Controller
                     'description' => $request->validated('description'),
                     'custom_fields' => $customFields,
                 ],
-                blocksWorkOrder: $effect === StoreManagedIssueRequest::EFFECT_BLOCK,
+                lineBlock: $effect === StoreManagedIssueRequest::EFFECT_BLOCK
+                    ? [
+                        'downtime_reason_id' => $request->validated('downtime_reason_id'),
+                        'workstation_id' => $request->validated('workstation_id'),
+                    ]
+                    : null,
                 scrap: $effect === StoreManagedIssueRequest::EFFECT_SCRAP
                     ? $request->safe()->only(['scrap_reason_id', 'quantity'])
                     : null,
@@ -189,10 +199,9 @@ class IssueManagementController extends Controller
             'resolution_notes' => $notes,
         ]);
 
-        // The work order this issue was blocking may now be free to run again.
-        if ($issue->work_order_id) {
-            $this->issues->checkAndUnblockWorkOrder($issue->work_order_id);
-        }
+        // The work order (or the whole line) this issue was holding may now be
+        // free to run again.
+        $this->issues->releaseAfterResolve($issue);
     }
 
     public function close(Issue $issue)

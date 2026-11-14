@@ -18,6 +18,7 @@ export default function ApiTokens() {
     const initialScope = scopes.some((sc) => sc.value === requestedScope) ? requestedScope : 'full';
 
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', scope: initialScope });
+    const selectedScope = scopes.find((sc) => sc.value === data.scope);
 
     function handleCreate(e) {
         e.preventDefault();
@@ -119,6 +120,11 @@ export default function ApiTokens() {
                         {__('Generate Token')}
                     </Button>
                 </form>
+                {/* What the picked scope allows — read-only vs full matters most when
+                    the token is handed to a reporting tool or an AI assistant. */}
+                {selectedScope?.description && (
+                    <p className="text-om-muted text-[12px] mt-2">{selectedScope.description}</p>
+                )}
             </div>
 
             {/* Token List */}

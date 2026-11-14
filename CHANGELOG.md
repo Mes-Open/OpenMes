@@ -22,6 +22,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
   now show the line, shift and confirming user of a past handover even after that line, shift
   or user has been deleted.
+- **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
+  accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
+  one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
+  matches the order number, customer order number, description and product type name or code,
+  ignoring case; `due_from` / `due_to` limit the list to a due-date range; and `include`
+  (`line`, `product_type`, `batches`, `batches.steps`) picks which related data comes with each
+  order, so a client that only needs the list can skip the batch steps. `fields=summary`
+  returns only each order's summary columns (number, status, quantities, dates, line and
+  product) and leaves out the large routing snapshot and custom data, which shrinks a page of
+  orders several times over. A request without
+  these parameters gets the same response as before — every order, with batches and steps.
+  `per_page` on its own still returns the full list, as existing clients expect. Bad values
+  are rejected with `422`. The API documentation for this endpoint has been corrected to
+  match what it actually accepts.
+
+- **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
+  next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
+  saying what the chosen access allows. A read-only token reads everything its creator can
+  read and gets *403 "This token is read-only."* on every request other than GET, HEAD and
+  OPTIONS: on core routes, module routes, and on `/api/auth/refresh`, so it cannot be traded
+  for a full token. Use it for reporting tools and AI assistants that should look but not
+  change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
+  `machine-gateway`; `null` for a browser session) so a client can show only the actions its
+  token allows. Existing tokens keep the access they have.
+- **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
+  started on its process serial at the first station and an SN label from a batch printed
+  ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
+  the unit's PSN: the unit takes the serial number, the batch's placeholder for that number
+  is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
+  number kept as superseded). A pre-issued number that already has a component, a carton or
+  any processing is still refused as before.
+- **Packing can require a serial number and a work order.** *Settings → System → Unit
+  serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
+  a work order* (both off by default). When on, the packing station refuses a unit that has
+  only its process serial, or one not assigned to an order - for plants whose ERP receives
+  finished units by serial number on an order.
+- **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
+  without applying the failed-test policy, so old failed runs do not block or scrap units.
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -176,6 +214,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -203,6 +250,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is now refused, and concurrent decisions no longer create a second lot.
 
 ### Fixed
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
 
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's

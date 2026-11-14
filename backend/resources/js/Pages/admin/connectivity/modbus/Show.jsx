@@ -2,7 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import TagManager from '../TagManager';
 import RuntimePanel from '../RuntimePanel';
-import { StatusDot, StatCard } from '../ui';
+import { StatusDot, StatCard, statusLabel } from '../ui';
 import { __ } from '../../../../lib/i18n';
 
 export default function ModbusShow() {
@@ -60,7 +60,7 @@ export default function ModbusShow() {
                 <div className="grid grid-cols-3 gap-4">
                     <StatCard value={connection.tags.length} label={__('Tags')} />
                     <StatCard value={modbus ? `${modbus.byte_order}/${modbus.word_order}` : '—'} label={__('Byte / word order')} />
-                    <StatCard value={connection.status} label={connection.is_active ? __('Active') : __('Inactive')} capitalize />
+                    <StatCard value={statusLabel(connection.status)} label={connection.is_active ? __('Active') : __('Inactive')} />
                 </div>
 
                 {/* Runtime */}

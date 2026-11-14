@@ -29,6 +29,9 @@ class ProcessMqttMessageJob implements ShouldQueue
         private readonly string $topic,
         private readonly string $payload,
         private readonly string $receivedAt,
+        // Set when the broker replayed its stored copy of the topic's last
+        // message on (re)subscribe — not something the machine just sent.
+        private readonly bool $retained = false,
     ) {}
 
     public function handle(MqttMessageParser $parser, ActionExecutor $executor, TenantContext $tenant): void
@@ -52,13 +55,15 @@ class ProcessMqttMessageJob implements ShouldQueue
         $connection->load(['activeTopics.activeMappings']);
 
         try {
-            // Find the matching topic definition (supports wildcards)
-            $matchedTopic = $connection->activeTopics->first(
-                fn ($t) => $t->matchesTopic($this->topic)
-            );
+            // Every topic definition that matches (supports wildcards) runs
+            // its mappings — `hall1/#` logging and `hall1/press3/count`
+            // counting both see the count message.
+            $matchedTopics = $connection->activeTopics
+                ->filter(fn ($t) => $t->matchesTopic($this->topic))
+                ->values();
 
             // Parse payload
-            $format = $matchedTopic?->payload_format ?? 'json';
+            $format = $matchedTopics->first()?->payload_format ?? 'json';
             $parsedData = $parser->parse($this->payload, $format);
 
             // Execute mappings if topic matched
@@ -66,9 +71,20 @@ class ProcessMqttMessageJob implements ShouldQueue
             $processingStatus = MachineMessage::STATUS_OK;
             $processingError = null;
 
-            if ($matchedTopic) {
+            if ($this->retained) {
+                // The broker hands every new subscriber the topic's last
+                // retained message — on each listener restart, reconnect and
+                // config change. It was acted on when it was first sent;
+                // acting again would count it twice, file the fault again or
+                // put a work order back into an old status.
+                $processingStatus = MachineMessage::STATUS_SKIPPED;
+                $processingError = 'Retained message replayed by the broker — already handled when first sent';
+            } elseif ($matchedTopics->isNotEmpty()) {
                 try {
-                    $actionsTriggered = $executor->executeAll($matchedTopic, $parsedData);
+                    foreach ($matchedTopics as $topic) {
+                        $data = $topic->payload_format === $format ? $parsedData : $parser->parse($this->payload, $topic->payload_format ?? 'json');
+                        array_push($actionsTriggered, ...$executor->executeAll($topic, $data));
+                    }
                     $hasError = collect($actionsTriggered)->contains('status', 'error');
                     if ($hasError) {
                         $processingStatus = MachineMessage::STATUS_ERROR;

@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  *   unit_psn_pattern           regex the process serial must match, empty = any
  *   unit_psn_required          a unit cannot be registered without a process serial
  *   unit_psn_unique            one process serial identifies one unit
+ *   unit_pack_requires_serial  a unit without its serial number cannot be packed
+ *   unit_pack_requires_order   a unit not on a work order cannot be packed
  *   unit_test_fail_policy      what a failed test verdict does to the unit:
  *                              block  - hold it after unit_test_max_attempts fails (a later pass clears it)
  *                              scrap  - scrap it on the first fail
@@ -38,6 +40,8 @@ final class UnitSerialisation
         'unit_psn_pattern' => '',
         'unit_psn_required' => false,
         'unit_psn_unique' => true,
+        'unit_pack_requires_serial' => false,
+        'unit_pack_requires_order' => false,
         'unit_test_fail_policy' => self::FAIL_BLOCK,
         'unit_test_max_attempts' => 1,
         'unit_test_attempts_scope' => self::ATTEMPTS_UNIT,

@@ -20,6 +20,12 @@ use App\Sync\Shapes\WorkOrdersActiveShape;
  * A value is either a Shape class-string (for shapes with real where() logic)
  * or an inline ['table','columns','where'?] config (wrapped in GenericShape) —
  * the latter keeps simple admin lookup tables to one line each.
+ *
+ * Access: Admin and Supervisor read every collection. Anyone else (an Operator
+ * granted admin tabs, a workstation account) reads a collection only through
+ * its `tabs` (the access-matrix tabs whose pages use it) or `roles`. A new
+ * collection with neither stays Admin/Supervisor only — list the tabs of every
+ * page that reads it.
  */
 class ShapeRegistry
 {
@@ -38,64 +44,79 @@ class ShapeRegistry
         // Simple admin lookup tables — inline config.
         'material_types' => [
             'table' => 'material_types',
+            'tabs' => ['materials'],
             'columns' => ['id', 'code', 'name', 'created_at', 'updated_at'],
         ],
         'changeover_rules' => [
             'table' => 'changeover_rules',
+            'tabs' => ['schedule'],
             'columns' => ['id', 'name', 'attribute', 'from_value', 'to_value', 'workstation_type_id', 'workstation_id', 'setup_minutes', 'is_active', 'created_at', 'updated_at'],
         ],
         'downtime_reasons' => [
             'table' => 'downtime_reasons',
+            'tabs' => ['quality'],
             'columns' => ['id', 'code', 'name', 'kind', 'is_active', 'created_at', 'updated_at'],
         ],
         'scrap_reasons' => [
             'table' => 'scrap_reasons',
+            'tabs' => ['quality'],
             'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'sort_order', 'created_at', 'updated_at'],
         ],
         'companies' => [
             'table' => 'companies',
+            'tabs' => ['companies'],
             'columns' => ['id', 'code', 'name', 'tax_id', 'type', 'email', 'phone', 'address', 'is_active', 'created_at', 'updated_at'],
         ],
         'customers' => [
             'table' => 'customers',
+            'tabs' => ['order_data'],
             'columns' => ['id', 'name', 'code', 'tier', 'payment_score', 'total_orders', 'total_revenue', 'notes', 'is_active', 'created_at', 'updated_at'],
         ],
         'priority_rules' => [
             'table' => 'priority_rules',
+            'tabs' => ['order_data'],
             'columns' => ['id', 'name', 'field_source', 'condition_type', 'condition_value', 'condition_value_max', 'points', 'is_active', 'sort_order', 'created_at', 'updated_at'],
         ],
         'product_revisions' => [
             'table' => 'product_revisions',
+            'tabs' => ['product_engineering'],
             'columns' => ['id', 'product_type_id', 'revision_code', 'description', 'lifecycle_status', 'process_template_id', 'change_reason', 'external_ref', 'effective_from', 'effective_to', 'released_at', 'obsolete_at', 'created_at', 'updated_at'],
         ],
         'cost_sources' => [
             'table' => 'cost_sources',
+            'tabs' => ['maintenance'],
             'columns' => ['id', 'code', 'name', 'description', 'unit_cost', 'unit', 'currency', 'is_active', 'created_at', 'updated_at'],
         ],
         'tools' => [
             'table' => 'tools',
+            'tabs' => ['maintenance'],
             'columns' => ['id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // Global line statuses only (per-line statuses are managed elsewhere).
         'line_statuses_global' => [
             'table' => 'line_statuses',
+            'tabs' => ['production'],
             'columns' => ['id', 'name', 'color', 'sort_order', 'line_id', 'is_default', 'is_done_status', 'created_at', 'updated_at'],
             'where' => 'line_id IS NULL',
         ],
         'workstation_types' => [
             'table' => 'workstation_types',
+            'tabs' => ['structure'],
             'columns' => ['id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],
         ],
         'subassemblies' => [
             'table' => 'subassemblies',
+            'tabs' => ['structure'],
             'columns' => ['id', 'code', 'name', 'description', 'product_type_id', 'is_active', 'created_at', 'updated_at'],
         ],
         'shifts' => [
             'table' => 'shifts',
+            'tabs' => ['production'],
             'columns' => ['id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'issue_types_all' => [
             'table' => 'issue_types',
+            'tabs' => ['alerts'],
             'columns' => ['id', 'code', 'name', 'severity', 'is_blocking', 'is_active', 'created_at', 'updated_at'],
         ],
         // Shop-floor workstation clients — the MAIN roster derives online/offline
@@ -107,6 +128,7 @@ class ShapeRegistry
         // Quality-control trigger config (#105) — admin list.
         'quality_control_triggers' => [
             'table' => 'quality_control_triggers',
+            'tabs' => ['maintenance'],
             'columns' => [
                 'id', 'name', 'trigger_type', 'quality_check_template_id', 'line_id', 'workstation_id',
                 'product_type_id', 'threshold_n', 'downtime_min_minutes', 'is_blocking', 'is_active',
@@ -124,6 +146,7 @@ class ShapeRegistry
         ],
         'materials' => [
             'table' => 'materials',
+            'tabs' => ['materials'],
             'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'is_manufactured', 'producing_process_template_id', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
 
@@ -140,14 +163,18 @@ class ShapeRegistry
         // Users: SAFE columns only — never sync password/pin/remember_token.
         'users' => [
             'table' => 'users',
+            'tabs' => ['admin', 'alerts'],
             'columns' => ['id', 'name', 'username', 'email', 'account_type', 'force_password_change', 'last_login_at', 'worker_id', 'workstation_id', 'created_at', 'updated_at'],
         ],
         'lot_sequences' => [
             'table' => 'lot_sequences',
+            'tabs' => ['production'],
             'columns' => ['id', 'name', 'product_type_id', 'purpose', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
         ],
         'pallets' => [
             'table' => 'pallets',
+            'tabs' => ['materials', 'packaging'],
+            'roles' => ['Operator'],
             'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'destination', 'arrived_at', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // Physical pallet movement history (#103) — who moved which pallet where.
@@ -163,16 +190,19 @@ class ShapeRegistry
         ],
         'workers' => [
             'table' => 'workers',
+            'tabs' => ['hr'],
             'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'is_logistics', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'process_segments' => [
             'table' => 'process_segments',
+            'tabs' => ['product_engineering'],
             'columns' => ['id', 'code', 'name', 'description', 'segment_type', 'workstation_type_id', 'estimated_duration_minutes', 'required_operators', 'required_skill_ids', 'is_active', 'created_at', 'updated_at'],
         ],
         // All work orders (incl. terminal) for the admin list — the dashboard's
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
+            'tabs' => ['orders', 'schedule', 'alerts', 'materials'],
             'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'packed_qty', 'counting_source', 'status', 'snapshot_version', 'priority', 'priority_score', 'due_date', 'completed_at', 'description', 'planned_start_at', 'planned_end_at', 'end_date', 'shift_number', 'end_shift_number', 'week_number', 'month_number', 'production_year', 'line_status_id', 'customer_totals_counted', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // Change control (#182). Stops and change requests drive what the shop floor
@@ -181,38 +211,46 @@ class ShapeRegistry
         // the impact analysis is the whole point of the review screen.
         'work_order_stops' => [
             'table' => 'work_order_stops',
+            'tabs' => ['orders'],
             'columns' => ['id', 'work_order_id', 'batch_id', 'type', 'reason', 'requires_change', 'produced_qty_at_stop', 'snapshot_version_at_stop', 'context', 'production_downtime_id', 'issue_id', 'stopped_by_id', 'stopped_at', 'resumed_by_id', 'resumed_at', 'resume_notes', 'duration_minutes', 'applied_change_request_id', 'resulting_status', 'created_at', 'updated_at'],
         ],
         'work_order_change_requests' => [
             'table' => 'work_order_change_requests',
+            'tabs' => ['orders'],
             'columns' => ['id', 'code', 'work_order_id', 'work_order_stop_id', 'title', 'reason', 'status', 'proposed', 'previous_values', 'impact', 'effective_from', 'effective_from_batch_id', 'produced_disposition', 'material_disposition', 'implementation_notes', 'rejection_reason', 'requested_by_id', 'submitted_at', 'approved_by_id', 'approved_at', 'rejected_by_id', 'rejected_at', 'applied_by_id', 'applied_at', 'resulting_snapshot_version', 'created_at', 'updated_at'],
         ],
 
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
             'table' => 'lines',
+            'tabs' => ['production', 'alerts'],
             'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'warehouse_id', 'view_template_id', 'default_operator_view', 'planning_efficiency_pct', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'maintenance_events' => [
             'table' => 'maintenance_events',
+            'tabs' => ['maintenance'],
             'columns' => ['id', 'title', 'event_type', 'status', 'tool_id', 'line_id', 'workstation_id', 'cost_source_id', 'assigned_to_id', 'scheduled_at', 'scheduled_end_at', 'actual_cost', 'currency', 'description', 'created_at', 'updated_at'],
         ],
         'maintenance_schedules' => [
             'table' => 'maintenance_schedules',
+            'tabs' => ['maintenance'],
             'columns' => ['id', 'name', 'description', 'tool_id', 'line_id', 'workstation_id', 'event_type', 'assigned_to_id', 'cost_source_id', 'frequency', 'interval_value', 'preferred_time', 'lead_time_days', 'next_due_at', 'is_active', 'created_at', 'updated_at'],
         ],
         'material_lots' => [
             'table' => 'material_lots',
+            'tabs' => ['materials'],
             'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'issue_id', 'warehouse_id', 'hold_reason', 'held_at', 'held_by_id', 'released_at', 'released_by_id', 'created_at', 'updated_at'],
         ],
         'view_templates' => [
             'table' => 'view_templates',
+            'tabs' => ['production'],
             'columns' => ['id', 'name', 'description', 'created_at', 'updated_at'],
         ],
         // `criteria` is a JSON column — raw string in the snapshot, see the
         // note on custom_field_definitions. The plans list counts it per row.
         'inspection_plans' => [
             'table' => 'inspection_plans',
+            'tabs' => ['quality'],
             'columns' => ['id', 'name', 'description', 'material_id', 'material_type_id', 'criteria', 'is_active', 'version', 'published_at', 'root_id', 'created_at', 'updated_at'],
         ],
         'label_templates' => [
@@ -222,39 +260,46 @@ class ShapeRegistry
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [
             'table' => 'issues',
-            'columns' => ['id', 'work_order_id', 'issue_type_id', 'blocks_work_order', 'title', 'description', 'status', 'disposition', 'non_conforming_qty', 'root_cause', 'containment_action', 'nc_source', 'disposition_at', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
+            'tabs' => ['alerts'],
+            'columns' => ['id', 'work_order_id', 'issue_type_id', 'blocks_work_order', 'blocks_line', 'title', 'description', 'status', 'disposition', 'non_conforming_qty', 'root_cause', 'containment_action', 'nc_source', 'disposition_at', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'issue_actions' => [
             'table' => 'issue_actions',
+            'tabs' => ['alerts'],
             'columns' => ['id', 'issue_id', 'type', 'title', 'description', 'status', 'assigned_to_id', 'due_date', 'completed_at', 'completed_by_id', 'verified_at', 'verified_by_id', 'notes', 'created_at', 'updated_at'],
         ],
         // Outgoing webhooks (#20). NEVER sync `secret` — the HMAC signing key
         // must not leave the server.
         'webhooks' => [
             'table' => 'webhooks',
+            'tabs' => ['webhooks'],
             'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
         ],
         // Delivery log — payload/response_body are excluded to keep the stream
         // light; the status/code/error are enough for the admin list.
         'webhook_deliveries' => [
             'table' => 'webhook_deliveries',
+            'tabs' => ['webhooks'],
             'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
         // Warehousing (#212).
         'warehouses' => [
             'table' => 'warehouses',
+            'tabs' => ['warehouse'],
             'columns' => ['id', 'code', 'name', 'description', 'kind', 'erp_code', 'is_default', 'is_active', 'created_at', 'updated_at'],
         ],
         // Per-warehouse balances. Ids are resolved to codes client-side from the
         // lookup maps the controller passes as props.
         'warehouse_stocks' => [
             'table' => 'warehouse_stocks',
+            'tabs' => ['warehouse'],
             'columns' => ['id', 'warehouse_id', 'material_id', 'product_type_id', 'material_lot_id', 'quantity', 'unit_of_measure', 'erp_synced_at', 'created_at', 'updated_at'],
         ],
         // Document headers only — lines are loaded by the detail page, which needs
         // them joined to material / product names anyway.
         'stock_documents' => [
             'table' => 'stock_documents',
+            'tabs' => ['warehouse'],
             'columns' => ['id', 'document_no', 'type', 'status', 'warehouse_id', 'work_order_id', 'notes', 'erp_reference', 'erp_synced_at', 'posted_at', 'created_at', 'updated_at'],
         ],
     ];
@@ -285,7 +330,13 @@ class ShapeRegistry
         }
 
         if (is_array($def)) {
-            return new GenericShape($def['table'], $def['columns'], $def['where'] ?? null);
+            return new GenericShape(
+                $def['table'],
+                $def['columns'],
+                $def['where'] ?? null,
+                $def['tabs'] ?? [],
+                $def['roles'] ?? [],
+            );
         }
 
         return new $def;

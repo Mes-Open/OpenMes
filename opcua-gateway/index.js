@@ -29,6 +29,10 @@ const API_TOKEN = process.env.OPENMES_API_TOKEN || "";
 const CONNECTION_ID = process.env.OPCUA_CONNECTION_ID || "1";
 const HEARTBEAT_MS = parseInt(process.env.HEARTBEAT_MS || "10000", 10);
 const RECONNECT_MS = parseInt(process.env.RECONNECT_MS || "5000", 10);
+// How often the running gateway re-reads its connection from OpenMES, so tags
+// added there, a changed endpoint or switching the connection off take effect
+// without restarting the container.
+const CONFIG_REFRESH_MS = parseInt(process.env.CONFIG_REFRESH_MS || "60000", 10);
 // Upper bound for a call to OpenMES or a clean close of the OPC UA client, so a
 // stalled peer cannot hold up the retry loop.
 const REQUEST_TIMEOUT_MS = 5000;
@@ -71,16 +75,95 @@ async function fetchConfig() {
   return res.json();
 }
 
-async function postReadings(readings) {
-  if (readings.length === 0) return;
+// ── Reading outbox ─────────────────────────────────────────────────────────
+// Every value change is queued here and sent in order, one request at a time:
+//  - in order, because OpenMES rejects a counter reading older than the last
+//    one it accepted, so parallel posts racing each other would drop counts;
+//  - with retries, because OpenMES restarting (deploy, reboot) must not lose
+//    the state changes and alarms that happened meanwhile. Cumulative counters
+//    would catch up on the next change, but a FAULT → RUNNING pair would not.
+// Each reading carries the time the gateway received it and an event id fixed
+// at that moment, so a retried post is recognised as the same reading and a
+// pulse counter never counts it twice.
+const OUTBOX_MAX = parseInt(process.env.OUTBOX_MAX || "10000", 10);
+const BATCH_SIZE = 500; // the ingest API takes at most 1000 readings per post
+const RETRY_MS = 2000;
+const outbox = [];
+let readingSeq = 0;
+let flushing = false;
+
+function queueReading(tag, value) {
+  const at = new Date();
+  // The gateway's own clock, not the PLC's: machine clocks drift, and OpenMES
+  // refuses readings stamped more than a few seconds in its future.
+  outbox.push({
+    tag_id: tag.id,
+    value,
+    ts: at.toISOString(),
+    event_id: `opcua-${CONNECTION_ID}-${tag.id}-${at.getTime()}-${++readingSeq}`,
+  });
+  if (outbox.length > OUTBOX_MAX) {
+    const dropped = outbox.splice(0, outbox.length - OUTBOX_MAX);
+    log(`outbox full: dropped ${dropped.length} oldest readings`);
+  }
+  flushOutbox();
+}
+
+/**
+ * Take a posted batch off the outbox. By identity, not by position: if the
+ * outbox overflowed while the post was in flight, its oldest entries — the
+ * head of this batch — were already dropped, and removing `batch.length` from
+ * the front would throw away newer readings that were never sent.
+ */
+function removeSent(batch) {
+  const sent = new Set(batch);
+  for (let i = outbox.length - 1; i >= 0; i--) {
+    if (sent.has(outbox[i])) outbox.splice(i, 1);
+  }
+}
+
+async function flushOutbox() {
+  if (flushing) return;
+  flushing = true;
   try {
-    await fetch(api(`/machine-connections/${CONNECTION_ID}/signals`), {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({ readings }),
-    });
-  } catch (e) {
-    log("post readings error:", e.message);
+    while (outbox.length > 0 && !stopping) {
+      const batch = outbox.slice(0, BATCH_SIZE);
+      let res;
+      try {
+        res = await fetch(api(`/machine-connections/${CONNECTION_ID}/signals`), {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({ readings: batch }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS * 2),
+        });
+      } catch (e) {
+        log(`post readings error: ${e.message} - ${outbox.length} queued, retrying`);
+        await delay(RETRY_MS);
+        continue;
+      }
+      if (res.ok) {
+        removeSent(batch);
+        // OpenMES takes the batch but turns away readings it cannot use (a
+        // state value no workstation state matches): fix the tag's value map.
+        const body = await res.json().catch(() => ({}));
+        for (const r of body.rejected ?? []) {
+          log(`reading rejected for tag ${r.tag_id}: ${String(r.error).slice(0, 200)}`);
+        }
+        continue;
+      }
+      if (res.status === 422) {
+        // The data itself is rejected; resending it would block the queue forever.
+        const body = await res.text().catch(() => "");
+        log(`readings rejected (422), dropping ${batch.length}: ${body.slice(0, 300)}`);
+        removeSent(batch);
+        continue;
+      }
+      // 401/403/404/5xx: the readings are fine, OpenMES is not accepting them yet.
+      log(`post readings failed: HTTP ${res.status} - ${outbox.length} queued, retrying`);
+      await delay(RETRY_MS);
+    }
+  } finally {
+    flushing = false;
   }
 }
 
@@ -131,11 +214,39 @@ async function subscribeTags(subscription, cfg) {
       TimestampsToReturn.Both
     );
     item.on("changed", (dataValue) => {
-      const value = dataValue.value?.value;
-      postReadings([{ tag_id: tag.id, value }]);
+      queueReading(tag, dataValue.value?.value);
     });
     log(`monitoring ${tag.name} (${tag.node_id}) → ${tag.signal_type}`);
   }
+}
+
+const DEACTIVATED = "Connection is deactivated in OpenMES - not reading the machine";
+
+/** Thrown to start over with the new settings; not an outage. */
+class ConfigChanged extends Error {}
+
+/** What a running gateway depends on: a change to any of it needs a restart. */
+const configKey = (cfg) =>
+  JSON.stringify({ active: cfg.connection?.is_active, opcua: cfg.opcua, tags: cfg.tags });
+
+/**
+ * Re-reads the config every CONFIG_REFRESH_MS; `changed` rejects with
+ * ConfigChanged once it differs from `cfg`. A failed read (OpenMES restarting)
+ * is ignored — the next one decides.
+ */
+function watchConfig(cfg) {
+  let timer;
+  const changed = new Promise((_, reject) => {
+    timer = setInterval(async () => {
+      try {
+        if (configKey(await fetchConfig()) !== configKey(cfg)) {
+          reject(new ConfigChanged("configuration changed in OpenMES"));
+        }
+      } catch {}
+    }, CONFIG_REFRESH_MS);
+  });
+  changed.catch(() => {}); // settled by whoever awaits it, or by nobody
+  return { changed, stop: () => clearInterval(timer) };
 }
 
 async function closeClient(client, session, subscription) {
@@ -156,12 +267,26 @@ async function run() {
   const cfg = await fetchConfig();
   if (!cfg.opcua) throw new Error("connection has no OPC UA config");
   const endpoint = cfg.opcua.endpoint_url;
-  log(`config: ${cfg.connection.name}, ${cfg.tags.length} nodes, endpoint ${endpoint}`);
 
   // OpenMES is reachable from here on: keep it told about the OPC UA side for
   // as long as the process lives, including during slow connection attempts.
-  opcuaProblem ??= `Connecting to ${endpoint}`;
   heartbeatTimer ??= setInterval(heartbeat, HEARTBEAT_MS);
+  const config = watchConfig(cfg);
+
+  if (!cfg.connection.is_active) {
+    // Switched off in OpenMES (machine down for maintenance): do not read it,
+    // say why, and wait to be switched back on.
+    opcuaProblem = DEACTIVATED;
+    log(`${cfg.connection.name} is deactivated in OpenMES - waiting`);
+    await heartbeat();
+    try { await config.changed; } catch {} finally { config.stop(); }
+    return;
+  }
+
+  log(`config: ${cfg.connection.name}, ${cfg.tags.length} nodes, endpoint ${endpoint}`);
+  // Switched back on: the "deactivated" reason no longer applies.
+  if (opcuaProblem === DEACTIVATED) opcuaProblem = null;
+  opcuaProblem ??= `Connecting to ${endpoint}`;
 
   const client = OPCUAClient.create({
     applicationName: "OpenMES-Gateway",
@@ -176,7 +301,7 @@ async function run() {
 
   const userIdentity =
     cfg.opcua.auth_mode === "username" && cfg.opcua.username
-      ? { userName: cfg.opcua.username, password: process.env.OPCUA_PASSWORD || "" }
+      ? { userName: cfg.opcua.username, password: cfg.opcua.password ?? process.env.OPCUA_PASSWORD ?? "" }
       : undefined;
 
   let session;
@@ -186,9 +311,9 @@ async function run() {
   closeOpcua = () => (closing ??= closeClient(client, session, subscription));
 
   try {
-    await client.connect(endpoint);
+    await Promise.race([config.changed, client.connect(endpoint)]);
     log("connected to OPC UA server");
-    session = await client.createSession(userIdentity);
+    session = await Promise.race([config.changed, client.createSession(userIdentity)]);
     log("session created");
 
     subscription = ClientSubscription.create(session, {
@@ -201,21 +326,26 @@ async function run() {
     });
 
     const connectionLost = watchConnection(client, session, subscription);
-    await Promise.race([connectionLost, subscribeTags(subscription, cfg)]);
+    await Promise.race([connectionLost, config.changed, subscribeTags(subscription, cfg)]);
 
     established = true;
     opcuaProblem = null;
     await heartbeat();
-    await connectionLost;
+    await Promise.race([connectionLost, config.changed]);
   } catch (e) {
     // Closing the client on shutdown ends up here too; that is not an outage.
     if (stopping) return;
+    if (e instanceof ConfigChanged) {
+      log(`${e.message} - reconnecting with the new settings`);
+      return;
+    }
     // Report it, so the connection page shows the reason and the workstations
     // stop reading as fresh.
     opcuaProblem = `${established ? "Lost connection to" : "Cannot connect to"} ${endpoint}: ${e.message}`;
     await heartbeat();
     throw e;
   } finally {
+    config.stop();
     await closeOpcua();
     closeOpcua = null;
   }

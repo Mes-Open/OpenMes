@@ -4,14 +4,27 @@ namespace App\Services;
 
 use App\Enums\IssueDisposition;
 use App\Models\Issue;
+use App\Models\Line;
 use App\Models\ScrapEntry;
 use App\Models\Shift;
+use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\Production\DowntimeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class IssueService
 {
+    /**
+     * Resolved when needed rather than injected: DowntimeService depends on
+     * QualityTriggerService, which depends on this service, so constructor
+     * injection would be a container cycle.
+     */
+    private function downtimes(): DowntimeService
+    {
+        return app(DowntimeService::class);
+    }
+
     /**
      * Create a new issue and optionally block the work order.
      */
@@ -42,28 +55,31 @@ class IssueService
 
     /**
      * File an issue whose effect on production was chosen by the reporter
-     * (the Issues page) rather than taken from its type: it either blocks the
-     * work order, or records scrap against it, or neither.
+     * (the Issues page) rather than taken from its type: it either stops the
+     * work order's line (or one machine on it), or records scrap against the
+     * order, or neither.
      *
+     * @param  array{downtime_reason_id: int, workstation_id: int|null}|null  $lineBlock  set when the effect is blocking the line
      * @param  array{scrap_reason_id: int, quantity: float|string}|null  $scrap  set when the effect is scrap
      */
-    public function reportWithEffect(array $data, bool $blocksWorkOrder, ?array $scrap, int $userId): Issue
+    public function reportWithEffect(array $data, ?array $lineBlock, ?array $scrap, int $userId): Issue
     {
-        if ($blocksWorkOrder && $scrap !== null) {
-            throw new \InvalidArgumentException('An issue either blocks its work order or records scrap, not both.');
+        if ($lineBlock !== null && $scrap !== null) {
+            throw new \InvalidArgumentException('An issue either blocks the line or records scrap, not both.');
         }
 
-        return DB::transaction(function () use ($data, $blocksWorkOrder, $scrap, $userId) {
+        return DB::transaction(function () use ($data, $lineBlock, $scrap, $userId) {
             $issue = Issue::create([
                 ...$data,
-                'blocks_work_order' => $blocksWorkOrder,
+                'blocks_work_order' => $lineBlock !== null,
+                'blocks_line' => $lineBlock !== null,
                 'status' => Issue::STATUS_OPEN,
                 'reported_by_id' => $userId,
                 'reported_at' => now(),
             ]);
 
-            if ($blocksWorkOrder) {
-                $this->blockWorkOrder($issue->work_order_id);
+            if ($lineBlock !== null) {
+                $this->blockLine($issue, $lineBlock, $userId);
             }
 
             if ($scrap !== null) {
@@ -91,12 +107,65 @@ class IssueService
             Log::info('Issue created', [
                 'issue_id' => $issue->id,
                 'work_order_id' => $issue->work_order_id,
-                'is_blocking' => $blocksWorkOrder,
+                'blocks_line' => $lineBlock !== null,
+                'workstation_id' => $lineBlock['workstation_id'] ?? null,
                 'scrap_qty' => $scrap['quantity'] ?? null,
             ]);
 
             return $issue;
         });
+    }
+
+    /**
+     * Stop the issue's line: open a stop on it (or on the chosen machine) and
+     * hold every running order there in BLOCKED until the issue is resolved.
+     *
+     * @param  array{downtime_reason_id: int, workstation_id: int|null}  $lineBlock
+     */
+    private function blockLine(Issue $issue, array $lineBlock, int $userId): void
+    {
+        $line = Line::findOrFail($issue->workOrder->line_id);
+
+        $downtime = $this->downtimes()->start(
+            line: $line,
+            reasonId: (int) $lineBlock['downtime_reason_id'],
+            user: User::findOrFail($userId),
+            workstationId: $lineBlock['workstation_id'] ?? null,
+            notes: $issue->title,
+        );
+
+        $issue->update(['production_downtime_id' => $downtime->id]);
+
+        WorkOrder::where('line_id', $line->id)
+            ->whereIn('status', WorkOrder::BLOCKABLE_STATUSES)
+            ->pluck('id')
+            ->each(fn (int $id) => $this->blockWorkOrder($id));
+    }
+
+    /**
+     * Undo what a resolved issue was holding: end the line stop it opened and
+     * release the orders it blocked, unless another open issue still holds them.
+     */
+    public function releaseAfterResolve(Issue $issue): void
+    {
+        if ($issue->blocks_line && $issue->productionDowntime) {
+            $downtime = $issue->productionDowntime;
+
+            if ($downtime->isActive()) {
+                $this->downtimes()->stop($downtime);
+            }
+
+            WorkOrder::where('line_id', $downtime->line_id)
+                ->where('status', WorkOrder::STATUS_BLOCKED)
+                ->pluck('id')
+                ->each(fn (int $id) => $this->checkAndUnblockWorkOrder($id));
+
+            return;
+        }
+
+        if ($issue->blocks_work_order && $issue->work_order_id) {
+            $this->checkAndUnblockWorkOrder($issue->work_order_id);
+        }
     }
 
     /**
@@ -140,10 +209,8 @@ class IssueService
                 'resolution_notes' => $resolutionNotes,
             ]);
 
-            // If this was a blocking issue, check if we should unblock the work order
-            if ($issue->blocks_work_order) {
-                $this->checkAndUnblockWorkOrder($issue->work_order_id);
-            }
+            // Release the work order (or the whole line) this issue was holding.
+            $this->releaseAfterResolve($issue);
 
             Log::info('Issue resolved', [
                 'issue_id' => $issue->id,
@@ -244,9 +311,9 @@ class IssueService
         }
 
         // Check if there are any remaining blocking issues
-        $hasBlockingIssues = Issue::where('work_order_id', $workOrderId)
-            ->blocking()
-            ->exists();
+        // ...on the order itself, or holding its whole line stopped.
+        $hasBlockingIssues = Issue::where('work_order_id', $workOrderId)->blocking()->exists()
+            || ($workOrder->line_id !== null && Issue::blockingLine($workOrder->line_id)->exists());
 
         if (! $hasBlockingIssues) {
             // Put back what the block replaced. Orders blocked before that was

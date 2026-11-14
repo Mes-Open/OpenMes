@@ -25,16 +25,18 @@ class OpcuaConnectionController extends Controller
             ->get();
 
         return Inertia::render('admin/connectivity/opcua/Index', [
+            'counts' => MachineConnection::protocolCounts(),
             'connections' => $connections->map(fn ($c) => [
-                'id'                => $c->id,
-                'name'              => $c->name,
-                'description'       => $c->description,
-                'is_active'         => $c->is_active,
-                'status'            => $c->status,
-                'status_color'      => $c->statusColor(),
-                'tags_count'        => $c->tags_count,
-                'endpoint_url'      => $c->opcuaConnection?->endpoint_url,
-                'security_policy'   => $c->opcuaConnection?->security_policy,
+                'id' => $c->id,
+                'name' => $c->name,
+                'description' => $c->description,
+                'is_active' => $c->is_active,
+                'status' => $c->liveStatus(),
+                'status_color' => $c->liveStatusColor(),
+                'status_message' => $c->liveStatusMessage(),
+                'tags_count' => $c->tags_count,
+                'endpoint_url' => $c->opcuaConnection?->endpoint_url,
+                'security_policy' => $c->opcuaConnection?->security_policy,
                 'last_connected_at' => $c->last_connected_at?->diffForHumans(),
             ]),
         ]);
@@ -84,25 +86,25 @@ class OpcuaConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/opcua/Show', [
             'connection' => [
-                'id'           => $machineConnection->id,
-                'name'         => $machineConnection->name,
-                'description'  => $machineConnection->description,
-                'is_active'    => $machineConnection->is_active,
-                'status'         => $machineConnection->status,
-                'status_color'   => $machineConnection->statusColor(),
+                'id' => $machineConnection->id,
+                'name' => $machineConnection->name,
+                'description' => $machineConnection->description,
+                'is_active' => $machineConnection->is_active,
+                'status' => $machineConnection->liveStatus(),
+                'status_color' => $machineConnection->liveStatusColor(),
                 'status_message' => $machineConnection->status_message,
-                'opcua'        => $opcua ? [
-                    'endpoint_url'           => $opcua->endpoint_url,
-                    'security_policy'        => $opcua->security_policy,
-                    'security_mode'          => $opcua->security_mode,
-                    'auth_mode'              => $opcua->auth_mode,
-                    'username'               => $opcua->username,
+                'opcua' => $opcua ? [
+                    'endpoint_url' => $opcua->endpoint_url,
+                    'security_policy' => $opcua->security_policy,
+                    'security_mode' => $opcua->security_mode,
+                    'auth_mode' => $opcua->auth_mode,
+                    'username' => $opcua->username,
                     'publishing_interval_ms' => $opcua->publishing_interval_ms,
                 ] : null,
                 'tags' => $machineConnection->tags->map(fn ($t) => $this->mapTag($t))->values(),
             ],
             'workstations' => $this->workstationOptions(),
-            'runtime'      => app(RuntimeMonitor::class)->connectionRuntime($machineConnection),
+            'runtime' => app(RuntimeMonitor::class)->connectionRuntime($machineConnection),
         ]);
     }
 
@@ -114,18 +116,18 @@ class OpcuaConnectionController extends Controller
 
         return Inertia::render('admin/connectivity/opcua/Edit', [
             'connection' => [
-                'id'          => $machineConnection->id,
-                'name'        => $machineConnection->name,
+                'id' => $machineConnection->id,
+                'name' => $machineConnection->name,
                 'description' => $machineConnection->description,
-                'is_active'   => $machineConnection->is_active,
-                'opcua'       => $opcua ? [
-                    'endpoint_url'           => $opcua->endpoint_url,
-                    'security_policy'        => $opcua->security_policy,
-                    'security_mode'          => $opcua->security_mode,
-                    'auth_mode'              => $opcua->auth_mode,
-                    'username'               => $opcua->username,
+                'is_active' => $machineConnection->is_active,
+                'opcua' => $opcua ? [
+                    'endpoint_url' => $opcua->endpoint_url,
+                    'security_policy' => $opcua->security_policy,
+                    'security_mode' => $opcua->security_mode,
+                    'auth_mode' => $opcua->auth_mode,
+                    'username' => $opcua->username,
                     'publishing_interval_ms' => $opcua->publishing_interval_ms,
-                    'has_password'           => ! empty($opcua->password_encrypted),
+                    'has_password' => ! empty($opcua->password_encrypted),
                 ] : null,
             ],
         ]);
