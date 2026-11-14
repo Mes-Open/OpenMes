@@ -153,7 +153,9 @@ class SettingsController extends Controller
             'realtime_mode' => json_decode($rows['realtime_mode']?->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']?->value ?? '"per_operation"', true) ?? 'per_operation',
             'production_flow_mode' => \App\Support\ProductionFlow::mode(),
-            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '"*"', true) ?? '*',
+            // No row means no cross-origin access (DynamicCors): show that, not `*`,
+            // or saving the Security tab would open the API to every site.
+            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '""', true) ?? '',
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']?->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']?->value ?? '1', true) ?? 1,
             'scanner_mode' => json_decode($rows['scanner_mode']?->value ?? '"hid"', true) ?? 'hid',
@@ -629,9 +631,13 @@ class SettingsController extends Controller
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
             'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
-            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
-            'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
-            'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
+            // Only when sent (the page posts them from the Security tab): a form
+            // without them must neither clear the allowlist nor reset it.
+            ...($request->has('cors_allowed_origins') ? [
+                'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
+                'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
+                'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
+            ] : []),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],

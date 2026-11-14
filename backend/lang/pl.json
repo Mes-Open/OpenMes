@@ -7308,5 +7308,8 @@
     "How the packaging station receives input from a barcode scanner.": "W jaki sposób stanowisko pakowania otrzymuje dane ze skanera kodów kreskowych.",
     "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "Gdy włączone, utworzenie palety na stanowisku pakowania deklaruje konsumpcję z BOM dla wyprodukowanej ilości i odejmuje ją ze stanu w tym kamieniu milowym, zamiast w sposób ciągły.",
     "System settings updated.": "Ustawienia systemowe zostały zaktualizowane.",
-    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Nadprodukcja jest wyłączona: dla tego zlecenia można zarejestrować jeszcze tylko :qty."
+    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Nadprodukcja jest wyłączona: dla tego zlecenia można zarejestrować jeszcze tylko :qty.",
+    "Enter * or a comma-separated list of origins such as https://erp.example.com.": "Wpisz * albo listę adresów oddzielonych przecinkami, np. https://erp.example.com.",
+    "\":origin\" is not an origin. Use scheme and host only, such as https://erp.example.com, or * alone.": "„:origin” nie jest poprawnym adresem. Podaj tylko protokół i domenę, np. https://erp.example.com, albo samo *.",
+    "Allowed methods must be a comma-separated list of: :methods.": "Dozwolone metody muszą być listą oddzieloną przecinkami, wybraną z: :methods."
 }

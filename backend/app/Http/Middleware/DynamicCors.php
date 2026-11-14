@@ -13,8 +13,20 @@ class DynamicCors
     /** Cleared by Settings → System on save, so a change applies at once. */
     public const CACHE_KEY = 'cors_settings';
 
+    /**
+     * Only the API answers cross-origin requests — the same paths as
+     * config/cors.php. The rest of the app is the signed-in UI, whose pages
+     * (and the CSRF token in them) no other site may read, whatever the
+     * allowlist says.
+     */
+    private const PATHS = ['api/*', 'sanctum/csrf-cookie'];
+
     public function handle(Request $request, Closure $next): Response
     {
+        if (! $request->is(...self::PATHS)) {
+            return $next($request);
+        }
+
         $origin = $request->headers->get('Origin');
 
         // Preflight: respond directly with full CORS headers instead of
@@ -42,7 +54,9 @@ class DynamicCors
 
     private function applyCorsHeaders(Response $response, Request $request, ?string $origin, bool $isPreflight): void
     {
-        if (! $origin) {
+        // `null` is what sandboxed iframes and local files send — any site can
+        // produce it, so it is never an allowed origin, even if stored.
+        if (! $origin || $origin === 'null') {
             return;
         }
 
@@ -71,12 +85,15 @@ class DynamicCors
         } else {
             $origins = array_filter(array_map('trim', explode(',', $allowedRaw)));
 
+            // The answer depends on the Origin, so caches must key on it —
+            // also when this origin is refused.
+            $response->headers->set('Vary', 'Origin', false);
+
             if (! in_array($origin, $origins, true)) {
                 return;
             }
 
             $response->headers->set('Access-Control-Allow-Origin', $origin);
-            $response->headers->set('Vary', 'Origin');
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
         }
 

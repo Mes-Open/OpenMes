@@ -370,12 +370,18 @@ export default function System() {
         // saving it there also switches this admin's own session language, so
         // saving any other tab must not touch it.
         const sendsLanguage = tab === 'general';
+        // The CORS allowlist likewise only from the Security tab, where its
+        // fields are: a stored value saved elsewhere could only fail there unseen.
+        const sendsCors = tab === 'security';
         const needsReload = (sendsLanguage && data.language !== uiLocale)
             || data.app_timezone !== settings.app_timezone;
         transform((form) => {
-            if (sendsLanguage) return form;
-            const { language, ...rest } = form;
-            return rest;
+            const { language, cors_allowed_origins, cors_allowed_methods, cors_max_age, ...rest } = form;
+            return {
+                ...rest,
+                ...(sendsLanguage ? { language } : {}),
+                ...(sendsCors ? { cors_allowed_origins, cors_allowed_methods, cors_max_age } : {}),
+            };
         });
         post('/settings/system', {
             onSuccess: () => {

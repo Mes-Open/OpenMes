@@ -24,6 +24,17 @@ class UpdateSystemSettingRequest extends FormRequest
     {
         $known = [CurrencyRegistry::SETTING_KEY => Rule::in(CurrencyRegistry::codes()), 'production_period' => 'in:none,weekly,monthly', 'allow_overproduction' => 'boolean',
             'workflow_mode' => 'in:status,board_status', 'force_sequential_steps' => 'boolean', 'production_flow_mode' => 'in:whole_batch,transfer', 'pin_login_enabled' => 'boolean'];
+        // The CORS keys go straight into response headers, so the API checks
+        // them exactly as Settings → System does.
+        $cors = [
+            'cors_allowed_origins' => ['present', 'nullable', 'string', 'max:1000', new \App\Rules\CorsOrigins],
+            'cors_allowed_methods' => ['present', 'nullable', 'string', 'max:200', new \App\Rules\CorsMethods],
+            'cors_max_age' => ['required', 'integer', 'min:0', 'max:86400'],
+        ];
+        if (isset($cors[$this->route('key')])) {
+            return ['value' => $cors[$this->route('key')]];
+        }
+
         $rule = $known[$this->route('key')] ?? null;
 
         return ['value' => $rule ? ['required', $rule] : ['present']];

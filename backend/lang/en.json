@@ -7308,5 +7308,8 @@
     "How the packaging station receives input from a barcode scanner.": "How the packaging station receives input from a barcode scanner.",
     "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.",
     "System settings updated.": "System settings updated.",
-    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Overproduction is turned off: only :qty more can be recorded for this work order."
+    "Overproduction is turned off: only :qty more can be recorded for this work order.": "Overproduction is turned off: only :qty more can be recorded for this work order.",
+    "Enter * or a comma-separated list of origins such as https://erp.example.com.": "Enter * or a comma-separated list of origins such as https://erp.example.com.",
+    "\":origin\" is not an origin. Use scheme and host only, such as https://erp.example.com, or * alone.": "\":origin\" is not an origin. Use scheme and host only, such as https://erp.example.com, or * alone.",
+    "Allowed methods must be a comma-separated list of: :methods.": "Allowed methods must be a comma-separated list of: :methods."
 }

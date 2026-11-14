@@ -30,6 +30,19 @@ class UpdateSystemSettingsRequest extends FormRequest
         if (is_string($this->input('default_currency'))) {
             $this->merge(['default_currency' => CurrencyRegistry::normalise($this->input('default_currency'))]);
         }
+
+        // Spaces and a trailing slash are typos; an origin never has a path.
+        if (is_string($this->input('cors_allowed_origins'))) {
+            $origins = array_filter(array_map(
+                fn (string $o) => rtrim(trim($o), '/'),
+                explode(',', $this->input('cors_allowed_origins')),
+            ), 'strlen');
+            $this->merge(['cors_allowed_origins' => implode(', ', $origins)]);
+        }
+        if (is_string($this->input('cors_allowed_methods'))) {
+            $methods = array_filter(array_map(fn (string $m) => strtoupper(trim($m)), explode(',', $this->input('cors_allowed_methods'))), 'strlen');
+            $this->merge(['cors_allowed_methods' => implode(', ', $methods)]);
+        }
     }
 
     public function after(): array
@@ -75,8 +88,8 @@ class UpdateSystemSettingsRequest extends FormRequest
             'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'production_flow_mode' => 'nullable|in:whole_batch,transfer',
-            'cors_allowed_origins' => 'nullable|string|max:1000',
-            'cors_allowed_methods' => 'nullable|string|max:200',
+            'cors_allowed_origins' => ['nullable', 'string', 'max:1000', new \App\Rules\CorsOrigins],
+            'cors_allowed_methods' => ['nullable', 'string', 'max:200', new \App\Rules\CorsMethods],
             'cors_max_age' => 'nullable|integer|min:0|max:86400',
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
