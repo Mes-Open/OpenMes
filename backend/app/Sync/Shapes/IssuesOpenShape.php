@@ -42,4 +42,9 @@ class IssuesOpenShape extends Shape
     {
         return "status IN ('".Issue::STATUS_OPEN."', '".Issue::STATUS_ACKNOWLEDGED."')";
     }
+
+    public function tabs(): array
+    {
+        return ['dashboard', 'alerts'];
+    }
 }

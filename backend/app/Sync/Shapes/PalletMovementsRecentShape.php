@@ -53,4 +53,9 @@ class PalletMovementsRecentShape extends Shape
 
         return "moved_at >= '{$since}'";
     }
+
+    public function tabs(): array
+    {
+        return ['packaging'];
+    }
 }
