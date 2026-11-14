@@ -266,13 +266,15 @@ export default function System() {
     const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
     const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
     // …and a click writes it back, so a refresh or a shared link reopens the
-    // same panel. Replaced in place: one page, six views, no remount.
+    // same panel. Replaced in place: one page, six views, no remount. Through
+    // Inertia rather than history.replaceState, so usePage().url follows and
+    // the sidebar and the breadcrumb mark the open tab, not the one opened first.
     const selectTab = (next) => {
         setTab(next);
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             if (next === 'general') url.searchParams.delete('tab'); else url.searchParams.set('tab', next);
-            window.history.replaceState(window.history.state, '', url);
+            router.replace({ url: url.pathname + url.search, preserveState: true, preserveScroll: true });
         }
     };
     // The targets card's figures are real queries (shift FPY, planned minutes),
@@ -303,6 +305,9 @@ export default function System() {
     const [statusMessage, setStatusMessage] = useState('');
 
     const { csrf_token } = usePage().props;
+    // Errors from the plain (non-Inertia) forms on the Data tab — import and
+    // sample data — arrive as page props, not through useForm's own `errors`.
+    const pageErrors = usePage().props.errors ?? {};
 
     const { confirm, dialog } = useConfirm();
 
@@ -310,8 +315,8 @@ export default function System() {
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
         block_negative_stock: settings.block_negative_stock ?? false,
-        // Opt-out: an installation that was never asked reports.
-        telemetry_enabled: settings.telemetry_enabled ?? true,
+        // Opt-in: the server always sends the stored choice (false when never asked).
+        telemetry_enabled: settings.telemetry_enabled ?? false,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
@@ -334,7 +339,6 @@ export default function System() {
         app_timezone: settings.app_timezone ?? 'UTC',
         schedule_view_mode: settings.schedule_view_mode ?? 'weekly',
         schedule_shifts_per_day: settings.schedule_shifts_per_day ?? 1,
-        schedule_horizon_weeks: settings.schedule_horizon_weeks ?? 6,
         schedule_show_weekends: settings.schedule_show_weekends ?? true,
         realtime_mode: settings.realtime_mode ?? 'polling',
         production_tracking_mode: settings.production_tracking_mode ?? 'per_operation',
@@ -602,7 +606,10 @@ export default function System() {
                     {/* ═══ General ═══ */}
                     {tab === 'general' && (
                         <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('System language')}</h2>
+                            <p className={`${HELP_CLASS} mb-4`}>
+                                {__('Default language for every user and the login screen. The language switcher on the login screen changes it only in that browser.')}
+                            </p>
                             <div className="mb-2">
                                 <div className={LABEL_CLASS}>{__('Select language')}</div>
                                 <Dropdown
@@ -667,7 +674,7 @@ export default function System() {
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Planning')}</h2>
                                 <div className="mb-4">
                                     <span className={LABEL_CLASS}>{__('Production Period Split')}</span>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('Determines how work orders are grouped for planning.')}</p>
+                                    <p className={`${HELP_CLASS} mb-2`}>{__('Adds a week or month number to the work order import, so imported orders are assigned to a planning period.')}</p>
                                     <div className="grid grid-cols-3 gap-3">
                                         {[
                                             { value: 'none', label: __('None'), desc: __('No period grouping') },
@@ -768,7 +775,7 @@ export default function System() {
                                         />
                                         <div>
                                             <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
-                                            <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
+                                            <p className={HELP_CLASS}>{__('When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -941,7 +948,7 @@ export default function System() {
                             {/* Barcode Scanner */}
                             <div className={CARD_CLASS}>
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Barcode Scanner')}</h2>
-                                <p className={`${HELP_CLASS} mb-4`}>{__('How the workstation receives input from a barcode scanner.')}</p>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How the packaging station receives input from a barcode scanner.')}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {[
                                         { value: 'hid', label: __('HID / Keyboard wedge'), desc: __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') },
@@ -1142,7 +1149,7 @@ export default function System() {
                             {/* Shifts per day */}
                             <div>
                                 <div className={LABEL_CLASS}>{__('Shifts per day')}</div>
-                                <p className={`${HELP_CLASS} mb-2`}>{__('Number of production shifts in a 24-hour period.')}</p>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('Used only when no shifts are defined. Otherwise the schedule shows a column for each active shift.')}</p>
                                 <div className="grid grid-cols-4 gap-3">
                                     {[1, 2, 3, 4].map((n) => (
                                         <div
@@ -1167,25 +1174,6 @@ export default function System() {
                                 </Link>
                             </div>
 
-                            {/* Planning horizon */}
-                            <div>
-                                <label className={LABEL_CLASS} htmlFor="schedule_horizon_weeks">{__('Planning horizon')}</label>
-                                <p className={`${HELP_CLASS} mb-2`}>{__('How many weeks ahead the planner displays.')}</p>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        id="schedule_horizon_weeks"
-                                        value={data.schedule_horizon_weeks}
-                                        onChange={(e) => setData('schedule_horizon_weeks', parseInt(e.target.value, 10) || 1)}
-                                        className={`${INPUT_BASE} w-24`}
-                                        min={1}
-                                        max={52}
-                                    />
-                                    <span className="text-[13px] text-om-muted">{__('weeks')}</span>
-                                </div>
-                                {errors.schedule_horizon_weeks && <p className={ERROR_CLASS}>{errors.schedule_horizon_weeks}</p>}
-                            </div>
-
                             {/* Show weekends */}
                             <div>
                                 <div className="flex items-start gap-3">
@@ -1195,7 +1183,7 @@ export default function System() {
                                     />
                                     <div>
                                         <p className="text-[13px] font-medium text-om-ink">{__('Show weekends')}</p>
-                                        <p className={HELP_CLASS}>{__('Display Saturday and Sunday columns in the schedule view.')}</p>
+                                        <p className={HELP_CLASS}>{__('Display Saturday and Sunday columns in the weekly schedule view.')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1304,7 +1292,7 @@ export default function System() {
                                             placeholder="0"
                                         />
                                         <p className={`${HELP_CLASS} mt-1`}>
-                                            {__('How long browsers cache preflight responses. 0 = no caching (strictest).')}
+                                            {__('How long browsers cache preflight responses. 0 uses the default of 600 seconds.')}
                                         </p>
                                     </div>
                                 </div>
@@ -1413,6 +1401,9 @@ export default function System() {
                                         {loadedDemoDataset ? __('Replace Sample Data') : __('Load Sample Data')}
                                     </Button>
                                 </div>
+                                {(pageErrors.dataset || pageErrors.replace) && (
+                                    <p className={ERROR_CLASS} role="alert">{pageErrors.dataset || pageErrors.replace}</p>
+                                )}
                             </form>
                         )}
                     </div>
@@ -1456,6 +1447,7 @@ export default function System() {
                                 {__('Import Settings')}
                             </Button>
                         </form>
+                        {pageErrors.settings_file && <p className={ERROR_CLASS} role="alert">{pageErrors.settings_file}</p>}
                     </div>
 
                     {/* Backup & Recovery */}

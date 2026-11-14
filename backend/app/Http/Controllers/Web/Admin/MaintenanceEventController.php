@@ -76,9 +76,9 @@ class MaintenanceEventController extends Controller
         ]);
 
         $validated['status'] = MaintenanceEvent::STATUS_PENDING;
-        // currency is NOT NULL DEFAULT 'PLN'; a cleared field arrives as null and
-        // would trip the constraint, so restore the default.
-        $validated['currency'] ??= 'PLN';
+        // currency is NOT NULL; a cleared field arrives as null and would trip
+        // the constraint, so fall back to the installation currency.
+        $validated['currency'] ??= \App\Support\CurrencyRegistry::current();
 
         MaintenanceEvent::create($validated);
 

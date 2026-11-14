@@ -90,7 +90,7 @@ class ConfigurationImporter
         'production_period', 'allow_overproduction', 'block_negative_stock', 'force_sequential_steps',
         'workstation_routing_enabled', 'backflush_on_pallet_creation', 'pallet_stock_documents', 'hold_on_material_shortage', 'lot_tracking_enabled', 'lot_picking_strategy',
         'workflow_mode', 'pin_login_enabled', 'language', 'app_timezone', 'schedule_view_mode', 'schedule_shifts_per_day',
-        'schedule_horizon_weeks', 'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
+        'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
         'production_qty_edit_policy', 'production_qty_edit_window_minutes', 'scanner_mode',
         'unit_identifier_normalize', 'unit_serial_pattern', 'unit_psn_pattern', 'unit_psn_required', 'unit_psn_unique',
         'unit_test_fail_policy', 'unit_test_max_attempts', 'unit_test_attempts_scope', 'standard_weekly_hours', 'default_currency',

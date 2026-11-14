@@ -43,7 +43,6 @@ class SchedulePlannerService
         // Fallback only — the board's shift columns follow the actual active
         // shifts (see below); this setting applies when none are defined.
         $shiftsPerDay = (int) trim($settings['schedule_shifts_per_day'] ?? '1', '"\'');
-        $horizonWeeks = (int) trim($settings['schedule_horizon_weeks'] ?? '4', '"\'');
         $showWeekends = filter_var(trim($settings['schedule_show_weekends'] ?? 'true', '"\''), FILTER_VALIDATE_BOOLEAN);
 
         // Snap granularity for the hourly view (in minutes). Defaults to 15
@@ -70,7 +69,7 @@ class SchedulePlannerService
             default => $rawStart->copy()->startOfWeek(),
         };
 
-        [$rangeStart, $rangeEnd] = $this->calculateDateRange($viewMode, $startDate, $horizonWeeks);
+        [$rangeStart, $rangeEnd] = $this->calculateDateRange($viewMode, $startDate);
 
         $lineId = $params['line_id'] ?? null;
 
@@ -209,7 +208,6 @@ class SchedulePlannerService
             'viewMode' => $viewMode,
             'shiftsPerDay' => $shiftsPerDay,
             'slotMinutes' => $slotMinutes,
-            'horizonWeeks' => $horizonWeeks,
             'showWeekends' => $showWeekends,
             'startDate' => $startDate->format('Y-m-d'),
             'rangeStart' => $rangeStart->format('Y-m-d'),
@@ -787,7 +785,6 @@ class SchedulePlannerService
         $keys = [
             'schedule_view_mode',
             'schedule_shifts_per_day',
-            'schedule_horizon_weeks',
             'schedule_show_weekends',
             'schedule_slot_minutes',
             'realtime_mode',
@@ -799,7 +796,7 @@ class SchedulePlannerService
             ->toArray();
     }
 
-    private function calculateDateRange(string $viewMode, Carbon $startDate, int $horizonWeeks): array
+    private function calculateDateRange(string $viewMode, Carbon $startDate): array
     {
         return match ($viewMode) {
             'daily', 'hourly' => [

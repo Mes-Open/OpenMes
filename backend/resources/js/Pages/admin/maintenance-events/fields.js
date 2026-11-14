@@ -1,5 +1,6 @@
 import { dateTimeLocal } from '../../../lib/syncedRow';
 import { __ } from '../../../lib/i18n';
+import { currency } from '../../../lib/money';
 
 const opt = (none, arr) => [
     { value: '', label: none },
@@ -62,7 +63,8 @@ export function maintenanceEventInitial(record, { scheduled_at, scheduled_end_at
             scheduled_at: '',
             scheduled_end_at: '',
             actual_cost: '',
-            currency: 'PLN',
+            // Installation currency (Settings → System), not a hard-coded PLN.
+            currency: currency(),
             description: '',
         };
     }

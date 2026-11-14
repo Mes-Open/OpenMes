@@ -10,6 +10,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class DynamicCors
 {
+    /** Cleared by Settings → System on save, so a change applies at once. */
+    public const CACHE_KEY = 'cors_settings';
+
     public function handle(Request $request, Closure $next): Response
     {
         $origin = $request->headers->get('Origin');
@@ -24,6 +27,7 @@ class DynamicCors
         if ($isPreflight) {
             $response = response('', 204);
             $this->applyCorsHeaders($response, $request, $origin, true);
+
             return $response;
         }
 
@@ -42,7 +46,7 @@ class DynamicCors
             return;
         }
 
-        $corsSettings = Cache::remember('cors_settings', 60, function () {
+        $corsSettings = Cache::remember(self::CACHE_KEY, 60, function () {
             return DB::table('system_settings')
                 ->whereIn('key', ['cors_allowed_origins', 'cors_allowed_methods', 'cors_max_age'])
                 ->pluck('value', 'key')
@@ -60,6 +64,8 @@ class DynamicCors
             return;
         }
 
+        // Credentials only for named origins: browsers reject them next to the
+        // `*` wildcard, which v0.4.1 (582c9376) already removed as risky.
         if ($allowedRaw === '*') {
             $response->headers->set('Access-Control-Allow-Origin', '*');
         } else {
@@ -71,9 +77,8 @@ class DynamicCors
 
             $response->headers->set('Access-Control-Allow-Origin', $origin);
             $response->headers->set('Vary', 'Origin');
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
         }
-
-        $response->headers->set('Access-Control-Allow-Credentials', 'true');
 
         if ($isPreflight) {
             $methods = $corsSettings['cors_allowed_methods'] ?? 'GET, POST';

@@ -166,6 +166,27 @@ class LegacyMachineCountingTest extends TestCase
         $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
     }
 
+    public function test_saving_other_settings_in_transfer_mode_is_not_blocked_by_legacy_channels(): void
+    {
+        // Transfer already on (e.g. switched before this tag was added): the tag
+        // is a transfer blocker, but nothing is being switched.
+        $this->setupMachine();
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        $this->assertNotEmpty(app(MachineCountingCompatibility::class)->transferBlockers());
+        $admin = User::factory()->create();
+        Role::findOrCreate('Admin', 'web');
+        $admin->assignRole('Admin');
+        // The settings page always posts the current mode with every save.
+        $payload = ['production_period' => 'none', 'workflow_mode' => 'status', 'schedule_view_mode' => 'monthly',
+            'schedule_shifts_per_day' => 1, 'realtime_mode' => 'polling',
+            'production_tracking_mode' => 'per_operation', 'production_qty_edit_policy' => 'none', 'scanner_mode' => 'hid', 'production_flow_mode' => 'transfer'];
+
+        $this->actingAs($admin)->post('/settings/system', $payload)->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame('monthly', json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'schedule_view_mode')->value('value'), true));
+        $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
+    }
+
     public function test_legacy_mqtt_cannot_write_a_transfer_step(): void
     {
         [$order, $step, $tag] = $this->setupMachine('mqtt');
@@ -232,11 +253,11 @@ class LegacyMachineCountingTest extends TestCase
         $this->actingAs($admin)->post('/settings/system', $payload)->assertSessionHasNoErrors();
         $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
         $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('settings.json', json_encode([
-            'system_settings' => ['production_flow_mode' => json_encode('whole_batch'), 'schedule_horizon_weeks' => '8'],
+            'system_settings' => ['production_flow_mode' => json_encode('whole_batch'), 'schedule_shifts_per_day' => '3'],
         ]));
         $this->post('/settings/import', ['settings_file' => $file])->assertSessionHasNoErrors();
         $this->assertSame(ProductionFlow::TRANSFER, ProductionFlow::mode());
-        $this->assertEquals(8, json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'schedule_horizon_weeks')->value('value'), true));
+        $this->assertEquals(3, json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'schedule_shifts_per_day')->value('value'), true));
         $this->putJson('/api/v1/system/settings/workflow_mode', ['value' => 'invalid'])->assertUnprocessable();
         $this->putJson('/api/v1/system/settings/workflow_mode', ['value' => 'board_status'])->assertSuccessful();
     }

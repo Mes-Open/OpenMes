@@ -25,7 +25,7 @@ class StoreWageGroupRequest extends FormRequest
             $this->merge(['base_hourly_rate' => 0]);
         }
         if ($this->input('currency') === null || $this->input('currency') === '') {
-            $this->merge(['currency' => 'PLN']);
+            $this->merge(['currency' => \App\Support\CurrencyRegistry::current()]);
         }
         $this->merge(['is_active' => $this->boolean('is_active', true)]);
     }

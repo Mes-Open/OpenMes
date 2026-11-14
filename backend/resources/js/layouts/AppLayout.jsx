@@ -101,10 +101,14 @@ export function dedupeTrail(items) {
     return items.filter((item, i) => i === 0 || item.label !== items[i - 1].label);
 }
 
-function navTrailFor(path, groups, links) {
+function navTrailFor(path, groups, links, tab = null) {
     let best = null;
 
     const consider = (node, chain) => {
+        // Entries that open one tab of a shared page (Settings → System Settings
+        // → ?tab=…) all match the same path; only the open tab's entry counts,
+        // or the first of them (General) would name every tab.
+        if (node.query && node.query !== (tab || 'general')) return;
         const matches = node.match ?? (node.href ? [node.href] : []);
         // Score on the prefixes that actually matched, not the longest in the
         // array: a group lists every child's path, so scoring the whole array let
@@ -309,6 +313,7 @@ export default function AppLayout({ children }) {
     // usePage().url is reactive across SPA navigation; strip the query string
     // so prefix matching for active-state works (e.g. /admin/work-orders?status=).
     const path = (page.url || '').split('?')[0];
+    const tab = new URLSearchParams((page.url || '').split('?')[1] || '').get('tab');
 
     const [collapsed, setCollapsed] = useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sb') === '1',
@@ -317,8 +322,8 @@ export default function AppLayout({ children }) {
     // the module registered, not fall off the trail entirely.
     const { links: navLinks, groups: navGroups } = useNavTree();
     const navTrail = useMemo(
-        () => navTrailFor(path, navGroups, navLinks),
-        [path, navGroups, navLinks],
+        () => navTrailFor(path, navGroups, navLinks, tab),
+        [path, tab, navGroups, navLinks],
     );
     const [hasPageTitle, pageTitleCtx] = usePageTitlePresence(navTrail);
 

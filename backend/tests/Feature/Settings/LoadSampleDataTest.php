@@ -53,7 +53,7 @@ class LoadSampleDataTest extends TestCase
     {
         $this->actingAs($this->admin())
             ->post('/settings/sample-data', ['dataset' => 'print_shop'])
-            ->assertRedirect('/settings/system')
+            ->assertRedirect('/settings/system?tab=data')
             ->assertSessionHas('success');
 
         // The print shop's own products, not the other dataset's.

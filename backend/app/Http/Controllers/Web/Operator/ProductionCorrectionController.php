@@ -70,11 +70,15 @@ class ProductionCorrectionController extends Controller
                     'user_agent' => request()->userAgent(),
                 ]);
 
-                // Update the shift entry
+                // Update the shift entry without touching updated_at: the timed
+                // correction window runs from the last reported quantity, and a
+                // correction must not reopen it (the audit log records when).
+                $shiftEntry->timestamps = false;
                 $shiftEntry->update([
                     'quantity' => $newQty,
                     'user_id' => auth()->id(),
                 ]);
+                $shiftEntry->timestamps = true;
 
                 // Recalculate work order produced_qty from all shift entries
                 $workOrder = $shiftEntry->workOrder;

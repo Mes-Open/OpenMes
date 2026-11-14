@@ -42,9 +42,9 @@ class BackupController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Full website backup created successfully.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __('Full website backup created successfully.'));
         } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Error creating backup: ').$e->getMessage());
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Error creating backup: ').$e->getMessage());
         }
     }
 
@@ -66,9 +66,9 @@ class BackupController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Data backup created successfully.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __('Data backup created successfully.'));
         } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Error creating data backup: ').$e->getMessage());
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Error creating data backup: ').$e->getMessage());
         }
     }
 
@@ -102,7 +102,7 @@ class BackupController extends Controller
                 ]);
             }
 
-            return redirect()->route('settings.system')->with('success', __('Backup file uploaded successfully.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __('Backup file uploaded successfully.'));
         } catch (\Exception $e) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
@@ -111,7 +111,7 @@ class BackupController extends Controller
                 ], 500);
             }
 
-            return redirect()->route('settings.system')->with('error', __('Error uploading backup: ').$e->getMessage());
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Error uploading backup: ').$e->getMessage());
         }
     }
 
@@ -143,11 +143,11 @@ class BackupController extends Controller
         $filePath = realpath($backupsDir.'/'.$filename);
 
         if (! $filePath || ! str_starts_with($filePath, realpath($backupsDir))) {
-            return redirect()->route('settings.system')->with('error', __('Invalid path.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Invalid path.'));
         }
 
         if (! file_exists($filePath)) {
-            return redirect()->route('settings.system')->with('error', __('Backup file not found.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Backup file not found.'));
         }
 
         unlink($filePath);
@@ -162,7 +162,7 @@ class BackupController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->route('settings.system')->with('success', __('Backup deleted successfully.'));
+        return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __('Backup deleted successfully.'));
     }
 
     /**
@@ -174,11 +174,11 @@ class BackupController extends Controller
         $filePath = realpath($backupsDir.'/'.$filename);
 
         if (! $filePath || ! str_starts_with($filePath, realpath($backupsDir))) {
-            return redirect()->route('settings.system')->with('error', __('Invalid path.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Invalid path.'));
         }
 
         if (! file_exists($filePath)) {
-            return redirect()->route('settings.system')->with('error', __('Backup file not found.'));
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Backup file not found.'));
         }
 
         $tempDir = storage_path('app/temp_restore_'.uniqid());
@@ -212,8 +212,19 @@ class BackupController extends Controller
                 ->values()
                 ->toArray();
 
+            // Columns the database computes itself (GENERATED ALWAYS AS … STORED,
+            // e.g. packaging_checklists.all_passed). The backup holds their
+            // values like any other column, but PostgreSQL rejects any value for
+            // them on insert — which failed, and so rolled back, every restore
+            // of a database with such a row. Left out, they are recomputed from
+            // the restored columns, exactly as they were when backed up.
+            $generatedColumns = collect(DB::select("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND is_generated = 'ALWAYS'"))
+                ->groupBy('table_name')
+                ->map(fn ($columns) => $columns->pluck('column_name')->all())
+                ->all();
+
             // Perform DB Restore in a Transaction
-            DB::transaction(function () use ($jsonPath, $tables) {
+            DB::transaction(function () use ($jsonPath, $tables, $generatedColumns) {
                 // 1. Truncate all tables in a single statement to acquire locks instantly and avoid deadlocks/disk sync overhead
                 if (! empty($tables)) {
                     $quotedTables = array_map(fn ($t) => "\"$t\"", $tables);
@@ -246,7 +257,7 @@ class BackupController extends Controller
                     // Check for table start: "table_name": [
                     if (preg_match('/^"([^"]+)"\s*:\s*\[$/', $line, $matches)) {
                         if ($currentTable && ! empty($buffer)) {
-                            $this->bulkInsertSafe($currentTable, $buffer);
+                            $this->bulkInsertSafe($currentTable, $buffer, $generatedColumns[$currentTable] ?? []);
                             $buffer = [];
                         }
                         $tableName = $matches[1];
@@ -258,7 +269,7 @@ class BackupController extends Controller
                     // Check for table end: ] or ],
                     if ($line === ']' || $line === '],') {
                         if ($currentTable && ! empty($buffer)) {
-                            $this->bulkInsertSafe($currentTable, $buffer);
+                            $this->bulkInsertSafe($currentTable, $buffer, $generatedColumns[$currentTable] ?? []);
                             $buffer = [];
                         }
                         $currentTable = null;
@@ -279,7 +290,7 @@ class BackupController extends Controller
                             }
                             $buffer[] = $row;
                             if (count($buffer) >= 500) {
-                                $this->bulkInsertSafe($currentTable, $buffer);
+                                $this->bulkInsertSafe($currentTable, $buffer, $generatedColumns[$currentTable] ?? []);
                                 $buffer = [];
                             }
                         }
@@ -287,7 +298,7 @@ class BackupController extends Controller
                 }
 
                 if ($currentTable && ! empty($buffer)) {
-                    $this->bulkInsertSafe($currentTable, $buffer);
+                    $this->bulkInsertSafe($currentTable, $buffer, $generatedColumns[$currentTable] ?? []);
                 }
 
                 fclose($handle);
@@ -339,13 +350,16 @@ class BackupController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            // Log activity
+            // Log activity. The restored data may not contain the user who ran
+            // the restore (a backup from another install, or one taken before
+            // the account existed), and audit_logs.user_id is a foreign key — so
+            // keep the id only when it still exists, as resetSystem() does.
             AuditLog::create([
-                'user_id' => $userId,
+                'user_id' => User::where('id', $userId)->exists() ? $userId : null,
                 'entity_type' => null,
                 'entity_id' => null,
                 'action' => 'backup_restore',
-                'after_state' => ['filename' => $filename],
+                'after_state' => ['filename' => $filename, 'initiating_user_id' => $userId],
                 'ip_address' => $ipAddress,
                 'user_agent' => $userAgent,
             ]);
@@ -366,7 +380,7 @@ class BackupController extends Controller
                 ], 500);
             }
 
-            return redirect()->route('settings.system')->with('error', __('Restore error: ').$e->getMessage());
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('Restore error: ').$e->getMessage());
         } finally {
             // Clean up tempDir
             $this->removeDirectoryRecursive($tempDir);
@@ -458,7 +472,7 @@ class BackupController extends Controller
                 ], 500);
             }
 
-            return redirect()->route('settings.system')->with('error', __('System reset error: ').$e->getMessage());
+            return redirect()->route('settings.system', ['tab' => 'data'])->with('error', __('System reset error: ').$e->getMessage());
         }
     }
 
@@ -572,10 +586,17 @@ class BackupController extends Controller
         }
     }
 
-    private function bulkInsertSafe(string $table, array $rows)
+    /**
+     * @param  list<string>  $skipColumns  columns the database fills itself (generated)
+     */
+    private function bulkInsertSafe(string $table, array $rows, array $skipColumns = [])
     {
         if (empty($rows)) {
             return;
+        }
+        if ($skipColumns !== []) {
+            $skip = array_flip($skipColumns);
+            $rows = array_map(fn (array $row) => array_diff_key($row, $skip), $rows);
         }
         // In PostgreSQL, some column definitions might require type casting. Standard insert is sufficient.
         // We run in chunks of 100 to make it extra safe.

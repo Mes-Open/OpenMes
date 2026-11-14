@@ -67,6 +67,7 @@ class SystemController extends Controller
             ]);
         }
         \App\Support\ProductionFlow::forget();
+        \Illuminate\Support\Facades\Cache::forget(\App\Http\Middleware\DynamicCors::CACHE_KEY);
 
         return response()->json([
             'message' => 'Setting updated',

@@ -674,7 +674,7 @@ class WorkOrder extends Model
      */
     public function isComplete(): bool
     {
-        $allowOverproduction = config('openmmes.allow_overproduction', false);
+        $allowOverproduction = \App\Support\ProductionRules::allowOverproduction();
 
         if ($allowOverproduction) {
             return $this->produced_qty >= $this->planned_qty;

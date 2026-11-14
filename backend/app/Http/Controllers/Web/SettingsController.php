@@ -127,13 +127,14 @@ class SettingsController extends Controller
 
         $settings = [
             'production_period' => json_decode($rows['production_period']?->value ?? '"none"', true) ?? 'none',
-            'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
+            // Same reader the production code uses, so the switch shows what is enforced.
+            'allow_overproduction' => \App\Support\ProductionRules::allowOverproduction(),
             'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
-            // Opt-out: an installation that was never asked reports.
+            // Opt-in: an installation that was never asked does not report.
             'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'false', true) ?? false,
             'telemetry_last_sent_at' => json_decode($rows['telemetry_last_sent_at']?->value ?? 'null', true),
             'telemetry_last_status' => json_decode($rows['telemetry_last_status']?->value ?? 'null', true),
-            'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
+            'force_sequential_steps' => \App\Support\ProductionRules::forceSequentialSteps(),
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
             'hold_on_material_shortage' => json_decode($rows['hold_on_material_shortage']?->value ?? 'false', true) ?? false,
@@ -142,15 +143,13 @@ class SettingsController extends Controller
             'lot_picking_strategy' => json_decode($rows['lot_picking_strategy']?->value ?? '"fefo"', true) ?? 'fefo',
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
-            // The currently effective locale (session override applied by SetLocale,
-            // else the stored system default) — so the picker matches the language
-            // the page is actually rendered in, instead of only the system default.
-            'language' => app()->getLocale(),
+            // The stored system language, not this admin's session choice: the
+            // whole form is posted on every save, so showing the session locale
+            // here made saving any tab overwrite the plant-wide language with it.
+            'language' => $this->systemLanguage($rows['language']->value ?? null),
             'schedule_view_mode' => json_decode($rows['schedule_view_mode']?->value ?? '"weekly"', true) ?? 'weekly',
             'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']?->value ?? '1', true) ?? 1,
-            'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']?->value ?? '6', true) ?? 6,
             'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']?->value ?? 'true', true) ?? true,
-            'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']?->value ?? '8', true) ?? 8,
             'realtime_mode' => json_decode($rows['realtime_mode']?->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']?->value ?? '"per_operation"', true) ?? 'per_operation',
             'production_flow_mode' => \App\Support\ProductionFlow::mode(),
@@ -223,6 +222,16 @@ class SettingsController extends Controller
                 ? fn () => $this->productionTargetsPayload()
                 : Inertia::optional(fn () => $this->productionTargetsPayload()),
         ]);
+    }
+
+    /** The stored system language, or the configured default when none is valid. */
+    private function systemLanguage(?string $raw): string
+    {
+        $locale = $raw === null ? null : json_decode($raw, true);
+
+        return is_string($locale) && array_key_exists($locale, config('app.available_locales', []))
+            ? $locale
+            : (string) config('app.fallback_locale', 'en');
     }
 
     /**
@@ -393,7 +402,7 @@ class SettingsController extends Controller
     {
         return \App\Support\SampleDataLock::run(
             fn () => $this->loadSampleDataUnderLock($request),
-            fn () => redirect()->route('settings.system')
+            fn () => redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('info', __('Sample data is already being loaded. Please wait for it to finish.')),
         );
     }
@@ -415,7 +424,7 @@ class SettingsController extends Controller
         // re-running one over itself races on unique keys. So a switch is a
         // replacement — everything goes, then the chosen company is installed.
         if ($alreadyLoaded && ! $replace) {
-            return redirect()->route('settings.system')
+            return redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('info', __('Sample data has already been loaded. Tick the confirmation to replace it with a different example company.'));
         }
 
@@ -434,7 +443,7 @@ class SettingsController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return redirect()->route('settings.system')
+            return redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('error', __('Could not load sample data: :msg', ['msg' => $e->getMessage()]));
         }
 
@@ -443,7 +452,7 @@ class SettingsController extends Controller
             ['value' => json_encode($dataset), 'updated_at' => now()],
         );
 
-        return redirect()->route('settings.system')->with('success', __(
+        return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __(
             'Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.',
             ['company' => \App\Support\DemoDatasetRegistry::labelFor($dataset)],
         ));
@@ -593,7 +602,6 @@ class SettingsController extends Controller
         $validated = $request->validated();
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
-        $slotDuration = $shiftsPerDay > 0 ? (int) (24 / $shiftsPerDay) : 8;
 
         $map = [
             ...($request->has('block_negative_stock') ? ['block_negative_stock' => (bool) $validated['block_negative_stock']] : []),
@@ -612,12 +620,12 @@ class SettingsController extends Controller
             'lot_picking_strategy' => $validated['lot_picking_strategy'] ?? 'fefo',
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
-            'language' => $validated['language'] ?? 'en',
+            // Only when sent: a form without the field must not reset the
+            // plant language to English.
+            ...(! empty($validated['language']) ? ['language' => $validated['language']] : []),
             'schedule_view_mode' => $validated['schedule_view_mode'],
             'schedule_shifts_per_day' => $shiftsPerDay,
-            'schedule_horizon_weeks' => (int) $validated['schedule_horizon_weeks'],
             'schedule_show_weekends' => (bool) ($validated['schedule_show_weekends'] ?? false),
-            'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
             'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
@@ -676,15 +684,36 @@ class SettingsController extends Controller
             \App\Support\ModuleRegistry::save($validated['enabled_modules'] ?? []);
         }
 
-        Cache::forget('cors_allowed_origins');
+        Cache::forget(\App\Http\Middleware\DynamicCors::CACHE_KEY);
 
-        // Always sync session locale with the saved language so the UI
-        // reflects the choice immediately — even when the session had a
-        // stale override from the login-screen switcher (#205).
-        $request->session()->put('locale', $map['language']);
+        // A changed system language shows straight away for the admin who set
+        // it, even over a stale login-screen choice in this session (#205).
+        // Saving any other setting leaves this admin's own choice alone.
+        if (isset($map['language']) && $map['language'] !== $previousLanguage) {
+            $request->session()->put('locale', $map['language']);
+        }
 
-        return redirect()->route('settings.system')
-            ->with('success', 'System settings updated.');
+        return redirect()->route('settings.system', $this->tabSavedFrom())
+            ->with('success', __('System settings updated.'));
+    }
+
+    /**
+     * The tab the settings form was saved from, so the admin lands back on it.
+     *
+     * Every tab posts to the same URL, and the page keeps the open tab only in
+     * its own address (?tab=…), so the referring URL is where it comes from.
+     * Only a tab name is taken from it, never the URL itself.
+     *
+     * @return array<string, string>
+     */
+    private function tabSavedFrom(): array
+    {
+        parse_str((string) parse_url(url()->previous(), PHP_URL_QUERY), $query);
+        $tab = $query['tab'] ?? null;
+
+        return is_string($tab) && preg_match('/^[a-z0-9-]{1,40}$/', $tab) && $tab !== 'general'
+            ? ['tab' => $tab]
+            : [];
     }
 
     /**
@@ -716,7 +745,7 @@ class SettingsController extends Controller
     {
         $ok = \App\Support\TelemetryIdentity::reset();
 
-        return redirect()->route('settings.system')->with(
+        return redirect()->route('settings.system', ['tab' => 'security'])->with(
             $ok ? 'success' : 'error',
             $ok
                 ? __('Installation ID reset. A new one will be created on the next report.')

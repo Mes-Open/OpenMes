@@ -74,7 +74,6 @@ class WorkstationRoutingTest extends TestCase
             ['key' => 'force_sequential_steps'],
             ['value' => json_encode(false)]
         );
-        config(['openmmes.force_sequential_steps' => false]);
     }
 
     private function makeStep(int $workstationId, string $status = BatchStep::STATUS_PENDING): BatchStep

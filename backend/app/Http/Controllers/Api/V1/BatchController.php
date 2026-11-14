@@ -71,7 +71,7 @@ class BatchController extends Controller
 
         // Check if adding this batch would exceed planned qty
         $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
-        $allowOverproduction = config('openmmes.allow_overproduction', false);
+        $allowOverproduction = \App\Support\ProductionRules::allowOverproduction();
 
         if (! $allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
             return response()->json([

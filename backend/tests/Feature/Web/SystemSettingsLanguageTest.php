@@ -36,7 +36,6 @@ class SystemSettingsLanguageTest extends TestCase
             'workflow_mode' => 'status',
             'schedule_view_mode' => 'weekly',
             'schedule_shifts_per_day' => 1,
-            'schedule_horizon_weeks' => 6,
             'realtime_mode' => 'polling',
             'production_tracking_mode' => 'per_operation',
             'production_qty_edit_policy' => 'none',
@@ -81,10 +80,10 @@ class SystemSettingsLanguageTest extends TestCase
         $this->assertSame(config('app.available_locales'), $locales);
     }
 
-    public function test_the_picker_reflects_the_active_locale_not_only_the_system_default(): void
+    public function test_the_picker_shows_the_stored_system_language_not_the_session_choice(): void
     {
-        // System default is Polish; a session override (e.g. the login-screen
-        // language switcher) puts this request into English.
+        // System language is Polish; this admin switched only their own session
+        // to English on the login screen.
         DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
 
         $props = $this->actingAs($this->admin)
@@ -93,20 +92,72 @@ class SystemSettingsLanguageTest extends TestCase
             ->assertOk()
             ->getOriginalContent()->getData()['page']['props'];
 
-        // The picker must show the language the page is actually rendered in (en),
-        // not the stored system default (pl) — otherwise it contradicts the UI (#271).
-        $this->assertSame('en', $props['settings']['language']);
+        // The field sets the plant-wide language, and the whole form is posted
+        // on every save: showing the session choice here made any save
+        // overwrite the plant language with it.
+        $this->assertSame('pl', $props['settings']['language']);
+    }
+
+    public function test_saving_other_settings_keeps_the_system_language_and_the_admins_choice(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        // Exactly what the page posts: the stored system language, unchanged.
+        $this->actingAs($this->admin)
+            ->withSession(['locale' => 'en'])
+            ->post('/settings/system', $this->payload(['language' => 'pl', 'schedule_view_mode' => 'monthly']))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('locale', 'en');
+
+        $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
+    }
+
+    public function test_a_form_without_the_language_does_not_reset_it_to_english(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload())
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
     }
 
     public function test_changing_language_in_settings_updates_session_locale(): void
     {
-        // The session override is what SetLocale reads first, so saving the
-        // language must align it for the change to take effect on reload.
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('en')]);
+
+        // The session choice is what SetLocale applies last, so a changed system
+        // language must align it for the change to show on reload — even over
+        // a stale login-screen choice (#205).
         $this->actingAs($this->admin)
+            ->withSession(['locale' => 'en'])
             ->post('/settings/system', $this->payload(['language' => 'pl']))
             ->assertSessionHas('locale', 'pl');
 
         $this->assertSame('pl', json_decode(DB::table('system_settings')->where('key', 'language')->value('value'), true));
+    }
+
+    public function test_the_system_language_reaches_a_guest_without_a_session_choice(): void
+    {
+        // Under Octane the boot-time locale is reused for every request of a
+        // worker; config('app.locale') stands in for that stale value here.
+        config(['app.locale' => 'en']);
+        app()->setLocale('en');
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        $this->get('/login')->assertOk();
+
+        $this->assertSame('pl', app()->getLocale());
+    }
+
+    public function test_a_session_choice_still_wins_over_the_system_language(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'language'], ['value' => json_encode('pl')]);
+
+        $this->withSession(['locale' => 'en'])->get('/login')->assertOk();
+
+        $this->assertSame('en', app()->getLocale());
     }
 
     public function test_labor_costing_settings_are_persisted(): void

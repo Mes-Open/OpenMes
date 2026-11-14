@@ -71,7 +71,6 @@ class UpdateSystemSettingsRequest extends FormRequest
             'app_timezone' => ['nullable', 'string', Rule::in(TimezoneRegistry::identifiers())],
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
-            'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
             'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
