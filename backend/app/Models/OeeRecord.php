@@ -35,7 +35,7 @@ class OeeRecord extends Model
     protected function casts(): array
     {
         return [
-            'record_date' => 'date',
+            'record_date' => 'date:Y-m-d',
             'planned_minutes' => 'integer',
             'operating_minutes' => 'integer',
             'downtime_minutes' => 'integer',

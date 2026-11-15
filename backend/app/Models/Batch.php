@@ -72,7 +72,7 @@ class Batch extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'released_at' => 'datetime',
-            'expiry_date' => 'date',
+            'expiry_date' => 'date:Y-m-d',
         ];
     }
 

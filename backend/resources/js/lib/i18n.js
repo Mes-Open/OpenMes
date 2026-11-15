@@ -154,8 +154,19 @@ function toDate(value) {
  * `opts` is a standard Intl.DateTimeFormat / NumberFormat options object.
  * Invalid/empty input returns '' so callers don't render "Invalid Date".
  */
+// A calendar date with no time: a DB `date` column (`expiry_date`,
+// `record_date`, …), which the API and live sync both send as `YYYY-MM-DD`.
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function formatDate(value, opts = { day: '2-digit', month: '2-digit', year: 'numeric' }) {
     if (value == null || value === '') return '';
+    // A calendar date names a day, not an instant. `new Date('2026-03-10')` is
+    // midnight UTC, and shifting that into a plant zone west of UTC lands on
+    // the 9th, so format it in UTC, where it is still the day it names.
+    if (typeof value === 'string' && CALENDAR_DATE.test(value)) {
+        const day = new Date(`${value}T00:00:00Z`);
+        return isNaN(day) ? '' : day.toLocaleDateString(localeTag(), { ...opts, timeZone: 'UTC' });
+    }
     const d = toDate(value);
     if (isNaN(d)) return '';
     return d.toLocaleDateString(localeTag(), { timeZone: activeTimezone, ...opts });

@@ -277,6 +277,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
+  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
+  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
+  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
+  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
+  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
+  every edit, and the live update of a material lot showed a different expiry than the first
+  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
+  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
+  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
+  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
+  full timestamps now receive a plain date.
+
 - **Downtime report no longer fails on non-conformances raised outside an order.** An
   inbound-inspection issue (raised against a material, with no work order) in the chosen
   period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are

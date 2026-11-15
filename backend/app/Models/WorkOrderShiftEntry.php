@@ -22,7 +22,7 @@ class WorkOrderShiftEntry extends Model
     {
         return [
             'quantity' => 'decimal:2',
-            'production_date' => 'date',
+            'production_date' => 'date:Y-m-d',
         ];
     }
 

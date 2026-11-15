@@ -35,7 +35,7 @@ class ShiftHandover extends Model
     protected function casts(): array
     {
         return [
-            'business_date' => 'date',
+            'business_date' => 'date:Y-m-d',
             'shift_start' => 'datetime',
             'shift_end' => 'datetime',
             'confirmed_at' => 'datetime',

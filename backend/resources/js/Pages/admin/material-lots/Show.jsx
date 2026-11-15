@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTrail from '../../../components/PageTrail';
-import { __ } from '../../../lib/i18n';
+import { __, todayInPlant } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     received:   'bg-om-chip text-om-accent',
@@ -34,9 +34,11 @@ function fmtDateTime(str) {
     return str.substring(0, 16).replace('T', ' ');
 }
 
+// Same rule as MaterialLot::isExpired(): expired from the start of its expiry
+// day, in the plant's calendar.
 function isExpired(dateStr) {
     if (!dateStr) return false;
-    return new Date(dateStr) < new Date();
+    return dateStr.slice(0, 10) <= todayInPlant();
 }
 
 export default function MaterialLotShow({ lot }) {

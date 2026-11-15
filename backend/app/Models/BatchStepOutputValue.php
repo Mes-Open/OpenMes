@@ -41,7 +41,7 @@ class BatchStepOutputValue extends Model
         return [
             'value_number' => 'decimal:6',
             'value_boolean' => 'boolean',
-            'value_date' => 'date',
+            'value_date' => 'date:Y-m-d',
             'file_size' => 'integer',
             'recorded_at' => 'datetime',
         ];

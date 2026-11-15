@@ -62,8 +62,8 @@ class EngineeringDocument extends Model
             'lifecycle_status' => EngineeringDocumentLifecycle::class,
             'file_size' => 'integer',
             'extracted_size' => 'integer',
-            'effective_from' => 'date',
-            'effective_to' => 'date',
+            'effective_from' => 'date:Y-m-d',
+            'effective_to' => 'date:Y-m-d',
             'released_at' => 'datetime',
         ];
     }

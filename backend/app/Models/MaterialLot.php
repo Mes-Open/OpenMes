@@ -76,8 +76,8 @@ class MaterialLot extends Model
     {
         return [
             'received_at' => 'datetime',
-            'manufacturing_date' => 'date',
-            'expiry_date' => 'date',
+            'manufacturing_date' => 'date:Y-m-d',
+            'expiry_date' => 'date:Y-m-d',
             'quantity_received' => 'decimal:4',
             'quantity_available' => 'decimal:4',
             'extra_data' => 'array',

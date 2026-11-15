@@ -35,7 +35,7 @@ class Tool extends Model
     protected function casts(): array
     {
         return [
-            'next_service_at' => 'date',
+            'next_service_at' => 'date:Y-m-d',
         ];
     }
 

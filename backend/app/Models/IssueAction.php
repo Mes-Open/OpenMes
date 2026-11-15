@@ -57,7 +57,7 @@ class IssueAction extends Model
     protected function casts(): array
     {
         return [
-            'due_date' => 'date',
+            'due_date' => 'date:Y-m-d',
             'completed_at' => 'datetime',
             'verified_at' => 'datetime',
         ];
