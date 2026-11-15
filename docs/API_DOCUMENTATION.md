@@ -1192,7 +1192,7 @@ Authorization: Bearer <token>
 
 #### Throughput
 
-Units produced per plant day over the last `days`, from the output ledger: every change to a work
+Units produced per plant day over the last `days` plant days (today included, so `days=7` is at most seven rows), from the output ledger: every change to a work
 order's `produced_qty`, dated when it happened. A correction that lowers a count shows as a
 negative amount on its day. Parameters: `line_id`, `days`.
 
@@ -1210,7 +1210,7 @@ Response:
             { "date": "2026-03-11", "total_produced": "-2.00" }
         ],
         "average_daily_throughput": 24,
-        "period_start": "2026-03-05",
+        "period_start": "2026-03-06",
         "period_end": "2026-03-12"
     }
 }

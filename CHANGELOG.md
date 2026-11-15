@@ -281,7 +281,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   mobile app):
   - `done_today_work_orders` counted every DONE order edited today, not completed today.
   - `throughput` put each order's whole output on the last day anything about it changed.
-    It now sums the output ledger by the day the units were made.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
   - `production-by-line` left out orders created on `end_date`, so a one-day window was always
     empty. Both dates are now inclusive.
   - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A

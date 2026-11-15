@@ -95,6 +95,23 @@ class AnalyticsWindowsTest extends TestCase
         $this->assertSame(['2026-03-10' => 50.0, '2026-03-11' => -2.0], $days);
     }
 
+    public function test_throughput_days_counts_today_as_the_last_day(): void
+    {
+        $order = $this->order();
+        // 6 and 7 days before 2026-03-12: inside and just outside days=7.
+        foreach (['2026-03-06 09:00:00' => 10, '2026-03-05 09:00:00' => 4] as $at => $qty) {
+            Carbon::setTestNow(Carbon::parse($at));
+            $order->update(['produced_qty' => (float) $order->produced_qty + $qty]);
+        }
+        Carbon::setTestNow(Carbon::parse('2026-03-12 10:00:00'));
+
+        $data = $this->api('/api/v1/analytics/throughput?days=7')->assertOk()->json('data');
+
+        $this->assertSame('2026-03-06', $data['period_start']);
+        $this->assertSame(['2026-03-06'], array_map(fn ($r) => substr((string) $r['date'], 0, 10), $data['daily_production']));
+        $this->assertSame('2026-03-12', $this->api('/api/v1/analytics/throughput?days=1')->json('data.period_start'));
+    }
+
     public function test_throughput_respects_line_filter_and_window(): void
     {
         $other = Line::factory()->create();

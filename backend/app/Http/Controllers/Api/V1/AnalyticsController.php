@@ -172,7 +172,9 @@ class AnalyticsController extends Controller
         $lineId = $request->lineId();
         $days = $request->days();
 
-        $startDate = Carbon::now()->subDays($days)->startOfDay();
+        // The last `days` plant days, today included: days=7 is seven rows at
+        // most, not the eight that `now - 7 days` reaches back to.
+        $startDate = Carbon::now()->subDays($days - 1)->startOfDay();
         $endDate = Carbon::now()->endOfDay();
 
         // Units produced per day, from the output ledger: every change to an
