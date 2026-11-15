@@ -143,6 +143,25 @@ class MachineConnectivityTest extends TestCase
         $this->assertEquals(5, $status['good']);
     }
 
+    public function test_a_total_counter_is_not_added_to_good_output(): void
+    {
+        $ws = $this->workstation();
+        foreach (['good' => 8, 'reject' => 2, 'total' => 10] as $kind => $delta) {
+            \App\Models\MachineEvent::create([
+                'workstation_id' => $ws->id, 'event_type' => \App\Models\MachineEvent::TYPE_COUNTER,
+                'event_timestamp' => now(), 'correlation_id' => (string) \Illuminate\Support\Str::uuid(),
+                'payload' => ['kind' => $kind, 'delta' => $delta],
+            ]);
+        }
+
+        $status = app(MachineMonitorService::class)->liveStatus($ws);
+
+        // 10 parts made, 8 good: the total counter must not make it 18.
+        $this->assertEquals(8, $status['good']);
+        $this->assertEquals(2, $status['reject']);
+        $this->assertEquals(80.0, $status['quality']);
+    }
+
     // ── Modbus address normalization ─────────────────────────────
 
     public function test_modbus_address_normalization(): void

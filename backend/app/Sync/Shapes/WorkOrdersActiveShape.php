@@ -60,4 +60,9 @@ class WorkOrdersActiveShape extends Shape
 
         return "status NOT IN ({$terminal})";
     }
+
+    public function tabs(): array
+    {
+        return ['dashboard', 'alerts'];
+    }
 }

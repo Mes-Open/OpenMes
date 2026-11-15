@@ -65,7 +65,9 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                     />
                 </Field>
                 <Field label="Assigned line" error={errors.line_id}>
+                    {/* Named directly: the hint below makes two children, so Field cannot. */}
                     <Dropdown
+                        aria-label={__('Assigned line')}
                         value={data.line_id}
                         onChange={(v) => setData('line_id', v)}
                         options={[

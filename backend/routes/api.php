@@ -243,6 +243,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/material-lots/{materialLot}', [MaterialLotController::class, 'show']);
     Route::get('/material-lots/{materialLot}/genealogy/forward', [MaterialLotController::class, 'forwardGenealogy']);
     Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
+    Route::get('/material-lots/{materialLot}/where-used', [MaterialLotController::class, 'whereUsed']);
     Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
 
     // Engineering CAD documents (#179). View/download for any grantee of
@@ -784,6 +785,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Shift handover — REST twin of web Supervisor\ShiftHandoverController.
         Route::get('/shift-handover', [ShiftHandoverController::class, 'index']);
         Route::post('/shift-handover', [ShiftHandoverController::class, 'store']);
+        Route::get('/shift-handover/history', [ShiftHandoverController::class, 'history']);
+        Route::get('/shift-handover/{shiftHandover}', [ShiftHandoverController::class, 'show'])->whereNumber('shiftHandover');
 
         // Machine monitor — live fleet status + manual state override (#87).
         Route::get('/machine-monitor', [MachineMonitorController::class, 'index']);

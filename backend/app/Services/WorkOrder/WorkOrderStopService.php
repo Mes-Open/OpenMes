@@ -116,11 +116,13 @@ class WorkOrderStopService
                 throw new \DomainException('Only PAUSED, BLOCKED or CHANGE_HOLD work orders can be resumed.');
             }
 
-            // BLOCKED belongs to the issue workflow, not to this one: it is set when a
-            // blocking issue is reported and cleared when that issue is resolved.
-            // Resuming past it here would put the order back into production with the
-            // blocking issue still open, and nothing would re-block it.
-            if ($workOrder->status === WorkOrder::STATUS_BLOCKED && $workOrder->isBlocked()) {
+            // A blocking issue belongs to the issue workflow, not to this one: it
+            // is cleared when that issue is resolved. Resuming past it here would
+            // put the order back into production with the issue still open, and
+            // nothing would re-block it. That holds whatever the order's own
+            // status: a line block leaves a PAUSED or CHANGE_HOLD order as it is,
+            // but the line is still stopped.
+            if ($workOrder->isBlocked()) {
                 throw new \DomainException(
                     'This work order is blocked by an open blocking issue. Resolve the issue to unblock it.'
                 );

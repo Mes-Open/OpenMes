@@ -22,7 +22,8 @@ class ImportTestStationJsonl extends Command
         {paths* : .jsonl files or directories of them (e.g. the pass/ and fail/ folders)}
         {--work-order= : Work order to attach new units to (order_no, or id if numeric)}
         {--workstation= : Workstation code to attribute every run to (default: the station named in the log)}
-        {--operator= : User name, e-mail or username to attribute runs to (default: the operator named in the log)}';
+        {--operator= : User name, e-mail or username to attribute runs to (default: the operator named in the log)}
+        {--record-only : Keep the verdicts as history without applying the failed-test policy (historical logs)}';
 
     protected $description = 'Import test-station JSONL logs into serial traceability';
 
@@ -39,6 +40,7 @@ class ImportTestStationJsonl extends Command
             'work_order' => $this->resolveWorkOrder(),
             'workstation' => $this->resolveWorkstation(),
             'operator' => $this->resolveOperator(),
+            'record_only' => (bool) $this->option('record-only'),
         ]);
 
         // Parse everything first so runs can be applied in time order.

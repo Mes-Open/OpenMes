@@ -190,6 +190,30 @@ class ReportTest extends TestCase
         $this->assertGreaterThan(0, $data['summary']['total_downtime_minutes']);
     }
 
+    public function test_downtime_report_includes_issues_without_a_work_order()
+    {
+        // Inbound-inspection non-conformances are raised against a material,
+        // not an order — one of them used to crash the whole report (500).
+        $issueType = IssueType::factory()->create(['name' => 'Inbound QC fail']);
+        Issue::factory()->create([
+            'work_order_id' => null,
+            'issue_type_id' => $issueType->id,
+            'status' => 'OPEN',
+            'reported_at' => Carbon::now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v1/reports/downtime?'.http_build_query([
+                'start_date' => Carbon::now()->subDays(7)->toDateString(),
+                'end_date' => Carbon::now()->toDateString(),
+            ]));
+
+        $response->assertOk()
+            ->assertJsonPath('data.summary.total_issues', 1)
+            ->assertJsonPath('data.issues.0.work_order_no', null)
+            ->assertJsonPath('data.issues.0.type', 'Inbound QC fail');
+    }
+
     public function test_can_export_batch_completion_report_as_csv()
     {
         $workOrder = WorkOrder::factory()->create([

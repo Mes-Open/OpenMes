@@ -12,6 +12,7 @@ use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\WorkOrder\BatchService;
 use App\Services\WorkOrder\MachineProductionService;
+use App\Support\MachineTime;
 use App\Support\ProductionFlow;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -113,7 +114,8 @@ class MachineCounterService
     public function ingest(MachineCounter $counter, mixed $value, ?Carbon $at = null, ?string $eventId = null, ?array $sourceSnapshot = null): MachineCounterReading
     {
         $hasTimestamp = $at !== null;
-        $at = ($at ?? now())->copy()->utc();
+        // Plant time, like every other timestamp the app writes (see MachineTime).
+        $at = MachineTime::toPlant($at ?? now());
 
         return DB::transaction(function () use ($counter, $value, $at, $eventId, $hasTimestamp, $sourceSnapshot) {
             // One lock serializes baseline, assignment, deduplication and production.

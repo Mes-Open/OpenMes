@@ -651,13 +651,20 @@ class WorkOrder extends Model
     }
 
     /**
-     * Get the open blocking issues for this work order.
+     * Get the open blocking issues for this work order: its own, plus any
+     * issue holding its whole line stopped (filed on another order of the
+     * same line). Every start/resume gate goes through this, so a line block
+     * holds all the line's orders, not only the one it was reported on.
      */
     public function openBlockingIssues()
     {
-        return $this->issues()
-            ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->where('blocks_work_order', true)
+        return Issue::query()
+            ->blocking()
+            ->where(fn ($q) => $q
+                ->where('work_order_id', $this->id)
+                ->when($this->line_id !== null, fn ($q) => $q->orWhere(fn ($q) => $q
+                    ->where('blocks_line', true)
+                    ->whereHas('productionDowntime', fn ($d) => $d->where('line_id', $this->line_id)))))
             ->get();
     }
 
