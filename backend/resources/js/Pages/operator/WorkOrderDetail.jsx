@@ -1923,7 +1923,8 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, batch
                             aria-label={__('Quantity')}
                             step="0.01"
                             min="0.01"
-                            max={limited ? remaining : undefined}
+                            // No `max`: the browser's own bubble would hide the server's
+                            // message, which says how much may still be added.
                             value={form.data.target_qty}
                             onChange={(v) => form.setData('target_qty', v)}
                             className={`${inputCls} font-mono text-[15px]`}
