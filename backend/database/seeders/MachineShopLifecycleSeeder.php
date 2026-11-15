@@ -986,9 +986,15 @@ class MachineShopLifecycleSeeder extends Seeder
             $this->postReceipt($this->raw, $lots, 'PO-2026-'.(4100 + $i * 37), 'Supplier delivery');
         }
 
-        // This week's bar delivery fails goods-in: quarantined, NC raised, never consumed.
+        // This week's bar delivery fails goods-in: quarantined, NC raised, never
+        // consumed. Replayed before Monday's goods-in has happened, it is last
+        // Friday's delivery instead, so the NC is not reported in the future.
         if ($bar = Material::where('code', 'MAT-BAR-42CRMO4')->first()) {
-            Carbon::setTestNow($this->weekStart->copy()->setTime(9, 40));
+            $goodsIn = $this->weekStart->copy()->setTime(9, 40);
+            if ($goodsIn->copy()->addHour()->gt($this->realNow)) {
+                $goodsIn = $this->weekStart->copy()->subDays(3)->setTime(9, 40);
+            }
+            Carbon::setTestNow($goodsIn);
             $this->receiveLot($bar, 'HEAT-42CRMO4-9017', 60, null, pass: false);
         }
     }
@@ -1196,7 +1202,11 @@ class MachineShopLifecycleSeeder extends Seeder
             } else {
                 $cutoff = $soft;
             }
-        } elseif ($finalStatus === WorkOrder::STATUS_IN_PROGRESS) {
+        } else {
+            // A running order stops at the present. So does a finished one: its
+            // steps are squeezed to end by now (the factor below), but downtime and
+            // the gaps between steps are not in that estimate, and a busy order
+            // could otherwise run on into the afternoon that has not happened yet.
             $cutoff = $this->realNow->copy()->subMinutes(3);
         }
 
@@ -1230,6 +1240,12 @@ class MachineShopLifecycleSeeder extends Seeder
 
         $this->runOrder($wo, $plan, $start, $cutoff, $factor, scrap: true, gap: $gap ?? 0, halt: $halt);
         $wo->refresh();
+
+        if ($finalStatus === WorkOrder::STATUS_DONE && $wo->status !== WorkOrder::STATUS_DONE) {
+            // The clock ran out first: it is still on the floor, as a running order.
+            $this->log("  ~ {$wo->order_no} still running at the present — left in progress");
+            $finalStatus = WorkOrder::STATUS_IN_PROGRESS;
+        }
 
         if ($finalStatus === WorkOrder::STATUS_DONE) {
             $this->finishOrder($wo);

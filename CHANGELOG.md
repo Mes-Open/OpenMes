@@ -298,7 +298,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
   transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
   (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
-  replay now commits order by order.
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.

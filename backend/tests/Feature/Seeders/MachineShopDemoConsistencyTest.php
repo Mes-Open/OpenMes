@@ -138,6 +138,9 @@ class MachineShopDemoConsistencyTest extends TestCase
             // An hour and a half into the week: little has finished, every live
             // part's lane has only just started.
             'early monday' => ['2026-01-12 07:30:00', false],
+            // The whole week is history: the longest replay, and the one where a
+            // finished order's steps ran on past the present.
+            'saturday afternoon' => ['2026-01-17 15:40:00', true],
         ];
     }
 
@@ -157,6 +160,28 @@ class MachineShopDemoConsistencyTest extends TestCase
         $this->assertABlockedOrderStoppedPartWay();
         $this->assertScrapAndDowntimeNotesFitTheOperation($fullHistory);
         $this->assertOrderTimelinesHold();
+        $this->assertNothingHappensAfter($now);
+    }
+
+    /** The replay stops at the present: nothing it records is dated later. */
+    private function assertNothingHappensAfter(Carbon $now): void
+    {
+        foreach ([
+            'batch_steps' => ['started_at', 'completed_at'],
+            'batches' => ['started_at', 'completed_at'],
+            'work_orders' => ['completed_at'],
+            'production_downtimes' => ['started_at', 'ended_at'],
+            'work_order_output_entries' => ['recorded_at'],
+            'scrap_entries' => ['created_at'],
+            'serial_units' => ['produced_at'],
+            'issues' => ['reported_at'],
+        ] as $table => $columns) {
+            foreach ($columns as $column) {
+                $late = DB::table($table)->where($column, '>', $now->format('Y-m-d H:i:s'))->max($column);
+                $this->assertNull($late, "{$table}.{$column} has {$late}, after the replay clock {$now}: "
+                    .DB::table($table)->where($column, '>', $now->format('Y-m-d H:i:s'))->limit(3)->get()->toJson());
+            }
+        }
     }
 
     private function assertLiveProblemsStayLive(): void
