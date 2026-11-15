@@ -197,7 +197,19 @@ class MachineShopLifecycleSeeder extends Seeder
                 $this->log('stock received');
                 $this->snapshotOrderBook();
                 $this->log('order book snapshotted');
-                $this->replayHistory();
+            });
+
+            // The replay commits order by order instead of inside the setup's
+            // transaction. Every service call opens a savepoint, and Postgres
+            // holds a lock on each savepoint that wrote until the outermost
+            // transaction ends: a full week of history is far more of those
+            // than the shared lock table holds by default (64 × max_connections),
+            // so one transaction around everything died with "out of shared
+            // memory" on a weekend run. Should the replay fail half-way, reseed
+            // from scratch (migrate:fresh + both seeders), as after any failure.
+            $this->replayHistory();
+
+            DB::transaction(function () {
                 $this->planUpcomingSubassemblies();
                 $this->pinHistoricalIssues();
                 $this->settleTimestamps();
@@ -1135,7 +1147,8 @@ class MachineShopLifecycleSeeder extends Seeder
             ->orderBy('planned_start_at')->get();
 
         foreach ($orders as $i => $wo) {
-            $this->flushShipments($wo->planned_start_at);
+            // One transaction per order; see handle() for why not one for all.
+            DB::transaction(fn () => $this->flushShipments($wo->planned_start_at));
             if ($wo->productType?->code === 'KIT40' || str_starts_with($wo->productType?->code ?? '', 'SA_')) {
                 try {
                     DB::transaction(fn () => $this->replayOrder($wo->fresh()));
@@ -1144,13 +1157,15 @@ class MachineShopLifecycleSeeder extends Seeder
                     $this->log("  ! {$wo->order_no} components not in stock yet — left unstarted");
                 }
             } else {
-                $this->replayOrder($wo->fresh());
+                DB::transaction(fn () => $this->replayOrder($wo->fresh()));
             }
             $wo->refresh();
             $this->log(sprintf('%d/%d %s %s %s %s/%s', $i + 1, $orders->count(), $wo->order_no, $wo->productType?->code, $wo->status, (float) $wo->produced_qty, (float) $wo->planned_qty));
         }
-        $this->flushShipments($this->realNow);
-        $this->reconcilePallets();
+        DB::transaction(function () {
+            $this->flushShipments($this->realNow);
+            $this->reconcilePallets();
+        });
     }
 
     private function replayOrder(WorkOrder $wo): void
