@@ -7362,5 +7362,9 @@
     "Pack only units on a work order": "Pack only units on a work order",
     "Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.": "Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.",
     "Unit :psn has no serial number yet - apply its product label before packing.": "Unit :psn has no serial number yet - apply its product label before packing.",
-    "Unit :sn is not on a work order and cannot be packed.": "Unit :sn is not on a work order and cannot be packed."
+    "Unit :sn is not on a work order and cannot be packed.": "Unit :sn is not on a work order and cannot be packed.",
+    "Semi-finished part received from work order :order": "Semi-finished part received from work order :order",
+    "On order": "On order",
+    "Count open work orders for semi-finished parts as supply": "Count open work orders for semi-finished parts as supply",
+    "Unknown BOM \":name\" for product \":code\".": "Unknown BOM \":name\" for product \":code\"."
 }

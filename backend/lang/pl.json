@@ -7362,5 +7362,9 @@
     "Pack only units on a work order": "Pakuj tylko jednostki przypisane do zlecenia",
     "Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.": "Odrzucaj pakowanie jednostki bez zlecenia, aby każda spakowana jednostka liczyła się do zlecenia.",
     "Unit :psn has no serial number yet - apply its product label before packing.": "Jednostka :psn nie ma jeszcze numeru seryjnego - przed pakowaniem naklej etykietę produktu.",
-    "Unit :sn is not on a work order and cannot be packed.": "Jednostka :sn nie jest przypisana do zlecenia i nie może zostać spakowana."
+    "Unit :sn is not on a work order and cannot be packed.": "Jednostka :sn nie jest przypisana do zlecenia i nie może zostać spakowana.",
+    "Semi-finished part received from work order :order": "Półprodukt przyjęty ze zlecenia :order",
+    "On order": "W produkcji",
+    "Count open work orders for semi-finished parts as supply": "Licz otwarte zlecenia na półprodukty jako zapas",
+    "Unknown BOM \":name\" for product \":code\".": "Nieznana technologia (BOM) „:name” dla wyrobu „:code”."
 }
