@@ -130,6 +130,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
+  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
+  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
+  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
+  is clean.
+
 - **Live-sync collections now check who is asking.** The snapshot behind every live list
   (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
   Operator could read customer, company, worker and user records meant for the admin panel.
@@ -147,6 +153,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   readers check described above.
 
 ### Fixed
+
+- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
+  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
+  backslash, which the database driver misread as an escaped quote. The escape
+  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+
+- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
+  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
+  without querying the database.
+
+- **Signing in returns you to the page you opened.** A link opened while signed out now leads
+  back to that page after the password or two-factor login, instead of the dashboard.
+
+- **Tables say when a search hides every row.** "Nothing matches the current search or
+  filters." replaces the "nothing here yet" text when rows exist but none match.
 
 - **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
   `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
@@ -384,21 +405,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
   HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
   PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
-- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
-  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
-  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
-  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
-  is clean.
-
-- **Live-sync collections now check who is asking.** The snapshot behind every live list
-  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
-  Operator could read customer, company, worker and user records meant for the admin panel.
-  Each collection now declares who may read it: Admin and Supervisor read every collection;
-  anyone else reads only the collections behind the admin tabs they were granted in the
-  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
-  update channel uses the same rule, so an Operator granted a tab now also gets that page's
-  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
-
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -430,65 +436,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
   change to the search query added another *Settings* result, because the Settings group and
   the footer link were indexed under the same key.
-- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
-  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
-  backslash, which the database driver misread as an escaped quote. The escape
-  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
-- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
-  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
-  without querying the database.
-- **Signing in returns you to the page you opened.** A link opened while signed out now leads
-  back to that page after the password or two-factor login, instead of the dashboard.
-- **Tables say when a search hides every row.** "Nothing matches the current search or
-  filters." replaces the "nothing here yet" text when rows exist but none match.
-
-- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
-  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
-  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
-  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
-  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
-  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
-  every edit, and the live update of a material lot showed a different expiry than the first
-  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
-  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
-  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
-  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
-  full timestamps now receive a plain date.
-- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
-  mobile app):
-  - `done_today_work_orders` counted every DONE order edited today, not completed today.
-  - `throughput` put each order's whole output on the last day anything about it changed.
-    It now sums the output ledger by the day the units were made, and `days=7` means the
-    last seven plant days including today (it returned eight).
-  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
-    empty. Both dates are now inclusive.
-  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
-    `line_id` of another tenant is treated as unknown.
-
-- **Downtime report no longer fails on non-conformances raised outside an order.** An
-  inbound-inspection issue (raised against a material, with no work order) in the chosen
-  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
-  now listed with an empty work order number.
-
-- **Machine-shop demo records match their own story.** Reported issues were filed against the
-  first order of a line, moved between orders in groups, and then pinned to whichever step was
-  running or to the middle step of the routing — so a broken turning insert sat on a grinding
-  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
-  housing. Each seeded issue now names its part and routing step, lands on an order of that
-  part and on a batch step of that operation, and a blocked order stops on the step its
-  blocking issue describes. The lifecycle plan keeps an order of each part with a live
-  problem running whenever it is replayed, so the demo always has its two blocked orders
-  and its acknowledged issue — even on a Monday morning or while a part is between orders.
-  Scrap notes follow the operation instead of the station type (no
-  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
-  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
-  descriptions no longer claim a state or customer the order does not have.
-- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
-  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
-  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
-  replay now commits order by order. It also no longer records anything after the present:
-  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
-  is last Friday's delivery when the replay runs before Monday's goods-in.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
