@@ -32,11 +32,15 @@ test('MRP net requirements report shows the shortage', async ({ page }) => {
   await expectPage(page, 'Net requirements');
   await expect(page.getByText('Components short')).toBeVisible();
 
+  // Earlier runs leave their own shortages behind and the table pages, so
+  // narrow the shortage list to this run's component first.
+  await page.getByPlaceholder('Search…').first().fill(DRV);
   const driver = page.getByRole('row').filter({ hasText: DRV }).first();
   await expect(driver).toBeVisible({ timeout: 15_000 });
   await expect(driver).toContainText('150'); // shortfall: 2 × 100 − 50
   await expect(driver).toContainText(WO); // the work order that drives it
 
   // The PCB is fully covered by stock, so the shortage list leaves it out.
+  await page.getByPlaceholder('Search…').first().fill(PCB);
   await expect(page.getByRole('row').filter({ hasText: PCB })).toHaveCount(0);
 });
