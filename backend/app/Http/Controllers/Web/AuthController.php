@@ -191,22 +191,36 @@ class AuthController extends Controller
     }
 
     /**
-     * Redirect user to appropriate dashboard based on their role.
+     * Send the user back to the page that sent them to the login form, or to
+     * their role's dashboard when there was none.
+     *
+     * The auth middleware remembers the URL a guest asked for (url.intended);
+     * without honouring it a shared link to a work order or a settings page
+     * opened the dashboard after signing in. The onboarding wizard still
+     * comes first for an admin, since nothing else works before it is done.
      */
     protected function redirectToDashboard()
     {
         $user = auth()->user();
 
-        if ($user->hasRole('Admin')) {
-            if (OnboardingController::shouldShowWizard()) {
-                return redirect()->route('onboarding.index');
-            }
+        if ($user->hasRole('Admin') && OnboardingController::shouldShowWizard()) {
+            return redirect()->route('onboarding.index');
+        }
 
-            return redirect()->route('admin.dashboard');
+        return redirect()->intended($this->dashboardUrl($user));
+    }
+
+    /**
+     * The landing page for this user's role.
+     */
+    protected function dashboardUrl($user): string
+    {
+        if ($user->hasRole('Admin')) {
+            return route('admin.dashboard');
         }
 
         if ($user->hasRole('Supervisor')) {
-            return redirect()->route('supervisor.dashboard');
+            return route('supervisor.dashboard');
         }
 
         // Workstation accounts skip line selection and open on their bench's
@@ -218,7 +232,7 @@ class AuthController extends Controller
                 $screens = app(\App\Services\Production\OperatorScreens::class);
                 $route = $screens->landingRoute($screens->for($user, $workstation), $workstation->line?->default_operator_view ?? 'queue');
 
-                return redirect()->route($route, ['line' => $workstation->line_id]);
+                return route($route, ['line' => $workstation->line_id]);
             }
         }
 
@@ -226,6 +240,6 @@ class AuthController extends Controller
         // admin tabs they've been granted are reached from there via the "Panel"
         // link (OperatorLayout), and the panel sidebar lists "Lines" first so
         // they can always get back.
-        return redirect()->route('operator.select-line');
+        return route('operator.select-line');
     }
 }
