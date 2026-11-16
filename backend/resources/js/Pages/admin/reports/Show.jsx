@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatDateTime, formatNumber } from '../../../lib/i18n';
 
 const STATUS_BADGE = {
     DONE: 'bg-om-running-bg text-om-running',
@@ -167,7 +167,7 @@ function BatchCard({ batch: b }) {
                 <Row label={__('Released by')} value={b.released_by ?? '—'} />
                 {b.workstation && <Row label={__('Workstation')} value={b.workstation} />}
                 {b.udi_code && <Row label={__('UDI')} value={b.udi_code} />}
-                {b.expiry_date && <Row label={__('Expiry')} value={dt(b.expiry_date)} />}
+                {b.expiry_date && <Row label={__('Expiry')} value={formatDate(b.expiry_date)} />}
             </div>
 
             {/* Steps */}

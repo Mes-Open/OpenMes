@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\HasTenant;
 use App\Support\OeeBand;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,7 +36,7 @@ class OeeRecord extends Model
     protected function casts(): array
     {
         return [
-            'record_date' => 'date',
+            'record_date' => CalendarDate::class,
             'planned_minutes' => 'integer',
             'operating_minutes' => 'integer',
             'downtime_minutes' => 'integer',

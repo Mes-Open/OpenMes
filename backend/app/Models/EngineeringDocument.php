@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Enums\EngineeringDocumentLifecycle;
 use App\Enums\EngineeringPackageType;
 use App\Models\Concerns\SoftDeletesWithAudit;
@@ -62,8 +63,8 @@ class EngineeringDocument extends Model
             'lifecycle_status' => EngineeringDocumentLifecycle::class,
             'file_size' => 'integer',
             'extracted_size' => 'integer',
-            'effective_from' => 'date',
-            'effective_to' => 'date',
+            'effective_from' => CalendarDate::class,
+            'effective_to' => CalendarDate::class,
             'released_at' => 'datetime',
         ];
     }

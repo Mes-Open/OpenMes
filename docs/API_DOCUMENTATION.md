@@ -1339,7 +1339,7 @@ Paginated response (`GET /api/v1/oee?date_from=2026-06-24&date_to=2026-06-30&per
             "line_id": 1,
             "workstation_id": null,
             "shift_id": 2,
-            "record_date": "2026-06-30T00:00:00.000000Z",
+            "record_date": "2026-06-30",
             "planned_minutes": 480,
             "operating_minutes": 420,
             "downtime_minutes": 60,
