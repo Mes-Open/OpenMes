@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **The API reports the plant time zone.** `GET /api/auth/me` now includes
+  `plant: { timezone, utc_offset }`, from Settings → System. API timestamps are UTC
+  instants; clients such as the MCP server need the zone to show them in plant time and to
+  tell which plant day a timestamp falls on.
+
 - **Paging and range filters for the OEE and downtime APIs.** `GET /api/v1/oee` and
   `GET /api/v1/downtimes` used to return only the newest 100 records / 50 downtimes, so an
   integration asking for a week across several lines got a silently truncated list. Both
@@ -289,6 +294,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
   including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
   full timestamps now receive a plain date.
+- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
+  mobile app):
+  - `done_today_work_orders` counted every DONE order edited today, not completed today.
+  - `throughput` put each order's whole output on the last day anything about it changed.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
+  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
+    empty. Both dates are now inclusive.
+  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
+    `line_id` of another tenant is treated as unknown.
 
 - **Downtime report no longer fails on non-conformances raised outside an order.** An
   inbound-inspection issue (raised against a material, with no work order) in the chosen

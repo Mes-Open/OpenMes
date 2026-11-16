@@ -188,6 +188,248 @@ class NetRequirementsTest extends TestCase
         $this->assertSame(1, $report['totals']['work_orders']);
     }
 
+    /**
+     * Add another template for the product type with the given BOM lines.
+     *
+     * @param  array<int, array{material: Material, qty: float}>  $bom
+     */
+    private function templateFor(ProductType $pt, int $version, array $bom, bool $active = true): ProcessTemplate
+    {
+        $tpl = ProcessTemplate::factory()->create([
+            'product_type_id' => $pt->id,
+            'is_active' => $active,
+            'version' => $version,
+        ]);
+        foreach ($bom as $line) {
+            BomItem::factory()->create([
+                'process_template_id' => $tpl->id,
+                'material_id' => $line['material']->id,
+                'quantity_per_unit' => $line['qty'],
+                'scrap_percentage' => 0,
+            ]);
+        }
+
+        return $tpl;
+    }
+
+    /**
+     * The Telka chain: a finished frame (WG) made from a galvanised frame (DK),
+     * made from a black frame (CZ, purchased here to keep it short). DK is both a
+     * product type (it has its own orders) and the material WG consumes.
+     *
+     * @return array{wg: ProductType, dk: ProductType, dkMaterial: Material, cz: Material}
+     */
+    private function frameChain(): array
+    {
+        $cz = Material::factory()->create(['code' => 'CZ', 'stock_quantity' => 0]);
+        $dk = ProductType::factory()->create(['code' => 'DK']);
+        $dkTemplate = $this->templateFor($dk, 1, [['material' => $cz, 'qty' => 1]]);
+        $dkMaterial = Material::factory()->manufactured($dkTemplate->id)->create(['code' => 'DK', 'stock_quantity' => 0]);
+        $wg = ProductType::factory()->create(['code' => 'WG']);
+        $this->templateFor($wg, 1, [['material' => $dkMaterial, 'qty' => 1]]);
+
+        return ['wg' => $wg, 'dk' => $dk, 'dkMaterial' => $dkMaterial, 'cz' => $cz];
+    }
+
+    public function test_by_default_open_orders_for_a_semi_finished_part_are_not_supply(): void
+    {
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 200);
+        $this->plannedWo($c['dk'], 200);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        // 200 through WG → DK → CZ, plus 200 for the DK order itself.
+        $this->assertEqualsWithDelta(400, $this->rowFor($report, $c['cz']->id)['net_qty'], 0.001);
+        $this->assertEqualsWithDelta(0, $this->rowFor($report, $c['dkMaterial']->id)['on_order_qty'], 0.001);
+    }
+
+    public function test_open_orders_for_a_semi_finished_part_count_as_supply_when_asked(): void
+    {
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 200);
+        $this->plannedWo($c['dk'], 200);
+
+        $report = $this->service->report($this->from, $this->to, includeOpenOrders: true);
+
+        $dkRow = $this->rowFor($report, $c['dkMaterial']->id);
+        $this->assertEqualsWithDelta(200, $dkRow['required_qty'], 0.001);
+        $this->assertEqualsWithDelta(200, $dkRow['on_order_qty'], 0.001);
+        $this->assertEqualsWithDelta(0, $dkRow['net_qty'], 0.001);
+        $this->assertFalse($dkRow['is_short']);
+        // Only the DK order itself still needs black frames.
+        $this->assertEqualsWithDelta(200, $this->rowFor($report, $c['cz']->id)['net_qty'], 0.001);
+    }
+
+    public function test_open_supply_covers_only_what_it_can_and_the_rest_explodes(): void
+    {
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 200);
+        $this->plannedWo($c['dk'], 150, status: WorkOrder::STATUS_IN_PROGRESS);
+
+        $report = $this->service->report($this->from, $this->to, includeOpenOrders: true);
+
+        $this->assertEqualsWithDelta(50, $this->rowFor($report, $c['dkMaterial']->id)['net_qty'], 0.001);
+        // The in-progress DK order adds no demand; only the 50 uncovered DK explode.
+        $this->assertEqualsWithDelta(50, $this->rowFor($report, $c['cz']->id)['net_qty'], 0.001);
+    }
+
+    public function test_finished_cancelled_and_late_orders_are_not_supply(): void
+    {
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 100);
+        $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_DONE);
+        $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_CANCELLED);
+        WorkOrder::factory()->create([
+            'product_type_id' => $c['dk']->id, 'planned_qty' => 100,
+            'status' => WorkOrder::STATUS_IN_PROGRESS, 'due_date' => today()->addDays(90),
+            'line_id' => Line::factory()->create()->id,
+        ]);
+
+        $report = $this->service->report($this->from, $this->to, includeOpenOrders: true);
+
+        $this->assertEqualsWithDelta(0, $this->rowFor($report, $c['dkMaterial']->id)['on_order_qty'], 0.001);
+        $this->assertEqualsWithDelta(100, $this->rowFor($report, $c['dkMaterial']->id)['net_qty'], 0.001);
+    }
+
+    public function test_quantity_already_received_from_an_open_order_is_not_counted_twice(): void
+    {
+        $c = $this->frameChain();
+        $c['dkMaterial']->update(['stock_quantity' => 40]); // received from the order below
+        $this->plannedWo($c['wg'], 200);
+        $dkOrder = $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_IN_PROGRESS);
+
+        $receipt = \App\Models\StockDocument::create([
+            'type' => \App\Models\StockDocument::TYPE_MATERIAL_RECEIPT,
+            'document_no' => 'PW-TEST-1',
+            'status' => \App\Models\StockDocument::STATUS_POSTED,
+            'work_order_id' => $dkOrder->id,
+            'warehouse_id' => \App\Models\Warehouse::factory()->rawMaterial()->create()->id,
+        ]);
+        $receipt->lines()->create(['material_id' => $c['dkMaterial']->id, 'quantity' => 40, 'sort_order' => 1]);
+
+        $report = $this->service->report($this->from, $this->to, includeOpenOrders: true);
+        $dkRow = $this->rowFor($report, $c['dkMaterial']->id);
+
+        $this->assertEqualsWithDelta(60, $dkRow['on_order_qty'], 0.001); // 100 − 40 already in stock
+        $this->assertEqualsWithDelta(100, $dkRow['net_qty'], 0.001);     // 200 − 40 − 60
+    }
+
+    public function test_api_accepts_the_open_orders_switch(): void
+    {
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 200);
+        $this->plannedWo($c['dk'], 200);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/reports/net-requirements?include_open_orders=1')
+            ->assertOk()
+            ->assertJsonPath('data.include_open_orders', true);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/reports/net-requirements?include_open_orders=maybe')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('include_open_orders');
+    }
+
+    public function test_web_report_passes_the_open_orders_switch_and_rejects_a_bad_value(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/net-requirements?include_open_orders=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('includeOpenOrders', true));
+
+        $this->actingAs($admin)
+            ->get('/admin/net-requirements?include_open_orders=maybe')
+            ->assertSessionHasErrors('include_open_orders');
+    }
+
+    public function test_uses_the_bom_selected_on_the_work_order_instead_of_the_newest(): void
+    {
+        $selectedPart = Material::factory()->create(['stock_quantity' => 0]);
+        $newestPart = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = ProductType::factory()->create();
+        $selected = $this->templateFor($pt, 1, [['material' => $selectedPart, 'qty' => 2]]);
+        $this->templateFor($pt, 2, [['material' => $newestPart, 'qty' => 3]]);
+
+        $wo = $this->plannedWo($pt, 100);
+        $wo->bomTemplates()->attach($selected->id, ['sort_order' => 0]);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(200, $this->rowFor($report, $selectedPart->id)['required_qty'], 0.001);
+        $this->assertNull($this->rowFor($report, $newestPart->id));
+    }
+
+    public function test_sums_every_bom_selected_on_the_work_order(): void
+    {
+        $shared = Material::factory()->create(['stock_quantity' => 0]);
+        $onlyFirst = Material::factory()->create(['stock_quantity' => 0]);
+        $onlySecond = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = ProductType::factory()->create();
+        $first = $this->templateFor($pt, 1, [
+            ['material' => $shared, 'qty' => 1],
+            ['material' => $onlyFirst, 'qty' => 2],
+        ]);
+        $second = $this->templateFor($pt, 2, [
+            ['material' => $shared, 'qty' => 4],
+            ['material' => $onlySecond, 'qty' => 5],
+        ]);
+
+        $wo = $this->plannedWo($pt, 10);
+        $wo->bomTemplates()->attach([
+            $first->id => ['sort_order' => 0],
+            $second->id => ['sort_order' => 1],
+        ]);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(50, $this->rowFor($report, $shared->id)['required_qty'], 0.001); // (1 + 4) × 10
+        $this->assertEqualsWithDelta(20, $this->rowFor($report, $onlyFirst->id)['required_qty'], 0.001);
+        $this->assertEqualsWithDelta(50, $this->rowFor($report, $onlySecond->id)['required_qty'], 0.001);
+    }
+
+    public function test_selected_bom_counts_even_when_the_template_is_no_longer_active(): void
+    {
+        $oldPart = Material::factory()->create(['stock_quantity' => 0]);
+        $newPart = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = ProductType::factory()->create();
+        $old = $this->templateFor($pt, 1, [['material' => $oldPart, 'qty' => 1]], active: false);
+        $this->templateFor($pt, 2, [['material' => $newPart, 'qty' => 1]]);
+
+        // The order was planned on v1; the shop floor will consume v1's materials.
+        $wo = $this->plannedWo($pt, 30);
+        $wo->bomTemplates()->attach($old->id, ['sort_order' => 0]);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(30, $this->rowFor($report, $oldPart->id)['required_qty'], 0.001);
+        $this->assertNull($this->rowFor($report, $newPart->id));
+    }
+
+    public function test_work_order_without_a_selected_bom_uses_the_newest_active_template(): void
+    {
+        $oldPart = Material::factory()->create(['stock_quantity' => 0]);
+        $newPart = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = ProductType::factory()->create();
+        $this->templateFor($pt, 1, [['material' => $oldPart, 'qty' => 1]]);
+        $this->templateFor($pt, 2, [['material' => $newPart, 'qty' => 1]]);
+
+        $this->plannedWo($pt, 40);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(40, $this->rowFor($report, $newPart->id)['required_qty'], 0.001);
+        $this->assertNull($this->rowFor($report, $oldPart->id));
+    }
+
     public function test_api_endpoint_returns_report_for_admin(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);

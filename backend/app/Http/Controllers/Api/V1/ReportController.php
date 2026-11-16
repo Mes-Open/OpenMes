@@ -284,7 +284,7 @@ class ReportController extends Controller
 
         return response()->json([
             'data' => array_merge(
-                $service->report($from, $to, $lineId),
+                $service->report($from, $to, $lineId, $request->boolean('include_open_orders')),
                 ['generated_at' => now()->toIso8601String()],
             ),
         ]);

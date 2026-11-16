@@ -157,13 +157,24 @@ Authorization: Bearer <token>
 Response:
 ```json
 {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "name": "Administrator",
-    "role": "Admin"
+    "data": {
+        "id": 1,
+        "username": "admin",
+        "email": "admin@example.com",
+        "name": "Administrator",
+        "accessible_tabs": ["orders", "admin"]
+    },
+    "token": { "scope": "read-only", "abilities": ["read"] },
+    "plant": { "timezone": "Europe/Warsaw", "utc_offset": "+01:00" }
 }
 ```
+
+- `token` is `null` for session (cookie) authentication.
+- `plant.timezone` is the zone set in Settings → System. Timestamps in the API
+  (`started_at`, `due_date`, `created_at`, …) are UTC instants; convert them to this zone to
+  show plant time. Calendar dates (`record_date`, `expiry_date`, …) are plain `YYYY-MM-DD`
+  plant days and need no conversion. `utc_offset` is the offset at the moment of the
+  request, so it changes with daylight saving; use `timezone` for conversions.
 
 #### Change Password
 
@@ -1130,9 +1141,17 @@ POST /api/v1/csv-import-mappings
 
 Supervisor and Admin roles required.
 
+Shared query parameters (each endpoint uses the ones listed for it). Invalid values answer *422*:
+
+| Parameter | Format | Meaning |
+|---|---|---|
+| `line_id` | integer | Restrict to one line. An unknown line, or one of another tenant, is a 422. |
+| `days` | integer, 1–3650 | Look-back window ending now (default 30). |
+| `start_date`, `end_date` | `YYYY-MM-DD`, both inclusive | Window for `production-by-line` (default: the last 7 days). |
+
 #### Overview
 
-Key production metrics for the current period.
+Current counts. Parameter: `line_id`.
 
 ```http
 GET /api/v1/analytics/overview
@@ -1143,43 +1162,75 @@ Response:
 ```json
 {
     "data": {
-        "total_orders": 152,
-        "completed_orders": 98,
-        "in_progress_orders": 24,
-        "pending_orders": 30,
+        "total_work_orders": 152,
+        "pending_work_orders": 30,
+        "in_progress_work_orders": 24,
+        "active_work_orders": 54,
+        "completed_work_orders": 98,
+        "done_today_work_orders": 6,
+        "blocked_work_orders": 2,
+        "total_batches": 310,
+        "active_batches": 12,
         "open_issues": 7,
-        "on_time_rate": 0.89,
-        "avg_cycle_time_hours": 4.2
+        "blocking_issues": 2,
+        "critical_issues": 1,
+        "active_lines": 5
     }
 }
 ```
 
+- `in_progress_work_orders` includes accepted orders.
+- `done_today_work_orders` counts orders **completed** since midnight in the plant time zone.
+
 #### Production by Line
 
+Work orders **created** in the window, per line: counts by status, plus planned and produced
+quantity. Parameters: `start_date`, `end_date`.
+
 ```http
-GET /api/v1/analytics/production-by-line
+GET /api/v1/analytics/production-by-line?start_date=2026-03-01&end_date=2026-03-07
 Authorization: Bearer <token>
 ```
 
 #### Cycle Time
+
+Start-to-finish time of batches completed in the last `days`. Parameters: `line_id`, `days`.
 
 ```http
 GET /api/v1/analytics/cycle-time
 Authorization: Bearer <token>
 ```
 
-Query parameters: `line_id`, `from` (date), `to` (date)
-
 #### Throughput
 
+Units produced per plant day over the last `days` plant days (today included, so `days=7` is at most seven rows), from the output ledger: every change to a work
+order's `produced_qty`, dated when it happened. A correction that lowers a count shows as a
+negative amount on its day. Parameters: `line_id`, `days`.
+
 ```http
-GET /api/v1/analytics/throughput
+GET /api/v1/analytics/throughput?days=7
 Authorization: Bearer <token>
 ```
 
-Query parameters: `period` (`daily`, `weekly`, `monthly`), `line_id`
+Response:
+```json
+{
+    "data": {
+        "daily_production": [
+            { "date": "2026-03-10", "total_produced": "50.00" },
+            { "date": "2026-03-11", "total_produced": "-2.00" }
+        ],
+        "average_daily_throughput": 24,
+        "period_start": "2026-03-06",
+        "period_end": "2026-03-12"
+    }
+}
+```
 
 #### Issue Statistics
+
+Issues reported in the last `days`, by type and by status, plus average resolution time.
+Parameters: `line_id`, `days`.
 
 ```http
 GET /api/v1/analytics/issue-stats
@@ -1187,6 +1238,9 @@ Authorization: Bearer <token>
 ```
 
 #### Step Performance
+
+Average duration per process step, over steps completed in the last `days`. Parameters:
+`line_id`, `days`.
 
 ```http
 GET /api/v1/analytics/step-performance

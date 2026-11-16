@@ -86,6 +86,14 @@ class AuthController extends Controller
                 'scope' => ApiTokenScope::fromAbilities($token->abilities)->value,
                 'abilities' => $token->abilities,
             ] : null,
+            // The zone the plant runs on (Settings → System). Timestamps in the
+            // API are UTC instants; a client needs this to show them in plant
+            // time, and to know which day a plant-local date such as
+            // `record_date` belongs to.
+            'plant' => [
+                'timezone' => (string) config('app.timezone'),
+                'utc_offset' => now()->format('P'),
+            ],
         ]);
     }
 
