@@ -748,7 +748,8 @@ class SettingsController extends Controller
             if (Schema::hasColumn($table, 'deleted_at')) {
                 $query->whereNull('deleted_at'); // the trash stays here
             }
-            $export[$table] = $query->get()->map(fn ($r) => (array) $r)->toArray();
+            $excluded = array_flip(ConfigurationImporter::EXCLUDED_COLUMNS[$table] ?? []);
+            $export[$table] = $query->get()->map(fn ($r) => array_diff_key((array) $r, $excluded))->toArray();
         }
 
         return response()->json($export, 200, [

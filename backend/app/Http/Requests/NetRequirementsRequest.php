@@ -20,6 +20,7 @@ class NetRequirementsRequest extends FormRequest
             'line_id' => ['nullable', 'integer', 'exists:lines,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'include_open_orders' => ['nullable', 'boolean'],
         ];
     }
 }

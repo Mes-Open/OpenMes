@@ -31,13 +31,16 @@ class NetRequirementsReportController extends Controller
             ? Carbon::parse($validated['date_to'])->endOfDay()
             : today()->addDays(30)->endOfDay();
 
-        $report = $this->reports->report($from, $to, $lineId);
+        $includeOpenOrders = $request->boolean('include_open_orders');
+
+        $report = $this->reports->report($from, $to, $lineId, $includeOpenOrders);
 
         return Inertia::render('admin/net-requirements/Index', [
             'lines' => Line::orderBy('name')->get(['id', 'name']),
             'lineId' => $lineId,
             'dateFrom' => $from->toDateString(),
             'dateTo' => $to->toDateString(),
+            'includeOpenOrders' => $includeOpenOrders,
             'requirements' => $report['requirements'],
             'shortages' => $report['shortages'],
             'totals' => $report['totals'],

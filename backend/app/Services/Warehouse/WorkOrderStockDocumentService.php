@@ -2,10 +2,15 @@
 
 namespace App\Services\Warehouse;
 
+use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
+use App\Models\Material;
+use App\Models\MaterialLot;
 use App\Models\StockDocument;
 use App\Models\Warehouse;
 use App\Models\WorkOrder;
+use App\Services\Material\LotPickingService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -19,10 +24,19 @@ use Illuminate\Support\Facades\Log;
  * Material lines come from what was actually consumed per lot when the shop floor
  * recorded it, and fall back to the order's BOM × produced quantity when it did
  * not — a bakery that books flour by recipe still gets a correct release.
+ *
+ * A semi-finished part — a product type that some material is produced by — is
+ * received as that material into the raw-material warehouse, with one released
+ * lot per batch when lot tracking is on. Booked as a product it would never reach
+ * the material the next BOM level consumes, so MRP, allocation and lot genealogy
+ * would all lose it between levels.
  */
 class WorkOrderStockDocumentService
 {
-    public function __construct(private StockDocumentService $documents) {}
+    public function __construct(
+        private StockDocumentService $documents,
+        private LotPickingService $lots,
+    ) {}
 
     /**
      * Create the draft documents a completed work order implies. Idempotent: an
@@ -35,14 +49,26 @@ class WorkOrderStockDocumentService
     {
         $created = [];
 
+        $semiFinished = $this->semiFinishedMaterial($workOrder);
+
         foreach ([StockDocument::TYPE_MATERIAL_ISSUE, StockDocument::TYPE_PRODUCT_RECEIPT] as $type) {
             if ($this->alreadyHas($workOrder, $type)) {
                 continue;
             }
             // Booked pallet by pallet instead: an order that packs onto pallets has
             // its pallets carry the receipt; one that never palletises keeps this one.
+            // That holds for a semi-finished part too: a second, material receipt
+            // would book the same output twice.
             if ($type === StockDocument::TYPE_PRODUCT_RECEIPT && PalletStockDocumentService::mode() !== PalletStockDocumentService::OFF
                 && \App\Models\BatchStep::where('kind', \App\Models\TemplateStep::KIND_PACKING)->whereHas('batch', fn ($q) => $q->where('work_order_id', $workOrder->id))->exists()) {
+                continue;
+            }
+            if ($type === StockDocument::TYPE_PRODUCT_RECEIPT && $semiFinished) {
+                if (! $this->alreadyHas($workOrder, StockDocument::TYPE_MATERIAL_RECEIPT)
+                    && ($document = $this->generateSemiFinishedReceipt($workOrder, $semiFinished))) {
+                    $created[] = $document;
+                }
+
                 continue;
             }
 
@@ -112,6 +138,125 @@ class WorkOrderStockDocumentService
                 'quantity' => $produced,
                 'unit_of_measure' => $workOrder->productType?->unit_of_measure,
             ]],
+        ]);
+    }
+
+    /**
+     * Draft receipt of a semi-finished part as the material it is. With lot
+     * tracking on, each batch that produced something gets a released lot linked
+     * to it (source_batch_id), empty until the receipt is posted. Returns null when
+     * nothing was produced or no raw-material warehouse exists.
+     */
+    public function generateSemiFinishedReceipt(WorkOrder $workOrder, Material $material): ?StockDocument
+    {
+        if (! Warehouse::resolveDefault(Warehouse::KIND_RAW_MATERIAL)) {
+            return null;
+        }
+
+        $batches = $workOrder->batches()->where('produced_qty', '>', 0)->orderBy('batch_number')->get();
+        $trackLots = $this->lots->isLotTrackingEnabled() && $batches->isNotEmpty();
+
+        if (! $trackLots) {
+            $produced = $this->producedQuantity($workOrder);
+
+            return $produced > 0 ? $this->createSemiFinishedReceipt($workOrder, [[
+                'material_id' => $material->id,
+                'quantity' => $produced,
+                'unit_of_measure' => $material->unit_of_measure,
+            ]]) : null;
+        }
+
+        return DB::transaction(function () use ($workOrder, $material, $batches) {
+            $lines = $batches->map(function (Batch $batch) use ($workOrder, $material) {
+                $lot = $this->lotForBatch($workOrder, $batch, $material);
+
+                return [
+                    'material_id' => $material->id,
+                    'material_lot_id' => $lot->id,
+                    'lot_number' => $lot->lot_number,
+                    'quantity' => (float) $batch->produced_qty,
+                    'unit_of_measure' => $material->unit_of_measure,
+                ];
+            })->all();
+
+            return $this->createSemiFinishedReceipt($workOrder, $lines);
+        });
+    }
+
+    /**
+     * The material this order's product is made into: the one manufactured
+     * material whose producing template belongs to the order's product type. Any
+     * technology of that product makes the same material. None, or more than one
+     * (no way to tell which), keeps the plain product receipt.
+     */
+    public function semiFinishedMaterial(WorkOrder $workOrder): ?Material
+    {
+        if ($workOrder->product_type_id === null) {
+            return null;
+        }
+
+        $materials = Material::query()
+            ->where('is_manufactured', true)
+            ->whereHas('producingTemplate', fn ($q) => $q->where('product_type_id', $workOrder->product_type_id))
+            ->limit(2)
+            ->get();
+
+        if ($materials->count() > 1) {
+            Log::warning('Several materials are produced by one product type; receiving it as a product', [
+                'work_order_id' => $workOrder->id,
+                'product_type_id' => $workOrder->product_type_id,
+            ]);
+
+            return null;
+        }
+
+        return $materials->first();
+    }
+
+    /** @param  array<int, array<string, mixed>>  $lines */
+    private function createSemiFinishedReceipt(WorkOrder $workOrder, array $lines): StockDocument
+    {
+        return $this->documents->createDraft([
+            'type' => StockDocument::TYPE_MATERIAL_RECEIPT,
+            'work_order_id' => $workOrder->id,
+            'notes' => __('Semi-finished part received from work order :order', ['order' => $workOrder->order_no]),
+            'lines' => $lines,
+        ]);
+    }
+
+    /**
+     * The output lot of one batch: released, so the next level can pick it once
+     * the receipt is posted, and empty until then. Named after the batch's lot
+     * number (or order-batch), suffixed when that number is already taken.
+     */
+    private function lotForBatch(WorkOrder $workOrder, Batch $batch, Material $material): MaterialLot
+    {
+        $existing = MaterialLot::where('source_batch_id', $batch->id)
+            ->where('material_id', $material->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $number = $batch->lot_number ?: $workOrder->order_no.'-'.$batch->batch_number;
+
+        if (MaterialLot::withTrashed()->where('lot_number', $number)->where('tenant_id', $workOrder->tenant_id)->exists()) {
+            $number .= '-'.$batch->id;
+        }
+
+        return MaterialLot::create([
+            'tenant_id' => $workOrder->tenant_id,
+            'material_id' => $material->id,
+            'lot_number' => $number,
+            'unit_of_measure' => $material->unit_of_measure ?? 'pcs',
+            'quantity_received' => (float) $batch->produced_qty,
+            'quantity_available' => 0,
+            'received_at' => $batch->completed_at ?? now(),
+            'manufacturing_date' => ($batch->completed_at ?? now())->toDateString(),
+            'expiry_date' => $batch->expiry_date,
+            'source_batch_id' => $batch->id,
+            'status' => MaterialLot::STATUS_RELEASED,
         ]);
     }
 

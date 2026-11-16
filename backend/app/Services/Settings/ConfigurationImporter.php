@@ -50,6 +50,9 @@ class ConfigurationImporter
         'line_product_type' => ['line_id', 'product_type_id'],
         'skills' => ['code'],
         'personnel_classes' => ['code'],
+        'workers' => ['code'],
+        // A worker's skills and their certification (valid from / until).
+        'worker_skills' => ['worker_id', 'skill_id'],
         'process_segments' => ['code'],
         'label_templates' => ['name'],
         'process_templates' => ['product_type_id', 'name'],
@@ -75,6 +78,8 @@ class ConfigurationImporter
         'materials' => ['material_type_id' => 'material_types', 'producing_process_template_id' => 'process_templates'],
         'line_product_type' => ['line_id' => 'lines', 'product_type_id' => 'product_types'],
         'process_segments' => ['workstation_type_id' => 'workstation_types'],
+        'workers' => ['workstation_id' => 'workstations', 'personnel_class_id' => 'personnel_classes'],
+        'worker_skills' => ['worker_id' => 'workers', 'skill_id' => 'skills'],
         'process_templates' => ['product_type_id' => 'product_types'],
         'template_steps' => ['process_template_id' => 'process_templates', 'workstation_id' => 'workstations', 'workstation_type_id' => 'workstation_types', 'process_segment_id' => 'process_segments'],
         'bom_items' => ['process_template_id' => 'process_templates', 'template_step_id' => 'template_steps', 'material_id' => 'materials', 'product_type_id' => 'product_types'],
@@ -110,6 +115,14 @@ class ConfigurationImporter
     ];
 
     private const SKIP_COLUMNS = ['id', 'created_at', 'updated_at', 'tenant_id', 'deleted_at', 'deleted_by_id'];
+
+    /**
+     * Table => columns a configuration file never carries, in either direction:
+     * pay belongs to payroll, not to a plant's setup, and a file is passed around.
+     */
+    public const EXCLUDED_COLUMNS = [
+        'workers' => ['pay_type', 'pay_rate', 'pay_currency', 'wage_group_id'],
+    ];
 
     /** @var array<string, array<int|string, int>> table => file id => database id */
     private array $ids = [];
@@ -250,7 +263,8 @@ class ConfigurationImporter
 
         $values = [];
         foreach ($row as $column => $value) {
-            if (! in_array($column, $columns, true) || in_array($column, self::SKIP_COLUMNS, true) || $value === null) {
+            if (! in_array($column, $columns, true) || in_array($column, self::SKIP_COLUMNS, true) || $value === null
+                || in_array($column, self::EXCLUDED_COLUMNS[$table] ?? [], true)) {
                 continue;
             }
             // Another database's ids (a user, a record we do not import) mean nothing here.
