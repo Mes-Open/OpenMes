@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Seeders;
 
+use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
 use App\Models\Line;
@@ -161,6 +162,17 @@ class MachineShopDemoConsistencyTest extends TestCase
         $this->assertScrapAndDowntimeNotesFitTheOperation($fullHistory);
         $this->assertOrderTimelinesHold();
         $this->assertNothingHappensAfter($now);
+        $this->assertStartedOrdersStayOnTheFloor();
+    }
+
+    /** An order with finished batches is running, blocked or done — never back in the queue. */
+    private function assertStartedOrdersStayOnTheFloor(): void
+    {
+        $queued = WorkOrder::whereIn('status', [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])
+            ->whereHas('batches', fn ($q) => $q->where('status', Batch::STATUS_DONE))
+            ->pluck('status', 'order_no')->all();
+
+        $this->assertSame([], $queued, 'Started orders are back in the queue.');
     }
 
     /** The replay stops at the present: nothing it records is dated later. */
@@ -168,8 +180,15 @@ class MachineShopDemoConsistencyTest extends TestCase
     {
         foreach ([
             'batch_steps' => ['started_at', 'completed_at'],
-            'batches' => ['started_at', 'completed_at'],
+            'batches' => ['started_at', 'completed_at', 'released_at'],
             'work_orders' => ['completed_at'],
+            // What follows a finished batch: release, pallet check, the pallet
+            // closed to the store, the lot and its goods receipt.
+            'quality_checks' => ['checked_at'],
+            'pallet_movements' => ['moved_at'],
+            'material_lots' => ['received_at', 'released_at'],
+            'stock_documents' => ['posted_at'],
+            'stock_movements' => ['created_at'],
             'production_downtimes' => ['started_at', 'ended_at'],
             'work_order_output_entries' => ['recorded_at'],
             'scrap_entries' => ['created_at'],

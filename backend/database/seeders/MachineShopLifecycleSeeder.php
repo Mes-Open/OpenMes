@@ -1246,6 +1246,11 @@ class MachineShopLifecycleSeeder extends Seeder
             $this->log("  ~ {$wo->order_no} still running at the present — left in progress");
             $finalStatus = WorkOrder::STATUS_IN_PROGRESS;
         }
+        if ($finalStatus === WorkOrder::STATUS_IN_PROGRESS && $wo->status !== WorkOrder::STATUS_IN_PROGRESS) {
+            // Stopped between two batches: with none running, the status service
+            // has put the order back to PENDING, but it is on the floor mid-run.
+            $wo->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+        }
 
         if ($finalStatus === WorkOrder::STATUS_DONE) {
             $this->finishOrder($wo);
@@ -1634,7 +1639,7 @@ class MachineShopLifecycleSeeder extends Seeder
             return;
         }
 
-        Carbon::setTestNow($batch->completed_at->copy()->addMinutes(10));
+        $this->clockTo($batch->completed_at->copy()->addMinutes(10));
         $this->release->release($batch->fresh(), $this->inspector, Batch::RELEASE_FOR_PRODUCTION);
 
         $lot = MaterialLot::create([
@@ -1652,7 +1657,7 @@ class MachineShopLifecycleSeeder extends Seeder
             'warehouse_id' => $this->wip->id,
             'created_by_id' => $this->inspector->id,
         ]);
-        Carbon::setTestNow(now()->addMinutes(5));
+        $this->clockTo(now()->addMinutes(5));
         $this->postReceipt($this->wip, [$lot], $wo->order_no, "Semi-finished output of {$wo->order_no} batch #{$batch->batch_number}", $wo);
     }
 
@@ -1701,7 +1706,7 @@ class MachineShopLifecycleSeeder extends Seeder
             $this->afterFinishedBatch($wo, $batch, orderDone: true, ship: $ship);
         }
 
-        Carbon::setTestNow($wo->completed_at->copy()->addMinutes(50));
+        $this->clockTo($wo->completed_at->copy()->addMinutes(50));
         if ($receipt = $this->woDocs->generateProductReceipt($wo)) {
             $receipt->update(['warehouse_id' => $this->fg->id]);
             $this->docs->post($receipt, $this->supervisor);
@@ -1806,7 +1811,7 @@ class MachineShopLifecycleSeeder extends Seeder
         $produced = (float) $batch->produced_qty;
         $lineCode = $wo->line?->code ?? 'LINE';
 
-        Carbon::setTestNow($batch->completed_at->copy()->addMinutes(15));
+        $this->clockTo($batch->completed_at->copy()->addMinutes(15));
         if (! $batch->isReleased()) {
             $this->release->release($batch->fresh(), $this->inspector, Batch::RELEASE_FOR_SALE);
         }
@@ -1856,7 +1861,7 @@ class MachineShopLifecycleSeeder extends Seeder
             'quality_status' => 'pending',
             'location' => 'LINE-END-'.$lineCode,
         ]);
-        Carbon::setTestNow($batch->completed_at->copy()->addMinutes(25));
+        $this->clockTo($batch->completed_at->copy()->addMinutes(25));
         $this->quality->performCheck($batch->fresh(), $this->inspector, [
             ['sample_number' => 1, 'parameter_name' => 'Packing & labelling', 'parameter_type' => 'boolean', 'value_boolean' => true, 'is_passed' => true],
             ['sample_number' => 2, 'parameter_name' => 'Quantity matches label', 'parameter_type' => 'boolean', 'value_boolean' => true, 'is_passed' => true],
@@ -1871,7 +1876,7 @@ class MachineShopLifecycleSeeder extends Seeder
 
         if ($orderDone) {
             $closeAt = max($wo->completed_at->copy()->addMinutes(30), $batch->completed_at->copy()->addMinutes(35));
-            Carbon::setTestNow($closeAt);
+            $this->clockTo($closeAt);
             $fgLoc = 'FG-'.chr(65 + mt_rand(0, 3)).'-'.str_pad((string) mt_rand(1, 12), 2, '0', STR_PAD_LEFT);
             $pallet->update(['status' => 'closed', 'location' => $fgLoc]);
             $this->movePallet($pallet, 'LINE-END-'.$lineCode, $fgLoc, null, 'Closed pallet to finished-goods store');
@@ -1880,6 +1885,16 @@ class MachineShopLifecycleSeeder extends Seeder
                 $this->shipments[] = ['at' => $ship->copy(), 'kind' => 'pallet', 'pallet' => $pallet->id];
             }
         }
+    }
+
+    /**
+     * Moves the seed clock to what follows a finished batch, but never past the
+     * present: a batch finished minutes ago is released and checked "just now",
+     * not in the half hour that has not happened yet.
+     */
+    private function clockTo(Carbon $at): void
+    {
+        Carbon::setTestNow($at->gt($this->realNow) ? $this->realNow->copy() : $at);
     }
 
     private function movePallet(Pallet $pallet, string $from, string $to, ?string $destination, string $notes): void
