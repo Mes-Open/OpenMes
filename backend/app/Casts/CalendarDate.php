@@ -24,6 +24,13 @@ use Illuminate\Support\Facades\Date;
  */
 class CalendarDate implements CastsAttributes, SerializesCastableAttributes
 {
+    /**
+     * A fresh Carbon on every read, as with the built-in `date` cast. Eloquent
+     * caches objects returned by class casts and writes them back on save, so
+     * `$tool->next_service_at->addDay()` would otherwise change the stored day.
+     */
+    public bool $withoutObjectCaching = true;
+
     public function get(Model $model, string $key, mixed $value, array $attributes): ?CarbonInterface
     {
         return $value === null ? null : $this->toDate($value)->startOfDay();

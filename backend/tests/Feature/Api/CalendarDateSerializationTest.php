@@ -89,6 +89,16 @@ class CalendarDateSerializationTest extends TestCase
         $this->assertSame([], $offenders, 'Cast DB date columns with CalendarDate::class so they read as midnight and serialize as the day they name.');
     }
 
+    public function test_mutating_a_read_date_does_not_change_the_attribute(): void
+    {
+        $tool = Tool::create(['code' => 'T-M', 'name' => 'Gauge', 'status' => 'available', 'next_service_at' => '2026-01-15']);
+
+        $tool->next_service_at->addDay();
+        $tool->save();
+
+        $this->assertSame('2026-01-15', $tool->fresh()->next_service_at->toDateString());
+    }
+
     #[DataProvider('plantZones')]
     public function test_api_returns_the_stored_day(string $timezone): void
     {
