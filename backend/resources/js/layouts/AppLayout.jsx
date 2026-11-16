@@ -173,6 +173,24 @@ function withEnabledModules(nodes, enabledModules) {
 }
 
 /**
+ * Drop entries that need an admin tab (`tab: '<key>'`) the user does not hold.
+ * The supervisor tree is gated by role, not by tab — only its few entries that
+ * point at a granted admin page carry a tab key. Groups left empty disappear.
+ */
+function withGrantedTabs(nodes, allowedTabs) {
+    if (! Array.isArray(allowedTabs)) {
+        return nodes;
+    }
+
+    return nodes
+        .filter((node) => ! node.tab || allowedTabs.includes(node.tab))
+        .map((node) => (node.children
+            ? { ...node, children: withGrantedTabs(node.children, allowedTabs) }
+            : node))
+        .filter((node) => ! node.children || node.children.length > 0);
+}
+
+/**
  * A nav tree's home: /admin/dashboard for an admin, /supervisor/dashboard for a
  * supervisor. Derived rather than declared, so a third section can't set one and
  * forget the other.
@@ -285,12 +303,14 @@ function useNavTree() {
     return useMemo(() => {
         if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
-                links: withEnabledModules(SUPERVISOR_LINKS, enabledModules),
-                groups: withEnabledModules(SUPERVISOR_GROUPS, enabledModules),
-                // The supervisor tree carries no tab keys: its gate is the route
-                // group's role middleware, not the admin access matrix. Filtering
-                // it through that matrix would hide every entry, since a
-                // supervisor holds no tab:* grants.
+                links: withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs),
+                groups: withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
+                // The supervisor tree is gated by the route group's role
+                // middleware, not the admin access matrix. Only its entries that
+                // carry a `tab` key (an admin page granted in Settings → Access)
+                // are filtered, above by withGrantedTabs; showTab stays permissive
+                // because group keys here are not tab keys and the tree is
+                // already filtered.
                 showTab: () => true,
             };
         }

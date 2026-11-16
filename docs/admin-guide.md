@@ -535,10 +535,22 @@ See [HOOKS.md](../HOOKS.md) and [development.md](development.md) for how to buil
 OpenMES provides a token-based REST API for ERP integration, custom dashboards, and automation.
 
 1. Go to **Settings → API Tokens**
-2. Click **Create Token**
-3. Enter a name (e.g. "ERP Integration")
-4. Copy and store the token immediately — it is not shown again
-5. Use the token in the `Authorization: Bearer <token>` header
+2. Enter a name (e.g. "ERP Integration")
+3. Pick the **Access** the token gets (see below)
+4. Click **Generate Token**
+5. Copy and store the token immediately — it is not shown again
+6. Use the token in the `Authorization: Bearer <token>` header
+
+A token acts with the permissions of the user who created it. **Access** can only narrow
+that, never widen it:
+
+| Access | Can do | Use it for |
+|---|---|---|
+| **Full API access** | Read and change data | ERP / shop integrations that create orders, automation |
+| **Read-only** | Read data; every request other than GET/HEAD/OPTIONS gets `403 This token is read-only.` | Reporting tools, BI dashboards, AI assistants (MCP) that should look but not touch |
+| **Machine gateway (OPC UA)** | Only the machine-gateway endpoints | The OPC UA gateway container — see [Machine connectivity](machine-connectivity.md) |
+
+A client can ask which access its token has with `GET /api/auth/me` (`token.scope`).
 
 See [API Documentation](API_DOCUMENTATION.md) for full endpoint reference.
 

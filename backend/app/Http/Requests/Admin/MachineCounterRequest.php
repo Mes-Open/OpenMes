@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\TabRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,8 @@ class MachineCounterRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasAnyRole(['Admin', 'Supervisor']) ?? false;
+        // The same grant that opens the page (Settings → Access).
+        return $this->user()?->can(TabRegistry::permission('machine_counters')) ?? false;
     }
 
     public function rules(): array

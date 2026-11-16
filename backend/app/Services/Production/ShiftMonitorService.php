@@ -634,7 +634,10 @@ class ShiftMonitorService
         foreach ($rows as $event) {
             $payload = json_decode((string) $event->payload, true) ?: [];
             $minute = (int) floor($window->start->diffInSeconds(Carbon::parse($event->event_timestamp)) / 60);
-            $kind = ($payload['kind'] ?? 'good') === 'reject' ? 'reject' : 'good';
+            $kind = MachineEvent::counterKind($payload);
+            if ($kind === null) {
+                continue;
+            }
             $id = $event->workstation_id;
             $totals[$id] ??= ['good' => [], 'reject' => []];
             $totals[$id][$kind][$minute] = ($totals[$id][$kind][$minute] ?? 0) + (float) ($payload['delta'] ?? 0);

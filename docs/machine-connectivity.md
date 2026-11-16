@@ -69,8 +69,15 @@ A tag declares what its value *means*:
 Fully implemented (since v0.4.0). Library: `php-mqtt/client`. See
 [mqtt-connectivity.md](mqtt-connectivity.md).
 
-### Modbus TCP — `php artisan modbus:poll --connection=<id>`
+### Modbus TCP — `php artisan modbus:poll`
 Fully implemented. Library: `aldas/modbus-tcp-client`.
+
+- `modbus:poll` serves every active Modbus connection. It runs one worker
+  process per connection (`modbus:poll --connection=<id>`), because Modbus
+  reads block: a PLC that is switched off would otherwise hold up every other
+  machine for its timeout. Connections added, switched off or deleted in the
+  UI get or lose their worker within seconds; a worker that dies is restarted.
+- `--connection=<id or name>` polls just that one connection.
 
 - Config in `modbus_connections` (host, port, unit id, poll interval, byte/word
   order). UI: **Admin → Connectivity → Modbus**.

@@ -69,6 +69,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // Machine-gateway tokens work on the gateway routes only — applied to
             // the whole group so module route files are covered too (fail closed).
             \App\Http\Middleware\RejectMachineGatewayToken::class,
+            // Read-only tokens may only GET/HEAD/OPTIONS — whole group, same reason.
+            \App\Http\Middleware\RejectWritesWithReadOnlyToken::class,
         ]);
 
         // Register Spatie Permission middleware

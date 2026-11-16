@@ -28,6 +28,10 @@ class CollectionController extends Controller
 
         $user = $request->user();
 
+        // Same gate as the live channel (routes/channels.php). Without it any
+        // signed-in user could read every collection's snapshot.
+        abort_unless($user && $shape->allows($user), 403);
+
         $query = DB::table($shape->table())->select($shape->columns());
 
         $where = $shape->where($user);

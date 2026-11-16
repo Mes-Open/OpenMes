@@ -93,6 +93,7 @@ class ConfigurationImporter
         'schedule_horizon_weeks', 'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
         'production_qty_edit_policy', 'production_qty_edit_window_minutes', 'scanner_mode',
         'unit_identifier_normalize', 'unit_serial_pattern', 'unit_psn_pattern', 'unit_psn_required', 'unit_psn_unique',
+        'unit_pack_requires_serial', 'unit_pack_requires_order',
         'unit_test_fail_policy', 'unit_test_max_attempts', 'unit_test_attempts_scope', 'standard_weekly_hours', 'default_currency',
         'default_pay_type', 'default_pay_rate', 'enabled_modules',
     ];

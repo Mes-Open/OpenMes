@@ -10,6 +10,7 @@ use App\Models\User;
  * for the admin CRUD sweep without a class each.
  *
  * `where` may be a string, null, or a closure(User): ?string for per-user scope.
+ * `tabs` / `roles` widen who may read it beyond Admin/Supervisor (see Shape::allows()).
  */
 class GenericShape extends Shape
 {
@@ -17,6 +18,8 @@ class GenericShape extends Shape
         private string $table,
         private array $columns,
         private mixed $where = null,
+        private array $tabs = [],
+        private array $roles = [],
     ) {}
 
     public function table(): string
@@ -32,5 +35,15 @@ class GenericShape extends Shape
     public function where(User $user): ?string
     {
         return is_callable($this->where) ? ($this->where)($user) : $this->where;
+    }
+
+    public function tabs(): array
+    {
+        return $this->tabs;
+    }
+
+    public function roles(): array
+    {
+        return $this->roles;
     }
 }

@@ -19,11 +19,14 @@ OpenMES provides a versioned REST API for ERP integration, custom dashboards, an
   - [Batches](#batches)
   - [Batch Steps](#batch-steps)
   - [Serial Units and Test Runs](#serial-units-and-test-runs)
+  - [Material Lots and Genealogy](#material-lots-and-genealogy)
   - [Issues](#issues)
   - [Issue Types](#issue-types)
   - [CSV Import](#csv-import)
   - [Analytics](#analytics)
   - [Reports](#reports)
+  - [OEE and Downtimes](#oee-and-downtimes)
+  - [Shift Handover](#shift-handover)
   - [Audit Logs](#audit-logs)
   - [Event Logs](#event-logs)
 - [ERP Integration API](#erp-integration-api)
@@ -46,7 +49,12 @@ All API endpoints (except `/api/health` and `/api/auth/login`) require a Bearer 
 **Via the web UI** (recommended):
 1. Log in as Admin
 2. Go to **Settings → API Tokens**
-3. Create a new token and copy it
+3. Pick the token's **Access** — *Full API access*, *Read-only* or *Machine gateway (OPC UA)* — then create it and copy it
+
+A **read-only** token is refused (`403`, `"This token is read-only."`) on every request
+other than `GET`, `HEAD` and `OPTIONS`, on core and module routes alike. Every token is also
+limited to what its creator's role allows. `GET /api/auth/me` reports the calling token's
+access as `token.scope` (`full`, `read-only` or `machine-gateway`; `null` for a browser session).
 
 **Via the API:**
 
@@ -219,52 +227,92 @@ GET /api/v1/work-orders
 Authorization: Bearer <token>
 ```
 
-Query parameters:
+Returns the work orders the caller may see (Admins and Supervisors: all; Operators: orders on
+their assigned lines that are open for production), ordered by priority score, priority,
+due date and creation time.
+
+**Default response.** Without `page`, every matching order comes back in one `data` array
+with no `meta`, and each order includes `line`, `product_type` and `batches` with their
+`steps`. This is the behaviour existing clients rely on and it does not change. On a large
+plant it is a big response (megabytes): use `page`, `include` and `fields=summary` to keep
+it small.
+
+Query parameters (all optional, combinable):
 
 | Parameter | Type | Description |
 |---|---|---|
-| `status` | string | Filter by status: `pending`, `accepted`, `in_progress`, `completed`, `paused`, `rejected` |
-| `line_id` | integer | Filter by line |
-| `due_before` | date | Filter by due date (YYYY-MM-DD) |
-| `week_number` | integer | Filter by production week |
-| `month_number` | integer | Filter by production month |
-| `production_year` | integer | Filter by production year |
-| `search` | string | Search in order_no and product_name |
-| `per_page` | integer | Results per page (default: 15, max: 100) |
-| `page` | integer | Page number |
+| `status` | string or list | Exact status (`PENDING`, `ACCEPTED`, `IN_PROGRESS`, `BLOCKED`, `PAUSED`, `CHANGE_HOLD`, `DONE`, `REJECTED`, `CANCELLED`). Repeat as `status[]=PENDING&status[]=PAUSED` to match any of several. An unknown status matches nothing. |
+| `line_id` | integer | Orders on this line. |
+| `search` | string, max 255 | Case-insensitive substring match on `order_no`, `customer_order_no`, `description`, and the product type's `name` or `code`. The term is matched literally: `%`, `_` and `\` are not wildcards. |
+| `due_from` | date, exactly `YYYY-MM-DD` | Orders due on or after this day. Orders with no due date are excluded. Other formats (`10.03.2026`, times, relative dates) are a `422`. |
+| `due_to` | date, exactly `YYYY-MM-DD` | Orders due on or before this day (the whole day counts). Must not be before `due_from`. |
+| `include` | comma list or list | Relations to embed, from `line`, `product_type`, `batches`, `batches.steps`. Default: `line,product_type,batches.steps`. `batches` alone embeds the batches without their steps. Any other value is a `422`. |
+| `fields` | `full` or `summary` | `full` (default): every work-order column. `summary`: only `id`, `order_no`, `customer_order_no`, `status`, `priority`, `planned_qty`, `produced_qty`, `line_id`, `product_type_id`, `due_date`, `planned_start_at`, `planned_end_at`, `completed_at`, `description`, `created_at`, `updated_at`, plus the relations `include` selects. The large JSON columns (`process_snapshot`, `extra_data`, `custom_fields`) are not read from the database at all. Any other value is a `422`. |
+| `page` | integer, 1–1000000 | Turns pagination on and selects the page. The response then carries `meta`. |
+| `per_page` | integer, 1–100 | Page size when `page` is given (default 25). **Ignored without `page`**: older clients send `per_page` alone and expect the full, unpaginated list. |
 
-Response:
+Default response (`GET /api/v1/work-orders`), abbreviated:
 ```json
 {
     "data": [
         {
             "id": 42,
             "order_no": "WO-2025-0042",
-            "product_name": "Wooden Chair Model A",
-            "quantity": 100,
-            "status": "in_progress",
+            "customer_order_no": "PO-7781",
+            "status": "IN_PROGRESS",
+            "planned_qty": "100.00",
+            "produced_qty": "65.00",
             "priority": 2,
-            "due_date": "2025-04-10",
-            "week_number": 15,
-            "month_number": 4,
-            "production_year": 2025,
-            "line": {
-                "id": 1,
-                "name": "Line A"
-            },
-            "product_type": {
-                "id": 3,
-                "name": "Wooden Chair"
-            },
-            "batches_count": 2,
-            "produced_quantity": 65,
-            "created_at": "2025-04-01T08:00:00Z",
-            "updated_at": "2025-04-02T14:30:00Z"
+            "due_date": "2025-04-10T00:00:00.000000Z",
+            "description": "Wooden Chair Model A",
+            "line": { "id": 1, "name": "Line A", "code": "LA" },
+            "product_type": { "id": 3, "name": "Wooden Chair", "code": "WCH" },
+            "batches": [
+                { "id": 7, "batch_number": 1, "status": "IN_PROGRESS", "steps": [ { "id": 31, "step_number": 1, "status": "DONE" } ] }
+            ]
         }
-    ],
-    "meta": { ... }
+    ]
 }
 ```
+
+Lean, paginated search (`GET /api/v1/work-orders?search=chair&status=IN_PROGRESS&fields=summary&include=line,product_type&page=1&per_page=20`), relations abbreviated:
+```json
+{
+    "data": [
+        {
+            "id": 42,
+            "order_no": "WO-2025-0042",
+            "customer_order_no": "PO-7781",
+            "status": "IN_PROGRESS",
+            "priority": 2,
+            "planned_qty": "100.00",
+            "produced_qty": "65.00",
+            "line_id": 1,
+            "product_type_id": 3,
+            "due_date": "2025-04-10T00:00:00.000000Z",
+            "planned_start_at": "2025-04-07T06:00:00.000000Z",
+            "planned_end_at": "2025-04-09T14:00:00.000000Z",
+            "completed_at": null,
+            "description": "Wooden Chair Model A",
+            "created_at": "2025-04-01T08:00:00.000000Z",
+            "updated_at": "2025-04-02T14:30:00.000000Z",
+            "line": { "id": 1, "name": "Line A", "code": "LA" },
+            "product_type": { "id": 3, "name": "Wooden Chair", "code": "WCH" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 20,
+        "total": 1,
+        "last_page": 1
+    }
+}
+```
+
+A page past the last one returns an empty `data` array with the same `meta`. Invalid
+parameters (`page=0`, `per_page=500` with `page`, a date not in `YYYY-MM-DD` form, `due_to` before
+`due_from`, an unknown `include`, a non-numeric `line_id`, a `search` longer than 255
+characters) return `422` with the usual `errors` object.
 
 #### Get Work Order
 
@@ -723,6 +771,152 @@ which addresses the unit by serial number and de-duplicates runs.
 
 ---
 
+### Material Lots and Genealogy
+
+Material lots (ISA-95 material lots: inbound deliveries and lots produced in
+house) with their genealogy. Requires a Sanctum token; any role may read.
+
+#### List / Look Up Lots
+
+```http
+GET /api/v1/material-lots?lot_number=<our lot number>
+GET /api/v1/material-lots?supplier_lot_no=<part of the supplier's lot number>
+GET /api/v1/material-lots?material_id=<id>&status=released&available_only=1
+GET /api/v1/material-lots?expiring_within_days=30&per_page=100
+Authorization: Bearer <token>
+```
+
+`lot_number` is an exact match on the plant's own lot number;
+`supplier_lot_no` is a substring match. All filters combine. Newest received
+first, `per_page` 1–100 (default 30), with `meta.current_page`, `per_page`,
+`total` and `last_page`.
+
+```http
+GET /api/v1/material-lots/{id}                       # the lot with material, inspection, sublots
+GET /api/v1/material-lots/{id}/genealogy/forward     # batch steps / work orders that consumed it, plus a recall view
+GET /api/v1/material-lots/{id}/genealogy/backward    # inspection, supplier and the upstream lots it was made from
+```
+
+#### Where-Used (unit level)
+
+```http
+GET /api/v1/material-lots/{id}/where-used?max_depth=10&limit=1000&include_removed=0
+Authorization: Bearer <token>
+```
+
+The containment answer for a lot in one call: every serialised unit the lot
+was scanned into as a component, and - walking up the component bindings -
+every unit that contains one of those (a pinion inside a repair kit inside a
+carton), with each unit's work order, batch, pallet and status, and a count per
+work order.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `max_depth` | 10 (0–20) | How many levels of containing units to walk up. `0` returns the directly bound units only. |
+| `limit` | 1000 (1–5000) | Most units returned in total (direct and containing). |
+| `include_removed` | `false` | `0`, `1`, `true` or `false`. Also follow bindings that were taken out again (`unbound_at` set). By default only parts still installed count. |
+
+`precision` says how exact the returned answer is:
+
+- `unit` - the lot has component bindings (still installed ones; removed ones
+  too with `include_removed=1`); `direct_units` and `parent_units` are exactly
+  the affected units. `has_unit_bindings` is `true`.
+- `batch` - no such binding, only batch-step consumption was recorded.
+  `direct_units` is empty; `batch_level` lists the consuming batches and how
+  many units each produced (`candidate_units`). Every candidate *may* contain
+  the lot - it is an upper bound, not a list of affected units.
+- `none` - neither bindings nor consumption are recorded.
+
+When every binding of the lot was taken out again and `include_removed` is
+off, `precision` is `batch` or `none`, and `totals.removed_bindings` (always
+reported) says how many there are - ask again with `include_removed=1` to see
+those units.
+
+`batch_level` is always returned, also next to unit bindings as a cross-check
+(`bound_units` against `candidate_units` per batch shows how complete the
+scanning was). It covers the lot's own consumption only; for multi-stage chains
+through lots produced from it use `genealogy/forward`.
+
+A unit is matched when its binding resolved to the lot, or when it was scanned
+by the lot number before the lot existed (`bindings[].match` is `material_lot`
+or `identifier`; the identifier is compared ignoring case and spaces, as the
+station scan is). `top_level` marks the outermost units - installed in nothing
+else - which is what left the plant. Cycles in the binding data are walked
+once. When `limit` or `max_depth` cut the walk short, `truncated` is `true` and
+`truncated_by` names which (`limit`, `depth`); `totals.direct_units` still
+counts every directly bound unit, while `work_orders` (sorted by order
+number) and the other totals cover the returned units only. A unit whose
+containing unit was cut off has `top_level: null` (unknown) and an empty
+`contained_in`; it is left out of `top_level_units` and counted in
+`totals.top_level_unknown_units` - with `max_depth=0` that is every direct
+unit that sits inside another.
+
+```json
+{
+    "data": {
+        "lot": { "id": 42, "lot_number": "PIN-2026-001", "supplier_lot_no": "SUP-881", "status": "consumed",
+                 "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" } },
+        "precision": "unit",
+        "has_unit_bindings": true,
+        "params": { "max_depth": 10, "limit": 1000, "include_removed": false },
+        "truncated": false,
+        "truncated_by": [],
+        "totals": {
+            "direct_units": 2, "direct_units_returned": 2, "parent_units": 1, "top_level_units": 2,
+            "top_level_unknown_units": 0, "removed_bindings": 0, "work_orders": 2, "by_status": { "completed": 2, "shipped": 1 }
+        },
+        "work_orders": [
+            { "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+              "direct_units": 0, "parent_units": 1, "top_level_units": 1, "by_status": { "shipped": 1 } },
+            { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+              "direct_units": 2, "parent_units": 0, "top_level_units": 1, "by_status": { "completed": 2 } }
+        ],
+        "direct_units": [
+            {
+                "id": 101, "serial_no": "PIN-A", "psn": null, "status": "completed",
+                "material": { "id": 7, "code": "PIN-12", "name": "Pinion 12T" },
+                "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                "batch": { "id": 31, "batch_number": 1, "lot_number": "B-2026-031" },
+                "pallet": null,
+                "produced_at": "2026-11-02T08:14:00+00:00", "shipped_at": null,
+                "depth": 0, "top_level": false,
+                "contained_in": [ { "id": 201, "serial_no": "KIT-1", "psn": null } ],
+                "bindings": [ { "identifier": "PIN-2026-001", "match": "material_lot", "quantity": 1, "installed": true,
+                                "bound_at": "2026-11-02T08:10:00+00:00", "unbound_at": null, "unbind_reason": null } ],
+                "contains": []
+            }
+        ],
+        "parent_units": [
+            {
+                "id": 201, "serial_no": "KIT-1", "psn": null, "status": "shipped",
+                "material": null,
+                "work_order": { "id": 10, "order_no": "WO-KIT", "status": "COMPLETED", "customer_order_no": "CO-77", "product": "Repair kit" },
+                "batch": null,
+                "pallet": { "id": 5, "pallet_no": "PAL-000777", "status": "shipped" },
+                "produced_at": null, "shipped_at": "2026-11-05T13:00:00+00:00",
+                "depth": 1, "top_level": true,
+                "contained_in": [],
+                "contains": [ { "id": 101, "serial_no": "PIN-A", "psn": null } ]
+            }
+        ],
+        "batch_level": {
+            "work_orders": [
+                { "work_order": { "id": 9, "order_no": "WO-PINION", "status": "COMPLETED", "customer_order_no": null, "product": "Pinion" },
+                  "quantity_consumed": 2, "candidate_units": 2,
+                  "batches": [ { "id": 31, "batch_number": 1, "lot_number": "B-2026-031",
+                                 "quantity_consumed": 2, "candidate_units": 2, "bound_units": 2 } ] }
+            ],
+            "totals": { "work_orders": 1, "batches": 1, "candidate_units": 2, "quantity_consumed": 2 }
+        }
+    }
+}
+```
+
+The example shows one of the two direct units. `404` when the lot does not
+exist or belongs to another tenant, `422` for an out-of-range parameter.
+
+---
+
 ### Issues
 
 Issues (Andon system) track problems reported during production.
@@ -1036,6 +1230,293 @@ Authorization: Bearer <token>
 ```
 
 Returns a CSV file download.
+
+---
+
+### OEE and Downtimes
+
+Open to every authenticated user (operators report downtime from the shop floor).
+
+Both list endpoints below keep their original response when called without
+`page` / `per_page`: a plain `data` array, newest first, capped at **100** OEE
+records or **50** downtimes, with no `meta` and no way to reach older rows.
+Send `page` and/or `per_page` to switch to a paginated response that carries a
+`meta` block; this is the way to read a full date range without silent truncation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `page` | integer 1–100000 | Page to return. Turns pagination on. |
+| `per_page` | integer 1–100 | Page size. Turns pagination on. Defaults to the legacy cap (100 for OEE, 50 for downtimes) when only `page` is sent. |
+| `lean` | `1`/`0`/`true`/`false` | Embed only the identifying columns of each relation (see each endpoint) instead of the full records. Works with or without pagination. |
+
+Out-of-range values (`per_page=0`, `per_page=101`, `page=0`, `page=100001`, …) return `422`.
+Ids are checked against the caller's tenant only: a line or workstation that
+belongs to another tenant is answered exactly like an id that does not exist.
+Rows are ordered newest first; rows that tie on the date are ordered by `id`
+descending, so pages never overlap or skip a row.
+
+#### List OEE Records
+
+```http
+GET /api/v1/oee
+Authorization: Bearer <token>
+```
+
+Query parameters (all optional and combinable):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `line_id` | integer | Filter by line (must exist in your tenant, otherwise `422`) |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
+| `date_from` | date | Records with `record_date` on or after this day |
+| `date_to` | date | Records with `record_date` on or before this day (inclusive) |
+
+`record_date` is a calendar date, compared as such; the plant timezone does not apply.
+| `page`, `per_page`, `lean` | | See above |
+
+With `lean=1`, `line` carries `id`, `name`, `code` and `shift` carries `id`, `name`.
+
+Paginated response (`GET /api/v1/oee?date_from=2026-06-24&date_to=2026-06-30&per_page=2&lean=1`):
+```json
+{
+    "data": [
+        {
+            "id": 812,
+            "line_id": 1,
+            "workstation_id": null,
+            "shift_id": 2,
+            "record_date": "2026-06-30T00:00:00.000000Z",
+            "planned_minutes": 480,
+            "operating_minutes": 420,
+            "downtime_minutes": 60,
+            "availability_pct": "87.50",
+            "performance_pct": "91.20",
+            "quality_pct": "97.40",
+            "oee_pct": "77.72",
+            "line": { "id": 1, "name": "Assembly 1", "code": "L1" },
+            "shift": { "id": 2, "name": "Morning" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 2,
+        "total": 21,
+        "last_page": 11
+    }
+}
+```
+
+(Record fields abbreviated.) Without `page`/`per_page` the same request returns
+`{"data": [...]}` with up to 100 records and no `meta`.
+
+#### OEE for One Line
+
+```http
+GET /api/v1/oee/{line}?days=7
+Authorization: Bearer <token>
+```
+
+Records for the line over the last `days` days (today included), newest first.
+
+#### List Downtimes
+
+```http
+GET /api/v1/downtimes
+Authorization: Bearer <token>
+```
+
+Query parameters (all optional and combinable):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `line_id` | integer | Filter by line (an unknown id returns an empty list) |
+| `workstation_id` | integer | Filter by workstation (must exist in your tenant, otherwise `422`) |
+| `date` | date | Downtimes that started on this day (same as `date_from` = `date_to` = this day) |
+| `date_from` | date | Downtimes that started on or after this day |
+| `date_to` | date | Downtimes that started on or before this day (inclusive) |
+| `active` | `1`/`0`/`true`/`false` | `1`: only open downtimes (no `ended_at`); `0`: only finished ones |
+| `page`, `per_page`, `lean` | | See above |
+
+Date filters match on the **plant-local** day the downtime **started** (the
+timezone set under *Settings*), not the UTC day: with the plant in Europe/Warsaw,
+a stop at 00:30 local time on 15 January (`started_at` `2026-01-14T23:30:00Z` in
+the response) is found by `date=2026-01-15`. Only the date part of the
+parameter is used. A stop that began before `date_from` and ran into the range
+is not included.
+
+With `lean=1`, `reason` carries `id`, `code`, `name`, `kind`; `line` and
+`workstation` carry `id`, `name`, `code`; `reported_by` carries `id`, `name`,
+`username`.
+
+Paginated response (`GET /api/v1/downtimes?line_id=1&date_from=2026-06-24&date_to=2026-06-30&page=1&per_page=1&lean=1`):
+```json
+{
+    "data": [
+        {
+            "id": 311,
+            "line_id": 1,
+            "workstation_id": 4,
+            "downtime_reason_id": 3,
+            "started_at": "2026-06-30T08:12:00.000000Z",
+            "ended_at": "2026-06-30T08:40:00.000000Z",
+            "duration_minutes": 28,
+            "notes": "Jammed feeder",
+            "reason": { "id": 3, "code": "jam", "name": "Material jam", "kind": "unplanned" },
+            "line": { "id": 1, "name": "Assembly 1", "code": "L1" },
+            "workstation": { "id": 4, "name": "Press 2", "code": "WS-P2" },
+            "reported_by": { "id": 5, "name": "Alex Smith", "username": "operator1" }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 1,
+        "total": 14,
+        "last_page": 14
+    }
+}
+```
+
+(Record fields abbreviated.) Without `page`/`per_page` the same request returns
+`{"data": [...]}` with up to 50 downtimes and no `meta`.
+
+#### Start / Stop a Downtime
+
+```http
+POST /api/v1/downtimes
+PATCH /api/v1/downtimes/{downtime}
+Authorization: Bearer <token>
+```
+
+`POST` takes `line_id`, `downtime_reason_id` (required), `workstation_id`, `notes`.
+`PATCH` stops an open downtime; stopping one that already ended returns `422`.
+Active reasons are listed by `GET /api/v1/downtime-reasons`.
+
+---
+
+### Shift Handover
+
+Supervisor and Admin roles required. REST twin of *Supervisor → Shift Handover*. When the
+calling account belongs to a tenant, handovers are limited to that tenant: another tenant's
+handover is never listed and returns `404`. Accounts without a tenant (single-tenant installs)
+see all handovers.
+
+#### Current Balance and Recent Handovers
+
+```http
+GET /api/v1/shift-handover?line_id=3
+Authorization: Bearer <token>
+```
+
+`line_id` (optional) scopes the live `balance` to one line; a missing or non-numeric value means
+all lines. It does **not** filter `recent`: as on the web page, `recent` is always the 20 newest
+handovers across all lines, newest first (by `confirmed_at`). For older handovers or filtering,
+use [the history endpoint](#handover-history).
+
+```json
+{
+  "data": {
+    "lines": [{ "id": 3, "name": "Assembly 1", "code": "A1" }],
+    "selected_line_id": 3,
+    "balance": { "line_id": 3, "shift_id": 1, "window": { "...": "..." }, "produced_qty": 120, "...": "..." },
+    "recent": [
+      {
+        "id": 42,
+        "business_date": "2026-11-10",
+        "shift_start": "2026-11-10 06:00",
+        "line_name": "Assembly 1",
+        "produced_qty": 480,
+        "good_qty": 466,
+        "packed_qty": 400,
+        "shipped_qty": 200,
+        "confirmed_by": "Sam Supervisor",
+        "confirmed_at": "2026-11-10 14:05",
+        "shift_end": "2026-11-10 14:00",
+        "line_id": 3,
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "scrap_qty": 14,
+        "wip_open_pallets_qty": 24,
+        "wip_unpacked_qty": 42,
+        "discrepancies": {
+          "unpacked": { "label": "Good output not yet packed", "value": 42, "severity": "warning" },
+          "awaiting_shipment": { "label": "Packed but not yet shipped", "value": 200, "severity": "info" }
+        },
+        "breakdown": {
+          "wip_total_qty": 66,
+          "open_pallets_count": 1,
+          "open_pallets": [],
+          "shift": { "name": "Morning", "code": "I", "start": "06:00", "end": "14:00" }
+        },
+        "notes": "Conveyor jammed twice; maintenance informed.",
+        "confirmed_by_id": 7
+      }
+    ]
+  }
+}
+```
+
+Handover fields (the same in `recent`, history and the single-handover response):
+
+- Timestamps (`shift_start`, `shift_end`, `confirmed_at`) are `YYYY-MM-DD HH:MM` in the
+  application timezone.
+- `discrepancies` and `breakdown` are the snapshot captured when the shift was closed, and are
+  always JSON objects (`{}` when empty). `discrepancies` is keyed by discrepancy (`unpacked`,
+  `awaiting_shipment`, `over_packed`), each with `label`, `value` and `severity`.
+- `shift_name` is the shift name captured in the snapshot, so renaming a shift later does not
+  change history; older handovers without one show the shift's current name.
+- `line_name`, `shift_name` and `confirmed_by` resolve even if the line, shift or user has since
+  been deleted.
+
+#### Handover History
+
+```http
+GET /api/v1/shift-handover/history?line_id=3&business_date_from=2026-11-01&business_date_to=2026-11-07&per_page=50
+Authorization: Bearer <token>
+```
+
+Always paginated, newest first (by `confirmed_at`). Does not compute the live balance. Query
+parameters (all optional):
+
+| Parameter | Description |
+|---|---|
+| `line_id` | Only handovers of this line (positive integer). |
+| `business_date_from`, `business_date_to` | Business date range, inclusive, `YYYY-MM-DD`. `business_date_to` must not be before `business_date_from`. |
+| `per_page` | Page size, 1–100 (default 25). |
+| `page` | Page number (default 1). |
+
+Invalid parameters return `422`.
+
+```json
+{
+  "data": [ { "id": 42, "business_date": "2026-11-10", "...": "same fields as a recent item" } ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 57, "last_page": 3 }
+}
+```
+
+#### Get One Handover
+
+```http
+GET /api/v1/shift-handover/42
+Authorization: Bearer <token>
+```
+
+Returns `{ "data": { ... } }` with the same fields as one `recent` item. `404` when the handover
+does not exist or is outside the caller's tenant.
+
+#### Close the Shift
+
+```http
+POST /api/v1/shift-handover
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "line_id": 3, "notes": "End of A-shift." }
+```
+
+Both fields are optional (`notes` up to 2000 characters). The server recomputes the balance and
+stores it as the handover snapshot; returns `201` with the stored handover record (its database
+columns plus `line` and `confirmed_by` objects, a different shape from the items above). Fetch
+`GET /api/v1/shift-handover/{id}` for the handover fields described above.
 
 ---
 
