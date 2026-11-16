@@ -73,6 +73,16 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RejectWritesWithReadOnlyToken::class,
         ]);
 
+        // `/admin/lines/abc` is a 404, not a PostgreSQL type error (500). Listed
+        // in both groups, and sorted right before SubstituteBindings so it runs
+        // after authentication (a guest still goes to the login page first).
+        $middleware->appendToGroup('web', \App\Http\Middleware\RejectMalformedModelKeys::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\RejectMalformedModelKeys::class);
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\RejectMalformedModelKeys::class,
+        );
+
         // Register Spatie Permission middleware
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

@@ -21,6 +21,7 @@ export function tableLabels() {
         columnsLabel: __('Columns'),
         columnsMenuLabel: __('Toggle columns'),
         emptyLabel: __('Nothing here yet.'),
+        noResultsLabel: __('Nothing matches the current search or filters.'),
         rangeLabel: (start, end, total) => (total === 0 ? __('0 results') : `${start}–${end} / ${total}`),
         filtersLabel: (n) => __('Filters: :n', { n }),
         clearFiltersLabel: __('Clear filters'),

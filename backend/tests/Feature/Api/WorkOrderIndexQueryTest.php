@@ -262,6 +262,36 @@ class WorkOrderIndexQueryTest extends TestCase
         $this->assertSearchFinds('C:\\jobs', $backslash);
     }
 
+    public function test_search_exclamation_mark_is_literal(): void
+    {
+        $this->actingAsRole('Admin');
+        $hit = $this->order(['description' => 'Rush! ship today']);
+        $this->order(['description' => 'Rush ship today']);
+
+        $this->assertSearchFinds('Rush!', $hit);
+    }
+
+    public function test_search_sql_has_no_backslash_escape_clause(): void
+    {
+        // PDO's pgsql placeholder parser treats `'\'` as an escaped quote and
+        // loses the bound term, so every search 500s on Postgres. The suite runs
+        // on SQLite, which does not show it — pin the clause instead.
+        $this->actingAsRole('Admin');
+        $this->order(['order_no' => 'WO-ESC-1']);
+        $sql = [];
+        DB::listen(function ($query) use (&$sql) {
+            $sql[] = $query->sql;
+        });
+
+        $this->getJson('/api/v1/work-orders?search=ESC')->assertOk();
+
+        $search = array_values(array_filter($sql, fn ($s) => str_contains(strtolower($s), ' escape ')));
+        $this->assertNotEmpty($search);
+        foreach ($search as $s) {
+            $this->assertStringNotContainsString("escape '\\'", $s);
+        }
+    }
+
     public function test_search_ignores_soft_deleted_product_types(): void
     {
         $this->actingAsRole('Admin');

@@ -27,6 +27,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   caller's tenant only, so another tenant's id is answered like one that does not exist.
   Malformed filters (a non-numeric `line_id`, an unparseable `date`) now return 422 on both
   endpoints instead of a server error.
+
 - **Shift handover details and history in the REST API.** Items in `recent` of
   `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
   `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
@@ -37,9 +38,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   handover. Both stay Supervisor/Admin only and limited to the caller's tenant.
   `discrepancies` and `breakdown` are always JSON objects, and `shift_name` is the name saved
   with the handover, so renaming a shift does not rewrite history.
+
 - **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
   now show the line, shift and confirming user of a past handover even after that line, shift
   or user has been deleted.
+
 - **Unit-level where-used for a material lot (API).** `GET /api/v1/material-lots/{id}/where-used`
   answers "which units contain this lot?" in one call: every serial unit the lot was scanned
   into as a component, and every unit that contains one of those up the component bindings
@@ -51,8 +54,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   The walk is cycle-safe and bounded (`max_depth`, `limit`, flagged when cut short);
   `include_removed` also follows parts that were taken out again. Same access as the lot
   genealogy endpoints.
+
 - **Find a material lot by its lot number (API).** `GET /api/v1/material-lots` takes
   `lot_number` (exact match on the plant's own lot number) next to the existing filters.
+
 - **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
   accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
   one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
@@ -77,6 +82,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
   `machine-gateway`; `null` for a browser session) so a client can show only the actions its
   token allows. Existing tokens keep the access they have.
+
 - **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
   started on its process serial at the first station and an SN label from a batch printed
   ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
@@ -84,13 +90,161 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
   number kept as superseded). A pre-issued number that already has a component, a carton or
   any processing is still refused as before.
+
 - **Packing can require a serial number and a work order.** *Settings → System → Unit
   serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
   a work order* (both off by default). When on, the packing station refuses a unit that has
   only its process serial, or one not assigned to an order - for plants whose ERP receives
   finished units by serial number on an order.
+
 - **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
   without applying the failed-test policy, so old failed runs do not block or scrap units.
+
+- **Open the daily planner from the weekly view** (#396, thanks @AswinArun). Each day header
+  (weekday and date) on the production planner's weekly view is a button that opens the Daily
+  view for that date and keeps the current line filter.
+
+- **An issue can stop the whole line or one machine** (#398). The issue form has a new effect,
+  *Blocks the line and machine*: it opens a downtime on the line (or the chosen machine) with a
+  downtime reason and holds every active order on that line at every production gate until the
+  issue is resolved.
+
+- **Machine counters are their own tab in Settings → Access** (#398). A supervisor can be given
+  the machine counters without the connectivity configuration; the new `tab:machine_counters`
+  permission is granted to every role that already holds `tab:connectivity`.
+
+- **"Sort by" on the traceability work-orders table** (#397): newest entered (default), recent
+  activity, recently completed, planned start and due date.
+
+- **`MachineShopLifecycleSeeder`** (#397), run after `MachineShopDemoSeeder`, replays a live week
+  of orders through the application's own services — finished, running, blocked and planned
+  orders, sub-assembly chains, lots, pallets, serial history — so every demo screen has linked data.
+
+### Changed
+
+- **Upgrade notes for machine data collection** (#398). Recreate the Modbus poller
+  (`docker compose --profile connectivity up -d modbus-poller`; one `modbus:poll` now serves every
+  active connection and `MODBUS_CONNECTION_ID` is no longer used), rebuild the OPC UA gateway
+  image (`OPCUA_PASSWORD` is only a fallback now), and re-save any invalid MQTT mapping
+  condition — an unreadable condition now never matches.
+
+### Security
+
+- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
+  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
+  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
+  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
+  is clean.
+
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
+- **Machine-gateway API tokens** (#395). *Settings → API Tokens* can issue a *Machine gateway
+  (OPC UA)* token that may only read its connection's settings and send machine data; it gets
+  `403` on every other route, including routes registered by modules.
+
+- The collection snapshot role check from #403 (thanks @p-w) is superseded by the per-collection
+  readers check described above.
+
+### Fixed
+
+- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
+  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
+  backslash, which the database driver misread as an escaped quote. The escape
+  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+
+- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
+  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
+  without querying the database.
+
+- **Signing in returns you to the page you opened.** A link opened while signed out now leads
+  back to that page after the password or two-factor login, instead of the dashboard.
+
+- **Tables say when a search hides every row.** "Nothing matches the current search or
+  filters." replaces the "nothing here yet" text when rows exist but none match.
+
+- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
+  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
+  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
+  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
+  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
+  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
+  every edit, and the live update of a material lot showed a different expiry than the first
+  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
+  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
+  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
+  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
+  full timestamps now receive a plain date.
+
+- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
+  mobile app):
+  - `done_today_work_orders` counted every DONE order edited today, not completed today.
+  - `throughput` put each order's whole output on the last day anything about it changed.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
+  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
+    empty. Both dates are now inclusive.
+  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
+    `line_id` of another tenant is treated as unknown.
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
+
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
+
+- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
+  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
+  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
+
+- **The OPC UA gateway says why it is not connected** (#395, #387). The start command on the
+  connection page includes the token, a `localhost`/`127.0.0.1` endpoint is flagged with the
+  address that works from Docker, the connectivity pages carry a setup guide, and a gateway that
+  runs but cannot reach its machine reports the error on the connection page.
+
+- **Machine data collection is reliable** (#398). OPC UA counts are accepted, queued while
+  OpenMES is down and never counted twice; Modbus and MQTT survive a lost PLC or broker without
+  stalling the other connections, reconnect with back-off and refresh their settings every 60 s;
+  MQTT processes each message once and `plant/+/#` matches; machine timestamps are stored in the
+  plant time zone; status dots show *connected* only while the collector runs; `total` counters
+  are no longer added to good output. A nightly `machine-counters:prune-readings` drops unchanged
+  readings older than 7 days.
+
+- **Table search and filters match what the cells show** (#394). Searching for a status, a
+  Yes/No or a looked-up name now finds the rows that display it, and select filters list labels
+  instead of raw codes, across 23 columns (work orders, materials, lots, issues, customers and more).
+
+- **Traceability step durations are exact to the second** (#397); sub-minute steps showed `0s`.
+
+- **The dashboard OEE overview shows the meaningful record per line** (#397): the whole-day
+  record, else the shift with an OEE value and the most output — not a shift that has not started.
+
+## [0.28.0] - 2026-11-01
+
+### Added
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -101,6 +255,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and accepts the switch for Admins only. In the operator view the operator screen lists the
   admin tabs the *Operator* role grants, and line selection shows the lines the administrator
   is assigned to.
+- **Indian Rupee (INR) as the installation currency** (#389, thanks @Jovinmathew). *Settings →
+  System → General → Currency* now offers INR alongside the other supported currencies.
 - **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
@@ -245,15 +401,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
-- **Live-sync collections now check who is asking.** The snapshot behind every live list
-  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
-  Operator could read customer, company, worker and user records meant for the admin panel.
-  Each collection now declares who may read it: Admin and Supervisor read every collection;
-  anyone else reads only the collections behind the admin tabs they were granted in the
-  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
-  update channel uses the same rule, so an Operator granted a tab now also gets that page's
-  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
-
+- **Patched PHP dependencies** (#385, thanks @AsteaFrostweb). Composer-locked packages moved to
+  releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
+  HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
+  PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -282,53 +433,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
-  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
-  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
-  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
-  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
-  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
-  every edit, and the live update of a material lot showed a different expiry than the first
-  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
-  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
-  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
-  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
-  full timestamps now receive a plain date.
-- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
-  mobile app):
-  - `done_today_work_orders` counted every DONE order edited today, not completed today.
-  - `throughput` put each order's whole output on the last day anything about it changed.
-    It now sums the output ledger by the day the units were made, and `days=7` means the
-    last seven plant days including today (it returned eight).
-  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
-    empty. Both dates are now inclusive.
-  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
-    `line_id` of another tenant is treated as unknown.
-
-- **Downtime report no longer fails on non-conformances raised outside an order.** An
-  inbound-inspection issue (raised against a material, with no work order) in the chosen
-  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
-  now listed with an empty work order number.
-
-- **Machine-shop demo records match their own story.** Reported issues were filed against the
-  first order of a line, moved between orders in groups, and then pinned to whichever step was
-  running or to the middle step of the routing — so a broken turning insert sat on a grinding
-  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
-  housing. Each seeded issue now names its part and routing step, lands on an order of that
-  part and on a batch step of that operation, and a blocked order stops on the step its
-  blocking issue describes. The lifecycle plan keeps an order of each part with a live
-  problem running whenever it is replayed, so the demo always has its two blocked orders
-  and its acknowledged issue — even on a Monday morning or while a part is between orders.
-  Scrap notes follow the operation instead of the station type (no
-  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
-  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
-  descriptions no longer claim a state or customer the order does not have.
-- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
-  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
-  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
-  replay now commits order by order. It also no longer records anything after the present:
-  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
-  is last Friday's delivery when the replay runs before Monday's goods-in.
+- **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
+  change to the search query added another *Settings* result, because the Settings group and
+  the footer link were indexed under the same key.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.

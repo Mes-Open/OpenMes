@@ -948,6 +948,10 @@ class WorkOrderService
      * (wrapped, code-supplied) column name is interpolated; the term is bound.
      * ILIKE on Postgres, LIKE (ASCII case-insensitive) elsewhere.
      *
+     * The escape character is `!`, not a backslash: PDO's pgsql placeholder
+     * parser reads `'\'` as an escaped quote that never closes, swallows the
+     * `?` after it and fails every search with "parameter was not defined".
+     *
      * @template TBuilder of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
      *
      * @param  TBuilder  $query
@@ -956,10 +960,10 @@ class WorkOrderService
     private function whereContains($query, string $column, string $term)
     {
         $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
-        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
 
         return $query->whereRaw(
-            $query->getGrammar()->wrap($column)." {$operator} ? escape '\\'",
+            $query->getGrammar()->wrap($column)." {$operator} ? escape '!'",
             [$pattern],
         );
     }
