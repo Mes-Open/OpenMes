@@ -227,7 +227,7 @@ class WorkOrderStockDocumentService
     /**
      * The output lot of one batch: released, so the next level can pick it once
      * the receipt is posted, and empty until then. Named after the batch's lot
-     * number (or order-batch), suffixed when that number is already taken.
+     * number (or order-batch), suffixed until the number is free.
      */
     private function lotForBatch(WorkOrder $workOrder, Batch $batch, Material $material): MaterialLot
     {
@@ -239,10 +239,16 @@ class WorkOrderStockDocumentService
             return $existing;
         }
 
-        $number = $batch->lot_number ?: $workOrder->order_no.'-'.$batch->batch_number;
+        $base = $batch->lot_number ?: $workOrder->order_no.'-'.$batch->batch_number;
+        $taken = fn (string $candidate) => MaterialLot::withTrashed()
+            ->where('lot_number', $candidate)
+            ->where('tenant_id', $workOrder->tenant_id)
+            ->exists();
 
-        if (MaterialLot::withTrashed()->where('lot_number', $number)->where('tenant_id', $workOrder->tenant_id)->exists()) {
-            $number .= '-'.$batch->id;
+        // The base, then base-<batch id>, then base-<batch id>-2, -3 … until one is free.
+        $number = $base;
+        for ($n = 1; $taken($number); $n++) {
+            $number = $base.'-'.$batch->id.($n > 1 ? '-'.$n : '');
         }
 
         return MaterialLot::create([

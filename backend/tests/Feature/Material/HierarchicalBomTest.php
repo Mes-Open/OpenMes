@@ -374,6 +374,8 @@ class HierarchicalBomTest extends TestCase
 
         WorkOrder::factory()->create([
             'product_type_id' => $parent->product_type_id,
+            // Frozen from its own routing, as a released order is.
+            'process_snapshot' => $parent->fresh()->toSnapshot(),
             'planned_qty' => 10,
             'status' => WorkOrder::STATUS_PENDING,
             'due_date' => now()->addDays(3),
@@ -407,6 +409,8 @@ class HierarchicalBomTest extends TestCase
 
         WorkOrder::factory()->create([
             'product_type_id' => $parent->product_type_id,
+            // Frozen from its own routing, as a released order is.
+            'process_snapshot' => $parent->fresh()->toSnapshot(),
             'planned_qty' => 10,
             'status' => WorkOrder::STATUS_PENDING,
             'due_date' => now()->addDays(3),

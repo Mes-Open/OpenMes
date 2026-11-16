@@ -2,11 +2,14 @@
 
 namespace App\Services\Material;
 
+use App\Models\BatchStep;
 use App\Models\Material;
 use App\Models\ProcessTemplate;
 use App\Models\StockDocument;
 use App\Models\StockDocumentLine;
+use App\Models\TemplateStep;
 use App\Models\WorkOrder;
+use App\Services\Warehouse\PalletStockDocumentService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -73,12 +76,12 @@ class NetRequirementsService
             ->whereBetween('due_date', [$from, $to])
             ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
             ->with('bomTemplates:process_templates.id')
-            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date']);
+            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date', 'process_snapshot']);
 
-        // Orders without a selected BOM fall back to the newest active template,
-        // the same rule the work order itself uses when none is picked.
+        // Orders without a frozen BOM or a selected one fall back to the newest
+        // active template, the same rule the work order itself uses when none is picked.
         $fallback = $this->activeTemplateByProductType(
-            $workOrders->filter(fn (WorkOrder $wo) => $wo->bomTemplates->isEmpty())
+            $workOrders->filter(fn (WorkOrder $wo) => $this->snapshotBom($wo) === null && $wo->bomTemplates->isEmpty())
                 ->pluck('product_type_id')->unique()->filter()
         );
 
@@ -202,18 +205,24 @@ class NetRequirementsService
     /**
      * The direct components of one order's product, per unit.
      *
-     * The shop floor consumes the BOMs selected on the order (`work_order_boms`),
-     * merged into its snapshot, so MRP reads the same selection: every selected
-     * BOM, quantities summed per material. That is what
-     * {@see \App\Services\WorkOrder\WorkOrderService::mergeBoms()} does too —
-     * scrap is already folded into each line here, so a plain sum is exact.
-     * An order with no selection falls back to the newest active template.
+     * The shop floor consumes the order's frozen BOM (`process_snapshot.bom`):
+     * the BOMs selected on it, merged when the order was created, so a template
+     * edited since does not change what the order uses. MRP reads the same
+     * lines. An order without a snapshot falls back to its selected BOMs
+     * (`work_order_boms`), summed per material as
+     * {@see \App\Services\WorkOrder\WorkOrderService::mergeBoms()} does, and
+     * one with neither to the newest active template.
      *
      * @param  Collection<int, ProcessTemplate>  $fallback
      * @return list<array{material_id: int, required_per_unit: float}>
      */
     private function levelOneComponents(WorkOrder $wo, Collection $fallback): array
     {
+        $frozen = $this->snapshotBom($wo);
+        if ($frozen !== null) {
+            return $frozen;
+        }
+
         $templates = $wo->bomTemplates->isNotEmpty()
             ? $wo->bomTemplates
             : collect([$fallback->get($wo->product_type_id)])->filter();
@@ -224,6 +233,40 @@ class NetRequirementsService
                 $mid = $line['material_id'];
                 $perUnit[$mid] = ($perUnit[$mid] ?? 0) + $line['required_per_unit'];
             }
+        }
+
+        return array_map(
+            fn (int $mid, float $qty) => ['material_id' => $mid, 'required_per_unit' => $qty],
+            array_keys($perUnit),
+            array_values($perUnit),
+        );
+    }
+
+    /**
+     * Material lines of the order's frozen BOM, per unit, scrap included, summed
+     * per material — or null when the order has no snapshot BOM. Snapshot
+     * quantities are already per finished unit (a per-carton or per-pallet line
+     * was divided by the packing step when it was frozen), the same figure
+     * allocation multiplies by the quantity. Product-type lines carry no
+     * material and are skipped, as consumption skips them.
+     *
+     * @return list<array{material_id: int, required_per_unit: float}>|null
+     */
+    private function snapshotBom(WorkOrder $wo): ?array
+    {
+        $bom = $wo->process_snapshot['bom'] ?? null;
+        if (! is_array($bom)) {
+            return null;
+        }
+
+        $perUnit = [];
+        foreach ($bom as $line) {
+            $mid = $line['material_id'] ?? null;
+            if ($mid === null || ($line['component_kind'] ?? 'material') === 'product_type') {
+                continue;
+            }
+            $qty = (float) ($line['quantity_per_unit'] ?? 0) * (1 + (float) ($line['scrap_percentage'] ?? 0) / 100);
+            $perUnit[(int) $mid] = round(($perUnit[(int) $mid] ?? 0) + $qty, 6);
         }
 
         return array_map(
@@ -317,7 +360,22 @@ class NetRequirementsService
             ->whereIn('status', self::SUPPLY_STATUSES)
             ->whereIn('product_type_id', $materialByProduct->keys())
             ->where(fn ($q) => $q->whereNull('due_date')->orWhere('due_date', '<=', $to))
-            ->get(['id', 'product_type_id', 'planned_qty', 'produced_qty']);
+            ->get(['id', 'product_type_id', 'planned_qty', 'produced_qty', 'process_snapshot']);
+
+        // An order whose pallets book its output receives it as a product, never
+        // as the material, so it is no supply of the material either — the same
+        // rule completion follows (WorkOrderStockDocumentService). An order not
+        // started yet has no batch steps, so its frozen routing decides.
+        if (PalletStockDocumentService::mode() !== PalletStockDocumentService::OFF) {
+            $packedByBatch = BatchStep::where('kind', TemplateStep::KIND_PACKING)
+                ->join('batches', 'batches.id', '=', 'batch_steps.batch_id')
+                ->whereIn('batches.work_order_id', $orders->pluck('id'))
+                ->distinct()
+                ->pluck('batches.work_order_id')
+                ->flip();
+            $orders = $orders->reject(fn (WorkOrder $order) => $packedByBatch->has($order->id)
+                || collect($order->process_snapshot['steps'] ?? [])->contains('kind', TemplateStep::KIND_PACKING));
+        }
 
         if ($orders->isEmpty()) {
             return [];
