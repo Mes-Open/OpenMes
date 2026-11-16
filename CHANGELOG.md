@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **The API reports the plant time zone.** `GET /api/auth/me` now includes
+  `plant: { timezone, utc_offset }`, from Settings → System. API timestamps are UTC
+  instants; clients such as the MCP server need the zone to show them in plant time and to
+  tell which plant day a timestamp falls on.
+
 - **Paging and range filters for the OEE and downtime APIs.** `GET /api/v1/oee` and
   `GET /api/v1/downtimes` used to return only the newest 100 records / 50 downtimes, so an
   integration asking for a week across several lines got a silently truncated list. Both

@@ -157,13 +157,24 @@ Authorization: Bearer <token>
 Response:
 ```json
 {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "name": "Administrator",
-    "role": "Admin"
+    "data": {
+        "id": 1,
+        "username": "admin",
+        "email": "admin@example.com",
+        "name": "Administrator",
+        "accessible_tabs": ["orders", "admin"]
+    },
+    "token": { "scope": "read-only", "abilities": ["read"] },
+    "plant": { "timezone": "Europe/Warsaw", "utc_offset": "+01:00" }
 }
 ```
+
+- `token` is `null` for session (cookie) authentication.
+- `plant.timezone` is the zone set in Settings → System. Timestamps in the API
+  (`started_at`, `due_date`, `created_at`, …) are UTC instants; convert them to this zone to
+  show plant time. Calendar dates (`record_date`, `expiry_date`, …) are plain `YYYY-MM-DD`
+  plant days and need no conversion. `utc_offset` is the offset at the moment of the
+  request, so it changes with daylight saving; use `timezone` for conversions.
 
 #### Change Password
 
