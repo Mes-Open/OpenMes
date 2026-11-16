@@ -415,6 +415,58 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
   change to the search query added another *Settings* result, because the Settings group and
   the footer link were indexed under the same key.
+- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
+  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
+  backslash, which the database driver misread as an escaped quote. The escape
+  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+
+- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
+  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
+  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
+  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
+  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
+  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
+  every edit, and the live update of a material lot showed a different expiry than the first
+  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
+  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
+  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
+  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
+  full timestamps now receive a plain date.
+- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
+  mobile app):
+  - `done_today_work_orders` counted every DONE order edited today, not completed today.
+  - `throughput` put each order's whole output on the last day anything about it changed.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
+  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
+    empty. Both dates are now inclusive.
+  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
+    `line_id` of another tenant is treated as unknown.
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
+
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
+- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
+  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
+  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
