@@ -7366,5 +7366,6 @@
     "Semi-finished part received from work order :order": "Półprodukt przyjęty ze zlecenia :order",
     "On order": "W produkcji",
     "Count open work orders for semi-finished parts as supply": "Licz otwarte zlecenia na półprodukty jako zapas",
-    "Unknown BOM \":name\" for product \":code\".": "Nieznana technologia (BOM) „:name” dla wyrobu „:code”."
+    "Unknown BOM \":name\" for product \":code\".": "Nieznana technologia (BOM) „:name” dla wyrobu „:code”.",
+    "Nothing matches the current search or filters.": "Nic nie pasuje do bieżącego wyszukiwania ani filtrów."
 }
