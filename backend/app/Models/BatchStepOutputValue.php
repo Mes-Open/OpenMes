@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,7 +42,7 @@ class BatchStepOutputValue extends Model
         return [
             'value_number' => 'decimal:6',
             'value_boolean' => 'boolean',
-            'value_date' => 'date:Y-m-d',
+            'value_date' => CalendarDate::class,
             'file_size' => 'integer',
             'recorded_at' => 'datetime',
         ];

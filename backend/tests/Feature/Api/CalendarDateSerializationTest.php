@@ -3,12 +3,14 @@
 namespace Tests\Feature\Api;
 
 use App\Events\CollectionChanged;
+use App\Models\Batch;
 use App\Models\Line;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\OeeRecord;
 use App\Models\Tool;
 use App\Models\User;
+use App\Models\WorkOrder;
 use App\Support\TimezoneRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,13 +80,13 @@ class CalendarDateSerializationTest extends TestCase
             }
 
             foreach ((new $class)->getCasts() as $attribute => $cast) {
-                if (in_array($cast, ['date', 'immutable_date'], true)) {
+                if (in_array($cast, ['date', 'immutable_date'], true) || str_starts_with((string) $cast, 'date:')) {
                     $offenders[] = "{$class}::\${$attribute}";
                 }
             }
         }
 
-        $this->assertSame([], $offenders, "Cast DB date columns as 'date:Y-m-d' so they serialize as the day they name.");
+        $this->assertSame([], $offenders, 'Cast DB date columns with CalendarDate::class so they read as midnight and serialize as the day they name.');
     }
 
     #[DataProvider('plantZones')]
@@ -126,6 +128,23 @@ class CalendarDateSerializationTest extends TestCase
         $this->assertSame($timezone, $expiry->getTimezone()->getName());
     }
 
+    #[DataProvider('plantZones')]
+    public function test_a_value_assigned_with_a_time_is_the_day_at_midnight(string $timezone): void
+    {
+        $this->plantIn($timezone);
+
+        $lot = MaterialLot::factory()->make(['expiry_date' => '2026-01-15 12:30:00']);
+
+        // Before any save or reload: no time of day leaks through.
+        $this->assertSame('2026-01-15 00:00:00', $lot->expiry_date->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-01-15', $lot->getAttributes()['expiry_date']);
+        $this->assertSame('2026-01-15', $lot->toArray()['expiry_date']);
+
+        $lot->save();
+        $this->assertSame('2026-01-15', (string) DB::table('material_lots')->where('id', $lot->id)->value('expiry_date'));
+        $this->assertSame('2026-01-15 00:00:00', $lot->fresh()->expiry_date->format('Y-m-d H:i:s'));
+    }
+
     public function test_tool_edit_form_gets_the_day_it_saves_back(): void
     {
         $this->plantIn('Europe/Warsaw');
@@ -137,6 +156,19 @@ class CalendarDateSerializationTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('admin/tools/Edit')
                 ->where('tool.next_service_at', '2026-01-15'));
+    }
+
+    public function test_work_order_report_gets_the_batch_expiry_day(): void
+    {
+        $this->plantIn('Europe/Warsaw');
+        $wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_DONE, 'completed_at' => now()]);
+        Batch::factory()->create(['work_order_id' => $wo->id, 'status' => Batch::STATUS_DONE, 'expiry_date' => '2026-01-15']);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/reports/{$wo->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('workOrder.batches.0.expiry_date', '2026-01-15'));
     }
 
     public function test_live_sync_delta_matches_the_snapshot(): void

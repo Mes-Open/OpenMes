@@ -28,5 +28,12 @@ describe('formatDate with a calendar date', () => {
 
     it('returns an empty string for an impossible date', () => {
         expect(formatDate('2026-13-45')).toBe('');
+        expect(formatDate('2026-02-30')).toBe('');
+        expect(formatDate('2026-04-31')).toBe('');
+        expect(formatDate('2026-02-29')).toBe(''); // not a leap year
+    });
+
+    it('formats 29 February in a leap year', () => {
+        expect(formatDate('2028-02-29')).toBe('29/02/2028');
     });
 });

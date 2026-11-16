@@ -165,7 +165,9 @@ export function formatDate(value, opts = { day: '2-digit', month: '2-digit', yea
     // the 9th, so format it in UTC, where it is still the day it names.
     if (typeof value === 'string' && CALENDAR_DATE.test(value)) {
         const day = new Date(`${value}T00:00:00Z`);
-        return isNaN(day) ? '' : day.toLocaleDateString(localeTag(), { ...opts, timeZone: 'UTC' });
+        // Date rolls a day the month lacks into the next one (30 Feb → 2 Mar).
+        if (isNaN(day) || day.toISOString().slice(0, 10) !== value) return '';
+        return day.toLocaleDateString(localeTag(), { ...opts, timeZone: 'UTC' });
     }
     const d = toDate(value);
     if (isNaN(d)) return '';

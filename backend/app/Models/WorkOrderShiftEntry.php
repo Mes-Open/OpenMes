@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +23,7 @@ class WorkOrderShiftEntry extends Model
     {
         return [
             'quantity' => 'decimal:2',
-            'production_date' => 'date:Y-m-d',
+            'production_date' => CalendarDate::class,
         ];
     }
 
