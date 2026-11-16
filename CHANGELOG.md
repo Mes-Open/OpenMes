@@ -310,6 +310,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
   now listed with an empty work order number.
 
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
+- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
+  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
+  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
