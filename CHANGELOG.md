@@ -419,6 +419,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
   backslash, which the database driver misread as an escaped quote. The escape
   character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
+  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
+  without querying the database.
+- **Signing in returns you to the page you opened.** A link opened while signed out now leads
+  back to that page after the password or two-factor login, instead of the dashboard.
+- **Tables say when a search hides every row.** "Nothing matches the current search or
+  filters." replaces the "nothing here yet" text when rows exist but none match.
 
 - **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
   `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
