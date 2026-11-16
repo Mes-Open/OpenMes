@@ -26,8 +26,7 @@ export default function IssueTypesIndex() {
         {
             key: 'severity',
             label: __('Severity'),
-           
-            value: (r) => r.severity,
+            value: (r) => SEVERITY_LABELS[r.severity] ?? r.severity,
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityBadgeClass(r.severity)}`}>
                     {SEVERITY_LABELS[r.severity] ?? r.severity}

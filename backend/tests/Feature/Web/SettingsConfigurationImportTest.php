@@ -199,4 +199,76 @@ class SettingsConfigurationImportTest extends TestCase
         $this->assertContains('Imported PSN', array_column($export['lot_sequences'], 'name'));
         $this->assertNotEmpty($export['line_product_type']);
     }
+
+    public function test_workers_come_in_with_their_bench_and_pay_never_travels(): void
+    {
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            ...$this->plant(),
+            'workers' => [['id' => 9, 'code' => 'W-001', 'name' => 'Welder', 'workstation_id' => 1, 'is_active' => true, 'pay_type' => 'hourly', 'pay_rate' => 99.5, 'pay_currency' => 'PLN']],
+        ])])->assertSessionHas('success');
+
+        $worker = DB::table('workers')->where('code', 'W-001')->first();
+        $this->assertNotNull($worker);
+        $this->assertSame(Workstation::where('code', 'IMP-A')->value('id'), (int) $worker->workstation_id);
+        $this->assertNull($worker->pay_rate);
+        $this->assertNull($worker->pay_type);
+
+        DB::table('workers')->where('code', 'W-001')->update(['pay_rate' => 42, 'pay_type' => 'hourly']);
+        $export = $this->actingAs($this->admin)->get(route('settings.export'))->assertOk()->json();
+        $row = collect($export['workers'])->firstWhere('code', 'W-001');
+        $this->assertSame('Welder', $row['name']);
+        $this->assertArrayNotHasKey('pay_rate', $row);
+        $this->assertArrayNotHasKey('pay_type', $row);
+    }
+
+    public function test_worker_skills_and_their_certification_come_in_when_the_tables_exist(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('worker_skills')) {
+            $this->markTestSkipped('Worker skills ship with an optional module.');
+        }
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'skills' => [['id' => 4, 'code' => 'WELD-136', 'name' => 'MAG welding']],
+            'workers' => [['id' => 9, 'code' => 'W-002', 'name' => 'Welder', 'is_active' => true]],
+            'worker_skills' => [['worker_id' => 9, 'skill_id' => 4, 'level' => 2, 'certified_until' => '2027-03-31']],
+        ])])->assertSessionHas('success');
+
+        $workerId = DB::table('workers')->where('code', 'W-002')->value('id');
+        $skillId = DB::table('skills')->where('code', 'WELD-136')->value('id');
+        $row = DB::table('worker_skills')->where(['worker_id' => $workerId, 'skill_id' => $skillId])->first();
+        $this->assertNotNull($row);
+        $this->assertSame(2, (int) $row->level);
+        if (property_exists($row, 'certified_until')) {
+            $this->assertStringStartsWith('2027-03-31', (string) $row->certified_until);
+        }
+    }
+
+    public function test_an_empty_section_counts_as_carried_and_never_lends_an_existing_row(): void
+    {
+        // The file says "no lines": a workstation pointing at line 1 must not land on whatever line has id 1 here.
+        $existing = Line::factory()->create(['code' => 'HERE-1']);
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'lines' => [],
+            'workstations' => [['id' => 1, 'code' => 'IMP-EMPTY', 'name' => 'Bench', 'line_id' => $existing->id]],
+        ])])->assertSessionHas('success');
+
+        $this->assertNull(Workstation::where('code', 'IMP-EMPTY')->value('line_id'));
+    }
+
+    public function test_skills_of_a_worker_the_file_does_not_carry_are_not_given_to_another_worker(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('worker_skills')) {
+            $this->markTestSkipped('Worker skills ship with an optional module.');
+        }
+        $unrelatedId = DB::table('workers')->insertGetId(['code' => 'HERE-W', 'name' => 'Someone else', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'skills' => [['id' => 4, 'code' => 'WELD-141', 'name' => 'TIG welding']],
+            'workers' => [],
+            'worker_skills' => [['worker_id' => $unrelatedId, 'skill_id' => 4, 'level' => 3]],
+        ])])->assertSessionHas('success');
+
+        $this->assertFalse(DB::table('worker_skills')->where('worker_id', $unrelatedId)->exists());
+    }
 }

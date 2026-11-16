@@ -337,6 +337,8 @@ class SettingsController extends Controller
                 'id' => $t->id,
                 'name' => $t->name,
                 'tokenable_name' => $t->tokenable?->name ?? 'Unknown',
+                'scope' => \App\Enums\ApiTokenScope::fromAbilities($t->abilities)->value,
+                'scope_label' => \App\Enums\ApiTokenScope::fromAbilities($t->abilities)->label(),
                 'created_at_formatted' => $t->created_at->translatedFormat('d M Y, H:i'),
                 'last_used_at_human' => $t->last_used_at?->diffForHumans(),
             ]);
@@ -345,25 +347,27 @@ class SettingsController extends Controller
             'tokens' => $tokens,
             'newToken' => session('new_token'),
             'newTokenName' => session('new_token_name'),
+            'newTokenScope' => session('new_token_scope'),
             'appUrl' => config('app.url'),
+            'scopes' => array_map(
+                fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label(), 'description' => $scope->description()],
+                \App\Enums\ApiTokenScope::cases(),
+            ),
         ]);
     }
 
     /**
      * Create a new API token (admin only).
      */
-    public function createApiToken(Request $request)
+    public function createApiToken(\App\Http\Requests\CreateApiTokenRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-        ]);
-
-        $user = auth()->user();
-        $token = $user->createToken($validated['name']);
+        $name = $request->validated('name');
+        $token = $request->user()->createToken($name, $request->scope()->abilities());
 
         return redirect()->route('settings.api-tokens')
             ->with('new_token', $token->plainTextToken)
-            ->with('new_token_name', $validated['name']);
+            ->with('new_token_name', $name)
+            ->with('new_token_scope', $request->scope()->value);
     }
 
     /**
@@ -628,6 +632,8 @@ class SettingsController extends Controller
             'unit_psn_pattern' => trim($validated['unit_psn_pattern'] ?? ''),
             'unit_psn_required' => (bool) ($validated['unit_psn_required'] ?? false),
             'unit_psn_unique' => (bool) ($validated['unit_psn_unique'] ?? false),
+            'unit_pack_requires_serial' => (bool) ($validated['unit_pack_requires_serial'] ?? false),
+            'unit_pack_requires_order' => (bool) ($validated['unit_pack_requires_order'] ?? false),
             'unit_test_fail_policy' => $validated['unit_test_fail_policy'] ?? \App\Support\UnitSerialisation::FAIL_BLOCK,
             'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
             'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,
@@ -742,7 +748,8 @@ class SettingsController extends Controller
             if (Schema::hasColumn($table, 'deleted_at')) {
                 $query->whereNull('deleted_at'); // the trash stays here
             }
-            $export[$table] = $query->get()->map(fn ($r) => (array) $r)->toArray();
+            $excluded = array_flip(ConfigurationImporter::EXCLUDED_COLUMNS[$table] ?? []);
+            $export[$table] = $query->get()->map(fn ($r) => array_diff_key((array) $r, $excluded))->toArray();
         }
 
         return response()->json($export, 200, [

@@ -12,11 +12,13 @@ const ACTION_STYLES = {
     deleted: 'bg-om-blocked-bg text-om-blocked',
 };
 
+const actionLabel = (action) => (action ? __(action.charAt(0).toUpperCase() + action.slice(1)) : '—');
+
 function ActionBadge({ action }) {
     const cls = ACTION_STYLES[action] ?? 'bg-om-chip text-om-muted';
     return (
         <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>
-            {action ? __(action.charAt(0).toUpperCase() + action.slice(1)) : '—'}
+            {actionLabel(action)}
         </span>
     );
 }
@@ -166,7 +168,7 @@ export default function AuditLogs() {
         },
         {
             id: 'action',
-            accessorFn: (log) => log.action ?? '',
+            accessorFn: (log) => actionLabel(log.action),
             header: __('Action'),
             cell: ({ row }) => <ActionBadge action={row.original.action} />,
             meta: { align: 'left' },

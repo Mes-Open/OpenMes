@@ -69,8 +69,15 @@ A tag declares what its value *means*:
 Fully implemented (since v0.4.0). Library: `php-mqtt/client`. See
 [mqtt-connectivity.md](mqtt-connectivity.md).
 
-### Modbus TCP — `php artisan modbus:poll --connection=<id>`
+### Modbus TCP — `php artisan modbus:poll`
 Fully implemented. Library: `aldas/modbus-tcp-client`.
+
+- `modbus:poll` serves every active Modbus connection. It runs one worker
+  process per connection (`modbus:poll --connection=<id>`), because Modbus
+  reads block: a PLC that is switched off would otherwise hold up every other
+  machine for its timeout. Connections added, switched off or deleted in the
+  UI get or lose their worker within seconds; a worker that dies is restarted.
+- `--connection=<id or name>` polls just that one connection.
 
 - Config in `modbus_connections` (host, port, unit id, poll interval, byte/word
   order). UI: **Admin → Connectivity → Modbus**.
@@ -132,7 +139,8 @@ start by default:
 # Modbus poller for connection 1
 MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
 
-# OPC UA gateway for connection 1 (needs an API token: Admin → API Tokens)
+# OPC UA gateway for connection 1 (needs a machine gateway token:
+# Settings → API Tokens → Access: "Machine gateway (OPC UA)")
 OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
   docker compose --profile connectivity up -d opcua-gateway
 
@@ -142,6 +150,24 @@ MQTT_CONNECTION_ID=1 docker compose --profile connectivity up -d mqtt-listener
 # Queue worker (needed in production for MQTT/queued jobs)
 docker compose --profile workers up -d queue-worker
 ```
+
+The OPC UA gateway runs in its own container, so an OPC UA server on the
+Docker host is `opc.tcp://host.docker.internal:4840`, not `127.0.0.1` — the
+connection page warns about a loopback endpoint. On Linux that address is the
+Docker bridge, so the server must not listen on `127.0.0.1` only: use the bridge
+address (usually `172.17.0.1`), or `0.0.0.0` behind a firewall. A gateway that
+is running but cannot reach the server, or loses an established connection,
+reports the reason with every heartbeat until the session and subscriptions are
+back, and the page shows "Running, but cannot connect to the machine" with that
+message.
+
+After changing `OPENMES_API_TOKEN` in `.env`, recreate the container with
+`OPCUA_CONNECTION_ID=<id> docker compose --profile connectivity up -d opcua-gateway`;
+`docker compose restart` keeps the old token.
+
+A machine gateway token can only call the three gateway endpoints
+(`gateway-config`, `signals`, `heartbeat`); every other API route rejects it
+with 403. Full-access tokens keep working for the gateway.
 
 Not using Docker? Run the equivalent `php artisan …` command under a process
 supervisor (systemd, Supervisor, etc.). The connection page shows the exact

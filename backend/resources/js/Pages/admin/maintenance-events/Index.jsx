@@ -5,6 +5,15 @@ import ResourceFormDrawer, { useResourceDrawer } from '../../../components/Resou
 import { EVENT_STATUS_STYLES, maintenanceEventFields, maintenanceEventInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
+const statusLabel = (r) => ({
+    pending: __('Pending'),
+    planned: __('Planned'),
+    in_progress: __('In Progress'),
+    completed: __('Completed'),
+    done: __('Completed'),
+    cancelled: __('Cancelled'),
+}[r.status] ?? r.status);
+
 export default function MaintenanceEventsIndex() {
     const {
         toolNames = {},
@@ -52,22 +61,14 @@ export default function MaintenanceEventsIndex() {
         {
             key: 'status',
             label: __('Status'),
-           
-            value: (r) => r.status,
+            value: statusLabel,
             render: (r) => (
                 <span
                     className={`text-xs px-2 py-0.5 rounded font-medium ${
                         EVENT_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'
                     }`}
                 >
-                    {{
-                        pending: __('Pending'),
-                        planned: __('Planned'),
-                        in_progress: __('In Progress'),
-                        completed: __('Completed'),
-                        done: __('Completed'),
-                        cancelled: __('Cancelled'),
-                    }[r.status] ?? r.status}
+                    {statusLabel(r)}
                 </span>
             ),
         },

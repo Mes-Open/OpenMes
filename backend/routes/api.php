@@ -149,6 +149,20 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
 });
 
+// Machine gateway bridge (OPC UA sidecar / external REST gateways). A token
+// scoped to `machine-gateway` (Settings → API Tokens) may call these and nothing
+// else: RejectMachineGatewayToken runs on the whole `api` group and exempts only
+// the `api.machine-gateway.*` names below. Full `*` tokens and sessions pass.
+Route::prefix('v1/machine-connections/{machineConnection}')
+    ->middleware(['auth:sanctum', 'ability:'.\App\Enums\ApiTokenScope::GATEWAY_ABILITY])
+    ->name('api.machine-gateway.')
+    ->controller(\App\Http\Controllers\Api\V1\MachineGatewayController::class)
+    ->group(function () {
+        Route::get('/gateway-config', 'config')->name('config');
+        Route::post('/signals', 'ingest')->name('signals');
+        Route::post('/heartbeat', 'heartbeat')->name('heartbeat');
+    });
+
 // Protected API routes (require authentication)
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Lines (read for any authenticated user; admin-only mutations below)
@@ -229,12 +243,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/material-lots/{materialLot}', [MaterialLotController::class, 'show']);
     Route::get('/material-lots/{materialLot}/genealogy/forward', [MaterialLotController::class, 'forwardGenealogy']);
     Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
+    Route::get('/material-lots/{materialLot}/where-used', [MaterialLotController::class, 'whereUsed']);
     Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
-
-    // Machine gateway bridge (OPC UA sidecar / external REST gateways)
-    Route::get('/machine-connections/{machineConnection}/gateway-config', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'config']);
-    Route::post('/machine-connections/{machineConnection}/signals', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'ingest']);
-    Route::post('/machine-connections/{machineConnection}/heartbeat', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'heartbeat']);
 
     // Engineering CAD documents (#179). View/download for any grantee of
     // `view engineering documents`; mutations gated in the controller by
@@ -775,6 +785,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Shift handover — REST twin of web Supervisor\ShiftHandoverController.
         Route::get('/shift-handover', [ShiftHandoverController::class, 'index']);
         Route::post('/shift-handover', [ShiftHandoverController::class, 'store']);
+        Route::get('/shift-handover/history', [ShiftHandoverController::class, 'history']);
+        Route::get('/shift-handover/{shiftHandover}', [ShiftHandoverController::class, 'show'])->whereNumber('shiftHandover');
 
         // Machine monitor — live fleet status + manual state override (#87).
         Route::get('/machine-monitor', [MachineMonitorController::class, 'index']);

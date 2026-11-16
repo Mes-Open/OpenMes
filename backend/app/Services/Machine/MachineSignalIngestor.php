@@ -5,6 +5,7 @@ namespace App\Services\Machine;
 use App\Models\MachineEvent;
 use App\Models\MachineTag;
 use App\Models\Workstation;
+use App\Support\MachineTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -31,8 +32,9 @@ class MachineSignalIngestor
 
     public function ingest(MachineTag $tag, mixed $rawValue, ?Carbon $at = null, ?string $eventId = null, ?array $modbusSnapshot = null): void
     {
-        $observedAt = $at;
-        $at ??= now();
+        // A machine clock may report in any zone; store plant time (see MachineTime).
+        $observedAt = $at ? MachineTime::toPlant($at) : null;
+        $at = $observedAt ?? now();
         $value = $tag->applyTransform($rawValue);
         $workstation = $tag->workstation;
 

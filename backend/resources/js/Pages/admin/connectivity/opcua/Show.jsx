@@ -3,6 +3,12 @@ import AppLayout from '../../../../layouts/AppLayout';
 import TagManager from '../TagManager';
 import RuntimePanel from '../RuntimePanel';
 import { StatusDot, StatCard } from '../ui';
+
+const AUTH_MODE_LABELS = {
+    anonymous:   'Anonymous',
+    username:    'Username / password',
+    certificate: 'Certificate',
+};
 import { __ } from '../../../../lib/i18n';
 
 export default function OpcuaShow() {
@@ -60,7 +66,7 @@ export default function OpcuaShow() {
                 <div className="grid grid-cols-3 gap-4">
                     <StatCard value={connection.tags.length} label={__('Tags')} />
                     <StatCard value={opcua?.security_policy ?? '—'} label={__('Mode: :mode', { mode: opcua?.security_mode ?? '—' })} />
-                    <StatCard value={opcua?.auth_mode ?? '—'} label={__('Authentication')} capitalize />
+                    <StatCard value={AUTH_MODE_LABELS[opcua?.auth_mode] ? __(AUTH_MODE_LABELS[opcua.auth_mode]) : (opcua?.auth_mode ?? '—')} label={__('Authentication')} />
                 </div>
 
                 {/* Runtime */}

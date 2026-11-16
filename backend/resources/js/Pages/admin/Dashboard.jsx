@@ -320,10 +320,25 @@ function OeeOverview({ records, lines }) {
     // Today's OEE per line. Mirrors the old Blade widget: one gauge card per
     // line, N/A where there's no record for today.
     const todayStr = todayInPlant(); // plant date, not UTC
-    const byLineToday = useMemo(
-        () => new Map(records.filter((r) => String(r.record_date ?? '').slice(0, 10) === todayStr).map((r) => [String(r.line_id), r])),
-        [records, todayStr],
-    );
+    // A line has several records a day: one for the whole day and one per shift
+    // (including shifts that have not started yet, with no production). Show the
+    // whole-day record; without one, the shift that actually produced most.
+    const byLineToday = useMemo(() => {
+        const rank = (r) => [r.shift_id == null ? 1 : 0, r.oee_pct != null ? 1 : 0, Number(r.total_produced ?? 0)];
+        const better = (a, b) => {
+            const ra = rank(a), rb = rank(b);
+            for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] > rb[i] ? a : b;
+            return a;
+        };
+        const map = new Map();
+        records
+            .filter((r) => String(r.record_date ?? '').slice(0, 10) === todayStr)
+            .forEach((r) => {
+                const key = String(r.line_id);
+                map.set(key, map.has(key) ? better(map.get(key), r) : r);
+            });
+        return map;
+    }, [records, todayStr]);
     const sortedLines = useMemo(
         () => [...lines].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''))),
         [lines],

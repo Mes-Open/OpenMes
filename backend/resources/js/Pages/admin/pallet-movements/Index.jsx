@@ -3,6 +3,11 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { __, formatDateTime } from '../../../lib/i18n';
 
+const destination = (r) => {
+    if (r.from_destination === r.to_destination) return r.to_destination || '—';
+    return `${r.from_destination || '—'} → ${r.to_destination || '—'}`;
+};
+
 /**
  * Physical pallet movement history (#103). Rows stream live from the
  * `pallet_movements` Electric shape; operator and pallet names are resolved
@@ -46,10 +51,8 @@ export default function PalletMovementsIndex() {
             key: 'to_destination',
             label: __('Destination'),
             className: 'font-mono text-om-muted',
-            render: (r) => {
-                if (r.from_destination === r.to_destination) return r.to_destination || '—';
-                return `${r.from_destination || '—'} → ${r.to_destination || '—'}`;
-            },
+            value: destination,
+            render: destination,
         },
         {
             key: 'operator',

@@ -110,11 +110,11 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         },
         {
             id: 'movement_type',
-            accessorKey: 'movement_type',
+            accessorFn: movementLabel,
             header: __('Type'),
             cell: ({ row }) => {
                 const typeColor = MOVEMENT_TYPE_COLORS[row.original.movement_type] ?? 'text-om-muted';
-                return <span className={`font-medium ${typeColor}`}>{__(MOVEMENT_LABELS[row.original.movement_type] ?? row.original.movement_type)}</span>;
+                return <span className={`font-medium ${typeColor}`}>{movementLabel(row.original)}</span>;
             },
         },
         {
@@ -406,6 +406,7 @@ const MOVEMENT_LABELS = {
     consume: 'Consumption', scrap: 'Scrap', adjustment: 'Stock adjustment',
     transfer: 'Stock transfer', reclassify: 'Reclassification',
 };
+const movementLabel = (row) => __(MOVEMENT_LABELS[row.movement_type] ?? row.movement_type);
 const SOURCE_LABELS = {
     batch: 'Batch', batch_step: 'Batch step', inspection: 'Inspection',
     manual_adjust: 'Manual adjustment', manual_receipt: 'Manual receipt', receipt: 'Stock receipt',

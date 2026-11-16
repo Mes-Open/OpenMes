@@ -325,6 +325,8 @@ export default function System() {
         unit_psn_pattern: settings.unit_psn_pattern ?? '',
         unit_psn_required: settings.unit_psn_required ?? false,
         unit_psn_unique: settings.unit_psn_unique ?? true,
+        unit_pack_requires_serial: settings.unit_pack_requires_serial ?? false,
+        unit_pack_requires_order: settings.unit_pack_requires_order ?? false,
         unit_test_fail_policy: settings.unit_test_fail_policy ?? 'block',
         unit_test_max_attempts: settings.unit_test_max_attempts ?? 1,
         unit_test_attempts_scope: settings.unit_test_attempts_scope ?? 'unit',
@@ -879,6 +881,20 @@ export default function System() {
                                         <div>
                                             <p className="text-[13px] font-medium text-om-ink">{__('Process serial identifies one unit')}</p>
                                             <p className={HELP_CLASS}>{__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_pack_requires_serial} onChange={(v) => setData('unit_pack_requires_serial', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Pack only units with a serial number')}</p>
+                                            <p className={HELP_CLASS}>{__('Refuse packing a unit that has only its process serial, e.g. when the ERP receives finished units by serial number.')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Switch checked={data.unit_pack_requires_order} onChange={(v) => setData('unit_pack_requires_order', v)} />
+                                        <div>
+                                            <p className="text-[13px] font-medium text-om-ink">{__('Pack only units on a work order')}</p>
+                                            <p className={HELP_CLASS}>{__('Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.')}</p>
                                         </div>
                                     </div>
 

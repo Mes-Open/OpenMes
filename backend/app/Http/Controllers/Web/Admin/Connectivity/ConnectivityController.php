@@ -20,6 +20,7 @@ class ConnectivityController extends Controller
             ->orderBy('id')->get(['id', 'machine_connection_id'])->groupBy('machine_connection_id');
 
         return Inertia::render('admin/connectivity/Index', [
+            'counts' => MachineConnection::protocolCounts(),
             'connections' => $connections->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
@@ -27,8 +28,9 @@ class ConnectivityController extends Controller
                 'protocol' => $c->protocol,
                 'counter_ids' => $counters->get($c->id, collect())->pluck('id')->values(),
                 'is_active' => $c->is_active,
-                'status' => $c->status,
-                'status_color' => $c->statusColor(),
+                'status' => $c->liveStatus(),
+                'status_color' => $c->liveStatusColor(),
+                'status_message' => $c->liveStatusMessage(),
                 'topics_count' => $c->topics_count,
                 'tags_count' => $c->tags_count,
                 'messages_received' => $c->messages_received,
@@ -45,5 +47,16 @@ class ConnectivityController extends Controller
                 },
             ]),
         ]);
+    }
+
+    /**
+     * Switch a connection on or off. Its collector (poller, listener or
+     * gateway) picks the change up on its next config refresh.
+     */
+    public function toggleActive(MachineConnection $machineConnection)
+    {
+        $machineConnection->update(['is_active' => ! $machineConnection->is_active]);
+
+        return back()->with('success', $machineConnection->is_active ? __('Connection activated.') : __('Connection deactivated.'));
     }
 }

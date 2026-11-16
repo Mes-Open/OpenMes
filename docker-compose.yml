@@ -222,8 +222,12 @@ services:
       - connectivity
 
   # ── Modbus TCP poller daemon ──────────────────────────────────────────────
-  # One instance per active Modbus machine_connection.
-  # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
+  # One container serves every active Modbus machine_connection: it runs a
+  # worker process per machine, so a PLC that is switched off cannot hold up
+  # the others, and picks up machines added, switched off or re-addressed in
+  # Admin → Connectivity on its own — no restart, no per-machine container.
+  # Start: docker compose --profile connectivity up -d modbus-poller
+  # To pin it to one connection instead, add "--connection=<id or name>".
   modbus-poller:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
@@ -242,7 +246,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ${OPENMES_NAME_PREFIX:-openmmes}-modbus-poller
     command:
-      ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
+      ["php", "artisan", "modbus:poll"]
     environment:
       APP_ENV: ${APP_ENV:-production}
       # Plant timezone: every rendered timestamp, report boundary and scheduled job
@@ -281,9 +285,12 @@ services:
 
   # ── OPC UA gateway sidecar (Node.js) ──────────────────────────────────────
   # Bridges an OPC UA server into the OpenMES ingest API. OpenMES cannot speak
-  # OPC UA natively. Requires an API token (Admin → API Tokens).
+  # OPC UA natively. Requires a machine gateway token (Settings → API Tokens),
+  # best kept as OPENMES_API_TOKEN in the .env file next to this one.
   # Example: OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
   #          docker compose --profile connectivity up -d opcua-gateway
+  # An OPC UA server on the Docker host is reached as host.docker.internal —
+  # localhost / 127.0.0.1 inside this container is the container itself.
   opcua-gateway:
     build:
       context: ./opcua-gateway
@@ -294,6 +301,9 @@ services:
       OPENMES_API_TOKEN: ${OPENMES_API_TOKEN}
       OPCUA_CONNECTION_ID: ${OPCUA_CONNECTION_ID:-1}
       OPCUA_PASSWORD: ${OPCUA_PASSWORD:-}
+    extra_hosts:
+      # Docker Desktop defines this already; on Linux it has to be mapped.
+      - "host.docker.internal:host-gateway"
     depends_on:
       - backend
     restart: unless-stopped

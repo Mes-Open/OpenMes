@@ -3,7 +3,7 @@ import CustomerTierBadge from '../../../components/CustomerTierBadge';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
-import { customerFields, customerInitial } from './fields';
+import { customerFields, customerInitial, tierLabel } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CustomersIndex() {
@@ -16,8 +16,7 @@ export default function CustomersIndex() {
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted', render: (r) => r.code ?? '—' },
         {
             key: 'tier', label: __('Tier'),
-            value: (r) => r.tier,
-
+            value: (r) => tierLabel(r.tier),
             render: (r) => <CustomerTierBadge tier={r.tier} />,
         },
         { key: 'payment_score', label: __('Payment'), align: 'right', className: 'text-om-muted', value: (r) => Number(r.payment_score ?? 0), render: (r) => r.payment_score ?? 0 },

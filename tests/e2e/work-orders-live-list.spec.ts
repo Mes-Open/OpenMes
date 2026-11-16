@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { login as signIn } from './support/app';
 
 /**
  * The admin work-order list is a synced collection: a create or delete must show
@@ -22,10 +23,7 @@ const orderNo = `000-E2E-LIVE-${Date.now()}`;
 async function login(page: Page) {
   await page.goto('/admin/work-orders');
   if (page.url().includes('/login')) {
-    await page.locator('input[name=username]').fill(process.env.ADMIN_USERNAME || 'admin');
-    await page.locator('input[name=password]').fill(process.env.ADMIN_PASSWORD || 'Admin1234!');
-    await page.locator('button[type=submit]').click();
-    await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+    await signIn(page);
   }
   await page.goto('/locale/en');
 }

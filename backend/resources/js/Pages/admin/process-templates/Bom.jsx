@@ -343,6 +343,8 @@ export default function ProcessTemplatesBom() {
             key: 'component_name',
             label: 'Component',
             flex: true,
+            // The cell shows the code under the name; searching either finds the row.
+            value: (row) => [row.component_name, row.component_code].filter(Boolean).join(' '),
             render: (row) => (
                 <>
                     <div className="text-sm font-medium text-om-ink">{row.component_name}</div>

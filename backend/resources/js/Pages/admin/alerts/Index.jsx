@@ -532,9 +532,10 @@ function overdueColumns() {
         },
         {
             id: 'status',
-            accessorKey: 'status',
+            // The label the badge shows, so search and the filter options match it.
+            accessorFn: (wo) => woStatusLabel(wo.status),
             header: __('Status'),
-            meta: { optionLabel: woStatusLabel, allLabel: __('All statuses') },
+            meta: { allLabel: __('All statuses') },
             cell: ({ row }) => <StatusBadge size="sm" {...woStatusBadge(row.original.status)} />,
         },
     ];

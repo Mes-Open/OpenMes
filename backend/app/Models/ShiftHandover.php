@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,7 +36,7 @@ class ShiftHandover extends Model
     protected function casts(): array
     {
         return [
-            'business_date' => 'date',
+            'business_date' => CalendarDate::class,
             'shift_start' => 'datetime',
             'shift_end' => 'datetime',
             'confirmed_at' => 'datetime',

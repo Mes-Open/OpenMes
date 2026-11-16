@@ -39,4 +39,9 @@ class SerialUnitsRecentShape extends Shape
 
         return "(status NOT IN ({$finished}) OR updated_at >= '{$since}')";
     }
+
+    public function tabs(): array
+    {
+        return ['materials'];
+    }
 }

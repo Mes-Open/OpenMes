@@ -23,12 +23,15 @@ class MqttConnectionController extends Controller
             ->get();
 
         return Inertia::render('admin/connectivity/mqtt/Index', [
+            'counts' => MachineConnection::protocolCounts(),
             'connections' => $connections->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
+                'description' => $c->description,
                 'is_active' => $c->is_active,
-                'status' => $c->status,
-                'status_color' => $c->statusColor(),
+                'status' => $c->liveStatus(),
+                'status_color' => $c->liveStatusColor(),
+                'status_message' => $c->liveStatusMessage(),
                 'topics_count' => $c->topics_count,
                 'messages_received' => $c->messages_received,
                 'last_connected_at' => $c->last_connected_at?->diffForHumans(),
@@ -91,7 +94,7 @@ class MqttConnectionController extends Controller
 
         return redirect()
             ->route('admin.connectivity.mqtt.show', $connection)
-            ->with('success', 'MQTT connection created.');
+            ->with('success', __('MQTT connection created.'));
     }
 
     public function show(MachineConnection $mqttConnection)
@@ -122,8 +125,8 @@ class MqttConnectionController extends Controller
                 'name' => $mqttConnection->name,
                 'is_active' => $mqttConnection->is_active,
                 'line_id' => $mqttConnection->line_id,
-                'status' => $mqttConnection->status,
-                'status_color' => $mqttConnection->statusColor(),
+                'status' => $mqttConnection->liveStatus(),
+                'status_color' => $mqttConnection->liveStatusColor(),
                 'messages_received' => $mqttConnection->messages_received,
                 'last_connected_at' => $mqttConnection->last_connected_at?->diffForHumans(),
                 'mqtt' => $mqttConnection->mqttConnection ? [
@@ -227,7 +230,7 @@ class MqttConnectionController extends Controller
 
         return redirect()
             ->route('admin.connectivity.mqtt.show', $mqttConnection)
-            ->with('success', 'MQTT connection updated.');
+            ->with('success', __('MQTT connection updated.'));
     }
 
     public function destroy(MachineConnection $mqttConnection)
@@ -236,14 +239,14 @@ class MqttConnectionController extends Controller
 
         return redirect()
             ->route('admin.connectivity.mqtt.index')
-            ->with('success', 'Connection deleted.');
+            ->with('success', __('Connection deleted.'));
     }
 
     public function toggleActive(MachineConnection $mqttConnection)
     {
         $mqttConnection->update(['is_active' => ! $mqttConnection->is_active]);
 
-        return back()->with('success', 'Connection '.($mqttConnection->is_active ? 'activated' : 'deactivated').'.');
+        return back()->with('success', $mqttConnection->is_active ? __('Connection activated.') : __('Connection deactivated.'));
     }
 
     /**

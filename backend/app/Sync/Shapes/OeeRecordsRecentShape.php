@@ -50,4 +50,9 @@ class OeeRecordsRecentShape extends Shape
 
         return "record_date >= '{$since}'";
     }
+
+    public function tabs(): array
+    {
+        return ['dashboard'];
+    }
 }

@@ -66,7 +66,22 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // the browser and not to the mobile app or an integration, which
             // is the half that matters least.
             \App\Http\Middleware\EnsurePasswordChanged::class,
+            // Machine-gateway tokens work on the gateway routes only — applied to
+            // the whole group so module route files are covered too (fail closed).
+            \App\Http\Middleware\RejectMachineGatewayToken::class,
+            // Read-only tokens may only GET/HEAD/OPTIONS — whole group, same reason.
+            \App\Http\Middleware\RejectWritesWithReadOnlyToken::class,
         ]);
+
+        // `/admin/lines/abc` is a 404, not a PostgreSQL type error (500). Listed
+        // in both groups, and sorted right before SubstituteBindings so it runs
+        // after authentication (a guest still goes to the login page first).
+        $middleware->appendToGroup('web', \App\Http\Middleware\RejectMalformedModelKeys::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\RejectMalformedModelKeys::class);
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\RejectMalformedModelKeys::class,
+        );
 
         // Register Spatie Permission middleware
         $middleware->alias([
@@ -79,6 +94,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'scope' => \App\Http\Middleware\EnsureApiScope::class,
             // Gate a route on an optional feature module (ModuleRegistry) being on.
             'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+            // Sanctum token abilities (machine-gateway routes).
+            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

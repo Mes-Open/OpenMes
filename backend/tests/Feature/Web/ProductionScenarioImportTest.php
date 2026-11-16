@@ -203,6 +203,43 @@ class ProductionScenarioImportTest extends TestCase
         $this->assertSame(1, (int) WorkOrder::where('order_no', 'WO-PLAN-2')->value('shift_number'));
     }
 
+    public function test_a_work_order_takes_the_boms_named_in_the_file(): void
+    {
+        $product = ProductType::where('code', 'SC-PT')->firstOrFail();
+        $pulled = ProcessTemplate::factory()->create(['product_type_id' => $product->id, 'name' => 'Pulled tube', 'version' => 5, 'is_active' => true]);
+        ProcessTemplate::factory()->create(['product_type_id' => $product->id, 'name' => 'Crimped tube', 'version' => 7, 'is_active' => true]);
+
+        $this->import(['scenario' => ['events' => [
+            ['at' => '-1d 07:00', 'do' => 'work_order', 'order_no' => 'WO-BOM-1', 'product' => 'SC-PT', 'quantity' => 5, 'bom' => 'Pulled tube'],
+            ['at' => '+1m', 'do' => 'work_order', 'order_no' => 'WO-BOM-2', 'product' => 'SC-PT', 'quantity' => 5],
+        ]]])->assertSessionHas('success');
+
+        $this->assertSame([$pulled->id], WorkOrder::where('order_no', 'WO-BOM-1')->firstOrFail()->bomTemplates->pluck('id')->all());
+        // Without `bom` the order keeps the newest active routing, as before.
+        $this->assertSame('Crimped tube', WorkOrder::where('order_no', 'WO-BOM-2')->firstOrFail()->process_snapshot['bom_templates'][0]['name']);
+    }
+
+    public function test_an_unknown_bom_name_stops_the_import(): void
+    {
+        $this->import(['scenario' => ['events' => [
+            ['at' => '-1d 07:00', 'do' => 'work_order', 'order_no' => 'WO-BOM-X', 'product' => 'SC-PT', 'quantity' => 5, 'bom' => ['Nope']],
+        ]]])->assertSessionHas('error', fn ($m) => str_contains($m, 'Nope'));
+
+        $this->assertDatabaseMissing('work_orders', ['order_no' => 'WO-BOM-X']);
+    }
+
+    public function test_a_lot_carries_its_certificate_data(): void
+    {
+        $certificate = ['heat_number' => 'W-55123', 'steel_grade' => 'S235JRH', 'standard' => 'EN 10219', 'certificate_no' => '3.1/2026/0042'];
+
+        $this->import(['scenario' => [
+            'material_lots' => [['material' => 'SC-M', 'lot_number' => 'LOT-CERT-1', 'quantity' => 10, 'extra_data' => $certificate]],
+            'events' => [],
+        ]])->assertSessionHas('success');
+
+        $this->assertSame($certificate, MaterialLot::where('lot_number', 'LOT-CERT-1')->firstOrFail()->extra_data);
+    }
+
     public function test_a_failing_event_saves_nothing_from_the_file_and_names_the_event(): void
     {
         $this->import([

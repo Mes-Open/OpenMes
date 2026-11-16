@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
+import { Checkbox, Dropdown } from '@openmes/ui';
 import AppDatePicker from '../../../components/AppDatePicker';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
@@ -11,19 +11,24 @@ const fmt = (v) => num(v).toLocaleString(undefined, { maximumFractionDigits: 4 }
 
 export default function NetRequirementsIndex() {
     const {
-        lines = [], lineId, dateFrom, dateTo,
+        lines = [], lineId, dateFrom, dateTo, includeOpenOrders = false,
         requirements = [], shortages = [],
         totals = { work_orders: 0, components: 0, shortage_components: 0, total_shortfall: 0 },
     } = usePage().props;
 
     const apply = (changes) =>
-        router.get('/admin/net-requirements', { line_id: lineId ?? '', date_from: dateFrom, date_to: dateTo, ...changes }, { preserveState: false });
+        router.get('/admin/net-requirements', { line_id: lineId ?? '', date_from: dateFrom, date_to: dateTo, include_open_orders: includeOpenOrders ? 1 : 0, ...changes }, { preserveState: false });
+
+    // Output still to come from open orders for a semi-finished part — shown only
+    // when the report counts it as supply.
+    const onOrderColumn = { id: 'on_order_qty', accessorFn: (r) => num(r.on_order_qty), header: __('On order'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.on_order_qty)}</span>, meta: { align: 'right' } };
 
     const reqColumns = [
         { id: 'code', accessorKey: 'code', header: __('Code'), cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code ?? '—'}</span> },
         { id: 'name', accessorKey: 'name', header: __('Component'), cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.name}</span> },
         { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
         { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
+        ...(includeOpenOrders ? [onOrderColumn] : []),
         { id: 'net_qty', accessorFn: (r) => num(r.net_qty), header: __('Net'), cell: ({ row }) => <span className={`tabular-nums font-medium ${row.original.is_short ? 'text-om-blocked' : 'text-om-running'}`}>{fmt(row.original.net_qty)}</span>, meta: { align: 'right' } },
         { id: 'uom', accessorKey: 'unit_of_measure', header: __('Unit'), cell: ({ row }) => <span className="text-om-faint">{row.original.unit_of_measure ?? '—'}</span> },
         {
@@ -41,6 +46,7 @@ export default function NetRequirementsIndex() {
         { id: 'name', accessorKey: 'name', header: __('Component'), cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.name}</span> },
         { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
         { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
+        ...(includeOpenOrders ? [onOrderColumn] : []),
         { id: 'net_qty', accessorFn: (r) => num(r.net_qty), header: __('Shortfall'), cell: ({ row }) => <span className="tabular-nums font-medium text-om-blocked">{fmt(row.original.net_qty)}</span>, meta: { align: 'right' } },
         {
             id: 'related', accessorFn: (r) => (r.related_work_orders ?? []).join(' '), header: __('Driving work orders'), enableSorting: false,
@@ -79,6 +85,13 @@ export default function NetRequirementsIndex() {
                     <Filter label={__('To')}>
                         <AppDatePicker value={dateTo || null} onChange={(iso) => apply({ date_to: iso ?? '' })} className="w-44" />
                     </Filter>
+                    <div className="pb-2.5">
+                        <Checkbox
+                            checked={includeOpenOrders}
+                            onChange={(on) => apply({ include_open_orders: on ? 1 : 0 })}
+                            label={__('Count open work orders for semi-finished parts as supply')}
+                        />
+                    </div>
                 </div>
 
                 {/* KPI cards */}
