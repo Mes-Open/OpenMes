@@ -384,6 +384,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
   HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
   PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
+- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
+  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
+  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
+  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
+  is clean.
+
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
