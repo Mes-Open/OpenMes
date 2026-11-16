@@ -146,7 +146,10 @@ class ConfigurationImporter
         $this->ids = [];
         $this->fileTables = [];
         foreach (array_keys(self::TABLES) as $table) {
-            if (! empty($data[$table]) && is_array($data[$table])) {
+            // A section that is present counts as carried even when empty: its
+            // references then resolve only through the file, never by borrowing
+            // whatever row has that id here.
+            if (array_key_exists($table, $data) && is_array($data[$table])) {
                 $this->fileTables[$table] = true;
             }
         }

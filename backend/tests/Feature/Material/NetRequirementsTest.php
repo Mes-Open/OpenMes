@@ -12,6 +12,7 @@ use App\Models\WorkOrder;
 use App\Services\Material\NetRequirementsService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -64,6 +65,9 @@ class NetRequirementsTest extends TestCase
     {
         return WorkOrder::factory()->create([
             'product_type_id' => $pt->id,
+            // No frozen BOM: the report reads the selected or newest active
+            // template. Orders made through WorkOrderService carry one.
+            'process_snapshot' => null,
             'planned_qty' => $qty,
             'status' => $status ?? WorkOrder::STATUS_PENDING,
             'due_date' => $this->due,
@@ -175,7 +179,7 @@ class NetRequirementsTest extends TestCase
         $this->plannedWo($pt, 100, lineId: $line->id); // in window, on line
         // Outside the window (due far in the future).
         WorkOrder::factory()->create([
-            'product_type_id' => $pt->id, 'planned_qty' => 999,
+            'product_type_id' => $pt->id, 'planned_qty' => 999, 'process_snapshot' => null,
             'status' => WorkOrder::STATUS_PENDING, 'due_date' => today()->addDays(90), 'line_id' => $line->id,
         ]);
         // Different line.
@@ -281,7 +285,7 @@ class NetRequirementsTest extends TestCase
         $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_DONE);
         $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_CANCELLED);
         WorkOrder::factory()->create([
-            'product_type_id' => $c['dk']->id, 'planned_qty' => 100,
+            'product_type_id' => $c['dk']->id, 'planned_qty' => 100, 'process_snapshot' => null,
             'status' => WorkOrder::STATUS_IN_PROGRESS, 'due_date' => today()->addDays(90),
             'line_id' => Line::factory()->create()->id,
         ]);
@@ -349,6 +353,63 @@ class NetRequirementsTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/net-requirements?include_open_orders=maybe')
             ->assertSessionHasErrors('include_open_orders');
+    }
+
+    public function test_an_order_is_measured_by_its_frozen_bom_not_the_template_edited_since(): void
+    {
+        $frozenPart = Material::factory()->create(['stock_quantity' => 0]);
+        $editedInPart = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = $this->productWithBom([['material' => $editedInPart, 'qty' => 5]]);
+
+        $wo = $this->plannedWo($pt, 10);
+        // What the order was released with: 2 per unit + 10% scrap, plus a sub-assembly reference.
+        $wo->update(['process_snapshot' => ['steps' => [], 'bom' => [
+            ['component_kind' => 'material', 'material_id' => $frozenPart->id, 'quantity_per_unit' => 2, 'scrap_percentage' => 10],
+            ['component_kind' => 'product_type', 'material_id' => null, 'product_type_id' => $pt->id, 'quantity_per_unit' => 1, 'scrap_percentage' => 0],
+        ]]]);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(22, $this->rowFor($report, $frozenPart->id)['required_qty'], 0.001); // 2 × 1.1 × 10
+        $this->assertNull($this->rowFor($report, $editedInPart->id));
+    }
+
+    public function test_an_open_order_packed_on_pallets_is_not_supply_of_the_material(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'pallet_stock_documents'], ['value' => json_encode('draft')]);
+        $c = $this->frameChain();
+        $this->plannedWo($c['wg'], 100);
+        $dkOrder = $this->plannedWo($c['dk'], 100, status: WorkOrder::STATUS_IN_PROGRESS);
+        // Its routing ends on a packing step: the pallets will receive it as a product.
+        $dkOrder->update(['process_snapshot' => ['steps' => [['step_number' => 1, 'kind' => \App\Models\TemplateStep::KIND_PACKING]], 'bom' => []]]);
+
+        $report = $this->service->report($this->from, $this->to, includeOpenOrders: true);
+
+        $this->assertEqualsWithDelta(0, $this->rowFor($report, $c['dkMaterial']->id)['on_order_qty'], 0.001);
+        $this->assertEqualsWithDelta(100, $this->rowFor($report, $c['dkMaterial']->id)['net_qty'], 0.001);
+    }
+
+    public function test_an_order_created_with_a_selected_bom_is_measured_by_it(): void
+    {
+        $selectedPart = Material::factory()->create(['stock_quantity' => 0]);
+        $newestPart = Material::factory()->create(['stock_quantity' => 0]);
+        $pt = ProductType::factory()->create();
+        $selected = $this->templateFor($pt, 1, [['material' => $selectedPart, 'qty' => 2]]);
+        $this->templateFor($pt, 2, [['material' => $newestPart, 'qty' => 3]]);
+
+        app(\App\Services\WorkOrder\WorkOrderService::class)->createWorkOrder([
+            'order_no' => 'WO-MRP-SNAP',
+            'product_type_id' => $pt->id,
+            'line_id' => Line::factory()->create()->id,
+            'planned_qty' => 100,
+            'due_date' => $this->due->toDateString(),
+            'bom_template_ids' => [$selected->id],
+        ]);
+
+        $report = $this->service->report($this->from, $this->to);
+
+        $this->assertEqualsWithDelta(200, $this->rowFor($report, $selectedPart->id)['required_qty'], 0.001);
+        $this->assertNull($this->rowFor($report, $newestPart->id));
     }
 
     public function test_uses_the_bom_selected_on_the_work_order_instead_of_the_newest(): void

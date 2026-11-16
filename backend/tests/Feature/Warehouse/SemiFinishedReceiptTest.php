@@ -260,4 +260,20 @@ class SemiFinishedReceiptTest extends TestCase
         $this->assertFalse(StockDocument::where('type', StockDocument::TYPE_MATERIAL_RECEIPT)->exists());
         $this->assertFalse(StockDocument::where('type', StockDocument::TYPE_PRODUCT_RECEIPT)->exists());
     }
+
+    public function test_the_suffixed_lot_number_is_checked_too(): void
+    {
+        $this->enableLotTracking();
+        [$product] = $this->semiFinished();
+        $workOrder = $this->workOrder($product, 10);
+        $batch = Batch::factory()->create([
+            'work_order_id' => $workOrder->id, 'batch_number' => 1, 'produced_qty' => 10, 'lot_number' => 'L-0002',
+        ]);
+        MaterialLot::factory()->create(['lot_number' => 'L-0002']);
+        MaterialLot::factory()->create(['lot_number' => 'L-0002-'.$batch->id]);
+
+        $this->service->generateForCompletion($workOrder);
+
+        $this->assertSame('L-0002-'.$batch->id.'-2', MaterialLot::where('source_batch_id', $batch->id)->sole()->lot_number);
+    }
 }

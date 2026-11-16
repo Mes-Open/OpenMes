@@ -242,4 +242,33 @@ class SettingsConfigurationImportTest extends TestCase
             $this->assertStringStartsWith('2027-03-31', (string) $row->certified_until);
         }
     }
+
+    public function test_an_empty_section_counts_as_carried_and_never_lends_an_existing_row(): void
+    {
+        // The file says "no lines": a workstation pointing at line 1 must not land on whatever line has id 1 here.
+        $existing = Line::factory()->create(['code' => 'HERE-1']);
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'lines' => [],
+            'workstations' => [['id' => 1, 'code' => 'IMP-EMPTY', 'name' => 'Bench', 'line_id' => $existing->id]],
+        ])])->assertSessionHas('success');
+
+        $this->assertNull(Workstation::where('code', 'IMP-EMPTY')->value('line_id'));
+    }
+
+    public function test_skills_of_a_worker_the_file_does_not_carry_are_not_given_to_another_worker(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('worker_skills')) {
+            $this->markTestSkipped('Worker skills ship with an optional module.');
+        }
+        $unrelatedId = DB::table('workers')->insertGetId(['code' => 'HERE-W', 'name' => 'Someone else', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'skills' => [['id' => 4, 'code' => 'WELD-141', 'name' => 'TIG welding']],
+            'workers' => [],
+            'worker_skills' => [['worker_id' => $unrelatedId, 'skill_id' => 4, 'level' => 3]],
+        ])])->assertSessionHas('success');
+
+        $this->assertFalse(DB::table('worker_skills')->where('worker_id', $unrelatedId)->exists());
+    }
 }
