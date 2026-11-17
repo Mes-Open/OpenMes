@@ -30,7 +30,7 @@ class BomImportService
     /**
      * @param  array<int, array<string, mixed>>  $rows  one row per product recipe
      * @param  'replace'|'merge'  $mode
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>}
      */
     public function import(array $rows, string $mode = 'replace'): array
     {

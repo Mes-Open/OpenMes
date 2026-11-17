@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\WebhookDelivery;
+use App\Scopes\TenantScope;
 use App\Support\WebhookUrlGuard;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,6 +15,11 @@ use Throwable;
 
 /**
  * Delivers one webhook payload over HTTP with an HMAC-SHA256 signature (#20).
+ *
+ * Every attempt sends `X-OpenMES-Timestamp` (unix seconds, fresh per attempt)
+ * and `X-OpenMES-Signature: sha256=HMAC(secret, "{timestamp}.{body}")`, so a
+ * receiver can reject replays older than its tolerance window. Webhooks with
+ * `legacy_signature` on keep the original body-only HMAC.
  *
  * Retries on transport failure / non-2xx with exponential backoff; the
  * WebhookDelivery row is updated in place each attempt, and failed() records
@@ -50,6 +56,18 @@ class DeliverWebhookJob implements ShouldQueue
             return;
         }
 
+        // A webhook an ERP integration registered stops with its key: a key
+        // that is deleted, disabled or expired must not keep receiving data
+        // (covers expiry, which fires no model event to deactivate the hook).
+        if ($webhook->api_key_id !== null) {
+            $key = $webhook->apiKey()->withoutGlobalScope(TenantScope::class)->first();
+            if (! $key || $key->trashed() || ! $key->isUsable()) {
+                $this->markFailed($delivery, 'Owning API key is no longer active.');
+
+                return;
+            }
+        }
+
         // Re-validate at delivery time AND capture the vetted IP to pin the
         // connection to (below), so DNS can't rebind to an internal address
         // between this check and the actual connect. Unsafe = terminal.
@@ -63,7 +81,8 @@ class DeliverWebhookJob implements ShouldQueue
         }
 
         $body = json_encode($delivery->payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $signature = hash_hmac('sha256', $body, $webhook->secret);
+        $timestamp = time();
+        $signature = self::sign($body, $timestamp, $webhook->secret, (bool) $webhook->legacy_signature);
 
         $headers = array_merge(
             is_array($webhook->headers) ? $webhook->headers : [],
@@ -71,17 +90,26 @@ class DeliverWebhookJob implements ShouldQueue
                 'Content-Type' => 'application/json',
                 'X-OpenMES-Event' => $delivery->event_type,
                 'X-OpenMES-Delivery' => (string) $delivery->id,
+                'X-OpenMES-Timestamp' => (string) $timestamp,
                 'X-OpenMES-Signature' => 'sha256='.$signature,
             ],
         );
 
         $delivery->attempts = $delivery->attempts + 1;
+        $delivery->signature_timestamp = $timestamp;
+        $delivery->signature_scheme = $webhook->legacy_signature
+            ? WebhookDelivery::SIGNATURE_LEGACY
+            : WebhookDelivery::SIGNATURE_V1;
 
         try {
             $response = Http::withHeaders($headers)
                 // Pin the socket to the IP we just vetted (Host header + TLS SNI
                 // still use the original hostname) — closes the rebinding window.
                 ->withOptions(['curl' => [CURLOPT_RESOLVE => ["{$target['host']}:{$target['port']}:{$target['ip']}"]]])
+                // Never follow a redirect: the Location target was not vetted
+                // or pinned, so a receiver could bounce the request to an
+                // internal address. A 3xx is a non-2xx like any other.
+                ->withoutRedirecting()
                 ->timeout(10)
                 ->withBody($body, 'application/json')
                 ->post($webhook->url);
@@ -110,6 +138,15 @@ class DeliverWebhookJob implements ShouldQueue
 
         // Non-2xx → retry with backoff (or land in failed() when exhausted).
         throw new \RuntimeException($delivery->error);
+    }
+
+    /**
+     * Hex HMAC-SHA256 of what a delivery signs: "{timestamp}.{body}", or the
+     * body alone for a legacy-signature webhook.
+     */
+    public static function sign(string $body, int $timestamp, string $secret, bool $legacy = false): string
+    {
+        return hash_hmac('sha256', $legacy ? $body : "{$timestamp}.{$body}", $secret);
     }
 
     public function failed(?Throwable $e): void

@@ -80,6 +80,7 @@ class CollectionBroadcaster
             'downtime_reasons' => [Models\DowntimeReason::class, null],
             'changeover_rules' => [Models\ChangeoverRule::class, null],
             'scrap_reasons' => [Models\ScrapReason::class, null],
+            'unit_aliases' => [Models\UnitAlias::class, null],
             'webhooks' => [Models\Webhook::class, null],
             'webhook_deliveries' => [Models\WebhookDelivery::class, null],
             'workstation_devices' => [Models\WorkstationDevice::class, null],
