@@ -26,6 +26,20 @@ export default function WebhookDeliveries() {
         { key: 'event_type', label: __('Event'), className: 'font-mono text-[12px] text-om-muted' },
         { key: 'status', label: __('Status'), value: (r) => __(r.status), render: (r) => <StatusBadge status={r.status} /> },
         { key: 'attempts', label: __('Attempts') },
+        {
+            // Unix seconds sent as X-OpenMES-Timestamp on the latest attempt.
+            key: 'signature_timestamp',
+            label: __('Signed at (X-OpenMES-Timestamp)'),
+            className: 'font-mono text-[12px]',
+            render: (r) => (r.signature_timestamp
+                ? `${r.signature_timestamp} · ${new Date(Number(r.signature_timestamp) * 1000).toLocaleString()}`
+                : '—'),
+        },
+        {
+            key: 'signature_scheme',
+            label: __('Signature'),
+            value: (r) => (r.signature_scheme === 'legacy' ? __('Legacy') : (r.signature_scheme ?? '—')),
+        },
         { key: 'response_code', label: __('Response'), render: (r) => r.response_code ?? '—' },
         { key: 'error', label: __('Error'), className: 'text-[12px] text-om-blocked', render: (r) => r.error ?? '—' },
     ];

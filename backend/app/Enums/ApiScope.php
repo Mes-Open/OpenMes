@@ -18,11 +18,17 @@ enum ApiScope: string
     /** Products, materials, material lots and recipes (#212). */
     case MasterDataWrite = 'erp:masterdata:write';
 
+    /** Lines, warehouses and product types — read-only dictionaries the ERP maps its own codes to. */
+    case MasterDataRead = 'erp:masterdata:read';
+
     /** Warehouse balances and the stock-document export backlog (#212). */
     case StockRead = 'erp:stock:read';
 
     /** Warehouse balance sync and acknowledging exported stock documents (#212). */
     case StockWrite = 'erp:stock:write';
+
+    /** Register and manage the key's own outgoing webhooks (T2a). */
+    case WebhooksManage = 'erp:webhooks:manage';
 
     public function label(): string
     {
@@ -31,8 +37,25 @@ enum ApiScope: string
             self::ProductionRead => __('Read production completions'),
             self::QualityRead => __('Read quality & issue reports'),
             self::MasterDataWrite => __('Import products, materials, lots & recipes'),
+            self::MasterDataRead => __('Read lines, warehouses & product types'),
             self::StockRead => __('Read warehouse stock & documents'),
             self::StockWrite => __('Sync warehouse stock & acknowledge documents'),
+            self::WebhooksManage => __('Manage own webhooks'),
+        };
+    }
+
+    /** One sentence telling an admin what granting the scope lets the integration do. */
+    public function description(): string
+    {
+        return match ($this) {
+            self::OrdersImport => __('Create and update work orders from the ERP.'),
+            self::ProductionRead => __('Export produced quantities and completion times of work orders.'),
+            self::QualityRead => __('Export issues and non-conforming quantities.'),
+            self::MasterDataWrite => __('Create and update products, materials, material lots and recipes.'),
+            self::MasterDataRead => __('List line, warehouse and product type codes so the ERP can map its own records.'),
+            self::StockRead => __('Export warehouse balances and stock documents to book.'),
+            self::StockWrite => __('Replace warehouse balances and acknowledge booked stock documents.'),
+            self::WebhooksManage => __('Register, change and remove webhooks that send OpenMES events to the integration.'),
         };
     }
 
@@ -40,5 +63,19 @@ enum ApiScope: string
     public static function values(): array
     {
         return array_map(fn (self $c) => $c->value, self::cases());
+    }
+
+    /**
+     * Shape for a scope picker in the UI.
+     *
+     * @return list<array{value: string, label: string, description: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(fn (self $c) => [
+            'value' => $c->value,
+            'label' => $c->label(),
+            'description' => $c->description(),
+        ], self::cases());
     }
 }

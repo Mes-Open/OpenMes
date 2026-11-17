@@ -7,6 +7,7 @@ use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -15,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * The `secret` is encrypted at rest (cast) and must never be synced to the
  * browser — it is excluded from the synced collection in ShapeRegistry.
+ *
+ * `legacy_signature` keeps the original body-only HMAC instead of the
+ * timestamped "{timestamp}.{body}" one (see DeliverWebhookJob).
  */
 class Webhook extends Model
 {
@@ -28,8 +32,10 @@ class Webhook extends Model
         'events',
         'headers',
         'is_active',
+        'legacy_signature',
         'last_triggered_at',
         'tenant_id',
+        'api_key_id',
     ];
 
     /** Keep the secret out of array/JSON serialization by default. */
@@ -43,6 +49,7 @@ class Webhook extends Model
             'events' => 'array',
             'headers' => 'array',
             'is_active' => 'boolean',
+            'legacy_signature' => 'boolean',
             'secret' => 'encrypted',
             'last_triggered_at' => 'datetime',
         ];
@@ -51,6 +58,22 @@ class Webhook extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(WebhookDelivery::class);
+    }
+
+    /**
+     * The ERP integration key that registered this endpoint over the API, or
+     * null when an administrator created it. Includes trashed keys so a hook
+     * whose key was deleted can still tell why it stopped.
+     */
+    public function apiKey(): BelongsTo
+    {
+        return $this->belongsTo(ApiKey::class)->withTrashed();
+    }
+
+    /** Only the webhooks registered by the given API key. */
+    public function scopeOwnedBy($query, ApiKey $key)
+    {
+        return $query->where('api_key_id', $key->id);
     }
 
     public function scopeActive($query)

@@ -10,6 +10,7 @@ use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\SerialUnitsRecentShape;
+use App\Sync\Shapes\UnitAliasesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
 /**
@@ -57,6 +58,8 @@ class ShapeRegistry
             'tabs' => ['quality'],
             'columns' => ['id', 'code', 'name', 'kind', 'is_active', 'created_at', 'updated_at'],
         ],
+        // ERP unit names → OpenMES units (Settings → Units of Measure).
+        'unit_aliases' => UnitAliasesShape::class,
         'scrap_reasons' => [
             'table' => 'scrap_reasons',
             'tabs' => ['quality'],
@@ -217,7 +220,7 @@ class ShapeRegistry
         'work_order_change_requests' => [
             'table' => 'work_order_change_requests',
             'tabs' => ['orders'],
-            'columns' => ['id', 'code', 'work_order_id', 'work_order_stop_id', 'title', 'reason', 'status', 'proposed', 'previous_values', 'impact', 'effective_from', 'effective_from_batch_id', 'produced_disposition', 'material_disposition', 'implementation_notes', 'rejection_reason', 'requested_by_id', 'submitted_at', 'approved_by_id', 'approved_at', 'rejected_by_id', 'rejected_at', 'applied_by_id', 'applied_at', 'resulting_snapshot_version', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'type', 'work_order_id', 'work_order_stop_id', 'title', 'reason', 'status', 'proposed', 'previous_values', 'impact', 'effective_from', 'effective_from_batch_id', 'produced_disposition', 'material_disposition', 'implementation_notes', 'rejection_reason', 'requested_by_id', 'requested_by_api_key_id', 'submitted_at', 'approved_by_id', 'approved_at', 'rejected_by_id', 'rejected_at', 'applied_by_id', 'applied_at', 'resulting_snapshot_version', 'created_at', 'updated_at'],
         ],
 
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
@@ -273,14 +276,14 @@ class ShapeRegistry
         'webhooks' => [
             'table' => 'webhooks',
             'tabs' => ['webhooks'],
-            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'legacy_signature', 'api_key_id', 'last_triggered_at', 'created_at', 'updated_at'],
         ],
         // Delivery log — payload/response_body are excluded to keep the stream
         // light; the status/code/error are enough for the admin list.
         'webhook_deliveries' => [
             'table' => 'webhook_deliveries',
             'tabs' => ['webhooks'],
-            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'signature_timestamp', 'signature_scheme', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
         // Warehousing (#212).
         'warehouses' => [

@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
+use App\Support\CurrencyRegistry;
 use App\Support\ModuleRegistry;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -166,6 +167,100 @@ class ErpExportTest extends TestCase
             ->assertStatus(403);
     }
 
+    /** Order numbers the completions export returns for the given query string, sorted. */
+    private function completionOrders(string $query): array
+    {
+        $response = $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson('/api/v1/erp/production/completions'.$query);
+
+        $response->assertOk();
+
+        return collect($response->json('data'))->pluck('order_no')->sort()->values()->all();
+    }
+
+    private function seedStatuses(): void
+    {
+        $this->workOrder(['order_no' => 'WO-DONE', 'status' => WorkOrder::STATUS_DONE, 'completed_at' => now()]);
+        $this->workOrder(['order_no' => 'WO-RUN', 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        $this->workOrder(['order_no' => 'WO-PENDING', 'status' => WorkOrder::STATUS_PENDING]);
+        $this->workOrder(['order_no' => 'WO-CANCELLED', 'status' => WorkOrder::STATUS_CANCELLED]);
+    }
+
+    public function test_completions_without_status_still_default_to_done(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(['WO-DONE'], $this->completionOrders(''));
+        $this->assertSame(['WO-DONE'], $this->completionOrders('?status='));
+    }
+
+    public function test_completions_accept_a_single_status_string(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(['WO-RUN'], $this->completionOrders('?status=IN_PROGRESS'));
+    }
+
+    public function test_completions_accept_a_list_of_statuses(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(
+            ['WO-DONE', 'WO-RUN'],
+            $this->completionOrders('?status[]=DONE&status[]=IN_PROGRESS'),
+        );
+    }
+
+    public function test_completions_status_all_returns_every_status(): void
+    {
+        $this->seedStatuses();
+
+        $this->assertSame(
+            ['WO-CANCELLED', 'WO-DONE', 'WO-PENDING', 'WO-RUN'],
+            $this->completionOrders('?status=all'),
+        );
+    }
+
+    public function test_completions_status_all_stays_tenant_scoped(): void
+    {
+        $this->workOrder(['order_no' => 'WO-MINE', 'status' => WorkOrder::STATUS_PENDING]);
+
+        app(TenantContext::class)->set($this->otherTenantId);
+        WorkOrder::factory()->create(['tenant_id' => $this->otherTenantId, 'order_no' => 'WO-OTHER', 'status' => WorkOrder::STATUS_PENDING]);
+        app(TenantContext::class)->set($this->tenantId);
+
+        $orders = $this->completionOrders('?status=all');
+        $this->assertContains('WO-MINE', $orders);
+        $this->assertNotContains('WO-OTHER', $orders);
+    }
+
+    public function test_completions_reject_unknown_statuses(): void
+    {
+        $key = $this->keyWith([ApiScope::ProductionRead]);
+
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status=BOGUS')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.0');
+
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status[]=DONE&status[]=BOGUS')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.1');
+
+        // `all` is a mode, not a status: it cannot be mixed into a list.
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status[]=DONE&status[]=all')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.1');
+
+        // Statuses are case-sensitive, like the stored values.
+        $this->withHeader('X-Api-Key', $key)
+            ->getJson('/api/v1/erp/production/completions?status=done')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status.0');
+    }
+
     public function test_erp_api_404s_when_the_module_is_disabled(): void
     {
         // Persist an enabled-module set that omits 'erp' → module off.
@@ -174,5 +269,79 @@ class ErpExportTest extends TestCase
         $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
             ->getJson('/api/v1/erp/production/completions')
             ->assertStatus(404);
+    }
+
+    // ── External source fields ──────────────────────────────────────────────
+
+    private function sourcedOrder(array $overrides = []): WorkOrder
+    {
+        return $this->workOrder(array_merge([
+            'order_no' => 'WO-SRC',
+            'status' => WorkOrder::STATUS_DONE,
+            'completed_at' => now(),
+            'unit_price' => 12.5,
+            'price_currency' => 'EUR',
+            'external_system' => 'pantheon',
+            'external_ref' => 'SO-4711/3',
+            'customer_name' => 'Acme GmbH',
+            'extra_data' => ['color' => 'red', 'sizes' => ['S', 'M']],
+        ], $overrides));
+    }
+
+    public function test_show_includes_external_source_and_currency(): void
+    {
+        $wo = $this->sourcedOrder();
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson("/api/v1/erp/work-orders/{$wo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.price_currency', 'EUR')
+            ->assertJsonPath('data.external_system', 'pantheon')
+            ->assertJsonPath('data.external_ref', 'SO-4711/3')
+            ->assertJsonPath('data.customer_name', 'Acme GmbH')
+            ->assertJsonPath('data.extra_data', ['color' => 'red', 'sizes' => ['S', 'M']]);
+    }
+
+    public function test_completions_include_external_source_fields(): void
+    {
+        $this->sourcedOrder();
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson('/api/v1/erp/production/completions')
+            ->assertOk()
+            ->assertJsonPath('data.0.order_no', 'WO-SRC')
+            ->assertJsonPath('data.0.external_system', 'pantheon')
+            ->assertJsonPath('data.0.external_ref', 'SO-4711/3')
+            ->assertJsonPath('data.0.customer_name', 'Acme GmbH')
+            ->assertJsonPath('data.0.price_currency', 'EUR')
+            ->assertJsonPath('data.0.extra_data.color', 'red');
+    }
+
+    public function test_price_currency_falls_back_to_installation_currency_when_unit_price_set(): void
+    {
+        CurrencyRegistry::save('USD');
+        $priced = $this->sourcedOrder(['order_no' => 'WO-PRICED', 'price_currency' => null]);
+        $unpriced = $this->sourcedOrder(['order_no' => 'WO-UNPRICED', 'price_currency' => null, 'unit_price' => null]);
+        $key = $this->keyWith([ApiScope::ProductionRead]);
+
+        $this->withHeader('X-Api-Key', $key)->getJson("/api/v1/erp/work-orders/{$priced->id}")
+            ->assertOk()->assertJsonPath('data.price_currency', 'USD');
+        $this->withHeader('X-Api-Key', $key)->getJson("/api/v1/erp/work-orders/{$unpriced->id}")
+            ->assertOk()->assertJsonPath('data.price_currency', null);
+    }
+
+    public function test_order_without_source_fields_exports_nulls(): void
+    {
+        $wo = $this->workOrder(['order_no' => 'WO-PLAIN', 'unit_price' => null]);
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson("/api/v1/erp/work-orders/{$wo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.order_no', 'WO-PLAIN')
+            ->assertJsonPath('data.external_system', null)
+            ->assertJsonPath('data.external_ref', null)
+            ->assertJsonPath('data.customer_name', null)
+            ->assertJsonPath('data.price_currency', null)
+            ->assertJsonPath('data.extra_data', null);
     }
 }
