@@ -27,6 +27,7 @@ class WebhookController extends Controller
             'events_count' => is_array($w->events) ? count($w->events) : 0,
             'headers' => $w->headers ?? [],
             'is_active' => $w->is_active,
+            'legacy_signature' => (bool) $w->legacy_signature,
             'last_triggered_at' => optional($w->last_triggered_at)->toIso8601String(),
         ];
     }
@@ -48,6 +49,7 @@ class WebhookController extends Controller
     {
         $data = $request->validated();
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['legacy_signature'] = $request->boolean('legacy_signature', false);
         $data['secret'] = $request->filled('secret') ? $request->input('secret') : Str::random(40);
 
         $webhook = Webhook::create($data);
@@ -59,6 +61,7 @@ class WebhookController extends Controller
     {
         $data = $request->validated();
         $data['is_active'] = $request->boolean('is_active', $webhook->is_active);
+        $data['legacy_signature'] = $request->boolean('legacy_signature', $webhook->legacy_signature);
         // Only rotate the secret when a new one is explicitly provided.
         if (! $request->filled('secret')) {
             unset($data['secret']);

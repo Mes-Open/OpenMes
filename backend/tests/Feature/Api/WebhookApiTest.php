@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\ApiKey;
 use App\Models\User;
 use App\Models\Webhook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -126,5 +127,51 @@ class WebhookApiTest extends TestCase
         $this->actingAs($operator, 'sanctum')
             ->getJson('/api/v1/webhooks')
             ->assertStatus(403);
+    }
+
+    public function test_api_round_trips_legacy_signature_and_lists_new_events(): void
+    {
+        $r = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/webhooks', [
+            'name' => 'Mobile hook',
+            'url' => 'https://8.8.8.8/hook',
+            'events' => ['work_order.progress'],
+        ]);
+        $r->assertStatus(201)->assertJsonPath('data.legacy_signature', false);
+        $id = $r->json('data.id');
+
+        $this->actingAs($this->admin, 'sanctum')->patchJson("/api/v1/webhooks/{$id}", [
+            'name' => 'Mobile hook', 'url' => 'https://8.8.8.8/hook', 'events' => ['work_order.progress'],
+            'legacy_signature' => true,
+        ])->assertStatus(200)->assertJsonPath('data.legacy_signature', true);
+
+        // Omitted on update → unchanged.
+        $this->actingAs($this->admin, 'sanctum')->patchJson("/api/v1/webhooks/{$id}", [
+            'name' => 'Mobile hook', 'url' => 'https://8.8.8.8/hook', 'events' => ['work_order.progress'],
+        ])->assertStatus(200)->assertJsonPath('data.legacy_signature', true);
+
+        $keys = collect($this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/webhook-event-types')->json('data'))->pluck('key');
+        foreach (['work_order.created', 'work_order.progress', 'quality_issue.created', 'stock_document.posted'] as $key) {
+            $this->assertContains($key, $keys);
+        }
+    }
+
+    public function test_admin_sees_key_owned_webhooks_and_creates_unowned_ones(): void
+    {
+        $key = ApiKey::factory()->create();
+        Webhook::factory()->create(['name' => 'Registered by ERP', 'api_key_id' => $key->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/webhooks')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Registered by ERP']);
+
+        $id = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/webhooks', [
+            'name' => 'Admin hook',
+            'url' => 'https://8.8.8.8/hook',
+            'events' => ['issue.created'],
+            'api_key_id' => $key->id, // not a writable field — ignored
+        ])->assertCreated()->json('data.id');
+
+        $this->assertNull(Webhook::findOrFail($id)->api_key_id);
     }
 }

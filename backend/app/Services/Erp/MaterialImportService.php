@@ -4,7 +4,9 @@ namespace App\Services\Erp;
 
 use App\Models\Material;
 use App\Models\MaterialType;
+use App\Services\Erp\Concerns\NormalizesUnits;
 use App\Services\Erp\Concerns\ReportsImportRows;
+use App\Support\Units\UnitNormalizer;
 use Illuminate\Support\Str;
 
 /**
@@ -22,6 +24,7 @@ use Illuminate\Support\Str;
  */
 class MaterialImportService
 {
+    use NormalizesUnits;
     use ReportsImportRows;
 
     /** Material type used when a row names none — created on first use. */
@@ -33,7 +36,7 @@ class MaterialImportService
      * @param  array<int, array<string, mixed>>  $rows
      * @param  list<string>  $onlyCategories  empty = accept every category
      * @param  array{match?: 'code'|'cascade', generate_code?: bool, default_material_type?: string|null, require_name?: bool}  $options
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>}
      */
     public function import(array $rows, string $strategy = 'update_or_create', array $onlyCategories = [], ?string $system = null, array $options = []): array
     {
@@ -41,8 +44,9 @@ class MaterialImportService
         $cascade = ($options['match'] ?? 'code') === 'cascade';
         $generateCode = (bool) ($options['generate_code'] ?? false);
         $defaultType = trim((string) ($options['default_material_type'] ?? ''));
+        $units = UnitNormalizer::forCurrentTenant();
 
-        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system, $cascade, $generateCode, $defaultType, $options) {
+        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system, $cascade, $generateCode, $defaultType, $options, $units) {
             $code = trim((string) ($row['code'] ?? ''));
             $externalCode = trim((string) ($row['external_code'] ?? ''));
             $externalSystem = trim((string) ($row['external_system'] ?? $system ?? ''));
@@ -90,6 +94,12 @@ class MaterialImportService
                 if (array_key_exists($field, $row) && $row[$field] !== null && $row[$field] !== '') {
                     $attributes[$field] = is_string($row[$field]) ? trim($row[$field]) : $row[$field];
                 }
+            }
+
+            // ERPs name units their own way ("Units", "szt.", "KGM"); store
+            // the OpenMES unit so stock and lots can be checked against it.
+            if (isset($attributes['unit_of_measure'])) {
+                $attributes['unit_of_measure'] = $this->masterDataUnit($units, (string) $attributes['unit_of_measure']);
             }
 
             if ($externalCode !== '') {

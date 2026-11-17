@@ -15,11 +15,16 @@ use App\Http\Controllers\Api\V1\ConnectivityController;
 use App\Http\Controllers\Api\V1\CostSourceController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
+use App\Http\Controllers\Api\V1\Erp\ChangeRequestExportController as ErpChangeRequestExportController;
+use App\Http\Controllers\Api\V1\Erp\KeyIntrospectionController as ErpKeyIntrospectionController;
+use App\Http\Controllers\Api\V1\Erp\MasterDataExportController;
 use App\Http\Controllers\Api\V1\Erp\MasterDataImportController;
 use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
 use App\Http\Controllers\Api\V1\Erp\QualityExportController;
 use App\Http\Controllers\Api\V1\Erp\StockDocumentExportController;
 use App\Http\Controllers\Api\V1\Erp\StockSyncController;
+use App\Http\Controllers\Api\V1\Erp\WebhookController as ErpWebhookController;
+use App\Http\Controllers\Api\V1\Erp\WorkOrderCancelController as ErpWorkOrderCancelController;
 use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\InspectionController;
@@ -111,14 +116,42 @@ Route::prefix('auth')->group(function () {
 // per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
 // tree because these are headless service credentials, not user sessions.
 Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(function () {
+    // Key introspection: what this key may do, for any valid key (no scope).
+    Route::get('/me', ErpKeyIntrospectionController::class)->middleware('throttle:erp-read');
+
+    // OpenMES → ERP: read-only dictionaries (lines, warehouses, product types)
+    // the ERP maps its own codes to. `module:warehouse` sits before the scope
+    // check so a disabled Warehouses module 404s even for a key without scope.
+    Route::get('/lines', [MasterDataExportController::class, 'lines'])
+        ->middleware(['scope:erp:masterdata:read', 'throttle:erp-read']);
+    Route::get('/product-types', [MasterDataExportController::class, 'productTypes'])
+        ->middleware(['scope:erp:masterdata:read', 'throttle:erp-read']);
+    Route::get('/warehouses', [MasterDataExportController::class, 'warehouses'])
+        ->middleware(['module:warehouse', 'scope:erp:masterdata:read', 'throttle:erp-read']);
+
     // ERP → OpenMES: bulk work-order import.
     Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
         ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
 
-    // OpenMES → ERP: production completion export + single-order state.
+    // ERP → OpenMES: cancel one order — at once before production starts, as a
+    // change request for a manager once it has. `{workOrder}` is an id, or the
+    // order number with `?by=order_no`; numbers often contain `/`, so the
+    // parameter accepts it (URL-encoded as %2F). Resolved in the controller, never
+    // by route-model binding (tenant scope — see ProductionExportController::show).
+    Route::post('/work-orders/{workOrder}/cancel', [ErpWorkOrderCancelController::class, 'store'])
+        ->where('workOrder', '.+')
+        ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
+
+    // OpenMES → ERP: production completion export + single-order state (by id,
+    // or by number with `?by=order_no`).
     Route::get('/production/completions', [ProductionExportController::class, 'completions'])
         ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
     Route::get('/work-orders/{workOrder}', [ProductionExportController::class, 'show'])
+        ->where('workOrder', '.+')
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: what was decided about change requests (incl. the ERP's own).
+    Route::get('/change-requests', [ErpChangeRequestExportController::class, 'index'])
         ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
 
     // OpenMES → ERP: quality / non-conformance export.
@@ -133,6 +166,7 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         Route::post('/materials/import', [MasterDataImportController::class, 'materials']);
         Route::post('/material-lots/import', [MasterDataImportController::class, 'materialLots']);
         Route::post('/boms/import', [MasterDataImportController::class, 'boms']);
+        Route::post('/process-templates/import', [MasterDataImportController::class, 'processTemplates']);
     });
 
     // Warehouse balances (#212): ERP snapshot in, OpenMES view out.
@@ -147,6 +181,21 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         ->middleware(['scope:erp:stock:read', 'throttle:erp-read']);
     Route::post('/stock-documents/{stockDocument}/ack', [StockDocumentExportController::class, 'acknowledge'])
         ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
+
+    // OpenMES → ERP push (T2a): the integration registers and manages its OWN
+    // webhook endpoints. Ownership (api_key_id) is enforced in the controller.
+    Route::middleware('scope:erp:webhooks:manage')->group(function () {
+        Route::middleware('throttle:erp-read')->group(function () {
+            Route::get('/webhook-event-types', [ErpWebhookController::class, 'eventTypes']);
+            Route::get('/webhooks', [ErpWebhookController::class, 'index']);
+            Route::get('/webhooks/{webhookId}', [ErpWebhookController::class, 'show'])->whereNumber('webhookId');
+        });
+        Route::middleware('throttle:erp-import')->group(function () {
+            Route::post('/webhooks', [ErpWebhookController::class, 'store']);
+            Route::patch('/webhooks/{webhookId}', [ErpWebhookController::class, 'update'])->whereNumber('webhookId');
+            Route::delete('/webhooks/{webhookId}', [ErpWebhookController::class, 'destroy'])->whereNumber('webhookId');
+        });
+    });
 });
 
 // Machine gateway bridge (OPC UA sidecar / external REST gateways). A token

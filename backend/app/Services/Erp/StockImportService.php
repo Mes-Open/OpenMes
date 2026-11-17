@@ -6,8 +6,10 @@ use App\Models\Material;
 use App\Models\ProductType;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
+use App\Services\Erp\Concerns\NormalizesUnits;
 use App\Services\Erp\Concerns\ReportsImportRows;
 use App\Services\Warehouse\MaterialStockReconciler;
+use App\Support\Units\UnitNormalizer;
 
 /**
  * ERP → OpenMES available-quantity sync (#212).
@@ -19,23 +21,29 @@ use App\Services\Warehouse\MaterialStockReconciler;
  * stock_movements ledger: allocation, MRP and shortage reports all read
  * stock_quantity, and a silent overwrite would leave them with an unexplained
  * jump and no audit trail.
+ *
+ * A row's unit must be the item's unit (after unit aliases): a quantity in the
+ * wrong unit fails the row instead of overwriting the balance with a number
+ * that means something else. Nothing is converted.
  */
 class StockImportService
 {
+    use NormalizesUnits;
     use ReportsImportRows;
 
     public function __construct(private MaterialStockReconciler $reconciler) {}
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>}
      */
     public function import(array $rows, ?string $defaultWarehouseCode = null): array
     {
         /** @var array<int, int> materials whose global quantity must be re-derived */
         $touchedMaterials = [];
+        $units = UnitNormalizer::forCurrentTenant();
 
-        $report = $this->processRows($rows, function (array $row) use ($defaultWarehouseCode, &$touchedMaterials) {
+        $report = $this->processRows($rows, function (array $row) use ($defaultWarehouseCode, &$touchedMaterials, $units) {
             $warehouseCode = trim((string) ($row['warehouse_code'] ?? $defaultWarehouseCode ?? ''));
 
             if ($warehouseCode === '') {
@@ -72,11 +80,17 @@ class StockImportService
                     return $this->error('warehouse_code', __("Warehouse ':code' cannot hold materials", ['code' => $warehouseCode]));
                 }
 
+                $unit = $this->quantityUnit($units, $row['unit_of_measure'] ?? null, $material->unit_of_measure, $material->code);
+
+                if ($unit['error']) {
+                    return $unit['error'];
+                }
+
                 $existed = $this->writeBalance($warehouse->id, [
                     'material_id' => $material->id,
                     'product_type_id' => null,
                     'material_lot_id' => null,
-                ], $quantity, $row['unit_of_measure'] ?? $material->unit_of_measure);
+                ], $quantity, $unit['unit']);
 
                 $touchedMaterials[$material->id] = $material->id;
 
@@ -93,11 +107,17 @@ class StockImportService
                 return $this->error('warehouse_code', __("Warehouse ':code' cannot hold finished product", ['code' => $warehouseCode]));
             }
 
+            $unit = $this->quantityUnit($units, $row['unit_of_measure'] ?? null, $product->unit_of_measure, $product->code);
+
+            if ($unit['error']) {
+                return $unit['error'];
+            }
+
             $existed = $this->writeBalance($warehouse->id, [
                 'material_id' => null,
                 'product_type_id' => $product->id,
                 'material_lot_id' => null,
-            ], $quantity, $row['unit_of_measure'] ?? $product->unit_of_measure);
+            ], $quantity, $unit['unit']);
 
             return $existed ? $this->updated() : $this->created();
         });

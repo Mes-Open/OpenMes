@@ -37,6 +37,7 @@ use App\Http\Controllers\Web\Admin\ScrapReportController;
 use App\Http\Controllers\Web\Admin\SubassemblyController;
 use App\Http\Controllers\Web\Admin\ToolController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\UnitAliasController;
 use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
@@ -250,6 +251,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Web\SettingsController::class, 'revokeApiToken'])->name('api-tokens.revoke')->middleware('role:Admin');
+        // Admin-only ERP integration API keys, for the ERP section of the API Tokens
+        // page. Same controller and Form Request as /api/v1/api-keys, but on the
+        // session (web) guard so the page works whatever SANCTUM_STATEFUL_DOMAINS
+        // says — the same reason /api/collections lives here.
+        Route::middleware(['role:Admin', 'module:erp'])->group(function () {
+            Route::get('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'index'])->name('api-keys.index');
+            Route::post('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'store'])->name('api-keys.store');
+            Route::post('/api-keys/{apiKey}/toggle-active', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'toggleActive'])->name('api-keys.toggle-active');
+            Route::delete('/api-keys/{apiKey}', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+        });
         // Admin-only role × tab access matrix
         Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
         Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');
@@ -420,6 +431,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::get('/work-orders/{workOrder}/edit', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'edit'])->name('work-orders.edit');
         Route::put('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'update'])->name('work-orders.update');
+        // Change requests waiting for a decision (incl. the ERP's). Same list as the
+        // admin twin; each row opens the review page, which lives under /admin and
+        // is reachable through the `orders` tab supervisors hold.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         // Authorized per-order by WorkOrderPolicy::delete — the Supervisor role
         // doesn't hold `delete work orders`, an Admin browsing this tree does.
         Route::delete('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'destroy'])->name('work-orders.destroy');
@@ -580,6 +596,9 @@ Route::middleware('auth')->group(function () {
             ->name('work-orders.stop');
         Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
             ->name('work-orders.change-requests.store');
+        // The reviewer's queue — every request, including the ones an ERP raised.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
             ->name('work-order-change-requests.show');
         Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])
@@ -771,6 +790,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
         // Outgoing webhooks (#20)
+        // Private-network allowlist (T2a). Deliberately NOT under /webhooks/…
+        // (would collide with PUT /webhooks/{webhook}) and explicitly Admin-only:
+        // the Webhooks tab permission alone must not widen SSRF reach.
+        Route::put('/webhook-allowlist', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'updateAllowlist'])
+            ->name('webhooks.allowlist.update')->middleware('role:Admin');
         Route::resource('webhooks', \App\Http\Controllers\Web\Admin\WebhookController::class)->except(['show']);
         Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'toggleActive'])->name('webhooks.toggle-active');
         Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'test'])->name('webhooks.test');
@@ -844,6 +868,11 @@ Route::middleware('auth')->group(function () {
             ->parameters(['custom-fields' => 'customField'])->except(['show']);
         Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
         Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
+
+        // Unit aliases (Settings → Units) — ERP unit names → OpenMES units.
+        // Deliberately outside every TabRegistry prefix, which keeps it Admin-only.
+        Route::resource('unit-aliases', UnitAliasController::class)
+            ->parameters(['unit-aliases' => 'unitAlias'])->except(['show']);
 
         // Scrap Reasons
         // Personnel records. The optional workforce module adds crews, wage

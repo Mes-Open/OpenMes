@@ -19,12 +19,19 @@ class WebhookFactory extends Factory
             'events' => [WebhookEventRegistry::WORK_ORDER_STATUS_CHANGED],
             'headers' => null,
             'is_active' => true,
+            'legacy_signature' => false,
         ];
     }
 
     public function inactive(): static
     {
         return $this->state(fn () => ['is_active' => false]);
+    }
+
+    /** Signs the body only, as webhooks created before timestamped signatures do. */
+    public function legacySignature(): static
+    {
+        return $this->state(fn () => ['legacy_signature' => true]);
     }
 
     /**

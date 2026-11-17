@@ -21,12 +21,20 @@ class WebhookDelivery extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /** Signed "{timestamp}.{body}" (X-OpenMES-Timestamp + X-OpenMES-Signature). */
+    public const SIGNATURE_V1 = 'v1';
+
+    /** Signed the body only (webhook has legacy_signature on). */
+    public const SIGNATURE_LEGACY = 'legacy';
+
     protected $fillable = [
         'webhook_id',
         'event_type',
         'payload',
         'status',
         'attempts',
+        'signature_timestamp',
+        'signature_scheme',
         'response_code',
         'response_body',
         'error',
@@ -38,6 +46,7 @@ class WebhookDelivery extends Model
         return [
             'payload' => 'array',
             'attempts' => 'integer',
+            'signature_timestamp' => 'integer',
             'response_code' => 'integer',
             'delivered_at' => 'datetime',
         ];

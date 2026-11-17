@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\ApiScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
 use App\Http\Requests\UpdateProductionTargetsRequest;
@@ -343,6 +344,8 @@ class SettingsController extends Controller
                 'last_used_at_human' => $t->last_used_at?->diffForHumans(),
             ]);
 
+        $erpEnabled = ModuleRegistry::isModuleEnabled('erp');
+
         return Inertia::render('settings/ApiTokens', [
             'tokens' => $tokens,
             'newToken' => session('new_token'),
@@ -353,6 +356,10 @@ class SettingsController extends Controller
                 fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label(), 'description' => $scope->description()],
                 \App\Enums\ApiTokenScope::cases(),
             ),
+            // ERP integration keys are managed client-side against /api/v1/api-keys;
+            // the section only exists while the ERP module (and that API) is on.
+            'erpEnabled' => $erpEnabled,
+            'erpScopes' => $erpEnabled ? ApiScope::options() : [],
         ]);
     }
 
@@ -734,7 +741,10 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // The webhook network allowlist is security config, not portable data.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\WebhookNetworkAllowlist::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.

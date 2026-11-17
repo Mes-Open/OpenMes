@@ -67,6 +67,12 @@ export default function Index() {
                         description={__('Define extra fields on records across the system')}
                     />
                     <NavCard
+                        href="/admin/unit-aliases"
+                        iconPath="M3 17l4-4m0 0l3 3m-3-3l3-3m0 0l3 3m-3-3l3-3m0 0l3 3m-3-3l4-4M3 17l4 4L21 7l-4-4"
+                        title={__('Units of Measure')}
+                        description={__('Map the unit names your ERP sends to OpenMES units')}
+                    />
+                    <NavCard
                         href="/settings/access"
                         iconPath="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                         title={__('Tab Access')}

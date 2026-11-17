@@ -112,6 +112,9 @@ class ConfigurationImporter
         'modules_enabled',
         // Switched only on its own form, with its own checks.
         'production_flow_mode',
+        // Widens which internal hosts webhooks may reach (T2a): only ever set
+        // deliberately by an admin on the Webhooks page, never by a restore.
+        \App\Support\WebhookNetworkAllowlist::SETTING_KEY,
     ];
 
     private const SKIP_COLUMNS = ['id', 'created_at', 'updated_at', 'tenant_id', 'deleted_at', 'deleted_by_id'];

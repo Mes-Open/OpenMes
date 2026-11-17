@@ -140,13 +140,16 @@ export const ADMIN_GROUPS = [
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/scrap-reasons', '/packaging/eans', '/packaging/station',
-            '/packaging/label-templates',
+            '/packaging/label-templates', '/admin/work-order-change-requests',
         ],
         children: [
             // Process templates, their BOMs and engineering documents all hang
             // off a specific product type — there is no standalone list to link,
             // so the product type is the way in to all three.
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            // The reviewer's queue: changes and cancellations of running orders,
+            // including the ones an ERP sends. Same `orders` tab as the review page.
+            { label: 'Change requests', href: '/admin/work-order-change-requests', match: ['/admin/work-order-change-requests'], tab: 'orders', lucide: 'git-pull-request' },
             { label: 'Packing station', href: '/packaging/station', match: ['/packaging/station'], lucide: 'package' },
             { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
@@ -291,7 +294,7 @@ export const ADMIN_GROUPS = [
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
-        match: ['/settings', '/admin/custom-fields'],
+        match: ['/settings', '/admin/custom-fields', '/admin/unit-aliases'],
         children: [
             {
                 key: 'systemSettingsGroup',
@@ -311,6 +314,7 @@ export const ADMIN_GROUPS = [
             },
             { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
             { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
+            { label: 'Units of Measure', href: '/admin/unit-aliases', match: ['/admin/unit-aliases'], lucide: 'ruler' },
             { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
             { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
             { label: 'Change Password', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },

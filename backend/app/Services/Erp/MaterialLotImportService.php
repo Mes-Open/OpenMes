@@ -6,8 +6,10 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
+use App\Services\Erp\Concerns\NormalizesUnits;
 use App\Services\Erp\Concerns\ReportsImportRows;
 use App\Services\Warehouse\MaterialStockReconciler;
+use App\Support\Units\UnitNormalizer;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,23 +28,28 @@ use Illuminate\Support\Facades\DB;
  * ERP lot list authoritative for the (warehouse, material) pairs it touches; bulk
  * stock for materials that are not lot-tracked belongs to the stock import
  * endpoint instead (StockImportService).
+ *
+ * A lot's unit must be its material's unit (after unit aliases) — a mismatch
+ * fails the row rather than storing a quantity in the wrong unit.
  */
 class MaterialLotImportService
 {
+    use NormalizesUnits;
     use ReportsImportRows;
 
     public function __construct(private MaterialStockReconciler $reconciler) {}
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>}
      */
     public function import(array $rows, string $strategy = 'update_or_create', ?string $defaultWarehouseCode = null): array
     {
         /** @var array<string, array{0: int, 1: int}> touched (warehouse, material) pairs to reconcile */
         $touched = [];
+        $units = UnitNormalizer::forCurrentTenant();
 
-        $report = $this->processRows($rows, function (array $row) use ($strategy, $defaultWarehouseCode, &$touched) {
+        $report = $this->processRows($rows, function (array $row) use ($strategy, $defaultWarehouseCode, &$touched, $units) {
             $lotNumber = trim((string) ($row['lot_number'] ?? ''));
 
             if ($lotNumber === '') {
@@ -80,6 +87,12 @@ class MaterialLotImportService
                 return $this->error('status', __('Unknown lot status :status', ['status' => $status]));
             }
 
+            $unit = $this->quantityUnit($units, $row['unit_of_measure'] ?? null, $material->unit_of_measure, $material->code);
+
+            if ($unit['error']) {
+                return $unit['error'];
+            }
+
             $existing = MaterialLot::where('lot_number', $lotNumber)->first();
 
             // material_lots is unique on (lot_number, tenant), so the same number
@@ -102,7 +115,7 @@ class MaterialLotImportService
 
             $attributes = [
                 'quantity_available' => $quantity,
-                'unit_of_measure' => $row['unit_of_measure'] ?? $material->unit_of_measure,
+                'unit_of_measure' => $unit['unit'] ?? (string) $material->unit_of_measure,
                 'supplier_lot_no' => $row['supplier_lot_no'] ?? null,
                 'supplier_reference' => $row['supplier_reference'] ?? null,
                 'manufacturing_date' => $row['manufacturing_date'] ?? null,
