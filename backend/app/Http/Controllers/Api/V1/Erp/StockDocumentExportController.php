@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\AcknowledgeStockDocumentRequest;
 use App\Http\Requests\Api\V1\Erp\StockExportRequest;
 use App\Models\StockDocument;
 use App\Services\Warehouse\StockDocumentService;
+use App\Support\Integration\StockDocumentPresenter;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -24,22 +26,15 @@ use Illuminate\Http\JsonResponse;
 class StockDocumentExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
 
     public function index(StockExportRequest $request): JsonResponse
     {
         $query = StockDocument::query()
-            ->with([
-                'warehouse:id,code,name,erp_code',
-                'workOrder:id,order_no',
-                'lines.material:id,code,name',
-                'lines.productType:id,code,name',
-                'lines.materialLot:id,lot_number',
-            ])
+            ->with(StockDocumentPresenter::RELATIONS)
             ->orderBy('id');
 
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         if ($type = $request->input('type')) {
             $query->where('type', $type);
@@ -60,7 +55,7 @@ class StockDocumentExportController extends Controller
         $page = $query->cursorPaginate($request->perPage())->withQueryString();
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (StockDocument $doc) => $this->present($doc)),
+            'data' => collect($page->items())->map(fn (StockDocument $doc) => StockDocumentPresenter::present($doc)),
             'meta' => $this->cursorMeta($page),
         ]);
     }
@@ -84,35 +79,8 @@ class StockDocumentExportController extends Controller
 
         // present() reads each line's material / product / lot, so load them here
         // rather than paying a query per line.
-        return response()->json(['data' => $this->present($document->fresh([
+        return response()->json(['data' => StockDocumentPresenter::present($document->fresh([
             'warehouse', 'workOrder', 'lines.material', 'lines.productType', 'lines.materialLot',
         ]))]);
-    }
-
-    private function present(StockDocument $doc): array
-    {
-        return [
-            'id' => $doc->id,
-            'document_no' => $doc->document_no,
-            'type' => $doc->type,
-            'status' => $doc->status,
-            'direction' => $doc->direction() > 0 ? 'in' : 'out',
-            'warehouse_code' => $doc->warehouse?->code,
-            'warehouse_erp_code' => $doc->warehouse?->erp_code,
-            'work_order_no' => $doc->workOrder?->order_no,
-            'notes' => $doc->notes,
-            'erp_reference' => $doc->erp_reference,
-            'erp_synced_at' => $doc->erp_synced_at?->toIso8601String(),
-            'posted_at' => $doc->posted_at?->toIso8601String(),
-            'updated_at' => $doc->updated_at?->toIso8601String(),
-            'lines' => $doc->lines->map(fn ($line) => [
-                'material_code' => $line->material?->code,
-                'product_type_code' => $line->productType?->code,
-                'lot_number' => $line->effectiveLotNumber(),
-                'quantity' => (float) $line->quantity,
-                'unit_of_measure' => $line->unit_of_measure,
-                'notes' => $line->notes,
-            ])->values(),
-        ];
     }
 }

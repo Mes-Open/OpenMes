@@ -7,6 +7,166 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **ERP API: key introspection, read-only master data, multi-status export.** An ERP
+  integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
+  granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,
+  and the app version; the key's prefix and hash are never returned. A new scope,
+  `erp:masterdata:read`, lets a key list lines (`/erp/lines`), product types
+  (`/erp/product-types`, with unit of measure and whether an active process template
+  exists) and warehouses (`/erp/warehouses`, with the ERP warehouse code; only while the
+  Warehouses module is on), cursor-paginated with `?since=` and `?active=`, so line and
+  product codes no longer have to be typed in on the ERP side.
+  `/erp/production/completions` accepts several statuses (`status[]=DONE&status[]=IN_PROGRESS`)
+  or `status=all` in one request; without `status` it still returns completed orders only.
+  *Settings → API Tokens* gains an **ERP API keys** section (while the ERP integration module
+  is on) to create a key with a name, scopes — each with a short description — and an
+  optional expiry, copy the full key once, and revoke keys. See the *ERP Integration API*
+  section of `docs/API_DOCUMENTATION.md`.
+- **Webhooks: full work-order payloads and new events.** Work-order events now carry the
+  same fields as the ERP production export (`GET /api/v1/erp/production/...`): `order_no`,
+  `customer_order_no`, `status`, quantities, `line_code`, `product_type_code`,
+  `completed_at` and `updated_at`, plus `id` and `previous_status`. The old `line_id` and
+  `product_type_id` keys stay. A receiver no longer has to call the API back to resolve
+  codes. Four new events can be ticked under *Admin → Webhooks → Edit → Subscribed events*:
+  *Work order created*, *Work order progress* (`produced_qty` changed, at most once per
+  order every 30 s, set with `WEBHOOK_PROGRESS_THROTTLE_SECONDS`), *Stock document posted*
+  (same shape as `/api/v1/erp/stock-documents`) and *Quality issue created* (same shape as
+  `/api/v1/erp/quality/issues`, for issues raised against a work order).
+- **Webhooks: timestamped signatures.** Every delivery sends `X-OpenMES-Timestamp` (unix
+  seconds). The delivery log (*Webhooks → Deliveries*) shows it in a new *Signed at* column,
+  next to the *Signature* scheme used (`v1` or *Legacy*). Each endpoint has a new **Legacy
+  signature** option; see *Changed* below. `docs/API_DOCUMENTATION.md` now has a *Webhooks*
+  section with step-by-step signature verification (with a 5-minute tolerance) and PHP,
+  Node and Python examples.
+
+- **Unit aliases and unit checks for ERP imports.** *Settings → Units of Measure* is a new
+  Admin page listing the names ERPs use for a unit and the unit OpenMES stores for each
+  (`Units`, `szt`, `Stück`, `C62` → `pcs`; `KGM` → `kg`; …), pre-filled with common
+  names and UN/ECE codes and editable per tenant. Product and material imports store
+  the OpenMES unit instead of the ERP's spelling; an unknown unit is still saved as sent,
+  and the import report lists it under a new `warnings` key. **Behaviour change:** a
+  stock or material-lot row whose unit does not match the item's unit (340 `g` for a
+  material kept in `kg`) now fails with a readable `unit_of_measure` error instead of
+  being stored with the wrong unit; quantities are never converted. Rows without a unit
+  behave as before. Each tenant gets its own copy of the defaults (new tenants on
+  creation), and deleting an alias really stops imports from using it.
+- `ResourceForm` text fields accept `maxLength`.
+- **ERP: read an order back by number, cancel it, and follow change requests.**
+  `GET /api/v1/erp/work-orders/{id}` now also takes the order number
+  (`?by=order_no`, with `/` sent as `%2F`) and returns the order's `id` and its
+  `change_requests`. The work-order import report gains `results` — one entry per row
+  with `order_no`, `id` and `action` (`created`, `updated`, `skipped`,
+  `change_requested`); the existing counters are unchanged. New
+  `POST /api/v1/erp/work-orders/{id}/cancel` (scope `erp:orders:import`, optional
+  `reason`) cancels an order that has not started at once and, for an order in
+  production, raises a cancellation request for a manager (`202`); a finished order
+  answers `409` with its status. New `GET /api/v1/erp/change-requests`
+  (scope `erp:production:read`, `since`, cursor) tells the ERP whether each request was
+  approved, rejected, applied or withdrawn, with `decided_at` and the rejection reason.
+- **Production → Change requests.** A list of every change request, open ones first,
+  filterable by status, in the admin and the supervisor menus. Requests raised by an ERP
+  show the API key as the requester (*"API key: SAP prod"*) and a *Requested via API
+  key* badge. A cancellation request reads *"This request cancels the work order."*;
+  approving and applying it cancels the order the same way the order's *Cancel* action
+  does.
+
+- **ERP work orders carry their source, customer and price currency.** The ERP import
+  (`POST /api/v1/erp/work-orders/import`) accepts `external_system`, `external_ref`,
+  `customer_name`, `price_currency` (ISO 4217, from the supported currency list) and
+  `extra_data` (an object of simple values, at most two levels and 16 KB) per order, on
+  create and on update. They come back in `GET /erp/work-orders/{id}` and
+  `production/completions`, and stock documents add `work_order_external_system` /
+  `work_order_external_ref`, so the ERP can match what production booked to its own order.
+  The admin work-order page shows them in a read-only *Source* card. Payloads without the
+  new fields behave as before.
+- **Routings from the ERP: process templates over the ERP API.** A product and its routing
+  sent from the ERP are now enough to accept the first work order — no manual work in
+  OpenMES first. The new `POST /api/v1/erp/process-templates/import` (scope
+  `erp:masterdata:write`) takes each product's operations — number, name, workstation (and
+  optionally line), setup time, run time per piece, instruction — and turns them into a
+  process template. By default it adds a new active version, exactly like *Production →
+  Product Types → Process Templates* does: earlier versions stay, orders already released
+  keep the steps they were frozen with, and the recipe moves onto the new version. Re-sending
+  an unchanged routing is reported as *skipped* instead of stacking versions; `mode:
+  replace_draft` rewrites an inactive draft instead. A routing naming an unknown product or
+  workstation fails as one row (207) and is written not at all. `POST
+  /api/v1/erp/products/import` also accepts `create_default_template: true`: a product type
+  with no template gets an active one with a single *Production* step (name configurable via
+  `default_step_name`, in the plant language by default), reported as `template_created` in
+  the new per-row `rows` list. See *ERP Integration API → Process Templates* in
+  `docs/API_DOCUMENTATION.md`.
+
+- **ERP API: settle a work order in one call.** `GET /api/v1/erp/work-orders/{id}` and
+  `GET /api/v1/erp/production/completions` accept `?include=consumption,scrap,costs`
+  (scope `erp:production:read`, API key only): actual material consumption with material
+  code, unit and picked lots; scrap with quantity, reason and production step; and costs —
+  materials, labour and additional costs with amounts and currency, the same figures as the
+  *Production Cost* report. Without `include` the response is unchanged; an unknown value is
+  a `422`. With `include`, `limit` on the completions list is capped at 100 (default 50) and
+  the sections are loaded per page, not per order. See `docs/API_DOCUMENTATION.md`.
+- **ERP integrations can register their own webhooks.** An API key with the new
+  `erp:webhooks:manage` scope can list, create, update and delete webhooks through
+  `/api/v1/erp/webhooks` (event catalog: `/api/v1/erp/webhook-event-types`). A key sees
+  only the webhooks it created itself: webhooks created by an administrator or by another
+  key return 404. The signing secret appears once, in the create response. Deactivating
+  or deleting a key deactivates its webhooks; reactivating the key leaves them off.
+  Deliveries for a key that has expired are not sent. One key can own at most 25
+  webhooks. *Settings → API Keys* has a new *ERP integration keys* section for creating
+  scoped keys (shown once), deactivating them and deleting them. *Webhooks → Endpoints*
+  shows whether each webhook came from an API key or an admin.
+- **Webhooks to receivers in the local network.** *Webhooks → Endpoints* has a new
+  *Local network receivers* card. There an administrator lists the private networks (CIDR,
+  e.g. `192.168.1.0/24`) or exact hostnames that webhooks may reach, for example an
+  on-premises Odoo or another ERP. The list is empty by default, so private addresses stay
+  blocked as before. Loopback, link-local and cloud-metadata addresses are always blocked,
+  even when the list covers them. The same rule is checked again on every delivery, and
+  each delivery is still pinned to the checked IP. Only Admins can change the list, every
+  change is written to the audit log (`webhook_network_allowlist_updated`), and the list is
+  not included in settings export or import.
+
+### Changed
+
+- **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
+  its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
+  instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
+  migration turns on *Legacy signature* for every webhook that already exists, so they keep
+  the body-only HMAC. Endpoints created after the upgrade (in the admin UI or through
+  `POST /api/v1/webhooks`) use the new scheme. Update your receiver to the verification in
+  `docs/API_DOCUMENTATION.md#verifying-the-signature`, then untick *Legacy signature*.
+- In work-order webhook payloads, `planned_qty` and `produced_qty` are now JSON numbers
+  (`100.0`) rather than decimal strings (`"100.00"`), as in the ERP API.
+- A webhook delivery row and its queued job are now created after the database transaction
+  that raised the event commits, so a rolled-back change no longer sends an event.
+- **ERP `update_or_create` no longer overwrites orders in production.** Until now a
+  work-order import overwrote the line, quantity, due date and description of an order
+  that was `IN_PROGRESS`, `PAUSED`, `BLOCKED` or in `CHANGE_HOLD`. It now leaves the order
+  untouched and raises a change request with only the fields that differ
+  (`action: change_requested`); a manager approves or rejects it. A later import for the
+  same order revises that request instead of opening another. A different product type,
+  priority, customer order number or unit price on a running order is a row error.
+  `REJECTED` orders are now skipped like `DONE` and `CANCELLED` ones. Orders that have not
+  started (`PENDING`, `ACCEPTED`) are updated directly as before. The CSV importer and
+  *Admin → Import* are unchanged.
+
+### Security
+
+- **Webhooks: replay protection and tenant isolation.** Because the timestamp is signed, a
+  captured delivery can no longer be replayed outside the receiver's tolerance window.
+  Webhook events are now matched on the tenant that owns the work order, issue, batch or
+  stock document (an issue without a work order belongs to the reporting user's tenant, so
+  existing `issue.created` integrations keep receiving those). Before, events raised without a logged-in user (machine counting, MQTT,
+  queue workers) could reach other tenants' endpoints. A webhook whose tenant differs from
+  the entity's (for example one created by a tenant-less super-admin) no longer receives
+  that tenant's events.
+
+### Fixed
+
+- **Work-order import picks the newest active process template.** With several active
+  versions of a product's process template, the CSV and ERP work-order imports took an
+  unspecified one; they now take the newest active version, like the rest of OpenMES.
+
 ## [0.29.0] - 2026-11-16
 
 ### Added

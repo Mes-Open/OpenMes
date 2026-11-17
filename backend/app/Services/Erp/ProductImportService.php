@@ -3,7 +3,9 @@
 namespace App\Services\Erp;
 
 use App\Models\ProductType;
+use App\Services\Erp\Concerns\NormalizesUnits;
 use App\Services\Erp\Concerns\ReportsImportRows;
+use App\Support\Units\UnitNormalizer;
 
 /**
  * ERP → OpenMES product (product type) master-data import (#212).
@@ -16,19 +18,33 @@ use App\Services\Erp\Concerns\ReportsImportRows;
  */
 class ProductImportService
 {
+    use NormalizesUnits;
     use ReportsImportRows;
+
+    public function __construct(private ProcessTemplateImportService $templates) {}
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
      * @param  list<string>  $onlyCategories  empty = accept every category
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>}
+     * @param  bool  $createDefaultTemplate  give a created/updated product type with no
+     *                                       process template a one-step active one, so
+     *                                       ERP orders for it are accepted at once
+     * @param  string|null  $defaultStepName  that step's name; null = "Production" in the app locale
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array<string, mixed>>, warnings: array<int, array<string, mixed>>, rows?: array<int, array<string, mixed>>}
      */
-    public function import(array $rows, string $strategy = 'update_or_create', array $onlyCategories = [], ?string $system = null): array
-    {
+    public function import(
+        array $rows,
+        string $strategy = 'update_or_create',
+        array $onlyCategories = [],
+        ?string $system = null,
+        bool $createDefaultTemplate = false,
+        ?string $defaultStepName = null,
+    ): array {
         // Case-insensitive match: ERP classification codes are inconsistently cased.
         $allowed = array_map(fn (string $c) => mb_strtolower(trim($c)), $onlyCategories);
+        $units = UnitNormalizer::forCurrentTenant();
 
-        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system) {
+        return $this->processRows($rows, function (array $row) use ($strategy, $allowed, $system, $units, $createDefaultTemplate, $defaultStepName) {
             $code = trim((string) ($row['code'] ?? ''));
 
             if ($code === '') {
@@ -62,6 +78,12 @@ class ProductImportService
                 }
             }
 
+            // ERPs name units their own way ("Units", "szt.", "KGM"); store
+            // the OpenMES unit so stock and lots can be checked against it.
+            if (isset($attributes['unit_of_measure'])) {
+                $attributes['unit_of_measure'] = $this->masterDataUnit($units, (string) $attributes['unit_of_measure']);
+            }
+
             if (! isset($attributes['external_system']) && $system !== null) {
                 $attributes['external_system'] = $system;
             }
@@ -75,10 +97,10 @@ class ProductImportService
             if ($existing) {
                 $existing->update($attributes);
 
-                return $this->updated();
+                return $this->updated($this->defaultTemplateReport($existing, $createDefaultTemplate, $defaultStepName));
             }
 
-            ProductType::create([
+            $product = ProductType::create([
                 'code' => $code,
                 'name' => $code,
                 'unit_of_measure' => 'pcs',
@@ -87,7 +109,17 @@ class ProductImportService
                 ...$attributes,
             ]);
 
-            return $this->created();
+            return $this->created($this->defaultTemplateReport($product, $createDefaultTemplate, $defaultStepName));
         });
+    }
+
+    /** @return array<string, mixed> the row's report entry; empty when nothing was created */
+    private function defaultTemplateReport(ProductType $product, bool $enabled, ?string $stepName): array
+    {
+        if (! $enabled || ! $this->templates->createDefault($product, $stepName)) {
+            return [];
+        }
+
+        return ['code' => $product->code, 'template_created' => true];
     }
 }

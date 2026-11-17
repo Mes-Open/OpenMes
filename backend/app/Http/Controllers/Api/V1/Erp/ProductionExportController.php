@@ -3,35 +3,53 @@
 namespace App\Http\Controllers\Api\V1\Erp;
 
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
+use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
+use App\Http\Controllers\Api\V1\Erp\Concerns\ResolvesErpWorkOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ProductionExportRequest;
+use App\Http\Requests\Api\V1\Erp\ShowErpWorkOrderRequest;
+use App\Http\Resources\Erp\ErpChangeRequestPresenter;
 use App\Models\WorkOrder;
+use App\Services\Erp\WorkOrderSettlementPresenter;
+use App\Support\Integration\WorkOrderPresenter;
 use Illuminate\Http\JsonResponse;
 
 /**
  * OpenMES → ERP: production completion export. Emits produced quantities and
  * completion timestamps per work order, cursor-paginated for incremental
- * polling. Requires the `erp:production:read` scope; rate limited via the
- * `erp-read` limiter. Tenant scoping is applied automatically from the API
+ * polling, in one, several or all statuses. Requires the `erp:production:read`
+ * scope; rate limited via the `erp-read` limiter. Tenant scoping is applied automatically from the API
  * key's tenant (TenantContext).
+ *
+ * `?include=consumption,scrap,costs` adds settlement sections to each order
+ * (see WorkOrderSettlementPresenter); without it the shape is unchanged.
  */
 class ProductionExportController extends Controller
 {
     use BuildsCursorMeta;
+    use FiltersSince;
+    use ResolvesErpWorkOrder;
+
+    /** Resolved only when sections are requested: its cost service reads settings. */
+    private ?WorkOrderSettlementPresenter $settlement = null;
 
     public function completions(ProductionExportRequest $request): JsonResponse
     {
+        $includes = $request->includes();
+
         $query = WorkOrder::query()
-            ->with(['line:id,code,name', 'productType:id,code,name'])
+            ->with(WorkOrderPresenter::RELATIONS)
+            ->with($includes === [] ? [] : $this->settlement()->relations($includes))
             ->orderBy('id');
 
         // Incremental sync: everything changed at/after the ERP's last poll.
-        if ($since = $request->input('since')) {
-            $query->where('updated_at', '>=', $since);
-        }
+        $this->applySince($query, $request);
 
         // Default to completed orders — the usual ERP "post production" grain.
-        $query->where('status', $request->input('status', WorkOrder::STATUS_DONE));
+        // `status` may also name several statuses, or `all` for no filter.
+        if (($statuses = $request->statuses()) !== null) {
+            $query->whereIn('status', $statuses);
+        }
 
         if ($line = $request->input('line')) {
             $query->whereHas('line', fn ($q) => $q->where('code', $line));
@@ -40,15 +58,16 @@ class ProductionExportController extends Controller
         $page = $query->cursorPaginate($request->perPage())->withQueryString();
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (WorkOrder $wo) => $this->present($wo)),
+            'data' => collect($page->items())->map(fn (WorkOrder $wo) => $this->present($wo, $includes)),
             'meta' => $this->cursorMeta($page),
         ]);
     }
 
     /**
-     * Single work order by id — lets the ERP confirm the current state of one
-     * order it previously imported. 404 when the id is unknown within the key's
-     * tenant.
+     * Single work order by id — or by order number with `?by=order_no` — so the ERP
+     * can confirm the current state of an order it imported, including every change
+     * request raised against it and how each was decided. 404 when the order is
+     * unknown within the key's tenant.
      *
      * The model is resolved here rather than via implicit route-model binding on
      * purpose: SubstituteBindings runs before this route's API-key middleware
@@ -58,28 +77,40 @@ class ProductionExportController extends Controller
      * Resolving in the controller runs after the middleware, so the tenant scope
      * is always applied.
      */
-    public function show(int $workOrder): JsonResponse
+    public function show(ShowErpWorkOrderRequest $request, string $workOrder): JsonResponse
     {
-        $order = WorkOrder::with(['line:id,code,name', 'productType:id,code,name'])
-            ->findOrFail($workOrder);
+        $includes = $request->includes();
 
-        return response()->json(['data' => $this->present($order)]);
+        $order = $this->resolveWorkOrder($workOrder, $request->lookup(), [
+            ...WorkOrderPresenter::RELATIONS,
+            'changeRequests' => fn ($q) => $q->orderBy('id'),
+            ...($includes === [] ? [] : $this->settlement()->relations($includes)),
+        ]);
+
+        // present() reads the order number off each request; it is this order.
+        $order->changeRequests->each->setRelation('workOrder', $order);
+        $presenter = new ErpChangeRequestPresenter($order->changeRequests);
+
+        return response()->json(['data' => [
+            ...$this->present($order, $includes),
+            'change_requests' => $order->changeRequests->map(fn ($cr) => $presenter->present($cr))->values(),
+        ]]);
     }
 
-    private function present(WorkOrder $wo): array
+    /**
+     * The shared integration shape, plus the requested settlement sections.
+     *
+     * @param  list<string>  $includes  requested settlement sections
+     */
+    private function present(WorkOrder $wo, array $includes = []): array
     {
-        return [
-            'order_no' => $wo->order_no,
-            'customer_order_no' => $wo->customer_order_no,
-            'status' => $wo->status,
-            'planned_qty' => (float) $wo->planned_qty,
-            'produced_qty' => (float) $wo->produced_qty,
-            'unit_price' => $wo->unit_price !== null ? (float) $wo->unit_price : null,
-            'counting_source' => $wo->counting_source,
-            'line_code' => $wo->line?->code,
-            'product_type_code' => $wo->productType?->code,
-            'completed_at' => $wo->completed_at?->toIso8601String(),
-            'updated_at' => $wo->updated_at?->toIso8601String(),
-        ];
+        $base = WorkOrderPresenter::present($wo);
+
+        return $includes === [] ? $base : array_merge($base, $this->settlement()->sections($wo, $includes));
+    }
+
+    private function settlement(): WorkOrderSettlementPresenter
+    {
+        return $this->settlement ??= app(WorkOrderSettlementPresenter::class);
     }
 }

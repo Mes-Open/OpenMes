@@ -9,7 +9,13 @@ import { __ } from '../../../lib/i18n';
 export function webhookFields(events, { isEdit = false } = {}) {
     return [
         { name: 'name', label: __('Name'), required: true },
-        { name: 'url', label: __('Endpoint URL'), required: true, placeholder: 'https://example.com/hooks/openmes' },
+        {
+            name: 'url',
+            label: __('Endpoint URL'),
+            required: true,
+            placeholder: 'https://example.com/hooks/openmes',
+            help: __('Local network addresses (e.g. 192.168.x.x) must first be allowed under Local network receivers on the Webhooks page.'),
+        },
         {
             name: 'events',
             label: __('Subscribed events'),
@@ -25,6 +31,12 @@ export function webhookFields(events, { isEdit = false } = {}) {
                 : __('Leave blank to auto-generate.'),
         },
         { name: 'is_active', label: __('Active'), type: 'checkbox' },
+        {
+            name: 'legacy_signature',
+            label: __('Legacy signature'),
+            type: 'checkbox',
+            help: __('Sign the request body only, without the timestamp. Keep on for integrations built before timestamped signatures; turn off once your receiver verifies X-OpenMES-Timestamp.'),
+        },
     ];
 }
 
@@ -39,7 +51,8 @@ export function webhookFields(events, { isEdit = false } = {}) {
  */
 export function webhookInitial(record, { generatedSecret = '' } = {}) {
     if (!record) {
-        return { name: '', url: '', events: [], secret: generatedSecret, is_active: true };
+        // New endpoints use the timestamped signature by default.
+        return { name: '', url: '', events: [], secret: generatedSecret, is_active: true, legacy_signature: false };
     }
 
     return {
@@ -48,5 +61,6 @@ export function webhookInitial(record, { generatedSecret = '' } = {}) {
         events: jsonColumn(record.events, []),
         secret: '',
         is_active: !!record.is_active,
+        legacy_signature: !!record.legacy_signature,
     };
 }
