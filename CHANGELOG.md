@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.29.2] - 2026-11-17
+
 ### Added
 
 - **ERP API: key introspection, read-only master data, multi-status export.** An ERP
