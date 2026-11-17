@@ -26,4 +26,9 @@ class IssueTypesShape extends Shape
     {
         return 'is_active = true';
     }
+
+    public function tabs(): array
+    {
+        return ['dashboard'];
+    }
 }

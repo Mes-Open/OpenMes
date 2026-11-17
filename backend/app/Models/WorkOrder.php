@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
+use App\Support\CurrencyRegistry;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -179,6 +180,10 @@ class WorkOrder extends Model
     protected $fillable = [
         'order_no',
         'customer_order_no',
+        // Where an ERP-imported order came from (#T3) — read only in the UI.
+        'external_system',
+        'external_ref',
+        'customer_name',
         'customer_id',
         'line_id',
         'product_type_id',
@@ -188,6 +193,7 @@ class WorkOrder extends Model
         'snapshot_version',
         'planned_qty',
         'unit_price',
+        'price_currency',
         'produced_qty',
         'counting_source',
         'status',
@@ -453,6 +459,19 @@ class WorkOrder extends Model
     }
 
     /**
+     * The currency `unit_price` is in: the one the ERP sent, else the
+     * installation currency. Null when the order has no price at all.
+     */
+    public function effectivePriceCurrency(): ?string
+    {
+        if ($this->unit_price === null) {
+            return null;
+        }
+
+        return $this->price_currency ?: CurrencyRegistry::current();
+    }
+
+    /**
      * Get the customer this work order was placed for (nullable).
      */
     public function customer(): BelongsTo
@@ -651,13 +670,20 @@ class WorkOrder extends Model
     }
 
     /**
-     * Get the open blocking issues for this work order.
+     * Get the open blocking issues for this work order: its own, plus any
+     * issue holding its whole line stopped (filed on another order of the
+     * same line). Every start/resume gate goes through this, so a line block
+     * holds all the line's orders, not only the one it was reported on.
      */
     public function openBlockingIssues()
     {
-        return $this->issues()
-            ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->where('blocks_work_order', true)
+        return Issue::query()
+            ->blocking()
+            ->where(fn ($q) => $q
+                ->where('work_order_id', $this->id)
+                ->when($this->line_id !== null, fn ($q) => $q->orWhere(fn ($q) => $q
+                    ->where('blocks_line', true)
+                    ->whereHas('productionDowntime', fn ($d) => $d->where('line_id', $this->line_id)))))
             ->get();
     }
 

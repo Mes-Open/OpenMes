@@ -3,6 +3,7 @@
 namespace Tests\Feature\WorkOrder;
 
 use App\Enums\ChangeRequestStatus;
+use App\Enums\ChangeRequestType;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderChangeRequest;
@@ -55,6 +56,25 @@ class ChangeControlWebTest extends TestCase
                 ->has('changeControl.effective_points', 3)
                 ->where('workOrder.snapshot_version', 1)
             );
+    }
+
+    public function test_applying_an_erp_cancellation_flashes_that_the_order_is_cancelled(): void
+    {
+        [$key] = \App\Models\ApiKey::issue(['name' => 'Odoo', 'scopes' => ['erp:orders:import']]);
+        $this->workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
+        $cr = app(\App\Services\WorkOrder\ChangeRequestService::class)->createFromIntegration(
+            $this->workOrder,
+            ['title' => 'ERP cancellation', 'reason' => 'Customer withdrew the order.'],
+            $key,
+            ChangeRequestType::Cancellation,
+        );
+
+        $this->actingAs($this->supervisor)->post("/admin/work-order-change-requests/{$cr->id}/approve");
+        $this->actingAs($this->supervisor)
+            ->post("/admin/work-order-change-requests/{$cr->id}/apply")
+            ->assertSessionHas('success', 'Change request applied. The work order is cancelled.');
+
+        $this->assertSame(WorkOrder::STATUS_CANCELLED, $this->workOrder->fresh()->status);
     }
 
     public function test_stopping_production_from_the_ui_flashes_and_holds_the_order(): void

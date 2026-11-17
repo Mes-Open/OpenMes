@@ -100,10 +100,13 @@ export const ADMIN_GROUPS = [
         lucide: 'wifi',
         match: ['/admin/connectivity', '/admin/workstation-types', '/admin/workstation-devices'],
         children: [
-            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, lucide: 'radio' },
-            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], lucide: 'antenna' },
-            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], lucide: 'cable' },
-            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], lucide: 'plug' },
+            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, tab: 'connectivity', lucide: 'radio' },
+            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], tab: 'connectivity', lucide: 'antenna' },
+            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], tab: 'connectivity', lucide: 'cable' },
+            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], tab: 'connectivity', lucide: 'plug' },
+            // Its own tab: a supervisor granted only this sees the group with
+            // just this entry (groupVisible) and none of the configuration.
+            { label: 'Machine counters', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], tab: 'machine_counters', lucide: 'gauge' },
             // The physical end of the same story: what a station is, and which
             // boxes are enrolled as one. Gated by the structure module, which is
             // what TabAccessMiddleware checks for these URLs — without the tab
@@ -137,13 +140,16 @@ export const ADMIN_GROUPS = [
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/scrap-reasons', '/packaging/eans', '/packaging/station',
-            '/packaging/label-templates',
+            '/packaging/label-templates', '/admin/work-order-change-requests',
         ],
         children: [
             // Process templates, their BOMs and engineering documents all hang
             // off a specific product type — there is no standalone list to link,
             // so the product type is the way in to all three.
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
+            // The reviewer's queue: changes and cancellations of running orders,
+            // including the ones an ERP sends. Same `orders` tab as the review page.
+            { label: 'Change requests', href: '/admin/work-order-change-requests', match: ['/admin/work-order-change-requests'], tab: 'orders', lucide: 'git-pull-request' },
             { label: 'Packing station', href: '/packaging/station', match: ['/packaging/station'], lucide: 'package' },
             { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
@@ -288,7 +294,7 @@ export const ADMIN_GROUPS = [
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
-        match: ['/settings', '/admin/custom-fields'],
+        match: ['/settings', '/admin/custom-fields', '/admin/unit-aliases'],
         children: [
             {
                 key: 'systemSettingsGroup',
@@ -308,6 +314,7 @@ export const ADMIN_GROUPS = [
             },
             { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
             { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
+            { label: 'Units of Measure', href: '/admin/unit-aliases', match: ['/admin/unit-aliases'], lucide: 'ruler' },
             { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
             { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
             { label: 'Change Password', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },

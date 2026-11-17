@@ -1,16 +1,11 @@
 import { test } from '@playwright/test';
+import { login as signIn } from './support/app';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin1234!';
 
 test('capture maintenance screens', async ({ page }) => {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN_USERNAME);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login')),
-    page.click('button[type="submit"]'),
-  ]);
+  await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
 
   await page.setViewportSize({ width: 1400, height: 1100 });
 

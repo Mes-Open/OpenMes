@@ -70,6 +70,8 @@ export default function IssuesIndex() {
         workOrderNos = {},
         issueTypes = [],
         scrapReasons = [],
+        downtimeReasons = [],
+        workstations = [],
         reportableWorkOrders = [],
         issueCustomFields = [],
         csrf_token: csrf,
@@ -173,6 +175,8 @@ export default function IssuesIndex() {
                 workOrders={reportableWorkOrders}
                 issueTypes={issueTypes}
                 scrapReasons={scrapReasons}
+                downtimeReasons={downtimeReasons}
+                workstations={workstations}
                 customFields={issueCustomFields}
                 onClose={() => setReportOpen(false)}
                 onSaved={() => {
@@ -209,8 +213,8 @@ IssuesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 // StoreManagedIssueRequest::EFFECTS.
 const EFFECT_OPTIONS = [
     { value: 'none', label: 'No effect' },
-    { value: 'block', label: 'Blocks the work order' },
-    { value: 'scrap', label: 'Records scrap' },
+    { value: 'block', label: 'Blocks the line and machine' },
+    { value: 'scrap', label: 'Nothing is blocked, records scrap' },
 ];
 
 const fieldLabelCls = 'mb-1 block text-[12.5px] font-medium text-om-ink';
@@ -221,7 +225,19 @@ const fieldErrorCls = 'mt-1 text-[11.5px] text-om-blocked';
  * plus the line + work order (an operator gets those from their station) and
  * the issue's effect, which here is chosen instead of following the type.
  */
-function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scrapReasons, customFields = [], onClose, onSaved }) {
+function ReportIssueDrawer({
+    open,
+    base,
+    lineNames,
+    workOrders,
+    issueTypes,
+    scrapReasons,
+    downtimeReasons = [],
+    workstations = [],
+    customFields = [],
+    onClose,
+    onSaved,
+}) {
     const [lineId, setLineId] = useState('');
     const form = useForm({
         work_order_id: '',
@@ -229,6 +245,8 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
         title: '',
         description: '',
         effect: 'none',
+        workstation_id: '',
+        downtime_reason_id: '',
         scrap_reason_id: '',
         quantity: '',
         ...customFieldInitial(),
@@ -241,8 +259,8 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
         .map((wo) => ({ value: String(wo.id), label: wo.order_no }));
 
     // Effects the selected order accepts (mirrors StoreManagedIssueRequest):
-    // a step-ledger order records scrap on its steps, a paused or held order
-    // can't be blocked on top of its own stop.
+    // a step-ledger order records scrap on its steps, an order without a line
+    // has no line to block.
     const order = workOrders.find((wo) => String(wo.id) === String(data.work_order_id));
     const allowed = (effect) =>
         !order || (effect === 'scrap' ? !order.scrap_on_steps : effect === 'block' ? order.can_block : true);
@@ -265,9 +283,15 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
         const next = workOrders.find((wo) => String(wo.id) === id);
         form.setData((prev) => {
             const fits = prev.effect === 'scrap' ? !next?.scrap_on_steps : prev.effect === 'block' ? next?.can_block : true;
-            return { ...prev, work_order_id: id, effect: fits ? prev.effect : 'none' };
+            // A machine picked for the previous order's line may not be on this one.
+            return { ...prev, work_order_id: id, workstation_id: '', effect: fits ? prev.effect : 'none' };
         });
     };
+
+    // Machines on the selected order's line.
+    const machineOptions = workstations
+        .filter((ws) => order && String(ws.line_id) === String(order.line_id))
+        .map((ws) => ({ value: String(ws.id), label: ws.code ? `${ws.code} — ${ws.name}` : ws.name }));
 
     const submit = () => {
         submitForm(form, 'post', `${base}/issues`, { preserveScroll: true, onSuccess: onSaved });
@@ -382,15 +406,45 @@ function ReportIssueDrawer({ open, base, lineNames, workOrders, issueTypes, scra
                     )}
                     {order && !order.can_block && (
                         <p className="mt-2 text-[11.5px] text-om-faint">
-                            {__('A paused or held work order cannot be blocked — resume it first.')}
+                            {__('This work order has no line, so there is no line to block.')}
                         </p>
                     )}
                     {data.effect === 'block' && (
                         <p className="mt-2 text-[11.5px] text-om-faint">
-                            {__('The work order stays blocked until this issue is resolved.')}
+                            {__('A stop is opened on the line and its running work orders stay blocked until this issue is resolved.')}
                         </p>
                     )}
                 </div>
+
+                {data.effect === 'block' && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <div className={fieldLabelCls}>{__('Machine')}</div>
+                            <Dropdown
+                                aria-label={__('Machine')}
+                                className="w-full"
+                                options={[{ value: '', label: __('Whole line') }, ...machineOptions]}
+                                value={String(data.workstation_id)}
+                                onChange={(v) => setData('workstation_id', v)}
+                            />
+                            {errors.workstation_id && <p className={fieldErrorCls}>{errors.workstation_id}</p>}
+                        </div>
+                        <div>
+                            <div className={fieldLabelCls}>
+                                {__('Downtime reason')} <span className="text-om-blocked">*</span>
+                            </div>
+                            <Dropdown
+                                aria-label={__('Downtime reason')}
+                                className="w-full"
+                                options={downtimeReasons.map((r) => ({ value: String(r.id), label: r.code ? `${r.code} — ${r.name}` : r.name }))}
+                                value={String(data.downtime_reason_id)}
+                                onChange={(v) => setData('downtime_reason_id', v)}
+                                placeholder={__('— Select reason —')}
+                            />
+                            {errors.downtime_reason_id && <p className={fieldErrorCls}>{errors.downtime_reason_id}</p>}
+                        </div>
+                    </div>
+                )}
 
                 {data.effect === 'scrap' && (
                     <div className="grid grid-cols-2 gap-3">

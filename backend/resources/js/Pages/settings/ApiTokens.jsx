@@ -4,9 +4,10 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, Dropdown, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import ErpApiKeys from './ErpApiKeys';
 
 export default function ApiTokens() {
-    const { tokens, newToken, newTokenName, newTokenScope, appUrl, csrf_token, scopes = [] } = usePage().props;
+    const { tokens, newToken, newTokenName, newTokenScope, appUrl, csrf_token, scopes = [], erpEnabled, erpScopes } = usePage().props;
     const [copied, setCopied] = useState(false);
     // Pending revoke confirmation — holds the token row + its <form> element so
     // confirming submits the exact same native DELETE form.
@@ -18,6 +19,7 @@ export default function ApiTokens() {
     const initialScope = scopes.some((sc) => sc.value === requestedScope) ? requestedScope : 'full';
 
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', scope: initialScope });
+    const selectedScope = scopes.find((sc) => sc.value === data.scope);
 
     function handleCreate(e) {
         e.preventDefault();
@@ -119,6 +121,11 @@ export default function ApiTokens() {
                         {__('Generate Token')}
                     </Button>
                 </form>
+                {/* What the picked scope allows — read-only vs full matters most when
+                    the token is handed to a reporting tool or an AI assistant. */}
+                {selectedScope?.description && (
+                    <p className="text-om-muted text-[12px] mt-2">{selectedScope.description}</p>
+                )}
             </div>
 
             {/* Token List */}
@@ -169,6 +176,7 @@ export default function ApiTokens() {
                 )}
             </div>
 
+
             {revoke && (
                 <ConfirmDialog
                     open
@@ -179,6 +187,9 @@ export default function ApiTokens() {
                     cancelLabel={__('Cancel')}
                 />
             )}
+
+            {/* ERP integration keys — scoped machine credentials for /api/v1/erp */}
+            {erpEnabled && <ErpApiKeys scopes={erpScopes ?? []} />}
 
             {/* Usage Info */}
             <div className="bg-om-card border border-om-line rounded-om p-6 mt-6">

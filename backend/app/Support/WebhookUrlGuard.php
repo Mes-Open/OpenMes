@@ -2,20 +2,90 @@
 
 namespace App\Support;
 
+use Symfony\Component\HttpFoundation\IpUtils;
+
 /**
  * SSRF guard for outgoing webhook URLs (#20, OWASP A10). A target URL is only
  * safe when it is a well-formed http(s) URL whose host resolves exclusively to
- * public addresses (no loopback, private, reserved or cloud-metadata IPs).
+ * addresses it may reach. Every resolved address is classified, in this order:
+ *
+ *  1. Always blocked — cloud metadata, loopback, unspecified, link-local,
+ *     multicast/broadcast and other reserved ranges. Nothing unlocks these.
+ *  2. Private pool (RFC 1918, IPv6 ULA) — blocked unless the address, or the
+ *     URL's hostname, is on the administrator's WebhookNetworkAllowlist (T2a,
+ *     an on-prem ERP in the same LAN). Empty allowlist = blocked, as before.
+ *  3. Anything else PHP flags as private/reserved — blocked.
+ *  4. Public — allowed.
  *
  * Checked at save time (SafeWebhookUrl rule, fast feedback) and again at
- * delivery time (DeliverWebhookJob). At delivery the job pins the connection to
- * the vetted IP via `safeTarget()` (curl CURLOPT_RESOLVE), so there is no
- * DNS-rebinding/TOCTOU window between the final check and the actual connect.
+ * delivery time (DeliverWebhookJob) with the very same rule. At delivery the
+ * job pins the connection to the vetted IP via `safeTarget()` (curl
+ * CURLOPT_RESOLVE), so there is no DNS-rebinding/TOCTOU window between the
+ * final check and the actual connect.
  */
 class WebhookUrlGuard
 {
     /** Cloud metadata endpoints blocked regardless of range classification. */
     private const METADATA_IPS = ['169.254.169.254', '169.254.170.2', '100.100.100.200'];
+
+    /** Never reachable, even when an allowlist entry covers them. */
+    public const ALWAYS_BLOCKED_CIDRS = [
+        '0.0.0.0/8',        // "this network" / unspecified
+        '127.0.0.0/8',      // loopback
+        '169.254.0.0/16',   // link-local (cloud metadata lives here)
+        '224.0.0.0/4',      // multicast
+        '240.0.0.0/4',      // reserved, incl. 255.255.255.255 broadcast
+        '::/128',           // unspecified
+        '::1/128',          // loopback
+        'fe80::/10',        // link-local
+        'ff00::/8',         // multicast
+        // AWS IMDS over IPv6. It sits inside the ULA pool (fc00::/7), so it
+        // must be listed here or an fd00::/8 allowlist entry would unlock it.
+        'fd00:ec2::254/128',
+        // IPv6 forms that embed an IPv4 address (IPv4-compatible, SIIT,
+        // NAT64, 6to4, Teredo) or are deprecated (site-local): a webhook has
+        // no business there, and each could tunnel to a blocked IPv4 target.
+        '::/96',
+        '::ffff:0:0:0/96',
+        '64:ff9b::/96',
+        '64:ff9b:1::/48',
+        '2001::/32',
+        '2002::/16',
+        'fec0::/10',
+    ];
+
+    /** Private ranges an administrator may open up via the allowlist. */
+    public const UNLOCKABLE_PRIVATE_CIDRS = [
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+        'fc00::/7',         // IPv6 unique local addresses
+    ];
+
+    public const PRIVATE_ADDRESS_MESSAGE = 'Webhook URL resolves to a private/reserved address.';
+
+    public const ALLOWLIST_HINT = 'An administrator can allow local network receivers on the Webhooks page.';
+
+    /** @var (callable(string): array<int, string>)|null test seam for DNS */
+    private static $resolver = null;
+
+    /**
+     * Replace DNS resolution of hostnames (tests only — literal IPs never hit
+     * it). Pass null to restore the real resolver.
+     */
+    public static function resolveUsing(?callable $resolver): void
+    {
+        self::$resolver = $resolver;
+    }
+
+    /** Whether the address can never be a webhook target (metadata, loopback, …). */
+    public static function isAlwaysBlocked(string $ip): bool
+    {
+        $ip = self::unmapIpv4($ip);
+
+        return in_array($ip, self::METADATA_IPS, true)
+            || IpUtils::checkIp($ip, self::ALWAYS_BLOCKED_CIDRS);
+    }
 
     public static function isSafe(string $url): bool
     {
@@ -82,17 +152,33 @@ class WebhookUrlGuard
             return $fail('Webhook URL host could not be resolved.');
         }
 
-        // Reject if ANY resolved address is unsafe.
+        // Reject if ANY resolved address is unsafe. The allowlist is read once
+        // per check — from the database, so a narrowed list applies at once.
+        $allowlist = null;
         foreach ($ips as $ip) {
-            if (in_array($ip, self::METADATA_IPS, true)) {
-                return $fail('Webhook URL resolves to a private/reserved address.');
+            $ip = self::unmapIpv4($ip);
+
+            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $fail(self::PRIVATE_ADDRESS_MESSAGE);
             }
 
-            if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                foreach ([FILTER_FLAG_NO_PRIV_RANGE, FILTER_FLAG_NO_RES_RANGE] as $flag) {
-                    if (! filter_var($ip, FILTER_VALIDATE_IP, $flag)) {
-                        return $fail('Webhook URL resolves to a private/reserved address.');
-                    }
+            if (self::isAlwaysBlocked($ip)) {
+                return $fail(self::PRIVATE_ADDRESS_MESSAGE);
+            }
+
+            if (IpUtils::checkIp($ip, self::UNLOCKABLE_PRIVATE_CIDRS)) {
+                $allowlist ??= WebhookNetworkAllowlist::entries();
+                if (WebhookNetworkAllowlist::matchesIp($ip, $allowlist)
+                    || WebhookNetworkAllowlist::matchesHost($host, $allowlist)) {
+                    continue;
+                }
+
+                return $fail(self::PRIVATE_ADDRESS_MESSAGE.' '.self::ALLOWLIST_HINT);
+            }
+
+            foreach ([FILTER_FLAG_NO_PRIV_RANGE, FILTER_FLAG_NO_RES_RANGE] as $flag) {
+                if (! filter_var($ip, FILTER_VALIDATE_IP, $flag)) {
+                    return $fail(self::PRIVATE_ADDRESS_MESSAGE);
                 }
             }
         }
@@ -119,9 +205,14 @@ class WebhookUrlGuard
             return [];
         }
 
-        // A literal IP is its own resolution.
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            return [$host];
+        // A literal IP is its own resolution (IPv6 literals arrive bracketed).
+        $literal = trim($host, '[]');
+        if (filter_var($literal, FILTER_VALIDATE_IP)) {
+            return [$literal];
+        }
+
+        if (self::$resolver !== null) {
+            return array_values(array_unique((self::$resolver)($host)));
         }
 
         $ips = [];
@@ -141,5 +232,17 @@ class WebhookUrlGuard
         }
 
         return array_values(array_unique($ips));
+    }
+
+    /** `::ffff:a.b.c.d` (IPv4-mapped IPv6) → `a.b.c.d`, so it is classified as IPv4. */
+    private static function unmapIpv4(string $ip): string
+    {
+        $packed = @inet_pton($ip);
+        if ($packed !== false && strlen($packed) === 16
+            && str_starts_with($packed, str_repeat("\0", 10)."\xff\xff")) {
+            return (string) inet_ntop(substr($packed, 12));
+        }
+
+        return $ip;
     }
 }

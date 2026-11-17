@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             DowntimeReasonsSeeder::class,
             ScrapReasonsSeeder::class,
             LabelTemplatesSeeder::class,
+            UnitAliasSeeder::class,
         ]);
     }
 }

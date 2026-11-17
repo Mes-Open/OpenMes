@@ -9,6 +9,404 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **ERP API: key introspection, read-only master data, multi-status export.** An ERP
+  integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
+  granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,
+  and the app version; the key's prefix and hash are never returned. A new scope,
+  `erp:masterdata:read`, lets a key list lines (`/erp/lines`), product types
+  (`/erp/product-types`, with unit of measure and whether an active process template
+  exists) and warehouses (`/erp/warehouses`, with the ERP warehouse code; only while the
+  Warehouses module is on), cursor-paginated with `?since=` and `?active=`, so line and
+  product codes no longer have to be typed in on the ERP side.
+  `/erp/production/completions` accepts several statuses (`status[]=DONE&status[]=IN_PROGRESS`)
+  or `status=all` in one request; without `status` it still returns completed orders only.
+  *Settings → API Tokens* gains an **ERP API keys** section (while the ERP integration module
+  is on) to create a key with a name, scopes — each with a short description — and an
+  optional expiry, copy the full key once, and revoke keys. See the *ERP Integration API*
+  section of `docs/API_DOCUMENTATION.md`.
+- **Webhooks: full work-order payloads and new events.** Work-order events now carry the
+  same fields as the ERP production export (`GET /api/v1/erp/production/...`): `order_no`,
+  `customer_order_no`, `status`, quantities, `line_code`, `product_type_code`,
+  `completed_at` and `updated_at`, plus `id` and `previous_status`. The old `line_id` and
+  `product_type_id` keys stay. A receiver no longer has to call the API back to resolve
+  codes. Four new events can be ticked under *Admin → Webhooks → Edit → Subscribed events*:
+  *Work order created*, *Work order progress* (`produced_qty` changed, at most once per
+  order every 30 s, set with `WEBHOOK_PROGRESS_THROTTLE_SECONDS`), *Stock document posted*
+  (same shape as `/api/v1/erp/stock-documents`) and *Quality issue created* (same shape as
+  `/api/v1/erp/quality/issues`, for issues raised against a work order).
+- **Webhooks: timestamped signatures.** Every delivery sends `X-OpenMES-Timestamp` (unix
+  seconds). The delivery log (*Webhooks → Deliveries*) shows it in a new *Signed at* column,
+  next to the *Signature* scheme used (`v1` or *Legacy*). Each endpoint has a new **Legacy
+  signature** option; see *Changed* below. `docs/API_DOCUMENTATION.md` now has a *Webhooks*
+  section with step-by-step signature verification (with a 5-minute tolerance) and PHP,
+  Node and Python examples.
+
+- **Unit aliases and unit checks for ERP imports.** *Settings → Units of Measure* is a new
+  Admin page listing the names ERPs use for a unit and the unit OpenMES stores for each
+  (`Units`, `szt`, `Stück`, `C62` → `pcs`; `KGM` → `kg`; …), pre-filled with common
+  names and UN/ECE codes and editable per tenant. Product and material imports store
+  the OpenMES unit instead of the ERP's spelling; an unknown unit is still saved as sent,
+  and the import report lists it under a new `warnings` key. **Behaviour change:** a
+  stock or material-lot row whose unit does not match the item's unit (340 `g` for a
+  material kept in `kg`) now fails with a readable `unit_of_measure` error instead of
+  being stored with the wrong unit; quantities are never converted. Rows without a unit
+  behave as before. Each tenant gets its own copy of the defaults (new tenants on
+  creation), and deleting an alias really stops imports from using it.
+- `ResourceForm` text fields accept `maxLength`.
+- **ERP: read an order back by number, cancel it, and follow change requests.**
+  `GET /api/v1/erp/work-orders/{id}` now also takes the order number
+  (`?by=order_no`, with `/` sent as `%2F`) and returns the order's `id` and its
+  `change_requests`. The work-order import report gains `results` — one entry per row
+  with `order_no`, `id` and `action` (`created`, `updated`, `skipped`,
+  `change_requested`); the existing counters are unchanged. New
+  `POST /api/v1/erp/work-orders/{id}/cancel` (scope `erp:orders:import`, optional
+  `reason`) cancels an order that has not started at once and, for an order in
+  production, raises a cancellation request for a manager (`202`); a finished order
+  answers `409` with its status. New `GET /api/v1/erp/change-requests`
+  (scope `erp:production:read`, `since`, cursor) tells the ERP whether each request was
+  approved, rejected, applied or withdrawn, with `decided_at` and the rejection reason.
+- **Production → Change requests.** A list of every change request, open ones first,
+  filterable by status, in the admin and the supervisor menus. Requests raised by an ERP
+  show the API key as the requester (*"API key: SAP prod"*) and a *Requested via API
+  key* badge. A cancellation request reads *"This request cancels the work order."*;
+  approving and applying it cancels the order the same way the order's *Cancel* action
+  does.
+
+- **ERP work orders carry their source, customer and price currency.** The ERP import
+  (`POST /api/v1/erp/work-orders/import`) accepts `external_system`, `external_ref`,
+  `customer_name`, `price_currency` (ISO 4217, from the supported currency list) and
+  `extra_data` (an object of simple values, at most two levels and 16 KB) per order, on
+  create and on update. They come back in `GET /erp/work-orders/{id}` and
+  `production/completions`, and stock documents add `work_order_external_system` /
+  `work_order_external_ref`, so the ERP can match what production booked to its own order.
+  The admin work-order page shows them in a read-only *Source* card. Payloads without the
+  new fields behave as before.
+- **Routings from the ERP: process templates over the ERP API.** A product and its routing
+  sent from the ERP are now enough to accept the first work order — no manual work in
+  OpenMES first. The new `POST /api/v1/erp/process-templates/import` (scope
+  `erp:masterdata:write`) takes each product's operations — number, name, workstation (and
+  optionally line), setup time, run time per piece, instruction — and turns them into a
+  process template. By default it adds a new active version, exactly like *Production →
+  Product Types → Process Templates* does: earlier versions stay, orders already released
+  keep the steps they were frozen with, and the recipe moves onto the new version. Re-sending
+  an unchanged routing is reported as *skipped* instead of stacking versions; `mode:
+  replace_draft` rewrites an inactive draft instead. A routing naming an unknown product or
+  workstation fails as one row (207) and is written not at all. `POST
+  /api/v1/erp/products/import` also accepts `create_default_template: true`: a product type
+  with no template gets an active one with a single *Production* step (name configurable via
+  `default_step_name`, in the plant language by default), reported as `template_created` in
+  the new per-row `rows` list. See *ERP Integration API → Process Templates* in
+  `docs/API_DOCUMENTATION.md`.
+
+- **ERP API: settle a work order in one call.** `GET /api/v1/erp/work-orders/{id}` and
+  `GET /api/v1/erp/production/completions` accept `?include=consumption,scrap,costs`
+  (scope `erp:production:read`, API key only): actual material consumption with material
+  code, unit and picked lots; scrap with quantity, reason and production step; and costs —
+  materials, labour and additional costs with amounts and currency, the same figures as the
+  *Production Cost* report. Without `include` the response is unchanged; an unknown value is
+  a `422`. With `include`, `limit` on the completions list is capped at 100 (default 50) and
+  the sections are loaded per page, not per order. See `docs/API_DOCUMENTATION.md`.
+- **ERP integrations can register their own webhooks.** An API key with the new
+  `erp:webhooks:manage` scope can list, create, update and delete webhooks through
+  `/api/v1/erp/webhooks` (event catalog: `/api/v1/erp/webhook-event-types`). A key sees
+  only the webhooks it created itself: webhooks created by an administrator or by another
+  key return 404. The signing secret appears once, in the create response. Deactivating
+  or deleting a key deactivates its webhooks; reactivating the key leaves them off.
+  Deliveries for a key that has expired are not sent. One key can own at most 25
+  webhooks. *Settings → API Keys* has a new *ERP integration keys* section for creating
+  scoped keys (shown once), deactivating them and deleting them. *Webhooks → Endpoints*
+  shows whether each webhook came from an API key or an admin.
+- **Webhooks to receivers in the local network.** *Webhooks → Endpoints* has a new
+  *Local network receivers* card. There an administrator lists the private networks (CIDR,
+  e.g. `192.168.1.0/24`) or exact hostnames that webhooks may reach, for example an
+  on-premises Odoo or another ERP. The list is empty by default, so private addresses stay
+  blocked as before. Loopback, link-local and cloud-metadata addresses are always blocked,
+  even when the list covers them. The same rule is checked again on every delivery, and
+  each delivery is still pinned to the checked IP. Only Admins can change the list, every
+  change is written to the audit log (`webhook_network_allowlist_updated`), and the list is
+  not included in settings export or import.
+
+### Changed
+
+- **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
+  its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
+  instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
+  migration turns on *Legacy signature* for every webhook that already exists, so they keep
+  the body-only HMAC. Endpoints created after the upgrade (in the admin UI or through
+  `POST /api/v1/webhooks`) use the new scheme. Update your receiver to the verification in
+  `docs/API_DOCUMENTATION.md#verifying-the-signature`, then untick *Legacy signature*.
+- In work-order webhook payloads, `planned_qty` and `produced_qty` are now JSON numbers
+  (`100.0`) rather than decimal strings (`"100.00"`), as in the ERP API.
+- A webhook delivery row and its queued job are now created after the database transaction
+  that raised the event commits, so a rolled-back change no longer sends an event.
+- **ERP `update_or_create` no longer overwrites orders in production.** Until now a
+  work-order import overwrote the line, quantity, due date and description of an order
+  that was `IN_PROGRESS`, `PAUSED`, `BLOCKED` or in `CHANGE_HOLD`. It now leaves the order
+  untouched and raises a change request with only the fields that differ
+  (`action: change_requested`); a manager approves or rejects it. A later import for the
+  same order revises that request instead of opening another. A different product type,
+  priority, customer order number or unit price on a running order is a row error.
+  `REJECTED` orders are now skipped like `DONE` and `CANCELLED` ones. Orders that have not
+  started (`PENDING`, `ACCEPTED`) are updated directly as before. The CSV importer and
+  *Admin → Import* are unchanged.
+
+### Security
+
+- **Webhooks: replay protection and tenant isolation.** Because the timestamp is signed, a
+  captured delivery can no longer be replayed outside the receiver's tolerance window.
+  Webhook events are now matched on the tenant that owns the work order, issue, batch or
+  stock document (an issue without a work order belongs to the reporting user's tenant, so
+  existing `issue.created` integrations keep receiving those). Before, events raised without a logged-in user (machine counting, MQTT,
+  queue workers) could reach other tenants' endpoints. A webhook whose tenant differs from
+  the entity's (for example one created by a tenant-less super-admin) no longer receives
+  that tenant's events.
+
+### Fixed
+
+- **Work-order import picks the newest active process template.** With several active
+  versions of a product's process template, the CSV and ERP work-order imports took an
+  unspecified one; they now take the newest active version, like the rest of OpenMES.
+
+## [0.29.0] - 2026-11-16
+
+### Added
+
+- **The API reports the plant time zone.** `GET /api/auth/me` now includes
+  `plant: { timezone, utc_offset }`, from Settings → System. API timestamps are UTC
+  instants; clients such as the MCP server need the zone to show them in plant time and to
+  tell which plant day a timestamp falls on.
+
+- **Paging and range filters for the OEE and downtime APIs.** `GET /api/v1/oee` and
+  `GET /api/v1/downtimes` used to return only the newest 100 records / 50 downtimes, so an
+  integration asking for a week across several lines got a silently truncated list. Both
+  now accept `page` and `per_page` (1–100) and then answer with a `meta` block
+  (`current_page`, `per_page`, `total`, `last_page`). Downtimes gain `date_from` / `date_to`
+  (by the plant-local day the stop started, inclusive), `workstation_id` and `active` (open
+  or finished stops only); OEE gains `workstation_id`. `lean=1` on either embeds only the id
+  and name of each related line, shift, workstation, reason and reporter, which keeps large
+  answers small. All of it is opt-in: without these parameters both endpoints answer exactly
+  as before, so the mobile app is unaffected. Line and workstation ids are checked within the
+  caller's tenant only, so another tenant's id is answered like one that does not exist.
+  Malformed filters (a non-numeric `line_id`, an unparseable `date`) now return 422 on both
+  endpoints instead of a server error.
+
+- **Shift handover details and history in the REST API.** Items in `recent` of
+  `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
+  `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
+  and `confirmed_by_id`, next to the existing fields (unchanged); `recent` is still the 20 latest
+  handovers across all lines. New `GET /api/v1/shift-handover/history` pages through older
+  handovers (`per_page`, default 25, max 100) and filters them by `line_id` and
+  `business_date_from`/`business_date_to`; new `GET /api/v1/shift-handover/{id}` returns one
+  handover. Both stay Supervisor/Admin only and limited to the caller's tenant.
+  `discrepancies` and `breakdown` are always JSON objects, and `shift_name` is the name saved
+  with the handover, so renaming a shift does not rewrite history.
+
+- **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
+  now show the line, shift and confirming user of a past handover even after that line, shift
+  or user has been deleted.
+
+- **Unit-level where-used for a material lot (API).** `GET /api/v1/material-lots/{id}/where-used`
+  answers "which units contain this lot?" in one call: every serial unit the lot was scanned
+  into as a component, and every unit that contains one of those up the component bindings
+  (a pinion inside a repair kit inside a carton), each with its work order, batch, pallet
+  and status, plus counts per work order and which units are outermost. A `precision` field
+  says how exact the answer is: `unit` when the lot has component bindings, `batch` when
+  only batch-step consumption was recorded (the consuming batches are then listed with how
+  many units each produced - an upper bound, not a list of affected units), `none` otherwise.
+  The walk is cycle-safe and bounded (`max_depth`, `limit`, flagged when cut short);
+  `include_removed` also follows parts that were taken out again. Same access as the lot
+  genealogy endpoints.
+
+- **Find a material lot by its lot number (API).** `GET /api/v1/material-lots` takes
+  `lot_number` (exact match on the plant's own lot number) next to the existing filters.
+
+- **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
+  accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
+  one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
+  matches the order number, customer order number, description and product type name or code,
+  ignoring case; `due_from` / `due_to` limit the list to a due-date range; and `include`
+  (`line`, `product_type`, `batches`, `batches.steps`) picks which related data comes with each
+  order, so a client that only needs the list can skip the batch steps. `fields=summary`
+  returns only each order's summary columns (number, status, quantities, dates, line and
+  product) and leaves out the large routing snapshot and custom data, which shrinks a page of
+  orders several times over. A request without
+  these parameters gets the same response as before — every order, with batches and steps.
+  `per_page` on its own still returns the full list, as existing clients expect. Bad values
+  are rejected with `422`. The API documentation for this endpoint has been corrected to
+  match what it actually accepts.
+
+- **Read-only API tokens.** *Settings → API Tokens* has a new *Access* option, *Read-only*,
+  next to *Full API access* and *Machine gateway (OPC UA)*, with a line under the picker
+  saying what the chosen access allows. A read-only token reads everything its creator can
+  read and gets *403 "This token is read-only."* on every request other than GET, HEAD and
+  OPTIONS: on core routes, module routes, and on `/api/auth/refresh`, so it cannot be traded
+  for a full token. Use it for reporting tools and AI assistants that should look but not
+  change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
+  `machine-gateway`; `null` for a browser session) so a client can show only the actions its
+  token allows. Existing tokens keep the access they have.
+
+- **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
+  started on its process serial at the first station and an SN label from a batch printed
+  ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
+  the unit's PSN: the unit takes the serial number, the batch's placeholder for that number
+  is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
+  number kept as superseded). A pre-issued number that already has a component, a carton or
+  any processing is still refused as before.
+
+- **Packing can require a serial number and a work order.** *Settings → System → Unit
+  serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
+  a work order* (both off by default). When on, the packing station refuses a unit that has
+  only its process serial, or one not assigned to an order - for plants whose ERP receives
+  finished units by serial number on an order.
+
+- **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
+  without applying the failed-test policy, so old failed runs do not block or scrap units.
+
+- **Open the daily planner from the weekly view** (#396, thanks @AswinArun). Each day header
+  (weekday and date) on the production planner's weekly view is a button that opens the Daily
+  view for that date and keeps the current line filter.
+
+- **An issue can stop the whole line or one machine** (#398). The issue form has a new effect,
+  *Blocks the line and machine*: it opens a downtime on the line (or the chosen machine) with a
+  downtime reason and holds every active order on that line at every production gate until the
+  issue is resolved.
+
+- **Machine counters are their own tab in Settings → Access** (#398). A supervisor can be given
+  the machine counters without the connectivity configuration; the new `tab:machine_counters`
+  permission is granted to every role that already holds `tab:connectivity`.
+
+- **"Sort by" on the traceability work-orders table** (#397): newest entered (default), recent
+  activity, recently completed, planned start and due date.
+
+- **`MachineShopLifecycleSeeder`** (#397), run after `MachineShopDemoSeeder`, replays a live week
+  of orders through the application's own services — finished, running, blocked and planned
+  orders, sub-assembly chains, lots, pallets, serial history — so every demo screen has linked data.
+
+### Changed
+
+- **Upgrade notes for machine data collection** (#398). Recreate the Modbus poller
+  (`docker compose --profile connectivity up -d modbus-poller`; one `modbus:poll` now serves every
+  active connection and `MODBUS_CONNECTION_ID` is no longer used), rebuild the OPC UA gateway
+  image (`OPCUA_PASSWORD` is only a fallback now), and re-save any invalid MQTT mapping
+  condition — an unreadable condition now never matches.
+
+### Security
+
+- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
+  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
+  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
+  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
+  is clean.
+
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
+- **Machine-gateway API tokens** (#395). *Settings → API Tokens* can issue a *Machine gateway
+  (OPC UA)* token that may only read its connection's settings and send machine data; it gets
+  `403` on every other route, including routes registered by modules.
+
+- The collection snapshot role check from #403 (thanks @p-w) is superseded by the per-collection
+  readers check described above.
+
+### Fixed
+
+- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
+  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
+  backslash, which the database driver misread as an escaped quote. The escape
+  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+
+- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
+  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
+  without querying the database.
+
+- **Signing in returns you to the page you opened.** A link opened while signed out now leads
+  back to that page after the password or two-factor login, instead of the dashboard.
+
+- **Tables say when a search hides every row.** "Nothing matches the current search or
+  filters." replaces the "nothing here yet" text when rows exist but none match.
+
+- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
+  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
+  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
+  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
+  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
+  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
+  every edit, and the live update of a material lot showed a different expiry than the first
+  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
+  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
+  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
+  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
+  full timestamps now receive a plain date.
+
+- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
+  mobile app):
+  - `done_today_work_orders` counted every DONE order edited today, not completed today.
+  - `throughput` put each order's whole output on the last day anything about it changed.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
+  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
+    empty. Both dates are now inclusive.
+  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
+    `line_id` of another tenant is treated as unknown.
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
+
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
+
+- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
+  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
+  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
+
+- **The OPC UA gateway says why it is not connected** (#395, #387). The start command on the
+  connection page includes the token, a `localhost`/`127.0.0.1` endpoint is flagged with the
+  address that works from Docker, the connectivity pages carry a setup guide, and a gateway that
+  runs but cannot reach its machine reports the error on the connection page.
+
+- **Machine data collection is reliable** (#398). OPC UA counts are accepted, queued while
+  OpenMES is down and never counted twice; Modbus and MQTT survive a lost PLC or broker without
+  stalling the other connections, reconnect with back-off and refresh their settings every 60 s;
+  MQTT processes each message once and `plant/+/#` matches; machine timestamps are stored in the
+  plant time zone; status dots show *connected* only while the collector runs; `total` counters
+  are no longer added to good output. A nightly `machine-counters:prune-readings` drops unchanged
+  readings older than 7 days.
+
+- **Table search and filters match what the cells show** (#394). Searching for a status, a
+  Yes/No or a looked-up name now finds the rows that display it, and select filters list labels
+  instead of raw codes, across 23 columns (work orders, materials, lots, issues, customers and more).
+
+- **Traceability step durations are exact to the second** (#397); sub-minute steps showed `0s`.
+
+- **The dashboard OEE overview shows the meaningful record per line** (#397): the whole-day
+  record, else the shift with an OEE value and the most output — not a shift that has not started.
+
+## [0.28.0] - 2026-11-01
+
+### Added
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -19,6 +417,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and accepts the switch for Admins only. In the operator view the operator screen lists the
   admin tabs the *Operator* role grants, and line selection shows the lines the administrator
   is assigned to.
+- **Indian Rupee (INR) as the installation currency** (#389, thanks @Jovinmathew). *Settings →
+  System → General → Currency* now offers INR alongside the other supported currencies.
 - **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
@@ -163,6 +563,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 
+- **Patched PHP dependencies** (#385, thanks @AsteaFrostweb). Composer-locked packages moved to
+  releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
+  HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
+  PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -191,6 +595,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
+  change to the search query added another *Settings* result, because the Settings group and
+  the footer link were indexed under the same key.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.

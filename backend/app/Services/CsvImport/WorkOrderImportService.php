@@ -2,11 +2,14 @@
 
 namespace App\Services\CsvImport;
 
+use App\Models\ApiKey;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\Erp\Concerns\ReportsImportRows;
+use App\Services\Erp\ErpWorkOrderControlService;
 use App\Services\ProcessTemplate\SnapshotService;
+use App\Support\CurrencyRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -16,7 +19,8 @@ class WorkOrderImportService
 
     public function __construct(
         protected CsvParserService $csvParser,
-        protected SnapshotService $snapshotService
+        protected SnapshotService $snapshotService,
+        protected ErpWorkOrderControlService $control,
     ) {}
 
     /**
@@ -86,34 +90,63 @@ class WorkOrderImportService
      * but returns an ERP-shaped result that distinguishes created vs updated and
      * carries structured per-row errors ({row, field, message}).
      *
+     * With an API key, `update_or_create` is controlled: an order already in
+     * production is never overwritten — the differing fields become a change request
+     * a manager decides on (see ErpWorkOrderControlService). `results` tells the ERP
+     * what happened to each row and the id to read the order back with.
+     *
      * @param  array<int, array<string, mixed>>  $rows
-     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>}
+     * @return array{imported: int, updated: int, skipped: int, change_requested: int, errors: array<int, array{row: int, field: string|null, message: string}>, results: array<int, array<string, mixed>>}
      */
-    public function importErp(array $rows, string $strategy): array
+    public function importErp(array $rows, string $strategy, ?ApiKey $apiKey = null): array
     {
         $imported = 0;
         $updated = 0;
         $skipped = 0;
+        $changeRequested = 0;
         $errors = [];
+        $results = [];
 
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
             $row['row_number'] = $rowNumber;
 
             try {
-                $result = $this->importRow($row, $strategy);
+                $result = $this->importRow($row, $strategy, null, $apiKey);
 
-                if ($result['status'] === 'success') {
-                    ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;
-                } elseif ($result['status'] === 'skipped') {
-                    $skipped++;
-                } else {
+                if ($result['status'] === 'error') {
                     $errors[] = [
                         'row' => $rowNumber,
                         'field' => $result['field'] ?? null,
                         'message' => $result['error'],
                     ];
+
+                    continue;
                 }
+
+                if ($result['status'] === 'success') {
+                    $action = ($result['action'] ?? null) === 'updated' ? 'updated' : 'created';
+                    $action === 'updated' ? $updated++ : $imported++;
+                } elseif ($result['status'] === 'change_requested') {
+                    $action = 'change_requested';
+                    $changeRequested++;
+                } else {
+                    $action = 'skipped';
+                    $skipped++;
+                }
+
+                $entry = [
+                    'row' => $rowNumber,
+                    'order_no' => (string) $row['order_no'],
+                    'id' => $result['id'] ?? null,
+                    'action' => $action,
+                ];
+
+                if (($result['change_request_id'] ?? null) !== null) {
+                    $entry['change_request_id'] = $result['change_request_id'];
+                }
+
+                $results[] = $entry;
             } catch (\Throwable $e) {
                 $errors[] = ['row' => $rowNumber, 'field' => null, 'message' => $e->getMessage()];
 
@@ -128,7 +161,9 @@ class WorkOrderImportService
             'imported' => $imported,
             'updated' => $updated,
             'skipped' => $skipped,
+            'change_requested' => $changeRequested,
             'errors' => $errors,
+            'results' => $results,
         ];
     }
 
@@ -258,7 +293,7 @@ class WorkOrderImportService
             $template = null;
 
             if ($productType) {
-                $templates[$productType->id] ??= $productType->processTemplates()->where('is_active', true)->first();
+                $templates[$productType->id] ??= $productType->activeProcessTemplate();
                 $template = $templates[$productType->id];
             }
 
@@ -275,7 +310,7 @@ class WorkOrderImportService
     /**
      * Import a single row.
      */
-    protected function importRow(array $row, string $strategy, ?int $targetLineId = null): array
+    protected function importRow(array $row, string $strategy, ?int $targetLineId = null, ?ApiKey $apiKey = null): array
     {
         // Validate required fields
         if (empty($row['order_no'])) {
@@ -311,7 +346,7 @@ class WorkOrderImportService
         $existing = WorkOrder::where('order_no', $row['order_no'])->first();
 
         if ($existing) {
-            return $this->handleExisting($existing, $row, $strategy, $line, $productType);
+            return $this->handleExisting($existing, $row, $strategy, $line, $productType, $apiKey);
         } else {
             return $this->createNew($row, $line, $productType);
         }
@@ -325,14 +360,17 @@ class WorkOrderImportService
         array $row,
         string $strategy,
         Line $line,
-        ProductType $productType
+        ProductType $productType,
+        ?ApiKey $apiKey = null,
     ): array {
         switch ($strategy) {
             case 'update_or_create':
-                return $this->updateExisting($existing, $row, $line, $productType);
+                return $apiKey !== null
+                    ? $this->updateExistingControlled($existing, $row, $line, $productType, $apiKey)
+                    : $this->updateExisting($existing, $row, $line, $productType);
 
             case 'skip_existing':
-                return ['status' => 'skipped', 'message' => 'Work order already exists'];
+                return ['status' => 'skipped', 'id' => $existing->id, 'message' => 'Work order already exists'];
 
             case 'error_on_duplicate':
                 return ['status' => 'error', 'field' => 'order_no', 'error' => "Duplicate order number: {$row['order_no']}"];
@@ -353,7 +391,7 @@ class WorkOrderImportService
     ): array {
         // Don't update if work order is already done or cancelled
         if (in_array($existing->status, ['DONE', 'CANCELLED'])) {
-            return ['status' => 'skipped', 'message' => 'Work order already completed/cancelled'];
+            return ['status' => 'skipped', 'id' => $existing->id, 'message' => 'Work order already completed/cancelled'];
         }
 
         DB::transaction(function () use ($existing, $row, $line, $productType) {
@@ -364,14 +402,64 @@ class WorkOrderImportService
                 'priority' => $row['priority'] ?? 0,
                 'due_date' => $row['due_date'] ?? null,
                 'description' => $row['description'] ?? null,
-            ], $this->optionalErpFields($row)));
+            ], $this->optionalErpFields($row, $existing)));
 
             Log::info('Work order updated via CSV import', [
                 'order_no' => $existing->order_no,
             ]);
         });
 
-        return ['status' => 'success', 'action' => 'updated'];
+        return ['status' => 'success', 'action' => 'updated', 'id' => $existing->id];
+    }
+
+    /**
+     * The ERP's update_or_create: applied directly before production starts, turned
+     * into a change request once it has (ErpWorkOrderControlService), skipped once
+     * the order is finished.
+     *
+     * The status is decided under a row lock, so an order that starts between the
+     * check and the write is never overwritten.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    protected function updateExistingControlled(
+        WorkOrder $existing,
+        array $row,
+        Line $line,
+        ProductType $productType,
+        ApiKey $apiKey,
+    ): array {
+        return DB::transaction(function () use ($existing, $row, $line, $productType, $apiKey) {
+            $locked = WorkOrder::whereKey($existing->id)->lockForUpdate()->firstOrFail();
+
+            if (ErpWorkOrderControlService::isDirect($locked)) {
+                return $this->updateExisting($locked, $row, $line, $productType);
+            }
+
+            if (! ErpWorkOrderControlService::isControlled($locked)) {
+                return ['status' => 'skipped', 'id' => $locked->id, 'message' => 'Work order already finished'];
+            }
+
+            $diff = $this->control->diffForRow($locked, $row, $line, $productType);
+
+            if ($diff['locked_field'] !== null) {
+                return [
+                    'status' => 'error',
+                    'field' => $diff['locked_field'],
+                    'error' => __('Field :field cannot be changed while the order is in production. Use a change request in OpenMES.', [
+                        'field' => $diff['locked_field'],
+                    ]),
+                ];
+            }
+
+            $outcome = $this->control->proposeUpdate($locked, $diff['changes'], $apiKey, $row['change_reason'] ?? null);
+
+            return [
+                'status' => $outcome['action'],
+                'id' => $locked->id,
+                'change_request_id' => $outcome['change_request_id'],
+            ];
+        });
     }
 
     /**
@@ -379,11 +467,10 @@ class WorkOrderImportService
      */
     protected function createNew(array $row, Line $line, ProductType $productType): array
     {
-        DB::transaction(function () use ($row, $line, $productType) {
-            // Get active process template for product type
-            $processTemplate = $productType->processTemplates()
-                ->where('is_active', true)
-                ->first();
+        $workOrder = DB::transaction(function () use ($row, $line, $productType) {
+            // The newest active version: older versions stay active while their
+            // orders finish, so "any active one" would be nondeterministic.
+            $processTemplate = $productType->activeProcessTemplate();
 
             if (! $processTemplate) {
                 throw new \Exception("No active process template found for product type '{$productType->code}'");
@@ -392,7 +479,7 @@ class WorkOrderImportService
             // Generate process snapshot
             $snapshot = $this->snapshotService->createSnapshot($processTemplate);
 
-            WorkOrder::create(array_merge([
+            $workOrder = WorkOrder::create(array_merge([
                 'order_no' => $row['order_no'],
                 'line_id' => $line->id,
                 'product_type_id' => $productType->id,
@@ -408,20 +495,26 @@ class WorkOrderImportService
             Log::info('Work order created via CSV import', [
                 'order_no' => $row['order_no'],
             ]);
+
+            return $workOrder;
         });
 
-        return ['status' => 'success', 'action' => 'created'];
+        return ['status' => 'success', 'action' => 'created', 'id' => $workOrder->id];
     }
 
     /**
      * ERP-only columns applied on top of the shared create/update set, and only
-     * when present in the row — so the CSV path (which never supplies them) is
-     * unaffected.
+     * when present in the row. The legacy CSV path normally never supplies them,
+     * but its column mapping is free-form, so price_currency is re-checked here.
+     *
+     * extra_data is stored as sent on create and shallow-merged over the stored
+     * value on update, so keys written by other paths (file import, line views)
+     * survive an ERP re-import.
      *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    protected function optionalErpFields(array $row): array
+    protected function optionalErpFields(array $row, ?WorkOrder $existing = null): array
     {
         $fields = [];
 
@@ -431,6 +524,31 @@ class WorkOrderImportService
 
         if (array_key_exists('unit_price', $row) && $row['unit_price'] !== null) {
             $fields['unit_price'] = $row['unit_price'];
+        }
+
+        foreach (['external_system', 'external_ref', 'customer_name', 'price_currency'] as $key) {
+            if (array_key_exists($key, $row) && $row[$key] !== null) {
+                $fields[$key] = is_string($row[$key]) ? trim($row[$key]) : $row[$key];
+            }
+        }
+
+        // The ERP request validates the currency, but the legacy CSV import
+        // shares this path and its column mapping accepts any field name, so a
+        // mapped price_currency column would land here unchecked. Keep only a
+        // supported code; anything else leaves the stored currency alone.
+        if (isset($fields['price_currency'])) {
+            $currency = CurrencyRegistry::normalise((string) $fields['price_currency']);
+            if (in_array($currency, CurrencyRegistry::codes(), true)) {
+                $fields['price_currency'] = $currency;
+            } else {
+                unset($fields['price_currency']);
+            }
+        }
+
+        if (array_key_exists('extra_data', $row) && is_array($row['extra_data'])) {
+            $fields['extra_data'] = $existing
+                ? array_merge($existing->extra_data ?? [], $row['extra_data'])
+                : $row['extra_data'];
         }
 
         return $fields;

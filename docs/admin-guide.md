@@ -332,6 +332,11 @@ Production), then the scenario file.
   again updates rows instead of duplicating them.
 - Tables are applied in dependency order, whatever order the file uses. Unknown columns
   are ignored.
+- `workers` are matched on their code and keep their workstation. With the Enterprise
+  module installed, `skills` and `worker_skills` (`worker_id`, `skill_id`, `level` and
+  the certification dates `certified_from` / `certified_until`) come in too. Pay
+  (`pay_type`, `pay_rate`, `pay_currency`, wage group) is never read from a file and
+  never exported: a configuration file gets passed around, payroll does not.
 - Settings take the settings form's own keys. Infrastructure and security keys are
   never read from a file, and neither is the production flow mode: switch it under
   **Settings → Production**, where its checks run. A timezone is taken only when it is a
@@ -361,8 +366,10 @@ real shift.
 - `users` creates accounts: `username`, `name`, `role`, `lines`, `workstation` and
   `password`; `"account_type": "workstation"` makes a bench's own terminal login, locked
   to its `workstation`. An existing account is used as it is and never changed.
-- `material_lots` adds lots: `material` is the code, plus `lot_number`, `quantity`
-  and `received`.
+- `material_lots` adds lots: `material` is the code, plus `lot_number`, `quantity`,
+  `received`, `supplier_lot_no` and `extra_data` — an object kept on the lot as it is,
+  for example a material certificate's heat number, steel grade, standard and
+  certificate number. A lot number that already exists is left as it is.
 - `events` is the timeline. Each event has `do` and `at`. The acting user is `by`, and
   the importing admin acts when `by` is left out. Configuration is referenced by code.
 
@@ -380,7 +387,7 @@ example `+1d 06:00`.
 
 | `do` | Fields | Does what the screen does |
 |---|---|---|
-| `work_order` | `order_no`, `product`, `line`, `quantity`, `due`, `customer_order_no`, `description` | creates the order |
+| `work_order` | `order_no`, `product`, `line`, `quantity`, `due`, `customer_order_no`, `description`, `bom` | creates the order; `bom` names the routing(s) it is made with — one name or a list, newest version of each name — and without it the order takes the product's newest active routing |
 | `schedule` | `order`, `start`, `end`, `line`, `shift`, `force` | places it on the planner; an overlap on the line is refused unless `force` |
 | `batch` | `order`, `quantity`, `lot` (`auto` draws one), `workstation` | issues a batch |
 | `step_start` / `step_log` / `step_complete` | `order`, `batch` (default 1), `step`; `good`, `scrap`, `note` for a log | starts, logs and closes a step |
@@ -396,6 +403,12 @@ example `+1d 06:00`.
 
 `unit` and `pallet` take the `ref` given when the unit or pallet was created, or its
 real number.
+
+A scenario is history, not configuration: it is not matched and updated like the
+tables above. Importing the same scenario a second time stops at its first
+`work_order` event, because that order number already exists, and nothing from the
+file is saved. To replay a scenario, start from **Reset system** or change the order
+numbers.
 
 ```json
 {
@@ -471,6 +484,16 @@ the order's BOM × produced quantity when it didn't — and a product receipt fo
 produced. Review and post them from this page. To turn generation off, set
 `WAREHOUSE_AUTO_DOCUMENTS=false` in `.env`.
 
+An order for a **semi-finished part** — a product that a manufactured material is made
+by (the material's *producing routing* belongs to that product) — gets a **material
+receipt** into the raw-material warehouse instead of a product receipt, so the part is
+in stock where the next level of the BOM, the net requirements report and lot picking
+look for it. With lot tracking on, each batch that produced something becomes a
+released lot of that material, linked to the batch, so traceability runs from the
+finished product down through every level. The lot holds nothing until the receipt is
+posted. When two manufactured materials are made by the same product, there is no
+telling which one the order made, and it keeps the product receipt.
+
 Create a document by hand with **+ New Document**: pick the type, the warehouse, and
 add one line per item. The item picker follows the type — material documents list
 materials, product documents list products.
@@ -535,10 +558,22 @@ See [HOOKS.md](../HOOKS.md) and [development.md](development.md) for how to buil
 OpenMES provides a token-based REST API for ERP integration, custom dashboards, and automation.
 
 1. Go to **Settings → API Tokens**
-2. Click **Create Token**
-3. Enter a name (e.g. "ERP Integration")
-4. Copy and store the token immediately — it is not shown again
-5. Use the token in the `Authorization: Bearer <token>` header
+2. Enter a name (e.g. "ERP Integration")
+3. Pick the **Access** the token gets (see below)
+4. Click **Generate Token**
+5. Copy and store the token immediately — it is not shown again
+6. Use the token in the `Authorization: Bearer <token>` header
+
+A token acts with the permissions of the user who created it. **Access** can only narrow
+that, never widen it:
+
+| Access | Can do | Use it for |
+|---|---|---|
+| **Full API access** | Read and change data | ERP / shop integrations that create orders, automation |
+| **Read-only** | Read data; every request other than GET/HEAD/OPTIONS gets `403 This token is read-only.` | Reporting tools, BI dashboards, AI assistants (MCP) that should look but not touch |
+| **Machine gateway (OPC UA)** | Only the machine-gateway endpoints | The OPC UA gateway container — see [Machine connectivity](machine-connectivity.md) |
+
+A client can ask which access its token has with `GET /api/auth/me` (`token.scope`).
 
 See [API Documentation](API_DOCUMENTATION.md) for full endpoint reference.
 

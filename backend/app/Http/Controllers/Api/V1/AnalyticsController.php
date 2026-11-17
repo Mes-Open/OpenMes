@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\AnalyticsRequest;
 use App\Http\Requests\OperatorRatesRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
 use App\Models\Line;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderOutputEntry;
 use App\Services\Production\OperatorProductionRateService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -19,9 +21,9 @@ class AnalyticsController extends Controller
     /**
      * Get overview statistics for supervisor dashboard
      */
-    public function overview(Request $request)
+    public function overview(AnalyticsRequest $request)
     {
-        $lineId = $request->query('line_id');
+        $lineId = $request->lineId();
 
         $query = WorkOrder::query();
         if ($lineId) {
@@ -38,9 +40,11 @@ class AnalyticsController extends Controller
             'in_progress_work_orders' => (clone $query)->whereIn('status', ['ACCEPTED', 'IN_PROGRESS'])->count(),
             'active_work_orders' => (clone $query)->whereIn('status', ['PENDING', 'ACCEPTED', 'IN_PROGRESS'])->count(),
             'completed_work_orders' => (clone $query)->where('status', 'DONE')->count(),
+            // completed_at, not updated_at: any later edit to an old order
+            // (a note, a priority) used to count it as done today.
             'done_today_work_orders' => (clone $query)
                 ->where('status', 'DONE')
-                ->where('updated_at', '>=', $todayStart)
+                ->where('completed_at', '>=', $todayStart)
                 ->count(),
             'blocked_work_orders' => (clone $query)->where('status', 'BLOCKED')->count(),
 
@@ -83,13 +87,16 @@ class AnalyticsController extends Controller
     /**
      * Get production metrics by line
      */
-    public function productionByLine(Request $request)
+    public function productionByLine(AnalyticsRequest $request)
     {
-        $startDate = $request->query('start_date', Carbon::now()->subDays(7)->toDateString());
-        $endDate = $request->query('end_date', Carbon::now()->toDateString());
+        $start = Carbon::parse($request->query('start_date', Carbon::now()->subDays(7)->toDateString()))->startOfDay();
+        // Both dates are inclusive. A bare `end_date` compared against a
+        // timestamp means its 00:00, which left out every order created on
+        // the end day — the whole window, when it was a single day.
+        $endExclusive = Carbon::parse($request->query('end_date', Carbon::now()->toDateString()))->addDay()->startOfDay();
 
-        $metrics = Line::with(['workOrders' => function ($query) use ($startDate, $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
+        $metrics = Line::with(['workOrders' => function ($query) use ($start, $endExclusive) {
+            $query->where('created_at', '>=', $start)->where('created_at', '<', $endExclusive);
         }])
             ->get()
             ->map(function ($line) {
@@ -113,10 +120,10 @@ class AnalyticsController extends Controller
     /**
      * Get cycle time statistics
      */
-    public function cycleTime(Request $request)
+    public function cycleTime(AnalyticsRequest $request)
     {
-        $lineId = $request->query('line_id');
-        $days = $request->query('days', 30);
+        $lineId = $request->lineId();
+        $days = $request->days();
 
         $completedBatches = Batch::where('status', 'DONE')
             ->whereNotNull('started_at')
@@ -160,19 +167,25 @@ class AnalyticsController extends Controller
     /**
      * Get throughput metrics (units per day)
      */
-    public function throughput(Request $request)
+    public function throughput(AnalyticsRequest $request)
     {
-        $lineId = $request->query('line_id');
-        $days = $request->query('days', 30);
+        $lineId = $request->lineId();
+        $days = $request->days();
 
-        $startDate = Carbon::now()->subDays($days)->startOfDay();
+        // The last `days` plant days, today included: days=7 is seven rows at
+        // most, not the eight that `now - 7 days` reaches back to.
+        $startDate = Carbon::now()->subDays($days - 1)->startOfDay();
         $endDate = Carbon::now()->endOfDay();
 
-        $dailyProduction = WorkOrder::selectRaw('DATE(updated_at) as date, SUM(produced_qty) as total_produced')
+        // Units produced per day, from the output ledger: every change to an
+        // order's produced_qty, stamped when it happened (plant time). Summing
+        // each order's whole produced_qty on DATE(updated_at) put all of its
+        // output on the last day anything about it changed, so editing a note
+        // moved weeks of production onto today.
+        $dailyProduction = WorkOrderOutputEntry::selectRaw('DATE(recorded_at) as date, SUM(delta) as total_produced')
             ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
-            ->whereBetween('updated_at', [$startDate, $endDate])
-            ->where('produced_qty', '>', 0)
-            ->groupBy(DB::raw('DATE(updated_at)'))
+            ->whereBetween('recorded_at', [$startDate, $endDate])
+            ->groupBy(DB::raw('DATE(recorded_at)'))
             ->orderBy('date')
             ->get();
 
@@ -191,10 +204,10 @@ class AnalyticsController extends Controller
     /**
      * Get issue statistics and trends
      */
-    public function issueStats(Request $request)
+    public function issueStats(AnalyticsRequest $request)
     {
-        $lineId = $request->query('line_id');
-        $days = $request->query('days', 30);
+        $lineId = $request->lineId();
+        $days = $request->days();
 
         $startDate = Carbon::now()->subDays($days);
 
@@ -243,10 +256,10 @@ class AnalyticsController extends Controller
     /**
      * Get step performance metrics
      */
-    public function stepPerformance(Request $request)
+    public function stepPerformance(AnalyticsRequest $request)
     {
-        $lineId = $request->query('line_id');
-        $days = $request->query('days', 30);
+        $lineId = $request->lineId();
+        $days = $request->days();
 
         $startDate = Carbon::now()->subDays($days);
 

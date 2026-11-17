@@ -50,6 +50,9 @@ class ConfigurationImporter
         'line_product_type' => ['line_id', 'product_type_id'],
         'skills' => ['code'],
         'personnel_classes' => ['code'],
+        'workers' => ['code'],
+        // A worker's skills and their certification (valid from / until).
+        'worker_skills' => ['worker_id', 'skill_id'],
         'process_segments' => ['code'],
         'label_templates' => ['name'],
         'process_templates' => ['product_type_id', 'name'],
@@ -75,6 +78,8 @@ class ConfigurationImporter
         'materials' => ['material_type_id' => 'material_types', 'producing_process_template_id' => 'process_templates'],
         'line_product_type' => ['line_id' => 'lines', 'product_type_id' => 'product_types'],
         'process_segments' => ['workstation_type_id' => 'workstation_types'],
+        'workers' => ['workstation_id' => 'workstations', 'personnel_class_id' => 'personnel_classes'],
+        'worker_skills' => ['worker_id' => 'workers', 'skill_id' => 'skills'],
         'process_templates' => ['product_type_id' => 'product_types'],
         'template_steps' => ['process_template_id' => 'process_templates', 'workstation_id' => 'workstations', 'workstation_type_id' => 'workstation_types', 'process_segment_id' => 'process_segments'],
         'bom_items' => ['process_template_id' => 'process_templates', 'template_step_id' => 'template_steps', 'material_id' => 'materials', 'product_type_id' => 'product_types'],
@@ -93,6 +98,7 @@ class ConfigurationImporter
         'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
         'production_qty_edit_policy', 'production_qty_edit_window_minutes', 'scanner_mode',
         'unit_identifier_normalize', 'unit_serial_pattern', 'unit_psn_pattern', 'unit_psn_required', 'unit_psn_unique',
+        'unit_pack_requires_serial', 'unit_pack_requires_order',
         'unit_test_fail_policy', 'unit_test_max_attempts', 'unit_test_attempts_scope', 'standard_weekly_hours', 'default_currency',
         'default_pay_type', 'default_pay_rate', 'enabled_modules',
     ];
@@ -106,9 +112,20 @@ class ConfigurationImporter
         'modules_enabled',
         // Switched only on its own form, with its own checks.
         'production_flow_mode',
+        // Widens which internal hosts webhooks may reach (T2a): only ever set
+        // deliberately by an admin on the Webhooks page, never by a restore.
+        \App\Support\WebhookNetworkAllowlist::SETTING_KEY,
     ];
 
     private const SKIP_COLUMNS = ['id', 'created_at', 'updated_at', 'tenant_id', 'deleted_at', 'deleted_by_id'];
+
+    /**
+     * Table => columns a configuration file never carries, in either direction:
+     * pay belongs to payroll, not to a plant's setup, and a file is passed around.
+     */
+    public const EXCLUDED_COLUMNS = [
+        'workers' => ['pay_type', 'pay_rate', 'pay_currency', 'wage_group_id'],
+    ];
 
     /** @var array<string, array<int|string, int>> table => file id => database id */
     private array $ids = [];
@@ -132,7 +149,10 @@ class ConfigurationImporter
         $this->ids = [];
         $this->fileTables = [];
         foreach (array_keys(self::TABLES) as $table) {
-            if (! empty($data[$table]) && is_array($data[$table])) {
+            // A section that is present counts as carried even when empty: its
+            // references then resolve only through the file, never by borrowing
+            // whatever row has that id here.
+            if (array_key_exists($table, $data) && is_array($data[$table])) {
                 $this->fileTables[$table] = true;
             }
         }
@@ -249,7 +269,8 @@ class ConfigurationImporter
 
         $values = [];
         foreach ($row as $column => $value) {
-            if (! in_array($column, $columns, true) || in_array($column, self::SKIP_COLUMNS, true) || $value === null) {
+            if (! in_array($column, $columns, true) || in_array($column, self::SKIP_COLUMNS, true) || $value === null
+                || in_array($column, self::EXCLUDED_COLUMNS[$table] ?? [], true)) {
                 continue;
             }
             // Another database's ids (a user, a record we do not import) mean nothing here.
