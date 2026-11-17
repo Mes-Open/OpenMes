@@ -101,6 +101,7 @@ class MaterialCurrencyDefaultTest extends TestCase
             'material_id' => $pln->id,
         ]);
         $cost = AdditionalCost::factory()->create(['work_order_id' => $wo->id, 'amount' => 12, 'currency' => 'PLN']);
+        $source = \App\Models\CostSource::create(['code' => 'ELEC', 'name' => 'Electricity', 'unit_cost' => 1, 'unit' => 'kWh', 'currency' => 'PLN']);
 
         $this->actingAs($admin)->post('/settings/system', [
             'production_period' => 'none',
@@ -119,6 +120,7 @@ class MaterialCurrencyDefaultTest extends TestCase
         $this->assertSame('EUR', $allocation->fresh()->price_currency_snapshot);
         $this->assertSame('EUR', $cost->fresh()->currency);
         $this->assertSame('USD', $usd->fresh()->price_currency);
+        $this->assertSame('EUR', $source->fresh()->currency);
         // Relabel only — the numbers are not converted.
         $this->assertEquals(2, $pln->fresh()->unit_price);
 

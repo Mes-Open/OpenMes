@@ -22,7 +22,8 @@ export default function MaintenanceEventsIndex() {
         userNames = {},
         // No defaults: these are Inertia::optional, and `ready` below tells the
         // drawer they haven't arrived by their being undefined.
-        tools, lines, workstations, costSources, users } = usePage().props;
+        tools, lines, workstations, costSources, users,
+        currency: pageCurrency } = usePage().props;
 
     const drawer = useResourceDrawer();
 
@@ -108,7 +109,7 @@ export default function MaintenanceEventsIndex() {
                 {...drawer.props}
                 action="/admin/maintenance-events"
                 fields={maintenanceEventFields({ tools: tools ?? [], lines: lines ?? [], workstations: workstations ?? [], costSources: costSources ?? [], users: users ?? [] })}
-                initial={maintenanceEventInitial}
+                initial={(record) => maintenanceEventInitial(record, { currency: pageCurrency })}
                 ensure={['tools', 'lines', 'workstations', 'costSources', 'users']}
                 ready={tools !== undefined}
                 title={{ create: __('New Maintenance Event'), edit: __('Edit Maintenance Event') }}

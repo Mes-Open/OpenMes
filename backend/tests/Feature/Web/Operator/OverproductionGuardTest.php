@@ -212,4 +212,41 @@ class OverproductionGuardTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertEquals(6, $entry->fresh()->quantity);
     }
+
+    public function test_a_shift_entry_counts_quantities_recorded_directly(): void
+    {
+        $this->allowOverproduction(false);
+        $order = $this->plainOrder(10);
+        $shift = $this->shift();
+
+        $this->actingAsOperator()->post("/operator/workstation/{$order->id}/complete", ['produced_qty' => 4])
+            ->assertSessionMissing('error');
+        $this->actingAsOperator()->post("/operator/workstation/{$order->id}/shift-entry", ['shift_id' => $shift->id, 'quantity' => 7])
+            ->assertSessionHas('error');
+        $this->actingAsOperator()->post("/operator/workstation/{$order->id}/shift-entry", ['shift_id' => $shift->id, 'quantity' => 3])
+            ->assertSessionMissing('error');
+
+        // The direct 4 are kept, not replaced by the shift-entry sum.
+        $this->assertEquals(7, $order->fresh()->produced_qty);
+    }
+
+    public function test_a_correction_counts_and_keeps_quantities_recorded_directly(): void
+    {
+        $this->allowOverproduction(false);
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => json_encode('full')]);
+        $order = $this->plainOrder(10);
+        $entry = WorkOrderShiftEntry::create(['work_order_id' => $order->id, 'shift_id' => $this->shift()->id, 'quantity' => 4, 'user_id' => $this->operator->id, 'production_date' => today()]);
+        // 4 from the shift entry + 4 recorded directly on the workstation.
+        $order->update(['produced_qty' => 8]);
+
+        // 4 → 7 would make 11 in total.
+        $this->actingAsOperator()->put("/operator/shift-entry/{$entry->id}/correct", ['quantity' => 7])
+            ->assertSessionHasErrors('quantity');
+        $this->assertEquals(4, $entry->fresh()->quantity);
+
+        $this->actingAsOperator()->put("/operator/shift-entry/{$entry->id}/correct", ['quantity' => 6])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(6, $entry->fresh()->quantity);
+        $this->assertEquals(10, $order->fresh()->produced_qty);
+    }
 }

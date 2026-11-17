@@ -18,6 +18,16 @@ class UpdateSystemSettingRequest extends FormRequest
         if ($this->route('key') === CurrencyRegistry::SETTING_KEY && is_string($this->input('value'))) {
             $this->merge(['value' => CurrencyRegistry::normalise($this->input('value'))]);
         }
+
+        // The same clean-up as Settings → System, so the stored value is the
+        // one the header needs (browsers match methods case-sensitively).
+        $normalise = [
+            'cors_allowed_origins' => \App\Rules\CorsOrigins::normalise(...),
+            'cors_allowed_methods' => \App\Rules\CorsMethods::normalise(...),
+        ][$this->route('key')] ?? null;
+        if ($normalise && is_string($this->input('value'))) {
+            $this->merge(['value' => $normalise($this->input('value'))]);
+        }
     }
 
     public function rules(): array

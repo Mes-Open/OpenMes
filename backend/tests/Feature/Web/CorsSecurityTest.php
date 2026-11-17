@@ -102,6 +102,19 @@ class CorsSecurityTest extends TestCase
         $this->assertSame('https://erp.example.com', json_decode(DB::table('system_settings')->where('key', 'cors_allowed_origins')->value('value'), true));
     }
 
+    public function test_each_cors_field_is_saved_on_its_own(): void
+    {
+        $this->storeOrigins('https://erp.example.com');
+
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->settingsPayload(['cors_allowed_methods' => 'GET, PUT']))
+            ->assertSessionHasNoErrors();
+
+        $stored = DB::table('system_settings')->whereIn('key', ['cors_allowed_origins', 'cors_allowed_methods'])->pluck('value', 'key');
+        $this->assertSame('GET, PUT', json_decode($stored['cors_allowed_methods'], true));
+        $this->assertSame('https://erp.example.com', json_decode($stored['cors_allowed_origins'], true));
+    }
+
     public function test_settings_reject_unknown_methods(): void
     {
         $this->actingAs($this->admin)
@@ -129,6 +142,24 @@ class CorsSecurityTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/v1/system/settings/cors_allowed_origins', ['value' => 'https://erp.example.com'])
             ->assertSuccessful();
+    }
+
+    public function test_the_settings_api_stores_cors_values_tidied_like_the_form(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'cors_allowed_origins'], ['value' => json_encode('')]);
+        DB::table('system_settings')->updateOrInsert(['key' => 'cors_allowed_methods'], ['value' => json_encode('GET, POST')]);
+
+        // Browsers match preflight methods case-sensitively: "put" would never allow PUT.
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/v1/system/settings/cors_allowed_methods', ['value' => 'put,delete '])
+            ->assertSuccessful();
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/v1/system/settings/cors_allowed_origins', ['value' => ' https://erp.example.com/ ,https://mes.example.com'])
+            ->assertSuccessful();
+
+        $stored = DB::table('system_settings')->whereIn('key', ['cors_allowed_origins', 'cors_allowed_methods'])->pluck('value', 'key');
+        $this->assertSame('PUT, DELETE', json_decode($stored['cors_allowed_methods'], true));
+        $this->assertSame('https://erp.example.com, https://mes.example.com', json_decode($stored['cors_allowed_origins'], true));
     }
 
     // ── What the allowlist opens ─────────────────────────────────────────────

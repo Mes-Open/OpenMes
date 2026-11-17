@@ -638,13 +638,11 @@ class SettingsController extends Controller
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
             'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
-            // Only when sent (the page posts them from the Security tab): a form
-            // without them must neither clear the allowlist nor reset it.
-            ...($request->has('cors_allowed_origins') ? [
-                'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
-                'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
-                'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
-            ] : []),
+            // Each only when sent (the page posts them from the Security tab): a
+            // form without one must neither clear nor reset what is stored.
+            ...($request->has('cors_allowed_origins') ? ['cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: ''] : []),
+            ...($request->has('cors_allowed_methods') ? ['cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST'] : []),
+            ...($request->has('cors_max_age') ? ['cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0)))] : []),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],

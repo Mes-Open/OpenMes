@@ -18,6 +18,12 @@ class CorsOrigins implements ValidationRule
 {
     private const ORIGIN = '~^https?://(\[[0-9a-fA-F:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(:\d{1,5})?$~';
 
+    /** Spaces and a trailing slash are typos; an origin never has a path. */
+    public static function normalise(string $value): string
+    {
+        return implode(', ', array_filter(array_map(fn (string $o) => rtrim(trim($o), '/'), explode(',', $value)), 'strlen'));
+    }
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if ($value === null) {

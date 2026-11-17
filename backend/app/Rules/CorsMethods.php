@@ -13,6 +13,12 @@ class CorsMethods implements ValidationRule
 {
     public const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
+    /** "get, post " → "GET, POST": the form browsers match case-sensitively. */
+    public static function normalise(string $value): string
+    {
+        return implode(', ', array_filter(array_map(fn (string $m) => strtoupper(trim($m)), explode(',', $value)), 'strlen'));
+    }
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if ($value === null || (is_string($value) && trim($value) === '')) {

@@ -50,7 +50,7 @@ export const EVENT_STATUS_STYLES = {
  * drawer, so the three can't drift on what a blank field is or how a stored
  * value is coerced for the input that shows it.
  */
-export function maintenanceEventInitial(record, { scheduled_at, scheduled_end_at } = {}) {
+export function maintenanceEventInitial(record, { scheduled_at, scheduled_end_at, currency: pageCurrency } = {}) {
     if (!record) {
         return {
             title: '',
@@ -64,7 +64,9 @@ export function maintenanceEventInitial(record, { scheduled_at, scheduled_end_at
             scheduled_end_at: '',
             actual_cost: '',
             // Installation currency (Settings → System), not a hard-coded PLN.
-            currency: currency(),
+            // The page's own prop when given: on an SPA visit the page renders
+            // before app.jsx updates the shared currency on `navigate`.
+            currency: pageCurrency || currency(),
             description: '',
         };
     }

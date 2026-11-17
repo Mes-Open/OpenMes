@@ -33,15 +33,10 @@ class UpdateSystemSettingsRequest extends FormRequest
 
         // Spaces and a trailing slash are typos; an origin never has a path.
         if (is_string($this->input('cors_allowed_origins'))) {
-            $origins = array_filter(array_map(
-                fn (string $o) => rtrim(trim($o), '/'),
-                explode(',', $this->input('cors_allowed_origins')),
-            ), 'strlen');
-            $this->merge(['cors_allowed_origins' => implode(', ', $origins)]);
+            $this->merge(['cors_allowed_origins' => \App\Rules\CorsOrigins::normalise($this->input('cors_allowed_origins'))]);
         }
         if (is_string($this->input('cors_allowed_methods'))) {
-            $methods = array_filter(array_map(fn (string $m) => strtoupper(trim($m)), explode(',', $this->input('cors_allowed_methods'))), 'strlen');
-            $this->merge(['cors_allowed_methods' => implode(', ', $methods)]);
+            $this->merge(['cors_allowed_methods' => \App\Rules\CorsMethods::normalise($this->input('cors_allowed_methods'))]);
         }
     }
 

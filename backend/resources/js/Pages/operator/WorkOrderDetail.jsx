@@ -2329,7 +2329,7 @@ export default function WorkOrderDetail() {
             <Head title={`Work Order ${workOrder.order_no}`} />
 
             {/* Live-refresh when the work order changes on the line */}
-            {line && <LineSync lineId={line.id} reloadOnly={['workOrder']} />}
+            {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}
 
             <div className="max-w-7xl mx-auto">
                 {/* Header — active-WO hero idiom: mono order code + status pill */}
