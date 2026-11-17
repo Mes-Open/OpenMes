@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
+  `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
+  listener returns stops the start and is shown to the operator (422 in the API). Lets a
+  module enforce e.g. a valid welder qualification for the step. No listener – no change.
 - **Quality holds in the scheduler.** An order held back by quality — an open quality
   control whose trigger is blocking, or an open or acknowledged issue that blocks the work
   order — is no longer placed by *Automatic scheduling*. Its operations get the new status

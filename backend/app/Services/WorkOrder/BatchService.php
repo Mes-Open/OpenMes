@@ -2,6 +2,7 @@
 
 namespace App\Services\WorkOrder;
 
+use App\Extension\FilterRegistry;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\QualityControlTask;
@@ -22,6 +23,22 @@ class BatchService
         protected MaterialAllocationService $allocationService,
         protected QualityTriggerService $qualityTriggerService,
     ) {}
+
+    /**
+     * Ask the `production.step_start_blockers` filter whether anything forbids this start.
+     * Each listener gets the reasons collected so far and returns them, adding its own.
+     *
+     * @throws \DomainException with the first reason, when there is one
+     */
+    private function guardModuleBlockers(BatchStep $step, User $user): void
+    {
+        $reasons = app(FilterRegistry::class)->filter('production.step_start_blockers', [], ['step' => $step, 'user' => $user]);
+        $reason = collect(is_array($reasons) ? $reasons : [])->first(fn ($r) => is_string($r) && trim($r) !== '');
+
+        if ($reason !== null) {
+            throw new \DomainException($reason);
+        }
+    }
 
     /**
      * Start a batch step.
@@ -54,6 +71,10 @@ class BatchService
             if (! $step->canStart()) {
                 $this->throwValidationError($step);
             }
+
+            // A module may refuse the start with a reason the operator reads, e.g. a
+            // qualification the step requires and the operator does not hold.
+            $this->guardModuleBlockers($step, $user);
 
             $batch = $step->batch;
             $wasPending = $batch->status === Batch::STATUS_PENDING;
