@@ -444,9 +444,23 @@ function FlashMessages() {
     // explain a redirect ("you were sent here because…"), and dropping them
     // left the user on a page they had not asked for with no word why.
     const shown = FLASH_KINDS.filter(([kind]) => flash?.[kind]);
+    // A form saved at the bottom of a long page redirects back to the same,
+    // still scrolled, page: the message lands above the fold and the save
+    // looks like it did nothing. Bring a new message into view.
+    // Keyed on the flash object: every visit brings a new one, so saving twice
+    // with the same message still scrolls the second time.
+    const ref = useRef(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        // Above the top of the scrolling <main> (under the header) counts as hidden.
+        const top = el.closest('main')?.getBoundingClientRect().top ?? 0;
+        if (el.getBoundingClientRect().top >= top) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [flash]);
     if (shown.length === 0) return null;
     return (
-        <div className="mb-4 space-y-2">
+        <div ref={ref} className="mb-4 space-y-2 scroll-mt-4">
             {shown.map(([kind, tone, role]) => (
                 <div key={kind} role={role} className={`p-3 rounded-om-sm border border-om-line text-[13px] ${tone}`}>
                     {__(flash[kind])}
