@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-16
+
 ### Added
 
 - **The API reports the plant time zone.** `GET /api/auth/me` now includes
