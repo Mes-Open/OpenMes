@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Dashboard widgets that stay current.** `WidgetRegistry::register()` also takes a
+  callable, called on every dashboard render and returning the card (or null for none). A
+  count or status built in a module's `boot()` used to keep the value of the moment the
+  Octane worker started.
 - **Quality holds in the scheduler.** An order held back by quality — an open quality
   control whose trigger is blocking, or an open or acknowledged issue that blocks the work
   order — is no longer placed by *Automatic scheduling*. Its operations get the new status
