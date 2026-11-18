@@ -7,6 +7,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.29.3] - 2026-11-18
+
+### Fixed
+
+- **Warehouse: consumed material no longer leaves stock twice.** When a work order
+  completed, the generated production material release listed what the shop floor had
+  consumed, and posting that release took every line off stock again. Allocation had
+  already moved the lot and the plant-wide quantity, and consumption had moved the
+  location balance, so a lot emptied by production went negative and the warehouse total
+  dropped by the order's consumption twice. Release lines for material allocated to the
+  order are now flagged `booked_at_source`: posting or cancelling such a line confirms the
+  paperwork for the warehouse and the ERP without moving stock again. Material that was
+  never allocated still leaves stock only when the release is posted. The flag is set only
+  by the release generator; the stock document form does not accept it.
+
+## [0.29.2] - 2026-11-17
+
 ### Added
 
 - **ERP API: key introspection, read-only master data, multi-status export.** An ERP
