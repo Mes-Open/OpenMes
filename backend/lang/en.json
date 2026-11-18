@@ -7755,5 +7755,13 @@
     "Already handled by :name.": "Already handled by :name.",
     "Already handled by another planner. Refresh the insights.": "Already handled by another planner. Refresh the insights.",
     "This was already undone. Refresh the insights.": "This was already undone. Refresh the insights.",
-    "The move cannot be found any more. Undo it from the planner's Changes tab.": "The move cannot be found any more. Undo it from the planner's Changes tab."
+    "The move cannot be found any more. Undo it from the planner's Changes tab.": "The move cannot be found any more. Undo it from the planner's Changes tab.",
+    "Click for the explanation": "Click for the explanation",
+    "Open the explanation in planning insights": "Open the explanation in planning insights",
+    "Close planning insights": "Close planning insights",
+    "Open planning insights (:count open)": "Open planning insights (:count open)",
+    "Planning insights — press I to open or close": "Planning insights — press I to open or close",
+    "Don't open automatically": "Don't open automatically",
+    "Keyboard shortcut": "Keyboard shortcut",
+    "open / close": "open / close"
 }

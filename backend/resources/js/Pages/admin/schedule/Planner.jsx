@@ -12,8 +12,11 @@ import { todayKey, dayList } from './planner/helpers';
 import { WeeklyView } from './planner/views';
 import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
-import { InsightsDrawer } from './planner/insights';
-import { createInsightsGate, highlightOf, indexStaffing, openCount, toggle } from './planner/insightsState';
+import { InsightsDrawer, InsightsHandle } from './planner/insights';
+import {
+    createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, isToggleShortcut,
+    markSessionSeen, openCount, openOn, readAutoOpen, sessionSeen, shouldAutoOpen, toggle, writeAutoOpen,
+} from './planner/insightsState';
 import {
     OrderEditSheet, AssignPopup, ConflictDialog, LiveTrackingBar, Toasts, SavingOverlay,
     AddMaintenanceModal,
@@ -23,7 +26,13 @@ import {
 const STYLE = `
 .om-wo:hover { filter: brightness(0.97); }
 .om-wo:hover .om-x { opacity: 1; }
+@keyframes om-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.om-drawer-in { animation: om-drawer-in .24s ease-out; }
+@media (prefers-reduced-motion: reduce) { .om-drawer-in { animation: none; } .om-insights-handle { transition: none !important; } }
 `;
+
+// Browser storage can be missing or refuse access (privacy settings, sandboxed frames).
+const storage = (name) => { try { return window[name] ?? null; } catch { return null; } };
 
 let TOAST_SEQ = 1;
 const pad = (n) => String(n).padStart(2, '0');
@@ -47,7 +56,9 @@ export default function Planner() {
         backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], realtimeMode = 'polling',
         overdueImportant = { count: 0, orders: [] },
         canSeeInsights = false,
+        auth = {},
     } = usePage().props;
+    const userId = auth?.user?.id ?? null;
 
     const lineId = new URLSearchParams(window.location.search).get('line_id') ?? '';
     const live = realtimeMode !== 'off';
@@ -99,6 +110,8 @@ export default function Planner() {
     const [shownKey, setShownKey] = useState(null);
     const [insightBusy, setInsightBusy] = useState(false);
     const [insightsLoading, setInsightsLoading] = useState(false);
+    const [focusKey, setFocusKey] = useState(null);
+    const [autoOpen, setAutoOpen] = useState(() => readAutoOpen(storage('localStorage'), userId));
     const boardParams = useMemo(() => ({ view_mode: viewMode, start_date: startDate, ...(lineId ? { line_id: lineId } : {}) }), [viewMode, startDate, lineId]);
 
     // Only the freshest answer reaches the drawer: a read in flight is
@@ -138,6 +151,42 @@ export default function Planner() {
         const t = setInterval(fetchInsights, 60000);
         return () => clearInterval(t);
     }, [drawerOpen, insightsOn, fetchInsights]);
+
+    // ── Finding the drawer: open/close, on an insight, by itself, by keyboard ──
+    const closeDrawer = useCallback(() => {
+        setDrawerOpen(false); setHighlight(new Set()); setShownKey(null); setFocusKey(null);
+    }, []);
+    const openDrawer = useCallback(() => setDrawerOpen(true), []);
+    const toggleDrawer = useCallback(() => { if (drawerOpen) closeDrawer(); else openDrawer(); }, [drawerOpen, closeDrawer, openDrawer]);
+
+    // A red/amber badge or a card's warning marker opens the drawer on its insight.
+    const openOnInsight = useCallback((insight) => {
+        const next = openOn({ open: drawerOpen, filter: insightFilter, openKey, highlight, focusKey: null }, insight);
+        setDrawerOpen(next.open);
+        setInsightFilter(next.filter);
+        setOpenKey(next.openKey);
+        setHighlight(next.highlight);
+        setShownKey(null);
+        setFocusKey(next.focusKey);
+    }, [drawerOpen, insightFilter, openKey, highlight]);
+    const onStaffBadge = useCallback((badgeLine, date, shift) => openOnInsight(insightForCell(drawer, badgeLine, date, shift)), [drawer, openOnInsight]);
+    const onOrderMarker = useCallback((wo) => openOnInsight(insightForOrder(drawer, wo.id)), [drawer, openOnInsight]);
+    const onFocused = useCallback(() => setFocusKey(null), []);
+
+    // First planner visit of the session with something needing action → open once.
+    const autoCheckedRef = useRef(false);
+    useEffect(() => {
+        if (!insightsOn || !drawer || autoCheckedRef.current) return;
+        autoCheckedRef.current = true;
+        const session = storage('sessionStorage');
+        const seen = sessionSeen(session, userId);
+        markSessionSeen(session, userId);
+        if (shouldAutoOpen({ drawer, enabled: autoOpen, seen, open: drawerOpen })) setDrawerOpen(true);
+    }, [insightsOn, drawer, userId, autoOpen, drawerOpen]);
+    const onAutoOpenChange = useCallback((enabled) => {
+        setAutoOpen(enabled);
+        writeAutoOpen(storage('localStorage'), userId, enabled);
+    }, [userId]);
 
     // ── Context handed to the views ────────────────────────────────────────────
     const days = dayList(startDate, showWeekends ? 7 : 5, showWeekends);
@@ -352,7 +401,23 @@ export default function Planner() {
         onCellClick: (target) => setAssignTarget(target),
         staffing: staffingCtx,
         highlight,
+        onStaffBadge: insightsOn ? onStaffBadge : null,
+        onOrderMarker: insightsOn ? onOrderMarker : null,
     };
+
+    // `I` toggles the drawer — not while typing, not over a dialog.
+    const modalOpen = Boolean(selected || assignTarget || conflict || confirmBox || maintOpen);
+    useEffect(() => {
+        if (!insightsOn) return undefined;
+        const onKey = (e) => {
+            const dialog = modalOpen || document.querySelector('[aria-modal="true"]') !== null;
+            if (!isToggleShortcut(e, { modalOpen: dialog })) return;
+            e.preventDefault();
+            toggleDrawer();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [insightsOn, modalOpen, toggleDrawer]);
 
     // ── Live tracking — always on, auto-follows the first in-progress order ────
     const firstInProgress = workOrders.find((o) => o.status === 'IN_PROGRESS');
@@ -515,7 +580,7 @@ export default function Planner() {
 
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
                 live={live} onMaintenance={() => setMaintOpen(true)}
-                insights={insightsOn ? { count: openCount(drawer), bad: drawer?.summary?.needs_action ?? 0, open: drawerOpen, onToggle: () => setDrawerOpen((o) => !o) } : null} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
+                insights={insightsOn ? { count: openCount(drawer), bad: drawer?.summary?.needs_action ?? 0, open: drawerOpen, onToggle: toggleDrawer } : null} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
             </div>
             <BacklogRail ctx={ctx} />
@@ -572,18 +637,21 @@ export default function Planner() {
                     onError={(msg) => toast(msg || __('Could not add maintenance.'), 'error')}
                 />
             )}
-            {insightsOn && drawerOpen && (
+            {insightsOn && <InsightsHandle tone={handleTone(drawer)} count={openCount(drawer)} open={drawerOpen} onToggle={toggleDrawer} />}
+            {insightsOn && (
                 <div id="planning-insights">
-                    <InsightsDrawer
+                    {drawerOpen && <InsightsDrawer
                         drawer={drawer} loading={insightsLoading} busy={insightBusy}
                         filter={insightFilter} setFilter={setInsightFilter}
                         openKey={openKey} onToggle={onToggleInsight}
                         onShow={onShowInsight} shownKey={shownKey}
                         onAction={onInsightAction} onUndo={onUndoInsight}
-                        onClose={() => { setDrawerOpen(false); setHighlight(new Set()); setShownKey(null); }}
+                        onClose={closeDrawer}
+                        focusKey={focusKey} onFocused={onFocused}
+                        autoOpen={autoOpen} onAutoOpenChange={onAutoOpenChange}
                         rangeLabel={viewMode === 'daily' ? __('This day') : __('This week')}
                         updatedAt={drawer?.generated_at ? formatTime(drawer.generated_at, { hour: '2-digit', minute: '2-digit', hour12: false }) : null}
-                    />
+                    />}
                 </div>
             )}
             {saving && <SavingOverlay />}

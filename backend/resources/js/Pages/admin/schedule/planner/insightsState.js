@@ -86,3 +86,93 @@ export function createInsightsGate() {
         },
     };
 }
+
+// ── Finding the drawer: edge handle, auto-open, badge → insight, shortcut ────
+
+const SEVERITY_RANK = { bad: 0, warn: 1, info: 2 };
+const bySeverity = (a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3)
+    || (a.type === 'short_shift' ? -1 : 0) - (b.type === 'short_shift' ? -1 : 0);
+
+/** The handle's colour: 'bad' when something needs action, 'warn' when only to watch, else 'neutral'. */
+export function handleTone(drawer) {
+    const insights = drawer?.insights ?? [];
+    if (insights.some((i) => i.severity === 'bad')) return 'bad';
+    if (insights.length > 0) return 'warn';
+    return 'neutral';
+}
+
+/** The most pressing open insight about one line × shift cell, or null. */
+export function insightForCell(drawer, lineId, date, shift) {
+    const key = cellKey(lineId, date, shift);
+    const hits = (drawer?.insights ?? []).filter((i) => (i.cells ?? []).some((c) => cellKey(c.line_id, c.date, c.shift) === key));
+    return hits.sort(bySeverity)[0] ?? null;
+}
+
+/** The most pressing open insight that lists a work order among its affected orders, or null. */
+export function insightForOrder(drawer, orderId) {
+    const hits = (drawer?.insights ?? []).filter((i) => (i.affected ?? []).some((a) => a.work_order_id === orderId));
+    return hits.sort(bySeverity)[0] ?? null;
+}
+
+/**
+ * Drawer state for "open on this insight": every filter (so the insight is
+ * not hidden by a chip), the insight expanded and its cells highlighted.
+ * Without an insight the drawer simply opens as it was.
+ */
+export function openOn(state, insight) {
+    if (!insight) return { ...state, open: true };
+    return { ...state, open: true, filter: 'all', openKey: insight.key, highlight: highlightOf(insight), focusKey: insight.key };
+}
+
+// Preferences — storage may be missing or throw (private mode, quota, policy).
+const prefKey = (userId) => `openmes.planner.insights.autoOpen.${userId ?? 'guest'}`;
+const sessionKey = (userId) => `openmes.planner.insights.autoOpened.${userId ?? 'guest'}`;
+
+/** Whether the drawer may open by itself for this user (default yes). */
+export function readAutoOpen(storage, userId) {
+    try { return storage?.getItem(prefKey(userId)) !== 'off'; } catch { return true; }
+}
+
+/** Remember the user's "Don't open automatically" choice. */
+export function writeAutoOpen(storage, userId, enabled) {
+    try {
+        if (enabled) storage?.removeItem(prefKey(userId)); else storage?.setItem(prefKey(userId), 'off');
+    } catch { /* storage unavailable — the choice lasts for this page only */ }
+}
+
+/** Whether this browser session already had its first planner visit. */
+export function sessionSeen(storage, userId) {
+    try { return storage?.getItem(sessionKey(userId)) === '1'; } catch { return false; }
+}
+
+export function markSessionSeen(storage, userId) {
+    try { storage?.setItem(sessionKey(userId), '1'); } catch { /* ignore */ }
+}
+
+/**
+ * Open the drawer by itself? Only on the session's first planner visit, once
+ * the insights have arrived, when something needs action, the user has not
+ * turned it off and the drawer is not open already.
+ */
+export function shouldAutoOpen({ drawer, enabled, seen, open }) {
+    if (!drawer || !enabled || seen || open) return false;
+    return (drawer.summary?.needs_action ?? (drawer.insights ?? []).filter((i) => i.severity === 'bad').length) > 0;
+}
+
+/** Is the keyboard focus in something the user types into? */
+export function isTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input') return !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((el.type || '').toLowerCase());
+    if (tag === 'textarea' || tag === 'select') return true;
+    return el.isContentEditable === true;
+}
+
+/** Does this keydown toggle the drawer? Plain `I`, not typing, no modal open. */
+export function isToggleShortcut(event, { modalOpen = false } = {}) {
+    if (!event || event.defaultPrevented || event.repeat) return false;
+    if (event.ctrlKey || event.metaKey || event.altKey) return false;
+    if (event.key !== 'i' && event.key !== 'I') return false;
+    if (modalOpen) return false;
+    return !isTypingTarget(event.target);
+}

@@ -5,7 +5,7 @@ import { useState, useRef } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
 import { TwinChip, ShortageChip } from './OrderCard';
-import { StaffBadge } from './insights';
+import { ShortMarker, StaffBadge } from './insights';
 import { cellKey } from './insightsState';
 import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
@@ -123,10 +123,7 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop, short = false }) {
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
                         <span className="ml-auto flex items-center gap-1">
-                            {short && (
-                                <span data-testid="short-staffed" title={__('Short of people in this shift')} className="inline-flex items-center"
-                                    style={{ color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px', fontSize: 8, fontFamily: MONO }}>!</span>
-                            )}
+                            {short && <ShortMarker onOpen={ctx.onOrderMarker ? () => ctx.onOrderMarker(wo) : null}>!</ShortMarker>}
                             <ShortageChip wo={wo} compact />
                         </span>
                     </div>
@@ -216,7 +213,7 @@ export function HourlyView({ ctx }) {
                                         return (
                                             <div key={'st' + sp.shift} style={{ position: 'absolute', top: 0, height: hl ? '100%' : band, left: (sp.start / 1440 * 100) + '%', width: ((sp.end - sp.start) / 1440 * 100) + '%', zIndex: hl ? 9 : 1, pointerEvents: 'none', boxShadow: hl ? 'inset 0 0 0 2.5px var(--om-accent)' : 'none', borderLeft: '1px dashed var(--om-line2)' }}
                                                 data-testid={hl ? 'plan-highlight' : undefined}>
-                                                {cell && <span style={{ pointerEvents: 'auto' }}><StaffBadge cell={cell} style={{ margin: '3px 0 0 4px' }} /></span>}
+                                                {cell && <span style={{ pointerEvents: 'auto' }}><StaffBadge cell={cell} style={{ margin: '3px 0 0 4px' }} onOpen={ctx.onStaffBadge ? () => ctx.onStaffBadge(line.id, dateStr, sp.shift) : null} /></span>}
                                             </div>
                                         );
                                     })}

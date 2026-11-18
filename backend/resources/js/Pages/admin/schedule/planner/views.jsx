@@ -8,7 +8,7 @@ import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { TwinChip, TierDot, ShortageChip } from './OrderCard';
 import { useOrderDrop } from './dnd';
-import { StaffBadge } from './insights';
+import { ShortMarker, StaffBadge } from './insights';
 import { cellKey } from './insightsState';
 import {
     weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
@@ -55,7 +55,7 @@ const WeekDropCell = memo(function WeekDropCell({ line, date, shift, col, N, ctx
                 background: isOver ? 'var(--om-accent-bg)' : today ? 'color-mix(in srgb, var(--om-accent-bg) 40%, transparent)' : weekend ? 'color-mix(in srgb, var(--om-chip) 50%, transparent)' : 'transparent',
                 boxShadow: isOver ? 'inset 0 0 0 1.5px var(--om-accent)' : 'none', cursor: 'pointer',
             }}>
-            {staff && <StaffBadge cell={staff} style={{ position: 'absolute', top: 2, left: 4 }} />}
+            {staff && <StaffBadge cell={staff} style={{ position: 'absolute', top: 2, left: 4 }} onOpen={ctx.onStaffBadge ? () => ctx.onStaffBadge(line.id, date, shift) : null} />}
         </div>
     );
 });
@@ -179,10 +179,9 @@ function WeekBlock({ item, ctx, N, laneH, setPreview, offset = 0, short = false 
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         <span className="ml-auto flex items-center gap-1">
                             {short && (
-                                <span data-testid="short-staffed" title={__('Short of people in this shift')} className="inline-flex items-center"
-                                    style={{ color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px', fontSize: 8, fontFamily: MONO }}>
+                                <ShortMarker onOpen={ctx.onOrderMarker ? () => ctx.onOrderMarker(wo) : null}>
                                     <Icon name="users" size={9} />!
-                                </span>
+                                </ShortMarker>
                             )}
                             <ShortageChip wo={wo} compact />
                             {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}

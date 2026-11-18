@@ -2,6 +2,7 @@
 // The numbers and every sentence come from the server (PlanningInsights), so
 // the board and the drawer always tell the same story; this file only lays
 // them out and sends the planner's choice back.
+import { useEffect, useRef } from 'react';
 import { Icon } from '@openmes/ui';
 import { __, formatTime } from '../../../../lib/i18n';
 import { TONE_STYLE, staffingTone } from '../../../../lib/staffing';
@@ -18,22 +19,96 @@ export function badgeTitle(cell) {
     return lines.join('\n');
 }
 
-/** "present / needed" pill for one line × shift cell. */
-export function StaffBadge({ cell, style }) {
+/**
+ * "present / needed" pill for one line × shift cell. A red or amber pill is a
+ * button when `onOpen` is given: it opens the drawer on that cell's insight.
+ */
+export function StaffBadge({ cell, style, onOpen = null }) {
     if (!cell) return null;
     const tone = staffingTone(cell);
     const palette = tone === 'idle' ? TONE_STYLE.spare : TONE_STYLE[tone];
+    const content = cell.tracked ? (
+        <>
+            <Icon name="user" size={10} />
+            {cell.available}/{cell.needed}
+        </>
+    ) : __('not tracked');
+    const look = { ...palette, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, borderRadius: 999, padding: '1px 6px', lineHeight: '14px', ...style };
+    if (onOpen && (tone === 'short' || tone === 'enough')) {
+        const stop = (e) => e.stopPropagation();
+        return (
+            <button type="button" data-testid="staff-badge" data-tone={tone} title={`${badgeTitle(cell)}\n${__('Click for the explanation')}`}
+                aria-label={`${badgeTitle(cell).replace(/\n/g, '. ')}. ${__('Open the explanation in planning insights')}`}
+                onPointerDown={stop} onMouseDown={stop}
+                onClick={(e) => { e.stopPropagation(); onOpen(); }}
+                className="inline-flex items-center gap-1 whitespace-nowrap border-0 hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                style={{ ...look, cursor: 'pointer', boxShadow: 'inset 0 0 0 1px currentColor' }}>
+                {content}
+            </button>
+        );
+    }
     return (
         <span data-testid="staff-badge" data-tone={tone} title={badgeTitle(cell)}
-            className="inline-flex items-center gap-1 whitespace-nowrap"
-            style={{ ...palette, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, borderRadius: 999, padding: '1px 6px', lineHeight: '14px', ...style }}>
-            {cell.tracked ? (
-                <>
-                    <Icon name="user" size={10} />
-                    {cell.available}/{cell.needed}
-                </>
-            ) : __('not tracked')}
+            className="inline-flex items-center gap-1 whitespace-nowrap" style={look}>
+            {content}
         </span>
+    );
+}
+
+/** The red "short of people" marker on a work-order card; a button that opens the order's insight. */
+export function ShortMarker({ onOpen, children }) {
+    const look = { color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px', fontSize: 8, fontFamily: MONO, border: 0, lineHeight: 'inherit' };
+    if (!onOpen) {
+        return <span data-testid="short-staffed" title={__('Short of people in this shift')} className="inline-flex items-center" style={look}>{children}</span>;
+    }
+    const stop = (e) => e.stopPropagation();
+    return (
+        <button type="button" data-testid="short-staffed" title={`${__('Short of people in this shift')} — ${__('Click for the explanation')}`}
+            aria-label={`${__('Short of people in this shift')}. ${__('Open the explanation in planning insights')}`}
+            onPointerDown={stop} onMouseDown={stop} onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            className="inline-flex items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ ...look, cursor: 'pointer' }}>
+            {children}
+        </button>
+    );
+}
+
+const HANDLE_TONE = {
+    bad: { background: 'var(--om-blocked)', color: '#fff', borderColor: 'var(--om-blocked)' },
+    warn: { background: 'var(--om-downtime)', color: '#fff', borderColor: 'var(--om-downtime)' },
+    neutral: { background: 'var(--om-card)', color: 'var(--om-ink)', borderColor: 'var(--om-line)' },
+};
+
+/**
+ * Tab on the right edge of the viewport — always visible, whatever the
+ * scroll. Closed: at the edge; open: at the drawer's left edge, closes it.
+ * Stacks above the board (its blocks go up to z 40) and below dialogs (z 45+).
+ */
+export function InsightsHandle({ tone = 'neutral', count = 0, open, onToggle }) {
+    const palette = HANDLE_TONE[tone] ?? HANDLE_TONE.neutral;
+    const edge = 'env(safe-area-inset-right, 0px)';
+    return (
+        <button type="button" onClick={onToggle} data-testid="insights-handle" data-tone={tone} data-open={open ? '1' : '0'}
+            aria-expanded={open} aria-controls="planning-insights"
+            aria-label={open ? __('Close planning insights') : __('Open planning insights (:count open)', { count })}
+            title={__('Planning insights — press I to open or close')}
+            className="om-insights-handle flex flex-col items-center gap-2 border shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{
+                ...palette, position: 'fixed', zIndex: 41, top: '50%', transform: 'translateY(-50%)',
+                right: open ? `calc(min(420px, 100vw - 44px) + ${edge})` : edge,
+                padding: '12px 7px', borderRightWidth: 0, borderRadius: '10px 0 0 10px', cursor: 'pointer',
+                transition: 'right .22s ease, background .2s ease',
+            }}>
+            <Icon name={open ? 'chevron-right' : 'chevron-left'} size={14} />
+            {count > 0 && (
+                <span data-testid="insights-handle-count" style={{
+                    fontFamily: MONO, fontSize: 11, fontWeight: 700, minWidth: 20, height: 20, padding: '0 5px', borderRadius: 999,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    background: tone === 'neutral' ? 'var(--om-ink)' : 'rgba(255,255,255,.95)',
+                    color: tone === 'bad' ? 'var(--om-blocked)' : tone === 'warn' ? 'var(--om-downtime)' : 'var(--om-on-ink, #fff)',
+                }}>{count}</span>
+            )}
+            <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 12.5, fontWeight: 700, letterSpacing: '0.06em' }}>{__('Insights')}</span>
+        </button>
     );
 }
 
@@ -76,11 +151,12 @@ function Bars({ numbers }) {
     );
 }
 
-function InsightItem({ insight, open, onToggle, onShow, onAction, busy, shown }) {
+function InsightItem({ insight, open, onToggle, onShow, onAction, busy, shown, focused }) {
     const sev = SEVERITY[insight.severity] ?? SEVERITY.info;
     return (
-        <div data-testid="insight" data-type={insight.type} data-key={insight.key} className="overflow-hidden rounded-om-sm border border-om-line bg-om-card"
-            style={{ borderLeft: `3px solid ${sev.color}` }}>
+        <div data-testid="insight" data-type={insight.type} data-key={insight.key} data-focused={focused ? '1' : undefined}
+            className="overflow-hidden rounded-om-sm border border-om-line bg-om-card"
+            style={{ borderLeft: `3px solid ${sev.color}`, boxShadow: focused ? '0 0 0 2px var(--om-accent)' : 'none', transition: 'box-shadow .3s ease' }}>
             <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-om-chip">
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: sev.bg, color: sev.color }}>
                     <Icon name={ICON[insight.type] ?? 'info'} size={13} />
@@ -163,7 +239,19 @@ function ResolvedItem({ item, onUndo, busy }) {
     );
 }
 
-export function InsightsDrawer({ drawer, loading, filter, setFilter, openKey, onToggle, onShow, shownKey, onAction, onUndo, onClose, busy, updatedAt, rangeLabel }) {
+export function InsightsDrawer({
+    drawer, loading, filter, setFilter, openKey, onToggle, onShow, shownKey, onAction, onUndo, onClose, busy, updatedAt, rangeLabel,
+    focusKey = null, onFocused = () => {}, autoOpen = true, onAutoOpenChange = () => {},
+}) {
+    // Opened from a badge or a card marker: bring that insight into view.
+    const listRef = useRef(null);
+    useEffect(() => {
+        if (!focusKey) return undefined;
+        const el = [...(listRef.current?.querySelectorAll('[data-testid="insight"]') ?? [])].find((n) => n.dataset.key === focusKey);
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        const t = setTimeout(onFocused, 1800);
+        return () => clearTimeout(t);
+    }, [focusKey, drawer, onFocused]);
     const groups = groupInsights(drawer, filter);
     const counts = filterCounts(drawer);
     const summary = drawer?.summary ?? { needs_action: 0, to_watch: 0, resolved: 0 };
@@ -175,7 +263,7 @@ export function InsightsDrawer({ drawer, loading, filter, setFilter, openKey, on
 
     return (
         <aside aria-label={__('Planning insights')} data-testid="insights-drawer"
-            className="fixed bottom-0 right-0 top-0 z-40 flex w-full max-w-[420px] flex-col border-l border-om-line bg-om-panel shadow-xl">
+            className="om-drawer-in fixed bottom-0 right-0 top-0 z-40 flex w-full max-w-[420px] flex-col border-l border-om-line bg-om-panel shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-om-line px-4 py-3">
                 <div>
                     <h3 className="m-0 text-[16px] font-semibold text-om-ink">{__('Planning insights')}</h3>
@@ -202,7 +290,7 @@ export function InsightsDrawer({ drawer, loading, filter, setFilter, openKey, on
                     </button>
                 ))}
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-6">
+            <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto px-4 pb-6">
                 {loading && !drawer && <p className="text-[12.5px] text-om-muted">{__('Loading…')}</p>}
                 {drawer && groups.length === 0 && (
                     <p className="text-[12.5px] text-om-muted">{filter === 'all' ? __('Nothing to act on in this view.') : __('Nothing here.')}</p>
@@ -214,13 +302,22 @@ export function InsightsDrawer({ drawer, loading, filter, setFilter, openKey, on
                             ? g.items.map((r) => <ResolvedItem key={r.id} item={r} onUndo={onUndo} busy={busy} />)
                             : g.items.map((i) => (
                                 <InsightItem key={i.key} insight={i} open={openKey === i.key} onToggle={() => onToggle(i)} onShow={onShow}
-                                    shown={shownKey === i.key} onAction={onAction} busy={busy} />
+                                    shown={shownKey === i.key} focused={focusKey === i.key} onAction={onAction} busy={busy} />
                             ))}
                     </div>
                 ))}
                 {drawer && !drawer.provider?.skills && (
                     <p className="pt-3 text-[11px] text-om-faint">{__('Skill insights appear once qualifications are recorded.')}</p>
                 )}
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-om-line px-4 py-2.5" style={{ paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))' }}>
+                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-om-muted">
+                    <input type="checkbox" data-testid="insights-auto-open-off" checked={!autoOpen} onChange={(e) => onAutoOpenChange(!e.target.checked)} />
+                    {__("Don't open automatically")}
+                </label>
+                <span className="text-[11px] text-om-faint" style={{ fontFamily: MONO }} title={__('Keyboard shortcut')}>
+                    <kbd className="rounded border border-om-line px-1">I</kbd> {__('open / close')}
+                </span>
             </div>
         </aside>
     );

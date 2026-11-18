@@ -7755,5 +7755,13 @@
     "Already handled by :name.": "Już obsłużone przez :name.",
     "Already handled by another planner. Refresh the insights.": "Już obsłużone przez innego planistę. Odśwież wskazówki.",
     "This was already undone. Refresh the insights.": "To zostało już cofnięte. Odśwież wskazówki.",
-    "The move cannot be found any more. Undo it from the planner's Changes tab.": "Nie można już znaleźć tego przeniesienia. Cofnij je w zakładce Zmiany planera."
+    "The move cannot be found any more. Undo it from the planner's Changes tab.": "Nie można już znaleźć tego przeniesienia. Cofnij je w zakładce Zmiany planera.",
+    "Click for the explanation": "Kliknij, aby zobaczyć wyjaśnienie",
+    "Open the explanation in planning insights": "Otwórz wyjaśnienie we wskazówkach planistycznych",
+    "Close planning insights": "Zamknij wskazówki planistyczne",
+    "Open planning insights (:count open)": "Otwórz wskazówki planistyczne (otwarte: :count)",
+    "Planning insights — press I to open or close": "Wskazówki planistyczne — naciśnij I, aby otworzyć lub zamknąć",
+    "Don't open automatically": "Nie otwieraj automatycznie",
+    "Keyboard shortcut": "Skrót klawiaturowy",
+    "open / close": "otwórz / zamknij"
 }

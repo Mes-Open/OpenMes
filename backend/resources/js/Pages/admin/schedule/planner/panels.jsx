@@ -60,7 +60,7 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
                 <Icon name="calendar-cog" size={14} />{__('Automatic scheduling')}
             </Link>
             {insights && (
-                <button type="button" onClick={insights.onToggle} aria-expanded={insights.open} aria-controls="planning-insights" data-testid="insights-button"
+                <button type="button" onClick={insights.onToggle} aria-expanded={insights.open} aria-controls="planning-insights" data-testid="insights-button" title={__('Planning insights — press I to open or close')}
                     className="inline-flex items-center gap-2 rounded-om-sm border px-3 py-2 text-xs font-semibold hover:bg-om-chip"
                     style={{ borderColor: insights.open ? 'var(--om-accent)' : 'var(--om-line)', background: insights.open ? 'var(--om-accent-bg)' : 'transparent' }}>
                     <Icon name="bell" size={14} />{__('Insights')}
