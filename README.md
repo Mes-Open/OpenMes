@@ -37,7 +37,7 @@
 - 🆓 **Truly free and open-source** — AGPL-3.0, no per-user fees, no modules to unlock, no vendor lock-in
 - 📱 **Tablet-first design** — touch-optimized screens for shop-floor operators
 - 📊 **Real-time production visibility** — work orders, batches, quality checks, downtime reasons and reports for every line
-- 🔌 **Connects to your machines and ERP** — native MQTT machine data collection, REST API, CSV/XLS import (SAP, Odoo, Comarch), PrestaShop connector
+- 🔌 **Connects to your machines and ERP** — machine data collection over MQTT, Modbus TCP and OPC UA, REST API, CSV/XLS import (SAP, Odoo, Comarch), PrestaShop connector
 - 🚀 **Deploy in minutes** — single-command Docker deployment; an old office PC is enough
 - 🔒 **Security-first** — OWASP Top 10 compliant from day one
 - 📐 **ISA-95 aligned** — Level 3 MES with ISA-95 / IEC 62264 hierarchies and MOM coverage ([details](./docs/isa95.md))
@@ -94,6 +94,7 @@ Drag-and-drop production scheduling with Gantt-style views across multiple produ
 ### Analytics & Reporting
 
 - **Supervisor Dashboard** - Real-time KPIs and production metrics
+- **OEE** - Overall Equipment Effectiveness calculated per line and per shift
 - **Interactive Charts** - Throughput, cycle time, issue trends, step performance
 - **Production Reports** - Summary, batch completion, downtime reports
 - **CSV Export** - Export all reports for further analysis
