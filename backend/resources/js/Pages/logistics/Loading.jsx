@@ -5,6 +5,7 @@ import AppLayout from '../../layouts/AppLayout';
 import {
     ExpectedList, LoadTotals, Panel, RESULT_STYLE, ScanLog, ShipmentStatusPill, resultLabel, useShipmentLive,
 } from '../../components/shipments/shipmentUi';
+import { createScanQueue } from '../../components/shipments/scanQueue';
 import { apiCall } from '../../lib/http';
 import { __ } from '../../lib/i18n';
 
@@ -23,6 +24,8 @@ async function errorMessage(res) {
  * The dock's loading terminal (#400).
  *
  * One big input that a keyboard-wedge scanner types into; Enter sends the code.
+ * The input clears at once and codes scanned while an answer is still on its
+ * way are queued and sent in order, so a fast scanner never loses a label.
  * The answer is shown at once in a coloured panel (green loaded, amber
  * duplicate, red unexpected / unknown / blocked) and as a toast — the page never
  * navigates, so the scanner can keep going. The expected list, the totals and
@@ -57,12 +60,7 @@ export default function Loading() {
         toast({ severity: RESULT_STYLE[result]?.severity ?? 'error', title, body: message, duration: 2500 });
     };
 
-    const submitScan = async (e) => {
-        e.preventDefault();
-        const value = code.trim();
-        if (!value || busy) return;
-        setBusy(true);
-        setCode('');
+    const sendScan = async (value) => {
         try {
             const res = await apiCall(`/logistics/loading/${shipment.id}/scan`, 'POST', { code: value });
             if (res.ok) {
@@ -74,9 +72,20 @@ export default function Loading() {
         } catch {
             show('blocked', __('No connection'), __('The scan was not recorded. Scan again.'));
         } finally {
-            setBusy(false);
             refocus();
         }
+    };
+    // The queue lives as long as the page; it always calls the latest sendScan.
+    const sendRef = useRef(sendScan);
+    sendRef.current = sendScan;
+    const queueRef = useRef(null);
+    if (!queueRef.current) queueRef.current = createScanQueue((value) => sendRef.current(value), setBusy);
+
+    const submitScan = (e) => {
+        e.preventDefault();
+        const value = code.trim();
+        setCode('');
+        if (value) queueRef.current.push(value);
     };
 
     const undo = async (item) => {
@@ -161,7 +170,7 @@ export default function Loading() {
                 </InlineAlert>
             )}
 
-            <form onSubmit={submitScan} className={`rounded-om border-2 p-5 transition-colors ${panel}`} data-testid="scan-panel" data-result={last?.result ?? ''}>
+            <form onSubmit={submitScan} className={`rounded-om border-2 p-5 transition-colors ${panel}`} data-testid="scan-panel" data-result={last?.result ?? ''} data-busy={busy ? 'true' : 'false'}>
                 <label htmlFor="scan-code" className="block font-mono text-[10px] uppercase tracking-[0.1em] text-om-faint mb-2">{__('Scan pallet or carton label')}</label>
                 <input
                     id="scan-code"

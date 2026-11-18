@@ -13,6 +13,8 @@ const GOOD = `PAL-E2E${ID}1`;
 const GOOD2 = `PAL-E2E${ID}2`;
 const FAILED = `PAL-E2E${ID}3`;
 const STRAY = `PAL-E2E${ID}4`;
+const BURST1 = `PAL-E2E${ID}5`;
+const BURST2 = `PAL-E2E${ID}6`;
 const OPERATOR = `e2e-op-${ID.toLowerCase()}`;
 const OPERATOR_PASS = 'E2e-Loading-1!';
 
@@ -21,7 +23,7 @@ test.beforeAll(() => {
   runPhp(`
 use App\\Models\\Pallet; use App\\Models\\User; use App\\Models\\WorkOrder; use Spatie\\Permission\\Models\\Role;
 $wo = WorkOrder::firstOrCreate(['order_no' => 'WO-E2E-LOAD-${ID}'], ['planned_qty' => 48, 'status' => 'IN_PROGRESS']);
-foreach ([['${GOOD}', 'pass'], ['${GOOD2}', 'pass'], ['${FAILED}', 'fail'], ['${STRAY}', 'pass']] as [$no, $q]) {
+foreach ([['${GOOD}', 'pass'], ['${GOOD2}', 'pass'], ['${FAILED}', 'fail'], ['${STRAY}', 'pass'], ['${BURST1}', 'pass'], ['${BURST2}', 'pass']] as [$no, $q]) {
     $p = new Pallet; $p->forceFill(['pallet_no' => $no, 'work_order_id' => $wo->id, 'status' => 'closed', 'quality_status' => $q, 'qty' => 12]); $p->saveQuietly();
 }
 $u = User::firstOrNew(['username' => '${OPERATOR}']);
@@ -47,10 +49,10 @@ test('plan, scan, follow live, refuse and confirm a short load', async ({ page, 
   await page.goto('/admin/shipments/create');
   await page.fill('#shipment_no', LOAD);
   await page.fill('#carrier', 'E2E Freight');
-  await page.fill('#items_text', `${GOOD}\npallet,${GOOD2}\n${FAILED}`);
+  await page.fill('#items_text', `${GOOD}\npallet,${GOOD2}\n${FAILED}\n${BURST1}\n${BURST2}`);
   await page.getByRole('button', { name: 'Create shipment' }).click();
   await expect(page.getByTestId('shipment-no')).toHaveText(LOAD);
-  await expect(page.getByTestId('total-expected')).toContainText('3');
+  await expect(page.getByTestId('total-expected')).toContainText('5');
   const shipmentUrl = page.url();
 
   // ── Operator opens the terminal from the picker ───────────────────────────
@@ -69,8 +71,29 @@ test('plan, scan, follow live, refuse and confirm a short load', async ({ page, 
   await scan(op, GOOD2, 'loaded');
   await expect(op.getByTestId('total-loaded')).toContainText('2');
 
+  // A fast scanner fires the next label before the first one is answered:
+  // both land, in order (the answers are held back so the second Enter
+  // arrives while the first request is still in flight).
+  await op.route('**/logistics/loading/*/scan', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  const input = op.locator('#scan-code');
+  await input.fill(BURST1);
+  await input.press('Enter');
+  await expect(input).toHaveValue('');
+  await expect(op.getByTestId('scan-panel')).toHaveAttribute('data-busy', 'true');
+  await input.fill(BURST2);
+  await input.press('Enter');
+  await expect(input).toHaveValue('');
+  await expect(op.getByTestId('total-loaded')).toContainText('4');
+  await expect(op.getByTestId('scan-result')).toContainText(BURST2);
+  await expect(op.getByTestId(`item-${BURST1}`)).toHaveAttribute('data-loaded', '1');
+  await expect(op.getByTestId(`item-${BURST2}`)).toHaveAttribute('data-loaded', '1');
+  await op.unroute('**/logistics/loading/*/scan');
+
   // The supervisor's detail page followed every scan without a reload.
-  await expect(page.getByTestId('total-loaded')).toContainText('2');
+  await expect(page.getByTestId('total-loaded')).toContainText('4');
   await expect(page.getByTestId(`item-${GOOD}`)).toHaveAttribute('data-loaded', '1');
   await expect(page.getByTestId('scan-log')).toContainText('NO-SUCH-LABEL');
 
@@ -95,9 +118,11 @@ test('plan, scan, follow live, refuse and confirm a short load', async ({ page, 
   await expect(op.locator('#scan-code')).toBeDisabled();
 
   const statuses = runPhp(`
-echo json_encode(App\\Models\\Pallet::whereIn('pallet_no', ['${GOOD}', '${GOOD2}', '${FAILED}'])->orderBy('pallet_no')->pluck('status', 'pallet_no'));
+echo json_encode(App\\Models\\Pallet::whereIn('pallet_no', ['${GOOD}', '${GOOD2}', '${FAILED}', '${BURST1}', '${BURST2}'])->orderBy('pallet_no')->pluck('status', 'pallet_no'));
 `);
-  expect(JSON.parse(statuses)).toEqual({ [GOOD]: 'shipped', [GOOD2]: 'closed', [FAILED]: 'closed' });
+  expect(JSON.parse(statuses)).toEqual({
+    [GOOD]: 'shipped', [GOOD2]: 'closed', [FAILED]: 'closed', [BURST1]: 'shipped', [BURST2]: 'shipped',
+  });
 
   await opContext.close();
 });
