@@ -7639,5 +7639,8 @@
     "Logistics": "Logistyka",
     "The load cannot be confirmed: :reasons Undo these units first.": "Nie można potwierdzić załadunku: :reasons Najpierw cofnij te jednostki.",
     "Carton :carton from pallet :code is already loaded on its own. Undo it before loading the whole pallet.": "Karton :carton z palety :code jest już załadowany osobno. Cofnij go przed załadowaniem całej palety.",
-    "Carton :code is on pallet :pallet, which is not released by quality yet.": "Karton :code jest na palecie :pallet, która nie została jeszcze zwolniona przez kontrolę jakości."
+    "Carton :code is on pallet :pallet, which is not released by quality yet.": "Karton :code jest na palecie :pallet, która nie została jeszcze zwolniona przez kontrolę jakości.",
+    "Waits for step :step, which could not be scheduled.": "Czeka na krok :step, którego nie udało się zaplanować.",
+    "Waits for step :step, which is short of operators (needs :required, :available available).": "Czeka na krok :step, któremu brakuje operatorów (potrzeba :required, dostępnych :available).",
+    "Waits for step :step, which is short of qualified operators (needs :required, :available available).": "Czeka na krok :step, któremu brakuje wykwalifikowanych operatorów (potrzeba :required, dostępnych :available)."
 }

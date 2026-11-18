@@ -15,17 +15,23 @@ use Illuminate\Support\Collection;
  * the plan asks of that run and how many people it is short — plus, per
  * absent person, the work orders their absence delayed or blocked.
  *
- * Read once, after a run has placed everything; nothing is written. Rows with
- * no demand, no absence and no shortfall are left out, so a long horizon stays
- * small in the draft's summary.
+ * Read once, after a run has placed everything; nothing is written. Every run
+ * of the horizon gets a row, quiet ones included, so the planner's grid has a
+ * cell for each line and shift.
+ *
+ * People are counted with {@see StaffingCounter}, the same engine as the
+ * Production Planner's badges: someone assigned to two lines is one person,
+ * so work booked on one line holds them on the other (`available`, and
+ * `held_elsewhere` naming who and where). `present` stays the line's own
+ * headcount, absences applied.
  *
  * The shortfall of a run is the largest of: the booked peak minus the people
- * present (real when the run ignored people, or for committed or pinned work),
- * and — for every people reason whose window starts in the run on that line —
- * what the step needed on top of what was booked, minus who was there. The
- * second is what a step pushed to a later day leaves unmet on this one.
- *
- * Per line, not pooled: someone on two lines is counted on both.
+ * available (real when the run ignored people, or for committed or pinned
+ * work), and — for every people reason whose window starts in the run on that
+ * line — what the step needed on top of what was booked, minus who was there.
+ * The second is what a step pushed to a later day leaves unmet on this one.
+ * `needed` is what the run asks of the shift: the booked peak, or, when the
+ * run is short, the people available plus the shortfall.
  */
 final class StaffingOverview
 {
@@ -55,6 +61,12 @@ final class StaffingOverview
     {
         $explains = $this->provider instanceof ExplainsWorkforceCapacity ? $this->provider : null;
         $byLine = collect($this->workforce)->keyBy('line_id');
+        $counter = new StaffingCounter(
+            $this->provider,
+            $this->timeline,
+            StaffingCounter::poolFor($this->provider, $this->lines->keys()->map(fn ($id) => (int) $id)->all()),
+        );
+        $heldKeys = [];
         $people = $this->peopleReasons($operations);
 
         $rows = [];
@@ -74,28 +86,34 @@ final class StaffingOverview
                 $from = ResourceCalendar::toCarbon($start);
                 $to = ResourceCalendar::toCarbon($end);
 
-                $present = $tracked ? $this->provider->availableOperators($lineId, $from, $to) : null;
+                $count = $tracked ? $counter->count($lineId, $start, $end) : null;
+                $present = $count['present'] ?? null;
+                $available = $count['available'] ?? null;
                 $absent = $tracked ? ($explains?->absentWorkerIds($lineId, $from, $to) ?? []) : [];
                 $peak = $this->timeline->laborInUse($lineId, $start, $end);
 
                 $shortfall = null;
                 $blocked = 0;
-                if ($present !== null) {
-                    $shortfall = max(0, $peak - $present);
+                if ($available !== null) {
+                    $shortfall = max(0, $peak - $available);
                     foreach ($people[$lineId] ?? [] as $reason) {
-                        if ($reason['window_start'] >= $start && $reason['window_start'] < $end) {
+                        // A step that still starts within this run was only
+                        // delayed inside it; its people are in the booked peak.
+                        $stayed = $reason['placed_at'] !== null && $reason['placed_at'] < $end;
+                        if ($reason['window_start'] >= $start && $reason['window_start'] < $end && ! $stayed) {
                             $shortfall = max($shortfall, $reason['required'] + $reason['in_use'] - $reason['available']);
                             $blocked += $reason['blocked'] ? 1 : 0;
                         }
                     }
                 }
 
-                $personHours = round($this->timeline->laborMinutes($lineId, $start, $end) / 60, 1);
-                if ($personHours <= 0 && $absent === [] && ! $shortfall && $blocked === 0) {
-                    continue;
-                }
                 foreach ($absent as $id) {
                     $absentIds[$id] = true;
+                }
+                foreach ($count['held_elsewhere'] ?? [] as $keys) {
+                    foreach ($keys as $key) {
+                        $heldKeys[$key] = true;
+                    }
                 }
 
                 $rows[] = [
@@ -109,8 +127,11 @@ final class StaffingOverview
                     'tracked' => $tracked,
                     'assigned' => $tracked ? $assigned : null,
                     'present' => $present,
+                    'available' => $available,
+                    'needed' => $shortfall ? $available + $shortfall : $peak,
                     'absent' => array_values(array_map('intval', $absent)),
-                    'person_hours' => $personHours,
+                    'held_elsewhere' => $count['held_elsewhere'] ?? [],
+                    'person_hours' => round($this->timeline->laborMinutes($lineId, $start, $end) / 60, 1),
                     'peak_operators' => $peak,
                     'blocked_operations' => $blocked,
                     'shortfall' => $shortfall,
@@ -120,8 +141,20 @@ final class StaffingOverview
 
         // One name lookup for every row.
         $names = $absentIds === [] ? [] : ($explains?->workerNames(array_keys($absentIds)) ?? []);
+        $roster = $this->provider instanceof ExplainsWorkforceCapacity && $heldKeys !== []
+            ? $this->provider->operatorNames(array_keys($heldKeys))
+            : [];
         foreach ($rows as &$row) {
             $row['absent'] = array_map(fn (int $id) => ['id' => $id, 'name' => $names[$id] ?? null], $row['absent']);
+            $held = [];
+            foreach ($row['held_elsewhere'] as $other => $keys) {
+                $held[] = [
+                    'line_id' => (int) $other,
+                    'line_name' => (string) ($this->lines->get($other)?->name ?? '#'.$other),
+                    'names' => array_values(array_map(fn (string $key) => $roster[$key] ?? $key, $keys)),
+                ];
+            }
+            $row['held_elsewhere'] = $held;
         }
         unset($row);
 
@@ -132,7 +165,7 @@ final class StaffingOverview
      * People reasons per line, with their window start in epoch minutes.
      *
      * @param  list<array<string, mixed>>  $operations
-     * @return array<int, list<array{window_start: int, required: int, available: int, in_use: int, blocked: bool}>>
+     * @return array<int, list<array{window_start: int, required: int, available: int, in_use: int, blocked: bool, placed_at: ?int}>>
      */
     private function peopleReasons(array $operations): array
     {
@@ -148,6 +181,7 @@ final class StaffingOverview
                     'available' => (int) $reason['available'],
                     'in_use' => (int) $reason['in_use'],
                     'blocked' => ! $op['status']->isScheduled(),
+                    'placed_at' => $op['planned_start_at'] !== null ? ResourceCalendar::toMinutes($op['planned_start_at']) : null,
                 ];
             }
         }

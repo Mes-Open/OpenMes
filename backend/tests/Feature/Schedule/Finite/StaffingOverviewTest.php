@@ -180,6 +180,7 @@ class StaffingOverviewTest extends TestCase
         $this->assertSame(2, $monday[0]['present']);
         $this->assertSame([['id' => $workers[0]->id, 'name' => 'Worker 1']], $monday[0]['absent']);
         $this->assertSame(1, $monday[0]['shortfall']);
+        $this->assertSame(3, $monday[0]['needed']);
         $this->assertEquals(0, $monday[0]['person_hours']);
 
         $tuesday = $this->rows($result, $line, '2026-10-13');
@@ -190,8 +191,12 @@ class StaffingOverviewTest extends TestCase
         $this->assertSame([], $tuesday[0]['absent']);
         $this->assertSame(0, $tuesday[0]['shortfall']);
 
-        // Quiet days are left out of the draft.
-        $this->assertSame([], $this->rows($result, $line, '2026-10-14'));
+        // A quiet day keeps its cell: three there, nothing asked of them.
+        $wednesday = $this->rows($result, $line, '2026-10-14');
+        $this->assertCount(1, $wednesday);
+        $this->assertSame(3, $wednesday[0]['available']);
+        $this->assertSame(0, $wednesday[0]['needed']);
+        $this->assertSame(0, $wednesday[0]['shortfall']);
     }
 
     public function test_several_shifts_give_one_row_per_shift_run(): void
@@ -278,5 +283,90 @@ class StaffingOverviewTest extends TestCase
         $this->assertSame($line->id, $staffing['shifts'][0]['line_id']);
         $this->assertSame(1, $staffing['shifts'][0]['shortfall']);
         $this->assertCount(1, $staffing['absences']);
+    }
+
+    // ── One person on two lines ─────────────────────────────────────────────
+
+    /** Line A and Line B, one machine each, staffed by one operator account assigned to both. */
+    private function sharedPerson(): array
+    {
+        [$lineA, $typeA] = $this->cell(stations: 1, people: 0, name: 'Line A');
+        [$lineB, $typeB] = $this->cell(stations: 1, people: 0, name: 'Line B');
+        $piotr = \App\Models\User::factory()->create(['name' => 'Piotr Wójcik']);
+        $piotr->lines()->attach([$lineA->id, $lineB->id]);
+        $this->job($lineA, $typeA, 60, attrs: ['priority' => 2]);
+        $this->job($lineB, $typeB, 60, attrs: ['priority' => 1]);
+
+        return [$lineA, $lineB];
+    }
+
+    public function test_a_shared_operator_is_counted_once_across_lines(): void
+    {
+        [$lineA, $lineB] = $this->sharedPerson();
+
+        // People ignored: both steps land at 06:00, and one person cannot be on both.
+        $result = $this->schedule(['respectWorkforce' => false]);
+
+        foreach ([[$lineA, $lineB], [$lineB, $lineA]] as [$line, $other]) {
+            $row = $this->rows($result, $line, '2026-10-12')[0];
+            $this->assertSame(1, $row['present'], 'Piotr is on the line\'s own roster');
+            $this->assertSame(0, $row['available'], 'but the other line\'s step holds him');
+            $this->assertSame(1, $row['needed']);
+            $this->assertSame(1, $row['shortfall']);
+            $this->assertSame([['line_id' => $other->id, 'line_name' => $other->name, 'names' => ['Piotr Wójcik']]], $row['held_elsewhere']);
+        }
+    }
+
+    public function test_a_shared_operator_booked_one_after_the_other_is_exactly_enough(): void
+    {
+        [$lineA, $lineB] = $this->sharedPerson();
+
+        $result = $this->schedule();
+
+        // The scheduler runs B after A; each line has him while its step runs.
+        foreach ([$lineA, $lineB] as $line) {
+            $row = $this->rows($result, $line, '2026-10-12')[0];
+            $this->assertSame(1, $row['available']);
+            $this->assertSame(1, $row['needed']);
+            $this->assertSame(0, $row['shortfall']);
+            $this->assertSame([], $row['held_elsewhere']);
+        }
+    }
+
+    // ── Steps behind a step short of people ─────────────────────────────────
+
+    public function test_a_step_behind_one_short_of_people_says_which_and_by_how_much(): void
+    {
+        [$line, $type] = $this->cell(stations: 1, people: 2);
+        $order = $this->order($line, [
+            ['estimated_duration_minutes' => 60, 'workstation_type_id' => $type->id, 'required_operators' => 3],
+            ['estimated_duration_minutes' => 60, 'workstation_type_id' => $type->id],
+        ]);
+
+        $ops = $this->opsFor($this->schedule(), $order);
+
+        $this->assertSame(ScheduledOperationStatus::InfeasibleWorkforceCapacity, $ops[0]['status']);
+        $this->assertSame(ScheduledOperationStatus::InfeasiblePredecessor, $ops[1]['status']);
+        $reason = $ops[1]['reasons'][0];
+        $this->assertSame('predecessor_not_schedulable', $reason['code']);
+        $this->assertSame(10, $reason['blocking_step_number']);
+        $this->assertSame(3, $reason['required']);
+        $this->assertSame(2, $reason['available']);
+        $this->assertSame('workforce_capacity', $reason['cause']['code']);
+        $this->assertSame('Waits for step 10, which is short of operators (needs 3, 2 available).', $reason['message']);
+    }
+
+    public function test_a_step_behind_one_blocked_by_machines_names_the_step_only(): void
+    {
+        $line = $this->line();
+        $order = $this->order($line, [
+            ['estimated_duration_minutes' => null],
+            ['estimated_duration_minutes' => 60],
+        ]);
+
+        $reason = $this->opsFor($this->schedule(), $order)[1]['reasons'][0];
+
+        $this->assertSame('Waits for step 10, which could not be scheduled.', $reason['message']);
+        $this->assertArrayNotHasKey('cause', $reason);
     }
 }

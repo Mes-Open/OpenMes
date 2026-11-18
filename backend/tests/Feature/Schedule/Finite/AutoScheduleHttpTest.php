@@ -374,12 +374,17 @@ class AutoScheduleHttpTest extends TestCase
                 ->where('draft.staffing.shifts.0.present', 2)
                 ->where('draft.staffing.shifts.0.absent.0.name', 'Jan Kowalski')
                 ->where('draft.staffing.shifts.0.shortfall', 1)
-                ->where('draft.staffing.shifts.1.date', '2026-10-13')
-                ->where('draft.staffing.shifts.1.peak_operators', 3)
-                ->where('draft.staffing.shifts.1.shortfall', 0)
-                ->where('draft.staffing.shifts.2.line_id', $lineB->id)
-                ->where('draft.staffing.shifts.2.tracked', false)
-                ->where('draft.staffing.shifts.2.shortfall', null)
+                ->where('draft.staffing.shifts', function ($rows) use ($lineA, $lineB) {
+                    $rows = collect($rows);
+                    $tuesday = $rows->first(fn ($r) => $r['line_id'] === $lineA->id && $r['date'] === '2026-10-13');
+                    $quiet = $rows->first(fn ($r) => $r['line_id'] === $lineA->id && $r['date'] === '2026-10-14');
+                    $untracked = $rows->first(fn ($r) => $r['line_id'] === $lineB->id);
+
+                    return $tuesday['peak_operators'] === 3 && $tuesday['shortfall'] === 0 && $tuesday['needed'] === 3
+                        // A quiet shift still has its cell: everyone there, nothing asked.
+                        && $quiet['present'] === 3 && $quiet['needed'] === 0
+                        && $untracked['tracked'] === false && $untracked['shortfall'] === null;
+                })
                 ->where('draft.staffing.absences.0.name', 'Jan Kowalski')
                 ->where('draft.staffing.absences.0.affected_orders.0.order_no', $orderA->order_no)
                 ->where('draft.operations.0.work_order_id', $orderA->id)

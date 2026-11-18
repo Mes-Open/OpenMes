@@ -149,6 +149,7 @@ class FiniteScheduler
             $orderResults = [];
             $earliest = $horizonStart;
             $blocked = null; // status that stops the rest of the routing
+            $blocker = null; // the result row that set it
 
             if (isset($shortages[$order->id])) {
                 $blocked = ScheduledOperationStatus::InfeasibleMaterial;
@@ -170,10 +171,9 @@ class FiniteScheduler
                 }
 
                 if ($blocked !== null) {
-                    $orderResults[] = $this->unplaced($order, $demand, $sequence, ScheduledOperationStatus::InfeasiblePredecessor, [[
-                        'code' => 'predecessor_not_schedulable',
-                        'message' => __('An earlier step of this order could not be scheduled.'),
-                    ]]);
+                    $orderResults[] = $this->unplaced($order, $demand, $sequence, ScheduledOperationStatus::InfeasiblePredecessor, [
+                        $this->predecessorReason($blocker),
+                    ]);
 
                     continue;
                 }
@@ -185,6 +185,7 @@ class FiniteScheduler
                     $earliest = max($earliest, ResourceCalendar::toMinutes($result['planned_end_at']));
                 } else {
                     $blocked = $result['status'];
+                    $blocker = $result;
                 }
             }
 
@@ -1106,6 +1107,46 @@ class FiniteScheduler
      * @param  list<array<string, mixed>>  $reasons
      * @return array<string, mixed>
      */
+    /**
+     * Why a step after an unplaceable one is not placed either. When the
+     * earlier step was short of people, the reason says which step and by how
+     * much — that is what the planner has to fix — and carries the earlier
+     * step's people reason as `cause`; otherwise it names the step only.
+     *
+     * @param  array<string, mixed>|null  $blocker  the earlier step's result row
+     * @return array<string, mixed>
+     */
+    private function predecessorReason(?array $blocker): array
+    {
+        if ($blocker === null) {
+            return ['code' => 'predecessor_not_schedulable', 'message' => __('An earlier step of this order could not be scheduled.')];
+        }
+
+        $people = collect($blocker['reasons'])->first(fn (array $r) => in_array($r['code'] ?? null, ['workforce_capacity', 'qualification'], true)
+            && isset($r['required'], $r['available']));
+        $reason = [
+            'code' => 'predecessor_not_schedulable',
+            'blocking_step_number' => $blocker['step_number'],
+            'blocking_step_name' => $blocker['step_name'],
+        ];
+        $params = ['step' => $blocker['step_number']];
+
+        if ($people === null) {
+            return $reason + ['message' => __('Waits for step :step, which could not be scheduled.', $params)];
+        }
+
+        $params += ['required' => $people['required'], 'available' => $people['available']];
+
+        return $reason + [
+            'message' => $people['code'] === 'qualification'
+                ? __('Waits for step :step, which is short of qualified operators (needs :required, :available available).', $params)
+                : __('Waits for step :step, which is short of operators (needs :required, :available available).', $params),
+            'required' => $people['required'],
+            'available' => $people['available'],
+            'cause' => $people,
+        ];
+    }
+
     private function unplaced(WorkOrder $order, OperationDemand $demand, int $sequence, ScheduledOperationStatus $status, array $reasons): array
     {
         return $this->row($order, $demand, $sequence, $status, $reasons) + [

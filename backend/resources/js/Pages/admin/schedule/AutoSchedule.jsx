@@ -48,6 +48,14 @@ function reasonText(reason) {
         });
     }
 
+    if (reason.code === 'predecessor_not_schedulable' && reason.blocking_step_number != null) {
+        const params = { step: reason.blocking_step_number, required: reason.required, available: reason.available };
+        if (typeof reason.required !== 'number') return __('Waits for step :step, which could not be scheduled.', params);
+        return reason.cause?.code === 'qualification'
+            ? __('Waits for step :step, which is short of qualified operators (needs :required, :available available).', params)
+            : __('Waits for step :step, which is short of operators (needs :required, :available available).', params);
+    }
+
     if (reason.code === 'waited_for_operators' && reason.busy_lines?.length) {
         return __('Waited for operators busy on :lines.', { lines: lineNames(reason.busy_lines) });
     }
