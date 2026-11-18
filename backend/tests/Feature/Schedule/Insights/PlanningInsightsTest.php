@@ -301,6 +301,39 @@ class PlanningInsightsTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('canSeeInsights', false)->missing('staffing'));
     }
 
+    public function test_operators_get_no_insights_props_in_any_planner_view(): void
+    {
+        // Something worth an insight is on the board: a short shift and a line nobody staffs.
+        $this->plant();
+        $short = $this->planned($this->cnc, '2026-11-24', 1, operators: 4);
+        $this->planned($this->paint, '2026-11-24', 1);
+        $this->assertNotNull($this->insight($this->drawer($this->planner()), 'short_shift'));
+
+        $operator = $this->planner('Operator');
+        foreach (['weekly' => '2026-11-23', 'daily' => '2026-11-24'] as $view => $start) {
+            $response = $this->actingAs($operator)->get("/admin/schedule?view_mode={$view}&start_date={$start}")->assertOk();
+            $response->assertInertia(fn (Assert $page) => $page
+                ->component('admin/schedule/Planner')
+                ->where('canSeeInsights', false)
+                ->missing('staffing')
+                ->missing('drawer')
+                ->missing('insights')
+                ->missing('acknowledgements'));
+
+            // Nothing insight-shaped leaks through another prop either.
+            $props = json_encode($response->viewData('page')['props']);
+            $this->assertStringNotContainsString('short:'.$this->cnc->id, $props, $view);
+            $this->assertStringNotContainsString('needs_action', $props, $view);
+            $this->assertStringNotContainsString('"held_elsewhere"', $props, $view);
+        }
+
+        // …and the endpoints behind the edge handle and the badges stay shut.
+        $this->actingAs($operator)->getJson('/admin/schedule/insights?'.http_build_query($this->board()))->assertForbidden();
+        $this->actingAs($operator)->postJson('/admin/schedule/insights/acknowledge', [...$this->board(), 'insight_key' => 'short:'.$this->cnc->id.':2026-11-24:1'])->assertForbidden();
+        $this->assertSame(0, PlanningInsightAcknowledgement::count());
+        $this->assertNotNull($short->fresh()->line_id);
+    }
+
     public function test_a_supervisor_with_the_schedule_tab_sees_the_drawer(): void
     {
         $this->plant();
