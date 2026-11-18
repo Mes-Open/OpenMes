@@ -52,7 +52,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   line (assigns them to the line after a confirmation), *Open in Automatic scheduling*,
   *Assign operators*, *Acknowledge*. *Show on plan* outlines the cells on the board. Whatever
   was done is listed under *Resolved today* with who did it and an **Undo** that puts the order
-  back or takes the operator off the line again. The drawer updates live when orders, line
+  back or takes the operator off the line again — refused once the order was edited since, so
+  it never clobbers a later change. A moved order keeps its length in real shifts (shiftless
+  columns and weekends do not count). When two planners act on the same card, the second is
+  told who already handled it and nothing of theirs is applied. An acknowledged card stays
+  resolved in the weekly and the daily view alike. The drawer updates live when orders, line
   assignments or acknowledgements change. Admins and Supervisors with the Schedule tab see it;
   operators never do. See *Planning insights* in
   [docs/finite-capacity-scheduling.md](docs/finite-capacity-scheduling.md).
@@ -83,8 +87,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   step that cannot run because an earlier step of its order had too few people now reads
   *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An
   earlier step of this order could not be scheduled."*; other causes name the step too.
-- Assigning an operator to a line or taking them off it (*Admin → Lines → Operators*) now
-  refreshes open planners live.
+- Assigning an operator to a line or taking them off it — on *Admin → Lines → Operators*
+  or through the REST API (`/api/v1/lines/{line}/users`, `/api/v1/users/{user}/lines`) —
+  now refreshes open planners live.
 
 ### Fixed
 

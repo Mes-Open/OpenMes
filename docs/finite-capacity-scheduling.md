@@ -390,7 +390,18 @@ One service (`App\Services\Schedule\Insights\PlanningInsights`) computes them:
 `staffing_changed` uses the draft-fingerprint idea per order: every placement
 (a planner move or resize, an undo, an applied draft) records who staffs the
 order's lines and who of them is away on its days
-(`work_order_staffing_snapshots`). Only losses are reported.
+(`work_order_staffing_snapshots`), once the placement has committed — so an
+applied draft's steps on other lines are included. Only losses are reported,
+and only of people on that snapshot: someone who joined a line later (a
+substitute) and is away now was never counted on, so is not a loss.
+
+**Keys.** An insight's key names it across views, so what was acknowledged in
+the weekly view stays resolved in the daily view and on every day of the week:
+`short:` / `shared:` per line, date and shift; `changed:` per order;
+`untracked:` per line and ISO week, `skill:` per line, skill and ISO week (the
+week given by its Monday, e.g. `untracked:12:2026-11-23`). Week-long insights
+count the whole ISO week whichever part of it is shown, so their facts — and
+whether an acknowledgement still holds — do not depend on the view.
 
 Each insight expands into **Why** (one sentence with the numbers), **Affected
 orders** (due date, and whether the order would be late), **Suggested
@@ -399,8 +410,11 @@ plan**, which outlines the cells on the board. Actions:
 
 - **Move order to the first shift with enough people** — searches the line's
   shifts after the cell (up to 14 days past the view) for a slot where the
-  order's crew fits for as many shift cells as it spans, and moves it there
-  with the planner's own move (409 asks before overlapping an exact plan).
+  order's crew fits for as many shifts as it runs now — real shifts of the
+  line, not board columns it has no shift in or a weekend without shifts, so
+  the moved order is as long as before — and moves it there with the
+  planner's own move (409 asks before overlapping an exact plan). A move that
+  would change nothing is refused.
 - **Bring in a substitute** — Operator accounts of the plant who are not on the
   line, not away in that shift, not needed by work on their own lines then
   and, when the provider records skills, hold what the work needs. Choosing
@@ -414,12 +428,28 @@ recomputes the insight and the target before acting, so a stale drawer cannot
 move work into a shift that has filled up. Every action is recorded in
 `planning_insight_acknowledgements` (who, when, what was done; soft-deleted,
 tenant-scoped) and listed under *Resolved today* with **Undo**, which reverts
-the move (refused if the order moved again since) or takes the substitute off
-the line. An acknowledged insight reopens when its facts change.
+the move or takes the substitute off the line. A move and its record commit
+together, and the record keeps the id of the change-log row that very move
+wrote; undo reverts exactly that change and is refused (409) once the order has
+been edited since — even if it was put back. An acknowledged insight reopens
+when its facts change.
+
+Two planners acting on the same insight are serialised (an advisory lock per
+insight key on PostgreSQL, and the partial unique index on the key in any
+case): the second gets 409 *"Already handled by …"*, and nothing of their
+action — a move included — is applied.
 
 The drawer refreshes when work orders, line assignments or acknowledgements
 change (live sync), and once a minute while open for absences recorded
-outside OpenMES.
+outside OpenMES. Every path that changes a line's operators — the line page,
+the substitute action, the REST API's line and user syncs — goes through the
+`line_user` pivot model (`App\Models\LineUser`), which touches the line after
+commit, so planners refresh whichever path was used. Only the latest answer
+reaches the drawer: a read in flight is aborted by the next read or an
+action, and a read that started before an action never overwrites its result.
+The page itself carries no badges; the drawer endpoint counts the board once
+per refresh. The acknowledgement stream (`planning_insight_acknowledgements`)
+is readable by Admins and Supervisors only.
 
 **Without a workforce provider** core counts the operator accounts and
 workers assigned to each line: badges, short shifts, shared operators,
@@ -437,8 +467,11 @@ the existing contracts (`WorkforceProvider::absentWorkerIds()`,
 | POST | `/admin/schedule/insights/substitute` | `insight_key`, `user_id` |
 | POST | `/admin/schedule/insights/acknowledgements/{id}/undo` | Undo an acknowledgement or action |
 
-Each answers with the refreshed `drawer` and `staffing`, and a 422 with a
-message when the insight or the action is no longer on offer.
+Each answers with the refreshed `drawer` and `staffing`; a 422 with a message
+when the insight or the action is no longer on offer (or a move would change
+nothing); a 409 when another planner already handled the insight, when a
+move overlaps an exact plan (`conflict: true`, repeat with `force_conflict`),
+or when an undo would revert an order edited since.
 
 ## API
 
