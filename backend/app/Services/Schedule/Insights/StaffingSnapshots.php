@@ -3,12 +3,14 @@
 namespace App\Services\Schedule\Insights;
 
 use App\Extension\Contracts\WorkforceProvider;
+use App\Models\ScheduledOperation;
 use App\Models\Shift;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderStaffingSnapshot;
 use App\Services\Schedule\Finite\AssignedStaff;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The staffing an order was planned against, and what has been lost since.
@@ -25,18 +27,37 @@ use Carbon\CarbonInterface;
  */
 class StaffingSnapshots
 {
+    /** @var array<int|string, list<string>>|null roster used by the next stateOf() */
+    private ?array $staff = null;
+
+    /** @var array<int|string, list<string>>|null roster shared by losses() calls */
+    private ?array $rosterMemo = null;
+
+    private ?bool $crossesMidnight = null;
+
     public function __construct(private readonly WorkforceProvider $people) {}
 
     /**
-     * Record (or replace) the order's snapshot; drop it when the order is no
-     * longer placed. Never throws: a placement must not fail over this.
+     * Record (or replace) the order's snapshot once the surrounding
+     * transaction has committed — a draft's committed steps on other lines
+     * exist by then, and a failing query here cannot poison the placement's
+     * transaction (PostgreSQL aborts the whole transaction on any error).
+     * Drops the snapshot when the order is no longer placed. Never throws: a
+     * placement must not fail over this.
      */
     public function capture(WorkOrder $order): void
     {
+        $id = (int) $order->id;
+        DB::afterCommit(fn () => $this->captureNow($id));
+    }
+
+    private function captureNow(int $orderId): void
+    {
         try {
-            $state = $this->stateOf($order);
+            $order = WorkOrder::find($orderId);
+            $state = $order !== null ? $this->stateOf($order) : null;
             if ($state === null) {
-                WorkOrderStaffingSnapshot::where('work_order_id', $order->id)->delete();
+                WorkOrderStaffingSnapshot::where('work_order_id', $orderId)->delete();
 
                 return;
             }
@@ -68,6 +89,8 @@ class StaffingSnapshots
         if ($snapshot === null) {
             return null;
         }
+        // Read-only comparisons share one roster read; a capture reads afresh.
+        $this->staff = $this->rosterMemo ??= AssignedStaff::byLine($this->people);
         $now = $this->stateOf($order, $snapshot->window_start, $snapshot->window_end, array_map('intval', array_keys($snapshot->roster ?? [])));
         if ($now === null || $now['fingerprint'] === $snapshot->fingerprint) {
             return null;
@@ -80,9 +103,22 @@ class StaffingSnapshots
                 $unassigned[(int) $line] = $gone;
             }
         }
+        // Only someone the order was planned with can be lost: a person who
+        // joined a line since (a substitute) and is away now was never counted.
+        $planned = [];
+        foreach ($snapshot->roster ?? [] as $keys) {
+            foreach ($keys as $key) {
+                if (str_starts_with($key, 'w:')) {
+                    $planned[(int) substr($key, 2)] = true;
+                }
+            }
+        }
         $absent = [];
         foreach ($now['absences'] as $date => $ids) {
-            $new = array_values(array_diff($ids, $snapshot->absences[$date] ?? []));
+            $new = array_values(array_filter(
+                array_diff($ids, $snapshot->absences[$date] ?? []),
+                fn ($id) => isset($planned[(int) $id]),
+            ));
             if ($new !== []) {
                 $absent[$date] = $new;
             }
@@ -91,7 +127,8 @@ class StaffingSnapshots
             return null;
         }
 
-        return ['fingerprint' => $now['fingerprint'], 'captured_at' => $snapshot->updated_at, 'unassigned' => $unassigned, 'absent' => $absent];
+        // What was lost, not the whole roster: someone joining later does not reopen it.
+        return ['fingerprint' => md5(json_encode([$unassigned, $absent])), 'captured_at' => $snapshot->updated_at, 'unassigned' => $unassigned, 'absent' => $absent];
     }
 
     /**
@@ -111,7 +148,8 @@ class StaffingSnapshots
             return null;
         }
 
-        $staff = AssignedStaff::byLine($this->people);
+        $staff = $this->staff ?? AssignedStaff::byLine($this->people);
+        $this->staff = null;
         $roster = [];
         $workers = [];
         foreach ($lines as $line) {
@@ -179,6 +217,14 @@ class StaffingSnapshots
         foreach ($dates as $date) {
             $end = $date->greaterThan($end) ? $date : $end;
         }
+        // Committed steps (an applied draft) may run on other lines, before or after the order's own window.
+        $steps = ScheduledOperation::committed()->where('work_order_id', $order->id)
+            ->whereNotNull('planned_start_at')->whereNotNull('planned_end_at');
+        $firstStep = (clone $steps)->min('planned_start_at');
+        if ($firstStep !== null) {
+            $start = Carbon::parse($firstStep)->min($start);
+            $end = Carbon::parse($steps->max('planned_end_at'))->max($end);
+        }
 
         return [$start, $end];
     }
@@ -193,7 +239,7 @@ class StaffingSnapshots
         foreach ($order->extraPlacements()->pluck('line_id') as $id) {
             $lines[(int) $id] = true;
         }
-        foreach (\App\Models\ScheduledOperation::committed()->where('work_order_id', $order->id)->whereNotNull('line_id')->pluck('line_id') as $id) {
+        foreach (ScheduledOperation::committed()->where('work_order_id', $order->id)->whereNotNull('line_id')->pluck('line_id') as $id) {
             $lines[(int) $id] = true;
         }
         ksort($lines);
@@ -203,7 +249,7 @@ class StaffingSnapshots
 
     private function anyShiftCrossesMidnight(): bool
     {
-        return Shift::where('is_active', true)->get(['start_time', 'end_time'])
+        return $this->crossesMidnight ??= Shift::where('is_active', true)->get(['start_time', 'end_time'])
             ->contains(fn (Shift $s) => strtotime((string) $s->end_time) < strtotime((string) $s->start_time));
     }
 }
