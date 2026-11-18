@@ -57,8 +57,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   columns and weekends do not count). When two planners act on the same card, the second is
   told who already handled it and nothing of theirs is applied. An acknowledged card stays
   resolved in the weekly and the daily view alike. The drawer updates live when orders, line
-  assignments or acknowledgements change. Admins and Supervisors with the Schedule tab see it;
-  operators never do. See *Planning insights* in
+  assignments or acknowledgements change. An **Insights** tab fixed to the right edge of the
+  screen (red when something needs action, amber when only something to watch) is always in
+  reach; clicking a red or amber badge, or a card's warning marker, opens the drawer on its
+  explanation; `I` opens and closes it; and on the first visit of a session it opens by itself
+  when something needs action (*Don't open automatically* turns that off). Admins and
+  Supervisors with the Schedule tab see it; operators never do. See *Planning insights* in
   [docs/finite-capacity-scheduling.md](docs/finite-capacity-scheduling.md).
 - **Auto-schedule staffing breakdown.** After *Simulate* on *Scheduler → Automatic
   scheduling*, a *Staffing by shift* grid shows, per line and per day and shift, the people

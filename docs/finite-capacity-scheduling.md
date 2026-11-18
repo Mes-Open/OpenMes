@@ -374,6 +374,18 @@ counts, so a shared person is held even on a line the filter hides. Work-order
 blocks in a short cell get a red marker, and the day header shows how many
 people are away when the provider reports absences.
 
+**Finding the drawer.** Besides the *Insights* toolbar button, an *Insights* tab
+is fixed to the right edge of the screen, so it stays in view however far the
+board is scrolled. It shows the number of open insights and is red when something
+needs action, amber when there is only something to watch, neutral otherwise;
+while the drawer is open the tab sits at the drawer's edge and closes it. A red or
+amber staffing badge opens the drawer straight on that cell's insight, expanded;
+the warning marker on a work-order card does the same for the order. `I` opens
+and closes the drawer (ignored while typing or with a dialog open). On the first
+planner visit of a browser session the drawer opens by itself when something
+needs action; *Don't open automatically* in its footer turns that off for the
+user (remembered in the browser).
+
 **Insights.** The *Insights* button (with the number of open insights) opens a
 drawer: counts of what needs action, what to watch and what was resolved
 today; filters *All / People / Skills / Plan*; insights grouped by severity.
