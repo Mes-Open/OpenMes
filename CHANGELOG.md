@@ -34,15 +34,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   unexpected, who confirmed and when. A new webhook event, `shipment.confirmed`, sends the
   same result. Shipments, their items and scans are soft-deleted (the load ID can be reused
   after a delete). See [docs/shipment-loading.md](docs/shipment-loading.md).
+- **Planning insights in the Production Planner.** *Scheduler → Production Planner* (weekly
+  and daily views) now shows, in every line × shift cell, a staffing badge: people available
+  over people the planned work needs, green with people to spare, amber with exactly enough,
+  red when short, *not tracked* on a line nobody is assigned to. A person assigned to two lines
+  is counted once, exactly as automatic scheduling counts them. Work-order blocks in a short
+  shift get a red marker, and a day header shows how many people are away. A new **Insights**
+  button with the number of open insights opens a drawer on the right: how many need action,
+  how many to watch and how many were resolved today, filters *All / People / Skills / Plan*,
+  and one card per problem — a shift short of people (naming who is absent), an operator shared
+  with another line and booked there at the same time, a skill only one person on the line
+  holds (when qualifications are recorded), work on a line nobody is assigned to, and an order
+  whose staffing changed after it was planned (an operator taken off its line, a new absence).
+  Each card explains why with the numbers, lists the affected orders with their due date and
+  whether they would be late, and suggests actions ranked by their effect, the best one marked:
+  *Move order to* the first shift with enough people, *Bring in* a free operator from another
+  line (assigns them to the line after a confirmation), *Open in Automatic scheduling*,
+  *Assign operators*, *Acknowledge*. *Show on plan* outlines the cells on the board. Whatever
+  was done is listed under *Resolved today* with who did it and an **Undo** that puts the order
+  back or takes the operator off the line again. The drawer updates live when orders, line
+  assignments or acknowledgements change. Admins and Supervisors with the Schedule tab see it;
+  operators never do. See *Planning insights* in
+  [docs/finite-capacity-scheduling.md](docs/finite-capacity-scheduling.md).
 - **Auto-schedule staffing breakdown.** After *Simulate* on *Scheduler → Automatic
-  scheduling*, a *Staffing by shift* table lists every line, day and shift run of the horizon
-  with present/assigned operators (e.g. *2/3*), who is absent by name, the planned
-  person-hours and peak operators, and the shortfall in red. Lines without tracked staffing are
-  marked *staffing not tracked*. A step that people pushed past the slot its machines allowed
-  now says so: *"Delayed by staffing: 12.10 06:00 → 13.10 06:00 — Needs 3 operators, 2
-  available (1 absent: Jan Kowalski)."* — its status stays *Scheduled* / *Scheduled late*. An
-  *Absences in this horizon* list names each absent person with the work orders their absence
-  delayed or blocked. The same data is in the simulation API as `staffing` and as the
+  scheduling*, a *Staffing by shift* grid shows, per line and per day and shift, the people
+  available over the people the draft needs (e.g. *2/3*), in the same colours as the planner,
+  one week at a time; who is absent and who is busy on another line is in the cell and its
+  tooltip. A step that people pushed past the slot its machines allowed now says so:
+  *"Delayed by staffing: 12.10 06:00 → 13.10 06:00 — Needs 3 operators, 2 available (1 absent:
+  Jan Kowalski)."* — its status stays *Scheduled* / *Scheduled late*. An *Absences in this
+  horizon* list names each absent person with the work orders their absence delayed or
+  blocked. The same data is in the simulation API as `staffing` and as the
   `delayed_by_staffing` reason.
 - **Auto-schedule explains people shortfalls.** When *Scheduler → Automatic scheduling*
   cannot place a step for lack of people, the simulation now says how many it needs and how
@@ -55,8 +77,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   operators, and its steps carry a *staffing not tracked* chip. The simulation's `workforce`
   section reports the same per line.
 
+### Changed
+
+- **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
+  step that cannot run because an earlier step of its order had too few people now reads
+  *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An
+  earlier step of this order could not be scheduled."*; other causes name the step too.
+- Assigning an operator to a line or taking them off it (*Admin → Lines → Operators*) now
+  refreshes open planners live.
+
 ### Fixed
 
+- **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
+  auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on
+  both, so a shift could look covered while the other line's work held the only person. They
+  are now counted once, and the cell names who is busy where. A step that only waited within
+  its own shift (for a shared person to finish elsewhere) no longer shows that shift as short.
 - **Auto-schedule no longer books one operator on two lines at once.** An operator assigned
   to several lines (Admin → Lines → Operators, or as a worker on another line's station) is
   now counted as one person across those lines. Work on line B waits while the people it

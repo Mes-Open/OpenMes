@@ -312,24 +312,133 @@ counts and `absent_workers` for that machine window, and the full people
 reason as `cause`. The status does not change. A step pushed only by machines,
 or a run that ignores people, gets no such reason.
 
+### Waiting for an earlier step
+
+A step that cannot run because an earlier step of its order could not be
+placed is `infeasible_predecessor` with code `predecessor_not_schedulable`.
+The reason names the step that blocked it (`blocking_step_number`,
+`blocking_step_name`). When that step was short of people, it also says by how
+much: *"Waits for step 10, which is short of operators (needs 3, 2
+available)."*, with `required`, `available` and the earlier step's people
+reason as `cause`. A skills shortfall reads *"…short of qualified operators…"*.
+Otherwise it reads *"Waits for step 10, which could not be scheduled."*
+
 ## Staffing per shift
 
 Every simulation's `summary.staffing` (and the `staffing` key of the
 simulation API) holds:
 
-- `shifts` — one row per active line and shift run in the horizon: `date`
-  (the date the run started), `shift_name`, `tracked`, `assigned`, `present`,
-  `absent` (`{id, name}`), `person_hours` and `peak_operators` booked in the
-  run, `blocked_operations`, and `shortfall`. The shortfall is the larger of
-  the booked peak minus the people present and, for each people reason whose
-  window starts in the run, what the step needed on top of what was booked
-  minus who was there. Untracked lines have `null` counts and shortfall. Rows
-  with no demand, absence or shortfall are left out.
+- `shifts` — one row per active line and shift run in the horizon, quiet
+  runs included: `date` (the date the run started), `shift_name`, `start`,
+  `end`, `tracked`, `assigned`, `present` (the line's own people, absences
+  applied), `available` (of them, free for this line — see below), `needed`,
+  `absent` (`{id, name}`), `held_elsewhere` (`{line_id, line_name, names}`:
+  people of this line booked on another line at the same time),
+  `person_hours` and `peak_operators` booked in the run,
+  `blocked_operations`, and `shortfall`. The shortfall is the larger of the
+  booked peak minus the people available and, for each people reason whose
+  window starts in the run and whose step did not still start inside the
+  run, what the step needed on top of what was booked minus who was there.
+  `needed` is the booked peak, or the people available plus the shortfall
+  when the run is short. Untracked lines have `null` counts and shortfall.
 - `absences` — each absent person with their `dates`, `lines` and the
   `affected_orders` whose people reasons name them.
 
-Counts are per line: a person assigned to two lines appears on both. Drafts
-generated before this breakdown existed have `staffing: null`.
+A person assigned to two lines is counted once (`StaffingCounter`, the same
+engine as the Production Planner's badges): within each stretch of constant
+booked load, work booked on the other lines takes its people first, and only
+who is left counts as `available` for this line. A provider that only counts
+people keeps every line on its own. Drafts generated before this breakdown
+existed have `staffing: null`.
+
+*Scheduler → Automatic scheduling* draws this as a grid: lines as rows, day
+and shift as columns, one week at a time. A cell reads *available/needed* and
+is green (people to spare), amber (exactly enough), red (short) or grey (not
+tracked, or nothing planned: "—"). Absent names and people held on another
+line are in the tooltip and on a short line under the number.
+
+## Planning insights
+
+The Production Planner (`/admin/schedule`, weekly and daily views) shows the
+same staffing on the plan itself and turns each problem into an insight.
+Admins and Supervisors (with the Schedule tab) see it; an Operator granted the
+tab sees the board without staffing.
+
+**Badges.** Every line × shift cell carries *available/needed*, coloured like
+the grid above; a line nobody is assigned to shows *not tracked*. Demand is
+what the board draws: an order scheduled step by step by an applied draft
+books each committed step with its crew; any other order books every shift
+cell its blocks cover (or its exact minute plan) with the crew its routing
+needs (`WorkOrder::operatorFactor()`, rounded). Work on every active line
+counts, so a shared person is held even on a line the filter hides. Work-order
+blocks in a short cell get a red marker, and the day header shows how many
+people are away when the provider reports absences.
+
+**Insights.** The *Insights* button (with the number of open insights) opens a
+drawer: counts of what needs action, what to watch and what was resolved
+today; filters *All / People / Skills / Plan*; insights grouped by severity.
+One service (`App\Services\Schedule\Insights\PlanningInsights`) computes them:
+
+| Type | When | Severity |
+|---|---|---|
+| `short_shift` | A tracked cell's work needs more people than are available. Names who is absent when the provider knows. | needs action |
+| `shared_operator` | The line's own people would do, but someone it shares with another line is booked there at the same time. Names the person and the line. | to watch (needs action if an order would be late) |
+| `single_skill` | Planned work needs a skill only one person on the line holds. Only when the provider records qualifications. | to watch |
+| `untracked_line` | Work is planned on a line nobody is assigned to. | to watch |
+| `staffing_changed` | An order lost people after it was planned: an operator no longer assigned to its line, or a new absence on its days. | to watch |
+
+`staffing_changed` uses the draft-fingerprint idea per order: every placement
+(a planner move or resize, an undo, an applied draft) records who staffs the
+order's lines and who of them is away on its days
+(`work_order_staffing_snapshots`). Only losses are reported.
+
+Each insight expands into **Why** (one sentence with the numbers), **Affected
+orders** (due date, and whether the order would be late), **Suggested
+actions** ranked by their effect with the best one marked, and **Show on
+plan**, which outlines the cells on the board. Actions:
+
+- **Move order to the first shift with enough people** — searches the line's
+  shifts after the cell (up to 14 days past the view) for a slot where the
+  order's crew fits for as many shift cells as it spans, and moves it there
+  with the planner's own move (409 asks before overlapping an exact plan).
+- **Bring in a substitute** — Operator accounts of the plant who are not on the
+  line, not away in that shift, not needed by work on their own lines then
+  and, when the provider records skills, hold what the work needs. Choosing
+  one assigns them to the line through *Admin → Lines → Operators* (they stay
+  on their own lines), after a confirmation.
+- **Open in Automatic scheduling**, **Assign operators** (for an untracked
+  line) and **Acknowledge**.
+
+The client names only the insight and the order or person; the server
+recomputes the insight and the target before acting, so a stale drawer cannot
+move work into a shift that has filled up. Every action is recorded in
+`planning_insight_acknowledgements` (who, when, what was done; soft-deleted,
+tenant-scoped) and listed under *Resolved today* with **Undo**, which reverts
+the move (refused if the order moved again since) or takes the substitute off
+the line. An acknowledged insight reopens when its facts change.
+
+The drawer refreshes when work orders, line assignments or acknowledgements
+change (live sync), and once a minute while open for absences recorded
+outside OpenMES.
+
+**Without a workforce provider** core counts the operator accounts and
+workers assigned to each line: badges, short shifts, shared operators,
+untracked lines, moves and substitutes all work. Nothing reports absences, so
+cells never name an absent person and the day headers show none; core records
+no qualifications, so skill insights are absent. Providers add these through
+the existing contracts (`WorkforceProvider::absentWorkerIds()`,
+`ExplainsWorkforceCapacity::skillHolders()`, `WorkforceRosterAware`).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/admin/schedule/insights` | Drawer and badges for `view_mode` (`weekly`/`daily`), `start_date`, `line_id` |
+| POST | `/admin/schedule/insights/acknowledge` | `insight_key` |
+| POST | `/admin/schedule/insights/move` | `insight_key`, `work_order_id`, optional `force_conflict` |
+| POST | `/admin/schedule/insights/substitute` | `insight_key`, `user_id` |
+| POST | `/admin/schedule/insights/acknowledgements/{id}/undo` | Undo an acknowledgement or action |
+
+Each answers with the refreshed `drawer` and `staffing`, and a 422 with a
+message when the insight or the action is no longer on offer.
 
 ## API
 
