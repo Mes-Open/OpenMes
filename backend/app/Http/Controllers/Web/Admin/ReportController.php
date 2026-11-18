@@ -364,7 +364,7 @@ class ReportController extends Controller
                 'lot_number' => $b->lot_number,
                 'lot_assigned_at' => $b->lot_assigned_at,
                 'udi_code' => $b->udi_code,
-                'expiry_date' => $b->expiry_date?->toIso8601String(),
+                'expiry_date' => $b->expiry_date?->toDateString(),
                 'target_qty' => (float) $b->target_qty,
                 'produced_qty' => (float) $b->produced_qty,
                 'scrap_qty' => (float) $b->scrap_qty,

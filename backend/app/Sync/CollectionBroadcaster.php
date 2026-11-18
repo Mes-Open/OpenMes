@@ -64,6 +64,11 @@ class CollectionBroadcaster
             'lot_sequences' => [Models\LotSequence::class, null],
             'pallets' => [Models\Pallet::class, null],
             'pallet_movements' => [Models\PalletMovement::class, null],
+            // Scan-to-load verification (#400): the terminal and a second screen
+            // at the dock must see every scan as it happens.
+            'shipments' => [Models\Shipment::class, null],
+            'shipment_items' => [Models\ShipmentItem::class, null],
+            'shipment_scans' => [Models\ShipmentScan::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
             'view_templates' => [Models\ViewTemplate::class, null],
             'inspection_plans' => [Models\InspectionPlan::class, null],
@@ -80,6 +85,7 @@ class CollectionBroadcaster
             'downtime_reasons' => [Models\DowntimeReason::class, null],
             'changeover_rules' => [Models\ChangeoverRule::class, null],
             'scrap_reasons' => [Models\ScrapReason::class, null],
+            'unit_aliases' => [Models\UnitAlias::class, null],
             'webhooks' => [Models\Webhook::class, null],
             'webhook_deliveries' => [Models\WebhookDelivery::class, null],
             'workstation_devices' => [Models\WorkstationDevice::class, null],

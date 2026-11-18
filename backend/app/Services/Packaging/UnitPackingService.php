@@ -18,6 +18,7 @@ use App\Services\Material\MaterialAllocationService;
 use App\Services\Traceability\BindingException;
 use App\Services\Traceability\SerialTraceService;
 use App\Services\WorkOrder\BatchService;
+use App\Support\UnitSerialisation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -300,6 +301,14 @@ class UnitPackingService
         if (in_array($unit->status, [...SerialUnit::TERMINAL_STATUSES, SerialUnit::STATUS_BLOCKED], true)) {
             throw new BindingException(__('Unit :sn is :status and cannot be packed.', ['sn' => $unit->display_id, 'status' => $unit->status_label]));
         }
+        // Plants whose ERP receives finished units by serial number on an order.
+        $settings = app(UnitSerialisation::class);
+        if ($settings->get('unit_pack_requires_serial') && blank($unit->serial_no)) {
+            throw new BindingException(__('Unit :psn has no serial number yet - apply its product label before packing.', ['psn' => $unit->display_id]));
+        }
+        if ($settings->get('unit_pack_requires_order') && ! $unit->work_order_id) {
+            throw new BindingException(__('Unit :sn is not on a work order and cannot be packed.', ['sn' => $unit->display_id]));
+        }
     }
 
     /** @param  array<string, mixed>  $measured  what was measured at packing (the weight), kept on the "packed" event */
@@ -570,6 +579,32 @@ class UnitPackingService
             if ($actor) {
                 $this->serials->recordStep($unit, $actor, null, [
                     'parameters' => ['event' => 'shipped', 'pallet_no' => $pallet->pallet_no],
+                ]);
+            }
+        }
+
+        return $units->count();
+    }
+
+    /**
+     * A loose carton left on a confirmed shipment: its units are shipped the
+     * same way a pallet's are, and a held unit keeps its hold.
+     */
+    public function markCartonShipped(UnitCarton $carton, ?User $actor = null, ?\DateTimeInterface $at = null): int
+    {
+        if ($carton->shipped_at === null) {
+            $carton->update(['shipped_at' => $at ?? now()]);
+        }
+
+        $units = SerialUnit::where('carton_id', $carton->id)
+            ->whereNotIn('status', [SerialUnit::STATUS_SCRAPPED, SerialUnit::STATUS_SHIPPED, SerialUnit::STATUS_BLOCKED])
+            ->get();
+
+        foreach ($units as $unit) {
+            $unit->update(['status' => SerialUnit::STATUS_SHIPPED, 'shipped_at' => $at ?? now()]);
+            if ($actor) {
+                $this->serials->recordStep($unit, $actor, null, [
+                    'parameters' => ['event' => 'shipped', 'carton_no' => $carton->carton_no],
                 ]);
             }
         }

@@ -54,38 +54,33 @@ class MachineTopic extends Model
     }
 
     /**
-     * Check if an incoming MQTT topic matches this pattern (supports + and # wildcards).
+     * Whether an incoming MQTT topic matches this pattern, by the MQTT rules:
+     * `+` stands for exactly one level, `#` (last level only) for any number
+     * of levels including none, and the two combine (`plant/+/press/#`).
+     * Wildcards never match a `$SYS`-style topic at the first level.
      */
     public function matchesTopic(string $topic): bool
     {
-        $pattern = $this->topic_pattern;
+        $pattern = explode('/', $this->topic_pattern);
+        $levels = explode('/', $topic);
 
-        if ($pattern === $topic) {
-            return true;
-        }
-
-        // # matches everything at this level and below
-        if (str_ends_with($pattern, '#')) {
-            $prefix = rtrim(substr($pattern, 0, -1), '/');
-
-            return $prefix === '' || str_starts_with($topic, $prefix.'/') || $topic === $prefix;
-        }
-
-        // + matches exactly one level
-        $patternParts = explode('/', $pattern);
-        $topicParts = explode('/', $topic);
-
-        if (count($patternParts) !== count($topicParts)) {
+        if (str_starts_with($topic, '$') && in_array($pattern[0], ['+', '#'], true)) {
             return false;
         }
 
-        foreach ($patternParts as $i => $part) {
-            if ($part !== '+' && $part !== $topicParts[$i]) {
+        foreach ($pattern as $i => $part) {
+            if ($part === '#') {
+                return $i === count($pattern) - 1;
+            }
+            if (! array_key_exists($i, $levels)) {
+                return false;
+            }
+            if ($part !== '+' && $part !== $levels[$i]) {
                 return false;
             }
         }
 
-        return true;
+        return count($pattern) === count($levels);
     }
 
     /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */

@@ -1,17 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin1234!';
-
-async function login(page) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN_USERNAME);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 10_000 }),
-    page.click('button[type="submit"]'),
-  ]);
-}
+import { expectPage, login } from './support/app';
 
 test.describe('OEE feature — issue #12', () => {
   test.beforeEach(async ({ page }) => {
@@ -28,11 +16,13 @@ test.describe('OEE feature — issue #12', () => {
 
   test('/admin/oee renders gauge, trend chart, and granularity toggle', async ({ page }) => {
     await page.goto('/admin/oee');
+    await expectPage(page, 'OEE Report');
+    await expect(page.getByRole('heading', { name: 'OEE Trend' })).toBeVisible();
 
     // Granularity toggle present
-    await expect(page.getByRole('link', { name: 'Daily' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Weekly' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Monthly' })).toBeVisible();
+    for (const name of ['Daily', 'Weekly', 'Monthly']) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+    }
 
     // Threshold legend reflects 65/85 (not legacy 60)
     const body = await page.content();
@@ -44,13 +34,13 @@ test.describe('OEE feature — issue #12', () => {
   test('switching granularity updates the URL', async ({ page }) => {
     await page.goto('/admin/oee');
 
-    await page.getByRole('link', { name: 'Weekly', exact: true }).click();
+    await page.getByRole('button', { name: 'Weekly', exact: true }).click();
     await expect(page).toHaveURL(/granularity=week/);
 
-    await page.getByRole('link', { name: 'Monthly', exact: true }).click();
+    await page.getByRole('button', { name: 'Monthly', exact: true }).click();
     await expect(page).toHaveURL(/granularity=month/);
 
-    await page.getByRole('link', { name: 'Daily', exact: true }).click();
+    await page.getByRole('button', { name: 'Daily', exact: true }).click();
     await expect(page).toHaveURL(/granularity=day/);
   });
 

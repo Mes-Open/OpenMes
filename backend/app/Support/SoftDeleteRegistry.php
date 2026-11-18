@@ -21,6 +21,7 @@ class SoftDeleteRegistry
         // Config / lookup
         'downtime_reasons' => Models\DowntimeReason::class,
         'scrap_reasons' => Models\ScrapReason::class,
+        'unit_aliases' => Models\UnitAlias::class,
         'cost_sources' => Models\CostSource::class,
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,
@@ -81,6 +82,10 @@ class SoftDeleteRegistry
         'work_order_shift_entries' => Models\WorkOrderShiftEntry::class,
         'issues' => Models\Issue::class,
         'pallets' => Models\Pallet::class,
+        // Scan-to-load verification (#400). Items and scans leave with their shipment.
+        'shipments' => Models\Shipment::class,
+        'shipment_items' => Models\ShipmentItem::class,
+        'shipment_scans' => Models\ShipmentScan::class,
         'attachments' => Models\Attachment::class,
 
         // Warehousing (#212). Balances (warehouse_stocks) are derived data and
@@ -111,7 +116,7 @@ class SoftDeleteRegistry
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */
     private const LABEL_ATTRIBUTES = [
         'name', 'title', 'lot_number', 'order_no', 'pallet_no', 'ean',
-        'serial_no', 'code', 'email', 'topic', 'key', 'original_filename',
+        'serial_no', 'shipment_no', 'identifier', 'scanned_code', 'code', 'email', 'topic', 'key', 'original_filename',
     ];
 
     /** @return list<string> */

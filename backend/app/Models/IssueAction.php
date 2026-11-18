@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -57,7 +58,7 @@ class IssueAction extends Model
     protected function casts(): array
     {
         return [
-            'due_date' => 'date',
+            'due_date' => CalendarDate::class,
             'completed_at' => 'datetime',
             'verified_at' => 'datetime',
         ];

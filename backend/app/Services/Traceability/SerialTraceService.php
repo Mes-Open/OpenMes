@@ -115,7 +115,9 @@ class SerialTraceService
                 'processed_at' => ($data['processed_at'] ?? now())->copy()->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s.u'),
             ]);
 
-            if (($data['result'] ?? null) === 'fail' && ($data['parameters']['event'] ?? null) !== 'scrapped') {
+            // `skip_fail_policy`: a verdict kept as history only (an import of old
+            // tester logs), which must not block or scrap units long since shipped.
+            if (($data['result'] ?? null) === 'fail' && ($data['parameters']['event'] ?? null) !== 'scrapped' && empty($data['skip_fail_policy'])) {
                 $this->applyFailPolicy($unit, $entry, $operator);
             }
             // A hold from failed tests waits for a retest: a pass lifts it (policy
@@ -326,6 +328,13 @@ class SerialTraceService
             $waiting = $psn !== null
                 ? SerialUnit::where('psn', $psn)->whereNull('serial_no')->when($unit, fn ($q) => $q->whereKeyNot($unit->id))->lockForUpdate()->first()
                 : null;
+            // A number issued ahead of the line (a batch of SN labels) is only a
+            // placeholder until its label goes onto a unit: scanned together with
+            // the PSN of a unit started earlier, the started unit takes the number.
+            if ($unit && $waiting && $this->isUnclaimedIssue($unit, $waiting)) {
+                $this->absorbIssue($unit, $waiting);
+                $unit = null;
+            }
             if ($unit && $waiting) {
                 // Two units would claim one PSN: the one waiting for its label and
                 // the one that already carries this SN. A person has to sort that out.
@@ -396,6 +405,55 @@ class SerialTraceService
 
             return ['unit' => $unit->fresh(), 'created' => $created, 'rebound' => $rebound, 'serial_assigned' => $gotSerial];
         });
+    }
+
+    /**
+     * A unit that is nothing but a number issued in a batch of labels: still in
+     * production, never labelled, packed, given components or processed - its
+     * history holds the issue and nothing else - and on the same order as the
+     * unit waiting for its serial (or one of the two has no order).
+     */
+    private function isUnclaimedIssue(SerialUnit $issued, SerialUnit $waiting): bool
+    {
+        if ($issued->status !== SerialUnit::STATUS_IN_PRODUCTION
+            || $issued->carton_id !== null
+            || $issued->pallet_id !== null
+            || $issued->packed_at !== null
+            || ! empty($issued->extra_data['label_applied_at'])
+            || $issued->components()->exists()
+            || $issued->installedIn()->exists()) {
+            return false;
+        }
+        if ($issued->work_order_id && $waiting->work_order_id && $issued->work_order_id !== $waiting->work_order_id) {
+            return false;
+        }
+        $events = $issued->history()->get()->map(fn (UnitStepHistory $h) => $h->parameters['event'] ?? null);
+
+        return $events->isNotEmpty() && $events->every(fn ($event) => $event === 'issued');
+    }
+
+    /**
+     * Hand an issued number over to the unit started on its PSN: the issue
+     * entry moves to that unit's history (keeping the PSN printed with the
+     * number, if any, as superseded) and the placeholder goes, so the serial is
+     * free for the started unit.
+     */
+    private function absorbIssue(SerialUnit $issued, SerialUnit $waiting): void
+    {
+        foreach ($issued->history()->get() as $entry) {
+            $entry->update([
+                'serial_unit_id' => $waiting->id,
+                // Only the added keys are filtered: the entry's own parameters stay as recorded.
+                'parameters' => ($entry->parameters ?? []) + array_filter([
+                    'serial_no' => $issued->serial_no,
+                    'superseded_psn' => $issued->psn,
+                ], fn ($v) => $v !== null && $v !== ''),
+            ]);
+        }
+        if (! $waiting->work_order_id && $issued->work_order_id) {
+            $waiting->work_order_id = $issued->work_order_id;
+        }
+        $issued->delete();
     }
 
     /**

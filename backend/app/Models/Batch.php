@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
@@ -72,7 +73,7 @@ class Batch extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'released_at' => 'datetime',
-            'expiry_date' => 'date',
+            'expiry_date' => CalendarDate::class,
         ];
     }
 

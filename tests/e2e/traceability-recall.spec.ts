@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { execSync } from 'child_process';
+import { login as signIn } from './support/app';
 
 // Focused manual test for the newest change set (#135 traceability suite):
 // the Admin → Traceability console resolving a CUSTOMER ORDER number and a
@@ -22,17 +23,14 @@ function tinker(php: string): string {
 }
 
 async function login(page: Page) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN);
-  await page.fill('input[name="password"]', PASS);
-  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/login')), page.click('button[type="submit"]')]);
+  await signIn(page, ADMIN, PASS);
   await page.setViewportSize({ width: 1500, height: 1100 });
 }
 
 async function search(page: Page, term: string) {
   await page.goto('/admin/traceability');
-  await page.locator('form input[placeholder*="Pallet no"]').fill(term);
-  await page.locator('form').getByRole('button', { name: 'Trace', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Identifier to trace' }).fill(term);
+  await page.getByRole('button', { name: 'Trace', exact: true }).click();
   await page.waitForLoadState('networkidle');
 }
 

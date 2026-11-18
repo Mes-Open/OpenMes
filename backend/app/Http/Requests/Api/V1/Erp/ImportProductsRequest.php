@@ -33,8 +33,24 @@ class ImportProductsRequest extends FormRequest
     {
         return [
             ...$this->envelopeRules(),
+            // Give a product type with no process template a one-step active
+            // one, so ERP work orders for it are accepted straight away.
+            'create_default_template' => ['nullable', 'boolean'],
+            'default_step_name' => ['nullable', 'string', 'max:255'],
             'products' => ['required', 'array', 'min:1', 'max:'.self::MAX_ROWS],
             ...$this->commonRowRules('products.*'),
         ];
+    }
+
+    public function createDefaultTemplate(): bool
+    {
+        return $this->boolean('create_default_template');
+    }
+
+    public function defaultStepName(): ?string
+    {
+        $name = trim((string) $this->input('default_step_name', ''));
+
+        return $name !== '' ? $name : null;
     }
 }

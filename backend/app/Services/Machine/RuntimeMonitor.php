@@ -63,13 +63,15 @@ class RuntimeMonitor
         $meta = match ($kind) {
             MachineConnection::PROTOCOL_MODBUS => [
                 'label' => __('Modbus poller'),
-                'command' => "php artisan modbus:poll --connection={$id}",
-                'docker' => "MODBUS_CONNECTION_ID={$id} docker compose --profile connectivity up -d modbus-poller",
+                // One poller serves every active Modbus connection.
+                'command' => 'php artisan modbus:poll',
+                'docker' => 'docker compose --profile connectivity up -d modbus-poller',
             ],
             MachineConnection::PROTOCOL_MQTT => [
                 'label' => __('MQTT listener'),
-                'command' => "php artisan mqtt:listen --connection={$id}",
-                'docker' => "MQTT_CONNECTION_ID={$id} docker compose --profile connectivity up -d mqtt-listener",
+                // One listener serves every active MQTT connection.
+                'command' => 'php artisan mqtt:listen',
+                'docker' => 'docker compose --profile connectivity up -d mqtt-listener',
             ],
             MachineConnection::PROTOCOL_OPCUA => [
                 'label' => __('OPC UA gateway'),

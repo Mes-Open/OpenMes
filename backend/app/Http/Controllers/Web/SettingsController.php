@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\ApiScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
 use App\Http\Requests\UpdateProductionTargetsRequest;
@@ -343,6 +344,8 @@ class SettingsController extends Controller
                 'last_used_at_human' => $t->last_used_at?->diffForHumans(),
             ]);
 
+        $erpEnabled = ModuleRegistry::isModuleEnabled('erp');
+
         return Inertia::render('settings/ApiTokens', [
             'tokens' => $tokens,
             'newToken' => session('new_token'),
@@ -350,9 +353,13 @@ class SettingsController extends Controller
             'newTokenScope' => session('new_token_scope'),
             'appUrl' => config('app.url'),
             'scopes' => array_map(
-                fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label()],
+                fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label(), 'description' => $scope->description()],
                 \App\Enums\ApiTokenScope::cases(),
             ),
+            // ERP integration keys are managed client-side against /api/v1/api-keys;
+            // the section only exists while the ERP module (and that API) is on.
+            'erpEnabled' => $erpEnabled,
+            'erpScopes' => $erpEnabled ? ApiScope::options() : [],
         ]);
     }
 
@@ -632,6 +639,8 @@ class SettingsController extends Controller
             'unit_psn_pattern' => trim($validated['unit_psn_pattern'] ?? ''),
             'unit_psn_required' => (bool) ($validated['unit_psn_required'] ?? false),
             'unit_psn_unique' => (bool) ($validated['unit_psn_unique'] ?? false),
+            'unit_pack_requires_serial' => (bool) ($validated['unit_pack_requires_serial'] ?? false),
+            'unit_pack_requires_order' => (bool) ($validated['unit_pack_requires_order'] ?? false),
             'unit_test_fail_policy' => $validated['unit_test_fail_policy'] ?? \App\Support\UnitSerialisation::FAIL_BLOCK,
             'unit_test_max_attempts' => max(1, (int) ($validated['unit_test_max_attempts'] ?? 1)),
             'unit_test_attempts_scope' => $validated['unit_test_attempts_scope'] ?? \App\Support\UnitSerialisation::ATTEMPTS_UNIT,
@@ -732,7 +741,10 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // The webhook network allowlist is security config, not portable data.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\WebhookNetworkAllowlist::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.
@@ -746,7 +758,8 @@ class SettingsController extends Controller
             if (Schema::hasColumn($table, 'deleted_at')) {
                 $query->whereNull('deleted_at'); // the trash stays here
             }
-            $export[$table] = $query->get()->map(fn ($r) => (array) $r)->toArray();
+            $excluded = array_flip(ConfigurationImporter::EXCLUDED_COLUMNS[$table] ?? []);
+            $export[$table] = $query->get()->map(fn ($r) => array_diff_key((array) $r, $excluded))->toArray();
         }
 
         return response()->json($export, 200, [

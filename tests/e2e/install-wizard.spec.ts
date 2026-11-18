@@ -40,6 +40,8 @@ async function login(page: Page) {
 }
 
 test('full web install with module selection (HR + Connectivity off)', async ({ page }) => {
+  // Needs the throwaway instance described above; a normal run has none.
+  test.skip(!process.env.INSTALL_BASE_URL, 'Set INSTALL_BASE_URL to a disposable, uninstalled instance to run this.');
   test.setTimeout(180_000);
 
   // ── Welcome → Database ──────────────────────────────────────────────────
