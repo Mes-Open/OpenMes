@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellKey, filterCounts, groupInsights, highlightOf, indexStaffing, openCount, toggle } from './insightsState';
+import { cellKey, createInsightsGate, filterCounts, groupInsights, highlightOf, indexStaffing, openCount, toggle } from './insightsState';
 
 const drawer = {
     insights: [
@@ -43,5 +43,40 @@ describe('counts and highlights', () => {
         expect(toggle(null, 'a')).toBe('a');
         expect(toggle('a', 'a')).toBe(null);
         expect(toggle('a', 'b')).toBe('b');
+    });
+});
+
+describe('createInsightsGate', () => {
+    it('applies responses in order and drops a read overtaken by a newer read', () => {
+        const gate = createInsightsGate();
+        const first = gate.startFetch();
+        const second = gate.startFetch();
+        expect(gate.accept(second)).toBe(true);
+        expect(gate.accept(first)).toBe(false);
+    });
+    it('never lets a poll started before an acknowledge resurrect the insight', () => {
+        const gate = createInsightsGate();
+        const poll = gate.startFetch();      // 60 s poll in flight, still sees the insight open
+        const ack = gate.startAction();      // planner clicks Acknowledge
+        expect(gate.accept(ack)).toBe(true); // the drawer now shows it resolved
+        gate.endAction(ack);
+        expect(gate.accept(poll)).toBe(false);
+    });
+    it('drops a read that started while a write was running, even if it answers later', () => {
+        const gate = createInsightsGate();
+        const move = gate.startAction();
+        const live = gate.startFetch();      // live refresh fired mid-write
+        expect(gate.accept(move)).toBe(true);
+        gate.endAction(move);
+        expect(gate.accept(live)).toBe(false); // may have read the board before the write committed
+        const after = gate.startFetch();
+        expect(gate.accept(after)).toBe(true);
+    });
+    it('a failed write releases the gate for the next read', () => {
+        const gate = createInsightsGate();
+        const failed = gate.startAction();
+        gate.endAction(failed);              // 422 — nothing applied
+        const next = gate.startFetch();
+        expect(gate.accept(next)).toBe(true);
     });
 });

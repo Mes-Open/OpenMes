@@ -51,3 +51,38 @@ export function indexStaffing(staffing) {
 
 /** Expand one insight, collapse it when it is already open. */
 export const toggle = (openKey, key) => (openKey === key ? null : key);
+
+/**
+ * Decides which insights responses may update the drawer, so an older answer
+ * never overwrites a newer one — e.g. a poll started before "Acknowledge"
+ * that returns after it would otherwise resurrect the insight just resolved.
+ *
+ * Every request takes a ticket: startFetch() for a read, startAction() for a
+ * write (whose response carries the board after it). A response is applied
+ * only when accept(ticket) says so:
+ *  - nothing newer was applied already;
+ *  - a read is the latest read, no write was running when it started, and
+ *    none started after it or is still running (the write's own response is
+ *    the fresher state);
+ *  - a write is the latest write.
+ * Call endAction(ticket) when a write settles, whatever the outcome.
+ */
+export function createInsightsGate() {
+    let seq = 0;
+    let latestFetch = 0;
+    let latestAction = 0;
+    let applied = 0;
+    const running = new Set();
+    return {
+        startFetch() { seq += 1; latestFetch = seq; return { id: seq, kind: 'fetch', duringAction: running.size > 0 }; },
+        startAction() { seq += 1; latestAction = seq; running.add(seq); return { id: seq, kind: 'action' }; },
+        endAction(ticket) { running.delete(ticket.id); },
+        accept(ticket) {
+            if (ticket.id <= applied) return false;
+            if (ticket.kind === 'fetch' && (ticket.duringAction || ticket.id !== latestFetch || latestAction > ticket.id || running.size > 0)) return false;
+            if (ticket.kind === 'action' && ticket.id !== latestAction) return false;
+            applied = ticket.id;
+            return true;
+        },
+    };
+}

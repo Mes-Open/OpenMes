@@ -13,7 +13,7 @@ import { WeeklyView } from './planner/views';
 import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import { InsightsDrawer } from './planner/insights';
-import { highlightOf, indexStaffing, openCount, toggle } from './planner/insightsState';
+import { createInsightsGate, highlightOf, indexStaffing, openCount, toggle } from './planner/insightsState';
 import {
     OrderEditSheet, AssignPopup, ConflictDialog, LiveTrackingBar, Toasts, SavingOverlay,
     AddMaintenanceModal,
@@ -46,7 +46,7 @@ export default function Planner() {
         startDate, rangeStart, rangeEnd, navPrev, navNext,
         backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], realtimeMode = 'polling',
         overdueImportant = { count: 0, orders: [] },
-        staffing: staffingProp = null, canSeeInsights = false,
+        canSeeInsights = false,
     } = usePage().props;
 
     const lineId = new URLSearchParams(window.location.search).get('line_id') ?? '';
@@ -87,8 +87,9 @@ export default function Planner() {
 
     // ── Staffing badges + insights drawer (Admin / Supervisor only) ────────────
     const insightsOn = canSeeInsights && (viewMode === 'weekly' || viewMode === 'daily');
-    const [staffing, setStaffing] = useState(staffingProp);
-    useEffect(() => { setStaffing(staffingProp); }, [staffingProp]);
+    // Badges and drawer both come from the insights endpoint — one count of
+    // the board per refresh (the page props do not carry them).
+    const [staffing, setStaffing] = useState(null);
     const staffingCtx = useMemo(() => (insightsOn && staffing ? { ...staffing, byKey: indexStaffing(staffing) } : null), [insightsOn, staffing]);
     const [drawer, setDrawer] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(() => insightsOn && new URLSearchParams(window.location.search).get('insights') === '1');
@@ -100,21 +101,36 @@ export default function Planner() {
     const [insightsLoading, setInsightsLoading] = useState(false);
     const boardParams = useMemo(() => ({ view_mode: viewMode, start_date: startDate, ...(lineId ? { line_id: lineId } : {}) }), [viewMode, startDate, lineId]);
 
-    const applyInsights = useCallback((json) => {
+    // Only the freshest answer reaches the drawer: a read in flight is
+    // aborted by the next read or a write, and the gate drops whatever an
+    // aborted or overtaken request still returns.
+    const gateRef = useRef(null);
+    if (gateRef.current === null) gateRef.current = createInsightsGate();
+    const readRef = useRef(null);
+    const applyInsights = useCallback((json, ticket) => {
+        if (!gateRef.current.accept(ticket)) return;
         if (json?.drawer) setDrawer(json.drawer);
         if (json?.staffing) setStaffing(json.staffing);
     }, []);
     const fetchInsights = useCallback(async () => {
         if (!insightsOn) return;
+        readRef.current?.abort();
+        const controller = new AbortController();
+        readRef.current = controller;
+        const ticket = gateRef.current.startFetch();
         setInsightsLoading(true);
         try {
-            const r = await apiGet(`/admin/schedule/insights?${new URLSearchParams(boardParams)}`);
-            if (r.ok) applyInsights(await r.json());
-        } catch { /* silent — the next change or poll tries again */ } finally {
-            setInsightsLoading(false);
+            const r = await apiGet(`/admin/schedule/insights?${new URLSearchParams(boardParams)}`, { signal: controller.signal });
+            if (r.ok) applyInsights(await r.json(), ticket);
+        } catch { /* aborted or offline — the next change or poll tries again */ } finally {
+            if (readRef.current === controller) {
+                readRef.current = null;
+                setInsightsLoading(false);
+            }
         }
     }, [insightsOn, boardParams, applyInsights]);
     useEffect(() => { fetchInsights(); }, [fetchInsights]);
+    useEffect(() => () => readRef.current?.abort(), []);
     // Absences recorded outside OpenMES do not broadcast; while the drawer is
     // open, look again once a minute.
     useEffect(() => {
@@ -375,16 +391,19 @@ export default function Planner() {
     // ── Insight actions ────────────────────────────────────────────────────────
     const postInsight = useCallback(async (url, body = {}, { reloadBoard = false } = {}) => {
         setInsightBusy(true);
+        readRef.current?.abort();
+        const ticket = gateRef.current.startAction();
         try {
             const r = await apiCall(url, 'POST', { ...boardParams, ...body });
             const json = await r.json().catch(() => ({}));
-            if (r.status === 409) return json;
+            if (r.status === 409 && json.conflict) return json;
             if (!r.ok) {
                 toast(json.message ?? __('Error saving'), 'error');
+                gateRef.current.endAction(ticket);
                 fetchInsights();
                 return null;
             }
-            applyInsights(json);
+            applyInsights(json, ticket);
             if (json.message) toast(json.message);
             if (reloadBoard) await refreshContent();
             return json;
@@ -392,6 +411,7 @@ export default function Planner() {
             toast(__('Connection error'), 'error');
             return null;
         } finally {
+            gateRef.current.endAction(ticket);
             setInsightBusy(false);
         }
     }, [boardParams, toast, fetchInsights, applyInsights, refreshContent]);
