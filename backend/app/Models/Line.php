@@ -81,7 +81,7 @@ class Line extends Model
      */
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'line_user');
+        return $this->belongsToMany(User::class, 'line_user')->using(LineUser::class);
     }
 
     /**

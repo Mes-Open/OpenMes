@@ -4,7 +4,9 @@ namespace App\Services\Line;
 
 use App\Events\User\UserAssignedToLine;
 use App\Models\Line;
+use App\Models\LineUser;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Admin → Lines → Operators: putting an operator account on a production line
@@ -12,9 +14,9 @@ use App\Models\User;
  * by the Production Planner's "Suggest substitute" action, so both behave the
  * same — only Operator accounts, no double assignment, the module hook fires.
  *
- * The line is touched on every change so screens that follow lines live (the
- * planner's staffing badges and insights) refresh: the pivot itself is not a
- * synced collection.
+ * The line is touched on every change by the {@see LineUser} pivot, whatever
+ * the path, so screens that follow lines live (the planner's staffing badges
+ * and insights) refresh.
  */
 class LineOperatorAssignment
 {
@@ -31,15 +33,14 @@ class LineOperatorAssignment
         }
 
         $line->users()->attach($user->id);
-        $line->touch();
 
-        // Module hook: a user was assigned to a production line.
-        UserAssignedToLine::dispatch($user, $line);
+        // Module hook: a user was assigned to a production line — only once
+        // the assignment is committed, never for one a caller rolls back.
+        DB::afterCommit(fn () => UserAssignedToLine::dispatch($user, $line));
     }
 
     public function unassign(Line $line, User $user): void
     {
         $line->users()->detach($user->id);
-        $line->touch();
     }
 }
