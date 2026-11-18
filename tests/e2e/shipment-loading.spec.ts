@@ -19,9 +19,10 @@ const OPERATOR_PASS = 'E2e-Loading-1!';
 test.beforeAll(() => {
   // Plain Eloquent: factories need Faker, which the production image lacks.
   runPhp(`
-use App\\Models\\Pallet; use App\\Models\\User; use Spatie\\Permission\\Models\\Role;
+use App\\Models\\Pallet; use App\\Models\\User; use App\\Models\\WorkOrder; use Spatie\\Permission\\Models\\Role;
+$wo = WorkOrder::firstOrCreate(['order_no' => 'WO-E2E-LOAD-${ID}'], ['planned_qty' => 48, 'status' => 'IN_PROGRESS']);
 foreach ([['${GOOD}', 'pass'], ['${GOOD2}', 'pass'], ['${FAILED}', 'fail'], ['${STRAY}', 'pass']] as [$no, $q]) {
-    $p = new Pallet; $p->forceFill(['pallet_no' => $no, 'status' => 'closed', 'quality_status' => $q, 'qty' => 12]); $p->saveQuietly();
+    $p = new Pallet; $p->forceFill(['pallet_no' => $no, 'work_order_id' => $wo->id, 'status' => 'closed', 'quality_status' => $q, 'qty' => 12]); $p->saveQuietly();
 }
 $u = User::firstOrNew(['username' => '${OPERATOR}']);
 $u->forceFill(['name' => 'E2E Operator ${ID}', 'email' => '${OPERATOR}@e2e.local', 'password' => bcrypt('${OPERATOR_PASS}'), 'force_password_change' => false])->save();
