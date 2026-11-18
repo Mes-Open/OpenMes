@@ -7,6 +7,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
+  of pallets and cartons it must take, and the dock scans every label against that list
+  before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
+  (supervisors: *Logistics → Shipments*) by pasting label numbers — one per line, pallet or
+  carton detected or chosen — or uploading a CSV. Operators open the new **Loading terminal**
+  (`/logistics/loading`): one large input for a keyboard-wedge scanner answers each scan at
+  once without leaving the page — green *loaded*, amber *duplicate*, red *not on this load*,
+  *unknown code* or *blocked* (pallet still open, failed or not released by quality, held
+  units, already loaded on another truck). A carton riding on a listed pallet is reported,
+  not counted twice. Every scan is written to an append-only scan log, a mistaken scan can be
+  undone (logged as *removed*), and the expected / loaded / missing list updates live on every
+  screen watching the load. Two scanners at the same truck are serialised by a row lock, so
+  a label scanned twice at once is loaded once. *Confirm loading* ships what was loaded:
+  pallets become *shipped* (their units follow, held units keep their hold) and the units of
+  loose cartons are shipped the same way. A short load can only be confirmed by a supervisor
+  or admin, with a reason. Confirmed and cancelled shipments reject further scans.
+  REST: `/api/v1/shipments` (list, show, create with `items[]`, scan, unload, confirm). ERP:
+  `POST /api/v1/erp/shipments` (scope `erp:shipments:write`; re-sending a planned load
+  replaces it) and `GET /api/v1/erp/shipments/{shipment_no}` plus a `?since=` feed (scope
+  `erp:shipments:read`) return the load result — loaded units with counts, missing,
+  unexpected, who confirmed and when. A new webhook event, `shipment.confirmed`, sends the
+  same result. Shipments, their items and scans are soft-deleted (the load ID can be reused
+  after a delete). See [docs/shipment-loading.md](docs/shipment-loading.md).
+
 ## [0.29.3] - 2026-11-18
 
 ### Fixed

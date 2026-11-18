@@ -1664,6 +1664,8 @@ Content-Type: application/json
 | `erp:masterdata:read` | Read lines, warehouses and product types (codes, names, activity) |
 | `erp:stock:read` | Read warehouse balances and the stock-document backlog |
 | `erp:stock:write` | Sync warehouse balances, acknowledge stock documents |
+| `erp:shipments:write` | Send shipments (loads) with the pallets / cartons each must carry |
+| `erp:shipments:read` | Read shipment load results — loaded, missing, unexpected |
 | `erp:webhooks:manage` | Register and manage the key's own outgoing webhooks |
 
 A key sees only its own tenant's data. Missing, inactive or expired key → `401`; key
@@ -2636,6 +2638,65 @@ Records the ERP's own document number and stamps `erp_synced_at`, which takes th
 document off the `unsynced_only` backlog. `erp_reference` is optional. Unknown id (or
 another tenant's document) → `404`.
 
+### Shipments (ERP)
+
+Scan-to-load verification — see [Shipment Loading Verification](shipment-loading.md) for
+the dock workflow. Requires the Packaging module.
+
+```http
+POST /api/v1/erp/shipments                                        # scope: erp:shipments:write
+Content-Type: application/json
+
+{
+  "shipment_no": "SO-4711/1",
+  "erp_reference": "SO-4711",
+  "carrier": "Fast Freight",
+  "vehicle_no": "WX 12345",
+  "destination": "Berlin DC",
+  "planned_at": "2026-11-19T06:00:00Z",
+  "items": [
+    { "unit_type": "pallet", "identifier": "PAL-000012" },
+    { "identifier": "CTN-000301" }
+  ]
+}
+```
+
+`unit_type` is `pallet` or `carton`; without it the type is detected from the label.
+`shipment_no` and every `identifier`: up to 64 characters, letters, digits and `- _ / .`.
+At most 500 items. A new `shipment_no` → `201`. Re-sending a `shipment_no` that is still
+`planned` replaces its header and expected list → `200`; once the dock has started
+loading (or the load is confirmed / cancelled) → `409`.
+
+```http
+GET /api/v1/erp/shipments/{shipment_no}                           # scope: erp:shipments:read
+GET /api/v1/erp/shipments?since=2026-11-18T00:00:00Z&status=confirmed&limit=50
+```
+
+`shipment_no` may contain `/` (URL-encode it as `%2F`). The list is cursor-paginated
+(`meta.next_cursor`), filtered by `updated_at >= since` and optionally by `status`
+(`planned`, `loading`, `confirmed`, `cancelled`). Each entry is the load result:
+
+```json
+{
+  "shipment_no": "SO-4711/1",
+  "status": "confirmed",
+  "started_at": "2026-11-19T06:02:11+00:00", "started_by": "Anna Nowak",
+  "confirmed_at": "2026-11-19T06:41:52+00:00", "confirmed_by": "Jan Kowalski",
+  "short_reason": "Second pallet not ready",
+  "totals": { "expected": 2, "loaded": 1, "missing": 1, "loaded_units": 48,
+              "unexpected_scans": 1, "duplicate_scans": 0, "blocked_scans": 0 },
+  "loaded": [ { "unit_type": "pallet", "identifier": "PAL-000012", "unit_count": 48,
+                "loaded_at": "2026-11-19T06:05:40+00:00", "loaded_by": "Anna Nowak" } ],
+  "missing": [ { "unit_type": "carton", "identifier": "CTN-000301" } ],
+  "unexpected": [ { "scanned_code": "PAL-000099", "unit_type": "pallet", "result": "unexpected",
+                    "message": "PAL-000099 is not on this shipment.",
+                    "scanned_at": "2026-11-19T06:07:02+00:00", "scanned_by": "Anna Nowak" } ],
+  "duplicates": [], "blocked": []
+}
+```
+
+Another tenant's shipment → `404`.
+
 ### Webhooks (ERP)
 
 Instead of polling, an integration can register its own receiver and have OpenMES
@@ -2815,6 +2876,7 @@ Each attempt has a fresh timestamp and signature.
 | `quality_issue.created` | An issue is reported against a work order. | Same shape as `GET /api/v1/erp/quality/issues`. |
 | `batch.completed` | A batch reaches `DONE`. | `id`, `work_order_id`, `status`, `completed_at`. |
 | `stock_document.posted` | A warehouse document is posted. | Same shape as `GET /api/v1/erp/stock-documents`. |
+| `shipment.confirmed` | A load is confirmed at the dock. | Same shape as `GET /api/v1/erp/shipments/{shipment_no}`. |
 
 An event only reaches endpoints of the tenant that owns the entity. An issue takes its
 work order's tenant; an issue without a work order takes the reporting user's tenant (or
