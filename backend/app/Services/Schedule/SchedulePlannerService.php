@@ -403,8 +403,8 @@ class SchedulePlannerService
             }
         }
 
-        $this->logChange($workOrder, $snapshotBefore);
-        app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder->fresh() ?? $workOrder);
+        $change = $this->logChange($workOrder, $snapshotBefore);
+        app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder);
 
         // Batch preparation may write the snapshot the cross-line check reads.
         $batchWarnings = $this->prepareBatchAndWarn($workOrder);
@@ -416,6 +416,8 @@ class SchedulePlannerService
             // The subset above about steps on other lines' workstations, so a
             // caller placing many orders at once can summarise them.
             'cross_line_warnings' => $crossLine,
+            // The change-log row this edit wrote; null when nothing changed.
+            'change_log_id' => $change?->id,
         ];
     }
 
@@ -578,14 +580,15 @@ class SchedulePlannerService
         ];
     }
 
-    /** Log the edit when the snapshot actually changed. */
-    public function logChange(WorkOrder $workOrder, array $before): void
+    /** Log the edit when the snapshot actually changed; the row written, or null. */
+    public function logChange(WorkOrder $workOrder, array $before): ?ScheduleChangeLog
     {
         $after = $this->placementSnapshot($workOrder->fresh('extraPlacements'));
         if ($before == $after) {
-            return;
+            return null;
         }
-        ScheduleChangeLog::create([
+
+        return ScheduleChangeLog::create([
             'work_order_id' => $workOrder->id,
             'user_id' => auth()->id(),
             'action' => 'reschedule',

@@ -7750,5 +7750,10 @@
     "Short of people in this shift": "Brak ludzi na tej zmianie",
     ":count absent": "nieobecni: :count",
     ":names also work on :other": ":names pracują też na :other",
-    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names pracują w tym czasie na :other, więc :line ma :available z :needed osób potrzebnych do pracy."
+    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names pracują w tym czasie na :other, więc :line ma :available z :needed osób potrzebnych do pracy.",
+    "Nothing to move: the order is already there.": "Nie ma czego przenosić: zlecenie już tam jest.",
+    "Already handled by :name.": "Już obsłużone przez :name.",
+    "Already handled by another planner. Refresh the insights.": "Już obsłużone przez innego planistę. Odśwież wskazówki.",
+    "This was already undone. Refresh the insights.": "To zostało już cofnięte. Odśwież wskazówki.",
+    "The move cannot be found any more. Undo it from the planner's Changes tab.": "Nie można już znaleźć tego przeniesienia. Cofnij je w zakładce Zmiany planera."
 }

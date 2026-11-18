@@ -7750,5 +7750,10 @@
     "Short of people in this shift": "Short of people in this shift",
     ":count absent": ":count absent",
     ":names also work on :other": ":names also work on :other",
-    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names are booked on :other at that time, so :line has :available of the :needed people its work needs."
+    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.",
+    "Nothing to move: the order is already there.": "Nothing to move: the order is already there.",
+    "Already handled by :name.": "Already handled by :name.",
+    "Already handled by another planner. Refresh the insights.": "Already handled by another planner. Refresh the insights.",
+    "This was already undone. Refresh the insights.": "This was already undone. Refresh the insights.",
+    "The move cannot be found any more. Undo it from the planner's Changes tab.": "The move cannot be found any more. Undo it from the planner's Changes tab."
 }

@@ -37,7 +37,9 @@ use Illuminate\Support\Collection;
  * planned has no badge. The board range is extended by a lookahead so the
  * planner can find the next shift with enough people.
  *
- * Read-only. One instance per request.
+ * Read-only. One instance per request: loading the same range again is a
+ * no-op until {@see forget()} — called after every write — so the drawer and
+ * the badges of one response share a single count.
  */
 class PlannerStaffing
 {
@@ -75,6 +77,9 @@ class PlannerStaffing
 
     private Carbon $from;
 
+    /** "from|to" of the loaded range; null when nothing is loaded */
+    private ?string $loaded = null;
+
     private Carbon $to;
 
     public function __construct(
@@ -87,6 +92,12 @@ class PlannerStaffing
      */
     public function load(Carbon $rangeStart, Carbon $rangeEnd): self
     {
+        $key = $rangeStart->toDateString().'|'.$rangeEnd->toDateString();
+        if ($this->loaded === $key) {
+            return $this;
+        }
+        $this->forget();
+        $this->loaded = $key;
         $this->from = $rangeStart->copy()->startOfDay();
         $this->to = $rangeEnd->copy()->startOfDay()->addDays(1 + self::LOOKAHEAD_DAYS);
         $this->shifts = Shift::where('is_active', true)->get();
@@ -116,6 +127,15 @@ class PlannerStaffing
         $this->bookOrders();
 
         return $this;
+    }
+
+    /** Drop what was counted: the next load() reads the plan and the people again. */
+    public function forget(): void
+    {
+        $this->loaded = null;
+        $this->bookings = [];
+        $this->runs = [];
+        $this->cells = [];
     }
 
     /** @return list<array{start: string, end: string, name: string}> */

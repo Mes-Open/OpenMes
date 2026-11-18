@@ -107,9 +107,9 @@ class PlanningInsightActionsTest extends TestCase
         $this->act($admin, 'acknowledge', ['insight_key' => 'drop table'])->assertUnprocessable()->assertJsonValidationErrors('insight_key');
         // Well-formed, but no such insight on this board.
         $this->act($admin, 'acknowledge', ['insight_key' => 'short:'.$this->cnc->id.':2026-11-25:1'])->assertUnprocessable()->assertJsonValidationErrors('insight_key');
-        // Already dealt with.
+        // Already dealt with: a conflict, not a validation error.
         $this->act($admin, 'acknowledge', ['insight_key' => $this->key])->assertOk();
-        $this->act($admin, 'acknowledge', ['insight_key' => $this->key])->assertUnprocessable();
+        $this->act($admin, 'acknowledge', ['insight_key' => $this->key])->assertStatus(409);
     }
 
     public function test_acknowledge_needs_a_planner(): void
@@ -286,7 +286,7 @@ class PlanningInsightActionsTest extends TestCase
         $this->act($admin, 'move', ['insight_key' => $this->key, 'work_order_id' => $this->order->id])->assertOk();
         $this->actingAs($admin)->putJson("/admin/schedule/{$this->order->id}", ['planned_start_at' => '2026-11-26T06:00:00', 'end_date' => '2026-11-26', 'planned_end_at' => '2026-11-27T00:00:00'])->assertOk();
 
-        $this->undo($admin, PlanningInsightAcknowledgement::sole())->assertUnprocessable();
+        $this->undo($admin, PlanningInsightAcknowledgement::sole())->assertStatus(409);
 
         $this->assertSame('2026-11-26', $this->order->fresh()->planned_start_at->toDateString());
         $this->assertNotSoftDeleted(PlanningInsightAcknowledgement::sole());

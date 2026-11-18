@@ -16,6 +16,7 @@ use App\Services\Schedule\Finite\ResourceCalendar;
 use App\Services\Schedule\Finite\ShiftOccurrences;
 use App\Services\Schedule\SchedulePlannerService;
 use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -53,6 +54,33 @@ class PlanningInsights
 
     /** @var list<string> visible dates */
     private array $days = [];
+
+    /**
+     * Every date of the ISO weeks the visible dates fall in. Insights that
+     * span a period (untracked line, single-skill) are keyed and signed per
+     * line and ISO week over these, so the weekly and the daily view — and
+     * any day of the week — name the same insight with the same facts.
+     *
+     * @var list<string>
+     */
+    private array $weekDays = [];
+
+    /** @var array<int, bool> line id => provider records skills there */
+    private array $skillLines = [];
+
+    private ?bool $skillsTracked = null;
+
+    /** "from|to|line" of the loaded board; null after a write */
+    private ?string $loaded = null;
+
+    /** @var \Illuminate\Support\Collection<int, User>|null Operator accounts with their lines, read once */
+    private ?\Illuminate\Support\Collection $operatorAccounts = null;
+
+    /** @var array<string, array<int, true>> date => absent worker ids */
+    private array $absentOn = [];
+
+    /** @var array<int, array<int, list<string>>|null> line id => skill holders */
+    private array $holders = [];
 
     /** @var list<int> visible line ids */
     private array $lineIds = [];
@@ -94,19 +122,50 @@ class PlanningInsights
 
     public function load(Carbon $from, Carbon $to, ?int $lineId = null): self
     {
+        $key = $from->toDateString().'|'.$to->toDateString().'|'.$lineId;
+        if ($this->loaded === $key) {
+            return $this;
+        }
+        $this->loaded = $key;
         $this->from = $from->copy()->startOfDay();
         $this->to = $to->copy()->startOfDay();
         $this->days = [];
         for ($d = $this->from->copy(); $d->lte($this->to); $d->addDay()) {
             $this->days[] = $d->toDateString();
         }
-        $this->staffing->load($this->from, $this->to);
+        $weekStart = $this->from->copy()->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $this->to->copy()->endOfWeek(Carbon::SUNDAY)->startOfDay();
+        $this->weekDays = [];
+        for ($d = $weekStart->copy(); $d->lte($weekEnd); $d->addDay()) {
+            $this->weekDays[] = $d->toDateString();
+        }
+        $this->staffing->load($weekStart, $this->to);
         $this->lineIds = $this->staffing->lines()->keys()
             ->filter(fn ($id) => $lineId === null || (int) $id === $lineId)
             ->map(fn ($id) => (int) $id)->values()->all();
         $this->computed = null;
+        $this->forgetPeople();
 
         return $this;
+    }
+
+    /** After a write: the next load() counts the plan and the people afresh. */
+    private function invalidate(): void
+    {
+        $this->loaded = null;
+        $this->staffing->forget();
+        $this->computed = null;
+        $this->forgetPeople();
+    }
+
+    private function forgetPeople(): void
+    {
+        $this->skillsTracked = null;
+        $this->operatorAccounts = null;
+        $this->absentOn = [];
+        $this->holders = [];
+        $this->workerNames = [];
+        $this->keyNames = [];
     }
 
     // ── Staffing badges ─────────────────────────────────────────────────────
@@ -251,25 +310,32 @@ class PlanningInsights
         $untracked = [];
         $skillWork = [];
         $visibleOrders = [];
+        $visible = array_flip($this->days);
         foreach ($this->lineIds as $lineId) {
-            foreach ($this->days as $date) {
+            foreach ($this->weekDays as $date) {
+                $week = self::weekOf($date);
                 foreach (array_keys($this->staffing->columns()) as $i) {
                     $cell = $this->staffing->cell($lineId, $date, $i + 1);
                     if ($cell === null || $cell['needed'] === 0 || $cell['order_ids'] === []) {
                         continue;
                     }
-                    foreach ($cell['order_ids'] as $id) {
-                        $visibleOrders[$id] = true;
-                    }
+                    $shown = isset($visible[$date]);
                     if (! $cell['tracked']) {
-                        $untracked[$lineId]['cells'][] = $cell;
+                        $untracked[$lineId][$week]['cells'][] = $cell;
+                        $untracked[$lineId][$week]['visible'] = ($untracked[$lineId][$week]['visible'] ?? false) || $shown;
                         foreach ($cell['order_ids'] as $id) {
-                            $untracked[$lineId]['orders'][$id] = true;
+                            $untracked[$lineId][$week]['orders'][$id] = true;
                         }
 
                         continue;
                     }
-                    $skillWork[$lineId][] = $cell;
+                    $skillWork[$lineId][$week][] = $cell;
+                    if (! $shown) {
+                        continue;
+                    }
+                    foreach ($cell['order_ids'] as $id) {
+                        $visibleOrders[$id] = true;
+                    }
                     if ($cell['available'] < $cell['needed']) {
                         $out[] = $this->shortInsight($cell);
                     }
@@ -277,12 +343,18 @@ class PlanningInsights
             }
         }
 
-        foreach ($untracked as $lineId => $data) {
-            $out[] = $this->untrackedInsight($lineId, $data['cells'], array_keys($data['orders']));
+        foreach ($untracked as $lineId => $weeks) {
+            foreach ($weeks as $week => $data) {
+                if ($data['visible']) {
+                    $out[] = $this->untrackedInsight($lineId, $week, $data['cells'], array_keys($data['orders']));
+                }
+            }
         }
-        foreach ($skillWork as $lineId => $cells) {
-            foreach ($this->singleSkillInsights($lineId, $cells) as $insight) {
-                $out[] = $insight;
+        foreach ($skillWork as $lineId => $weeks) {
+            foreach ($weeks as $week => $cells) {
+                foreach ($this->singleSkillInsights($lineId, $week, $cells) as $insight) {
+                    $out[] = $insight;
+                }
             }
         }
         foreach ($this->changedInsights(array_keys($visibleOrders)) as $insight) {
@@ -405,7 +477,7 @@ class PlanningInsights
      * @param  list<int>  $orderIds
      * @return array<string, mixed>
      */
-    private function untrackedInsight(int $lineId, array $cells, array $orderIds): array
+    private function untrackedInsight(int $lineId, string $week, array $cells, array $orderIds): array
     {
         $line = $this->lineName($lineId);
         $affected = [];
@@ -417,7 +489,7 @@ class PlanningInsights
         }
 
         return [
-            'key' => 'untracked:'.$lineId.':'.$this->from->toDateString(),
+            'key' => 'untracked:'.$lineId.':'.$week,
             'type' => 'untracked_line',
             'category' => 'plan',
             'severity' => 'info',
@@ -432,7 +504,7 @@ class PlanningInsights
                     'effect' => __('Opens Admin → Lines → :line → Operators.', ['line' => $line]), 'score' => 2],
                 ['kind' => 'acknowledge', 'label' => __('Acknowledge'), 'effect' => __('This line is planned on machines only, on purpose.'), 'score' => 0],
             ]),
-            'cells' => array_map(fn ($c) => ['line_id' => $lineId, 'date' => $c['date'], 'shift' => $c['shift']], $cells),
+            'cells' => $this->visibleCells(array_map(fn ($c) => ['line_id' => $lineId, 'date' => $c['date'], 'shift' => $c['shift']], $cells)),
             'line_id' => $lineId,
             'when' => null,
             'signature' => md5(json_encode($orderIds)),
@@ -446,10 +518,10 @@ class PlanningInsights
      * @param  list<array<string, mixed>>  $cells
      * @return list<array<string, mixed>>
      */
-    private function singleSkillInsights(int $lineId, array $cells): array
+    private function singleSkillInsights(int $lineId, string $week, array $cells): array
     {
         $explains = $this->workforce instanceof ExplainsWorkforceCapacity ? $this->workforce : null;
-        $holders = $explains?->skillHolders($lineId);
+        $holders = $this->skillHolders($lineId);
         if ($holders === null) {
             return [];
         }
@@ -466,6 +538,7 @@ class PlanningInsights
                             $bySkill[$skill]['orders'][$orderId] = true;
                             $bySkill[$skill]['cells'][$cell['date'].'|'.$cell['shift']] = ['line_id' => $lineId, 'date' => $cell['date'], 'shift' => $cell['shift']];
                             $bySkill[$skill]['sort'] = min($bySkill[$skill]['sort'] ?? PHP_INT_MAX, $cell['start_minute']);
+                            $bySkill[$skill]['visible'] = ($bySkill[$skill]['visible'] ?? false) || in_array($cell['date'], $this->days, true);
                         }
                     }
                 }
@@ -476,6 +549,9 @@ class PlanningInsights
         $line = $this->lineName($lineId);
         $skillNames = $bySkill === [] ? [] : $explains->skillNames(array_keys($bySkill));
         foreach ($bySkill as $skill => $data) {
+            if (! $data['visible']) {
+                continue;
+            }
             $holder = $holders[$skill][0];
             $name = $this->keyName($holder);
             $skillName = $skillNames[$skill] ?? '#'.$skill;
@@ -498,7 +574,7 @@ class PlanningInsights
             $actions[] = ['kind' => 'acknowledge', 'label' => __('Acknowledge'), 'effect' => __('Keep as is. It reopens if the plan changes.'), 'score' => 1];
 
             $out[] = [
-                'key' => 'skill:'.$lineId.':'.$skill.':'.$this->from->toDateString(),
+                'key' => 'skill:'.$lineId.':'.$skill.':'.$week,
                 'type' => 'single_skill',
                 'category' => 'skills',
                 'severity' => 'warn',
@@ -509,7 +585,7 @@ class PlanningInsights
                 'numbers' => ['qualified' => 1],
                 'affected' => $affected,
                 'actions' => $this->rank($actions),
-                'cells' => array_values($data['cells']),
+                'cells' => $this->visibleCells(array_values($data['cells'])),
                 'line_id' => $lineId,
                 'when' => null,
                 'signature' => md5(json_encode([$holder, array_keys($data['orders'])])),
@@ -594,23 +670,31 @@ class PlanningInsights
     /**
      * Mark an open insight as dealt with.
      *
-     * @throws \DomainException when the insight is not open
+     * @throws \DomainException when the insight is not on the board
+     * @throws InsightConflict when someone already handled it
      */
     public function acknowledge(string $key, User $user): PlanningInsightAcknowledgement
     {
         $insight = $this->openInsight($key);
 
-        return $this->record($insight, PlanningInsightAcknowledgement::ACTION_ACKNOWLEDGE, $user,
-            __('Acknowledged by :name.', ['name' => $user->name]), null);
+        return $this->handle($insight, $user, fn () => [
+            PlanningInsightAcknowledgement::ACTION_ACKNOWLEDGE,
+            __('Acknowledged by :name.', ['name' => $user->name]),
+            null,
+        ]);
     }
 
     /**
      * Move an order of a short-shift insight to the first slot with enough
-     * people, through the planner's own move.
+     * people, through the planner's own move. The move and the
+     * acknowledgement commit together or not at all, and the acknowledgement
+     * keeps the id of the change-log row this very move wrote, so an undo
+     * reverts exactly that.
      *
      * @return array{conflict: bool, message?: string, acknowledgement?: PlanningInsightAcknowledgement}
      *
-     * @throws \DomainException when the insight or the move is not on offer
+     * @throws \DomainException when the insight or the move is not on offer, or the move would change nothing
+     * @throws InsightConflict when someone already handled the insight
      */
     public function move(string $key, int $orderId, User $user, bool $force = false): array
     {
@@ -623,15 +707,25 @@ class PlanningInsights
             throw new \DomainException(__('That move is no longer possible. Refresh the insights.'));
         }
 
-        $result = $this->planner->updateOrder($order, $target['placement'], $force);
-        if ($result['conflict']) {
-            return ['conflict' => true, 'message' => $result['message']];
-        }
-        $change = ScheduleChangeLog::where('work_order_id', $order->id)->latest('id')->first();
+        try {
+            $ack = $this->handle($insight, $user, function () use ($order, $target, $force) {
+                $result = $this->planner->updateOrder($order, $target['placement'], $force);
+                if ($result['conflict']) {
+                    throw new MoveConflict($result['message']);
+                }
+                if (($result['change_log_id'] ?? null) === null) {
+                    throw new \DomainException(__('Nothing to move: the order is already there.'));
+                }
 
-        $ack = $this->record($insight, PlanningInsightAcknowledgement::ACTION_MOVE, $user,
-            __('Moved :order to :slot.', ['order' => $order->order_no, 'slot' => $target['label']]),
-            ['work_order_id' => $order->id, 'change_log_id' => $change?->id]);
+                return [
+                    PlanningInsightAcknowledgement::ACTION_MOVE,
+                    __('Moved :order to :slot.', ['order' => $order->order_no, 'slot' => $target['label']]),
+                    ['work_order_id' => $order->id, 'change_log_id' => (int) $result['change_log_id']],
+                ];
+            });
+        } catch (MoveConflict $e) {
+            return ['conflict' => true, 'message' => $e->getMessage()];
+        }
 
         return ['conflict' => false, 'acknowledgement' => $ack];
     }
@@ -641,6 +735,7 @@ class PlanningInsights
      * line-operator assignment.
      *
      * @throws \DomainException when the insight or the person is not on offer
+     * @throws InsightConflict when someone already handled the insight
      */
     public function substitute(string $key, int $userId, User $actor): PlanningInsightAcknowledgement
     {
@@ -652,12 +747,14 @@ class PlanningInsights
             throw new \DomainException(__('That person is no longer a suggested substitute. Refresh the insights.'));
         }
 
-        return DB::transaction(function () use ($insight, $operator, $line, $actor) {
+        return $this->handle($insight, $actor, function () use ($operator, $line, $actor) {
             $this->assignment->assign($line, $operator);
 
-            return $this->record($insight, PlanningInsightAcknowledgement::ACTION_SUBSTITUTE, $actor,
+            return [
+                PlanningInsightAcknowledgement::ACTION_SUBSTITUTE,
                 __(':name assigned to :line by :by.', ['name' => $operator->name, 'line' => $line->name, 'by' => $actor->name]),
-                ['line_id' => $line->id, 'user_id' => $operator->id]);
+                ['line_id' => $line->id, 'user_id' => $operator->id],
+            ];
         });
     }
 
@@ -665,21 +762,18 @@ class PlanningInsights
      * Undo what an acknowledgement recorded — revert the move, take the
      * substitute off the line — and reopen the insight.
      *
-     * @throws \DomainException when the plan changed again since
+     * @throws InsightConflict when the order was edited since the move, or the acknowledgement is gone
      */
     public function undo(PlanningInsightAcknowledgement $ack): void
     {
         DB::transaction(function () use ($ack) {
+            $ack = PlanningInsightAcknowledgement::whereKey($ack->id)->lockForUpdate()->first();
+            if ($ack === null) {
+                throw new InsightConflict(__('This was already undone. Refresh the insights.'));
+            }
             $payload = $ack->payload ?? [];
-            if ($ack->action === PlanningInsightAcknowledgement::ACTION_MOVE && ! empty($payload['change_log_id'])) {
-                $change = ScheduleChangeLog::find($payload['change_log_id']);
-                $order = $change?->workOrder;
-                if ($change !== null && $order !== null && $change->undone_at === null) {
-                    if ($this->planner->placementSnapshot($order->fresh('extraPlacements')) != $change->after) {
-                        throw new \DomainException(__(':order was changed again since. Undo it from the planner\'s Changes tab.', ['order' => $order->order_no]));
-                    }
-                    $this->planner->undoChange($change);
-                }
+            if ($ack->action === PlanningInsightAcknowledgement::ACTION_MOVE) {
+                $this->undoMove($payload);
             }
             if ($ack->action === PlanningInsightAcknowledgement::ACTION_SUBSTITUTE && ! empty($payload['line_id']) && ! empty($payload['user_id'])) {
                 $line = Line::find($payload['line_id']);
@@ -690,18 +784,110 @@ class PlanningInsights
             }
             $ack->delete();
         });
+        $this->invalidate();
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Revert exactly the change the move wrote — only while it is the order's
+     * last edit and the order still sits where the move put it.
+     */
+    private function undoMove(array $payload): void
+    {
+        $change = ! empty($payload['change_log_id']) ? ScheduleChangeLog::find($payload['change_log_id']) : null;
+        $order = $change !== null ? WorkOrder::whereKey($change->work_order_id)->lockForUpdate()->first() : null;
+        if ($change === null || $order === null || (int) $change->work_order_id !== (int) ($payload['work_order_id'] ?? 0)) {
+            throw new InsightConflict(__('The move cannot be found any more. Undo it from the planner\'s Changes tab.'));
+        }
+        $editedSince = $change->undone_at !== null
+            || ScheduleChangeLog::where('work_order_id', $order->id)->where('id', '>', $change->id)->exists()
+            || $this->planner->placementSnapshot($order->load('extraPlacements')) != $change->after;
+        if ($editedSince) {
+            throw new InsightConflict(__(':order was changed again since. Undo it from the planner\'s Changes tab.', ['order' => $order->order_no]));
+        }
+        $this->planner->undoChange($change);
+    }
+
+    /**
+     * The insight as it stands now, if it is on the board and not handled.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws \DomainException when the insight is not on the board
+     * @throws InsightConflict when someone already handled it
+     */
     private function openInsight(string $key): array
     {
         $insight = $this->find($key);
-        $ack = PlanningInsightAcknowledgement::where('insight_key', $key)->first();
-        if ($insight === null || ($ack !== null && $ack->signature === $insight['signature'])) {
+        if ($insight === null) {
             throw new \DomainException(__('This insight is no longer open. Refresh the insights.'));
         }
+        $this->assertNotHandled($insight);
 
         return $insight;
+    }
+
+    /** @throws InsightConflict */
+    private function assertNotHandled(array $insight, bool $lock = false): void
+    {
+        $query = PlanningInsightAcknowledgement::with('acknowledgedBy:id,name')->where('insight_key', $insight['key']);
+        $ack = ($lock ? $query->lockForUpdate() : $query)->first();
+        if ($ack !== null && $ack->signature === $insight['signature']) {
+            throw new InsightConflict($this->handledBy($ack));
+        }
+    }
+
+    private function handledBy(?PlanningInsightAcknowledgement $ack): string
+    {
+        $name = $ack?->acknowledgedBy?->name;
+
+        return $name !== null
+            ? __('Already handled by :name.', ['name' => $name])
+            : __('Already handled by another planner. Refresh the insights.');
+    }
+
+    /**
+     * Act on an insight and record it, atomically and one planner at a time:
+     * the insight key is locked, its state re-read under the lock, then the
+     * action runs and the acknowledgement is written in the same transaction.
+     * Should another planner's row still slip in (the partial unique index
+     * says so), everything — the move included — rolls back and the caller
+     * gets a 409.
+     *
+     * @param  callable(): array{0: string, 1: string, 2: ?array<string, mixed>}  $do  the action; returns [action, summary, payload]
+     *
+     * @throws InsightConflict
+     */
+    private function handle(array $insight, User $user, callable $do): PlanningInsightAcknowledgement
+    {
+        try {
+            $ack = DB::transaction(function () use ($insight, $user, $do) {
+                $this->lockKey($insight['key']);
+                $this->assertNotHandled($insight, lock: true);
+                [$action, $summary, $payload] = $do();
+
+                return $this->record($insight, $action, $user, $summary, $payload);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw new InsightConflict($this->handledBy(
+                PlanningInsightAcknowledgement::with('acknowledgedBy:id,name')->where('insight_key', $insight['key'])->first()
+            ));
+        }
+        $this->invalidate();
+
+        return $ack;
+    }
+
+    /**
+     * Serialise actions on one insight of one plant (PostgreSQL; elsewhere
+     * the unique index alone decides). The key is a bound parameter.
+     */
+    private function lockKey(string $key): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+        $tenant = app(\App\Support\TenantContext::class)->id() ?? 0;
+        DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['planning-insight:'.$tenant.':'.$key]);
     }
 
     private function record(array $insight, string $action, User $user, string $summary, ?array $payload): PlanningInsightAcknowledgement
@@ -725,9 +911,11 @@ class PlanningInsights
 
     /**
      * The first slot from the cell on where the order's primary placement on
-     * this line would have enough people, keeping the number of shift cells it
-     * spans; with the planner body that moves it there, like a drop on the
-     * weekly board. Null when the order is not a coarse primary placement on
+     * this line would have enough people, keeping its length in real shifts —
+     * the shifts the line runs, not board columns it has no shift in or a
+     * weekend without shifts — so a moved order is exactly as long as before;
+     * with the planner body that moves it there, like a drop on the weekly
+     * board. Null when the order is not a coarse primary placement on
      * the line, or nothing within the lookahead fits.
      *
      * @return array{label: string, spare: int, late: bool, end_minute: int, placement: array<string, mixed>}|null
@@ -749,7 +937,13 @@ class PlanningInsights
         if ($own === [] || $order->status === WorkOrder::STATUS_IN_PROGRESS) {
             return null;
         }
-        $span = count($own);
+        $span = 0;
+        foreach (array_keys($own) as $ownCell) {
+            [, $date, $col] = explode('|', $ownCell);
+            $span += $this->staffing->isShift($lineId, $date, (int) $col) ? 1 : 0;
+        }
+        // Placed only where the line has no shift: it takes one shift.
+        $span = max(1, $span);
         $columns = count($this->staffing->columns());
 
         // Shift cells of the line after the cell, in board order.
@@ -881,16 +1075,14 @@ class PlanningInsights
         $to = ResourceCalendar::toCarbon($end);
         $absent = [];
         foreach (ShiftOccurrences::attributedDates($this->staffing->shifts(), $lineId, $start, $end) as $date) {
-            foreach ($this->people->absentWorkerIds(Carbon::parse($date)->startOfDay()) as $id) {
-                $absent[(int) $id] = true;
-            }
+            $absent += $this->absentOn[$date] ??= array_fill_keys(
+                array_map('intval', $this->people->absentWorkerIds(Carbon::parse($date)->startOfDay())), true);
         }
-        $explains = $this->workforce instanceof ExplainsWorkforceCapacity ? $this->workforce : null;
         $checkSkills = $skills !== [] && $this->skillsTracked();
 
         $out = [];
-        $users = User::role('Operator')->with('lines:id,name,is_active')->orderBy('name')->get();
-        foreach ($users as $user) {
+        $this->operatorAccounts ??= User::role('Operator')->with('lines:id,name,is_active')->orderBy('name')->get();
+        foreach ($this->operatorAccounts as $user) {
             $lines = $user->lines->where('is_active', true);
             if ($lines->contains('id', $lineId) || ($user->worker_id && isset($absent[(int) $user->worker_id]))) {
                 continue;
@@ -900,7 +1092,7 @@ class PlanningInsights
             if ($checkSkills) {
                 $held = [];
                 foreach ($lines as $l) {
-                    foreach ($explains->skillHolders((int) $l->id) ?? [] as $skill => $keys) {
+                    foreach ($this->skillHolders((int) $l->id) ?? [] as $skill => $keys) {
                         if (in_array($key, $keys, true)) {
                             $held[(int) $skill] = true;
                         }
@@ -1027,16 +1219,49 @@ class PlanningInsights
 
     private function skillsTracked(): bool
     {
-        if (! $this->workforce instanceof ExplainsWorkforceCapacity) {
-            return false;
+        if ($this->skillsTracked !== null) {
+            return $this->skillsTracked;
         }
         foreach ($this->staffing->lines()->keys() as $id) {
-            if ($this->workforce->skillHolders((int) $id) !== null) {
-                return true;
+            if ($this->skillHolders((int) $id) !== null) {
+                return $this->skillsTracked = true;
             }
         }
 
-        return false;
+        return $this->skillsTracked = false;
+    }
+
+    /**
+     * Who holds which skill on a line, read once per load; null when the
+     * provider records no skills there.
+     *
+     * @return array<int, list<string>>|null
+     */
+    private function skillHolders(int $lineId): ?array
+    {
+        if (! $this->workforce instanceof ExplainsWorkforceCapacity) {
+            return null;
+        }
+        if (! array_key_exists($lineId, $this->holders)) {
+            $this->holders[$lineId] = $this->workforce->skillHolders($lineId);
+        }
+
+        return $this->holders[$lineId];
+    }
+
+    /** Monday of the ISO week a date falls in — the period of week-long insight keys. */
+    public static function weekOf(string $date): string
+    {
+        return Carbon::parse($date)->startOfWeek(Carbon::MONDAY)->toDateString();
+    }
+
+    /**
+     * @param  list<array{line_id: int, date: string, shift: int}>  $cells
+     * @return list<array{line_id: int, date: string, shift: int}>
+     */
+    private function visibleCells(array $cells): array
+    {
+        return array_values(array_filter($cells, fn ($c) => in_array($c['date'], $this->days, true)));
     }
 
     private function categoryOf(string $type): string

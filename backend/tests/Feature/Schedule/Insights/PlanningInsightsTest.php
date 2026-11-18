@@ -282,21 +282,23 @@ class PlanningInsightsTest extends TestCase
 
     // ── who sees it ─────────────────────────────────────────────────────────
 
-    public function test_the_planner_page_carries_badges_for_planners_only(): void
+    public function test_the_planner_page_offers_insights_to_planners_only(): void
     {
         $this->plant();
         $this->planned($this->cnc, '2026-11-24', 1, operators: 4);
 
+        // The badges themselves come from the insights endpoint (one count per refresh).
         $this->actingAs($this->planner())->get('/admin/schedule?view_mode=weekly&start_date=2026-11-23')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/schedule/Planner')
                 ->where('canSeeInsights', true)
-                ->where('staffing.cells', fn ($cells) => collect($cells)->contains(fn ($c) => $c['line_id'] === $this->cnc->id && $c['short'])));
+                ->missing('staffing'));
+        $this->assertTrue(collect($this->drawer($this->planner())['staffing']['cells'])->contains(fn ($c) => $c['line_id'] === $this->cnc->id && $c['short']));
 
         $this->actingAs($this->planner('Operator'))->get('/admin/schedule?view_mode=weekly&start_date=2026-11-23')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('canSeeInsights', false)->where('staffing', null));
+            ->assertInertia(fn (Assert $page) => $page->where('canSeeInsights', false)->missing('staffing'));
     }
 
     public function test_a_supervisor_with_the_schedule_tab_sees_the_drawer(): void

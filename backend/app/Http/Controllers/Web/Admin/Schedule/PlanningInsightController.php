@@ -9,19 +9,22 @@ use App\Http\Requests\Web\Admin\Schedule\PlanningInsightRequest;
 use App\Http\Requests\Web\Admin\Schedule\SubstituteForInsightRequest;
 use App\Http\Requests\Web\Admin\Schedule\UndoPlanningInsightRequest;
 use App\Models\PlanningInsightAcknowledgement;
+use App\Services\Schedule\Insights\InsightConflict;
 use App\Services\Schedule\Insights\PlanningInsights;
 use Illuminate\Http\JsonResponse;
 
 /**
  * The Production Planner's insights drawer (JSON, fetched by the planner).
  * Every action answers with the refreshed drawer and staffing badges, so the
- * board updates without a reload.
+ * board updates without a reload. 409 when another planner got there first
+ * or an undo would clobber a later edit; 422 when the insight or the action
+ * is not on offer.
  */
 class PlanningInsightController extends Controller
 {
     public function index(PlanningInsightRequest $request): JsonResponse
     {
-        return response()->json($this->state($request));
+        return response()->json($this->state($request, $this->loaded($request)));
     }
 
     public function acknowledge(AcknowledgePlanningInsightRequest $request): JsonResponse
@@ -61,14 +64,21 @@ class PlanningInsightController extends Controller
     {
         try {
             app(PlanningInsights::class)->undo($acknowledgement);
+        } catch (InsightConflict $e) {
+            return $this->conflict($e);
         } catch (\DomainException $e) {
             return $this->refused($e);
         }
 
-        return response()->json(['success' => true, 'message' => __('Undone.')] + $this->state($request));
+        return response()->json(['success' => true, 'message' => __('Undone.')] + $this->state($request, $this->loaded($request)));
     }
 
     /**
+     * Run an action on the board's insights, then answer with the board as
+     * it is after the write. That second count needs fresh instances: the
+     * capacity provider reads the roster once per instance, and the write may
+     * just have changed it.
+     *
      * @param  callable(PlanningInsights): ?PlanningInsightAcknowledgement  $action
      */
     private function act(PlanningInsightRequest $request, callable $action): JsonResponse
@@ -80,6 +90,8 @@ class PlanningInsightController extends Controller
 
         try {
             $ack = $action($insights);
+        } catch (InsightConflict $e) {
+            return $this->conflict($e);
         } catch (\DomainException $e) {
             return $this->refused($e);
         }
@@ -92,20 +104,19 @@ class PlanningInsightController extends Controller
             'success' => true,
             'message' => $ack->summary,
             'acknowledgement_id' => $ack->id,
-        ] + $this->state($request));
+        ] + $this->state($request, $this->loaded($request)));
     }
 
     /** @return array{drawer: ?array<string, mixed>, staffing: ?array<string, mixed>} */
-    private function state(PlanningInsightRequest $request): array
+    private function state(PlanningInsightRequest $request, ?PlanningInsights $insights): array
     {
-        $insights = $this->loaded($request);
-
         return [
             'drawer' => $insights?->drawer(),
             'staffing' => $insights?->board(),
         ];
     }
 
+    /** The board's insights on a fresh instance; null for views without cells. */
     private function loaded(PlanningInsightRequest $request): ?PlanningInsights
     {
         $range = PlanningInsights::rangeFor($request->validated('view_mode'), $request->validated('start_date'));
@@ -114,12 +125,16 @@ class PlanningInsightController extends Controller
         }
         $lineId = $request->validated('line_id');
 
-        // A fresh instance: an action changes what the next read must see.
         return app(PlanningInsights::class)->load($range[0], $range[1], $lineId !== null ? (int) $lineId : null);
     }
 
     private function refused(\DomainException $e): JsonResponse
     {
         return response()->json(['message' => $e->getMessage(), 'errors' => ['insight_key' => [$e->getMessage()]]], 422);
+    }
+
+    private function conflict(InsightConflict $e): JsonResponse
+    {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
     }
 }
