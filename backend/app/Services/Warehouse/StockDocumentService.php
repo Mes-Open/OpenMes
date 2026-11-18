@@ -236,6 +236,14 @@ class StockDocumentService
      */
     private function applyLine(StockDocument $document, $line, bool $reverse, ?User $user): void
     {
+        // The shop floor already took this quantity off the lot, the location and
+        // the plant-wide stock when it consumed it. The line documents that for the
+        // warehouse and the ERP; moving stock again would count it twice, and a
+        // correction of it belongs to the consumption, not to this document.
+        if ($line->booked_at_source) {
+            return;
+        }
+
         $signed = $document->direction() * (float) $line->quantity * ($reverse ? -1 : 1);
 
         $material = $document->isMaterialDocument() && $line->material_id !== null
@@ -392,6 +400,7 @@ class StockDocumentService
             'lot_number' => $line['lot_number'] ?? null,
             'quantity' => abs((float) ($line['quantity'] ?? 0)),
             'unit_of_measure' => $line['unit_of_measure'] ?? null,
+            'booked_at_source' => $isMaterial && (bool) ($line['booked_at_source'] ?? false),
             'notes' => $line['notes'] ?? null,
         ];
     }
