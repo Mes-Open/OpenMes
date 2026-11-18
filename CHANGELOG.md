@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.29.3] - 2026-11-18
 
+### Changed
+
+- **Anonymous usage reports are on by default for new installations.** The web
+  installer already showed the question with the box ticked; a Docker install, which
+  skips that installer, now records "on" at first start as well, unless
+  `OPENMES_TELEMETRY=false` is set. `install.sh` no longer asks: it installs with
+  reporting on and says so in its final summary, together with where to switch it off
+  (*Settings → System → Usage reporting*); `./install.sh --no-telemetry` installs with
+  it off. Existing installations keep their current setting — an upgrade never turns
+  reporting on. What is sent is unchanged: information about the software only, never
+  anything entered into OpenMES (see `docs/telemetry.md`).
+
 ### Fixed
 
 - **Warehouse: consumed material no longer leaves stock twice.** When a work order

@@ -25,16 +25,24 @@ info() { echo -e "${CYAN}→ $*${NC}"; }
 # random passwords, no questions). Pass --interactive to customise domain/admin.
 DEV_MODE=0
 INTERACTIVE=0
+TELEMETRY=""
+case "$(printf '%s' "${OPENMES_TELEMETRY:-}" | tr '[:upper:]' '[:lower:]')" in
+    "") ;;
+    1 | true | yes | on) TELEMETRY=true ;;
+    *)                   TELEMETRY=false ;;
+esac
 for arg in "$@"; do
     case "$arg" in
         -i|--interactive) INTERACTIVE=1 ;;
         -y|--yes)         INTERACTIVE=0 ;; # default; kept for compatibility
         --dev)            DEV_MODE=1 ;;
+        --no-telemetry)   TELEMETRY=false ;;
         -h|--help)
-            echo "Usage: ./install.sh [--interactive] [--dev]"
+            echo "Usage: ./install.sh [--interactive] [--dev] [--no-telemetry]"
             echo "  (default)         unattended — sensible defaults, just works"
             echo "  -i, --interactive prompt for domain / admin user / email"
             echo "  --dev             run the vite-watch dev overlay instead of production"
+            echo "  --no-telemetry    do not send anonymous usage reports (default: on)"
             exit 0 ;;
         *) err "Unknown option: $arg" ;;
     esac
@@ -49,16 +57,6 @@ ask() { # ask <prompt> <default> <var>
         read -rp "  ${prompt} [${default}]: " reply || reply=""
     fi
     printf -v "$__var" '%s' "${reply:-$default}"
-}
-
-confirm_optin() { # confirm_optin <prompt>; default = NO. Only an explicit yes opts in.
-    local reply=""
-    # Unattended runs are not an answer. Reporting is opt-in, so nobody being
-    # there to say yes means no — the same rule the application applies to an
-    # absent setting.
-    [ "$INTERACTIVE" = "1" ] || return 1
-    read -rp "  $1 [y/N]: " reply || reply=""
-    case "${reply:-n}" in [Yy] | [Yy][Ee][Ss]) return 0 ;; *) return 1 ;; esac
 }
 
 confirm() { # confirm <prompt>; default = proceed (Enter / y / yes). Only "n"/"no" aborts.
@@ -158,24 +156,11 @@ ask "Domain (e.g. demo.example.com)" "localhost" DOMAIN
 ask "Admin username" "admin" ADMIN_USERNAME
 ask "Admin email" "admin@example.com" ADMIN_EMAIL
 
-# Reporting is opt-in. The web setup wizard asks this on its admin step, but a
-# Docker install never reaches that wizard — the entrypoint creates the admin
-# and marks the application installed — so without asking here nobody using
-# this script is ever asked at all.
-if [ "$INTERACTIVE" = "1" ]; then
-    echo ""
-    echo "  Anonymous usage reports"
-    echo "  OpenMES can send information about the software: version, which"
-    echo "  features are switched on, rough size bands, and where errors occur."
-    echo "  It never sends anything entered into the system — no order, product,"
-    echo "  customer or personal data. You can change this later in"
-    echo "  Settings -> System."
-fi
-if confirm_optin "Send anonymous usage reports?"; then
-    TELEMETRY=true
-else
-    TELEMETRY=false
-fi
+# Anonymous usage reports are on by default for a new installation. Switch
+# them off up front with --no-telemetry (or OPENMES_TELEMETRY=false in the
+# environment), or later in Settings -> System -> Usage reporting. The summary
+# at the end says which way this install went.
+TELEMETRY="${TELEMETRY:-true}"
 
 # ── Pick free host ports (80/443 preferred, auto-fallback if taken) ───────────
 
@@ -302,8 +287,8 @@ POSTGRES_PASSWORD=${DB_PASSWORD}
 
 # ── Anonymous usage reports ───────────────────────────────────────────────────
 # Read before the database exists, and passed to the container by
-# docker-compose.yml. false here also stops the entrypoint recording a choice,
-# which is what keeps an unattended install silent rather than opted in.
+# docker-compose.yml. The entrypoint records it as the administrator's answer on
+# first start; after that, Settings -> System -> Usage reporting decides.
 OPENMES_TELEMETRY=${TELEMETRY}
 
 # ── Admin account (created automatically on first run) ────────────────────────
@@ -363,6 +348,18 @@ printf  "  ║  Password: %-46s║\n" "${ADMIN_PASSWORD}"
 echo "  ║                                                          ║"
 echo "  ║  Credentials are saved in .env (do not share this file) ║"
 echo "  ╚══════════════════════════════════════════════════════════╝"
+echo ""
+if [ "$TELEMETRY" = "true" ]; then
+    echo "  Anonymous usage reports are ON."
+    echo "  OpenMES sends information about the software only: version, which"
+    echo "  features are switched on, rough size bands, and where errors occur."
+    echo "  Nothing entered into the system is sent: no order, product, customer"
+    echo "  or personal data. To switch it off: Settings -> System -> Usage"
+    echo "  reporting (or reinstall with --no-telemetry)."
+else
+    echo "  Anonymous usage reports are OFF. Turn them on in"
+    echo "  Settings -> System -> Usage reporting if you want to help."
+fi
 echo ""
 echo "  Useful commands:"
 echo "    docker compose logs -f backend          # Live logs"

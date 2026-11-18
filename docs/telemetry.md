@@ -4,7 +4,17 @@ OpenMES reports on **itself** so we can see which features are used, which
 environments are in the field, and which releases break — without waiting for
 somebody to email us.
 
-It is on by default and takes one click to turn off.
+It is on by default for a new installation and takes one click to turn off:
+
+- the web installer shows the question with the box ticked;
+- a Docker install (which skips the web installer) records "on" at first start
+  unless `OPENMES_TELEMETRY=false` is set;
+- `install.sh` says at the end that reporting is on and where to switch it off,
+  and `./install.sh --no-telemetry` installs with it off.
+
+An existing installation keeps its answer. Upgrading never switches reporting on
+for an installation that had it off — including the installations that 0.24.3
+switched off when reporting was briefly opt-in.
 
 ## The boundary
 
@@ -46,7 +56,7 @@ safe by construction.
 Any one of these is enough:
 
 1. **Settings → System → Usage reporting** — the switch.
-2. **`OPENMES_TELEMETRY=false`** in `.env` — read before the database, so it
+2. **`./install.sh --no-telemetry`**, or **`OPENMES_TELEMETRY=false`** in `.env` — read before the database, so it
    works on an air-gapped box and in a packaged build that has never started.
 3. **Block the host** at your firewall. Nothing breaks; see "No internet" below.
 
