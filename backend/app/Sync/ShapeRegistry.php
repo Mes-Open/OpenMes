@@ -10,6 +10,8 @@ use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\SerialUnitsRecentShape;
+use App\Sync\Shapes\ShipmentItemsRecentShape;
+use App\Sync\Shapes\ShipmentScansRecentShape;
 use App\Sync\Shapes\UnitAliasesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
@@ -184,6 +186,17 @@ class ShapeRegistry
         // Rolling recent window (see the class) so the append-only ledger can't
         // grow the synced payload without bound.
         'pallet_movements' => PalletMovementsRecentShape::class,
+        // Scan-to-load verification (#400): loads, their expected units and the
+        // dock's scan log. Read by the shipment pages (packaging tab) and the
+        // operators' loading terminal.
+        'shipments' => [
+            'table' => 'shipments',
+            'tabs' => ['packaging'],
+            'roles' => ['Operator'],
+            'columns' => ['id', 'shipment_no', 'erp_reference', 'carrier', 'vehicle_no', 'destination', 'planned_at', 'notes', 'status', 'started_at', 'started_by_id', 'confirmed_at', 'confirmed_by_id', 'short_reason', 'created_at', 'updated_at'],
+        ],
+        'shipment_items' => ShipmentItemsRecentShape::class,
+        'shipment_scans' => ShipmentScansRecentShape::class,
         // Units on the floor plus recently finished ones - the table grows by one row per product.
         'serial_units' => SerialUnitsRecentShape::class,
         // integration_configs: exclude api_config (may hold credentials).

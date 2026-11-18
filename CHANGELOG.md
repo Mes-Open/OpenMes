@@ -9,6 +9,51 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
+  of pallets and cartons it must take, and the dock scans every label against that list
+  before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
+  (supervisors: *Logistics → Shipments*) by pasting label numbers — one per line, pallet or
+  carton detected or chosen — or uploading a CSV. Operators open the new **Loading terminal**
+  (`/logistics/loading`): one large input for a keyboard-wedge scanner answers each scan at
+  once without leaving the page — green *loaded*, amber *duplicate*, red *not on this load*,
+  *unknown code* or *blocked* (pallet still open, failed or not released by quality, held
+  units, a carton on a pallet not released by quality, already shipped, already loaded on
+  another truck — a carton and its pallet never go on two trucks). A carton riding on a
+  listed pallet is reported, not counted twice; labels scanned faster than the answers come
+  back are queued, never dropped. Every scan is written to an append-only scan log, a mistaken scan can be
+  undone (logged as *removed*), and the expected / loaded / missing list updates live on every
+  screen watching the load. Scans lock the shipment and then the unit, so a label scanned at
+  two terminals or two docks at once is loaded once. *Confirm loading* re-checks every loaded
+  unit and ships all or nothing: pallets become *shipped* (their units follow) and loose
+  cartons are stamped shipped with their units. A short load can only be confirmed by a supervisor
+  or admin, with a reason. Confirmed and cancelled shipments reject further scans.
+  REST: `/api/v1/shipments` (list, show, create with `items[]`, scan, unload, confirm). ERP:
+  `POST /api/v1/erp/shipments` (scope `erp:shipments:write`; re-sending a planned load
+  replaces it) and `GET /api/v1/erp/shipments/{shipment_no}` plus a `?since=` feed (scope
+  `erp:shipments:read`) return the load result — loaded units with counts, missing,
+  unexpected, who confirmed and when. A new webhook event, `shipment.confirmed`, sends the
+  same result. Shipments, their items and scans are soft-deleted (the load ID can be reused
+  after a delete). See [docs/shipment-loading.md](docs/shipment-loading.md).
+
+## [0.29.3] - 2026-11-18
+
+### Fixed
+
+- **Warehouse: consumed material no longer leaves stock twice.** When a work order
+  completed, the generated production material release listed what the shop floor had
+  consumed, and posting that release took every line off stock again. Allocation had
+  already moved the lot and the plant-wide quantity, and consumption had moved the
+  location balance, so a lot emptied by production went negative and the warehouse total
+  dropped by the order's consumption twice. Release lines for material allocated to the
+  order are now flagged `booked_at_source`: posting or cancelling such a line confirms the
+  paperwork for the warehouse and the ERP without moving stock again. Material that was
+  never allocated still leaves stock only when the release is posted. The flag is set only
+  by the release generator; the stock document form does not accept it.
+
+## [0.29.2] - 2026-11-17
+
+### Added
+
 - **ERP API: key introspection, read-only master data, multi-status export.** An ERP
   integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
   granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,

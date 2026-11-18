@@ -5,6 +5,7 @@ namespace App\Services\Warehouse;
 use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
 use App\Models\Material;
+use App\Models\MaterialAllocation;
 use App\Models\MaterialLot;
 use App\Models\StockDocument;
 use App\Models\Warehouse;
@@ -19,7 +20,9 @@ use Illuminate\Support\Facades\Log;
  * When a work order is concluded, the raw-material warehouse owes a release for
  * what was consumed and the finished-goods warehouse owes a receipt for what was
  * produced. Both are created as DRAFTS: a warehouse keeper (or an ERP that pulls
- * them) decides when they are real, and nothing moves stock until posted.
+ * them) decides when they are real. Material the shop floor allocated was
+ * already taken off stock when it was consumed; its release lines are flagged
+ * booked_at_source, and posting them only confirms the paperwork.
  *
  * Material lines come from what was actually consumed per lot when the shop floor
  * recorded it, and fall back to the order's BOM × produced quantity when it did
@@ -104,6 +107,8 @@ class WorkOrderStockDocumentService
         if ($lines === []) {
             return null;
         }
+
+        $lines = $this->markBookedAtSource($workOrder, $lines);
 
         return $this->documents->createDraft([
             'type' => StockDocument::TYPE_MATERIAL_ISSUE,
@@ -317,6 +322,33 @@ class WorkOrderStockDocumentService
         }
 
         return array_values($lines);
+    }
+
+    /**
+     * Flag the lines whose material the shop floor already took off stock. A
+     * material allocated to this order's batches moved the lot, the plant-wide
+     * quantity and (with locations) the warehouse balance when it was picked and
+     * consumed, so posting the release must not move it again. Material nobody
+     * allocated still leaves stock only when the release is posted.
+     *
+     * @param  array<int, array<string, mixed>>  $lines
+     * @return array<int, array<string, mixed>>
+     */
+    private function markBookedAtSource(WorkOrder $workOrder, array $lines): array
+    {
+        $allocated = MaterialAllocation::query()
+            ->where(fn ($q) => $q->where('work_order_id', $workOrder->id)
+                ->orWhereHas('batch', fn ($b) => $b->where('work_order_id', $workOrder->id)))
+            ->whereIn('status', [MaterialAllocation::STATUS_ALLOCATED, MaterialAllocation::STATUS_CONSUMED])
+            ->distinct()
+            ->pluck('material_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_map(fn (array $line) => [
+            ...$line,
+            'booked_at_source' => in_array((int) ($line['material_id'] ?? 0), $allocated, true),
+        ], $lines);
     }
 
     /**

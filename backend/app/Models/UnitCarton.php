@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  */
 class UnitCarton extends Model
 {
-    use HasTenant;
+    use HasFactory, HasTenant;
 
     public const STATUS_OPEN = 'open';
 
@@ -29,6 +30,7 @@ class UnitCarton extends Model
         'qty',
         'closed_at',
         'closed_by_id',
+        'shipped_at',
         'created_by_id',
         'tenant_id',
         'active_by_id',
@@ -42,6 +44,7 @@ class UnitCarton extends Model
             'activated_at' => 'datetime',
             'qty' => 'integer',
             'closed_at' => 'datetime',
+            'shipped_at' => 'datetime',
         ];
     }
 
@@ -88,6 +91,11 @@ class UnitCarton extends Model
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    public function isShipped(): bool
+    {
+        return $this->shipped_at !== null;
     }
 
     public function units(): HasMany

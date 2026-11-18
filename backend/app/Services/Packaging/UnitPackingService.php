@@ -585,4 +585,30 @@ class UnitPackingService
 
         return $units->count();
     }
+
+    /**
+     * A loose carton left on a confirmed shipment: its units are shipped the
+     * same way a pallet's are, and a held unit keeps its hold.
+     */
+    public function markCartonShipped(UnitCarton $carton, ?User $actor = null, ?\DateTimeInterface $at = null): int
+    {
+        if ($carton->shipped_at === null) {
+            $carton->update(['shipped_at' => $at ?? now()]);
+        }
+
+        $units = SerialUnit::where('carton_id', $carton->id)
+            ->whereNotIn('status', [SerialUnit::STATUS_SCRAPPED, SerialUnit::STATUS_SHIPPED, SerialUnit::STATUS_BLOCKED])
+            ->get();
+
+        foreach ($units as $unit) {
+            $unit->update(['status' => SerialUnit::STATUS_SHIPPED, 'shipped_at' => $at ?? now()]);
+            if ($actor) {
+                $this->serials->recordStep($unit, $actor, null, [
+                    'parameters' => ['event' => 'shipped', 'carton_no' => $carton->carton_no],
+                ]);
+            }
+        }
+
+        return $units->count();
+    }
 }

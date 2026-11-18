@@ -24,6 +24,8 @@ class StockDocumentLine extends Model
         'lot_number',
         'quantity',
         'unit_of_measure',
+        // Already taken off stock by shop-floor consumption; posting leaves stock alone.
+        'booked_at_source',
         'notes',
         'sort_order',
     ];
@@ -33,6 +35,7 @@ class StockDocumentLine extends Model
         return [
             'quantity' => 'decimal:3',
             'sort_order' => 'integer',
+            'booked_at_source' => 'boolean',
         ];
     }
 

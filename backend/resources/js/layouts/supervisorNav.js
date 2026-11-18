@@ -91,6 +91,19 @@ export const SUPERVISOR_GROUPS = [
         ],
     },
     {
+        // Scan-to-load verification (#400): plan loads, then follow the dock.
+        key: 'supervisor-logistics',
+        label: 'Logistics',
+        lucide: 'truck',
+        href: '/supervisor/shipments',
+        match: ['/supervisor/shipments', '/logistics/loading'],
+        module: 'packaging',
+        children: [
+            { label: 'Shipments', href: '/supervisor/shipments', match: ['/supervisor/shipments'], lucide: 'truck' },
+            { label: 'Loading terminal', href: '/logistics/loading', match: ['/logistics/loading'], lucide: 'scan-barcode' },
+        ],
+    },
+    {
         key: 'supervisor-reports',
         label: 'Reports',
         lucide: 'chart-column',
