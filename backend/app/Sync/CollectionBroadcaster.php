@@ -64,6 +64,11 @@ class CollectionBroadcaster
             'lot_sequences' => [Models\LotSequence::class, null],
             'pallets' => [Models\Pallet::class, null],
             'pallet_movements' => [Models\PalletMovement::class, null],
+            // Scan-to-load verification (#400): the terminal and a second screen
+            // at the dock must see every scan as it happens.
+            'shipments' => [Models\Shipment::class, null],
+            'shipment_items' => [Models\ShipmentItem::class, null],
+            'shipment_scans' => [Models\ShipmentScan::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
             'view_templates' => [Models\ViewTemplate::class, null],
             'inspection_plans' => [Models\InspectionPlan::class, null],
