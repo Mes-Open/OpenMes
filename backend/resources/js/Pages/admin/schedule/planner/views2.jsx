@@ -5,6 +5,8 @@ import { useState, useRef } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
 import { TwinChip, ShortageChip } from './OrderCard';
+import { StaffBadge } from './insights';
+import { cellKey } from './insightsState';
 import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
 } from './helpers';
@@ -12,6 +14,20 @@ import {
 const HLANE = 60;
 const HGAP = 0;
 const LBL_W = 150;
+// Band at the top of a line's track for the staffing badges (planners only).
+const STAFF_BAND = 22;
+
+const clockMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+
+/** Each board shift as a [start, end) minute range of the day (an overnight shift is cut at midnight). */
+function shiftSpans(columns) {
+    return (columns ?? []).map((c, i) => {
+        const start = clockMin(c.start);
+        let end = clockMin(c.end);
+        if (end <= start) end = 1440;
+        return { shift: i + 1, start, end, name: c.name };
+    });
+}
 
 function fmtMin(m) {
     m = ((Math.round(m) % 1440) + 1440) % 1440;
@@ -19,7 +35,7 @@ function fmtMin(m) {
     return p(Math.floor(m / 60)) + ':' + p(m % 60);
 }
 
-function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
+function HourlyBar({ item, ctx, slotMinutes, laneTop, short = false }) {
     const { wo } = item;
     const twinMeta = chainChipMeta(wo, item.placementKey, ctx.data.allLines);
     const readOnly = item.spansOutside || item.placementKey !== 'primary';
@@ -106,7 +122,13 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
                         <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap' }}>{wo.order_no}</span>
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
-                        <span className="ml-auto"><ShortageChip wo={wo} compact /></span>
+                        <span className="ml-auto flex items-center gap-1">
+                            {short && (
+                                <span data-testid="short-staffed" title={__('Short of people in this shift')} className="inline-flex items-center"
+                                    style={{ color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px', fontSize: 8, fontFamily: MONO }}>!</span>
+                            )}
+                            <ShortageChip wo={wo} compact />
+                        </span>
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{timing}</span>
                 </div>
@@ -152,6 +174,11 @@ export function HourlyView({ ctx }) {
                     <div className="flex" style={{ borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
                         <div style={{ width: LBL_W, flexShrink: 0, padding: '10px 14px', fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--om-faint)', borderRight: '1px solid var(--om-line2)' }}>
                             {formatDate(parseDate(dateStr), { weekday: 'short', day: '2-digit', month: 'short' })}
+                            {ctx.staffing?.days?.[dateStr]?.absent > 0 && (
+                                <span data-testid="day-absent" title={ctx.staffing.days[dateStr].names.join(', ')} style={{ marginLeft: 6, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 999, padding: '0 6px', textTransform: 'none' }}>
+                                    {__(':count absent', { count: ctx.staffing.days[dateStr].absent })}
+                                </span>
+                            )}
                         </div>
                         <div className="flex" style={{ flex: 1 }}>
                             {hours.map((h) => <div key={h} style={{ flex: 1, padding: '10px 0', textAlign: 'center', fontFamily: MONO, fontSize: 9.5, color: 'var(--om-faint)', borderRight: '1px solid var(--om-line2)' }}>{h}</div>)}
@@ -160,7 +187,11 @@ export function HourlyView({ ctx }) {
                     {/* line tracks */}
                     {data.lines.map((line) => {
                         const { items, totalLanes } = hourlyLanes(data.workOrders, line.id, dateStr, data.shifts);
-                        const h = totalLanes * (HLANE + HGAP);
+                        const band = ctx.staffing ? STAFF_BAND : 0;
+                        const h = totalLanes * (HLANE + HGAP) + band;
+                        const spans = ctx.staffing ? shiftSpans(ctx.staffing.columns) : [];
+                        const staffOf = (shift) => ctx.staffing?.byKey[cellKey(line.id, dateStr, shift)];
+                        const shortAt = (it) => spans.some((sp) => staffOf(sp.shift)?.short && it.start < sp.end && it.end > sp.start);
                         return (
                             <div key={line.id} className="flex" style={{ borderBottom: '1px solid var(--om-line2)', minHeight: 60 }}>
                                 <div style={{ width: LBL_W, flexShrink: 0, padding: '12px 14px', borderRight: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
@@ -179,7 +210,17 @@ export function HourlyView({ ctx }) {
                                             <span style={{ position: 'absolute', top: -1, left: -3, width: 7, height: 7, borderRadius: 999, background: 'var(--om-accent)' }} />
                                         </div>
                                     )}
-                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP)} />)}
+                                    {spans.map((sp) => {
+                                        const cell = staffOf(sp.shift);
+                                        const hl = ctx.highlight?.has(cellKey(line.id, dateStr, sp.shift));
+                                        return (
+                                            <div key={'st' + sp.shift} style={{ position: 'absolute', top: 0, height: hl ? '100%' : band, left: (sp.start / 1440 * 100) + '%', width: ((sp.end - sp.start) / 1440 * 100) + '%', zIndex: hl ? 9 : 1, pointerEvents: 'none', boxShadow: hl ? 'inset 0 0 0 2.5px var(--om-accent)' : 'none', borderLeft: '1px dashed var(--om-line2)' }}
+                                                data-testid={hl ? 'plan-highlight' : undefined}>
+                                                {cell && <span style={{ pointerEvents: 'auto' }}><StaffBadge cell={cell} style={{ margin: '3px 0 0 4px' }} /></span>}
+                                            </div>
+                                        );
+                                    })}
+                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={band + it.lane * (HLANE + HGAP)} short={shortAt(it)} />)}
                                 </div>
                             </div>
                         );
