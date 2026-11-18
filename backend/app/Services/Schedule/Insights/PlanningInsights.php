@@ -350,10 +350,12 @@ class PlanningInsights
         $actions[] = ['kind' => 'acknowledge', 'label' => __('Acknowledge'), 'effect' => __('Keep the plan as it is.'), 'score' => -1];
 
         $why = $shared
-            ? __(':names is booked on :other at that time, so :line has :available of the :needed people its work needs.', [
-                'names' => implode(', ', $held[0]['names']), 'other' => $held[0]['line_name'], 'line' => $line,
-                'available' => $cell['available'], 'needed' => $cell['needed'],
-            ])
+            ? __(count($held[0]['names']) === 1
+                ? ':names is booked on :other at that time, so :line has :available of the :needed people its work needs.'
+                : ':names are booked on :other at that time, so :line has :available of the :needed people its work needs.', [
+                    'names' => implode(', ', $held[0]['names']), 'other' => $held[0]['line_name'], 'line' => $line,
+                    'available' => $cell['available'], 'needed' => $cell['needed'],
+                ])
             : __('The plan needs :needed operators on :line, :slot. :available are available.', [
                 'needed' => $cell['needed'], 'line' => $line, 'slot' => $slot, 'available' => $cell['available'],
             ]);
@@ -378,7 +380,9 @@ class PlanningInsights
                 ? __('Shared operator holds back :line on :slot', ['line' => $line, 'slot' => $slot])
                 : __(':line short on :slot', ['line' => $line, 'slot' => $slot]),
             'meta' => $shared
-                ? __(':names also works on :other', ['names' => implode(', ', $held[0]['names']), 'other' => $held[0]['line_name']])
+                ? (count($held[0]['names']) === 1
+                    ? __(':names also works on :other', ['names' => $held[0]['names'][0], 'other' => $held[0]['line_name']])
+                    : __(':names also work on :other', ['names' => implode(', ', $held[0]['names']), 'other' => $held[0]['line_name']]))
                 : ($absent !== [] ? __('Absent: :names', ['names' => implode(', ', $absent)]) : __('Needs :needed, :available available', ['needed' => $cell['needed'], 'available' => $cell['available']])),
             'impact' => trans_choice(':count order|:count orders', count($affected), ['count' => count($affected)])
                 .($late > 0 ? ' · '.__(':count late', ['count' => $late]) : ''),

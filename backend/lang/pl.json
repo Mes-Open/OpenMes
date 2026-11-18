@@ -7748,5 +7748,7 @@
     "Badge = people available / people the planned work needs": "Znaczek = dostępni ludzie / ludzie potrzebni do zaplanowanej pracy",
     "badge = available / needed": "znaczek = dostępni / potrzebni",
     "Short of people in this shift": "Brak ludzi na tej zmianie",
-    ":count absent": "nieobecni: :count"
+    ":count absent": "nieobecni: :count",
+    ":names also work on :other": ":names pracują też na :other",
+    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names pracują w tym czasie na :other, więc :line ma :available z :needed osób potrzebnych do pracy."
 }

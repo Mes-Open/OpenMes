@@ -7748,5 +7748,7 @@
     "Badge = people available / people the planned work needs": "Badge = people available / people the planned work needs",
     "badge = available / needed": "badge = available / needed",
     "Short of people in this shift": "Short of people in this shift",
-    ":count absent": ":count absent"
+    ":count absent": ":count absent",
+    ":names also work on :other": ":names also work on :other",
+    ":names are booked on :other at that time, so :line has :available of the :needed people its work needs.": ":names are booked on :other at that time, so :line has :available of the :needed people its work needs."
 }
