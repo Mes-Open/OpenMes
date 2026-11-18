@@ -5,7 +5,8 @@ import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
-import { __, formatDate, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatNumber, formatTime } from '../../../lib/i18n';
+import { TONE_STYLE, shortName, staffingGrid, staffingTone } from '../../../lib/staffing';
 
 const MONO = 'var(--font-mono)';
 
@@ -301,77 +302,104 @@ function StaffingPanel({ workforce, canAssignOperators }) {
     );
 }
 
-/** "2026-10-12" + its run start → "Mon 12.10", the weekday in the reader's language. */
-const dayLabel = (row) => `${formatDate(row.start, { weekday: 'short' })} ${row.date.slice(8, 10)}.${row.date.slice(5, 7)}`;
+/** Time of day of an ISO stamp in the reader's locale: "06:00". */
+const clock = (iso) => formatTime(iso, { hour: '2-digit', minute: '2-digit', hour12: false });
 
-/** Per line, day and shift run: who is there, what the plan asks, how many are missing. */
-function StaffingByShift({ staffing }) {
-    const rows = staffing?.shifts ?? [];
-    // The shift column only earns its place when some line runs several shifts a day.
-    const perDay = {};
-    rows.forEach((r) => { perDay[`${r.line_id}|${r.date}`] = (perDay[`${r.line_id}|${r.date}`] ?? 0) + 1; });
-    const multiShift = Object.values(perDay).some((n) => n > 1);
+/** One line × shift cell: people available / people the draft needs. */
+function GridCell({ cell }) {
+    if (!cell) return <td className="p-0.5"><div className="rounded-om-sm px-1 py-1.5 text-center text-[11px]" style={TONE_STYLE.idle}>·</div></td>;
+    const tone = staffingTone(cell);
+    const absent = cell.absent ?? [];
+    const held = cell.held_elsewhere ?? [];
+    const tip = [
+        `${cell.shift_name} · ${clock(cell.start)}–${clock(cell.end)}`,
+        __(':available available, :needed needed', { available: cell.available ?? 0, needed: cell.needed ?? 0 }),
+        absent.length ? `${__('Absent')}: ${absent.map((w) => w.name ?? `#${w.id}`).join(', ')}` : null,
+        ...held.map((h) => __(':names booked on :line', { names: h.names.join(', '), line: h.line_name })),
+        cell.person_hours > 0 ? __(':hours planned person-hours', { hours: formatNumber(cell.person_hours, { maximumFractionDigits: 1 }) }) : null,
+        cell.blocked_operations > 0 ? __(':count operations blocked', { count: cell.blocked_operations }) : null,
+    ].filter(Boolean).join('\n');
+    const note = absent.length
+        ? __(':name absent', { name: absent.length === 1 ? shortName(absent[0].name) : String(absent.length) })
+        : held.length ? __(':name on :line', { name: shortName(held[0].names[0]), line: held[0].line_name }) : null;
 
-    const head = 'px-3 py-2 text-left text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint whitespace-nowrap';
-    const cell = 'px-3 py-2 align-top text-[12.5px] text-om-ink';
+    return (
+        <td className="p-0.5">
+            <div className="rounded-om-sm px-1 py-1.5 text-center" style={{ ...TONE_STYLE[tone], fontFamily: MONO }} title={tip}
+                data-testid="staffing-cell" data-tone={tone}>
+                <div className={`text-[12.5px] ${tone === 'short' ? 'font-bold' : 'font-semibold'}`}>
+                    {tone === 'idle' ? '—' : `${cell.available}/${cell.needed}`}
+                </div>
+                {note && <div className="truncate text-[10px] font-medium" style={{ fontFamily: 'var(--font-sans, inherit)' }}>{note}</div>}
+            </div>
+        </td>
+    );
+}
+
+/** Lines as rows, day + shift as columns, one week at a time. */
+function StaffingByShift({ staffing, canAssignOperators }) {
+    const grid = staffingGrid(staffing?.shifts);
+    const [weekIdx, setWeekIdx] = useState(0);
+    const week = grid.weeks[Math.min(weekIdx, grid.weeks.length - 1)];
+    const cols = grid.columns[week] ?? [];
+    const head = 'px-1 py-1 text-center text-[9.5px] font-normal uppercase tracking-[0.06em] text-om-faint whitespace-nowrap';
+    const legend = [['spare', __('Spare people')], ['enough', __('Exactly enough')], ['short', __('Short')], ['untracked', __('Staffing not tracked')]];
 
     return (
         <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="staffing-by-shift">
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing by shift')}</div>
-            {rows.length === 0 ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing by shift')}</div>
+                <div className="text-[11.5px] text-om-muted">{__('cell = people available / people the plan needs')}</div>
+            </div>
+            {grid.lines.length === 0 ? (
                 <div className="text-[12.5px] text-om-muted">{__('No staffing demand in this horizon.')}</div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="border-b border-om-line" style={{ fontFamily: MONO }}>
-                                <th className={head}>{__('Day')}</th>
-                                <th className={head}>{__('Line')}</th>
-                                {multiShift && <th className={head}>{__('Shift')}</th>}
-                                <th className={head}>{__('Present')}</th>
-                                <th className={head}>{__('Absent')}</th>
-                                <th className={`${head} text-right`}>{__('Planned person-hours')}</th>
-                                <th className={`${head} text-right`}>{__('Peak operators')}</th>
-                                <th className={`${head} text-right`}>{__('Shortfall')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line">
-                            {rows.map((r) => (
-                                <tr key={`${r.line_id}-${r.start}`} data-testid="staffing-row">
-                                    <td className={`${cell} whitespace-nowrap`} style={{ fontFamily: MONO }}>{dayLabel(r)}</td>
-                                    <td className={`${cell} whitespace-nowrap font-semibold`}>{r.line_name}</td>
-                                    {multiShift && <td className={`${cell} whitespace-nowrap`}>{r.shift_name}</td>}
-                                    <td className={`${cell} whitespace-nowrap`} style={{ fontFamily: MONO }}>
-                                        {r.tracked ? (
-                                            r.assigned != null ? `${r.present}/${r.assigned}` : r.present
-                                        ) : (
-                                            <span className="inline-block rounded-om-sm bg-om-downtime-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-om-downtime" title={UNTRACKED_TEXT()} style={{ fontFamily: 'inherit' }}>
-                                                {__('staffing not tracked')}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className={cell}>
-                                        {r.absent?.length ? r.absent.map((w) => w.name ?? `#${w.id}`).join(', ') : <span className="text-om-faint">—</span>}
-                                    </td>
-                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>{formatNumber(r.person_hours, { maximumFractionDigits: 1 })}</td>
-                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>{r.peak_operators}</td>
-                                    <td className={`${cell} text-right`} style={{ fontFamily: MONO }}>
-                                        {r.shortfall == null ? (
-                                            <span className="text-om-faint">—</span>
-                                        ) : r.shortfall > 0 ? (
-                                            <span className="font-semibold text-om-blocked" data-testid="staffing-shortfall">{r.shortfall}</span>
-                                        ) : (
-                                            <span className="text-om-muted">0</span>
-                                        )}
-                                        {r.blocked_operations > 0 && (
-                                            <div className="text-[11px] text-om-blocked">{__(':count operations blocked', { count: r.blocked_operations })}</div>
-                                        )}
-                                    </td>
+                <>
+                    {grid.weeks.length > 1 && (
+                        <div className="flex items-center gap-2 text-[12px]" data-testid="staffing-week-pager">
+                            <Button size="sm" variant="outline" disabled={weekIdx === 0} onClick={() => setWeekIdx(weekIdx - 1)} aria-label={__('Previous week')}><Icon name="chevron-left" size={14} /></Button>
+                            <span style={{ fontFamily: MONO }}>{__('Week of :date', { date: formatDate(week, { day: '2-digit', month: '2-digit' }) })} · {weekIdx + 1}/{grid.weeks.length}</span>
+                            <Button size="sm" variant="outline" disabled={weekIdx >= grid.weeks.length - 1} onClick={() => setWeekIdx(weekIdx + 1)} aria-label={__('Next week')}><Icon name="chevron-right" size={14} /></Button>
+                        </div>
+                    )}
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-separate" style={{ borderSpacing: 0, minWidth: 120 + cols.length * 64 }}>
+                            <thead>
+                                <tr style={{ fontFamily: MONO }}>
+                                    <th className={`${head} text-left`}>{__('Line')}</th>
+                                    {cols.map((c) => (
+                                        <th key={c.key} className={head} title={c.shift_name}>
+                                            {formatDate(c.start, { weekday: 'short' })} {c.date.slice(8, 10)}.{c.date.slice(5, 7)}
+                                            <br />{clock(c.start)}–{clock(c.end)}
+                                        </th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {grid.lines.map((line) => (
+                                    <tr key={line.id} data-testid="staffing-row">
+                                        <td className="whitespace-nowrap pr-2 text-[12.5px] font-semibold text-om-ink">{line.name}</td>
+                                        {line.tracked ? cols.map((c) => <GridCell key={c.key} cell={grid.cell(line.id, c.key)} />) : (
+                                            <td colSpan={Math.max(1, cols.length)} className="p-0.5">
+                                                <div className="rounded-om-sm px-2 py-1.5 text-center text-[12px]" style={TONE_STYLE.untracked} data-testid="staffing-cell" data-tone="untracked">
+                                                    {UNTRACKED_TEXT()}.{' '}
+                                                    {canAssignOperators && <Link href={`/admin/lines/${line.id}#operators`} className="font-semibold text-om-accent hover:underline">{__('Assign operators')}</Link>}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[11.5px] text-om-muted">
+                        {legend.map(([tone, label]) => (
+                            <span key={tone} className="inline-flex items-center gap-1.5">
+                                <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE_STYLE[tone].background, outline: `1px solid ${TONE_STYLE[tone].color}` }} />{label}
+                            </span>
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     );
@@ -675,7 +703,7 @@ export default function AutoSchedule() {
                         <StaffingPanel workforce={draft.workforce} canAssignOperators={canAssignOperators} />
                         {draft.staffing && (
                             <>
-                                <StaffingByShift staffing={draft.staffing} />
+                                <StaffingByShift staffing={draft.staffing} canAssignOperators={canAssignOperators} />
                                 <HorizonAbsences absences={draft.staffing.absences} />
                             </>
                         )}
