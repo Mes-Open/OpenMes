@@ -3,13 +3,19 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PalletStatus;
+use App\Models\Line;
 use App\Models\Pallet;
 use App\Models\SerialUnit;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
 use App\Models\Tenant;
+use App\Models\UnitCarton;
 use App\Models\User;
+use App\Models\Workstation;
+use App\Services\Logistics\ShipmentLoadingService;
+use App\Support\Integration\ShipmentPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -213,5 +219,102 @@ class ShipmentApiTest extends TestCase
         $item = ShipmentItem::factory()->for($two)->create(['tenant_id' => $this->tenant->id]);
 
         $this->actingAs($this->operator)->postJson("/api/v1/shipments/{$one->id}/items/{$item->id}/unload")->assertNotFound();
+    }
+
+    public function test_a_workstation_of_another_tenant_is_rejected_on_scan_and_unload(): void
+    {
+        $other = Tenant::create(['name' => 'Plant B']);
+        $foreignStation = Workstation::factory()->create(['line_id' => Line::factory()->create(['tenant_id' => $other->id])->id]);
+        $ownStation = Workstation::factory()->create(['line_id' => Line::factory()->create(['tenant_id' => $this->tenant->id])->id]);
+        $pallet = $this->pallet();
+        $shipment = Shipment::factory()->create(['tenant_id' => $this->tenant->id]);
+        $item = ShipmentItem::factory()->for($shipment)->forPallet($pallet)->create(['tenant_id' => $this->tenant->id]);
+
+        $this->actingAs($this->operator)
+            ->postJson("/api/v1/shipments/{$shipment->id}/scan", ['code' => $pallet->pallet_no, 'workstation_id' => $foreignStation->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['workstation_id']);
+        $this->actingAs($this->operator)
+            ->postJson("/api/v1/shipments/{$shipment->id}/scan", ['code' => $pallet->pallet_no, 'workstation_id' => $ownStation->id])
+            ->assertOk()->assertJsonPath('data.scan.result', 'loaded');
+        $this->actingAs($this->operator)
+            ->postJson("/api/v1/shipments/{$shipment->id}/items/{$item->id}/unload", ['workstation_id' => $foreignStation->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['workstation_id']);
+    }
+
+    /** A shipment with $n loaded pallets (units on each) and $n loaded loose cartons. */
+    private function loadedShipment(int $n): Shipment
+    {
+        $service = app(ShipmentLoadingService::class);
+        $shipment = Shipment::factory()->create(['tenant_id' => $this->tenant->id]);
+        for ($i = 0; $i < $n; $i++) {
+            $pallet = $this->pallet();
+            SerialUnit::factory()->count(2)->create(['pallet_id' => $pallet->id, 'status' => SerialUnit::STATUS_COMPLETED, 'tenant_id' => $this->tenant->id]);
+            $carton = UnitCarton::factory()->closed()->create(['qty' => 4, 'tenant_id' => $this->tenant->id]);
+            ShipmentItem::factory()->for($shipment)->forPallet($pallet)->create(['tenant_id' => $this->tenant->id]);
+            ShipmentItem::factory()->for($shipment)->forCarton($carton)->create(['tenant_id' => $this->tenant->id]);
+            $service->scan($shipment, $pallet->pallet_no, $this->operator);
+            $service->scan($shipment, $carton->carton_no, $this->operator);
+        }
+        $service->scan($shipment, 'STRAY-1', $this->operator);
+
+        return $shipment;
+    }
+
+    private function queriesFor(callable $fn): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $fn();
+        $count = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        return $count;
+    }
+
+    public function test_presenting_a_shipment_takes_a_bounded_number_of_queries(): void
+    {
+        $small = $this->loadedShipment(2);
+        $large = $this->loadedShipment(25);
+
+        $smallCount = $this->queriesFor(fn () => ShipmentPresenter::present(Shipment::find($small->id)));
+        $payload = null;
+        $largeCount = $this->queriesFor(function () use ($large, &$payload) {
+            $payload = ShipmentPresenter::present(Shipment::find($large->id));
+        });
+
+        $this->assertSame($smallCount, $largeCount, 'Query count must not grow with the number of items.');
+        $this->assertLessThanOrEqual(10, $largeCount);
+        $this->assertSame(50, $payload['totals']['loaded']);
+        $this->assertSame(25 * 2 + 25 * 4, $payload['totals']['loaded_units']);
+        $this->assertSame(2, collect($payload['loaded'])->firstWhere('unit_type', 'pallet')['unit_count']);
+        $this->assertSame(4, collect($payload['loaded'])->firstWhere('unit_type', 'carton')['unit_count']);
+    }
+
+    public function test_the_scan_response_does_not_load_the_whole_shipment(): void
+    {
+        $small = $this->loadedShipment(2);
+        $large = $this->loadedShipment(25);
+        $this->actingAs($this->operator);
+        // Warm up the request pipeline (permission cache, settings) once.
+        $this->postJson("/api/v1/shipments/{$small->id}/scan", ['code' => 'STRAY-0'])->assertOk();
+
+        $smallCount = $this->queriesFor(fn () => $this->postJson("/api/v1/shipments/{$small->id}/scan", ['code' => 'STRAY-2'])->assertOk());
+        $response = null;
+        $largeCount = $this->queriesFor(function () use ($large, &$response) {
+            $response = $this->postJson("/api/v1/shipments/{$large->id}/scan", ['code' => 'STRAY-2'])->assertOk();
+        });
+
+        $this->assertSame($smallCount, $largeCount, 'Query count must not grow with the number of items.');
+        // The answer needs three counts, not the scan log or every row's unit.
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->postJson("/api/v1/shipments/{$large->id}/scan", ['code' => 'STRAY-3'])->assertOk();
+        $reads = collect(DB::getQueryLog())->filter(fn (array $q) => str_starts_with(strtolower($q['query']), 'select'));
+        DB::disableQueryLog();
+        $this->assertEmpty($reads->filter(fn (array $q) => str_contains($q['query'], 'from "shipment_scans"'))->all(), 'The scan answer must not read the scan log.');
+        $this->assertLessThan(10, $reads->max(fn (array $q) => count($q['bindings'])), 'The scan answer must not load every listed unit.');
+        $response->assertJsonPath('data.totals.expected', 50)
+            ->assertJsonPath('data.totals.loaded', 50)
+            ->assertJsonPath('data.totals.missing', 0);
     }
 }

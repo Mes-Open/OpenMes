@@ -2665,7 +2665,10 @@ Content-Type: application/json
 `shipment_no` and every `identifier`: up to 64 characters, letters, digits and `- _ / .`.
 At most 500 items. A new `shipment_no` → `201`. Re-sending a `shipment_no` that is still
 `planned` replaces its header and expected list → `200`; once the dock has started
-loading (or the load is confirmed / cancelled) → `409`.
+loading (or the load is confirmed / cancelled) → `409`. The status is checked on the
+locked shipment row the replace writes, so a dock starting the load at the same moment
+gets either the old list or the new one, never half of each. Two identical creates sent
+at the same instant (an ERP retry) resolve to one shipment: one `201`, the other `200`.
 
 ```http
 GET /api/v1/erp/shipments/{shipment_no}                           # scope: erp:shipments:read

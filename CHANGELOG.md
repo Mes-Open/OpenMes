@@ -17,13 +17,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   (`/logistics/loading`): one large input for a keyboard-wedge scanner answers each scan at
   once without leaving the page — green *loaded*, amber *duplicate*, red *not on this load*,
   *unknown code* or *blocked* (pallet still open, failed or not released by quality, held
-  units, already loaded on another truck). A carton riding on a listed pallet is reported,
-  not counted twice. Every scan is written to an append-only scan log, a mistaken scan can be
+  units, a carton on a pallet not released by quality, already shipped, already loaded on
+  another truck — a carton and its pallet never go on two trucks). A carton riding on a
+  listed pallet is reported, not counted twice; labels scanned faster than the answers come
+  back are queued, never dropped. Every scan is written to an append-only scan log, a mistaken scan can be
   undone (logged as *removed*), and the expected / loaded / missing list updates live on every
-  screen watching the load. Two scanners at the same truck are serialised by a row lock, so
-  a label scanned twice at once is loaded once. *Confirm loading* ships what was loaded:
-  pallets become *shipped* (their units follow, held units keep their hold) and the units of
-  loose cartons are shipped the same way. A short load can only be confirmed by a supervisor
+  screen watching the load. Scans lock the shipment and then the unit, so a label scanned at
+  two terminals or two docks at once is loaded once. *Confirm loading* re-checks every loaded
+  unit and ships all or nothing: pallets become *shipped* (their units follow) and loose
+  cartons are stamped shipped with their units. A short load can only be confirmed by a supervisor
   or admin, with a reason. Confirmed and cancelled shipments reject further scans.
   REST: `/api/v1/shipments` (list, show, create with `items[]`, scan, unload, confirm). ERP:
   `POST /api/v1/erp/shipments` (scope `erp:shipments:write`; re-sending a planned load

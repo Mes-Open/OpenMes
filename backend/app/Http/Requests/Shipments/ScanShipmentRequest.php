@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Shipments;
 
 use App\Models\Shipment;
+use App\Rules\VisibleToCaller;
+use App\Services\Logistics\ShipmentLoadingService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /** One label scanned at the dock. */
@@ -17,7 +19,7 @@ class ScanShipmentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('code'))) {
-            $this->merge(['code' => trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', $this->input('code')))]);
+            $this->merge(['code' => app(ShipmentLoadingService::class)->normalise($this->input('code'))]);
         }
     }
 
@@ -25,7 +27,7 @@ class ScanShipmentRequest extends FormRequest
     {
         return [
             'code' => ['required', 'string', 'max:'.Shipment::IDENTIFIER_MAX, 'regex:'.Shipment::IDENTIFIER_REGEX],
-            'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
+            'workstation_id' => ['nullable', 'bail', 'integer', VisibleToCaller::workstation()],
         ];
     }
 

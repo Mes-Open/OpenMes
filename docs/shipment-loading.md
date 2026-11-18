@@ -63,20 +63,22 @@ cancel it first.
 
 ## Loading terminal (operator)
 
-`/logistics/loading` — the **Loading** tab in the operator top bar, *Loading terminal* in
-the admin and supervisor menus. Pick an open shipment, then scan.
+`/logistics/loading` — *Loading terminal* in the admin and supervisor menus; on a dock
+tablet, bookmark the URL (like the Move Pallet terminal). Pick an open shipment, then scan.
 
 The scan box keeps the focus, so a keyboard-wedge scanner (which "types" the label and
-presses Enter) works without touching the screen. Each scan is answered at once, in place —
+presses Enter) works without touching the screen. The box clears as soon as Enter arrives;
+labels scanned while an earlier answer is still on its way are queued and sent in order, so
+a fast scanner never loses one. Each scan is answered at once, in place —
 the page never navigates — with a coloured panel and a toast:
 
 | Answer | Colour | When |
 |---|---|---|
 | **Loaded** | green | The unit is on the list and was not loaded yet. |
-| **Duplicate** | amber | Already loaded on this truck. Also for a carton whose pallet is on the list: it travels with the pallet and is not counted twice. |
-| **Not on this load** | red | A real pallet / carton that is not on the list. |
+| **Duplicate** | amber | Already loaded on this truck. Also for a carton whose pallet is on the list (even when the list names the carton too): it travels with the pallet and is not counted twice. |
+| **Not on this load** | red | A real pallet / carton that is not on the list. A list row only counts for a unit of its own type: a carton never satisfies a *pallet* row with its number, nor the other way round. |
 | **Unknown code** | red | No such pallet or carton (in this plant). |
-| **Blocked** | red | The unit may not leave: pallet still open, already shipped, failed quality control or not released by quality yet, carries held units, carton still open, or already loaded on another open shipment. |
+| **Blocked** | red | The unit may not leave: pallet still open, already shipped, failed quality control or not released by quality yet, carries held units; carton still open, already shipped, holds held units, or sits on a pallet that failed or is not released by quality; or the unit is already loaded on another open shipment — including a carton whose pallet is on another truck and a pallet one of whose cartons is. A pallet one of whose cartons was already loaded on its own on this truck is blocked too: undo the carton first. |
 
 The expected list, totals and scan log are live: a second screen on the same shipment (the
 office, a supervisor's tablet) sees every scan as it happens.
@@ -85,15 +87,23 @@ office, a supervisor's tablet) sees every scan as it happens.
 log and the undo is logged as *removed*.
 
 Two scanners at the same truck are safe: each scan locks the shipment row, so a label
-scanned at both at once is loaded once and answered *duplicate* on the other.
+scanned at both at once is loaded once and answered *duplicate* on the other. Two docks
+loading the same unit onto two trucks are safe as well: after the shipment, the scan locks
+the pallet row (and, for a carton, its pallet and then the carton), so the second dock sees
+the first one's load and is answered *blocked*.
 
 ### Confirming
 
 **Confirm loading** lets the truck go:
 
-- loaded pallets become **shipped** (with `shipped_at`); their serialised units are shipped
-  with them, and a unit on hold keeps its hold;
-- the units of loaded loose cartons are shipped the same way;
+- first every loaded unit is checked again, on locked rows, against the same rules as a
+  scan: a pallet reopened, no longer released by quality, carrying a unit put on hold, a
+  carton whose pallet failed, or a unit shipped elsewhere in the meantime stops the
+  confirm with `422` naming the units, and **nothing** ships — undo those units first;
+- loaded pallets become **shipped** (with `shipped_at`), their cartons are stamped
+  `shipped_at`, and their serialised units are shipped with them;
+- loaded loose cartons are stamped `shipped_at` and their units shipped the same way, so a
+  shipped carton is refused on any later load even when it holds no serialised units;
 - the shipment becomes **confirmed**, and the `shipment.confirmed` webhook is sent.
 
 A **short load** (something on the list not loaded) can only be confirmed by a supervisor

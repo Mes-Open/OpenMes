@@ -16,7 +16,9 @@ trait RespondsWithShipmentScans
 {
     protected function scanResponse(ShipmentScan $scan, Shipment $shipment, ShipmentLoadingService $service): JsonResponse
     {
-        $summary = $service->summary($shipment->fresh());
+        // Three counts in one query: the terminal's live lists come from the
+        // synced collections, the answer only needs the running totals.
+        $totals = $service->totals($shipment);
 
         return response()->json(['data' => [
             'scan' => [
@@ -28,11 +30,7 @@ trait RespondsWithShipmentScans
                 'shipment_item_id' => $scan->shipment_item_id,
                 'scanned_at' => $scan->scanned_at?->toIso8601String(),
             ],
-            'totals' => [
-                'expected' => $summary['expected'],
-                'loaded' => $summary['loaded'],
-                'missing' => $summary['missing'],
-            ],
+            'totals' => $totals,
         ]]);
     }
 

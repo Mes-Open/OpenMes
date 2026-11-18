@@ -6,11 +6,13 @@ use App\Enums\ApiScope;
 use App\Models\ApiKey;
 use App\Models\Pallet;
 use App\Models\Shipment;
+use App\Models\ShipmentItem;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Logistics\ShipmentLoadingService;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -154,5 +156,58 @@ class ErpShipmentTest extends TestCase
         $this->withHeader('X-Api-Key', $key)->getJson('/api/v1/erp/shipments/FOREIGN-1')->assertNotFound();
         $this->withHeader('X-Api-Key', $key)->getJson('/api/v1/erp/shipments')
             ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.shipment_no', 'MINE-1');
+    }
+
+    public function test_a_replace_never_lands_on_a_load_the_dock_has_started(): void
+    {
+        $key = $this->keyWith([ApiScope::ShipmentsWrite]);
+        $shipment = app(ShipmentLoadingService::class)->create(['shipment_no' => 'SO-RACE'], [['identifier' => 'PAL-A']]);
+        // The dock starts loading right after the ERP request read the shipment
+        // without a lock. The status check has to be made on the locked row the
+        // update writes, or the ERP replaces the list of a load being loaded.
+        $fired = false;
+        Shipment::retrieved(function (Shipment $s) use (&$fired) {
+            if (! $fired && $s->shipment_no === 'SO-RACE' && DB::transactionLevel() <= 1
+                && ShipmentItem::where('shipment_id', $s->id)->pluck('identifier')->all() === ['PAL-A']) {
+                $fired = true;
+                Shipment::whereKey($s->id)->update(['status' => 'loading']);
+            }
+        });
+
+        $response = $this->withHeader('X-Api-Key', $key)
+            ->postJson('/api/v1/erp/shipments', ['shipment_no' => 'SO-RACE', 'items' => [['identifier' => 'PAL-Z']]]);
+
+        $this->assertContains($response->status(), [200, 409]);
+        $identifiers = $shipment->items()->pluck('identifier')->all();
+        if ($response->status() === 409) {
+            $this->assertSame(['PAL-A'], $identifiers);
+        } else {
+            $this->assertSame('planned', $shipment->fresh()->status->value, 'The list was replaced on a load that had started.');
+            $this->assertSame(['PAL-Z'], $identifiers);
+        }
+    }
+
+    public function test_a_concurrent_duplicate_create_resolves_to_the_existing_row_instead_of_a_500(): void
+    {
+        $key = $this->keyWith([ApiScope::ShipmentsWrite]);
+        // A second ERP worker commits the same shipment_no right after this
+        // request looked it up and found nothing.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced) {
+            if (! $raced && str_starts_with(strtolower($query->sql), 'select') && str_contains($query->sql, '"shipments"')
+                && in_array('SO-TWIN', $query->bindings, true)) {
+                $raced = true;
+                Shipment::factory()->create(['shipment_no' => 'SO-TWIN', 'tenant_id' => $this->tenantId]);
+            }
+        });
+
+        $this->withHeader('X-Api-Key', $key)
+            ->postJson('/api/v1/erp/shipments', ['shipment_no' => 'SO-TWIN', 'items' => [['identifier' => 'PAL-1']]])
+            ->assertOk()
+            ->assertJsonPath('data.shipment_no', 'SO-TWIN')
+            ->assertJsonPath('data.totals.expected', 1);
+
+        $this->assertTrue($raced);
+        $this->assertSame(1, Shipment::where('shipment_no', 'SO-TWIN')->count());
     }
 }

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1\Erp;
 
-use App\Enums\ShipmentStatus;
 use App\Http\Controllers\Api\V1\Erp\Concerns\BuildsCursorMeta;
 use App\Http\Controllers\Api\V1\Erp\Concerns\FiltersSince;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Erp\ShipmentExportRequest;
 use App\Http\Requests\Api\V1\Erp\StoreErpShipmentRequest;
 use App\Models\Shipment;
+use App\Services\Logistics\ShipmentConflictException;
 use App\Services\Logistics\ShipmentLoadingException;
 use App\Services\Logistics\ShipmentLoadingService;
 use App\Support\Integration\ShipmentPresenter;
@@ -38,26 +38,15 @@ class ShipmentController extends Controller
 
     public function store(StoreErpShipmentRequest $request): JsonResponse
     {
-        $existing = Shipment::where('shipment_no', $request->validated('shipment_no'))->first();
-
-        if ($existing && $existing->status !== ShipmentStatus::Planned) {
-            return response()->json([
-                'message' => __('Shipment :no is already :status and can no longer be replaced.', [
-                    'no' => $existing->shipment_no,
-                    'status' => $existing->status->label(),
-                ]),
-            ], 409);
-        }
-
         try {
-            $shipment = $existing
-                ? $this->service->update($existing, $request->shipmentAttributes(), $request->expectedItems())
-                : $this->service->create($request->shipmentAttributes(), $request->expectedItems());
+            [$shipment, $created] = $this->service->createOrReplace($request->shipmentAttributes(), $request->expectedItems());
+        } catch (ShipmentConflictException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         } catch (ShipmentLoadingException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => ShipmentPresenter::present($shipment->fresh())], $existing ? 200 : 201);
+        return response()->json(['data' => ShipmentPresenter::present($shipment->fresh())], $created ? 201 : 200);
     }
 
     public function show(string $shipmentNo): JsonResponse

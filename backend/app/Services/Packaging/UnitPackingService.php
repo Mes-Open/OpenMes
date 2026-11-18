@@ -592,6 +592,10 @@ class UnitPackingService
      */
     public function markCartonShipped(UnitCarton $carton, ?User $actor = null, ?\DateTimeInterface $at = null): int
     {
+        if ($carton->shipped_at === null) {
+            $carton->update(['shipped_at' => $at ?? now()]);
+        }
+
         $units = SerialUnit::where('carton_id', $carton->id)
             ->whereNotIn('status', [SerialUnit::STATUS_SCRAPPED, SerialUnit::STATUS_SHIPPED, SerialUnit::STATUS_BLOCKED])
             ->get();

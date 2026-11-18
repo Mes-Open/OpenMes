@@ -13,6 +13,7 @@ use App\Models\UnitCarton;
 use App\Models\User;
 use App\Services\Packaging\UnitPackingService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,9 +27,10 @@ use Illuminate\Validation\ValidationException;
  * the shipment's scan log. Confirming the shipment ships what was loaded, and a
  * short load needs a supervisor and a reason.
  *
- * Every write locks the shipment row first, so two scanners at the same truck
- * are serialised: the same label scanned twice at once is loaded once and
- * reported as a duplicate the second time.
+ * Every write locks the shipment row first, then the pallet / carton rows it
+ * touches (pallets before cartons, each in id order), so two scanners at the
+ * same truck are serialised, and so are two docks loading the same unit onto
+ * two trucks: the second one sees the first one's load.
  */
 class ShipmentLoadingService
 {
@@ -50,6 +52,49 @@ class ShipmentLoadingService
             $this->syncItems($shipment, $items);
 
             return $shipment;
+        });
+    }
+
+    /**
+     * Create the shipment, or replace a planned one with the same shipment_no
+     * (the ERP re-sending a load). The status check is made on the locked row
+     * the update writes; a load the dock has started is a conflict. A second
+     * request inserting the same shipment_no at the same moment resolves to
+     * that row instead of failing on the unique index.
+     *
+     * @param  array<string, mixed>  $attributes  must hold shipment_no
+     * @param  list<array{unit_type?: string|null, identifier: string}>  $items
+     * @return array{0: Shipment, 1: bool} the shipment and whether it was created
+     *
+     * @throws ShipmentConflictException the shipment is no longer planned
+     * @throws ShipmentLoadingException
+     */
+    public function createOrReplace(array $attributes, array $items, ?User $actor = null): array
+    {
+        return DB::transaction(function () use ($attributes, $items, $actor) {
+            $find = fn () => Shipment::where('shipment_no', $attributes['shipment_no'])->lockForUpdate()->first();
+
+            $existing = $find();
+            if (! $existing) {
+                try {
+                    // Savepoint: a unique violation must not abort the outer transaction.
+                    return [DB::transaction(fn () => $this->create($attributes, $items, $actor)), true];
+                } catch (UniqueConstraintViolationException $e) {
+                    $existing = $find() ?? throw $e;
+                }
+            }
+
+            if ($existing->status !== ShipmentStatus::Planned) {
+                throw new ShipmentConflictException(__('Shipment :no is already :status and can no longer be replaced.', [
+                    'no' => $existing->shipment_no,
+                    'status' => $existing->status->label(),
+                ]));
+            }
+
+            $existing->update($attributes);
+            $this->syncItems($existing, $items);
+
+            return [$existing, false];
         });
     }
 
@@ -152,7 +197,8 @@ class ShipmentLoadingService
             $this->assertActive($shipment);
 
             $code = $this->normalise($code);
-            $verdict = $this->evaluate($shipment, $code);
+            [$pallet, $carton] = $this->lockUnitsFor($code);
+            $verdict = $this->evaluate($shipment, $code, $pallet, $carton);
 
             if ($verdict['result'] === ShipmentScan::RESULT_LOADED) {
                 /** @var ShipmentItem $item */
@@ -245,21 +291,53 @@ class ShipmentLoadingService
         ];
     }
 
-    /** How many units travel in a loaded pallet / carton: its serialised units, else its recorded quantity. */
-    public function unitCount(ShipmentItem $item): int
+    /**
+     * Expected / loaded / missing as three counts in one query — what a scan
+     * answer needs, without reading the rows or the scan log.
+     *
+     * @return array{expected: int, loaded: int, missing: int}
+     */
+    public function totals(Shipment $shipment): array
     {
-        if ($item->unit_type === ShipmentItem::TYPE_PALLET && $item->pallet_id) {
-            $count = SerialUnit::where('pallet_id', $item->pallet_id)->where('status', '!=', SerialUnit::STATUS_SCRAPPED)->count();
+        $row = $shipment->items()->toBase()
+            ->selectRaw('COUNT(*) AS expected, COUNT(loaded_at) AS loaded')
+            ->first();
+        $expected = (int) ($row->expected ?? 0);
+        $loaded = (int) ($row->loaded ?? 0);
 
-            return $count > 0 ? $count : (int) ($item->pallet?->qty ?? 0);
-        }
-        if ($item->unit_type === ShipmentItem::TYPE_CARTON && $item->carton_id) {
-            $count = SerialUnit::where('carton_id', $item->carton_id)->where('status', '!=', SerialUnit::STATUS_SCRAPPED)->count();
+        return ['expected' => $expected, 'loaded' => $loaded, 'missing' => $expected - $loaded];
+    }
 
-            return $count > 0 ? $count : (int) ($item->carton?->qty ?? 0);
-        }
+    /**
+     * How many units travel in each loaded pallet / carton: its serialised
+     * units, else its recorded quantity. Two grouped queries, whatever the
+     * number of items.
+     *
+     * @param  iterable<ShipmentItem>  $items  with pallet / carton loaded
+     * @return array<int, int> unit count by shipment_items.id
+     */
+    public function unitCounts(iterable $items): array
+    {
+        $items = collect($items);
+        $grouped = fn (string $column, Collection $ids) => $ids->isEmpty() ? collect() : SerialUnit::query()
+            ->whereIn($column, $ids->all())
+            ->where('status', '!=', SerialUnit::STATUS_SCRAPPED)
+            ->groupBy($column)
+            ->selectRaw("{$column} AS unit_id, COUNT(*) AS n")
+            ->pluck('n', 'unit_id');
 
-        return 0;
+        $byPallet = $grouped('pallet_id', $items->where('unit_type', ShipmentItem::TYPE_PALLET)->pluck('pallet_id')->filter()->unique()->values());
+        $byCarton = $grouped('carton_id', $items->where('unit_type', ShipmentItem::TYPE_CARTON)->pluck('carton_id')->filter()->unique()->values());
+
+        return $items->mapWithKeys(function (ShipmentItem $item) use ($byPallet, $byCarton) {
+            [$serialised, $unit] = match (true) {
+                $item->unit_type === ShipmentItem::TYPE_PALLET && $item->pallet_id => [(int) ($byPallet[$item->pallet_id] ?? 0), $item->pallet],
+                $item->unit_type === ShipmentItem::TYPE_CARTON && $item->carton_id => [(int) ($byCarton[$item->carton_id] ?? 0), $item->carton],
+                default => [0, null],
+            };
+
+            return [$item->id => $serialised > 0 ? $serialised : (int) ($unit?->qty ?? 0)];
+        })->all();
     }
 
     /**
@@ -279,7 +357,7 @@ class ShipmentLoadingService
             $shipment = $this->lock($shipment);
             $this->assertActive($shipment);
 
-            $items = $shipment->items()->with(['pallet', 'carton'])->get();
+            $items = $shipment->items()->get();
             $loaded = $items->filter(fn (ShipmentItem $i) => $i->isLoaded());
             $missing = $items->count() - $loaded->count();
             $reason = $reason !== null ? trim($reason) : null;
@@ -295,6 +373,21 @@ class ShipmentLoadingService
                 if ($reason === null || $reason === '') {
                     throw ValidationException::withMessages(['short_reason' => __('Give a reason for shipping a short load.')]);
                 }
+            }
+
+            // Everything loaded is checked again, on locked rows, against the
+            // rules a scan applies: the pallet may have been reopened, lost its
+            // quality release or gained a held unit since it was scanned.
+            // All or nothing: one unit that may not leave stops the whole load.
+            $this->lockLoadedUnits($loaded);
+            $refusals = $loaded
+                ->map(fn (ShipmentItem $i) => ($i->pallet || $i->carton) ? $this->blocker($shipment, $i->unit_type === ShipmentItem::TYPE_PALLET ? $i->pallet : null, $i->unit_type === ShipmentItem::TYPE_CARTON ? $i->carton : null) : null)
+                ->filter()
+                ->values();
+            if ($refusals->isNotEmpty()) {
+                throw ValidationException::withMessages(['shipment' => __('The load cannot be confirmed: :reasons Undo these units first.', [
+                    'reasons' => $refusals->implode(' '),
+                ])]);
             }
 
             $now = now();
@@ -346,47 +439,135 @@ class ShipmentLoadingService
             // The quality ship-gate refused it (the verdict changed after loading).
             throw ValidationException::withMessages(['shipment' => $e->getMessage()]);
         }
+        // Its cartons left with it.
+        UnitCarton::where('pallet_id', $pallet->id)->whereNull('shipped_at')->update(['shipped_at' => $at]);
     }
 
     /**
-     * What a scanned code means for this shipment.
+     * Lock the pallet / carton rows a scanned code names, in the service's lock
+     * order (after the shipment: pallets, then cartons). A carton's own pallet
+     * is locked too, so a dock loading the pallet and one loading its carton are
+     * serialised as well.
+     *
+     * @return array{0: Pallet|null, 1: UnitCarton|null}
+     */
+    private function lockUnitsFor(string $code): array
+    {
+        if ($code === '') {
+            return [null, null];
+        }
+        $palletId = Pallet::where('pallet_no', $code)->value('id');
+        $cartonRef = UnitCarton::where('carton_no', $code)->first(['id', 'pallet_id']);
+
+        $pallets = $this->lockPallets([$palletId, $cartonRef?->pallet_id]);
+        $carton = $cartonRef ? UnitCarton::whereKey($cartonRef->id)->lockForUpdate()->first() : null;
+        if ($carton && $carton->pallet_id && $pallets->has($carton->pallet_id)) {
+            $carton->setRelation('pallet', $pallets->get($carton->pallet_id));
+        }
+
+        return [$palletId ? $pallets->get($palletId) : null, $carton];
+    }
+
+    /**
+     * Lock (and re-read) every unit a confirm is about to ship, pallets first,
+     * and hang the fresh rows on the items.
+     *
+     * @param  Collection<int, ShipmentItem>  $loaded
+     */
+    private function lockLoadedUnits(Collection $loaded): void
+    {
+        $cartonRefs = UnitCarton::whereKey($loaded->where('unit_type', ShipmentItem::TYPE_CARTON)->pluck('carton_id')->filter()->all())
+            ->get(['id', 'pallet_id']);
+        $pallets = $this->lockPallets([
+            ...$loaded->where('unit_type', ShipmentItem::TYPE_PALLET)->pluck('pallet_id')->all(),
+            ...$cartonRefs->pluck('pallet_id')->all(),
+        ]);
+        $cartons = $cartonRefs->isEmpty() ? collect() : UnitCarton::whereKey($cartonRefs->pluck('id')->all())
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+        foreach ($loaded as $item) {
+            $item->setRelation('pallet', $item->unit_type === ShipmentItem::TYPE_PALLET ? $pallets->get($item->pallet_id) : null);
+            $carton = $item->unit_type === ShipmentItem::TYPE_CARTON ? $cartons->get($item->carton_id) : null;
+            if ($carton && $carton->pallet_id && $pallets->has($carton->pallet_id)) {
+                $carton->setRelation('pallet', $pallets->get($carton->pallet_id));
+            }
+            $item->setRelation('carton', $carton);
+        }
+    }
+
+    /**
+     * @param  array<int, int|null>  $ids
+     * @return Collection<int, Pallet> keyed by id
+     */
+    private function lockPallets(array $ids): Collection
+    {
+        $ids = array_values(array_unique(array_filter($ids)));
+        if ($ids === []) {
+            return collect();
+        }
+
+        return Pallet::whereKey($ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+    }
+
+    /**
+     * What a scanned code means for this shipment. $pallet / $carton are the
+     * (locked) units the code names; a number can name both.
      *
      * @return array{result: string, message: string, item: ShipmentItem|null, pallet: Pallet|null, carton: UnitCarton|null}
      */
-    private function evaluate(Shipment $shipment, string $code): array
+    private function evaluate(Shipment $shipment, string $code, ?Pallet $pallet, ?UnitCarton $carton): array
     {
-        $pallet = $code === '' ? null : Pallet::where('pallet_no', $code)->first();
-        $carton = ($pallet || $code === '') ? null : UnitCarton::where('carton_no', $code)->first();
+        if (! $pallet && ! $carton) {
+            $item = $code === '' ? null : $shipment->items()->where('identifier', $code)->first();
 
+            return ['result' => ShipmentScan::RESULT_UNKNOWN, 'item' => $item, 'pallet' => null, 'carton' => null, 'message' => $item
+                ? __(':code is on the list but no such pallet or carton exists in OpenMES.', ['code' => $code])
+                : __(':code is not a known pallet or carton.', ['code' => $code])];
+        }
+
+        // A list row only counts for a unit of its own type: a carton never
+        // satisfies a pallet row with its number, nor the other way round.
         $item = $shipment->items()
             ->where(function ($q) use ($code, $pallet, $carton) {
-                $q->where('identifier', $code);
                 if ($pallet) {
-                    $q->orWhere('pallet_id', $pallet->id);
+                    $q->orWhere(fn ($q) => $q->where('unit_type', ShipmentItem::TYPE_PALLET)
+                        ->where(fn ($q) => $q->where('identifier', $code)->orWhere('pallet_id', $pallet->id)));
                 }
                 if ($carton) {
-                    $q->orWhere('carton_id', $carton->id);
+                    $q->orWhere(fn ($q) => $q->where('unit_type', ShipmentItem::TYPE_CARTON)
+                        ->where(fn ($q) => $q->where('identifier', $code)->orWhere('carton_id', $carton->id)));
                 }
             })
             ->get()
-            // The row naming this exact label wins over one matched by unit id.
-            ->sortBy(fn (ShipmentItem $i) => $i->identifier === $code ? 0 : 1)
+            // The row naming this exact label wins over one matched by unit id;
+            // a pallet row over a carton row when the number names both.
+            ->sortBy(fn (ShipmentItem $i) => ($i->identifier === $code ? 0 : 2) + ($i->unit_type === ShipmentItem::TYPE_PALLET ? 0 : 1))
             ->first();
+
+        // The unit this scan is about: the one the matching row expects, else
+        // the pallet when the number names both.
+        if ($item) {
+            [$pallet, $carton] = $item->unit_type === ShipmentItem::TYPE_PALLET ? [$pallet, null] : [null, $carton];
+        } elseif ($pallet) {
+            $carton = null;
+        }
 
         $answer = fn (string $result, string $message) => [
             'result' => $result, 'message' => $message, 'item' => $item, 'pallet' => $pallet, 'carton' => $carton,
         ];
-
-        if (! $pallet && ! $carton) {
-            return $answer(ShipmentScan::RESULT_UNKNOWN, $item
-                ? __(':code is on the list but no such pallet or carton exists in OpenMES.', ['code' => $code])
-                : __(':code is not a known pallet or carton.', ['code' => $code]));
-        }
-
         $label = $pallet ? $pallet->pallet_no : $carton->carton_no;
 
         if ($item && $item->isLoaded()) {
             return $answer(ShipmentScan::RESULT_DUPLICATE, __(':code is already loaded.', ['code' => $label]));
+        }
+
+        // A carton riding on a pallet that is on the list travels with it: it is
+        // neither a stray nor a second count, even when the list names it too.
+        $palletItem = ($carton && $carton->pallet_id)
+            ? $shipment->items()->where('unit_type', ShipmentItem::TYPE_PALLET)->where('pallet_id', $carton->pallet_id)->first()
+            : null;
+        if ($palletItem && $palletItem->isLoaded()) {
+            return $answer(ShipmentScan::RESULT_DUPLICATE, __('Carton :code is on pallet :pallet, already loaded. Not counted again.', ['code' => $label, 'pallet' => $palletItem->identifier]));
         }
 
         if ($blocker = $this->blocker($shipment, $pallet, $carton)) {
@@ -397,21 +578,17 @@ class ShipmentLoadingService
             return $answer(ShipmentScan::RESULT_LOADED, __(':code loaded.', ['code' => $label]));
         }
 
-        // A carton riding on a pallet that is on the list travels with it: it is
-        // neither a stray nor a second count.
-        if ($carton && $carton->pallet_id) {
-            $palletItem = $shipment->items()->where('pallet_id', $carton->pallet_id)->first();
-            if ($palletItem) {
-                return $answer(ShipmentScan::RESULT_DUPLICATE, $palletItem->isLoaded()
-                    ? __('Carton :code is on pallet :pallet, already loaded. Not counted again.', ['code' => $label, 'pallet' => $palletItem->identifier])
-                    : __('Carton :code is on pallet :pallet. Scan the pallet label instead.', ['code' => $label, 'pallet' => $palletItem->identifier]));
-            }
+        if ($palletItem) {
+            return $answer(ShipmentScan::RESULT_DUPLICATE, __('Carton :code is on pallet :pallet. Scan the pallet label instead.', ['code' => $label, 'pallet' => $palletItem->identifier]));
         }
 
         return $answer(ShipmentScan::RESULT_UNEXPECTED, __(':code is not on this shipment.', ['code' => $label]));
     }
 
-    /** Why this unit may not go on a truck, or null when it may. */
+    /**
+     * Why this unit may not go on (or stay on) this truck, or null when it may.
+     * Used for every scan and again for every loaded unit at confirm.
+     */
     private function blocker(Shipment $shipment, ?Pallet $pallet, ?UnitCarton $carton): ?string
     {
         if ($pallet) {
@@ -431,25 +608,39 @@ class ShipmentLoadingService
             if ($held > 0) {
                 return __('Pallet :code carries :count held unit(s).', ['code' => $pallet->pallet_no, 'count' => $held]);
             }
-            $other = $this->loadedElsewhere($shipment, 'pallet_id', $pallet->id);
+            // One of its cartons already went on this truck on its own.
+            $looseHere = $shipment->items()
+                ->where('unit_type', ShipmentItem::TYPE_CARTON)
+                ->whereNotNull('loaded_at')
+                ->whereIn('carton_id', UnitCarton::where('pallet_id', $pallet->id)->select('id'))
+                ->value('identifier');
+            if ($looseHere) {
+                return __('Carton :carton from pallet :code is already loaded on its own. Undo it before loading the whole pallet.', ['carton' => $looseHere, 'code' => $pallet->pallet_no]);
+            }
+            $other = $this->loadedElsewhere($shipment, palletId: $pallet->id, cartonsOfPallet: $pallet->id);
         } else {
             if ($carton->isOpen()) {
                 return __('Carton :code is still open. Close it before loading.', ['code' => $carton->carton_no]);
             }
             $parent = $carton->pallet;
+            if ($carton->isShipped() || ($parent && $parent->status === PalletStatus::Shipped)) {
+                return __('Carton :code has already been shipped.', ['code' => $carton->carton_no]);
+            }
             if ($parent && $parent->quality_status === Pallet::QUALITY_FAIL) {
                 return __('Carton :code is on pallet :pallet, which failed quality control.', ['code' => $carton->carton_no, 'pallet' => $parent->pallet_no]);
+            }
+            if ($parent && $parent->quality_status !== Pallet::QUALITY_PASS) {
+                return __('Carton :code is on pallet :pallet, which is not released by quality yet.', ['code' => $carton->carton_no, 'pallet' => $parent->pallet_no]);
             }
             $units = SerialUnit::where('carton_id', $carton->id)->where('status', '!=', SerialUnit::STATUS_SCRAPPED)->get(['id', 'status']);
             $held = $units->where('status', SerialUnit::STATUS_BLOCKED)->count();
             if ($held > 0) {
                 return __('Carton :code holds :count held unit(s).', ['code' => $carton->carton_no, 'count' => $held]);
             }
-            if (($parent && $parent->status === PalletStatus::Shipped)
-                || ($units->isNotEmpty() && $units->every(fn ($u) => $u->status === SerialUnit::STATUS_SHIPPED))) {
+            if ($units->isNotEmpty() && $units->every(fn ($u) => $u->status === SerialUnit::STATUS_SHIPPED)) {
                 return __('Carton :code has already been shipped.', ['code' => $carton->carton_no]);
             }
-            $other = $this->loadedElsewhere($shipment, 'carton_id', $carton->id);
+            $other = $this->loadedElsewhere($shipment, palletId: $carton->pallet_id, cartonId: $carton->id);
         }
 
         if ($other) {
@@ -462,12 +653,26 @@ class ShipmentLoadingService
         return null;
     }
 
-    /** shipment_no of another active shipment this unit is already loaded on, if any. */
-    private function loadedElsewhere(Shipment $shipment, string $column, int $id): ?string
+    /**
+     * shipment_no of another active shipment that already carries this unit:
+     * the pallet itself, the carton itself, or (for a pallet) any of its cartons.
+     */
+    private function loadedElsewhere(Shipment $shipment, ?int $palletId = null, ?int $cartonId = null, ?int $cartonsOfPallet = null): ?string
     {
         return ShipmentItem::query()
             ->join('shipments', 'shipments.id', '=', 'shipment_items.shipment_id')
-            ->where("shipment_items.{$column}", $id)
+            ->where(function ($q) use ($palletId, $cartonId, $cartonsOfPallet) {
+                if ($palletId) {
+                    $q->orWhere(fn ($q) => $q->where('shipment_items.unit_type', ShipmentItem::TYPE_PALLET)->where('shipment_items.pallet_id', $palletId));
+                }
+                if ($cartonId) {
+                    $q->orWhere(fn ($q) => $q->where('shipment_items.unit_type', ShipmentItem::TYPE_CARTON)->where('shipment_items.carton_id', $cartonId));
+                }
+                if ($cartonsOfPallet) {
+                    $q->orWhere(fn ($q) => $q->where('shipment_items.unit_type', ShipmentItem::TYPE_CARTON)
+                        ->whereIn('shipment_items.carton_id', UnitCarton::where('pallet_id', $cartonsOfPallet)->select('id')));
+                }
+            })
             ->whereNotNull('shipment_items.loaded_at')
             ->where('shipment_items.shipment_id', '!=', $shipment->id)
             ->whereIn('shipments.status', ShipmentStatus::activeValues())

@@ -307,7 +307,7 @@ class ShipmentLoadingTest extends TestCase
         $this->assertSame(2, $delivery->payload['data']['totals']['loaded']);
     }
 
-    public function test_held_units_keep_their_hold_when_the_pallet_ships(): void
+    public function test_a_unit_held_after_loading_stops_the_confirm_and_keeps_its_hold(): void
     {
         $pallet = $this->readyPallet();
         $good = SerialUnit::factory()->create(['pallet_id' => $pallet->id, 'status' => SerialUnit::STATUS_COMPLETED]);
@@ -315,12 +315,18 @@ class ShipmentLoadingTest extends TestCase
         $shipment = $this->shipmentWith($pallet);
         $this->service->scan($shipment, $pallet->pallet_no, $this->operator);
 
-        // Put on hold after it was loaded (a late test result).
+        // Put on hold after it was loaded (a late test result): the pallet may
+        // not leave with it. Undo, take the unit off, scan again.
         $held->update(['status' => SerialUnit::STATUS_BLOCKED]);
-        $this->service->confirm($shipment, $this->operator);
+        try {
+            $this->service->confirm($shipment, $this->operator);
+            $this->fail('A pallet with a held unit must not ship.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString($pallet->pallet_no, $e->errors()['shipment'][0]);
+        }
 
-        $this->assertSame(PalletStatus::Shipped, $pallet->fresh()->status);
-        $this->assertSame(SerialUnit::STATUS_SHIPPED, $good->fresh()->status);
+        $this->assertSame(PalletStatus::Closed, $pallet->fresh()->status);
+        $this->assertSame(SerialUnit::STATUS_COMPLETED, $good->fresh()->status);
         $this->assertSame(SerialUnit::STATUS_BLOCKED, $held->fresh()->status);
         $this->assertNull($held->fresh()->shipped_at);
     }

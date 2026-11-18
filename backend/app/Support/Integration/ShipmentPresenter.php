@@ -47,6 +47,8 @@ class ShipmentPresenter
         $service = app(ShipmentLoadingService::class);
         $shipment->loadMissing(self::RELATIONS);
         $summary = $service->summary($shipment);
+        // One grouped query per unit type, not one count per row.
+        $counts = $service->unitCounts($summary['loaded_items']);
 
         $scan = fn (ShipmentScan $s) => [
             'scanned_code' => $s->scanned_code,
@@ -62,7 +64,7 @@ class ShipmentPresenter
                 'expected' => $summary['expected'],
                 'loaded' => $summary['loaded'],
                 'missing' => $summary['missing'],
-                'loaded_units' => $summary['loaded_items']->sum(fn (ShipmentItem $i) => $service->unitCount($i)),
+                'loaded_units' => array_sum($counts),
                 'unexpected_scans' => $summary['unexpected']->count(),
                 'duplicate_scans' => $summary['duplicates']->count(),
                 'blocked_scans' => $summary['blocked']->count(),
@@ -70,7 +72,7 @@ class ShipmentPresenter
             'loaded' => $summary['loaded_items']->map(fn (ShipmentItem $i) => [
                 'unit_type' => $i->unit_type,
                 'identifier' => $i->identifier,
-                'unit_count' => $service->unitCount($i),
+                'unit_count' => $counts[$i->id] ?? 0,
                 'loaded_at' => $i->loaded_at?->toIso8601String(),
                 'loaded_by' => $i->loadedBy?->name,
             ])->values()->all(),

@@ -30,6 +30,7 @@ class UnitCarton extends Model
         'qty',
         'closed_at',
         'closed_by_id',
+        'shipped_at',
         'created_by_id',
         'tenant_id',
         'active_by_id',
@@ -43,6 +44,7 @@ class UnitCarton extends Model
             'activated_at' => 'datetime',
             'qty' => 'integer',
             'closed_at' => 'datetime',
+            'shipped_at' => 'datetime',
         ];
     }
 
@@ -89,6 +91,11 @@ class UnitCarton extends Model
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    public function isShipped(): bool
+    {
+        return $this->shipped_at !== null;
     }
 
     public function units(): HasMany

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Shipments;
 
+use App\Rules\VisibleToCaller;
 use Illuminate\Foundation\Http\FormRequest;
 
 /** Undo a scan: take one loaded unit off the truck again. */
@@ -15,7 +16,7 @@ class UnloadShipmentItemRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
+            'workstation_id' => ['nullable', 'bail', 'integer', VisibleToCaller::workstation()],
         ];
     }
 }
