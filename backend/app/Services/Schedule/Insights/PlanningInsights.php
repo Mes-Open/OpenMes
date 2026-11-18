@@ -307,6 +307,7 @@ class PlanningInsights
         }
 
         $out = [];
+        $short = [];
         $untracked = [];
         $skillWork = [];
         $visibleOrders = [];
@@ -337,12 +338,15 @@ class PlanningInsights
                         $visibleOrders[$id] = true;
                     }
                     if ($cell['available'] < $cell['needed']) {
-                        $out[] = $this->shortInsight($cell);
+                        $short[] = $this->shortInsight($cell);
                     }
                 }
             }
         }
 
+        foreach ($this->mergeGroups($short) as $insight) {
+            $out[] = $insight;
+        }
         foreach ($untracked as $lineId => $weeks) {
             foreach ($weeks as $week => $data) {
                 if ($data['visible']) {
@@ -364,7 +368,7 @@ class PlanningInsights
         usort($out, fn ($a, $b) => [self::SEVERITY_RANK[$a['severity']], $a['sort'], $a['key']] <=> [self::SEVERITY_RANK[$b['severity']], $b['sort'], $b['key']]);
 
         return $this->computed = array_map(function (array $i) {
-            unset($i['sort']);
+            unset($i['sort'], $i['raw_actions'], $i['group'], $i['available'], $i['needed']);
 
             return $i;
         }, $out);
@@ -401,6 +405,8 @@ class PlanningInsights
                 $actions[] = [
                     'kind' => 'move',
                     'work_order_id' => $order->id,
+                    'line_id' => $lineId,
+                    'cell' => ['line_id' => $lineId, 'date' => $cell['date'], 'shift' => $cell['shift']],
                     'label' => __('Move :order to :slot', ['order' => $order->order_no, 'slot' => $move['label']]),
                     'effect' => ($move['spare'] === 0 ? __('Exactly enough people there.') : __(':spare spare there.', ['spare' => $move['spare']]))
                         .' '.($move['late'] ? __('It would finish after its due date.') : __('It stays on time.')),
@@ -433,7 +439,7 @@ class PlanningInsights
             ]);
         $group = $cell['group'] ?? null;
         if ($group !== null && count($group['line_ids']) > 1) {
-            $why .= ' '.__(':lines need :needed people between them at that time and have :available, so one of them comes up short.', [
+            $why .= ' '.__(':lines need :needed people between them at that time and have :available.', [
                 'lines' => implode(', ', array_map(fn ($id) => $this->lineName((int) $id), $group['line_ids'])),
                 'needed' => $group['needed'], 'available' => $group['available'],
             ]);
@@ -469,12 +475,108 @@ class PlanningInsights
             'numbers' => ['needed' => $cell['needed'], 'available' => $cell['available'], 'present' => $cell['present'], 'spare_elsewhere' => $substitutes],
             'affected' => $affected,
             'actions' => $this->rank($actions),
+            'raw_actions' => $actions,
+            'group' => $cell['group'] ?? null,
+            'available' => $cell['available'],
+            'needed' => $cell['needed'],
             'cells' => [['line_id' => $lineId, 'date' => $cell['date'], 'shift' => $cell['shift']]],
             'line_id' => $lineId,
             'when' => $slot,
             'signature' => md5(json_encode([$cell['needed'], $cell['available'], $cell['absent_ids'], $cell['held_elsewhere'], $cell['order_ids']])),
             'sort' => $cell['start_minute'],
         ];
+    }
+
+    /**
+     * Lines that share people and are short in the same shift because,
+     * together, they booked more work than they have people: one insight for
+     * the group, not one per line. Each line's own actions stay on offer,
+     * labelled with the line they act on.
+     *
+     * @param  list<array<string, mixed>>  $short  one insight per short cell
+     * @return list<array<string, mixed>>
+     */
+    private function mergeGroups(array $short): array
+    {
+        $buckets = [];
+        foreach ($short as $insight) {
+            $group = $insight['group'];
+            $cell = $insight['cells'][0];
+            // Bucketed by every line that shares people with this one, not
+            // by who had work at the tightest moment: within one shift those
+            // moments differ from line to line, the people problem does not.
+            $bucket = $group !== null && count($group['line_ids']) > 1
+                ? 'group:'.implode('-', $group['pool_ids']).':'.$cell['date'].':'.$cell['shift']
+                : $insight['key'];
+            $buckets[$bucket][] = $insight;
+        }
+
+        $out = [];
+        foreach ($buckets as $key => $parts) {
+            if (count($parts) === 1) {
+                $out[] = $parts[0];
+
+                continue;
+            }
+            usort($parts, fn ($a, $b) => $a['line_id'] <=> $b['line_id']);
+            // The tightest moment of the shift speaks for the group.
+            $group = collect($parts)->pluck('group')->sortByDesc(fn ($g) => $g['needed'] - $g['available'])->first();
+            $slot = $parts[0]['when'];
+            $names = array_map(fn ($p) => $this->lineName($p['line_id']), $parts);
+
+            $actions = [];
+            $affected = [];
+            $late = 0;
+            $seen = [];
+            foreach ($parts as $p) {
+                foreach ($p['affected'] as $entry) {
+                    $affected[] = $entry;
+                    $late += $entry['late'] ? 1 : 0;
+                }
+                foreach ($p['raw_actions'] as $a) {
+                    if (in_array($a['kind'], ['link', 'acknowledge'], true)) {
+                        if (isset($seen[$a['kind']])) {
+                            continue;
+                        }
+                        $seen[$a['kind']] = true;
+                    } elseif ($a['kind'] === 'substitute') {
+                        $a['label'] = $this->lineName($p['line_id']).': '.$a['label'];
+                    }
+                    $actions[] = $a;
+                }
+            }
+
+            $why = __(':lines share people. At that time they need :needed between them and have :available, so :missing places stay empty.', [
+                'lines' => implode(', ', array_map(fn ($id) => $this->lineName((int) $id), $group['line_ids'])),
+                'needed' => $group['needed'], 'available' => $group['available'], 'missing' => $group['needed'] - $group['available'],
+            ]);
+            foreach ($parts as $p) {
+                $why .= ' '.__(':line has :available of :needed.', ['line' => $this->lineName($p['line_id']), 'available' => $p['available'], 'needed' => $p['needed']]);
+            }
+
+            $out[] = [
+                'key' => $key,
+                'type' => collect($parts)->every(fn ($p) => $p['type'] === 'shared_operator') ? 'shared_operator' : 'short_shift',
+                'category' => 'people',
+                'severity' => collect($parts)->contains(fn ($p) => $p['severity'] === 'bad') ? 'bad' : 'warn',
+                'title' => __(':lines short of shared people on :slot', ['lines' => implode(', ', $names), 'slot' => $slot]),
+                'meta' => __('Need :needed, :available covered', ['needed' => $group['needed'], 'available' => $group['available']]),
+                'impact' => trans_choice(':count order|:count orders', count($affected), ['count' => count($affected)])
+                    .($late > 0 ? ' · '.__(':count late', ['count' => $late]) : ''),
+                'why' => $why,
+                'numbers' => ['needed' => $group['needed'], 'available' => $group['available'],
+                    'present' => $group['available'], 'spare_elsewhere' => count(array_filter($actions, fn ($a) => $a['kind'] === 'substitute'))],
+                'affected' => $affected,
+                'actions' => $this->rank($actions),
+                'cells' => array_merge(...array_map(fn ($p) => $p['cells'], $parts)),
+                'line_id' => $parts[0]['line_id'],
+                'when' => $slot,
+                'signature' => md5(json_encode(array_column($parts, 'signature'))),
+                'sort' => min(array_column($parts, 'sort')),
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -708,7 +810,7 @@ class PlanningInsights
         $insight = $this->openInsight($key);
         $action = collect($insight['actions'])->first(fn ($a) => $a['kind'] === 'move' && $a['work_order_id'] === $orderId);
         $order = $this->staffing->orders()->get($orderId);
-        $cell = $insight['cells'][0] ?? null;
+        $cell = $action['cell'] ?? ($insight['cells'][0] ?? null);
         $target = $order && $cell ? $this->moveTarget($order, $this->staffing->cell($cell['line_id'], $cell['date'], $cell['shift'])) : null;
         if ($action === null || $target === null) {
             throw new \DomainException(__('That move is no longer possible. Refresh the insights.'));
@@ -749,7 +851,7 @@ class PlanningInsights
         $insight = $this->openInsight($key);
         $action = collect($insight['actions'])->first(fn ($a) => $a['kind'] === 'substitute' && $a['user_id'] === $userId);
         $operator = User::find($userId);
-        $line = Line::find($insight['line_id']);
+        $line = Line::find($action['line_id'] ?? $insight['line_id']);
         if ($action === null || $operator === null || $line === null) {
             throw new \DomainException(__('That person is no longer a suggested substitute. Refresh the insights.'));
         }

@@ -64,7 +64,7 @@ final class StaffingCounter
      *     available: ?int,
      *     needed: int,
      *     held_elsewhere: array<int, list<string>>,
-     *     group: ?array{line_ids: list<int>, needed: int, available: int}
+     *     group: ?array{pool_ids: list<int>, line_ids: list<int>, needed: int, available: int}
      * } present: people of the line not absent; available: of them, free for
      *   this line (see the class); held_elsewhere: other line id => person keys
      *   of this line that line's booked work holds in the tightest stretch
@@ -115,6 +115,7 @@ final class StaffingCounter
                 $holders = array_intersect_key($joint['assigned'], array_flip(array_map('strval', $own)));
                 $spare = count(array_diff(array_map('strval', $own), array_keys($joint['assigned'])));
                 $group = [
+                    'pool_ids' => $this->pool->groupOf($lineId),
                     'line_ids' => array_values(array_keys(array_filter($booked))),
                     'needed' => array_sum($booked),
                     'available' => array_sum($joint['filled']),

@@ -7764,6 +7764,10 @@
     "Don't open automatically": "Don't open automatically",
     "Keyboard shortcut": "Keyboard shortcut",
     "open / close": "open / close",
-    ":lines need :needed people between them at that time and have :available, so one of them comes up short.": ":lines need :needed people between them at that time and have :available, so one of them comes up short.",
-    "Schedule applied to :count work order.|Schedule applied to :count work orders.": "Schedule applied to :count work order.|Schedule applied to :count work orders."
+    "Schedule applied to :count work order.|Schedule applied to :count work orders.": "Schedule applied to :count work order.|Schedule applied to :count work orders.",
+    ":lines share people. At that time they need :needed between them and have :available, so :missing places stay empty.": ":lines share people. At that time they need :needed between them and have :available, so :missing places stay empty.",
+    ":line has :available of :needed.": ":line has :available of :needed.",
+    ":lines short of shared people on :slot": ":lines short of shared people on :slot",
+    "Need :needed, :available covered": "Need :needed, :available covered",
+    ":lines need :needed people between them at that time and have :available.": ":lines need :needed people between them at that time and have :available."
 }

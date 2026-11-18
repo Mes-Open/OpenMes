@@ -93,7 +93,7 @@ class StaffingCounterTest extends TestCase
         $this->assertNull($first['group']);
         $this->assertSame([0, 1], [$second['available'], $second['needed']]);
         $this->assertSame([1 => ['w:9']], $second['held_elsewhere']);
-        $this->assertSame(['line_ids' => [1, 2], 'needed' => 2, 'available' => 1], $second['group']);
+        $this->assertSame(['pool_ids' => [1, 2], 'line_ids' => [1, 2], 'needed' => 2, 'available' => 1], $second['group']);
     }
 
     public function test_an_overbooked_group_shows_the_real_shortfall_not_one_per_line(): void

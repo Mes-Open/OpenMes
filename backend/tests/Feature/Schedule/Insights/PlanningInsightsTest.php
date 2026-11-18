@@ -163,6 +163,38 @@ class PlanningInsightsTest extends TestCase
         $this->assertNull($this->insight($state, 'short_shift'));
     }
 
+    public function test_lines_short_of_the_same_shared_people_get_one_insight(): void
+    {
+        // Three lines, one person on all of them, work on each at the same
+        // time: three places, one person, two places empty — one problem.
+        $turn = $this->plantLine('CNC Turning', 'CNC');
+        $asm = $this->plantLine('Assembly A', 'ASM');
+        $pack = $this->plantLine('Packing', 'PCK');
+        $this->operator('Piotr Wójcik', $turn, $asm, $pack);
+        $this->planned($turn, '2026-11-23', 1);
+        $this->planned($asm, '2026-11-23', 1);
+        $this->planned($pack, '2026-11-23', 1);
+
+        $state = $this->drawer($this->planner());
+
+        $people = collect($state['drawer']['insights'])->where('category', 'people')->values();
+        $this->assertCount(1, $people);
+        $insight = $people[0];
+        $this->assertSame("group:{$turn->id}-{$asm->id}-{$pack->id}:2026-11-23:1", $insight['key']);
+        $this->assertSame('Assembly A, Packing short of shared people on Mon 23.11 Morning', $insight['title']);
+        $this->assertSame('Need 3, 1 covered', $insight['meta']);
+        $this->assertStringContainsString('need 3 between them and have 1, so 2 places stay empty', $insight['why']);
+        $this->assertSame(['needed' => 3, 'available' => 1], array_intersect_key($insight['numbers'], array_flip(['needed', 'available'])));
+        $this->assertCount(2, $insight['cells']);
+        $this->assertCount(2, $insight['affected']);
+        $this->assertSame(1, collect($insight['actions'])->where('kind', 'acknowledge')->count());
+
+        // The group key is a valid key: the drawer can acknowledge it.
+        $this->postJson('/admin/schedule/insights/acknowledge', $this->board() + ['insight_key' => $insight['key']])
+            ->assertOk()
+            ->assertJsonPath('drawer.summary.resolved', 1);
+    }
+
     public function test_a_shared_operator_free_on_the_other_line_is_simply_present(): void
     {
         $turn = $this->plantLine('CNC Turning', 'CNC');
