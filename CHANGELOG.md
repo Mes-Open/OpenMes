@@ -97,6 +97,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Lines that share operators no longer all show short when together they need more people than they have.** Each line used to count as if the other lines got the shared people first, so two lines needing four people between three showed three missing and raised a mirror-image warning on each line. The shortfall is now counted once, on the line actually left short, and the insight says what the lines need together and have.
+- **"Schedule applied to 1 work order."** The confirmation after applying a schedule is singular for one order.
 - **Automatic scheduling no longer shows "undefined/undefined" in the staffing grid for a draft generated before the upgrade.** A draft stored by an earlier version keeps its older staffing fields; the grid now reads them, and a cell without a count shows a dash.
 - **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
   auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on

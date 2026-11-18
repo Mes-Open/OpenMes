@@ -307,14 +307,19 @@ class StaffingOverviewTest extends TestCase
         // People ignored: both steps land at 06:00, and one person cannot be on both.
         $result = $this->schedule(['respectWorkforce' => false]);
 
-        foreach ([[$lineA, $lineB], [$lineB, $lineA]] as [$line, $other]) {
-            $row = $this->rows($result, $line, '2026-10-12')[0];
-            $this->assertSame(1, $row['present'], 'Piotr is on the line\'s own roster');
-            $this->assertSame(0, $row['available'], 'but the other line\'s step holds him');
-            $this->assertSame(1, $row['needed']);
-            $this->assertSame(1, $row['shortfall']);
-            $this->assertSame([['line_id' => $other->id, 'line_name' => $other->name, 'names' => ['Piotr Wójcik']]], $row['held_elsewhere']);
-        }
+        // One person, two places at once: one place is missing, counted once —
+        // on the line that comes second, which names who holds him.
+        [$first, $second] = $lineA->id < $lineB->id ? [$lineA, $lineB] : [$lineB, $lineA];
+        $covered = $this->rows($result, $first, '2026-10-12')[0];
+        $this->assertSame([1, 1, 0], [$covered['available'], $covered['needed'], $covered['shortfall']]);
+        $this->assertSame([], $covered['held_elsewhere']);
+
+        $row = $this->rows($result, $second, '2026-10-12')[0];
+        $this->assertSame(1, $row['present'], 'Piotr is on the line\'s own roster');
+        $this->assertSame(0, $row['available'], 'but the other line\'s step holds him');
+        $this->assertSame(1, $row['needed']);
+        $this->assertSame(1, $row['shortfall']);
+        $this->assertSame([['line_id' => $first->id, 'line_name' => $first->name, 'names' => ['Piotr Wójcik']]], $row['held_elsewhere']);
     }
 
     public function test_a_shared_operator_booked_one_after_the_other_is_exactly_enough(): void

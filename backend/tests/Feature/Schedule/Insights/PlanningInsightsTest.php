@@ -143,16 +143,23 @@ class PlanningInsightsTest extends TestCase
 
         $state = $this->drawer($this->planner());
 
-        $cell = $this->cellOf($state, $turn, '2026-11-23', 1);
+        // One person, one place each on two lines: one line has him, the
+        // other is short — one warning, not one on each line.
+        $covered = $this->cellOf($state, $turn, '2026-11-23', 1);
+        $this->assertSame([1, 1], [$covered['available'], $covered['needed']]);
+        $this->assertSame([], $covered['held_elsewhere']);
+
+        $cell = $this->cellOf($state, $asm, '2026-11-23', 1);
         $this->assertSame(1, $cell['present']);
         $this->assertSame(0, $cell['available'], 'one person is counted once across lines');
-        $this->assertSame([['line_id' => $asm->id, 'line_name' => 'Assembly A', 'names' => ['Piotr Wójcik']]], $cell['held_elsewhere']);
+        $this->assertSame([['line_id' => $turn->id, 'line_name' => 'CNC Turning', 'names' => ['Piotr Wójcik']]], $cell['held_elsewhere']);
 
         $shared = collect($state['drawer']['insights'])->where('type', 'shared_operator')->keyBy('line_id');
-        $this->assertCount(2, $shared);
-        $this->assertSame('Piotr Wójcik also works on Assembly A', $shared[$turn->id]['meta']);
-        $this->assertStringContainsString('Piotr Wójcik is booked on Assembly A at that time', $shared[$turn->id]['why']);
-        $this->assertSame('warn', $shared[$turn->id]['severity']);
+        $this->assertCount(1, $shared);
+        $this->assertSame('Piotr Wójcik also works on CNC Turning', $shared[$asm->id]['meta']);
+        $this->assertStringContainsString('Piotr Wójcik is booked on CNC Turning at that time', $shared[$asm->id]['why']);
+        $this->assertStringContainsString('need 2 people between them at that time and have 1', $shared[$asm->id]['why']);
+        $this->assertSame('warn', $shared[$asm->id]['severity']);
         $this->assertNull($this->insight($state, 'short_shift'));
     }
 
@@ -365,11 +372,13 @@ class PlanningInsightsTest extends TestCase
         $this->planned($turn, '2026-11-23', 1);
         $this->planned($asm, '2026-11-23', 1);
 
-        $state = $this->drawer($this->planner(), ['line_id' => $turn->id]);
+        // Assembly A is the line left short (see the shared-operator test);
+        // filtered to it, Piotr's work on CNC Turning still counts.
+        $state = $this->drawer($this->planner(), ['line_id' => $asm->id]);
 
-        $this->assertSame([$turn->id], array_values(array_unique(array_column($state['staffing']['cells'], 'line_id'))));
-        $this->assertSame([$turn->id], array_column($state['drawer']['insights'], 'line_id'));
-        $this->assertSame(0, $this->cellOf($state, $turn, '2026-11-23', 1)['available']);
+        $this->assertSame([$asm->id], array_values(array_unique(array_column($state['staffing']['cells'], 'line_id'))));
+        $this->assertSame([$asm->id], array_column($state['drawer']['insights'], 'line_id'));
+        $this->assertSame(0, $this->cellOf($state, $asm, '2026-11-23', 1)['available']);
     }
 
     public function test_insights_stay_inside_the_tenant(): void

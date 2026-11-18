@@ -431,6 +431,13 @@ class PlanningInsights
             : __('The plan needs :needed operators on :line, :slot. :available are available.', [
                 'needed' => $cell['needed'], 'line' => $line, 'slot' => $slot, 'available' => $cell['available'],
             ]);
+        $group = $cell['group'] ?? null;
+        if ($group !== null && count($group['line_ids']) > 1) {
+            $why .= ' '.__(':lines need :needed people between them at that time and have :available, so one of them comes up short.', [
+                'lines' => implode(', ', array_map(fn ($id) => $this->lineName((int) $id), $group['line_ids'])),
+                'needed' => $group['needed'], 'available' => $group['available'],
+            ]);
+        }
         if (! $shared && $absent !== []) {
             $why .= ' '.__('Absent: :names.', ['names' => implode(', ', $absent)]);
         }

@@ -7763,5 +7763,7 @@
     "Planning insights — press I to open or close": "Wskazówki planistyczne — naciśnij I, aby otworzyć lub zamknąć",
     "Don't open automatically": "Nie otwieraj automatycznie",
     "Keyboard shortcut": "Skrót klawiaturowy",
-    "open / close": "otwórz / zamknij"
+    "open / close": "otwórz / zamknij",
+    ":lines need :needed people between them at that time and have :available, so one of them comes up short.": "Linie :lines potrzebują w tym czasie łącznie :needed osób, a mają :available, więc na jednej z nich zabraknie ludzi.",
+    "Schedule applied to :count work order.|Schedule applied to :count work orders.": "Zastosowano harmonogram do :count zlecenia.|Zastosowano harmonogram do :count zleceń.|Zastosowano harmonogram do :count zleceń."
 }

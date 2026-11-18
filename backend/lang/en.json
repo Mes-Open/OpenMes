@@ -7763,5 +7763,7 @@
     "Planning insights — press I to open or close": "Planning insights — press I to open or close",
     "Don't open automatically": "Don't open automatically",
     "Keyboard shortcut": "Keyboard shortcut",
-    "open / close": "open / close"
+    "open / close": "open / close",
+    ":lines need :needed people between them at that time and have :available, so one of them comes up short.": ":lines need :needed people between them at that time and have :available, so one of them comes up short.",
+    "Schedule applied to :count work order.|Schedule applied to :count work orders.": "Schedule applied to :count work order.|Schedule applied to :count work orders."
 }

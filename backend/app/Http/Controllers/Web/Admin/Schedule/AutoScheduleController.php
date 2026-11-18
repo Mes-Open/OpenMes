@@ -97,7 +97,7 @@ class AutoScheduleController extends Controller
             return redirect()->route('admin.schedule.auto')->with('error', collect($e->errors())->flatten()->first());
         }
 
-        $message = __('Schedule applied to :applied work orders.', ['applied' => $result['applied']]);
+        $message = trans_choice('Schedule applied to :count work order.|Schedule applied to :count work orders.', $result['applied'], ['count' => $result['applied']]);
         if ($result['skipped'] > 0) {
             $message .= ' '.__(':count work orders could not be fully scheduled and kept their placement.', ['count' => $result['skipped']]);
         }

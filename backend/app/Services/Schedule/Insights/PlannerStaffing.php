@@ -245,6 +245,7 @@ class PlannerStaffing
             'needed' => $count['needed'],
             'absent_ids' => $absent,
             'held_elsewhere' => $count['held_elsewhere'],
+            'group' => $count['group'] ?? null,
             'order_ids' => $orders,
         ];
     }

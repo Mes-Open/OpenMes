@@ -19,6 +19,12 @@ use App\Extension\Contracts\WorkforceRosterAware;
  * and only who is left counts for this line. A provider that only counts keeps
  * every line on its own, exactly as the scheduler does.
  *
+ * When the lines of a group have booked more work at once than they have
+ * people, nobody goes first: all of it is matched together
+ * ({@see SharedOperatorPool::matchAll()}) and only the places left empty count
+ * as short. Two lines sharing three people and needing four between them show
+ * one person missing, not one missing on each line.
+ *
  * The result is a pair the planner can read at a glance: `available` against
  * `needed`, the peak of operators booked on the line. `available` is
  * `needed` plus the tightest slack of any stretch in which the line has work,
@@ -57,7 +63,8 @@ final class StaffingCounter
      *     present: ?int,
      *     available: ?int,
      *     needed: int,
-     *     held_elsewhere: array<int, list<string>>
+     *     held_elsewhere: array<int, list<string>>,
+     *     group: ?array{line_ids: list<int>, needed: int, available: int}
      * } present: people of the line not absent; available: of them, free for
      *   this line (see the class); held_elsewhere: other line id => person keys
      *   of this line that line's booked work holds in the tightest stretch
@@ -70,10 +77,10 @@ final class StaffingCounter
 
         $present = $this->workforce->availableOperators($lineId, $from, $to);
         if ($present === null) {
-            return ['tracked' => false, 'present' => null, 'available' => null, 'needed' => $needed, 'held_elsewhere' => []];
+            return ['tracked' => false, 'present' => null, 'available' => null, 'needed' => $needed, 'held_elsewhere' => [], 'group' => null];
         }
 
-        $plain = ['tracked' => true, 'present' => $present, 'available' => $present, 'needed' => $needed, 'held_elsewhere' => []];
+        $plain = ['tracked' => true, 'present' => $present, 'available' => $present, 'needed' => $needed, 'held_elsewhere' => [], 'group' => null];
         if ($this->pool === null || ! $this->pool->isShared($lineId) || ! $this->workforce instanceof WorkforceRosterAware) {
             return $plain;
         }
@@ -95,12 +102,33 @@ final class StaffingCounter
         $worst = null;
         foreach ($working !== [] ? $working : $segments as $segment) {
             $booked = $segment['demand'];
+            ksort($booked);
             $mine = $booked[$lineId] ?? 0;
-            unset($booked[$lineId]);
-            $match = $this->pool->matchSlots($candidates, $booked, $own, count($own));
-            $slack = $match['spare'] - $mine;
+            $joint = $this->pool->matchAll($candidates, $booked);
+            $short = array_sum($booked) - array_sum($joint['filled']);
+
+            if ($short > 0) {
+                // The group has booked more work than it has people. Count
+                // the shortfall once, where the joint matching leaves places
+                // empty, instead of on every line that shares somebody.
+                $slack = ($joint['filled'][$lineId] ?? 0) - $mine;
+                $holders = array_intersect_key($joint['assigned'], array_flip(array_map('strval', $own)));
+                $spare = count(array_diff(array_map('strval', $own), array_keys($joint['assigned'])));
+                $group = [
+                    'line_ids' => array_values(array_keys(array_filter($booked))),
+                    'needed' => array_sum($booked),
+                    'available' => array_sum($joint['filled']),
+                ];
+            } else {
+                unset($booked[$lineId]);
+                $match = $this->pool->matchSlots($candidates, $booked, $own, count($own));
+                $slack = $match['spare'] - $mine;
+                $holders = $match['holders'];
+                $spare = $match['spare'];
+                $group = null;
+            }
             if ($worst === null || $slack < $worst['slack']) {
-                $worst = ['slack' => $slack, 'spare' => $match['spare'], 'holders' => $match['holders']];
+                $worst = ['slack' => $slack, 'spare' => $spare, 'holders' => $holders, 'group' => $group];
             }
         }
 
@@ -118,6 +146,9 @@ final class StaffingCounter
             'available' => $working !== [] ? max(0, $needed + $worst['slack']) : $worst['spare'],
             'needed' => $needed,
             'held_elsewhere' => $held,
+            // Set when this line's shortfall is the group's: the lines that
+            // share people, what they need together and how many they have.
+            'group' => $working !== [] && $worst['slack'] < 0 ? $worst['group'] : null,
         ];
     }
 }

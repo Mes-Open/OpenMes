@@ -62,7 +62,7 @@ class StaffingCounterTest extends TestCase
 
         $count = $this->counter($this->roster([1 => ['w:1', 'w:2', 'w:3'], 2 => ['w:4']]), $timeline)->count(1, 0, 480);
 
-        $this->assertSame(['tracked' => true, 'present' => 3, 'available' => 3, 'needed' => 2, 'held_elsewhere' => []], $count);
+        $this->assertSame(['tracked' => true, 'present' => 3, 'available' => 3, 'needed' => 2, 'held_elsewhere' => [], 'group' => null], $count);
     }
 
     public function test_a_line_nobody_is_assigned_to_is_not_tracked(): void
@@ -77,18 +77,54 @@ class StaffingCounterTest extends TestCase
         $this->assertSame(1, $count['needed']);
     }
 
-    public function test_the_shared_person_is_held_by_the_other_lines_work_at_the_same_time(): void
+    public function test_one_shared_person_wanted_by_two_lines_at_once_is_missing_once(): void
     {
         $timeline = new Timeline;
         $timeline->bookLabor(1, 0, 60, 1);
         $timeline->bookLabor(2, 0, 60, 1);
+        $counter = $this->counter($this->roster([1 => ['w:9'], 2 => ['w:9']]), $timeline);
 
-        $count = $this->counter($this->roster([1 => ['w:9'], 2 => ['w:9']]), $timeline)->count(1, 0, 480);
+        $first = $counter->count(1, 0, 480);
+        $second = $counter->count(2, 0, 480);
 
-        $this->assertSame(1, $count['present']);
-        $this->assertSame(0, $count['available']);
-        $this->assertSame(1, $count['needed']);
-        $this->assertSame([2 => ['w:9']], $count['held_elsewhere']);
+        // One person, two places: one line is covered, the other is short by
+        // one — not both lines short, which would read as two people missing.
+        $this->assertSame([1, 1], [$first['available'], $first['needed']]);
+        $this->assertNull($first['group']);
+        $this->assertSame([0, 1], [$second['available'], $second['needed']]);
+        $this->assertSame([1 => ['w:9']], $second['held_elsewhere']);
+        $this->assertSame(['line_ids' => [1, 2], 'needed' => 2, 'available' => 1], $second['group']);
+    }
+
+    public function test_an_overbooked_group_shows_the_real_shortfall_not_one_per_line(): void
+    {
+        // The planner scenario: three people, two of them on both lines; both
+        // lines need two at once. Four places, three people: one missing.
+        $timeline = new Timeline;
+        $timeline->bookLabor(1, 0, 60, 2);
+        $timeline->bookLabor(2, 0, 60, 2);
+        $counter = $this->counter($this->roster([1 => ['w:marta', 'w:robert'], 2 => ['w:marta', 'w:robert', 'w:tomasz']]), $timeline);
+
+        $milling = $counter->count(1, 0, 480);
+        $turning = $counter->count(2, 0, 480);
+
+        $missing = ($milling['needed'] - $milling['available']) + ($turning['needed'] - $turning['available']);
+        $this->assertSame(1, $missing);
+        $this->assertLessThanOrEqual(3, $milling['available'] + $turning['available']);
+    }
+
+    public function test_a_group_with_enough_people_shows_nobody_short(): void
+    {
+        $timeline = new Timeline;
+        $timeline->bookLabor(1, 0, 60, 1);
+        $timeline->bookLabor(2, 0, 60, 2);
+        $counter = $this->counter($this->roster([1 => ['w:marta', 'w:robert'], 2 => ['w:marta', 'w:robert', 'w:tomasz']]), $timeline);
+
+        foreach ([1, 2] as $line) {
+            $count = $counter->count($line, 0, 480);
+            $this->assertGreaterThanOrEqual($count['needed'], $count['available']);
+            $this->assertNull($count['group']);
+        }
     }
 
     public function test_the_shared_person_working_one_line_after_the_other_is_enough_for_both(): void
@@ -107,14 +143,16 @@ class StaffingCounterTest extends TestCase
     public function test_own_people_cover_the_line_before_shared_ones_are_missed(): void
     {
         // Line 1: own w:1 plus shared w:9; line 2 needs w:9 at the same time.
+        // Three places, two people: one missing, counted once.
         $timeline = new Timeline;
         $timeline->bookLabor(1, 0, 60, 2);
         $timeline->bookLabor(2, 0, 60, 1);
+        $counter = $this->counter($this->roster([1 => ['w:1', 'w:9'], 2 => ['w:9']]), $timeline);
 
-        $count = $this->counter($this->roster([1 => ['w:1', 'w:9'], 2 => ['w:9']]), $timeline)->count(1, 0, 480);
+        $one = $counter->count(1, 0, 480);
+        $two = $counter->count(2, 0, 480);
 
-        $this->assertSame(1, $count['available']);
-        $this->assertSame(2, $count['needed']);
+        $this->assertSame(1, ($one['needed'] - $one['available']) + ($two['needed'] - $two['available']));
     }
 
     public function test_with_no_work_on_the_line_available_is_who_is_free_for_it(): void
