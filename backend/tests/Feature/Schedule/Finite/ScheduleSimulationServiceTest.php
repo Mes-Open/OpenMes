@@ -107,6 +107,31 @@ class ScheduleSimulationServiceTest extends TestCase
         $this->assertNotNull($blocker->fresh()->planned_start_at);
     }
 
+    public function test_applying_snapshots_the_staffing_of_every_line_the_committed_steps_use(): void
+    {
+        $saw = $this->line();
+        $mill = $this->line();
+        $sawStation = $this->station($saw);
+        $millStation = $this->station($mill);
+        $miller = User::factory()->create();
+        $miller->assignRole(\Spatie\Permission\Models\Role::findOrCreate('Operator', 'web'));
+        $mill->users()->attach($miller->id);
+        // Step 1 on the order's own line, step 2 on a workstation of another line.
+        $order = $this->order($saw, [
+            ['estimated_duration_minutes' => 60, 'workstation_id' => $sawStation->id, 'workstation_name' => $sawStation->name],
+            ['estimated_duration_minutes' => 60, 'workstation_id' => $millStation->id, 'workstation_name' => $millStation->name],
+        ]);
+
+        $this->service->apply($this->service->generate($this->request(), $this->user), $this->user);
+
+        $snapshot = \App\Models\WorkOrderStaffingSnapshot::where('work_order_id', $order->id)->sole();
+        $this->assertSame(2, ScheduledOperation::committed()->where('work_order_id', $order->id)->count());
+        $this->assertEqualsCanonicalizing([$saw->id, $mill->id], array_map('intval', array_keys($snapshot->roster)));
+        $this->assertSame(['u:'.$miller->id], $snapshot->roster[$mill->id]);
+        $lastStep = ScheduledOperation::committed()->where('work_order_id', $order->id)->max('planned_end_at');
+        $this->assertFalse($snapshot->window_end->lessThan(\Carbon\Carbon::parse($lastStep)), 'the window covers the step on the other line');
+    }
+
     public function test_an_order_without_a_line_lands_on_the_line_carrying_most_of_its_work(): void
     {
         $saw = $this->line();

@@ -5,7 +5,8 @@ import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
-import { __, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatNumber, formatTime } from '../../../lib/i18n';
+import { TONE_STYLE, shortName, staffingGrid, staffingTone } from '../../../lib/staffing';
 
 const MONO = 'var(--font-mono)';
 
@@ -36,8 +37,119 @@ function reasonText(reason) {
         })).join(' · ');
     }
 
+    if (isPeopleReason(reason)) {
+        return peopleText(reason);
+    }
+
+    if (reason.code === 'delayed_by_staffing' && reason.machine_start) {
+        return __('Delayed by staffing: :from → :to — :reason', {
+            from: isoStamp(reason.machine_start),
+            to: isoStamp(reason.planned_start),
+            reason: reason.cause ? reasonText(reason.cause) : '',
+        });
+    }
+
+    if (reason.code === 'predecessor_not_schedulable' && reason.blocking_step_number != null) {
+        const params = { step: reason.blocking_step_number, required: reason.required, available: reason.available };
+        if (typeof reason.required !== 'number') return __('Waits for step :step, which could not be scheduled.', params);
+        return reason.cause?.code === 'qualification'
+            ? __('Waits for step :step, which is short of qualified operators (needs :required, :available available).', params)
+            : __('Waits for step :step, which is short of operators (needs :required, :available available).', params);
+    }
+
+    if (reason.code === 'waited_for_operators' && reason.busy_lines?.length) {
+        return __('Waited for operators busy on :lines.', { lines: lineNames(reason.busy_lines) });
+    }
+
+    if (reason.code === 'waited_for_qualified_operators' && Array.isArray(reason.qualified_workers)) {
+        const params = {
+            count: reason.available,
+            skills: skillNames(reason.required_skills),
+            names: reason.qualified_workers.map((w) => w.name).join(', '),
+            lines: lineNames(reason.busy_lines ?? []),
+        };
+        const busy = typeof reason.busy === 'number' ? reason.busy : reason.available;
+        if (busy < reason.available) {
+            params.busy = busy;
+            return reason.busy_lines?.length
+                ? __('Waited: :busy of :count qualified operators for :skills (:names) busy with other work, some on :lines.', params)
+                : __('Waited: :busy of :count qualified operators for :skills (:names) busy with other work.', params);
+        }
+        if (reason.busy_lines?.length) {
+            return reason.available === 1
+                ? __('Waited: only :count qualified operator for :skills (:names), busy with other work on :lines.', params)
+                : __('Waited: only :count qualified operators for :skills (:names), all busy with other work, some on :lines.', params);
+        }
+        return reason.available === 1
+            ? __('Waited: only :count qualified operator for :skills (:names), busy with other work.', params)
+            : __('Waited: only :count qualified operators for :skills (:names), all busy with other work.', params);
+    }
+
     return reason.message;
 }
+
+/** "Line A, Line B" — the lines holding shared people. */
+const lineNames = (busyLines) => busyLines.map((l) => l.line_name ?? `#${l.line_id}`).join(', ');
+
+/** "Welding, Painting" — the skills a step requires. */
+const skillNames = (skills) => (skills ?? []).map((s) => s.name ?? `#${s.id}`).join(', ');
+
+/** A reason that names the window it is about. */
+const WINDOW_CODES = ['waited_for_operators', 'waited_for_qualified_operators', 'delayed_by_staffing'];
+const hasWindow = (reason) => (isPeopleReason(reason) || WINDOW_CODES.includes(reason.code)) && reason.window_start;
+
+/** A people reason carrying the numbers (drafts from before they did only have the message). */
+const isPeopleReason = (reason) => (reason.code === 'workforce_capacity' || reason.code === 'qualification') && typeof reason.required === 'number';
+
+/** "Needs 3 operators, 2 available (1 absent: Jan Kowalski). 1 busy with other work." — in the reader's language. */
+function peopleText(reason) {
+    const absent = reason.absent_workers ?? [];
+    const params = {
+        required: reason.required,
+        available: reason.available,
+        absent: absent.length,
+        names: absent.map((w) => w.name ?? `#${w.id}`).join(', '),
+        skills: skillNames(reason.required_skills),
+    };
+    let text;
+    if (reason.code === 'qualification') {
+        text = absent.length
+            ? __('Needs :required operators qualified in :skills, :available available (:absent absent: :names).', params)
+            : __('Needs :required operators qualified in :skills, :available available.', params);
+    } else {
+        text = absent.length
+            ? __('Needs :required operators, :available available (:absent absent: :names).', params)
+            : __('Needs :required operators, :available available.', params);
+    }
+
+    if (reason.in_use > 0) {
+        // Of those busy, how many other lines hold; the rest work on this one.
+        const busyLines = reason.busy_lines ?? [];
+        const held = Math.min(reason.in_use, busyLines.reduce((sum, l) => sum + (l.operators ?? 0), 0));
+        const lines = lineNames(busyLines);
+        if (held === 0) text += ` ${__(':count busy with other work.', { count: reason.in_use })}`;
+        else if (held === reason.in_use) text += ` ${__(':count busy with other work on :lines.', { count: held, lines })}`;
+        else text += ` ${__(':count busy with other work, :held of them on :lines.', { count: reason.in_use, held, lines })}`;
+    }
+
+    return reason.bottleneck_skill ? `${text} ${bottleneckText(reason)}` : text;
+}
+
+/** "Painting is held only by Jan Kowalski." — the scarcest required skill on the line. */
+function bottleneckText(reason) {
+    const holders = reason.skill_holders ?? [];
+    const params = {
+        skill: reason.bottleneck_skill.name ?? `#${reason.bottleneck_skill.id}`,
+        names: holders.map((h) => h.name).join(', '),
+    };
+    if (holders.length === 0) return __('Nobody on this line holds :skill.', params);
+    if (holders.length === 1) return __(':skill is held only by :names.', params);
+
+    return __(':skill is held by :names.', params);
+}
+
+/** "2026-10-12T06:00:00+02:00" → "12.10 06:00", plant time as the server wrote it. */
+const isoStamp = (iso) => (iso ? shortStamp(`${iso.slice(0, 10)} ${iso.slice(11, 16)}`) : '—');
 
 // ─── Workstation override (manual selection, audited server-side) ────────────
 
@@ -116,12 +228,220 @@ function Reasons({ op }) {
 
     return (
         <ul className="mt-1 space-y-0.5">
-            {shown.map((r, i) => <li key={i} className="text-[12px] text-om-muted">{reasonText(r)}</li>)}
+            {shown.map((r, i) => (
+                <li
+                    key={i}
+                    className={r.code === 'delayed_by_staffing' ? 'text-[12px] font-medium text-om-downtime' : 'text-[12px] text-om-muted'}
+                    data-testid={r.code === 'delayed_by_staffing' ? 'delayed-by-staffing' : undefined}
+                >
+                    {reasonText(r)}
+                    {hasWindow(r) && (
+                        <div className="text-[11px] text-om-faint" style={{ fontFamily: MONO }}>
+                            {__('Window :from – :to', { from: isoStamp(r.window_start), to: isoStamp(r.window_end) })}
+                        </div>
+                    )}
+                </li>
+            ))}
         </ul>
     );
 }
 
-function OperationsTable({ operations, stationsByType, canDecide, emptyText }) {
+// ─── Staffing ────────────────────────────────────────────────────────────────
+
+const UNTRACKED_TEXT = () => __('Staffing not tracked — scheduled on machine capacity only');
+
+/** Which lines the run counted people on, and which it scheduled on machines alone. */
+function StaffingPanel({ workforce, canAssignOperators }) {
+    if (!workforce?.length) return null; // drafts from before staffing was reported
+
+    if (workforce.some((w) => w.respected === false)) {
+        return <InlineAlert severity="info" title={__('Operator availability was ignored for this run.')} />;
+    }
+
+    const tracked = workforce.filter((w) => w.tracked);
+    const untracked = workforce.filter((w) => !w.tracked);
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="staffing-panel">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing')}</div>
+            {tracked.length > 0 && (
+                <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-om-ink">
+                    {tracked.map((w) => (
+                        <li key={w.line_id}>
+                            <span className="font-semibold">{w.line_name}</span>
+                            {w.assigned != null && <span className="text-om-muted"> · {__(':count operators assigned', { count: w.assigned })}</span>}
+                            {(w.single_holder_skills ?? []).length > 0 && (
+                                <span className="mt-1 flex flex-wrap gap-1.5">
+                                    {w.single_holder_skills.map((s) => (
+                                        <span
+                                            key={s.skill_id}
+                                            data-testid="single-qualified-skill"
+                                            title={__('Only one person on this line holds this skill.')}
+                                            className="inline-flex items-center gap-1 rounded-full border border-om-downtime/30 bg-om-downtime-bg px-2 py-0.5 text-[11.5px] font-medium text-om-downtime"
+                                        >
+                                            <Icon name="triangle-alert" size={12} />
+                                            {__(':skill — single qualified operator: :name', { skill: s.skill_name ?? `#${s.skill_id}`, name: s.holder_name ?? '—' })}
+                                        </span>
+                                    ))}
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {untracked.map((w) => (
+                <InlineAlert key={w.line_id} severity="warning" title={`${w.line_name} — ${UNTRACKED_TEXT()}`}>
+                    {canAssignOperators ? (
+                        <Link href={`/admin/lines/${w.line_id}#operators`} className="text-[12px] font-semibold text-om-accent hover:underline">
+                            {__('Assign operators')}
+                        </Link>
+                    ) : null}
+                </InlineAlert>
+            ))}
+        </div>
+    );
+}
+
+/** Time of day of an ISO stamp in the reader's locale: "06:00". */
+const clock = (iso) => formatTime(iso, { hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** One line × shift cell: people available / people the draft needs. */
+function GridCell({ cell }) {
+    if (!cell) return <td className="p-0.5"><div className="rounded-om-sm px-1 py-1.5 text-center text-[11px]" style={TONE_STYLE.idle}>·</div></td>;
+    const tone = staffingTone(cell);
+    const absent = cell.absent ?? [];
+    const held = cell.held_elsewhere ?? [];
+    const tip = [
+        `${cell.shift_name} · ${clock(cell.start)}–${clock(cell.end)}`,
+        __(':available available, :needed needed', { available: cell.available ?? 0, needed: cell.needed ?? 0 }),
+        absent.length ? `${__('Absent')}: ${absent.map((w) => w.name ?? `#${w.id}`).join(', ')}` : null,
+        ...held.map((h) => __(':names booked on :line', { names: h.names.join(', '), line: h.line_name })),
+        cell.person_hours > 0 ? __(':hours planned person-hours', { hours: formatNumber(cell.person_hours, { maximumFractionDigits: 1 }) }) : null,
+        cell.blocked_operations > 0 ? __(':count operations blocked', { count: cell.blocked_operations }) : null,
+    ].filter(Boolean).join('\n');
+    const note = absent.length
+        ? __(':name absent', { name: absent.length === 1 ? shortName(absent[0].name) : String(absent.length) })
+        : held.length ? __(':name on :line', { name: shortName(held[0].names[0]), line: held[0].line_name }) : null;
+
+    return (
+        <td className="p-0.5">
+            <div className="rounded-om-sm px-1 py-1.5 text-center" style={{ ...TONE_STYLE[tone], fontFamily: MONO }} title={tip}
+                data-testid="staffing-cell" data-tone={tone}>
+                <div className={`text-[12.5px] ${tone === 'short' ? 'font-bold' : 'font-semibold'}`}>
+                    {tone === 'idle' ? '—' : `${cell.available}/${cell.needed}`}
+                </div>
+                {note && <div className="truncate text-[10px] font-medium" style={{ fontFamily: 'var(--font-sans, inherit)' }}>{note}</div>}
+            </div>
+        </td>
+    );
+}
+
+/** Lines as rows, day + shift as columns, one week at a time. */
+function StaffingByShift({ staffing, canAssignOperators }) {
+    const grid = staffingGrid(staffing?.shifts);
+    const [weekIdx, setWeekIdx] = useState(0);
+    const week = grid.weeks[Math.min(weekIdx, grid.weeks.length - 1)];
+    const cols = grid.columns[week] ?? [];
+    const head = 'px-1 py-1 text-center text-[9.5px] font-normal uppercase tracking-[0.06em] text-om-faint whitespace-nowrap';
+    const legend = [['spare', __('Spare people')], ['enough', __('Exactly enough')], ['short', __('Short')], ['untracked', __('Staffing not tracked')]];
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="staffing-by-shift">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Staffing by shift')}</div>
+                <div className="text-[11.5px] text-om-muted">{__('cell = people available / people the plan needs')}</div>
+            </div>
+            {grid.lines.length === 0 ? (
+                <div className="text-[12.5px] text-om-muted">{__('No staffing demand in this horizon.')}</div>
+            ) : (
+                <>
+                    {grid.weeks.length > 1 && (
+                        <div className="flex items-center gap-2 text-[12px]" data-testid="staffing-week-pager">
+                            <Button size="sm" variant="outline" disabled={weekIdx === 0} onClick={() => setWeekIdx(weekIdx - 1)} aria-label={__('Previous week')}><Icon name="chevron-left" size={14} /></Button>
+                            <span style={{ fontFamily: MONO }}>{__('Week of :date', { date: formatDate(week, { day: '2-digit', month: '2-digit' }) })} · {weekIdx + 1}/{grid.weeks.length}</span>
+                            <Button size="sm" variant="outline" disabled={weekIdx >= grid.weeks.length - 1} onClick={() => setWeekIdx(weekIdx + 1)} aria-label={__('Next week')}><Icon name="chevron-right" size={14} /></Button>
+                        </div>
+                    )}
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-separate" style={{ borderSpacing: 0, minWidth: 120 + cols.length * 64 }}>
+                            <thead>
+                                <tr style={{ fontFamily: MONO }}>
+                                    <th className={`${head} text-left`}>{__('Line')}</th>
+                                    {cols.map((c) => (
+                                        <th key={c.key} className={head} title={c.shift_name}>
+                                            {formatDate(c.start, { weekday: 'short' })} {c.date.slice(8, 10)}.{c.date.slice(5, 7)}
+                                            <br />{clock(c.start)}–{clock(c.end)}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {grid.lines.map((line) => (
+                                    <tr key={line.id} data-testid="staffing-row">
+                                        <td className="whitespace-nowrap pr-2 text-[12.5px] font-semibold text-om-ink">{line.name}</td>
+                                        {line.tracked ? cols.map((c) => <GridCell key={c.key} cell={grid.cell(line.id, c.key)} />) : (
+                                            <td colSpan={Math.max(1, cols.length)} className="p-0.5">
+                                                <div className="rounded-om-sm px-2 py-1.5 text-center text-[12px]" style={TONE_STYLE.untracked} data-testid="staffing-cell" data-tone="untracked">
+                                                    {UNTRACKED_TEXT()}.{' '}
+                                                    {canAssignOperators && <Link href={`/admin/lines/${line.id}#operators`} className="font-semibold text-om-accent hover:underline">{__('Assign operators')}</Link>}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[11.5px] text-om-muted">
+                        {legend.map(([tone, label]) => (
+                            <span key={tone} className="inline-flex items-center gap-1.5">
+                                <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE_STYLE[tone].background, outline: `1px solid ${TONE_STYLE[tone].color}` }} />{label}
+                            </span>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+/** Each person away during the horizon, and the work orders their absence delayed or blocked. */
+function HorizonAbsences({ absences }) {
+    if (!absences?.length) return null;
+    const day = (date) => `${date.slice(8, 10)}.${date.slice(5, 7)}`;
+
+    return (
+        <div className="space-y-2 rounded-om-sm border border-om-line bg-om-card p-4" data-testid="horizon-absences">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Absences in this horizon')}</div>
+            <ul className="divide-y divide-om-line">
+                {absences.map((a) => (
+                    <li key={a.worker_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12.5px] text-om-ink">
+                        <span className="font-semibold">{a.name ?? `#${a.worker_id}`}</span>
+                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{a.dates.map(day).join(', ')}</span>
+                        <span className="text-om-muted">{a.lines.map((l) => l.name).join(', ')}</span>
+                        {a.affected_orders.length ? (
+                            <span>
+                                <span className="text-om-muted">{__('Affected work orders')}: </span>
+                                {a.affected_orders.map((o, i) => (
+                                    <span key={o.work_order_id}>
+                                        {i > 0 && ', '}
+                                        <Link href={`/admin/work-orders/${o.work_order_id}`} className="font-semibold text-om-accent hover:underline" style={{ fontFamily: MONO }}>
+                                            {o.order_no}
+                                        </Link>
+                                    </span>
+                                ))}
+                            </span>
+                        ) : (
+                            <span className="text-om-faint">{__('No work orders affected.')}</span>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+function OperationsTable({ operations, stationsByType, canDecide, emptyText, untrackedLineIds }) {
     if (!operations.length) {
         return <div className="rounded-om-sm border border-dashed border-om-line bg-om-card px-4 py-8 text-center text-[13px] text-om-muted">{emptyText}</div>;
     }
@@ -158,6 +478,13 @@ function OperationsTable({ operations, stationsByType, canDecide, emptyText }) {
                             </td>
                             <td className={cell}>
                                 <StationCell op={op} stationsByType={stationsByType} canDecide={canDecide} />
+                                {untrackedLineIds?.has(op.line_id) && (
+                                    <div className="mt-1">
+                                        <span className="inline-block rounded-om-sm bg-om-downtime-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-om-downtime" title={UNTRACKED_TEXT()}>
+                                            {__('staffing not tracked')}
+                                        </span>
+                                    </div>
+                                )}
                             </td>
                             <td className={`${cell} whitespace-nowrap text-[12.5px] text-om-ink`} style={{ fontFamily: MONO }}>{shortStamp(op.planned_start_label)}</td>
                             <td className={`${cell} whitespace-nowrap text-[12.5px] text-om-ink`} style={{ fontFamily: MONO }}>{shortStamp(op.planned_end_label)}</td>
@@ -308,12 +635,13 @@ function GenerateForm({ defaults, canDecide }) {
 const NAV_LINK = 'inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold text-om-ink hover:bg-om-chip';
 
 export default function AutoSchedule() {
-    const { draft, committed = [], stationsByType = {}, defaults, canDecide } = usePage().props;
+    const { draft, draftStale = null, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
     const { confirm, dialog } = useConfirm();
     const [showOnlyProblems, setShowOnlyProblems] = useState(false);
     const placed = (draft?.counts?.scheduled ?? 0) + (draft?.counts?.scheduled_late ?? 0);
     const problems = (draft?.operations ?? []).filter((op) => op.status !== 'scheduled');
     const draftOps = showOnlyProblems ? problems : (draft?.operations ?? []);
+    const untrackedLineIds = new Set((draft?.workforce ?? []).filter((w) => !w.tracked && w.respected !== false).map((w) => w.line_id));
 
     const apply = () => confirm(
         {
@@ -369,6 +697,17 @@ export default function AutoSchedule() {
                             )}
                         </div>
 
+                        {/* Already translated by the server; Apply refuses for the same reason. */}
+                        {draftStale && <InlineAlert severity="warning" title={draftStale.message} />}
+
+                        <StaffingPanel workforce={draft.workforce} canAssignOperators={canAssignOperators} />
+                        {draft.staffing && (
+                            <>
+                                <StaffingByShift staffing={draft.staffing} canAssignOperators={canAssignOperators} />
+                                <HorizonAbsences absences={draft.staffing.absences} />
+                            </>
+                        )}
+
                         <div className="flex justify-end">
                             <Checkbox size="sm" checked={showOnlyProblems} onChange={setShowOnlyProblems} label={`${__('Only late or infeasible')} (${problems.length})`} />
                         </div>
@@ -376,6 +715,7 @@ export default function AutoSchedule() {
                             operations={draftOps}
                             stationsByType={stationsByType}
                             canDecide={canDecide}
+                            untrackedLineIds={untrackedLineIds}
                             emptyText={showOnlyProblems && draft.operations?.length
                                 ? __('Every operation is scheduled on time.')
                                 : __('No work orders to schedule — every active order already has a time plan, or none has a routing.')}

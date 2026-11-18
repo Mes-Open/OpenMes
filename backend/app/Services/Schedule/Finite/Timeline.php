@@ -137,6 +137,24 @@ class Timeline
         return $peak;
     }
 
+    /**
+     * Operator-minutes booked on a line within [start, end): each booking's
+     * operators times the part of it inside the window — the person-hours a
+     * plan asks of that stretch, times sixty.
+     */
+    public function laborMinutes(int $lineKey, int $start, int $end): int
+    {
+        $total = 0;
+        foreach ($this->labor[$lineKey] ?? [] as $slot) {
+            $overlap = min($end, $slot['end']) - max($start, $slot['start']);
+            if ($overlap > 0) {
+                $total += $slot['operators'] * $overlap;
+            }
+        }
+
+        return $total;
+    }
+
     /** The first booking end on the line after $t, to retry once people free up. */
     public function nextLaborRelease(int $lineKey, int $t): ?int
     {
@@ -148,6 +166,167 @@ class Timeline
         }
 
         return $next;
+    }
+
+    /**
+     * The first booking end on any of the lines after $t.
+     *
+     * @param  list<int>  $lineKeys
+     */
+    public function nextLaborReleaseAmong(array $lineKeys, int $t): ?int
+    {
+        $next = null;
+        foreach ($lineKeys as $lineKey) {
+            $release = $this->nextLaborRelease($lineKey, $t);
+            if ($release !== null) {
+                $next = min($next ?? $release, $release);
+            }
+        }
+
+        return $next;
+    }
+
+    /**
+     * Operator demand per line through [start, end), as the stretches where it
+     * stays the same: each segment is half-open and lists, per line with any
+     * booking active in it, the operators booked there. Stretches with nothing
+     * booked on any of the lines are left out; consecutive stretches with the
+     * same demand are merged.
+     *
+     * @param  list<int>  $lineKeys
+     * @return list<array{start: int, end: int, demand: array<int, int>}>
+     */
+    public function laborSegments(array $lineKeys, int $start, int $end): array
+    {
+        return $this->segments($lineKeys, $start, $end, fn (int $lineKey, array $skills) => $lineKey);
+    }
+
+    /**
+     * The same stretches as {@see laborSegments()}, with the booked operators
+     * split by what their step needs: each demand key is
+     * {@see self::slotKind()} of a line and the skills its booking requires.
+     *
+     * @param  list<int>  $lineKeys
+     * @return list<array{start: int, end: int, demand: array<string, int>}>
+     */
+    public function skilledLaborSegments(array $lineKeys, int $start, int $end): array
+    {
+        return $this->segments($lineKeys, $start, $end, fn (int $lineKey, array $skills) => self::slotKind($lineKey, $skills));
+    }
+
+    /**
+     * `<line>|<sorted skill ids>`, e.g. `4|2,7`; `4|` for a booking needing no skill.
+     *
+     * @param  list<int>  $skills
+     */
+    public static function slotKind(int $lineKey, array $skills): string
+    {
+        $skills = array_map('intval', $skills);
+        sort($skills);
+
+        return $lineKey.'|'.implode(',', array_unique($skills));
+    }
+
+    /**
+     * The line and the skills of a {@see self::slotKind()}.
+     *
+     * @return array{0: int, 1: list<int>}
+     */
+    public static function parseSlotKind(string $kind): array
+    {
+        [$line, $skills] = explode('|', $kind, 2);
+
+        return [(int) $line, $skills === '' ? [] : array_map('intval', explode(',', $skills))];
+    }
+
+    /**
+     * @param  list<int>  $lineKeys
+     * @param  callable(int, list<int>): (int|string)  $kindOf
+     * @return list<array{start: int, end: int, demand: array<int|string, int>}>
+     */
+    private function segments(array $lineKeys, int $start, int $end, callable $kindOf): array
+    {
+        $points = [$start => true, $end => true];
+        $active = [];
+        foreach ($lineKeys as $lineKey) {
+            foreach ($this->labor[$lineKey] ?? [] as $slot) {
+                if ($slot['start'] >= $end || $slot['end'] <= $start || $slot['operators'] <= 0) {
+                    continue;
+                }
+                $from = max($start, $slot['start']);
+                $to = min($end, $slot['end']);
+                $points[$from] = true;
+                $points[$to] = true;
+                $active[] = [$kindOf($lineKey, $slot['skills']), $from, $to, $slot['operators']];
+            }
+        }
+        if ($active === []) {
+            return [];
+        }
+
+        $points = array_keys($points);
+        sort($points);
+
+        $segments = [];
+        for ($i = 0, $n = count($points) - 1; $i < $n; $i++) {
+            [$from, $to] = [$points[$i], $points[$i + 1]];
+            $demand = [];
+            foreach ($active as [$kind, $s, $e, $operators]) {
+                if ($s <= $from && $e >= $to) {
+                    $demand[$kind] = ($demand[$kind] ?? 0) + $operators;
+                }
+            }
+            if ($demand === []) {
+                continue;
+            }
+            ksort($demand);
+            $last = array_key_last($segments);
+            if ($last !== null && $segments[$last]['end'] === $from && $segments[$last]['demand'] === $demand) {
+                $segments[$last]['end'] = $to;
+
+                continue;
+            }
+            $segments[] = ['start' => $from, 'end' => $to, 'demand' => $demand];
+        }
+
+        return $segments;
+    }
+
+    /**
+     * Whether any of the lines has operators booked within [start, end).
+     *
+     * @param  list<int>  $lineKeys
+     */
+    public function hasLaborBetween(array $lineKeys, int $start, int $end): bool
+    {
+        foreach ($lineKeys as $lineKey) {
+            foreach ($this->labor[$lineKey] ?? [] as $slot) {
+                if ($slot['start'] < $end && $slot['end'] > $start && $slot['operators'] > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether any of the lines has a booking within [start, end) whose step
+     * requires a skill.
+     *
+     * @param  list<int>  $lineKeys
+     */
+    public function hasSkilledLaborBetween(array $lineKeys, int $start, int $end): bool
+    {
+        foreach ($lineKeys as $lineKey) {
+            foreach ($this->labor[$lineKey] ?? [] as $slot) {
+                if ($slot['start'] < $end && $slot['end'] > $start && $slot['operators'] > 0 && $slot['skills'] !== []) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

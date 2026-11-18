@@ -298,6 +298,16 @@ class ShapeRegistry
             'tabs' => ['webhooks'],
             'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'signature_timestamp', 'signature_scheme', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
+        // Production Planner insights: what was acknowledged or fixed, so every
+        // planner watching the board refreshes its drawer. Keys and the kind of
+        // action only — the drawer itself (names, absences) is fetched from
+        // PlanningInsightController. Deliberately without `tabs`/`roles`: only
+        // Admins and Supervisors read it, never an Operator granted the
+        // schedule tab (who sees the board but not the drawer).
+        'planning_insight_acknowledgements' => [
+            'table' => 'planning_insight_acknowledgements',
+            'columns' => ['id', 'insight_key', 'insight_type', 'action', 'acknowledged_by_id', 'created_at', 'updated_at'],
+        ],
         // Warehousing (#212).
         'warehouses' => [
             'table' => 'warehouses',

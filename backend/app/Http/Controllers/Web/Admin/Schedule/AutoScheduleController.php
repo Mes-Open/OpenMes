@@ -14,6 +14,7 @@ use App\Models\Workstation;
 use App\Services\Schedule\Finite\SchedulePresenter;
 use App\Services\Schedule\Finite\ScheduleSimulationService;
 use App\Services\Schedule\Finite\SchedulingRequest;
+use App\Support\TabRegistry;
 use Inertia\Inertia;
 
 /**
@@ -45,6 +46,8 @@ class AutoScheduleController extends Controller
 
         return Inertia::render('admin/schedule/AutoSchedule', [
             'draft' => $draft ? $this->presenter->simulation($draft) : null,
+            // Checked on load, so the planner is warned before clicking Apply.
+            'draftStale' => $draft ? $this->simulations->staleReason($draft) : null,
             'committed' => $committed->map(fn ($op) => $this->presenter->operation($op))->values(),
             'stationsByType' => Workstation::with('line:id,name')
                 ->where('is_active', true)
@@ -63,6 +66,9 @@ class AutoScheduleController extends Controller
             ],
             'statusLabels' => collect(ScheduledOperationStatus::cases())->mapWithKeys(fn ($s) => [$s->value => $s->label()]),
             'canDecide' => (bool) request()->user()?->hasAnyRole(['Admin', 'Supervisor']),
+            // UX only: whether the "Assign operators" link on an untracked line
+            // leads somewhere this user may open. The lines pages enforce it.
+            'canAssignOperators' => (bool) request()->user()?->can(TabRegistry::permission(TabRegistry::tabForPath('admin/lines') ?? 'lines')),
         ]);
     }
 

@@ -19,8 +19,9 @@ export async function apiCall(url, method, body) {
 }
 
 // Read-only JSON GET (no CSRF needed); pairs with apiCall for writes.
-export async function apiGet(url) {
+export async function apiGet(url, { signal } = {}) {
     return fetch(url, {
         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        signal,
     });
 }

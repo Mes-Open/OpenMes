@@ -31,8 +31,14 @@ class SchedulePlannerController extends Controller
             return redirect()->route('admin.schedule', [...$request->query(), 'view_mode' => 'daily']);
         }
 
+        // Staffing badges and the insights drawer are for planners only. Both
+        // come from GET /admin/schedule/insights, which counts the board once
+        // per refresh; the page itself does not count it as well.
+        $canSeeInsights = $request->user()?->can('viewAny', \App\Models\PlanningInsightAcknowledgement::class) ?? false;
+
         return Inertia::render('admin/schedule/Planner', [
             ...$board,
+            'canSeeInsights' => $canSeeInsights,
             // For the "+ New order" modal (shares the create page's form).
             'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'customers' => \App\Models\Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),

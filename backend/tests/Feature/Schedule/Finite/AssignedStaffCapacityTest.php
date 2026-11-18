@@ -6,6 +6,7 @@ use App\Extension\Contracts\Null\NullWorkforceProvider;
 use App\Extension\Contracts\WorkforceCapacityProvider;
 use App\Extension\Contracts\WorkforceProvider;
 use App\Models\Line;
+use App\Models\Shift;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkstationType;
@@ -85,6 +86,28 @@ class AssignedStaffCapacityTest extends TestCase
         $this->assertSame(2, $this->provider()->availableOperators($line->id, $this->at('2026-10-12 06:00'), $this->at('2026-10-12 14:00')));
     }
 
+    public function test_it_names_the_people_it_counts_with_the_same_key_on_every_line(): void
+    {
+        $lineA = $this->line();
+        $lineB = $this->line();
+        [$worker, $other] = $this->staff($lineA, 2);
+        User::factory()->create(['worker_id' => $worker->id])->lines()->attach($lineB->id);
+        $this->absentOnTuesday([$worker->id]);
+        $provider = $this->provider();
+
+        $this->assertInstanceOf(\App\Extension\Contracts\WorkforceRosterAware::class, $provider);
+        $keys = $provider->assignedOperatorKeys();
+        $this->assertEqualsCanonicalizing(['w:'.$worker->id, 'w:'.$other->id], $keys[$lineA->id]);
+        $this->assertSame(['w:'.$worker->id], $keys[$lineB->id]);
+
+        $monday = [$this->at('2026-10-12 06:00'), $this->at('2026-10-12 14:00')];
+        $tuesday = [$this->at('2026-10-13 06:00'), $this->at('2026-10-13 14:00')];
+        $this->assertCount($provider->availableOperators($lineA->id, ...$monday), $provider->presentOperatorKeys($lineA->id, ...$monday));
+        $this->assertSame(['w:'.$other->id], $provider->presentOperatorKeys($lineA->id, ...$tuesday));
+        $this->assertSame([], $provider->presentOperatorKeys($lineB->id, ...$tuesday));
+        $this->assertNull($provider->presentOperatorKeys($this->line()->id, ...$monday));
+    }
+
     public function test_absent_workers_are_not_available_on_their_day(): void
     {
         $line = $this->line();
@@ -94,8 +117,41 @@ class AssignedStaffCapacityTest extends TestCase
 
         $this->assertSame(2, $provider->availableOperators($line->id, $this->at('2026-10-12 06:00'), $this->at('2026-10-12 14:00')));
         $this->assertSame(1, $provider->availableOperators($line->id, $this->at('2026-10-13 06:00'), $this->at('2026-10-13 14:00')));
-        // A window reaching into the absence counts the worker as away for all of it.
+        // A window reaching into Tuesday's shift counts the worker as away for all of it.
         $this->assertSame(1, $provider->availableOperators($line->id, $this->at('2026-10-12 12:00'), $this->at('2026-10-13 08:00')));
+    }
+
+    public function test_a_night_shift_belongs_to_the_date_it_starts(): void
+    {
+        Shift::query()->update(['is_active' => false]);
+        Shift::create(['name' => 'Night', 'code' => 'N', 'start_time' => '22:00', 'end_time' => '06:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        $line = $this->line();
+        [$first] = $this->staff($line, 2);
+        $this->absentOnTuesday([$first->id]);
+        $provider = $this->provider();
+        $mondayNight = [$this->at('2026-10-12 22:00'), $this->at('2026-10-13 06:00')];
+        $tuesdayNight = [$this->at('2026-10-13 22:00'), $this->at('2026-10-14 06:00')];
+
+        // Away on Tuesday: Monday's night (ending Tuesday morning) is untouched…
+        $this->assertSame(2, $provider->availableOperators($line->id, ...$mondayNight));
+        $this->assertSame([], $provider->absentWorkerIds($line->id, ...$mondayNight));
+        // …and Tuesday's night, though it ends on Wednesday, is not.
+        $this->assertSame(1, $provider->availableOperators($line->id, ...$tuesdayNight));
+        $this->assertSame([$first->id], $provider->absentWorkerIds($line->id, ...$tuesdayNight));
+        // The early hours of Wednesday still belong to Tuesday's night.
+        $this->assertSame(1, $provider->availableOperators($line->id, $this->at('2026-10-14 02:00'), $this->at('2026-10-14 03:00')));
+    }
+
+    public function test_a_window_outside_every_shift_uses_its_calendar_date(): void
+    {
+        $line = $this->line();
+        [$first] = $this->staff($line, 2);
+        $this->absentOnTuesday([$first->id]);
+        $provider = $this->provider();
+
+        // Tuesday 18:00–20:00 lies outside the 06:00–14:00 day shift.
+        $this->assertSame(1, $provider->availableOperators($line->id, $this->at('2026-10-13 18:00'), $this->at('2026-10-13 20:00')));
+        $this->assertSame(2, $provider->availableOperators($line->id, $this->at('2026-10-14 18:00'), $this->at('2026-10-14 20:00')));
     }
 
     public function test_a_line_nobody_is_assigned_to_is_not_tracked(): void
@@ -137,6 +193,44 @@ class AssignedStaffCapacityTest extends TestCase
 
         $this->assertSame(2, $count([$skillA->id]));
         $this->assertSame(1, $count([$skillA->id, $skillB->id]));
+    }
+
+    public function test_skill_holders_ignore_absences_and_accounts_without_a_worker(): void
+    {
+        $this->assertNull($this->provider()->skillHolders($this->line()->id), 'skills not recorded');
+
+        \Illuminate\Support\Facades\Schema::create('test_worker_skill', function ($table) {
+            $table->foreignId('worker_id');
+            $table->foreignId('skill_id');
+        });
+        Worker::resolveRelationUsing('skills', fn (Worker $w) => $w->belongsToMany(Line::class, 'test_worker_skill', 'worker_id', 'skill_id'));
+        $this->beforeApplicationDestroyed(fn () => $this->forgetSkillsRelation());
+
+        $line = $this->line();
+        [$welder, $both] = $this->staff($line, 2);
+        User::factory()->create()->lines()->attach($line->id); // an account with no worker record
+        $skillA = $this->line();
+        $skillB = $this->line();
+        $welder->skills()->attach([$skillA->id]);
+        $both->skills()->attach([$skillA->id, $skillB->id]);
+        $this->absentOnTuesday([$both->id]);
+        $provider = $this->provider();
+
+        $holders = $provider->skillHolders($line->id);
+        $this->assertEqualsCanonicalizing(['w:'.$welder->id, 'w:'.$both->id], $holders[$skillA->id]);
+        $this->assertSame(['w:'.$both->id], $holders[$skillB->id], 'an absence does not take a skill away');
+        $this->assertNull($provider->skillHolders($this->line()->id), 'a line nobody staffs is not tracked');
+    }
+
+    public function test_it_names_workers_and_accounts_by_key(): void
+    {
+        $line = $this->line();
+        [$worker] = $this->staff($line, 1);
+        $account = User::factory()->create();
+
+        $names = $this->provider()->operatorNames(['w:'.$worker->id, 'u:'.$account->id, 'x:1', 'w:'.($worker->id + 1000)]);
+
+        $this->assertSame(['w:'.$worker->id => $worker->name, 'u:'.$account->id => $account->name], $names);
     }
 
     private function forgetSkillsRelation(): void
