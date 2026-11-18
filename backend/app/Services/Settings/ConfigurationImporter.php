@@ -24,7 +24,8 @@ use Illuminate\Support\Facades\Validator;
  *    dropped; one into a table the file does not carry (a warehouse, a
  *    division) is kept only when that row exists here. Any other `*_id`
  *    column - users, for one - is never copied: another database's numbering
- *    means nothing here.
+ *    means nothing here. Lists of ids kept in a JSON column (a segment's
+ *    `required_skill_ids`) are rewritten the same way, id by id.
  *  - Columns the table does not have are ignored; arrays/objects are stored
  *    as JSON (a step's `config`, a bench's `operator_screens`).
  *  - System settings: known keys only, each checked against the settings
@@ -88,6 +89,15 @@ class ConfigurationImporter
         'line_statuses' => ['line_id' => 'lines'],
         'maintenance_schedules' => ['line_id' => 'lines', 'workstation_id' => 'workstations', 'tool_id' => 'tools', 'cost_source_id' => 'cost_sources'],
         'inspection_plans' => ['material_id' => 'materials', 'material_type_id' => 'material_types', 'root_id' => 'inspection_plans'],
+    ];
+
+    /**
+     * Table => [JSON id-list column => referenced table]. Each id in the list
+     * is resolved like a foreign key; ids that do not resolve are dropped.
+     */
+    public const ID_LIST_REFERENCES = [
+        'personnel_classes' => ['required_skill_ids' => 'skills'],
+        'process_segments' => ['required_skill_ids' => 'skills'],
     ];
 
     /** Settings the import may write (the settings form's own keys) besides those already stored. */
@@ -259,6 +269,11 @@ class ConfigurationImporter
                 $row[$column] = $this->resolve($refTable, $row[$column]);
             }
         }
+        foreach (self::ID_LIST_REFERENCES[$table] ?? [] as $column => $refTable) {
+            if (array_key_exists($column, $row) && $row[$column] !== null) {
+                $row[$column] = $this->resolveList($refTable, $row[$column]);
+            }
+        }
         // Files from before sequences had a purpose: every sequence was a LOT one.
         if ($table === 'lot_sequences' && empty($row['purpose'])) {
             $row['purpose'] = 'lot';
@@ -383,6 +398,32 @@ class ConfigurationImporter
         }
 
         return null;
+    }
+
+    /**
+     * A JSON list of file ids to this database's ids: the ones that do not
+     * resolve are dropped, and a list left empty is stored as null.
+     *
+     * @return list<int>|null
+     */
+    private function resolveList(string $table, mixed $fileIds): ?array
+    {
+        $decoded = is_string($fileIds) ? json_decode($fileIds, true) : $fileIds;
+        if (! is_array($decoded)) {
+            return null;
+        }
+        $ids = [];
+        foreach ($decoded as $fileId) {
+            if (is_int($fileId) || (is_string($fileId) && ctype_digit($fileId))) {
+                $id = $this->resolve($table, (int) $fileId);
+                if ($id !== null) {
+                    $ids[] = $id;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+
+        return $ids === [] ? null : $ids;
     }
 
     /** A packing step's label template is referenced inside its config. */
