@@ -13,10 +13,12 @@ return [
     | message text. That boundary is enforced by tests, not by convention —
     | see tests/Feature/Telemetry/.
     |
-    | Reporting is OFF until an administrator turns it on in Settings. It used
-    | to be on unless switched off; opt-in is the honest default when the data
-    | leaves somebody else's network, and in the EU it is also the position
-    | that does not depend on defending a legitimate interest.
+    | A new installation reports by default: the web installer's box is ticked,
+    | and a Docker install records "on" at first start unless
+    | OPENMES_TELEMETRY=false. install.sh says so when it finishes. Either way it
+    | is one switch in Settings -> System -> Usage reporting to turn it off.
+    | Installations that already exist keep the answer they have — an upgrade
+    | never switches reporting on.
     |
     | This env var still overrides the setting in both directions and is read
     | before the database exists, so a packaged or air-gapped deployment can be

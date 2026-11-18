@@ -386,8 +386,11 @@ numbers, no order data, no recipes, no personal data, and no error message text.
 That boundary is [enforced by tests](backend/tests/Feature/Telemetry/), not by
 good intentions.
 
-It is on by default. Switch it off in **Settings → System → Usage reporting**,
-or set `OPENMES_TELEMETRY=false` before first start. An installation with no
+It is on by default for a new installation — the web installer's box is ticked,
+and `install.sh` tells you when it finishes. Switch it off in **Settings → System →
+Usage reporting**, run `./install.sh --no-telemetry`, or set
+`OPENMES_TELEMETRY=false` before first start. Upgrading never switches it on for an
+installation that had it off. An installation with no
 route to the internet behaves exactly like a connected one — nothing breaks,
 nothing slows down, and the log does not fill up.
 
