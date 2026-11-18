@@ -528,6 +528,7 @@ class PlanningInsights
             $affected = [];
             $late = 0;
             $seen = [];
+            $people = [];
             foreach ($parts as $p) {
                 foreach ($p['affected'] as $entry) {
                     $affected[] = $entry;
@@ -540,7 +541,18 @@ class PlanningInsights
                         }
                         $seen[$a['kind']] = true;
                     } elseif ($a['kind'] === 'substitute') {
+                        // One person helps one line: offer them where they help most.
+                        $prev = $people[$a['user_id']] ?? null;
+                        if ($prev !== null && $actions[$prev]['score'] >= $a['score']) {
+                            continue;
+                        }
                         $a['label'] = $this->lineName($p['line_id']).': '.$a['label'];
+                        if ($prev !== null) {
+                            $actions[$prev] = $a;
+
+                            continue;
+                        }
+                        $people[$a['user_id']] = count($actions);
                     }
                     $actions[] = $a;
                 }

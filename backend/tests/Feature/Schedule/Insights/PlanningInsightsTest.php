@@ -174,6 +174,8 @@ class PlanningInsightsTest extends TestCase
         $this->planned($turn, '2026-11-23', 1);
         $this->planned($asm, '2026-11-23', 1);
         $this->planned($pack, '2026-11-23', 1);
+        // Free on a line with no work: a substitute for either short line.
+        $this->operator('Olga Wrona', $this->plantLine('Paint shop', 'PNT'));
 
         $state = $this->drawer($this->planner());
 
@@ -188,6 +190,9 @@ class PlanningInsightsTest extends TestCase
         $this->assertCount(2, $insight['cells']);
         $this->assertCount(2, $insight['affected']);
         $this->assertSame(1, collect($insight['actions'])->where('kind', 'acknowledge')->count());
+        $offered = collect($insight['actions'])->where('kind', 'substitute')->pluck('user_id');
+        $this->assertNotEmpty($offered);
+        $this->assertSame($offered->unique()->count(), $offered->count(), 'each person is offered once');
 
         // The group key is a valid key: the drawer can acknowledge it.
         $this->postJson('/admin/schedule/insights/acknowledge', $this->board() + ['insight_key' => $insight['key']])
