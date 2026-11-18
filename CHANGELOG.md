@@ -97,6 +97,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Automatic scheduling no longer shows "undefined/undefined" in the staffing grid for a draft generated before the upgrade.** A draft stored by an earlier version keeps its older staffing fields; the grid now reads them, and a cell without a count shows a dash.
 - **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
   auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on
   both, so a shift could look covered while the other line's work held the only person. They

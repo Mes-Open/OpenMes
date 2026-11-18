@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shortName, staffingGrid, staffingTone, weekOf } from './staffing';
+import { normalizeCell, shortName, staffingGrid, staffingTone, weekOf } from './staffing';
 
 describe('staffingTone', () => {
     it('reads available against needed', () => {
@@ -50,5 +50,20 @@ describe('staffingGrid', () => {
     it('keeps an untracked line as one row', () => {
         const grid = staffingGrid([row(1, '2026-11-23', '06', { tracked: false, available: null })]);
         expect(grid.lines[0].tracked).toBe(false);
+    });
+});
+
+describe('normalizeCell', () => {
+    it('reads a draft stored before available/needed existed', () => {
+        const legacy = { tracked: true, present: 2, peak_operators: 3, start: 'a', end: 'b', line_id: 1, date: '2026-11-18' };
+        expect(normalizeCell(legacy)).toMatchObject({ available: 2, needed: 3 });
+        expect(staffingTone(normalizeCell(legacy))).toBe('short');
+        expect(staffingGrid([legacy]).cell(1, 'a|b')).toMatchObject({ available: 2, needed: 3 });
+    });
+
+    it('keeps an untracked legacy cell untracked and leaves current cells alone', () => {
+        expect(staffingTone(normalizeCell({ tracked: false, present: null, peak_operators: 2 }))).toBe('untracked');
+        const current = { tracked: true, available: 1, needed: 1 };
+        expect(normalizeCell(current)).toBe(current);
     });
 });

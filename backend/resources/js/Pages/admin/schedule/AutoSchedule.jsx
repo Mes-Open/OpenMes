@@ -328,7 +328,7 @@ function GridCell({ cell }) {
             <div className="rounded-om-sm px-1 py-1.5 text-center" style={{ ...TONE_STYLE[tone], fontFamily: MONO }} title={tip}
                 data-testid="staffing-cell" data-tone={tone}>
                 <div className={`text-[12.5px] ${tone === 'short' ? 'font-bold' : 'font-semibold'}`}>
-                    {tone === 'idle' ? '—' : `${cell.available}/${cell.needed}`}
+                    {tone === 'idle' || tone === 'untracked' ? '—' : `${cell.available}/${cell.needed}`}
                 </div>
                 {note && <div className="truncate text-[10px] font-medium" style={{ fontFamily: 'var(--font-sans, inherit)' }}>{note}</div>}
             </div>
@@ -417,9 +417,9 @@ function HorizonAbsences({ absences }) {
                 {absences.map((a) => (
                     <li key={a.worker_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12.5px] text-om-ink">
                         <span className="font-semibold">{a.name ?? `#${a.worker_id}`}</span>
-                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{a.dates.map(day).join(', ')}</span>
-                        <span className="text-om-muted">{a.lines.map((l) => l.name).join(', ')}</span>
-                        {a.affected_orders.length ? (
+                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{(a.dates ?? []).map(day).join(', ')}</span>
+                        <span className="text-om-muted">{(a.lines ?? []).map((l) => l.name).join(', ')}</span>
+                        {a.affected_orders?.length ? (
                             <span>
                                 <span className="text-om-muted">{__('Affected work orders')}: </span>
                                 {a.affected_orders.map((o, i) => (
