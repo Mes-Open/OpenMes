@@ -433,7 +433,7 @@ export default function Planner() {
     const onShowInsight = useCallback((insight) => {
         setHighlight(highlightOf(insight));
         setShownKey(insight.key);
-        setTimeout(() => document.querySelector('[data-testid="plan-highlight"]')?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }), 60);
+        setTimeout(() => document.querySelector('[data-testid="plan-highlight"]')?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }), 60);
     }, []);
 
     const rangeLabel = (rangeStart && rangeEnd)
