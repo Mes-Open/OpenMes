@@ -559,6 +559,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('schedule/changeover-rules', \App\Http\Controllers\Web\Admin\Schedule\ChangeoverRuleController::class)
             ->except(['show'])
             ->names('schedule.changeover-rules');
+        // Production Planner insights drawer (Admin + Supervisor, see PlanningInsightAcknowledgementPolicy).
+        Route::get('/schedule/insights', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'index'])->name('schedule.insights');
+        Route::post('/schedule/insights/acknowledge', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'acknowledge'])->name('schedule.insights.acknowledge');
+        Route::post('/schedule/insights/move', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'move'])->name('schedule.insights.move');
+        Route::post('/schedule/insights/substitute', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'substitute'])->name('schedule.insights.substitute');
+        Route::post('/schedule/insights/acknowledgements/{acknowledgement}/undo', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'undo'])->name('schedule.insights.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
         Route::post('/schedule/maintenance', [SchedulePlannerController::class, 'storeMaintenance'])->name('schedule.maintenance.store');

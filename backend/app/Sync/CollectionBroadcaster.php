@@ -56,6 +56,7 @@ class CollectionBroadcaster
             'shifts' => [Models\Shift::class, null],
             'users' => [Models\User::class, null],
             'workers' => [Models\Worker::class, null],
+            'planning_insight_acknowledgements' => [Models\PlanningInsightAcknowledgement::class, null],
             'materials' => [Models\Material::class, null],
             'serial_units' => [Models\SerialUnit::class, null],
             'data_imports' => [Models\CsvImport::class, fn ($m) => $m->created_at === null || $m->created_at->gte(now()->subDays(\App\Sync\Shapes\DataImportsRecentShape::DAYS))],

@@ -86,6 +86,8 @@ class SoftDeleteRegistry
         'shipments' => Models\Shipment::class,
         'shipment_items' => Models\ShipmentItem::class,
         'shipment_scans' => Models\ShipmentScan::class,
+        // Production Planner insight acknowledgements — undo is a soft delete.
+        'planning_insight_acknowledgements' => Models\PlanningInsightAcknowledgement::class,
         'attachments' => Models\Attachment::class,
 
         // Warehousing (#212). Balances (warehouse_stocks) are derived data and
