@@ -248,7 +248,7 @@ export function InsightsDrawer({
     useEffect(() => {
         if (!focusKey) return undefined;
         const el = [...(listRef.current?.querySelectorAll('[data-testid="insight"]') ?? [])].find((n) => n.dataset.key === focusKey);
-        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
         const t = setTimeout(onFocused, 1800);
         return () => clearTimeout(t);
     }, [focusKey, drawer, onFocused]);
