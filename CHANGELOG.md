@@ -97,6 +97,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **An order between two batches stays in progress.** In whole-batch flow, finishing a
+  batch that left the order short of its plan put it back to `PENDING`. An order that had
+  already made parts could then be deleted or rejected through the API, could not be
+  paused, and MRP planned its whole material demand again (a 40%-done order of 100 at
+  2 per unit showed a shortage of 200). A finished batch now keeps the order
+  `IN_PROGRESS`, as the transfer flow already did. Unblocking an order whose pre-block
+  status was never recorded uses the same rule.
+
 - **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
   auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on
   both, so a shift could look covered while the other line's work held the only person. They
