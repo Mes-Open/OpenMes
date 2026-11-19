@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ScheduledOperation;
 use App\Models\Shift;
 use App\Models\WorkOrder;
+use App\Services\Schedule\BoardCells;
 use App\Services\Schedule\Finite\ResourceCalendar;
 use App\Services\Schedule\Finite\ShiftOccurrences;
 use App\Services\Schedule\Finite\StaffingCounter;
@@ -101,12 +102,7 @@ class PlannerStaffing
         $this->from = $rangeStart->copy()->startOfDay();
         $this->to = $rangeEnd->copy()->startOfDay()->addDays(1 + self::LOOKAHEAD_DAYS);
         $this->shifts = Shift::where('is_active', true)->get();
-        $this->columns = $this->shifts->sortBy([['sort_order', 'asc'], ['start_time', 'asc']])
-            ->unique(fn (Shift $s) => $s->start_time.'|'.$s->end_time)
-            ->take(4)
-            ->map(fn (Shift $s) => ['start' => substr((string) $s->start_time, 0, 5), 'end' => substr((string) $s->end_time, 0, 5), 'name' => (string) $s->name])
-            ->values()
-            ->all();
+        $this->columns = BoardCells::columns($this->shifts);
         $this->allLines = Line::where('is_active', true)->orderBy('name')->get()->keyBy('id');
         $this->timeline = new Timeline;
         $this->counter = new StaffingCounter(
@@ -177,18 +173,7 @@ class PlannerStaffing
      */
     public function window(string $date, int $col): ?array
     {
-        $column = $this->columns[$col - 1] ?? null;
-        if ($column === null) {
-            return null;
-        }
-        $day = Carbon::parse($date)->startOfDay();
-        $start = $day->copy()->setTimeFromTimeString($column['start']);
-        $end = $day->copy()->setTimeFromTimeString($column['end']);
-        if ($end->lessThanOrEqualTo($start)) {
-            $end->addDay();
-        }
-
-        return [ResourceCalendar::toMinutes($start), ResourceCalendar::toMinutes($end)];
+        return BoardCells::window($this->columns, $date, $col);
     }
 
     /** Whether one of the line's shifts runs in the cell. */
@@ -361,8 +346,7 @@ class PlannerStaffing
 
     private function segment(int $lineId, ?string $date, ?int $shift, ?string $endDate, ?int $endShift, ?WorkOrder $minutePlan, bool $primary): ?array
     {
-        $perDay = max(1, count($this->columns));
-        if ($minutePlan !== null && $this->isExactPlan($minutePlan)) {
+        if ($minutePlan !== null && BoardCells::isExactPlan($minutePlan)) {
             return ['line_id' => $lineId, 'primary' => $primary, 'cells' => [], 'exact' => [
                 ResourceCalendar::toMinutes($minutePlan->planned_start_at), ResourceCalendar::toMinutes($minutePlan->planned_end_at),
             ]];
@@ -370,51 +354,9 @@ class PlannerStaffing
         if ($date === null || $this->columns === []) {
             return null;
         }
-        if (! $shift && $minutePlan?->planned_start_at !== null) {
-            $hour = (int) $minutePlan->planned_start_at->format('G');
-            $shift = min($perDay, intdiv($hour, intdiv(24, $perDay)) + 1);
-        }
-        $shift = min(max(1, (int) ($shift ?: 1)), $perDay);
-        $lastDate = $date;
-        $lastShift = $shift;
-        if ($endDate !== null && $endDate >= $date) {
-            $lastDate = $endDate;
-            $lastShift = min(max(1, (int) ($endShift ?: $shift)), $perDay);
-        } elseif ($endShift && $endShift > $shift) {
-            $lastShift = min((int) $endShift, $perDay);
-        }
-        if ($lastDate === $date && $lastShift < $shift) {
-            $lastShift = $shift;
-        }
-
-        $cells = [];
-        $day = Carbon::parse($date);
-        for ($i = 0; $i < 62 && $day->toDateString() <= $lastDate; $i++, $day->addDay()) {
-            $d = $day->toDateString();
-            $first = $d === $date ? $shift : 1;
-            $last = $d === $lastDate ? $lastShift : $perDay;
-            for ($col = $first; $col <= $last; $col++) {
-                $cells[] = [$d, $col];
-            }
-        }
+        $cells = BoardCells::span($this->columns, $date, $shift, $endDate, $endShift, $minutePlan?->planned_start_at);
 
         return ['line_id' => $lineId, 'primary' => $primary, 'cells' => $cells, 'exact' => null];
-    }
-
-    /**
-     * A minute plan the planner set on purpose — not the envelope a drop onto
-     * a weekly cell writes (shift start to the midnight after the end date).
-     */
-    private function isExactPlan(WorkOrder $order): bool
-    {
-        if ($order->planned_start_at === null || $order->planned_end_at === null || $order->planned_end_at->lessThanOrEqualTo($order->planned_start_at)) {
-            return false;
-        }
-        if (! $order->shift_number) {
-            return true;
-        }
-
-        return $order->planned_end_at->format('H:i:s') !== '00:00:00';
     }
 
     /** @return list<int> */

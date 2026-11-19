@@ -384,6 +384,31 @@ class StaffingOverviewTest extends TestCase
         }
     }
 
+    public function test_an_order_dropped_on_a_morning_cell_books_only_that_shift(): void
+    {
+        // A drop on the weekly board writes shift start to the midnight after
+        // the end date. Midnight closes the day; it does not book the
+        // afternoon — the Planner counts that order in the morning only.
+        Shift::create(['name' => 'Afternoon', 'code' => 'A', 'start_time' => '14:00', 'end_time' => '22:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        [$line, $type] = $this->cell(stations: 1, people: 0);
+        \App\Models\User::factory()->create(['name' => 'Jan Mazur'])->lines()->attach($line->id);
+        $this->job($line, $type, 240, attrs: [
+            'planned_start_at' => '2026-10-12 06:00:00',
+            'planned_end_at' => '2026-10-13 00:00:00',
+            'shift_number' => 1,
+            'end_date' => '2026-10-12',
+            'end_shift_number' => 1,
+        ]);
+        $next = $this->job($line, $type, 240);
+
+        $result = $this->schedule();
+
+        $rows = collect($this->rows($result, $line, '2026-10-12'))->keyBy('shift_name');
+        $this->assertSame([1, 1, 0], [$rows['Day']['available'], $rows['Day']['peak_operators'], $rows['Day']['shortfall']]);
+        $this->assertEquals($this->at('2026-10-12 14:00'), $this->opsFor($result, $next)[0]['planned_start_at'], 'the afternoon is free for new work');
+        $this->assertSame([1, 1, 0], [$rows['Afternoon']['available'], $rows['Afternoon']['peak_operators'], $rows['Afternoon']['shortfall']]);
+    }
+
     // ── Steps behind a step short of people ─────────────────────────────────
 
     public function test_a_step_behind_one_short_of_people_says_which_and_by_how_much(): void

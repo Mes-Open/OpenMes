@@ -9,9 +9,11 @@ use App\Extension\Contracts\WorkforceProvider;
 use App\Extension\Contracts\WorkforceRosterAware;
 use App\Models\Line;
 use App\Models\ScheduledOperation;
+use App\Models\Shift;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\Material\MaterialAllocationService;
+use App\Services\Schedule\BoardCells;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -331,11 +333,21 @@ class FiniteScheduler
 
         // A minute plan is one block for the whole order, not step by step, so
         // no one step's skills apply to it: anyone on its line may staff it.
+        // An order dropped on a weekly cell carries an envelope (shift start
+        // to the midnight after its end date): it books the cells it was
+        // dropped on, exactly as the Planner counts it.
+        $columns = null;
         foreach ($minutePlanned as $order) {
-            $start = ResourceCalendar::toMinutes($order->planned_start_at);
-            $end = ResourceCalendar::toMinutes($order->planned_end_at);
-            $this->timeline->book('line:'.$order->line_id, $start, $end, $this->attributesOf($order));
-            $this->timeline->bookLabor((int) $order->line_id, $start, $end, (int) round($order->operatorFactor()));
+            if ($order->planned_end_at->lessThanOrEqualTo($order->planned_start_at)) {
+                continue;
+            }
+            $windows = BoardCells::isExactPlan($order)
+                ? [[ResourceCalendar::toMinutes($order->planned_start_at), ResourceCalendar::toMinutes($order->planned_end_at)]]
+                : BoardCells::envelopeWindows($columns ??= BoardCells::columns(Shift::where('is_active', true)->get()), $order);
+            foreach ($windows as [$start, $end]) {
+                $this->timeline->book('line:'.$order->line_id, $start, $end, $this->attributesOf($order));
+                $this->timeline->bookLabor((int) $order->line_id, $start, $end, (int) round($order->operatorFactor()));
+            }
         }
     }
 
