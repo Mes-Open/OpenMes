@@ -6964,7 +6964,6 @@
     "No changeover rules — every job uses its routing’s standard setup time.": "No changeover rules — every job uses its routing’s standard setup time.",
     "Schedule simulated: :placed of :total operations placed. Nothing changes until you apply it.": "Schedule simulated: :placed of :total operations placed. Nothing changes until you apply it.",
     "Schedule applied to :applied work orders.": "Schedule applied to :applied work orders.",
-    ":count work orders could not be fully scheduled and kept their placement.": ":count work orders could not be fully scheduled and kept their placement.",
     "Simulated schedule discarded.": "Simulated schedule discarded.",
     "Operation moved to :station.": "Operation moved to :station.",
     "The selected workstation is not of the required type for this step.": "The selected workstation is not of the required type for this step.",
@@ -7310,7 +7309,6 @@
     "Staffing not tracked — scheduled on machine capacity only": "Staffing not tracked — scheduled on machine capacity only",
     "staffing not tracked": "staffing not tracked",
     "Assign operators": "Assign operators",
-    ":count operators assigned": ":count operators assigned",
     "Operator availability was ignored for this run.": "Operator availability was ignored for this run.",
     "Sort by": "Sort by",
     "Newest entered": "Newest entered",
@@ -7765,9 +7763,11 @@
     "Keyboard shortcut": "Keyboard shortcut",
     "open / close": "open / close",
     "Schedule applied to :count work order.|Schedule applied to :count work orders.": "Schedule applied to :count work order.|Schedule applied to :count work orders.",
-    ":lines share people. At that time they need :needed between them and have :available, so :missing places stay empty.": ":lines share people. At that time they need :needed between them and have :available, so :missing places stay empty.",
     ":line has :available of :needed.": ":line has :available of :needed.",
     ":lines short of shared people on :slot": ":lines short of shared people on :slot",
     "Need :needed, :available covered": "Need :needed, :available covered",
-    ":lines need :needed people between them at that time and have :available.": ":lines need :needed people between them at that time and have :available."
+    ":lines need :needed people between them at that time and have :available.": ":lines need :needed people between them at that time and have :available.",
+    ":lines share people. At that time they need :needed between them and have :available, so :count place stays empty.|:lines share people. At that time they need :needed between them and have :available, so :count places stay empty.": ":lines share people. At that time they need :needed between them and have :available, so :count place stays empty.|:lines share people. At that time they need :needed between them and have :available, so :count places stay empty.",
+    ":count work order could not be fully scheduled and kept its placement.|:count work orders could not be fully scheduled and kept their placement.": ":count work order could not be fully scheduled and kept its placement.|:count work orders could not be fully scheduled and kept their placement.",
+    ":count operator assigned|:count operators assigned": ":count operator assigned|:count operators assigned"
 }

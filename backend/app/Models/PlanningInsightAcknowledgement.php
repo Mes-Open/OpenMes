@@ -29,7 +29,9 @@ class PlanningInsightAcknowledgement extends Model
         'insight_type',
         'action',
         'title',
+        'title_translation',
         'summary',
+        'summary_translation',
         'signature',
         'payload',
         'acknowledged_by_id',
@@ -40,6 +42,8 @@ class PlanningInsightAcknowledgement extends Model
     {
         return [
             'payload' => 'array',
+            'title_translation' => 'array',
+            'summary_translation' => 'array',
         ];
     }
 
