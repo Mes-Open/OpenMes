@@ -1208,6 +1208,12 @@ class MachineShopLifecycleSeeder extends Seeder
             // the gaps between steps are not in that estimate, and a busy order
             // could otherwise run on into the afternoon that has not happened yet.
             $cutoff = $this->realNow->copy()->subMinutes(3);
+            // An order planned as running has started: its first batch begins
+            // before the cut-off, even when the random lead-in would push it past.
+            $latestStart = $cutoff->copy()->subMinutes(5);
+            if ($start->gt($latestStart)) {
+                $start = $latestStart->max($wo->planned_start_at)->copy();
+            }
         }
 
         $template = $this->activeTemplate($wo->product_type_id);
@@ -1241,15 +1247,14 @@ class MachineShopLifecycleSeeder extends Seeder
         $this->runOrder($wo, $plan, $start, $cutoff, $factor, scrap: true, gap: $gap ?? 0, halt: $halt);
         $wo->refresh();
 
-        if ($finalStatus === WorkOrder::STATUS_DONE && $wo->status !== WorkOrder::STATUS_DONE) {
+        if ($wo->status === WorkOrder::STATUS_DONE) {
+            // It made its plan within the window, whatever was planned: finished.
+            $finalStatus = WorkOrder::STATUS_DONE;
+        } elseif ($finalStatus === WorkOrder::STATUS_DONE) {
             // The clock ran out first: it is still on the floor, as a running order.
+            // Between two batches too — a finished batch keeps it IN_PROGRESS.
             $this->log("  ~ {$wo->order_no} still running at the present — left in progress");
             $finalStatus = WorkOrder::STATUS_IN_PROGRESS;
-        }
-        if ($finalStatus === WorkOrder::STATUS_IN_PROGRESS && $wo->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            // Stopped between two batches: with none running, the status service
-            // has put the order back to PENDING, but it is on the floor mid-run.
-            $wo->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
         }
 
         if ($finalStatus === WorkOrder::STATUS_DONE) {

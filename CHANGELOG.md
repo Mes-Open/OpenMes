@@ -97,6 +97,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **An order between two batches stays in progress.** In whole-batch flow, finishing a
+  batch that left the order short of its plan put it back to `PENDING`. An order that had
+  already made parts could then be deleted or rejected through the API, could not be
+  paused, and MRP planned its whole material demand again (a 40%-done order of 100 at
+  2 per unit showed a shortage of 200). A finished batch now keeps the order
+  `IN_PROGRESS`, as the transfer flow already did. Unblocking an order whose pre-block
+  status was never recorded uses the same rule.
 - **The stale-draft warning in Automatic scheduling appears when you come back to the tab.** A change made elsewhere (an operator taken off a line in another tab) showed only after a reload or an Apply; the page now asks a cheap status endpoint when the tab regains focus or becomes visible.
 - **Only a badge an insight is about opens the drawer.** An amber "exactly enough" badge (or a shift that is over) shows its tooltip only, instead of opening the drawer on nothing.
 - **The insights drawer says why it is empty and names the range it shows**: "Nothing needs attention in this week: every shift has the people its work needs.", with "Week 07.12 – 13.12" or "Day 24.11" in its header instead of always "This week".
