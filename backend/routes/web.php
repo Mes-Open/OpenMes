@@ -552,6 +552,7 @@ Route::middleware('auth')->group(function () {
         // Finite-capacity scheduling: what-if simulation, apply/discard, overrides.
         Route::get('/schedule/auto', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'index'])->name('schedule.auto');
         Route::post('/schedule/simulations', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'generate'])->name('schedule.simulations.store');
+        Route::get('/schedule/simulations/{simulation}/status', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'status'])->name('schedule.simulations.status');
         Route::post('/schedule/simulations/{simulation}/apply', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'apply'])->name('schedule.simulations.apply');
         Route::post('/schedule/simulations/{simulation}/discard', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'discard'])->name('schedule.simulations.discard');
         Route::put('/schedule/operations/{operation}', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'override'])->name('schedule.operations.override');

@@ -136,6 +136,46 @@ class AutoScheduleHttpTest extends TestCase
             ->assertSessionHas('success', 'Schedule applied to 1 work order. 1 work order could not be fully scheduled and kept its placement.');
     }
 
+    public function test_the_draft_status_says_when_staffing_changed_without_a_reload(): void
+    {
+        $line = $this->line();
+        $operator = $this->user('Operator');
+        $operator->lines()->attach($line->id);
+        $this->order($line, [['estimated_duration_minutes' => 60]]);
+        $supervisor = $this->user('Supervisor', scheduleTab: true);
+        $this->actingAs($supervisor)->post('/admin/schedule/simulations')->assertRedirect();
+        $id = ScheduleSimulation::sole()->id;
+        $url = "/admin/schedule/simulations/{$id}/status";
+
+        $this->actingAs($supervisor)->getJson($url)->assertOk()->assertExactJson(['id' => $id, 'status' => 'draft', 'stale' => null]);
+
+        // Someone takes the operator off the line in another tab.
+        $operator->lines()->detach($line->id);
+
+        $this->actingAs($supervisor)->getJson($url)->assertOk()
+            ->assertJsonPath('stale.code', 'staffing')
+            ->assertJsonPath('stale.message', 'Staffing changed since this draft was generated — generate it again.');
+
+        // An applied or discarded draft is not stale, it is done.
+        ScheduleSimulation::whereKey($id)->update(['status' => ScheduleSimulation::STATUS_DISCARDED]);
+        $this->actingAs($supervisor)->getJson($url)->assertOk()->assertJsonPath('status', 'discarded')->assertJsonPath('stale', null);
+    }
+
+    public function test_the_draft_status_is_no_wider_exposed_than_the_page(): void
+    {
+        $this->order($this->line(), [['estimated_duration_minutes' => 60]]);
+        $admin = $this->user('Admin');
+        $this->actingAs($admin)->post('/admin/schedule/simulations')->assertRedirect();
+        $url = '/admin/schedule/simulations/'.ScheduleSimulation::sole()->id.'/status';
+        auth()->logout();
+
+        $this->getJson($url)->assertUnauthorized();
+        $this->actingAs($this->user('Operator'))->getJson($url)->assertForbidden();
+        $this->actingAs($this->user('Supervisor'))->getJson($url)->assertForbidden();
+        $this->actingAs($this->user('Operator', scheduleTab: true))->getJson($url)->assertOk();
+        $this->actingAs($admin)->getJson('/admin/schedule/simulations/999999/status')->assertNotFound();
+    }
+
     public function test_discard_via_web(): void
     {
         $this->order($this->line(), [['estimated_duration_minutes' => 60]]);
