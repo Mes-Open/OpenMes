@@ -55,7 +55,7 @@ const WeekDropCell = memo(function WeekDropCell({ line, date, shift, col, N, ctx
                 background: isOver ? 'var(--om-accent-bg)' : today ? 'color-mix(in srgb, var(--om-accent-bg) 40%, transparent)' : weekend ? 'color-mix(in srgb, var(--om-chip) 50%, transparent)' : 'transparent',
                 boxShadow: isOver ? 'inset 0 0 0 1.5px var(--om-accent)' : 'none', cursor: 'pointer',
             }}>
-            {staff && <StaffBadge cell={staff} style={{ position: 'absolute', top: 2, left: 4 }} onOpen={ctx.onStaffBadge ? () => ctx.onStaffBadge(line.id, date, shift) : null} />}
+            {staff && <StaffBadge cell={staff} style={{ position: 'absolute', top: 2, left: 4 }} onOpen={ctx.onStaffBadge && ctx.badgeOpens?.(line.id, date, shift) ? () => ctx.onStaffBadge(line.id, date, shift) : null} />}
         </div>
     );
 });

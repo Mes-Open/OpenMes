@@ -152,6 +152,53 @@ final class SharedOperatorPool
      */
     public function matchSlots(array $candidates, array $booked, array $eligible, int $needed): array
     {
+        [$slots, $owner, $spare] = $this->match($candidates, $booked, $eligible, $needed);
+
+        $holders = [];
+        foreach (array_values(array_unique($eligible)) as $person) {
+            $kind = isset($owner[$person]) ? $slots[$owner[$person]] : null;
+            if ($kind !== null) {
+                $holders[$person] = $kind;
+            }
+        }
+
+        return ['spare' => $spare, 'holders' => $holders];
+    }
+
+    /**
+     * Everybody's booked work at one moment, matched to people at once: who
+     * ends up where, and how many places of each kind get somebody.
+     *
+     * Unlike {@see matchSlots()}, no kind goes first. When a group of lines
+     * has booked more work than it has people, the shortfall is counted once,
+     * on the places left over, instead of on every line that shares someone.
+     * Kinds are matched in the order given, so the same input always leaves
+     * the same places empty.
+     *
+     * @param  array<int|string, list<string>>  $candidates  slot kind => person keys that may fill it
+     * @param  array<int|string, int>  $booked  slot kind => places booked at that moment
+     * @return array{filled: array<int|string, int>, assigned: array<string, int|string>} assigned: person key => kind they fill
+     */
+    public function matchAll(array $candidates, array $booked): array
+    {
+        [$slots, $owner] = $this->match($candidates, $booked, [], 0);
+
+        $filled = array_fill_keys(array_keys($booked), 0);
+        $assigned = [];
+        foreach ($owner as $person => $slot) {
+            $kind = $slots[$slot];
+            $filled[$kind]++;
+            $assigned[(string) $person] = $kind;
+        }
+
+        return ['filled' => $filled, 'assigned' => $assigned];
+    }
+
+    /**
+     * @return array{0: list<int|string|null>, 1: array<string, int>, 2: int} slots, person => slot, spare
+     */
+    private function match(array $candidates, array $booked, array $eligible, int $needed): array
+    {
         $slots = []; // slot index => kind, or null for a new place
         foreach ($booked as $kind => $count) {
             for ($i = 0; $i < $count; $i++) {
@@ -196,14 +243,6 @@ final class SharedOperatorPool
             $spare++;
         }
 
-        $holders = [];
-        foreach ($eligible as $person) {
-            $kind = isset($owner[$person]) ? $slots[$owner[$person]] : null;
-            if ($kind !== null) {
-                $holders[$person] = $kind;
-            }
-        }
-
-        return ['spare' => $spare, 'holders' => $holders];
+        return [$slots, $owner, $spare];
     }
 }

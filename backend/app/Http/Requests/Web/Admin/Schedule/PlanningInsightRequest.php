@@ -13,7 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class PlanningInsightRequest extends FormRequest
 {
     /** Keys look like `short:12:2026-11-24:1` — type, then ids and dates. */
-    public const KEY_REGEX = '/^[a-z]+:[0-9]+(:[0-9]{4}-[0-9]{2}-[0-9]{2})?(:[0-9]+)?(:[0-9]{4}-[0-9]{2}-[0-9]{2})?$/';
+    public const KEY_REGEX = '/^[a-z]+:[0-9]+(-[0-9]+)*(:[0-9]{4}-[0-9]{2}-[0-9]{2})?(:[0-9]+)?(:[0-9]{4}-[0-9]{2}-[0-9]{2})?$/';
 
     public function authorize(): bool
     {

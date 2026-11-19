@@ -268,7 +268,10 @@ reserved.
      or anything else it was calculated from: work planned around it,
      shifts, maintenance, changeover rules, line efficiency or the active
      stations. The check compares content, not timestamps, so a change in the
-     same second still counts.
+     same second still counts. The page shows the same warning before Apply,
+     and asks again (`GET /admin/schedule/simulations/{id}/status`) whenever
+     its tab regains focus, so a change made in another tab shows without a
+     reload.
 4. **Discard**: removes the draft and leaves the committed schedule untouched.
 
 A Supervisor/Admin can move a scheduled operation to another active workstation
@@ -277,7 +280,10 @@ and offer the same working time in the operation's window (its line's shifts,
 less line and station maintenance). Such overrides are audited.
 
 Moving an order by hand on the planner drops its committed operations. The next
-run then works around its new minute plan.
+run then works around its new minute plan. An order dropped onto a weekly cell
+carries the shift start to the midnight after its end date; midnight is an
+exclusive end, and a run books such an order on the cells it was dropped on —
+exactly what the Planner counts — not on the evening shifts of its last day.
 
 ## Statuses and reasons
 
@@ -338,7 +344,10 @@ simulation API) holds:
   `blocked_operations`, and `shortfall`. The shortfall is the larger of the
   booked peak minus the people available and, for each people reason whose
   window starts in the run and whose step did not still start inside the
-  run, what the step needed on top of what was booked minus who was there.
+  run, what the step needs beyond the people the line has there at all (an
+  absence, too few qualified). Work that only kept the step waiting is not
+  counted: the step ran after it, so the two never overlap — sequential work
+  on lines sharing one person is never short.
   `needed` is the booked peak, or the people available plus the shortfall
   when the run is short. Untracked lines have `null` counts and shortfall.
 - `absences` — each absent person with their `dates`, `lines` and the
@@ -378,10 +387,15 @@ people are away when the provider reports absences.
 is fixed to the right edge of the screen, so it stays in view however far the
 board is scrolled. It shows the number of open insights and is red when something
 needs action, amber when there is only something to watch, neutral otherwise;
-while the drawer is open the tab sits at the drawer's edge and closes it. A red or
-amber staffing badge opens the drawer straight on that cell's insight, expanded;
-the warning marker on a work-order card does the same for the order. `I` opens
-and closes the drawer (ignored while typing or with a dialog open). On the first
+while the drawer is open the tab sits at the drawer's edge and closes it. A
+staffing badge that an open insight is about opens the drawer straight on that
+insight, expanded; any other badge (an amber *exactly enough*, a shift that is
+over) only shows its tooltip. The warning marker on a work-order card does the
+same for the order. `I` opens and closes the drawer (ignored while typing or
+with a dialog open); `Esc` closes it, unless a dialog is open — then `Esc`
+closes the dialog. The header names the range shown (*Week 07.12 – 13.12*,
+*Day 24.11*), and with nothing open the drawer says why (*Nothing needs
+attention in this week: every shift has the people its work needs.*). On the first
 planner visit of a browser session the drawer opens by itself when something
 needs action; *Don't open automatically* in its footer turns that off for the
 user (remembered in the browser).
@@ -393,8 +407,8 @@ One service (`App\Services\Schedule\Insights\PlanningInsights`) computes them:
 
 | Type | When | Severity |
 |---|---|---|
-| `short_shift` | A tracked cell's work needs more people than are available. Names who is absent when the provider knows. | needs action |
-| `shared_operator` | The line's own people would do, but someone it shares with another line is booked there at the same time. Names the person and the line. | to watch (needs action if an order would be late) |
+| `short_shift` | A tracked cell's work needs more people than are available. Names who is absent when the provider knows. Lines that share people and together booked more work than they have people get one insight per pool and shift (`group:<pool line ids>:<date>:<shift>`), *"<short lines> short of shared people on <shift>"*, *"Need N, M covered"* — even when only one of them ends short — whose Why gives every line of the group with work then its count. | needs action |
+| `shared_operator` | A line is short while its group as a whole has enough people: someone it shares with another line is booked there at the same time, and rebalancing would fix it. Names the person and the line. | to watch (needs action if an order would be late) |
 | `single_skill` | Planned work needs a skill only one person on the line holds. Only when the provider records qualifications. | to watch |
 | `untracked_line` | Work is planned on a line nobody is assigned to. | to watch |
 | `staffing_changed` | An order lost people after it was planned: an operator no longer assigned to its line, or a new absence on its days. | to watch |
@@ -407,9 +421,13 @@ applied draft's steps on other lines are included. Only losses are reported,
 and only of people on that snapshot: someone who joined a line later (a
 substitute) and is away now was never counted on, so is not a loss.
 
+Shifts that are over raise no insights; their badges stay on the board but do
+not count under *Needs action* or *To watch*.
+
 **Keys.** An insight's key names it across views, so what was acknowledged in
 the weekly view stays resolved in the daily view and on every day of the week:
-`short:` / `shared:` per line, date and shift; `changed:` per order;
+`short:` / `shared:` per line, date and shift; `group:` per pool of lines
+sharing people, date and shift; `changed:` per order;
 `untracked:` per line and ISO week, `skill:` per line, skill and ISO week (the
 week given by its Monday, e.g. `untracked:12:2026-11-23`). Week-long insights
 count the whole ISO week whichever part of it is shown, so their facts — and
@@ -431,7 +449,9 @@ plan**, which outlines the cells on the board. Actions:
   line, not away in that shift, not needed by work on their own lines then
   and, when the provider records skills, hold what the work needs. Choosing
   one assigns them to the line through *Admin → Lines → Operators* (they stay
-  on their own lines), after a confirmation.
+  on their own lines), after a confirmation. With several places missing the
+  offer says *Covers 1 of N missing*; the insight's facts change once the
+  person is on the line, so it re-opens while places stay empty.
 - **Open in Automatic scheduling**, **Assign operators** (for an untracked
   line) and **Acknowledge**.
 
@@ -444,19 +464,24 @@ the move or takes the substitute off the line. A move and its record commit
 together, and the record keeps the id of the change-log row that very move
 wrote; undo reverts exactly that change and is refused (409) once the order has
 been edited since — even if it was put back. An acknowledged insight reopens
-when its facts change.
+when its facts change. *Resolved today* keeps each entry's title and summary as
+a translation key with its values (`title_translation`,
+`summary_translation`), so every planner reads them in their own language;
+entries recorded before keep their stored text.
 
 Two planners acting on the same insight are serialised (an advisory lock per
 insight key on PostgreSQL, and the partial unique index on the key in any
 case): the second gets 409 *"Already handled by …"*, and nothing of their
 action — a move included — is applied.
 
-The drawer refreshes when work orders, line assignments or acknowledgements
-change (live sync), and once a minute while open for absences recorded
-outside OpenMES. Every path that changes a line's operators — the line page,
-the substitute action, the REST API's line and user syncs — goes through the
-`line_user` pivot model (`App\Models\LineUser`), which touches the line after
-commit, so planners refresh whichever path was used. Only the latest answer
+The badges and the drawer refresh when work orders, line assignments or
+acknowledgements change (live sync), and once a minute while the drawer is
+open for absences recorded outside OpenMES. Every path that changes a line's
+operators — the line page, the substitute action, the REST API's line and user
+syncs — goes through the `line_user` pivot model (`App\Models\LineUser`),
+which touches the line after commit; the planner watches the line's
+`updated_at` through the `lines_staffing` collection (line ids and timestamps,
+readable with the Schedule tab), so planners refresh whichever path was used. Only the latest answer
 reaches the drawer: a read in flight is aborted by the next read or an
 action, and a read that started before an action never overwrites its result.
 The page itself carries no badges; the drawer endpoint counts the board once

@@ -326,8 +326,10 @@ function capitalize(s) {
  * shorter key that is a prefix of it.
  */
 export function __(key, replacements = {}) {
-    let line = messages[key] ?? key;
+    return replacePlaceholders(messages[key] ?? key, replacements);
+}
 
+function replacePlaceholders(line, replacements) {
     const names = Object.keys(replacements).sort((a, b) => b.length - a.length);
     for (const name of names) {
         const v = String(replacements[name]);
@@ -338,4 +340,29 @@ export function __(key, replacements = {}) {
     }
 
     return line;
+}
+
+/**
+ * Laravel's trans_choice(): the key holds the forms separated by `|`
+ * ("1 operator|:count operators"; Polish carries three), the form is chosen
+ * by the count with the plural rule of the active locale, and :count is
+ * replaced along with the other placeholders.
+ */
+export function transChoice(key, count, replacements = {}) {
+    const forms = (messages[key] ?? key).split('|');
+    const n = Math.abs(Number(count) || 0);
+    const index = Math.min(forms.length - 1, pluralIndex(activeLocale, n));
+    const line = forms[index] ?? forms[0];
+
+    return replacePlaceholders(line, { count, ...replacements });
+}
+
+/** The plural form index Laravel's MessageSelector uses for the locales OpenMES ships. */
+export function pluralIndex(loc, n) {
+    if (String(loc).startsWith('pl')) {
+        if (n === 1) return 0;
+        return n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 1 : 2;
+    }
+
+    return n === 1 ? 0 : 1;
 }

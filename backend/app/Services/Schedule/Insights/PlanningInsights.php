@@ -271,8 +271,8 @@ class PlanningInsights
                 'type' => $a->insight_type,
                 'category' => $this->categoryOf($a->insight_type),
                 'action' => $a->action,
-                'title' => $a->title,
-                'summary' => $a->summary,
+                'title' => self::render($a->title_translation) ?? $a->title,
+                'summary' => self::render($a->summary_translation) ?? $a->summary,
                 'by' => $a->acknowledgedBy?->name,
                 'at' => $a->created_at?->toIso8601String(),
             ])->values()->all(),
@@ -307,16 +307,19 @@ class PlanningInsights
         }
 
         $out = [];
+        $short = [];
         $untracked = [];
         $skillWork = [];
         $visibleOrders = [];
         $visible = array_flip($this->days);
+        // A shift that is over is history: its badge stays, nobody can act on it.
+        $now = ResourceCalendar::toMinutes(now());
         foreach ($this->lineIds as $lineId) {
             foreach ($this->weekDays as $date) {
                 $week = self::weekOf($date);
                 foreach (array_keys($this->staffing->columns()) as $i) {
                     $cell = $this->staffing->cell($lineId, $date, $i + 1);
-                    if ($cell === null || $cell['needed'] === 0 || $cell['order_ids'] === []) {
+                    if ($cell === null || $cell['needed'] === 0 || $cell['order_ids'] === [] || $cell['end_minute'] <= $now) {
                         continue;
                     }
                     $shown = isset($visible[$date]);
@@ -337,12 +340,15 @@ class PlanningInsights
                         $visibleOrders[$id] = true;
                     }
                     if ($cell['available'] < $cell['needed']) {
-                        $out[] = $this->shortInsight($cell);
+                        $short[] = $this->shortInsight($cell);
                     }
                 }
             }
         }
 
+        foreach ($this->mergeGroups($short) as $insight) {
+            $out[] = $insight;
+        }
         foreach ($untracked as $lineId => $weeks) {
             foreach ($weeks as $week => $data) {
                 if ($data['visible']) {
@@ -364,7 +370,7 @@ class PlanningInsights
         usort($out, fn ($a, $b) => [self::SEVERITY_RANK[$a['severity']], $a['sort'], $a['key']] <=> [self::SEVERITY_RANK[$b['severity']], $b['sort'], $b['key']]);
 
         return $this->computed = array_map(function (array $i) {
-            unset($i['sort']);
+            unset($i['sort'], $i['raw_actions'], $i['group'], $i['pooled'], $i['available'], $i['needed']);
 
             return $i;
         }, $out);
@@ -382,8 +388,14 @@ class PlanningInsights
         $slot = $this->slotLabel($cell);
         $held = $this->heldElsewhere($cell);
         $absent = array_map(fn ($id) => $this->workerName($id), $cell['absent_ids']);
-        $shared = $cell['present'] >= $cell['needed'] && $held !== [];
-        $missing = $cell['needed'] - $cell['available'];
+        // The lines sharing people booked more work than they have people:
+        // a place nobody can fill, whichever line it ends up on. Only a line
+        // short while its group as a whole has enough is held back by a
+        // shared person (rebalancing would fix it).
+        $group = $cell['group'] ?? null;
+        $pooled = $group !== null && count($group['line_ids']) > 1;
+        $shared = ! $pooled && $cell['present'] >= $cell['needed'] && $held !== [];
+        $missing = $pooled ? $group['needed'] - $group['available'] : $cell['needed'] - $cell['available'];
 
         $affected = [];
         $actions = [];
@@ -401,6 +413,8 @@ class PlanningInsights
                 $actions[] = [
                     'kind' => 'move',
                     'work_order_id' => $order->id,
+                    'line_id' => $lineId,
+                    'cell' => ['line_id' => $lineId, 'date' => $cell['date'], 'shift' => $cell['shift']],
                     'label' => __('Move :order to :slot', ['order' => $order->order_no, 'slot' => $move['label']]),
                     'effect' => ($move['spare'] === 0 ? __('Exactly enough people there.') : __(':spare spare there.', ['spare' => $move['spare']]))
                         .' '.($move['late'] ? __('It would finish after its due date.') : __('It stays on time.')),
@@ -431,6 +445,12 @@ class PlanningInsights
             : __('The plan needs :needed operators on :line, :slot. :available are available.', [
                 'needed' => $cell['needed'], 'line' => $line, 'slot' => $slot, 'available' => $cell['available'],
             ]);
+        if ($pooled) {
+            $why .= ' '.__(':lines need :needed people between them at that time and have :available.', [
+                'lines' => implode(', ', array_map(fn ($id) => $this->lineName((int) $id), $group['line_ids'])),
+                'needed' => $group['needed'], 'available' => $group['available'],
+            ]);
+        }
         if (! $shared && $absent !== []) {
             $why .= ' '.__('Absent: :names.', ['names' => implode(', ', $absent)]);
         }
@@ -442,15 +462,17 @@ class PlanningInsights
 
         $substitutes = count(array_filter($actions, fn ($a) => $a['kind'] === 'substitute'));
         $key = ($shared ? 'shared:' : 'short:').$lineId.':'.$cell['date'].':'.$cell['shift'];
+        $title = $shared
+            ? self::phrase('Shared operator holds back :line on :slot', ['line' => $line, 'slot' => $this->slotParam($cell)])
+            : self::phrase(':line short on :slot', ['line' => $line, 'slot' => $this->slotParam($cell)]);
 
         return [
             'key' => $key,
             'type' => $shared ? 'shared_operator' : 'short_shift',
             'category' => 'people',
             'severity' => $shared && $late === 0 ? 'warn' : 'bad',
-            'title' => $shared
-                ? __('Shared operator holds back :line on :slot', ['line' => $line, 'slot' => $slot])
-                : __(':line short on :slot', ['line' => $line, 'slot' => $slot]),
+            'title' => self::render($title),
+            'title_translation' => $title,
             'meta' => $shared
                 ? (count($held[0]['names']) === 1
                     ? __(':names also works on :other', ['names' => $held[0]['names'][0], 'other' => $held[0]['line_name']])
@@ -462,12 +484,140 @@ class PlanningInsights
             'numbers' => ['needed' => $cell['needed'], 'available' => $cell['available'], 'present' => $cell['present'], 'spare_elsewhere' => $substitutes],
             'affected' => $affected,
             'actions' => $this->rank($actions),
+            'raw_actions' => $actions,
+            'group' => $group,
+            'pooled' => $pooled,
+            'available' => $cell['available'],
+            'needed' => $cell['needed'],
             'cells' => [['line_id' => $lineId, 'date' => $cell['date'], 'shift' => $cell['shift']]],
             'line_id' => $lineId,
             'when' => $slot,
             'signature' => md5(json_encode([$cell['needed'], $cell['available'], $cell['absent_ids'], $cell['held_elsewhere'], $cell['order_ids']])),
             'sort' => $cell['start_minute'],
         ];
+    }
+
+    /**
+     * Lines that share people and are short in the same shift because,
+     * together, they booked more work than they have people: one insight for
+     * the group, not one per line. Each line's own actions stay on offer,
+     * labelled with the line they act on.
+     *
+     * @param  list<array<string, mixed>>  $short  one insight per short cell
+     * @return list<array<string, mixed>>
+     */
+    private function mergeGroups(array $short): array
+    {
+        $buckets = [];
+        foreach ($short as $insight) {
+            $group = $insight['group'];
+            $cell = $insight['cells'][0];
+            // Bucketed by every line that shares people with this one, not
+            // by who had work at the tightest moment: within one shift those
+            // moments differ from line to line, the people problem does not.
+            $bucket = $insight['pooled']
+                ? 'group:'.implode('-', $group['pool_ids']).':'.$cell['date'].':'.$cell['shift']
+                : $insight['key'];
+            $buckets[$bucket][] = $insight;
+        }
+
+        $out = [];
+        foreach ($buckets as $key => $parts) {
+            // Even one short line of an overbooked group is the group's
+            // shortfall: the insight names the group, with every line's count.
+            if (! $parts[0]['pooled']) {
+                $out[] = $parts[0];
+
+                continue;
+            }
+            usort($parts, fn ($a, $b) => $a['line_id'] <=> $b['line_id']);
+            // The tightest moment of the shift speaks for the group.
+            $group = collect($parts)->pluck('group')->sortByDesc(fn ($g) => $g['needed'] - $g['available'])->first();
+            $slot = $parts[0]['when'];
+            $names = array_map(fn ($p) => $this->lineName($p['line_id']), $parts);
+
+            $actions = [];
+            $affected = [];
+            $late = 0;
+            $seen = [];
+            $people = [];
+            foreach ($parts as $p) {
+                // An order on two of the lines is one order.
+                foreach ($p['affected'] as $entry) {
+                    $id = $entry['work_order_id'];
+                    if (isset($affected[$id])) {
+                        $affected[$id]['late'] = $affected[$id]['late'] || $entry['late'];
+
+                        continue;
+                    }
+                    $affected[$id] = $entry;
+                }
+                foreach ($p['raw_actions'] as $a) {
+                    if (in_array($a['kind'], ['link', 'acknowledge'], true)) {
+                        if (isset($seen[$a['kind']])) {
+                            continue;
+                        }
+                        $seen[$a['kind']] = true;
+                    } elseif ($a['kind'] === 'substitute') {
+                        // One person helps one line: offer them where they help most.
+                        $prev = $people[$a['user_id']] ?? null;
+                        if ($prev !== null && $actions[$prev]['score'] >= $a['score']) {
+                            continue;
+                        }
+                        $a['label'] = $this->lineName($p['line_id']).': '.$a['label'];
+                        if ($prev !== null) {
+                            $actions[$prev] = $a;
+
+                            continue;
+                        }
+                        $people[$a['user_id']] = count($actions);
+                    }
+                    $actions[] = $a;
+                }
+            }
+
+            $affected = array_values($affected);
+            $late = count(array_filter($affected, fn ($e) => $e['late']));
+            $missing = $group['needed'] - $group['available'];
+            $why = trans_choice(':lines share people. At that time they need :needed between them and have :available, so :count place stays empty.|:lines share people. At that time they need :needed between them and have :available, so :count places stay empty.', $missing, [
+                'lines' => implode(', ', array_map(fn ($id) => $this->lineName((int) $id), $group['line_ids'])),
+                'needed' => $group['needed'], 'available' => $group['available'],
+            ]);
+            // Every line of the group with work then, short or not.
+            $cell = $parts[0]['cells'][0];
+            foreach ($group['line_ids'] as $groupLine) {
+                $count = $this->staffing->cell((int) $groupLine, $cell['date'], $cell['shift']);
+                if ($count !== null) {
+                    $why .= ' '.__(':line has :available of :needed.', ['line' => $this->lineName((int) $groupLine), 'available' => $count['available'], 'needed' => $count['needed']]);
+                }
+            }
+            $title = self::phrase(':lines short of shared people on :slot', ['lines' => implode(', ', $names), 'slot' => $this->slotParam($cell)]);
+
+            $out[] = [
+                'key' => $key,
+                'type' => 'short_shift',
+                'category' => 'people',
+                // Places nobody can fill: no rebalancing helps.
+                'severity' => 'bad',
+                'title' => self::render($title),
+                'title_translation' => $title,
+                'meta' => __('Need :needed, :available covered', ['needed' => $group['needed'], 'available' => $group['available']]),
+                'impact' => trans_choice(':count order|:count orders', count($affected), ['count' => count($affected)])
+                    .($late > 0 ? ' · '.__(':count late', ['count' => $late]) : ''),
+                'why' => $why,
+                'numbers' => ['needed' => $group['needed'], 'available' => $group['available'],
+                    'present' => $group['available'], 'spare_elsewhere' => count(array_filter($actions, fn ($a) => $a['kind'] === 'substitute'))],
+                'affected' => $affected,
+                'actions' => $this->rank($actions),
+                'cells' => array_merge(...array_map(fn ($p) => $p['cells'], $parts)),
+                'line_id' => $parts[0]['line_id'],
+                'when' => $slot,
+                'signature' => md5(json_encode([$group['needed'], $group['available'], array_column($parts, 'signature')])),
+                'sort' => min(array_column($parts, 'sort')),
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -494,6 +644,7 @@ class PlanningInsights
             'category' => 'plan',
             'severity' => 'info',
             'title' => __(':line is planned without people', ['line' => $line]),
+            'title_translation' => self::phrase(':line is planned without people', ['line' => $line]),
             'meta' => __('No operators assigned to this line'),
             'impact' => trans_choice(':count order unchecked|:count orders unchecked', count($affected), ['count' => count($affected)]),
             'why' => __('OpenMES plans :line on machine capacity only. An absence there would not show up anywhere.', ['line' => $line]),
@@ -579,6 +730,7 @@ class PlanningInsights
                 'category' => 'skills',
                 'severity' => 'warn',
                 'title' => __(':skill depends on one person', ['skill' => $skillName]),
+                'title_translation' => self::phrase(':skill depends on one person', ['skill' => $skillName]),
                 'meta' => __(':name is the only qualified operator on :line', ['name' => $name, 'line' => $line]),
                 'impact' => trans_choice(':count order|:count orders', count($affected), ['count' => count($affected)]),
                 'why' => __('Planned work on :line needs :skill. Only :name holds it, so one absence would stop that work.', ['line' => $line, 'skill' => $skillName, 'name' => $name]),
@@ -643,6 +795,7 @@ class PlanningInsights
                 'category' => 'people',
                 'severity' => 'warn',
                 'title' => __('Staffing changed for :order', ['order' => $order->order_no]),
+                'title_translation' => self::phrase('Staffing changed for :order', ['order' => $order->order_no]),
                 'meta' => implode(' · ', array_slice($changes, 0, 2)).(count($changes) > 2 ? ' · …' : ''),
                 'impact' => __('planned :date', ['date' => $losses['captured_at']?->format('d.m H:i') ?? '—']),
                 'why' => __('Since :order was planned, its staffing changed: :changes. Check that it still has the people it needs.', [
@@ -679,7 +832,7 @@ class PlanningInsights
 
         return $this->handle($insight, $user, fn () => [
             PlanningInsightAcknowledgement::ACTION_ACKNOWLEDGE,
-            __('Acknowledged by :name.', ['name' => $user->name]),
+            self::phrase('Acknowledged by :name.', ['name' => $user->name]),
             null,
         ]);
     }
@@ -701,7 +854,7 @@ class PlanningInsights
         $insight = $this->openInsight($key);
         $action = collect($insight['actions'])->first(fn ($a) => $a['kind'] === 'move' && $a['work_order_id'] === $orderId);
         $order = $this->staffing->orders()->get($orderId);
-        $cell = $insight['cells'][0] ?? null;
+        $cell = $action['cell'] ?? ($insight['cells'][0] ?? null);
         $target = $order && $cell ? $this->moveTarget($order, $this->staffing->cell($cell['line_id'], $cell['date'], $cell['shift'])) : null;
         if ($action === null || $target === null) {
             throw new \DomainException(__('That move is no longer possible. Refresh the insights.'));
@@ -719,7 +872,7 @@ class PlanningInsights
 
                 return [
                     PlanningInsightAcknowledgement::ACTION_MOVE,
-                    __('Moved :order to :slot.', ['order' => $order->order_no, 'slot' => $target['label']]),
+                    self::phrase('Moved :order to :slot.', ['order' => $order->order_no, 'slot' => $target['slot']]),
                     ['work_order_id' => $order->id, 'change_log_id' => (int) $result['change_log_id']],
                 ];
             });
@@ -742,7 +895,7 @@ class PlanningInsights
         $insight = $this->openInsight($key);
         $action = collect($insight['actions'])->first(fn ($a) => $a['kind'] === 'substitute' && $a['user_id'] === $userId);
         $operator = User::find($userId);
-        $line = Line::find($insight['line_id']);
+        $line = Line::find($action['line_id'] ?? $insight['line_id']);
         if ($action === null || $operator === null || $line === null) {
             throw new \DomainException(__('That person is no longer a suggested substitute. Refresh the insights.'));
         }
@@ -752,7 +905,7 @@ class PlanningInsights
 
             return [
                 PlanningInsightAcknowledgement::ACTION_SUBSTITUTE,
-                __(':name assigned to :line by :by.', ['name' => $operator->name, 'line' => $line->name, 'by' => $actor->name]),
+                self::phrase(':name assigned to :line by :by.', ['name' => $operator->name, 'line' => $line->name, 'by' => $actor->name]),
                 ['line_id' => $line->id, 'user_id' => $operator->id],
             ];
         });
@@ -853,7 +1006,7 @@ class PlanningInsights
      * says so), everything — the move included — rolls back and the caller
      * gets a 409.
      *
-     * @param  callable(): array{0: string, 1: string, 2: ?array<string, mixed>}  $do  the action; returns [action, summary, payload]
+     * @param  callable(): array{0: string, 1: array<string, mixed>, 2: ?array<string, mixed>}  $do  the action; returns [action, summary phrase, payload]
      *
      * @throws InsightConflict
      */
@@ -890,7 +1043,10 @@ class PlanningInsights
         DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['planning-insight:'.$tenant.':'.$key]);
     }
 
-    private function record(array $insight, string $action, User $user, string $summary, ?array $payload): PlanningInsightAcknowledgement
+    /**
+     * @param  array{key: string, params: array<string, mixed>, count?: int}  $summary  {@see self::phrase()}
+     */
+    private function record(array $insight, string $action, User $user, array $summary, ?array $payload): PlanningInsightAcknowledgement
     {
         // A reopened insight's earlier acknowledgement makes way for this one.
         PlanningInsightAcknowledgement::where('insight_key', $insight['key'])->get()->each->delete();
@@ -899,8 +1055,10 @@ class PlanningInsights
             'insight_key' => $insight['key'],
             'insight_type' => $insight['type'],
             'action' => $action,
-            'title' => $insight['title'],
-            'summary' => $summary,
+            'title' => mb_substr($insight['title'], 0, 255),
+            'title_translation' => $insight['title_translation'] ?? null,
+            'summary' => self::render($summary),
+            'summary_translation' => $summary,
             'signature' => $insight['signature'],
             'payload' => $payload,
             'acknowledged_by_id' => $user->id,
@@ -983,6 +1141,7 @@ class PlanningInsights
 
             return [
                 'label' => $this->slotLabel(['date' => $startDate, 'shift' => $startCol]),
+                'slot' => $this->slotParam(['date' => $startDate, 'shift' => $startCol]),
                 'spare' => $spare,
                 'late' => $this->isLate($order, $end),
                 'end_minute' => $end,
@@ -1275,14 +1434,58 @@ class PlanningInsights
 
     private function slotLabel(array $cell): string
     {
-        $name = $this->staffing->columns()[$cell['shift'] - 1]['name'] ?? '';
+        return self::renderParam($this->slotParam($cell));
+    }
 
-        return trim($this->dateLabel($cell['date']).' '.$name);
+    /**
+     * A board cell as a phrase parameter: its date and shift name, worded in
+     * the language of whoever reads it.
+     *
+     * @return array{date: string, name: string}
+     */
+    private function slotParam(array $cell): array
+    {
+        return ['date' => $cell['date'], 'name' => (string) ($this->staffing->columns()[$cell['shift'] - 1]['name'] ?? '')];
     }
 
     private function dateLabel(string $date): string
     {
-        return Carbon::parse($date)->locale(app()->getLocale())->isoFormat('ddd DD.MM');
+        return self::renderParam(['date' => $date, 'name' => '']);
+    }
+
+    /**
+     * A translation key with its parameters, kept so a text can be worded
+     * again in another language — "Resolved today" shows each entry in the
+     * language of the person reading it, not of the one who acted. A
+     * parameter is a plain value or a date (+ shift name), see {@see renderParam()}.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array{key: string, params: array<string, mixed>, count?: int}
+     */
+    private static function phrase(string $key, array $params = [], ?int $count = null): array
+    {
+        return $count === null ? ['key' => $key, 'params' => $params] : ['key' => $key, 'params' => $params, 'count' => $count];
+    }
+
+    /** A {@see phrase()} in the current language; null for none (rows stored before phrases were kept). */
+    public static function render(?array $phrase): ?string
+    {
+        if (! is_string($phrase['key'] ?? null)) {
+            return null;
+        }
+        $params = array_map(fn ($v) => is_array($v) ? self::renderParam($v) : (string) $v, (array) ($phrase['params'] ?? []));
+
+        return isset($phrase['count'])
+            ? trans_choice($phrase['key'], (int) $phrase['count'], $params)
+            : __($phrase['key'], $params);
+    }
+
+    /** @param  array{date?: string, name?: string}  $param */
+    private static function renderParam(array $param): string
+    {
+        $date = isset($param['date']) ? Carbon::parse($param['date'])->locale(app()->getLocale())->isoFormat('ddd DD.MM') : '';
+
+        return trim($date.' '.($param['name'] ?? ''));
     }
 
     private function lineName(int $lineId): string

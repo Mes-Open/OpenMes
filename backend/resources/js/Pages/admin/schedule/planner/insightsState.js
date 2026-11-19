@@ -176,3 +176,47 @@ export function isToggleShortcut(event, { modalOpen = false } = {}) {
     if (modalOpen) return false;
     return !isTypingTarget(event.target);
 }
+
+/** Does this keydown close the drawer? Esc while it is open — never over a dialog, which Esc closes first. */
+export function isCloseShortcut(event, { open = false, modalOpen = false } = {}) {
+    if (!event || event.defaultPrevented || event.repeat) return false;
+    if (event.key !== 'Escape' && event.key !== 'Esc') return false;
+    return open && !modalOpen;
+}
+
+/**
+ * Whether a line × shift badge opens the drawer: only one some open insight
+ * is about. A badge with exactly enough people — or a shortfall that raised
+ * nothing, like a shift that is over — only shows its tooltip.
+ */
+export const badgeOpens = (drawer, lineId, date, shift) => insightForCell(drawer, lineId, date, shift) !== null;
+
+const dayMonth = (date) => `${date.slice(8, 10)}.${date.slice(5, 7)}`;
+
+/**
+ * The drawer header's range, as a translation key and its values: "Week
+ * 07.12 – 13.12" for the weekly view, "Day 24.11" for the daily one. Null
+ * until the drawer has loaded.
+ */
+export function rangeCaption(drawer, viewMode) {
+    const range = drawer?.range;
+    if (!range?.start) return null;
+    if (viewMode === 'daily' || !range.end || range.start === range.end) {
+        return { key: 'Day :date', params: { date: dayMonth(range.start) } };
+    }
+    return { key: 'Week :from – :to', params: { from: dayMonth(range.start), to: dayMonth(range.end) } };
+}
+
+/**
+ * Why the drawer has nothing open for a filter, as a translation key — or
+ * null when something is open. Resolved entries may still be listed below.
+ */
+export function emptyReason(drawer, filter = 'all', viewMode = 'weekly') {
+    if (!drawer) return null;
+    const open = (drawer.insights ?? []).filter((i) => filter === 'all' || i.category === filter);
+    if (open.length > 0) return null;
+    if (filter === 'skills' || filter === 'plan') return 'Nothing here.';
+    return viewMode === 'daily'
+        ? 'Nothing needs attention on this day: every shift has the people its work needs.'
+        : 'Nothing needs attention in this week: every shift has the people its work needs.';
+}

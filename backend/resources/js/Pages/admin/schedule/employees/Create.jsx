@@ -9,8 +9,13 @@ function toMin(t) {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
 }
+/** An end earlier than the start is the next day: 22:00 → 06:00 is 8 h. */
+function endsNextDay(from, to) {
+    return Boolean(from && to) && toMin(to) < toMin(from);
+}
+
 function fmtDuration(from, to) {
-    const diff = Math.max(0, toMin(to) - toMin(from));
+    const diff = endsNextDay(from, to) ? toMin(to) + 24 * 60 - toMin(from) : Math.max(0, toMin(to) - toMin(from));
     return `${String(Math.floor(diff / 60)).padStart(2, '0')}:${String(diff % 60).padStart(2, '0')}`;
 }
 
@@ -73,15 +78,15 @@ export default function EmployeeCreate() {
                             {types.map((t) => {
                                 const on = selectedType === t.key && !selectedCustom;
                                 return (
-                                    <button key={t.key} type="button"
+                                    <button key={t.key} type="button" aria-pressed={on} aria-label={__(t.label ?? t.short)}
                                             onClick={() => { setSelectedType(t.key); setSelectedCustom(''); }}
                                             className={`p-3 rounded-om flex flex-col items-center gap-1.5 transition-colors ${on ? 'border-2' : 'border bg-om-card border-om-line2 hover:bg-om-bg'}`}
                                             style={on ? { background: `${t.color}1a`, borderColor: t.color } : {}}>
                                         <div className="w-8 h-8 rounded-om-sm flex items-center justify-center" style={{ background: `${t.color}30` }}>
                                             <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: t.color }}>{t.short}</span>
                                         </div>
-                                        <span className={`font-mono text-[10px] font-bold tracking-wider uppercase ${on ? '' : 'text-om-muted'}`} style={{ color: on ? t.color : undefined }}>
-                                            {t.short}
+                                        <span className={`text-[11.5px] font-semibold ${on ? '' : 'text-om-muted'}`} style={{ color: on ? t.color : undefined }}>
+                                            {__(t.label ?? t.short)}
                                         </span>
                                     </button>
                                 );
@@ -128,6 +133,16 @@ export default function EmployeeCreate() {
                         <div className="mt-2 px-3 py-2 rounded-om-sm bg-om-accent-bg font-mono text-xs tracking-wider text-om-accent text-center font-bold uppercase">
                             {__('Duration')} {fmtDuration(fromTime, toTime)}
                         </div>
+                        {endsNextDay(fromTime, toTime) && (
+                            <div className="mt-1.5 text-center text-xs text-om-muted" data-testid="ends-next-day">
+                                {__('Ends the next day at :time.', { time: toTime })}
+                            </div>
+                        )}
+                        {fromTime && fromTime === toTime && (
+                            <div className="mt-1.5 text-center text-xs font-semibold text-om-blocked">
+                                {__('The end time must differ from the start time.')}
+                            </div>
+                        )}
                     </div>
 
                     {/* Optional WO link */}
@@ -166,8 +181,8 @@ export default function EmployeeCreate() {
                             {__('Cancel')}
                             {__('Cancel')}
                         </a>
-                        <button type="submit"
-                                className="flex-[2] h-12 rounded-om bg-om-accent hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase">
+                        <button type="submit" disabled={!fromTime || fromTime === toTime}
+                                className="flex-[2] h-12 disabled:opacity-50 rounded-om bg-om-accent hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase">
                             {__('Save activity')}
                         </button>
                     </div>
