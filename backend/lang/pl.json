@@ -7736,7 +7736,6 @@
     "loading…": "wczytywanie…",
     "Close insights": "Zamknij wskazówki",
     "Filter insights": "Filtruj wskazówki",
-    "Nothing to act on in this view.": "W tym widoku nie ma nic do zrobienia.",
     "Nothing here.": "Nic tu nie ma.",
     "Skill insights appear once qualifications are recorded.": "Wskazówki o umiejętnościach pojawią się, gdy będą rejestrowane kwalifikacje.",
     "Insights": "Wskazówki",
@@ -7769,5 +7768,9 @@
     ":lines need :needed people between them at that time and have :available.": "Linie :lines potrzebują w tym czasie łącznie ludzi: :needed, a mają: :available.",
     ":lines share people. At that time they need :needed between them and have :available, so :count place stays empty.|:lines share people. At that time they need :needed between them and have :available, so :count places stay empty.": "Linie :lines dzielą ludzi. W tym czasie potrzebują łącznie :needed, a mają :available, więc :count miejsce zostaje nieobsadzone.|Linie :lines dzielą ludzi. W tym czasie potrzebują łącznie :needed, a mają :available, więc :count miejsca zostają nieobsadzone.|Linie :lines dzielą ludzi. W tym czasie potrzebują łącznie :needed, a mają :available, więc :count miejsc zostaje nieobsadzonych.",
     ":count work order could not be fully scheduled and kept its placement.|:count work orders could not be fully scheduled and kept their placement.": ":count zlecenia nie dało się w pełni zaplanować — zostało na dotychczasowym miejscu.|:count zleceń nie dało się w pełni zaplanować — zostały na dotychczasowych miejscach.|:count zleceń nie dało się w pełni zaplanować — zostały na dotychczasowych miejscach.",
-    ":count operator assigned|:count operators assigned": "Przypisani operatorzy: :count|Przypisani operatorzy: :count|Przypisani operatorzy: :count"
+    ":count operator assigned|:count operators assigned": "Przypisani operatorzy: :count|Przypisani operatorzy: :count|Przypisani operatorzy: :count",
+    "Day :date": "Dzień :date",
+    "Week :from – :to": "Tydzień :from – :to",
+    "Nothing needs attention in this week: every shift has the people its work needs.": "W tym tygodniu nic nie wymaga uwagi: każda zmiana ma ludzi, których potrzebuje jej praca.",
+    "Nothing needs attention on this day: every shift has the people its work needs.": "Tego dnia nic nie wymaga uwagi: każda zmiana ma ludzi, których potrzebuje jej praca."
 }

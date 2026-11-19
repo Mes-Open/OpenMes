@@ -97,6 +97,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Only a badge an insight is about opens the drawer.** An amber "exactly enough" badge (or a shift that is over) shows its tooltip only, instead of opening the drawer on nothing.
+- **The insights drawer says why it is empty and names the range it shows**: "Nothing needs attention in this week: every shift has the people its work needs.", with "Week 07.12 – 13.12" or "Day 24.11" in its header instead of always "This week".
+- **Esc closes the insights drawer** (not while a confirm dialog is open — Esc closes the dialog first).
 - **The Planner's badges and insights follow line-operator changes live, for Admins and Supervisors.** The board watched `lines_active` for a change of `updated_at`, a column that collection does not carry, so an operator assigned or taken off a line only showed up with the drawer's minute poll — or not at all with the drawer closed. A new `lines_staffing` collection (line ids and `updated_at`, readable with the Schedule tab) carries the touch every assignment makes, and the Planner re-reads its badges and drawer on it.
 - **A draft stored before the upgrade keeps the shortfall it recorded.** Its staffing grid turned a red 3/4 into a green 3/2, because a step the people could not staff was never booked and only the booked peak was read. The grid now adds the stored shortfall, as the server does.
 - **Plural and Polish wording fixes.** "1 work order could not be fully scheduled and kept its placement.", "Kitting Cell 1 · 1 operator assigned" (the browser now has a `transChoice()` like Laravel's `trans_choice()`), Polish numbers take their Polish plural form ("2 miejsca zostają nieobsadzone", "5 miejsc zostaje nieobsadzonych"), and Polish strings no longer decline people's names ("Ściągnij: Adam Nowak").

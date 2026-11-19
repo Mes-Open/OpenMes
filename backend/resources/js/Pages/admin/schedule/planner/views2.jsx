@@ -213,7 +213,7 @@ export function HourlyView({ ctx }) {
                                         return (
                                             <div key={'st' + sp.shift} style={{ position: 'absolute', top: 0, height: hl ? '100%' : band, left: (sp.start / 1440 * 100) + '%', width: ((sp.end - sp.start) / 1440 * 100) + '%', zIndex: hl ? 9 : 1, pointerEvents: 'none', boxShadow: hl ? 'inset 0 0 0 2.5px var(--om-accent)' : 'none', borderLeft: '1px dashed var(--om-line2)' }}
                                                 data-testid={hl ? 'plan-highlight' : undefined}>
-                                                {cell && <span style={{ pointerEvents: 'auto' }}><StaffBadge cell={cell} style={{ margin: '3px 0 0 4px' }} onOpen={ctx.onStaffBadge ? () => ctx.onStaffBadge(line.id, dateStr, sp.shift) : null} /></span>}
+                                                {cell && <span style={{ pointerEvents: 'auto' }}><StaffBadge cell={cell} style={{ margin: '3px 0 0 4px' }} onOpen={ctx.onStaffBadge && ctx.badgeOpens?.(line.id, dateStr, sp.shift) ? () => ctx.onStaffBadge(line.id, dateStr, sp.shift) : null} /></span>}
                                             </div>
                                         );
                                     })}

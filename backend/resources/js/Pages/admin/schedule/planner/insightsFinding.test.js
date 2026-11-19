@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-    handleTone, insightForCell, insightForOrder, isToggleShortcut, isTypingTarget, markSessionSeen,
+    badgeOpens, emptyReason, handleTone, insightForCell, insightForOrder, isCloseShortcut, isToggleShortcut, isTypingTarget, markSessionSeen, rangeCaption,
     openOn, readAutoOpen, sessionSeen, shouldAutoOpen, writeAutoOpen,
 } from './insightsState';
 
@@ -116,5 +116,50 @@ describe('the I shortcut', () => {
         expect(isTypingTarget({ tagName: 'INPUT' })).toBe(true);
         expect(isTypingTarget({ tagName: 'INPUT', type: 'text' })).toBe(true);
         expect(isTypingTarget({ tagName: 'INPUT', type: 'checkbox' })).toBe(false);
+    });
+});
+
+describe('Esc', () => {
+    const key = (k, extra = {}) => ({ key: k, target: { tagName: 'DIV' }, ...extra });
+    it('closes the open drawer', () => {
+        expect(isCloseShortcut(key('Escape'), { open: true })).toBe(true);
+        expect(isCloseShortcut(key('Esc'), { open: true })).toBe(true);
+    });
+    it('leaves a confirm dialog to close first, and does nothing when the drawer is closed', () => {
+        expect(isCloseShortcut(key('Escape'), { open: true, modalOpen: true })).toBe(false);
+        expect(isCloseShortcut(key('Escape'), { open: false })).toBe(false);
+        expect(isCloseShortcut(key('Escape', { defaultPrevented: true }), { open: true })).toBe(false);
+        expect(isCloseShortcut(key('Escape', { repeat: true }), { open: true })).toBe(false);
+        expect(isCloseShortcut(key('i'), { open: true })).toBe(false);
+    });
+});
+
+describe('badges that open the drawer', () => {
+    const drawer = {
+        insights: [{ key: 'short:1:2026-11-24:1', severity: 'bad', type: 'short_shift', cells: [{ line_id: 1, date: '2026-11-24', shift: 1 }] }],
+    };
+    it('opens only from a badge an insight is about', () => {
+        expect(badgeOpens(drawer, 1, '2026-11-24', 1)).toBe(true);
+        // An amber "exactly enough" badge next door has no insight: tooltip only.
+        expect(badgeOpens(drawer, 2, '2026-11-24', 1)).toBe(false);
+        expect(badgeOpens(drawer, 1, '2026-11-24', 2)).toBe(false);
+        expect(badgeOpens(null, 1, '2026-11-24', 1)).toBe(false);
+    });
+});
+
+describe('the drawer header and its empty state', () => {
+    it('names the range shown', () => {
+        expect(rangeCaption({ range: { start: '2026-12-07', end: '2026-12-13' } }, 'weekly')).toEqual({ key: 'Week :from – :to', params: { from: '07.12', to: '13.12' } });
+        expect(rangeCaption({ range: { start: '2026-11-24', end: '2026-11-24' } }, 'daily')).toEqual({ key: 'Day :date', params: { date: '24.11' } });
+        expect(rangeCaption(null, 'weekly')).toBeNull();
+    });
+    it('says why nothing is open, even with resolved entries below', () => {
+        const quiet = { insights: [], resolved: [{ id: 1, category: 'people' }] };
+        expect(emptyReason(quiet, 'all', 'weekly')).toBe('Nothing needs attention in this week: every shift has the people its work needs.');
+        expect(emptyReason(quiet, 'people', 'daily')).toBe('Nothing needs attention on this day: every shift has the people its work needs.');
+        expect(emptyReason(quiet, 'skills')).toBe('Nothing here.');
+        expect(emptyReason({ insights: [{ key: 'a', category: 'people' }] }, 'all')).toBeNull();
+        expect(emptyReason({ insights: [{ key: 'a', category: 'plan' }] }, 'people')).toBe('Nothing needs attention in this week: every shift has the people its work needs.');
+        expect(emptyReason(null)).toBeNull();
     });
 });
