@@ -78,15 +78,15 @@ export default function EmployeeCreate() {
                             {types.map((t) => {
                                 const on = selectedType === t.key && !selectedCustom;
                                 return (
-                                    <button key={t.key} type="button"
+                                    <button key={t.key} type="button" aria-pressed={on} aria-label={__(t.label ?? t.short)}
                                             onClick={() => { setSelectedType(t.key); setSelectedCustom(''); }}
                                             className={`p-3 rounded-om flex flex-col items-center gap-1.5 transition-colors ${on ? 'border-2' : 'border bg-om-card border-om-line2 hover:bg-om-bg'}`}
                                             style={on ? { background: `${t.color}1a`, borderColor: t.color } : {}}>
                                         <div className="w-8 h-8 rounded-om-sm flex items-center justify-center" style={{ background: `${t.color}30` }}>
                                             <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: t.color }}>{t.short}</span>
                                         </div>
-                                        <span className={`font-mono text-[10px] font-bold tracking-wider uppercase ${on ? '' : 'text-om-muted'}`} style={{ color: on ? t.color : undefined }}>
-                                            {t.short}
+                                        <span className={`text-[11.5px] font-semibold ${on ? '' : 'text-om-muted'}`} style={{ color: on ? t.color : undefined }}>
+                                            {__(t.label ?? t.short)}
                                         </span>
                                     </button>
                                 );
