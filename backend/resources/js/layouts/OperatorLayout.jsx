@@ -4,6 +4,7 @@ import Tooltip from '../components/Tooltip';
 import ViewAsBar from '../components/ViewAsBar';
 import { Hook } from '../lib/hooks';
 import { __ } from '../lib/i18n';
+import { useOperatorHeartbeat } from '../lib/operatorHeartbeat';
 
 /**
  * Full-screen tablet chrome for operator screens — the React port of the
@@ -35,6 +36,8 @@ export default function OperatorLayout({ children }) {
     // A page that does not say which bench it is on (the quantity correction)
     // leaves the bench out, so a tab click keeps the one the session holds.
     const knowsBench = Object.prototype.hasOwnProperty.call(props, 'selectedWorkstation');
+    // Reports this panel (who, IP, line, bench, active/inactive) to Admin -> Workstation devices.
+    useOperatorHeartbeat(line?.id, knowsBench ? (selectedWorkstation?.id ?? null) : undefined);
     const ctx = line ? `?line=${line.id}${knowsBench ? `&workstation=${selectedWorkstation?.id ?? 'all'}` : ''}` : '';
     // The core tabs (the server keeps only the ones this bench needs) carry that context.
     const withCtx = (url) => (url.startsWith('/operator/') && !url.includes('?') ? `${url}${ctx}` : url);

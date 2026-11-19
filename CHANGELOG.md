@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
+  every browser running the operator panel. While an operator is logged in, the panel
+  reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),
+  **who** is logged in, the IP address and the selected line and workstation. A panel that
+  is hidden, closed or logged out is shown inactive at once, and one that sends nothing for
+  over a minute is inactive too (the window for Workstation clients is now 60 s as well).
+  A **Type** column (Operator panel / Workstation client) with a filter and an
+  *Active: n / total* counter sit on top. Admins can **rename** a station (e.g. "Tablet –
+  Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
+  30 days move to the trash daily (`workstation-devices:prune-panels`,
+  `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+
 - **ERP API: key introspection, read-only master data, multi-status export.** An ERP
   integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
   granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,

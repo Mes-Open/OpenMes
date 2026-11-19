@@ -325,6 +325,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
         Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
 
+        // Operator panel presence on Admin -> Workstation devices.
+        Route::post('/heartbeat', \App\Http\Controllers\Web\Operator\OperatorPanelHeartbeatController::class)->name('heartbeat')->middleware('throttle:60,1');
+
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
         Route::get('/unit-labels/station', [UnitLabelStationController::class, 'index'])->name('unit-labels.station');
@@ -852,6 +855,7 @@ Route::middleware('auth')->group(function () {
 
         // Workstation Devices (shop-floor PCs running the OpenMES Workstation client)
         Route::get('/workstation-devices', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'index'])->name('workstation-devices.index')->middleware('role:Admin');
+        Route::patch('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'update'])->name('workstation-devices.update')->middleware('role:Admin');
         Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
 
         // Subassemblies

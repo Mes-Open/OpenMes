@@ -126,7 +126,7 @@ class ShapeRegistry
         // from last_seen_at. Admin list page (Admin -> Workstation devices).
         'workstation_devices' => [
             'table' => 'workstation_devices',
-            'columns' => ['id', 'device_uuid', 'name', 'ip_address', 'hostname', 'app_version', 'line_id', 'last_seen_at', 'registered_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'device_uuid', 'name', 'ip_address', 'hostname', 'app_version', 'line_id', 'workstation_id', 'user_id', 'status', 'last_seen_at', 'registered_at', 'created_at', 'updated_at'],
         ],
         // Quality-control trigger config (#105) — admin list.
         'quality_control_triggers' => [

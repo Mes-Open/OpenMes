@@ -1361,7 +1361,6 @@
     "Workstation Devices": "Workstation Devices",
     "Workstation device removed.": "Workstation device removed.",
     "Forget workstation \":name\"? It can re-register later.": "Forget workstation \":name\"? It can re-register later.",
-    "No workstations have connected yet. Install the OpenMES Workstation client and point it at this server's IP.": "No workstations have connected yet. Install the OpenMES Workstation client and point it at this server's IP.",
     "ISA-95 Area — physical/logical sub-section of a Site.": "ISA-95 Area — physical/logical sub-section of a Site.",
     "ISA-95 Personnel Capability — issued skill certifications with validity windows.": "ISA-95 Personnel Capability — issued skill certifications with validity windows.",
     "ISA-95 Process Segment": "ISA-95 Process Segment",
@@ -7495,5 +7494,12 @@
     "No integration keys yet.": "No integration keys yet.",
     "Delete key ':name'? Its webhooks will be deactivated.": "Delete key ':name'? Its webhooks will be deactivated.",
     "Register, change and remove webhooks that send OpenMES events to the integration.": "Register, change and remove webhooks that send OpenMES events to the integration.",
-    "Change request applied. The work order is cancelled.": "Change request applied. The work order is cancelled."
+    "Change request applied. The work order is cancelled.": "Change request applied. The work order is cancelled.",
+    "Operator panel": "Operator panel",
+    "Workstation client": "Workstation client",
+    "Rename device": "Rename device",
+    "Active: :active / :total": "Active: :active / :total",
+    "Workstation device renamed.": "Workstation device renamed.",
+    "E.g. the place or the tablet, so stations are told apart by more than their IP.": "E.g. the place or the tablet, so stations are told apart by more than their IP.",
+    "No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server's IP.": "No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server's IP."
 }
