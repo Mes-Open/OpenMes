@@ -41,6 +41,7 @@ class CollectionBroadcaster
             'issues_all' => [Models\Issue::class, null],
             'lines_active' => [Models\Line::class, fn ($m) => (bool) $m->is_active],
             'lines_all' => [Models\Line::class, null],
+            'lines_staffing' => [Models\Line::class, fn ($m) => (bool) $m->is_active],
             'issue_types' => [Models\IssueType::class, fn ($m) => (bool) $m->is_active],
             'issue_types_all' => [Models\IssueType::class, null],
             'oee_records_recent' => [Models\OeeRecord::class, fn ($m) => (string) $m->record_date >= now()->subDay()->toDateString()],

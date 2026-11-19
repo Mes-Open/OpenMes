@@ -304,6 +304,18 @@ class ShapeRegistry
         // PlanningInsightController. Deliberately without `tabs`/`roles`: only
         // Admins and Supervisors read it, never an Operator granted the
         // schedule tab (who sees the board but not the drawer).
+        // Production Planner: when a line's staffing changed. An operator
+        // assigned to or taken off a line touches the line (LineUser), so
+        // `updated_at` moves and the planner re-reads its badges and drawer.
+        // Ids and timestamps only, readable with the schedule tab — the
+        // planner must not depend on `lines_active`, which carries no
+        // `updated_at`.
+        'lines_staffing' => [
+            'table' => 'lines',
+            'tabs' => ['schedule'],
+            'where' => 'is_active = true',
+            'columns' => ['id', 'updated_at'],
+        ],
         'planning_insight_acknowledgements' => [
             'table' => 'planning_insight_acknowledgements',
             'columns' => ['id', 'insight_key', 'insight_type', 'action', 'acknowledged_by_id', 'created_at', 'updated_at'],

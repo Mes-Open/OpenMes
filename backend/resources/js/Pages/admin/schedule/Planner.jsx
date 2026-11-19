@@ -533,7 +533,7 @@ export default function Planner() {
             <style>{STYLE}</style>
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
             {/* Operators assigned to or taken off a line touch the line; acknowledgements sync too. */}
-            {insightsOn && live && <ShapeChangeWatcher shape="lines_active" fields={['id', 'updated_at']} onChange={() => { refreshContent().then(fetchInsights); }} />}
+            {insightsOn && live && <ShapeChangeWatcher shape="lines_staffing" fields={['id', 'updated_at']} onChange={() => { refreshContent().then(fetchInsights); }} />}
             {insightsOn && live && <ShapeChangeWatcher shape="planning_insight_acknowledgements" fields={['id', 'insight_key', 'updated_at']} onChange={fetchInsights} />}
 
             <div className="w-full min-w-0" style={insightsOn && drawerOpen ? { paddingRight: 'min(420px, 100vw)' } : undefined}>
