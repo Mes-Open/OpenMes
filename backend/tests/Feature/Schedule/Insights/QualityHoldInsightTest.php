@@ -63,6 +63,23 @@ class QualityHoldInsightTest extends TestCase
         $this->assertContains('acknowledge', array_column($insight['actions'], 'kind'));
     }
 
+    public function test_an_exact_minute_plan_is_flagged_in_the_shift_it_runs_in(): void
+    {
+        $order = $this->planned($this->cnc, '2026-11-24', 1, attrs: [
+            'planned_start_at' => '2026-11-24 15:00:00',
+            'planned_end_at' => '2026-11-24 17:30:00',
+            'shift_number' => null,
+            'end_date' => null,
+            'end_shift_number' => null,
+        ]);
+        $this->control($order);
+
+        $insight = $this->insight($this->drawer($this->planner()), 'quality_hold');
+
+        $this->assertNotNull($insight);
+        $this->assertSame([['line_id' => $this->cnc->id, 'date' => '2026-11-24', 'shift' => 2]], $insight['cells']);
+    }
+
     public function test_non_blocking_or_finished_controls_raise_nothing(): void
     {
         $a = $this->planned($this->cnc, '2026-11-24', 1);

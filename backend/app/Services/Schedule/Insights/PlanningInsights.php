@@ -834,19 +834,28 @@ class PlanningInsights
      */
     private function qualityInsights(int $now): array
     {
+        // Visible shifts still ahead, as windows: a booking is matched to the
+        // cells it overlaps, so exact minute plans count like day + shift ones.
+        $windows = [];
+        foreach ($this->days as $date) {
+            foreach (array_keys($this->staffing->columns()) as $i) {
+                $window = $this->staffing->window($date, $i + 1);
+                if ($window !== null && $window[1] > $now) {
+                    $windows[] = [$date, $i + 1, $window];
+                }
+            }
+        }
+
         $cellsOf = [];
         foreach ($this->staffing->orders() as $id => $order) {
             foreach ($this->staffing->bookingsOf((int) $id) as $b) {
-                foreach ($b['cells'] as $c) {
-                    [$l, $date, $col] = explode('|', $c);
-                    if (! in_array($date, $this->days, true) || ! in_array((int) $l, $this->lineIds, true)) {
-                        continue;
+                if (! in_array($b['line_id'], $this->lineIds, true)) {
+                    continue;
+                }
+                foreach ($windows as [$date, $col, $window]) {
+                    if ($b['start'] < $window[1] && $b['end'] > $window[0] && $this->staffing->isShift($b['line_id'], $date, $col)) {
+                        $cellsOf[(int) $id][$b['line_id'].'|'.$date.'|'.$col] = ['line_id' => $b['line_id'], 'date' => $date, 'shift' => $col, 'start' => max($b['start'], $window[0])];
                     }
-                    $window = $this->staffing->window($date, (int) $col);
-                    if ($window === null || $window[1] <= $now) {
-                        continue;
-                    }
-                    $cellsOf[(int) $id][$c] = ['line_id' => (int) $l, 'date' => $date, 'shift' => (int) $col, 'start' => $window[0]];
                 }
             }
         }
