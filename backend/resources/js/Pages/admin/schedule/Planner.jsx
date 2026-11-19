@@ -14,7 +14,7 @@ import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import { InsightsDrawer, InsightsHandle } from './planner/insights';
 import {
-    badgeOpens, createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, isCloseShortcut, isToggleShortcut, rangeCaption,
+    badgeOpens, createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, qualityHoldFor, isCloseShortcut, isToggleShortcut, rangeCaption,
     markSessionSeen, openCount, openOn, readAutoOpen, sessionSeen, shouldAutoOpen, toggle, writeAutoOpen,
 } from './planner/insightsState';
 import {
@@ -171,6 +171,7 @@ export default function Planner() {
     }, [drawerOpen, insightFilter, openKey, highlight]);
     const onStaffBadge = useCallback((badgeLine, date, shift) => openOnInsight(insightForCell(drawer, badgeLine, date, shift)), [drawer, openOnInsight]);
     const onOrderMarker = useCallback((wo) => openOnInsight(insightForOrder(drawer, wo.id)), [drawer, openOnInsight]);
+    const onQualityMarker = useCallback((wo) => openOnInsight(qualityHoldFor(drawer, wo.id)), [drawer, openOnInsight]);
     const onFocused = useCallback(() => setFocusKey(null), []);
 
     // First planner visit of the session with something needing action → open once.
@@ -405,6 +406,8 @@ export default function Planner() {
         // Only a badge some insight is about opens the drawer.
         badgeOpens: (badgeLine, date, shift) => badgeOpens(drawer, badgeLine, date, shift),
         onOrderMarker: insightsOn ? onOrderMarker : null,
+        qualityHold: insightsOn ? (wo) => qualityHoldFor(drawer, wo.id) !== null : null,
+        onQualityMarker: insightsOn ? onQualityMarker : null,
     };
 
     // `I` toggles the drawer — not while typing, not over a dialog. Esc closes

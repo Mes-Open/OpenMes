@@ -74,6 +74,24 @@ export function ShortMarker({ onOpen, children }) {
     );
 }
 
+/** The "on quality hold" marker on a work-order card; a button that opens the order's quality insight. */
+export function QualityMarker({ onOpen }) {
+    const look = { color: '#fff', background: 'var(--om-downtime)', borderRadius: 3, padding: '0 3px', fontSize: 8, fontFamily: MONO, border: 0, lineHeight: 'inherit' };
+    const label = __('On quality hold');
+    if (!onOpen) {
+        return <span data-testid="quality-hold" title={label} className="inline-flex items-center gap-0.5" style={look}><Icon name="clipboard-check" size={9} />QC</span>;
+    }
+    const stop = (e) => e.stopPropagation();
+    return (
+        <button type="button" data-testid="quality-hold" title={`${label} — ${__('Click for the explanation')}`}
+            aria-label={`${label}. ${__('Open the explanation in planning insights')}`}
+            onPointerDown={stop} onMouseDown={stop} onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            className="inline-flex items-center gap-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ ...look, cursor: 'pointer' }}>
+            <Icon name="clipboard-check" size={9} />QC
+        </button>
+    );
+}
+
 const HANDLE_TONE = {
     bad: { background: 'var(--om-blocked)', color: '#fff', borderColor: 'var(--om-blocked)' },
     warn: { background: 'var(--om-downtime)', color: '#fff', borderColor: 'var(--om-downtime)' },
@@ -120,9 +138,9 @@ const SEVERITY = {
     info: { color: 'var(--om-accepted)', bg: 'var(--om-accepted-bg)' },
     ok: { color: 'var(--om-running)', bg: 'var(--om-running-bg)' },
 };
-const ICON = { short_shift: 'user-x', shared_operator: 'arrow-left-right', single_skill: 'star', untracked_line: 'flag', staffing_changed: 'user-cog' };
+const ICON = { short_shift: 'user-x', shared_operator: 'arrow-left-right', single_skill: 'star', untracked_line: 'flag', staffing_changed: 'user-cog', quality_hold: 'clipboard-check' };
 const GROUP_LABEL = { action: 'Needs action', watch: 'To watch', resolved: 'Resolved today' };
-const FILTER_LABEL = { all: 'All', people: 'People', skills: 'Skills', plan: 'Plan' };
+const FILTER_LABEL = { all: 'All', people: 'People', skills: 'Skills', quality: 'Quality', plan: 'Plan' };
 
 function Section({ title, children }) {
     return (

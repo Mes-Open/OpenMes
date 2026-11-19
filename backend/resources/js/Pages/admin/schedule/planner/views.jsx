@@ -8,7 +8,7 @@ import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { TwinChip, TierDot, ShortageChip } from './OrderCard';
 import { useOrderDrop } from './dnd';
-import { ShortMarker, StaffBadge } from './insights';
+import { QualityMarker, ShortMarker, StaffBadge } from './insights';
 import { cellKey } from './insightsState';
 import {
     weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
@@ -183,6 +183,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview, offset = 0, short = false 
                                     <Icon name="users" size={9} />!
                                 </ShortMarker>
                             )}
+                            {ctx.qualityHold?.(wo) && <QualityMarker onOpen={ctx.onQualityMarker ? () => ctx.onQualityMarker(wo) : null} />}
                             <ShortageChip wo={wo} compact />
                             {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
                         </span>

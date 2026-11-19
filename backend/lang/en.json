@@ -7775,5 +7775,21 @@
     "Nothing needs attention on this day: every shift has the people its work needs.": "Nothing needs attention on this day: every shift has the people its work needs.",
     "The end time must differ from the start time.": "The end time must differ from the start time.",
     "Activity added. It ends the next day at :time.": "Activity added. It ends the next day at :time.",
-    "Ends the next day at :time.": "Ends the next day at :time."
+    "Ends the next day at :time.": "Ends the next day at :time.",
+    "Quality control due: :name": "Quality control due: :name",
+    "Blocking issue: :name": "Blocking issue: :name",
+    "On quality hold — :holds": "On quality hold — :holds",
+    "Infeasible — quality hold": "Infeasible — quality hold",
+    "Open quality tasks": "Open quality tasks",
+    "Perform the control so :order can go on.": "Perform the control so :order can go on.",
+    "Resolve the blocking issue so :order can go on.": "Resolve the blocking issue so :order can go on.",
+    "Plan it again: held orders are left out until the hold is lifted.": "Plan it again: held orders are left out until the hold is lifted.",
+    "The hold will be lifted before the shift starts. Reopens if another hold appears.": "The hold will be lifted before the shift starts. Reopens if another hold appears.",
+    ":order is planned but on quality hold": ":order is planned but on quality hold",
+    "planned :slot": "planned :slot",
+    "The plan counts on :order starting :slot, but its next step cannot start until the hold is lifted: :holds.": "The plan counts on :order starting :slot, but its next step cannot start until the hold is lifted: :holds.",
+    "on quality hold": "on quality hold",
+    "Quality holds": "Quality holds",
+    "On quality hold": "On quality hold",
+    "Go to issues": "Go to issues"
 }

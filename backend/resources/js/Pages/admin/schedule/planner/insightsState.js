@@ -3,7 +3,7 @@
 // which board cells "Show on plan" highlights. Kept free of React so vitest
 // covers them.
 
-export const FILTERS = ['all', 'people', 'skills', 'plan'];
+export const FILTERS = ['all', 'people', 'skills', 'quality', 'plan'];
 
 /** "lineId|date|shift" — how the board addresses a line × shift cell. */
 export const cellKey = (lineId, date, shift) => `${lineId}|${date}|${shift}`;
@@ -26,7 +26,7 @@ export function groupInsights(drawer, filter = 'all') {
 
 /** How many open insights each filter chip would show. */
 export function filterCounts(drawer) {
-    const counts = { all: 0, people: 0, skills: 0, plan: 0 };
+    const counts = { all: 0, people: 0, skills: 0, quality: 0, plan: 0 };
     (drawer?.insights ?? []).forEach((i) => {
         counts.all += 1;
         if (counts[i.category] != null) counts[i.category] += 1;
@@ -112,6 +112,11 @@ export function insightForCell(drawer, lineId, date, shift) {
 export function insightForOrder(drawer, orderId) {
     const hits = (drawer?.insights ?? []).filter((i) => (i.affected ?? []).some((a) => a.work_order_id === orderId));
     return hits.sort(bySeverity)[0] ?? null;
+}
+
+/** The open quality-hold insight about one work order, or null. */
+export function qualityHoldFor(drawer, orderId) {
+    return (drawer?.insights ?? []).find((i) => i.type === 'quality_hold' && (i.affected ?? []).some((a) => a.work_order_id === orderId)) ?? null;
 }
 
 /**
@@ -215,7 +220,7 @@ export function emptyReason(drawer, filter = 'all', viewMode = 'weekly') {
     if (!drawer) return null;
     const open = (drawer.insights ?? []).filter((i) => filter === 'all' || i.category === filter);
     if (open.length > 0) return null;
-    if (filter === 'skills' || filter === 'plan') return 'Nothing here.';
+    if (filter === 'skills' || filter === 'quality' || filter === 'plan') return 'Nothing here.';
     return viewMode === 'daily'
         ? 'Nothing needs attention on this day: every shift has the people its work needs.'
         : 'Nothing needs attention in this week: every shift has the people its work needs.';

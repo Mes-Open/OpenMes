@@ -7775,5 +7775,21 @@
     "Nothing needs attention on this day: every shift has the people its work needs.": "Tego dnia nic nie wymaga uwagi: każda zmiana ma ludzi, których potrzebuje jej praca.",
     "The end time must differ from the start time.": "Godzina końca musi się różnić od godziny początku.",
     "Activity added. It ends the next day at :time.": "Dodano aktywność. Kończy się następnego dnia o :time.",
-    "Ends the next day at :time.": "Kończy się następnego dnia o :time."
+    "Ends the next day at :time.": "Kończy się następnego dnia o :time.",
+    "Quality control due: :name": "Kontrola jakości do wykonania: :name",
+    "Blocking issue: :name": "Blokujące zgłoszenie: :name",
+    "On quality hold — :holds": "Wstrzymane przez jakość — :holds",
+    "Infeasible — quality hold": "Niewykonalne — blokada jakościowa",
+    "Open quality tasks": "Otwórz zadania jakościowe",
+    "Perform the control so :order can go on.": "Wykonaj kontrolę, żeby :order mogło iść dalej.",
+    "Resolve the blocking issue so :order can go on.": "Rozwiąż blokujące zgłoszenie, żeby :order mogło iść dalej.",
+    "Plan it again: held orders are left out until the hold is lifted.": "Zaplanuj ponownie: wstrzymane zlecenia są pomijane, dopóki blokada nie zostanie zdjęta.",
+    "The hold will be lifted before the shift starts. Reopens if another hold appears.": "Blokada zostanie zdjęta przed startem zmiany. Wraca, jeśli pojawi się kolejna.",
+    ":order is planned but on quality hold": ":order jest zaplanowane, ale wstrzymane przez jakość",
+    "planned :slot": "zaplanowane :slot",
+    "The plan counts on :order starting :slot, but its next step cannot start until the hold is lifted: :holds.": "Plan zakłada start :order :slot, ale kolejny krok nie ruszy, dopóki blokada nie zostanie zdjęta: :holds.",
+    "on quality hold": "wstrzymane przez jakość",
+    "Quality holds": "Blokady jakościowe",
+    "On quality hold": "Wstrzymane przez jakość",
+    "Go to issues": "Przejdź do zgłoszeń"
 }

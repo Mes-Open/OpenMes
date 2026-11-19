@@ -89,6 +89,7 @@ trait SchedulesFixtures
             respectMaterial: $overrides['respectMaterial'] ?? true,
             workOrderIds: $overrides['workOrderIds'] ?? null,
             respectWorkforce: $overrides['respectWorkforce'] ?? true,
+            respectQuality: $overrides['respectQuality'] ?? true,
         );
     }
 

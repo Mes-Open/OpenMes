@@ -65,6 +65,7 @@ class AutoScheduleController extends Controller
                 'scope' => SchedulingRequest::SCOPE_UNPLANNED,
                 'respect_material' => true,
                 'respect_workforce' => true,
+                'respect_quality' => true,
             ],
             'statusLabels' => collect(ScheduledOperationStatus::cases())->mapWithKeys(fn ($s) => [$s->value => $s->label()]),
             'canDecide' => (bool) request()->user()?->hasAnyRole(['Admin', 'Supervisor']),
