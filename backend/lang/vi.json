@@ -7663,7 +7663,7 @@
     ":identifier is not loaded.": ":identifier chưa được bốc lên.",
     ":identifier taken off the load.": "Đã dỡ :identifier khỏi chuyến hàng.",
     "Nothing has been loaded yet.": "Chưa có gì được bốc lên.",
-    "This load is short (:count missing). Only a supervisor can confirm it.": "Chuyến hàng bị thiếu (:count sản phẩm thiếu). Chỉ giám sát viên mới có thể xác nhận.",
+    "This load is short (:count missing). Only a supervisor can confirm it.": "Chuyến hàng bị thiếu (:count đơn vị thiếu). Chỉ giám sát viên mới có thể xác nhận.",
     "Give a reason for shipping a short load.": "Đưa ra lý do cho việc xuất chuyến hàng thiếu.",
     ":code is on the list but no such pallet or carton exists in OpenMES.": ":code có trong danh sách nhưng không tồn tại pallet hoặc thùng carton này trong OpenMES.",
     ":code is not a known pallet or carton.": ":code không phải là pallet hoặc thùng carton đã biết.",
