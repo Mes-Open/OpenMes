@@ -19,6 +19,8 @@
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/fw3fG78pZj)
 
+<a href="https://www.producthunt.com/products/openmes?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-openmes" target="_blank" rel="noopener noreferrer"><img alt="OpenMES - Free, open-source MES for small factories | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1322613&amp;theme=light&amp;t=1795077389782"></a>
+
 
 </div>
 
