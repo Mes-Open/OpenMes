@@ -5,7 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
-import { __, formatDate, formatNumber, formatTime } from '../../../lib/i18n';
+import { __, formatDate, formatNumber, formatTime, transChoice } from '../../../lib/i18n';
 import { TONE_STYLE, shortName, staffingGrid, staffingTone } from '../../../lib/staffing';
 
 const MONO = 'var(--font-mono)';
@@ -269,7 +269,7 @@ function StaffingPanel({ workforce, canAssignOperators }) {
                     {tracked.map((w) => (
                         <li key={w.line_id}>
                             <span className="font-semibold">{w.line_name}</span>
-                            {w.assigned != null && <span className="text-om-muted"> · {__(':count operators assigned', { count: w.assigned })}</span>}
+                            {w.assigned != null && <span className="text-om-muted"> · {transChoice(':count operator assigned|:count operators assigned', w.assigned)}</span>}
                             {(w.single_holder_skills ?? []).length > 0 && (
                                 <span className="mt-1 flex flex-wrap gap-1.5">
                                     {w.single_holder_skills.map((s) => (

@@ -99,7 +99,7 @@ class AutoScheduleController extends Controller
 
         $message = trans_choice('Schedule applied to :count work order.|Schedule applied to :count work orders.', $result['applied'], ['count' => $result['applied']]);
         if ($result['skipped'] > 0) {
-            $message .= ' '.__(':count work orders could not be fully scheduled and kept their placement.', ['count' => $result['skipped']]);
+            $message .= ' '.trans_choice(':count work order could not be fully scheduled and kept its placement.|:count work orders could not be fully scheduled and kept their placement.', $result['skipped'], ['count' => $result['skipped']]);
         }
         if ($result['warnings'] !== []) {
             $message .= ' '.implode(' ', $result['warnings']);

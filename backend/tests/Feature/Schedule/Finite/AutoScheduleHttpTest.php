@@ -122,6 +122,20 @@ class AutoScheduleHttpTest extends TestCase
         $this->assertSame(ScheduleSimulation::STATUS_APPLIED, $simulation->fresh()->status);
     }
 
+    public function test_the_apply_flash_is_singular_for_one_order_each(): void
+    {
+        $lineA = $this->line(['name' => 'Line A']);
+        $this->user('Operator')->lines()->attach($lineA->id);
+        $this->order($lineA, [['estimated_duration_minutes' => 60, 'required_operators' => 3]]);
+        $this->order($this->line(['name' => 'Line B']), [['estimated_duration_minutes' => 60]]);
+        $admin = $this->user('Admin');
+        $this->actingAs($admin)->post('/admin/schedule/simulations')->assertRedirect();
+
+        $this->actingAs($admin)->post('/admin/schedule/simulations/'.ScheduleSimulation::sole()->id.'/apply')
+            ->assertRedirect('/admin/schedule/auto')
+            ->assertSessionHas('success', 'Schedule applied to 1 work order. 1 work order could not be fully scheduled and kept its placement.');
+    }
+
     public function test_discard_via_web(): void
     {
         $this->order($this->line(), [['estimated_duration_minutes' => 60]]);

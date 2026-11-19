@@ -97,6 +97,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Plural and Polish wording fixes.** "1 work order could not be fully scheduled and kept its placement.", "Kitting Cell 1 · 1 operator assigned" (the browser now has a `transChoice()` like Laravel's `trans_choice()`), Polish numbers take their Polish plural form ("2 miejsca zostają nieobsadzone", "5 miejsc zostaje nieobsadzonych"), and Polish strings no longer decline people's names ("Ściągnij: Adam Nowak").
 - **"Resolved today" is shown in the language of whoever reads it.** The title and summary are kept as a translation key with its values and worded when read; entries stored before keep their text.
 - **No insights for shifts that are over.** Their badges stay on the board, but they no longer count under *Needs action* or *To watch*.
 - **"Bring in substitute" on an insight with several places missing says "Covers 1 of N missing"**, and once the substitute is assigned the insight re-opens under *Needs action* while places stay empty, instead of staying resolved.
