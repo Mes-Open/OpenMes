@@ -15,15 +15,17 @@ class UpdatePinRequest extends FormRequest
     {
         return [
             'current_password' => 'required|string',
-            'pin' => 'required|digits_between:4,6|confirmed',
+            // Exactly what the PIN login form accepts (PinLoginRequest): a shorter
+            // PIN used to be saved here and then refused at every login.
+            'pin' => 'required|digits:6|confirmed',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'pin.digits_between' => 'PIN must be 4–6 digits.',
-            'pin.confirmed' => 'PIN confirmation does not match.',
+            'pin.digits' => __('PIN must be exactly 6 digits.'),
+            'pin.confirmed' => __('PIN confirmation does not match.'),
         ];
     }
 }

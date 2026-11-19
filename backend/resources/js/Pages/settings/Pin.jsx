@@ -28,7 +28,8 @@ export default function Pin() {
         errors: removeErrors,
     } = useForm({ current_password: '' });
 
-    const pinValid = data.pin.length >= 4 && data.pin === data.pin_confirmation;
+    // Six digits — the only length the PIN login form accepts.
+    const pinValid = data.pin.length === 6 && data.pin === data.pin_confirmation;
 
     function handleSetPin(e) {
         e.preventDefault();
@@ -52,7 +53,7 @@ export default function Pin() {
                 </Link>
                 <div>
                     <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-om-ink">{__('Quick PIN Login')}</h1>
-                    <p className="text-om-muted text-[12.5px] mt-0.5">{__('Set a 4–6 digit PIN for fast sign-in')}</p>
+                    <p className="text-om-muted text-[12.5px] mt-0.5">{__('Set a 6-digit PIN for fast sign-in')}</p>
                 </div>
             </div>
 
@@ -98,7 +99,7 @@ export default function Pin() {
                     {hasPin ? __('Change PIN') : __('Set PIN')}
                 </h2>
                 <p className="text-om-muted text-[12.5px] mb-4">
-                    {__('Enter your current account password and choose a 4–6 digit numeric PIN.')}
+                    {__('Enter your current account password and choose a 6-digit numeric PIN.')}
                 </p>
 
                 <form onSubmit={handleSetPin} className="space-y-4">
@@ -114,7 +115,7 @@ export default function Pin() {
                     />
 
                     <div>
-                        <label htmlFor="pin" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('PIN (4–6 digits)')}</label>
+                        <label htmlFor="pin" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('PIN (6 digits)')}</label>
                         <input
                             type="password"
                             id="pin"
@@ -125,7 +126,7 @@ export default function Pin() {
                             maxLength={6}
                             className={`${PIN_INPUT_CLASS} ${errors.pin ? 'border-om-blocked' : 'border-om-line'}`}
                             required
-                            placeholder="----"
+                            placeholder="------"
                         />
                         {errors.pin && <p className="mt-1 text-[11.5px] text-om-blocked">{errors.pin}</p>}
                     </div>
@@ -142,7 +143,7 @@ export default function Pin() {
                             maxLength={6}
                             className={`${PIN_INPUT_CLASS} border-om-line`}
                             required
-                            placeholder="----"
+                            placeholder="------"
                         />
                     </div>
 

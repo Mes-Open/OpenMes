@@ -330,8 +330,8 @@ export default function Planner() {
 
     const rangeLabel = (rangeStart && rangeEnd)
         ? rangeStart === rangeEnd
-            ? formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit', year: 'numeric' })
-            : `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+            ? formatDate(rangeStart, { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : `${formatDate(rangeStart, { day: '2-digit', month: '2-digit' })} – ${formatDate(rangeEnd, { day: '2-digit', month: '2-digit', year: 'numeric' })}`
         : '';
 
     return (

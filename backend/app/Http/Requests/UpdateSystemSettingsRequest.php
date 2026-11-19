@@ -38,6 +38,13 @@ class UpdateSystemSettingsRequest extends FormRequest
         if (is_string($this->input('cors_allowed_methods'))) {
             $this->merge(['cors_allowed_methods' => \App\Rules\CorsMethods::normalise($this->input('cors_allowed_methods'))]);
         }
+
+        // The correction window only applies to the timed policy, and the page
+        // hides its field under any other: a value left in it must not fail
+        // (or overwrite the stored window on) a save the admin cannot see.
+        if ($this->input('production_qty_edit_policy') !== 'timed') {
+            $this->getInputSource()->remove('production_qty_edit_window_minutes');
+        }
     }
 
     public function after(): array
@@ -125,9 +132,24 @@ class UpdateSystemSettingsRequest extends FormRequest
     private function validRegex(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            if (! \App\Support\UnitSerialisation::validPattern((string) $value)) {
-                $fail(__('The :attribute is not a valid regular expression.', ['attribute' => $attribute]));
+            // Anything but text is already refused by the `string` rule.
+            if (is_string($value) && ! \App\Support\UnitSerialisation::validPattern($value)) {
+                // :attribute left for the validator, which reads attributes() below.
+                $fail(__('The :attribute is not a valid regular expression.'));
             }
         };
+    }
+
+    /**
+     * Field names in the page's own words, for the validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'unit_serial_pattern' => mb_strtolower(__('Serial number pattern')),
+            'unit_psn_pattern' => mb_strtolower(__('Process serial pattern')),
+        ];
     }
 }

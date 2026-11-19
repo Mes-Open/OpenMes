@@ -2446,7 +2446,7 @@ export default function WorkOrderDetail() {
                                     <div className="col-span-2 pt-2 border-t border-om-line2">
                                         <p className={fieldLabelCls}>{__('DUE DATE')}</p>
                                         <p className={`font-mono text-[15px] font-medium ${dueDatePast ? 'text-om-blocked' : 'text-om-ink'}`}>
-                                            {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            {formatDate(dueDateStr, { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
                                     </div>
                                 )}

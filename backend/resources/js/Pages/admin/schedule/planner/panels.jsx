@@ -145,7 +145,7 @@ function ChangesPanel({ ctx }) {
                             )}
                             <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{c.order_no}</span>
                             <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)' }}>
-                                {formatDate(new Date(c.created_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                {formatDate(c.created_at, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-om-muted mt-2">{changeSummary(c, ctx.data.allLines)}</div>

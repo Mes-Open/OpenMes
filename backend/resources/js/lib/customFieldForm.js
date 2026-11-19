@@ -29,6 +29,14 @@ export function customFieldValues(raw) {
     return jsonColumn(raw, {});
 }
 
+/**
+ * The `step` for a custom field's <input>. A Number field needs `any`: left
+ * unset, the browser steps by 1 and refuses a decimal like 12.5 on submit.
+ */
+export function numberInputStep(type) {
+    return { number: 'any', integer: '1' }[type];
+}
+
 /** Props for the <CustomFields> component, derived from a useForm() instance. */
 export function customFieldProps(form, definitions) {
     const { data, setData, errors } = form;

@@ -1,6 +1,7 @@
 import { Checkbox, Dropdown } from '@openmes/ui';
 import AppDatePicker from './AppDatePicker';
 import { __ } from '../lib/i18n';
+import { numberInputStep } from '../lib/customFieldForm';
 
 /**
  * Renders admin-defined custom fields inside a form. Scalar values bind to the
@@ -150,7 +151,7 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
         control = (
             <input
                 type={inputType}
-                step={type === 'integer' ? '1' : undefined}
+                step={numberInputStep(type)}
                 min={config.min}
                 max={config.max}
                 value={value ?? ''}

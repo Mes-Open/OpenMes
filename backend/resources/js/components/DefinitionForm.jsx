@@ -3,6 +3,7 @@ import { Checkbox, Dropdown, Icon } from '@openmes/ui';
 import AppDatePicker from './AppDatePicker';
 import Tooltip from './Tooltip';
 import { __ } from '../lib/i18n';
+import { numberInputStep } from '../lib/customFieldForm';
 
 /**
  * Create/edit form for a custom-field definition. Unlike ResourceForm this is
@@ -57,9 +58,9 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 
             {isRange && (
                 <div className="grid grid-cols-2 gap-4">
-                    <TextField label={__('Min')} type="number" value={data.config?.min ?? ''} error={errors['config.min']}
+                    <TextField label={__('Min')} type="number" step={numberInputStep(data.type)} value={data.config?.min ?? ''} error={errors['config.min']}
                         onChange={(v) => setConfig({ min: v })} />
-                    <TextField label={__('Max')} type="number" value={data.config?.max ?? ''} error={errors['config.max']}
+                    <TextField label={__('Max')} type="number" step={numberInputStep(data.type)} value={data.config?.max ?? ''} error={errors['config.max']}
                         onChange={(v) => setConfig({ max: v })} />
                 </div>
             )}
@@ -84,7 +85,7 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
     );
 }
 
-function TextField({ label, value, error, onChange, required, help, type = 'text' }) {
+function TextField({ label, value, error, onChange, required, help, type = 'text', step }) {
     return (
         <div>
             <div className="block text-sm font-medium text-om-muted mb-1">
@@ -93,7 +94,7 @@ function TextField({ label, value, error, onChange, required, help, type = 'text
             {type === 'date' ? (
                 <AppDatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
             ) : (
-                <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+                <input type={type} step={step} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
             )}
             {help && <p className="text-sm text-om-muted mt-1">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}

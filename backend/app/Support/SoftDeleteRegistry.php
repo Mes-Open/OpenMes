@@ -112,7 +112,7 @@ class SoftDeleteRegistry
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */
     private const LABEL_ATTRIBUTES = [
         'name', 'title', 'lot_number', 'order_no', 'pallet_no', 'ean',
-        'serial_no', 'code', 'email', 'topic', 'key', 'original_filename',
+        'serial_no', 'code', 'email', 'topic', 'key', 'original_filename', 'alias',
     ];
 
     /** @return list<string> */

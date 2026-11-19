@@ -70,7 +70,7 @@ class SettingsController extends Controller
 
         // Verify current password
         if (! Hash::check($validated['current_password'], $user->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         // Update password
@@ -110,13 +110,13 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'email' => 'required|string|email|max:255|unique:users,email,'.auth()->id(),
         ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
+            'name.regex' => __('Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.'),
         ]);
 
         auth()->user()->update($validated);
 
         return redirect()->route('settings.index')
-            ->with('success', 'Profile updated successfully.');
+            ->with('success', __('Profile updated successfully.'));
     }
 
     /**
@@ -280,7 +280,7 @@ class SettingsController extends Controller
 
         if (! $pinEnabled) {
             return redirect()->route('settings.index')
-                ->with('error', 'PIN login is not enabled by administrator.');
+                ->with('error', __('PIN login is not enabled by administrator.'));
         }
 
         $hasPin = ! empty(auth()->user()->pin);
@@ -300,13 +300,13 @@ class SettingsController extends Controller
 
         if (! $pinEnabled) {
             return redirect()->route('settings.index')
-                ->with('error', 'PIN login is not enabled by administrator.');
+                ->with('error', __('PIN login is not enabled by administrator.'));
         }
 
         $validated = $request->validated();
 
         if (! Hash::check($validated['current_password'], auth()->user()->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         auth()->user()->update([
@@ -314,7 +314,7 @@ class SettingsController extends Controller
         ]);
 
         return redirect()->route('settings.index')
-            ->with('success', 'PIN set successfully. You can now use it to log in.');
+            ->with('success', __('PIN set successfully. You can now use it to log in.'));
     }
 
     /**
@@ -327,13 +327,13 @@ class SettingsController extends Controller
         ]);
 
         if (! Hash::check($validated['current_password'], auth()->user()->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         auth()->user()->update(['pin' => null]);
 
         return redirect()->route('settings.index')
-            ->with('success', 'PIN removed.');
+            ->with('success', __('PIN removed.'));
     }
 
     /**
@@ -341,7 +341,12 @@ class SettingsController extends Controller
      */
     public function showApiTokens()
     {
-        $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
+        // Only what this admin can revoke (revokeApiToken allows own tokens
+        // only) and what still works: listing other users' tokens — and the
+        // expired 15-minute sign-in tokens of the mobile app — put a Revoke
+        // button next to each that ended on a 403 page.
+        $tokens = auth()->user()->tokens()
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->with('tokenable')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -401,7 +406,7 @@ class SettingsController extends Controller
         $token->delete();
 
         return redirect()->route('settings.api-tokens')
-            ->with('success', 'Token revoked successfully.');
+            ->with('success', __('Token revoked successfully.'));
     }
 
     /**
@@ -644,7 +649,9 @@ class SettingsController extends Controller
             ...($request->has('cors_allowed_methods') ? ['cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST'] : []),
             ...($request->has('cors_max_age') ? ['cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0)))] : []),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
-            'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
+            // Only with the timed policy (the request drops it otherwise), so the
+            // stored window survives a switch to another policy and back.
+            ...(isset($validated['production_qty_edit_window_minutes']) ? ['production_qty_edit_window_minutes' => (int) $validated['production_qty_edit_window_minutes']] : []),
             'scanner_mode' => $validated['scanner_mode'],
             'unit_identifier_normalize' => (bool) ($validated['unit_identifier_normalize'] ?? false),
             'unit_serial_pattern' => trim($validated['unit_serial_pattern'] ?? ''),

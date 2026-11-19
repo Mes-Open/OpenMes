@@ -406,6 +406,12 @@ export default function System() {
                 // so drop the cache or the next click shows the old values.
                 router.flushAll();
             },
+            // The whole form is posted from every tab, and some fields show only
+            // under another choice, so a rejected field may not be on screen:
+            // never let a save fail without a word.
+            onError: (formErrors) => {
+                toast({ severity: 'error', title: __('Settings were not saved.'), body: Object.values(formErrors).join(' ') });
+            },
         });
     }
 
@@ -1271,7 +1277,7 @@ export default function System() {
                                         <div>
                                             <p className="text-[13px] font-medium text-om-ink">{__('Enable PIN login')}</p>
                                             <p className={HELP_CLASS}>
-                                                {__('Allow users to set a 4–6 digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
+                                                {__('Allow users to set a 6-digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
                                             </p>
                                         </div>
                                     </div>

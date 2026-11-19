@@ -33,7 +33,12 @@ class UpdateSystemSettingRequest extends FormRequest
     public function rules(): array
     {
         $known = [CurrencyRegistry::SETTING_KEY => Rule::in(CurrencyRegistry::codes()), 'production_period' => 'in:none,weekly,monthly', 'allow_overproduction' => 'boolean',
-            'workflow_mode' => 'in:status,board_status', 'force_sequential_steps' => 'boolean', 'production_flow_mode' => 'in:whole_batch,transfer', 'pin_login_enabled' => 'boolean'];
+            'workflow_mode' => 'in:status,board_status', 'force_sequential_steps' => 'boolean', 'production_flow_mode' => 'in:whole_batch,transfer', 'pin_login_enabled' => 'boolean',
+            // Settings → System → Production, with the settings form's own rules.
+            'production_tracking_mode' => 'in:per_operation,cumulative,hybrid', 'production_qty_edit_policy' => 'in:none,timed,full',
+            'production_qty_edit_window_minutes' => ['integer', 'min:1', 'max:60'], 'scanner_mode' => 'in:hid,manual',
+            'workstation_routing_enabled' => 'boolean', 'default_pay_type' => 'in:hourly,weekly,piece_rate',
+            'standard_weekly_hours' => ['numeric', 'min:1', 'max:168']];
         // The CORS keys go straight into response headers, so the API checks
         // them exactly as Settings → System does.
         $cors = [
@@ -44,10 +49,14 @@ class UpdateSystemSettingRequest extends FormRequest
         if (isset($cors[$this->route('key')])) {
             return ['value' => $cors[$this->route('key')]];
         }
+        // Blank means "no default rate", as on the settings form.
+        if ($this->route('key') === 'default_pay_rate') {
+            return ['value' => ['present', 'nullable', 'numeric', 'min:0']];
+        }
 
         $rule = $known[$this->route('key')] ?? null;
 
-        return ['value' => $rule ? ['required', $rule] : ['present']];
+        return ['value' => $rule ? ['required', ...(is_array($rule) ? $rule : [$rule])] : ['present']];
     }
 
     /**

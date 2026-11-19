@@ -172,7 +172,7 @@ export default function EmployeeMonth() {
                 <aside className="bg-om-card border border-om-line rounded-om p-4 flex flex-col gap-3">
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-om-accent">
-                            {__('Selected')} · {date ? formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                            {__('Selected')} · {date ? formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                         </div>
                         <h2 className="text-xl font-bold text-om-ink mt-1">{selectedDayActivities.length} {__('activities')}</h2>
                         {selectedWorker && (

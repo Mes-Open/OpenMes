@@ -22,7 +22,7 @@ class PinLoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'pin.digits_between' => 'PIN must be exactly 6 digits.',
+            'pin.digits_between' => __('PIN must be exactly 6 digits.'),
         ];
     }
 }

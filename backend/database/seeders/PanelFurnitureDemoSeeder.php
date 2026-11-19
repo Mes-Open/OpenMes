@@ -1255,7 +1255,7 @@ class PanelFurnitureDemoSeeder extends Seeder
                     'quantity_available' => $def['qty'],
                     'unit_of_measure' => $def['unit'],
                     'received_at' => now()->subDays(mt_rand(3, 25)),
-                    'status' => 'available',
+                    'status' => MaterialLot::STATUS_RELEASED,
                     'supplier_lot_no' => $def['supplier_lot'],
                 ]
             );

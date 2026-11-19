@@ -49,12 +49,6 @@ export default function Index() {
                         description={__('Enable, disable, and reorder dashboard widgets')}
                     />
                     <NavCard
-                        href="/onboarding"
-                        iconPath="M13 10V3L4 14h7v7l9-11h-7z"
-                        title={__('Setup Wizard')}
-                        description={__('Re-launch the onboarding wizard')}
-                    />
-                    <NavCard
                         href="/settings/api-tokens"
                         iconPath="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
                         title={__('API Tokens')}
@@ -127,7 +121,7 @@ export default function Index() {
                             <div className="flex-1">
                                 <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Quick PIN')}</h3>
                                 <p className="text-om-muted text-[12.5px]">
-                                    {hasPin ? __('PIN active — change or remove') : __('Set a 4–6 digit PIN for fast login')}
+                                    {hasPin ? __('PIN active — change or remove') : __('Set a 6-digit PIN for fast login')}
                                 </p>
                             </div>
                             <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">

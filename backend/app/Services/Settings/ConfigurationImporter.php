@@ -3,6 +3,7 @@
 namespace App\Services\Settings;
 
 use App\Http\Requests\UpdateSystemSettingsRequest;
+use App\Support\ProductionTargetSettings;
 use App\Support\TimezoneRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -111,6 +112,8 @@ class ConfigurationImporter
         'unit_pack_requires_serial', 'unit_pack_requires_order',
         'unit_test_fail_policy', 'unit_test_max_attempts', 'unit_test_attempts_scope', 'standard_weekly_hours', 'default_currency',
         'default_pay_type', 'default_pay_rate', 'enabled_modules',
+        // The Production targets card, saved through its own form.
+        ProductionTargetSettings::SCRAP_KEY, ProductionTargetSettings::FPY_KEY,
     ];
 
     /** Never taken from a file: infrastructure, security, and switches that need their own checks. */
@@ -225,7 +228,11 @@ class ConfigurationImporter
     /** The settings form's rule for this key (without "required"), when it has one. */
     private function settingPasses(string $key, mixed $value): bool
     {
-        $this->settingRules ??= (new UpdateSystemSettingsRequest)->rules();
+        $this->settingRules ??= (new UpdateSystemSettingsRequest)->rules() + [
+            // UpdateProductionTargetsRequest's ranges: a percentage.
+            ProductionTargetSettings::SCRAP_KEY => 'numeric|min:0|max:100',
+            ProductionTargetSettings::FPY_KEY => 'numeric|min:0|max:100',
+        ];
         if (! array_key_exists($key, $this->settingRules)) {
             return true; // a stored key the form does not own is kept as before
         }
