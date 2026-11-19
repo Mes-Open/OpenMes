@@ -61,6 +61,18 @@ describe('normalizeCell', () => {
         expect(staffingGrid([legacy]).cell(1, 'a|b')).toMatchObject({ available: 2, needed: 3 });
     });
 
+    it('keeps the shortfall a legacy draft recorded', () => {
+        // A 4-person step on a line of 3: never booked, so the peak is 2.
+        const legacy = { tracked: true, present: 3, peak_operators: 2, shortfall: 1, start: 'a', end: 'b', line_id: 1, date: '2026-11-18' };
+        expect(normalizeCell(legacy)).toMatchObject({ available: 3, needed: 4 });
+        expect(staffingTone(normalizeCell(legacy))).toBe('short');
+        // A booked peak above the people keeps the peak.
+        expect(normalizeCell({ tracked: true, present: 2, peak_operators: 3, shortfall: 1 })).toMatchObject({ available: 2, needed: 3 });
+        // No shortfall: the peak, as before.
+        expect(normalizeCell({ tracked: true, present: 3, peak_operators: 2, shortfall: 0 })).toMatchObject({ available: 3, needed: 2 });
+        expect(staffingTone(normalizeCell({ tracked: false, present: null, peak_operators: 2, shortfall: null }))).toBe('untracked');
+    });
+
     it('keeps an untracked legacy cell untracked and leaves current cells alone', () => {
         expect(staffingTone(normalizeCell({ tracked: false, present: null, peak_operators: 2 }))).toBe('untracked');
         const current = { tracked: true, available: 1, needed: 1 };

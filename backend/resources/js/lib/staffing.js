@@ -52,17 +52,23 @@ export function weekOf(date) {
  * @returns {{ weeks: string[], columns: Object<string, Array>, lines: Array, cell: (lineId, colKey) => object|undefined }}
  */
 /**
- * A draft generated before the available/needed count stored `present` and
- * `peak_operators` instead. Such a draft stays in the database across an
- * upgrade, so read the old names as the new ones rather than print
- * "undefined/undefined" until someone regenerates it.
+ * A draft generated before the available/needed count stored `present`,
+ * `peak_operators` and `shortfall` instead. Such a draft stays in the
+ * database across an upgrade, so read the old names as the new ones rather
+ * than print "undefined/undefined" until someone regenerates it — and keep
+ * the shortfall it recorded: a step the people could not staff was never
+ * booked, so the peak alone would turn a short shift green. As the server
+ * does, a short shift needs the people available plus the shortfall.
  */
 export function normalizeCell(r) {
     if (!r || ('available' in r && 'needed' in r)) return r;
+    const available = r.available ?? (r.tracked ? r.present ?? null : null);
+    const peak = r.peak_operators ?? 0;
+    const shortfall = Number(r.shortfall) || 0;
     return {
         ...r,
-        available: r.available ?? (r.tracked ? r.present ?? null : null),
-        needed: r.needed ?? r.peak_operators ?? 0,
+        available,
+        needed: r.needed ?? (available != null && shortfall > 0 ? Math.max(peak, available + shortfall) : peak),
     };
 }
 
