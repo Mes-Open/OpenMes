@@ -43,8 +43,11 @@ export default function Access() {
         <div className="max-w-5xl mx-auto">
             <Head title={__('Tab Access')} />
 
-            <Link href="/settings" className="mb-4 flex items-center gap-1 text-sm text-om-accent hover:underline">
-                ‹ {__('Settings')}
+            <Link href="/settings" className="mb-4 flex items-center gap-2 text-[13px] text-om-muted transition-colors hover:text-om-ink">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                {__('Settings')}
             </Link>
             <h1 className="mb-1 text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Tab Access')}</h1>
             <p className="mb-6 text-sm text-om-muted">

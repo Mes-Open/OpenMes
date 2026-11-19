@@ -1414,18 +1414,28 @@ export default function System() {
                                         <label
                                             key={set.key}
                                             className={`flex gap-3 p-4 rounded-om border cursor-pointer transition-colors
+                                                        has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-om-accent
                                                         ${dataset === set.key
                                                             ? 'border-om-accent bg-om-chip'
                                                             : 'border-om-line hover:bg-om-chip'}`}
                                         >
+                                            {/* The native radio still carries `dataset` in the POST and the
+                                                keyboard behaviour; the circle drawn next to it is the
+                                                design-system RadioGroup mark instead of the browser's blue one. */}
                                             <input
                                                 type="radio"
                                                 name="dataset"
                                                 value={set.key}
                                                 checked={dataset === set.key}
                                                 onChange={() => setDataset(set.key)}
-                                                className="mt-1 shrink-0"
+                                                className="sr-only"
                                             />
+                                            <span
+                                                aria-hidden
+                                                className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 ${dataset === set.key ? 'border-om-accent' : 'border-om-faintest'}`}
+                                            >
+                                                {dataset === set.key && <span className="size-2 rounded-full bg-om-accent" />}
+                                            </span>
                                             <span className="min-w-0">
                                                 <span className="block text-[13px] font-medium text-om-ink">{__(set.label)}</span>
                                                 <span className="block text-[11px] uppercase tracking-wide text-om-faint mt-0.5">{__(set.industry)}</span>

@@ -128,6 +128,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Settings look the same everywhere.** *Settings → Custom fields* uses the standard black
+  *New* button and icon buttons for Edit / Activate / Delete instead of the old blue button
+  and text links, and the field form has the same labels, inputs and buttons as every other
+  form. The example-company picker on *System → Data* uses the design's radio instead of the
+  browser's blue one, *Tab Access* has the usual back link, and the ERP key form's *Scopes*
+  label matches the other labels.
+
 - **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
   its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
   instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade

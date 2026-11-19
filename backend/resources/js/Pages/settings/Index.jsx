@@ -75,7 +75,7 @@ export default function Index() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Link href="/settings/profile" className="bg-om-card border border-om-line rounded-om p-6 hover:border-om-faint transition-colors cursor-pointer">
                     <div className="flex items-start gap-4">
                         <div className="bg-om-chip rounded-full p-3">
