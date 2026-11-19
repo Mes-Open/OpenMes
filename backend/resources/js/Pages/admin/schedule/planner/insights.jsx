@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { Icon } from '@openmes/ui';
 import { __, formatTime } from '../../../../lib/i18n';
 import { TONE_STYLE, staffingTone } from '../../../../lib/staffing';
-import { FILTERS, filterCounts, groupInsights } from './insightsState';
+import { FILTERS, emptyReason, filterCounts, groupInsights } from './insightsState';
 import { MONO } from './helpers';
 
 /** Tooltip text of a badge: the count, who is away, who is held elsewhere. */
@@ -20,8 +20,10 @@ export function badgeTitle(cell) {
 }
 
 /**
- * "present / needed" pill for one line × shift cell. A red or amber pill is a
- * button when `onOpen` is given: it opens the drawer on that cell's insight.
+ * "present / needed" pill for one line × shift cell. It is a button only when
+ * `onOpen` is given — the board passes it for a badge an open insight is
+ * about — and opens the drawer on that insight. Any other badge (an amber
+ * "exactly enough", a shift that is over) only shows its tooltip.
  */
 export function StaffBadge({ cell, style, onOpen = null }) {
     if (!cell) return null;
@@ -34,7 +36,7 @@ export function StaffBadge({ cell, style, onOpen = null }) {
         </>
     ) : __('not tracked');
     const look = { ...palette, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, borderRadius: 999, padding: '1px 6px', lineHeight: '14px', ...style };
-    if (onOpen && (tone === 'short' || tone === 'enough')) {
+    if (onOpen) {
         const stop = (e) => e.stopPropagation();
         return (
             <button type="button" data-testid="staff-badge" data-tone={tone} title={`${badgeTitle(cell)}\n${__('Click for the explanation')}`}
@@ -240,7 +242,7 @@ function ResolvedItem({ item, onUndo, busy }) {
 }
 
 export function InsightsDrawer({
-    drawer, loading, filter, setFilter, openKey, onToggle, onShow, shownKey, onAction, onUndo, onClose, busy, updatedAt, rangeLabel,
+    drawer, loading, filter, setFilter, openKey, onToggle, onShow, shownKey, onAction, onUndo, onClose, busy, updatedAt, rangeLabel, viewMode = 'weekly',
     focusKey = null, onFocused = () => {}, autoOpen = true, onAutoOpenChange = () => {},
 }) {
     // Opened from a badge or a card marker: bring that insight into view.
@@ -253,6 +255,8 @@ export function InsightsDrawer({
         return () => clearTimeout(t);
     }, [focusKey, drawer, onFocused]);
     const groups = groupInsights(drawer, filter);
+    // Nothing open: say why, even when resolved entries follow.
+    const empty = emptyReason(drawer, filter, viewMode);
     const counts = filterCounts(drawer);
     const summary = drawer?.summary ?? { needs_action: 0, to_watch: 0, resolved: 0 };
     const tiles = [
@@ -292,9 +296,7 @@ export function InsightsDrawer({
             </div>
             <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto px-4 pb-6">
                 {loading && !drawer && <p className="text-[12.5px] text-om-muted">{__('Loading…')}</p>}
-                {drawer && groups.length === 0 && (
-                    <p className="text-[12.5px] text-om-muted">{filter === 'all' ? __('Nothing to act on in this view.') : __('Nothing here.')}</p>
-                )}
+                {empty && <p data-testid="insights-empty" className="text-[12.5px] text-om-muted">{__(empty)}</p>}
                 {groups.map((g) => (
                     <div key={g.key} className="space-y-2">
                         <div className="pt-2" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__(GROUP_LABEL[g.key])}</div>

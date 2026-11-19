@@ -97,7 +97,7 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
 
         setLoading(true);
         try {
-            const res = await fetch('/settings/telemetry/preview', { headers: { Accept: 'application/json' } });
+            const res = await fetch('/settings/telemetry/preview', { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
             setPayload(JSON.stringify(await res.json(), null, 2));
         } catch {
             setPayload(__('The preview could not be loaded.'));

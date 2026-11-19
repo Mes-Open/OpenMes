@@ -51,6 +51,27 @@ export function weekOf(date) {
  * @param {Array} rows staffing.shifts from the simulation
  * @returns {{ weeks: string[], columns: Object<string, Array>, lines: Array, cell: (lineId, colKey) => object|undefined }}
  */
+/**
+ * A draft generated before the available/needed count stored `present`,
+ * `peak_operators` and `shortfall` instead. Such a draft stays in the
+ * database across an upgrade, so read the old names as the new ones rather
+ * than print "undefined/undefined" until someone regenerates it — and keep
+ * the shortfall it recorded: a step the people could not staff was never
+ * booked, so the peak alone would turn a short shift green. As the server
+ * does, a short shift needs the people available plus the shortfall.
+ */
+export function normalizeCell(r) {
+    if (!r || ('available' in r && 'needed' in r)) return r;
+    const available = r.available ?? (r.tracked ? r.present ?? null : null);
+    const peak = r.peak_operators ?? 0;
+    const shortfall = Number(r.shortfall) || 0;
+    return {
+        ...r,
+        available,
+        needed: r.needed ?? (available != null && shortfall > 0 ? Math.max(peak, available + shortfall) : peak),
+    };
+}
+
 export function staffingGrid(rows) {
     const columns = {};
     const seen = {};
@@ -69,7 +90,7 @@ export function staffingGrid(rows) {
             lines.push(lineSeen[r.line_id]);
         }
         if (r.tracked) lineSeen[r.line_id].tracked = true;
-        cells[`${r.line_id}|${key}`] = r;
+        cells[`${r.line_id}|${key}`] = normalizeCell(r);
     });
     Object.values(columns).forEach((cols) => cols.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0)));
     lines.sort((a, b) => String(a.name).localeCompare(String(b.name)) || a.id - b.id);

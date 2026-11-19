@@ -175,4 +175,25 @@ class SharedOperatorPoolTest extends TestCase
         $this->assertSame(60, $t->nextLaborReleaseAmong([1, 2], 30));
         $this->assertSame(180, $t->nextLaborReleaseAmong([2], 120));
     }
+
+    public function test_match_all_counts_an_overbooked_groups_shortfall_once(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['a', 'b'], 2 => ['a', 'b', 'c']]);
+
+        $result = $pool->matchAll([1 => ['a', 'b'], 2 => ['a', 'b', 'c']], [1 => 2, 2 => 2]);
+
+        $this->assertSame(3, array_sum($result['filled']));
+        $this->assertCount(3, $result['assigned']);
+        // Every person fills one place only.
+        $this->assertSame(count($result['assigned']), count(array_unique(array_keys($result['assigned']))));
+    }
+
+    public function test_match_all_fills_everything_when_the_group_has_enough_people(): void
+    {
+        $pool = new SharedOperatorPool([1 => ['a', 'b'], 2 => ['a', 'b', 'c']]);
+
+        $result = $pool->matchAll([1 => ['a', 'b'], 2 => ['a', 'b', 'c']], [1 => 1, 2 => 2]);
+
+        $this->assertSame([1 => 1, 2 => 2], $result['filled']);
+    }
 }

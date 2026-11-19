@@ -133,7 +133,7 @@ class PlanningInsightsTest extends TestCase
 
     // ── b) one operator on two lines ────────────────────────────────────────
 
-    public function test_work_on_both_lines_of_a_shared_operator_names_the_person_and_the_other_line(): void
+    public function test_work_on_both_lines_of_a_shared_operator_is_one_shortfall_that_needs_action(): void
     {
         $turn = $this->plantLine('CNC Turning', 'CNC');
         $asm = $this->plantLine('Assembly A', 'ASM');
@@ -143,17 +143,132 @@ class PlanningInsightsTest extends TestCase
 
         $state = $this->drawer($this->planner());
 
-        $cell = $this->cellOf($state, $turn, '2026-11-23', 1);
+        // One person, one place each on two lines: one line has him, the
+        // other is short — one place nobody can fill, counted once.
+        $covered = $this->cellOf($state, $turn, '2026-11-23', 1);
+        $this->assertSame([1, 1], [$covered['available'], $covered['needed']]);
+        $this->assertSame([], $covered['held_elsewhere']);
+
+        $cell = $this->cellOf($state, $asm, '2026-11-23', 1);
         $this->assertSame(1, $cell['present']);
         $this->assertSame(0, $cell['available'], 'one person is counted once across lines');
-        $this->assertSame([['line_id' => $asm->id, 'line_name' => 'Assembly A', 'names' => ['Piotr Wójcik']]], $cell['held_elsewhere']);
+        $this->assertSame([['line_id' => $turn->id, 'line_name' => 'CNC Turning', 'names' => ['Piotr Wójcik']]], $cell['held_elsewhere']);
 
-        $shared = collect($state['drawer']['insights'])->where('type', 'shared_operator')->keyBy('line_id');
-        $this->assertCount(2, $shared);
-        $this->assertSame('Piotr Wójcik also works on Assembly A', $shared[$turn->id]['meta']);
-        $this->assertStringContainsString('Piotr Wójcik is booked on Assembly A at that time', $shared[$turn->id]['why']);
-        $this->assertSame('warn', $shared[$turn->id]['severity']);
-        $this->assertNull($this->insight($state, 'short_shift'));
+        $people = collect($state['drawer']['insights'])->where('category', 'people')->values();
+        $this->assertCount(1, $people);
+        $insight = $people[0];
+        $this->assertSame("group:{$turn->id}-{$asm->id}:2026-11-23:1", $insight['key']);
+        $this->assertSame('Assembly A short of shared people on Mon 23.11 Morning', $insight['title']);
+        $this->assertSame('Need 2, 1 covered', $insight['meta']);
+        $this->assertStringContainsString('need 2 between them and have 1, so 1 place stays empty', $insight['why']);
+        $this->assertStringContainsString('Assembly A has 0 of 1.', $insight['why']);
+        $this->assertStringContainsString('CNC Turning has 1 of 1.', $insight['why']);
+        $this->assertSame('bad', $insight['severity'], 'a place nobody can fill needs action');
+        $this->assertSame(1, $state['drawer']['summary']['needs_action']);
+        $this->assertSame(0, $state['drawer']['summary']['to_watch']);
+        $this->assertNull($this->insight($state, 'shared_operator'));
+    }
+
+    public function test_an_overbooked_group_with_one_short_line_names_every_line_of_the_group(): void
+    {
+        // The acceptance-test packing case: Packing North has Jan, Ola and
+        // Igor, Packing South has Jan and Ola. Two people needed on each at
+        // once: four places, three people.
+        $north = $this->plantLine('Packing North', 'PKN');
+        $south = $this->plantLine('Packing South', 'PKS');
+        $this->operator('Jan Mazur', $north, $south);
+        $this->operator('Ola Krawczyk', $north, $south);
+        $this->operator('Igor Pawlak', $north);
+        $this->planned($north, '2026-11-24', 1, operators: 2);
+        $this->planned($south, '2026-11-24', 1, operators: 2);
+
+        $state = $this->drawer($this->planner());
+
+        $this->assertSame([2, 2], [$this->cellOf($state, $north, '2026-11-24', 1)['available'], $this->cellOf($state, $north, '2026-11-24', 1)['needed']]);
+        $this->assertSame([1, 2], [$this->cellOf($state, $south, '2026-11-24', 1)['available'], $this->cellOf($state, $south, '2026-11-24', 1)['needed']]);
+
+        $people = collect($state['drawer']['insights'])->where('category', 'people')->values();
+        $this->assertCount(1, $people);
+        $insight = $people[0];
+        $this->assertSame("group:{$north->id}-{$south->id}:2026-11-24:1", $insight['key']);
+        $this->assertSame('Packing South short of shared people on Tue 24.11 Morning', $insight['title']);
+        $this->assertSame('Need 4, 3 covered', $insight['meta']);
+        $this->assertStringContainsString('Packing North has 2 of 2.', $insight['why']);
+        $this->assertStringContainsString('Packing South has 1 of 2.', $insight['why']);
+        $this->assertSame('bad', $insight['severity']);
+        $this->assertSame(['needs_action' => 1, 'to_watch' => 0], array_intersect_key($state['drawer']['summary'], array_flip(['needs_action', 'to_watch'])));
+    }
+
+    public function test_an_order_on_two_lines_of_a_group_is_one_affected_order(): void
+    {
+        $turn = $this->plantLine('CNC Turning', 'CNC');
+        $asm = $this->plantLine('Assembly A', 'ASM');
+        $pack = $this->plantLine('Packing', 'PCK');
+        $this->operator('Piotr Wójcik', $turn, $asm, $pack);
+        $both = $this->planned($asm, '2026-11-23', 1);
+        $both->extraPlacements()->create(['line_id' => $pack->id, 'due_date' => '2026-11-23', 'shift_number' => 1, 'end_date' => '2026-11-23', 'end_shift_number' => 1]);
+        $this->planned($turn, '2026-11-23', 1);
+
+        $state = $this->drawer($this->planner());
+
+        $insight = collect($state['drawer']['insights'])->firstWhere('category', 'people');
+        $this->assertStringStartsWith('group:', $insight['key']);
+        // Assembly A and Packing are short, both only of the order on both.
+        $this->assertSame([$both->id], array_column($insight['affected'], 'work_order_id'), 'each order once');
+        $this->assertSame('1 order', $insight['impact']);
+    }
+
+    public function test_a_shift_that_is_over_raises_no_insight_but_keeps_its_badge(): void
+    {
+        $this->plant();
+        $this->planned($this->cnc, '2026-11-23', 1, operators: 4);
+        $this->planned($this->cnc, '2026-11-24', 1, operators: 4);
+        // Monday's morning shift has ended; Tuesday's is still ahead.
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-11-23 15:00:00'));
+
+        $state = $this->drawer($this->planner());
+
+        $this->assertTrue($this->cellOf($state, $this->cnc, '2026-11-23', 1)['short'], 'the badge stays');
+        $keys = array_column($state['drawer']['insights'], 'key');
+        $this->assertSame(['short:'.$this->cnc->id.':2026-11-24:1'], $keys);
+        $this->assertSame(1, $state['drawer']['summary']['needs_action']);
+    }
+
+    public function test_lines_short_of_the_same_shared_people_get_one_insight(): void
+    {
+        // Three lines, one person on all of them, work on each at the same
+        // time: three places, one person, two places empty — one problem.
+        $turn = $this->plantLine('CNC Turning', 'CNC');
+        $asm = $this->plantLine('Assembly A', 'ASM');
+        $pack = $this->plantLine('Packing', 'PCK');
+        $this->operator('Piotr Wójcik', $turn, $asm, $pack);
+        $this->planned($turn, '2026-11-23', 1);
+        $this->planned($asm, '2026-11-23', 1);
+        $this->planned($pack, '2026-11-23', 1);
+        // Free on a line with no work: a substitute for either short line.
+        $this->operator('Olga Wrona', $this->plantLine('Paint shop', 'PNT'));
+
+        $state = $this->drawer($this->planner());
+
+        $people = collect($state['drawer']['insights'])->where('category', 'people')->values();
+        $this->assertCount(1, $people);
+        $insight = $people[0];
+        $this->assertSame("group:{$turn->id}-{$asm->id}-{$pack->id}:2026-11-23:1", $insight['key']);
+        $this->assertSame('Assembly A, Packing short of shared people on Mon 23.11 Morning', $insight['title']);
+        $this->assertSame('Need 3, 1 covered', $insight['meta']);
+        $this->assertStringContainsString('need 3 between them and have 1, so 2 places stay empty', $insight['why']);
+        $this->assertSame(['needed' => 3, 'available' => 1], array_intersect_key($insight['numbers'], array_flip(['needed', 'available'])));
+        $this->assertCount(2, $insight['cells']);
+        $this->assertCount(2, $insight['affected']);
+        $this->assertSame(1, collect($insight['actions'])->where('kind', 'acknowledge')->count());
+        $offered = collect($insight['actions'])->where('kind', 'substitute')->pluck('user_id');
+        $this->assertNotEmpty($offered);
+        $this->assertSame($offered->unique()->count(), $offered->count(), 'each person is offered once');
+
+        // The group key is a valid key: the drawer can acknowledge it.
+        $this->postJson('/admin/schedule/insights/acknowledge', $this->board() + ['insight_key' => $insight['key']])
+            ->assertOk()
+            ->assertJsonPath('drawer.summary.resolved', 1);
     }
 
     public function test_a_shared_operator_free_on_the_other_line_is_simply_present(): void
@@ -365,11 +480,13 @@ class PlanningInsightsTest extends TestCase
         $this->planned($turn, '2026-11-23', 1);
         $this->planned($asm, '2026-11-23', 1);
 
-        $state = $this->drawer($this->planner(), ['line_id' => $turn->id]);
+        // Assembly A is the line left short (see the shared-operator test);
+        // filtered to it, Piotr's work on CNC Turning still counts.
+        $state = $this->drawer($this->planner(), ['line_id' => $asm->id]);
 
-        $this->assertSame([$turn->id], array_values(array_unique(array_column($state['staffing']['cells'], 'line_id'))));
-        $this->assertSame([$turn->id], array_column($state['drawer']['insights'], 'line_id'));
-        $this->assertSame(0, $this->cellOf($state, $turn, '2026-11-23', 1)['available']);
+        $this->assertSame([$asm->id], array_values(array_unique(array_column($state['staffing']['cells'], 'line_id'))));
+        $this->assertSame([$asm->id], array_column($state['drawer']['insights'], 'line_id'));
+        $this->assertSame(0, $this->cellOf($state, $asm, '2026-11-23', 1)['available']);
     }
 
     public function test_insights_stay_inside_the_tenant(): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\Schedule\StoreEmployeeActivityRequest;
 use App\Models\EmployeeActivity;
 use App\Models\EmployeeActivityCustomType;
 use App\Models\Worker;
@@ -94,17 +95,21 @@ class EmployeeScheduleController extends Controller
 
         $monthByWorkerRaw = [];
         if ($selectedWorker) {
-            $monthByWorkerRaw = EmployeeActivity::where('worker_id', $selectedWorker->id)
-                ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            $rows = EmployeeActivity::where('worker_id', $selectedWorker->id)
+                ->where('starts_at', '<', $monthEnd)
+                ->where('ends_at', '>', $monthStart)
                 ->orderBy('starts_at')
-                ->get()
-                ->groupBy(fn ($a) => $a->starts_at->toDateString())
-                ->map(fn ($acts) => $acts->map(fn ($a) => [
-                    'type' => $a->type,
-                    'starts_at_time' => $a->starts_at->format('H:i'),
-                    'ends_at_time' => $a->ends_at->format('H:i'),
-                ])->values()->all())
-                ->all();
+                ->get();
+            for ($day = $monthStart->copy()->startOfDay(); $day->lte($monthEnd); $day->addDay()) {
+                $pieces = $this->piecesOn($rows, $day);
+                if ($pieces !== []) {
+                    $monthByWorkerRaw[$day->toDateString()] = array_map(fn ($p) => [
+                        'type' => $p['row']->type,
+                        'starts_at_time' => $p['from'],
+                        'ends_at_time' => $p['to'],
+                    ], $pieces);
+                }
+            }
         }
 
         $baseProps['monthStart'] = $monthStart->format('Y-m-d');
@@ -153,23 +158,10 @@ class EmployeeScheduleController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreEmployeeActivityRequest $request)
     {
-        $validated = $request->validate([
-            'worker_id' => 'required|exists:workers,id',
-            'type' => 'required|in:'.implode(',', EmployeeActivity::TYPES),
-            'custom_code' => 'nullable|string|max:64',
-            'label' => 'nullable|string|max:255',
-            'date' => 'required|date',
-            'from_time' => 'required|date_format:H:i',
-            'to_time' => 'required|date_format:H:i|after:from_time',
-            'work_order_id' => 'nullable|exists:work_orders,id',
-            'notes' => 'nullable|string',
-        ]);
-
-        $date = Carbon::parse($validated['date']);
-        $startsAt = $date->copy()->setTimeFromTimeString($validated['from_time']);
-        $endsAt = $date->copy()->setTimeFromTimeString($validated['to_time']);
+        $validated = $request->validated();
+        [$startsAt, $endsAt] = $request->window();
 
         EmployeeActivity::create([
             'worker_id' => $validated['worker_id'],
@@ -186,10 +178,12 @@ class EmployeeScheduleController extends Controller
         return redirect()
             ->route('admin.schedule.employees', [
                 'view' => 'day',
-                'date' => $date->toDateString(),
+                'date' => $startsAt->toDateString(),
                 'worker_id' => $validated['worker_id'],
             ])
-            ->with('status', __('Activity added.'));
+            ->with('success', $endsAt->isSameDay($startsAt)
+                ? __('Activity added.')
+                : __('Activity added. It ends the next day at :time.', ['time' => $endsAt->format('H:i')]));
     }
 
     public function destroy(EmployeeActivity $activity)
@@ -202,7 +196,7 @@ class EmployeeScheduleController extends Controller
             'view' => 'day',
             'date' => $date,
             'worker_id' => $workerId,
-        ])->with('status', __('Activity removed.'));
+        ])->with('success', __('Activity removed.'));
     }
 
     /**
@@ -220,20 +214,22 @@ class EmployeeScheduleController extends Controller
 
         $rows = EmployeeActivity::with(['workOrder', 'line'])
             ->where('worker_id', $workerId)
-            ->whereBetween('starts_at', [$start, $end])
+            ->where('starts_at', '<', $date->copy()->addDay()->startOfDay())
+            ->where('ends_at', '>', $start)
             ->orderBy('starts_at')
             ->get();
 
         $segments = [];
         $cursor = $start->copy();
-        foreach ($rows as $row) {
-            if ($row->starts_at->gt($cursor)) {
+        foreach ($this->piecesOn($rows, $date) as $piece) {
+            $row = $piece['row'];
+            if ($piece['start']->gt($cursor)) {
                 $segments[] = [
                     'id' => null,
                     'type' => 'off',
                     'from' => $cursor->format('H:i'),
-                    'to' => $row->starts_at->format('H:i'),
-                    'duration' => (int) $cursor->diffInMinutes($row->starts_at),
+                    'to' => $piece['from'],
+                    'duration' => (int) $cursor->diffInMinutes($piece['start']),
                     'label' => null,
                     'wo' => null,
                     'step' => null,
@@ -243,15 +239,17 @@ class EmployeeScheduleController extends Controller
             $segments[] = [
                 'id' => $row->id,
                 'type' => $row->type,
-                'from' => $row->starts_at->format('H:i'),
-                'to' => $row->ends_at->format('H:i'),
-                'duration' => $row->durationMinutes(),
+                'from' => $piece['from'],
+                'to' => $piece['to'],
+                'duration' => (int) $piece['start']->diffInMinutes($piece['end']),
+                'continues' => $piece['continues'],
+                'continued' => $piece['continued'],
                 'label' => $row->label,
                 'wo' => $row->workOrder?->order_no,
                 'step' => $row->step_name,
                 'notes' => $row->notes,
             ];
-            $cursor = $row->ends_at->copy();
+            $cursor = $piece['end']->max($cursor)->copy();
         }
         if ($cursor->lt($end)) {
             $segments[] = [
@@ -268,5 +266,39 @@ class EmployeeScheduleController extends Controller
         }
 
         return $segments;
+    }
+
+    /**
+     * The part of each activity that falls on one day, in order. A night
+     * block 22:00–06:00 shows as 22:00–24:00 on its first day and 00:00–06:00
+     * on the next, flagged so the strip can say it carries on.
+     *
+     * @param  iterable<EmployeeActivity>  $rows
+     * @return list<array{row: EmployeeActivity, start: Carbon, end: Carbon, from: string, to: string, continues: bool, continued: bool}>
+     */
+    private function piecesOn(iterable $rows, Carbon $date): array
+    {
+        $dayStart = $date->copy()->startOfDay();
+        $dayEnd = $dayStart->copy()->addDay();
+        $pieces = [];
+        foreach ($rows as $row) {
+            if (! $row->starts_at->lt($dayEnd) || ! $row->ends_at->gt($dayStart)) {
+                continue;
+            }
+            $start = $row->starts_at->max($dayStart)->copy();
+            $end = $row->ends_at->min($dayEnd)->copy();
+            $pieces[] = [
+                'row' => $row,
+                'start' => $start,
+                'end' => $end,
+                'from' => $start->format('H:i'),
+                'to' => $end->eq($dayEnd) ? '24:00' : $end->format('H:i'),
+                'continues' => $row->ends_at->gt($dayEnd),
+                'continued' => $row->starts_at->lt($dayStart),
+            ];
+        }
+        usort($pieces, fn ($a, $b) => $a['start'] <=> $b['start']);
+
+        return $pieces;
     }
 }

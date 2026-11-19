@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, Icon, InlineAlert, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import AppDatePicker from '../../../components/AppDatePicker';
 import PageTrail from '../../../components/PageTrail';
 import useConfirm from '../../../components/useConfirm';
-import { __, formatDate, formatNumber, formatTime } from '../../../lib/i18n';
+import { __, formatDate, formatNumber, formatTime, transChoice } from '../../../lib/i18n';
 import { TONE_STYLE, shortName, staffingGrid, staffingTone } from '../../../lib/staffing';
+import { apiGet } from '../../../lib/http';
+import { refreshOnReturn } from '../../../lib/refreshOnReturn';
 
 const MONO = 'var(--font-mono)';
 
@@ -269,7 +271,7 @@ function StaffingPanel({ workforce, canAssignOperators }) {
                     {tracked.map((w) => (
                         <li key={w.line_id}>
                             <span className="font-semibold">{w.line_name}</span>
-                            {w.assigned != null && <span className="text-om-muted"> · {__(':count operators assigned', { count: w.assigned })}</span>}
+                            {w.assigned != null && <span className="text-om-muted"> · {transChoice(':count operator assigned|:count operators assigned', w.assigned)}</span>}
                             {(w.single_holder_skills ?? []).length > 0 && (
                                 <span className="mt-1 flex flex-wrap gap-1.5">
                                     {w.single_holder_skills.map((s) => (
@@ -328,7 +330,7 @@ function GridCell({ cell }) {
             <div className="rounded-om-sm px-1 py-1.5 text-center" style={{ ...TONE_STYLE[tone], fontFamily: MONO }} title={tip}
                 data-testid="staffing-cell" data-tone={tone}>
                 <div className={`text-[12.5px] ${tone === 'short' ? 'font-bold' : 'font-semibold'}`}>
-                    {tone === 'idle' ? '—' : `${cell.available}/${cell.needed}`}
+                    {tone === 'idle' || tone === 'untracked' ? '—' : `${cell.available}/${cell.needed}`}
                 </div>
                 {note && <div className="truncate text-[10px] font-medium" style={{ fontFamily: 'var(--font-sans, inherit)' }}>{note}</div>}
             </div>
@@ -417,9 +419,9 @@ function HorizonAbsences({ absences }) {
                 {absences.map((a) => (
                     <li key={a.worker_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12.5px] text-om-ink">
                         <span className="font-semibold">{a.name ?? `#${a.worker_id}`}</span>
-                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{a.dates.map(day).join(', ')}</span>
-                        <span className="text-om-muted">{a.lines.map((l) => l.name).join(', ')}</span>
-                        {a.affected_orders.length ? (
+                        <span className="text-om-muted" style={{ fontFamily: MONO }}>{(a.dates ?? []).map(day).join(', ')}</span>
+                        <span className="text-om-muted">{(a.lines ?? []).map((l) => l.name).join(', ')}</span>
+                        {a.affected_orders?.length ? (
                             <span>
                                 <span className="text-om-muted">{__('Affected work orders')}: </span>
                                 {a.affected_orders.map((o, i) => (
@@ -632,10 +634,37 @@ function GenerateForm({ defaults, canDecide }) {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+/**
+ * Whether the draft went stale, kept current without a reload: the page's
+ * answer at load, asked again whenever the planner returns to the tab —
+ * e.g. after unassigning someone in another one.
+ */
+function useDraftStale(draftId, initial) {
+    const [stale, setStale] = useState(initial);
+    useEffect(() => { setStale(initial); }, [draftId, initial]);
+    useEffect(() => {
+        if (!draftId) return undefined;
+        let controller = null;
+        const stop = refreshOnReturn(async () => {
+            controller?.abort();
+            controller = new AbortController();
+            try {
+                const r = await apiGet(`/admin/schedule/simulations/${draftId}/status`, { signal: controller.signal });
+                if (!r.ok) return;
+                const json = await r.json();
+                if (json?.id === draftId) setStale(json.stale ?? null);
+            } catch { /* aborted or offline — the next return asks again */ }
+        });
+        return () => { stop(); controller?.abort(); };
+    }, [draftId]);
+    return stale;
+}
+
 const NAV_LINK = 'inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold text-om-ink hover:bg-om-chip';
 
 export default function AutoSchedule() {
-    const { draft, draftStale = null, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
+    const { draft, draftStale: staleAtLoad = null, committed = [], stationsByType = {}, defaults, canDecide, canAssignOperators = false } = usePage().props;
+    const draftStale = useDraftStale(draft?.id ?? null, staleAtLoad);
     const { confirm, dialog } = useConfirm();
     const [showOnlyProblems, setShowOnlyProblems] = useState(false);
     const placed = (draft?.counts?.scheduled ?? 0) + (draft?.counts?.scheduled_late ?? 0);

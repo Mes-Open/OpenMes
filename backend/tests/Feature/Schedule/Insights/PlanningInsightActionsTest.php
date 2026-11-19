@@ -207,6 +207,66 @@ class PlanningInsightActionsTest extends TestCase
         $this->assertSame('Marta Nowak assigned to CNC Turning by Admin User.', $response->json('message'));
     }
 
+    public function test_a_substitute_for_one_of_several_missing_places_reopens_the_group_insight(): void
+    {
+        // One person on three lines, work on each at once: two places empty.
+        $turn = $this->plantLine('CNC Turning', 'CNC');
+        $asm = $this->plantLine('Assembly A', 'ASM');
+        $pack = $this->plantLine('Packing', 'PCK');
+        $this->operator('Piotr Wójcik', $turn, $asm, $pack);
+        $olga = $this->operator('Olga Wrona');
+        foreach ([$turn, $asm, $pack] as $line) {
+            $this->planned($line, '2026-11-24', 1);
+        }
+        $admin = $this->planner();
+        $insight = collect($this->drawer($admin)['drawer']['insights'])->firstWhere('category', 'people');
+        $offer = collect($insight['actions'])->first(fn ($a) => $a['kind'] === 'substitute' && $a['user_id'] === $olga->id);
+        $this->assertStringContainsString('Covers 1 of 2 missing.', $offer['effect']);
+        $this->assertStringNotContainsString('Covers the shortfall.', $offer['effect']);
+
+        $response = $this->act($admin, 'substitute', ['insight_key' => $insight['key'], 'user_id' => $olga->id])->assertOk();
+
+        // One place is still empty: the insight is open again, still needing action.
+        $open = collect($response->json('drawer.insights'))->firstWhere('key', $insight['key']);
+        $this->assertNotNull($open, 'the insight re-opens while places stay empty');
+        $this->assertSame('bad', $open['severity']);
+        $this->assertSame('Need 3, 2 covered', $open['meta']);
+        $this->assertSame(1, $response->json('drawer.summary.needs_action'));
+        $this->assertSame(1, $response->json('drawer.summary.resolved'));
+    }
+
+    public function test_resolved_today_is_worded_in_the_language_of_the_viewer(): void
+    {
+        $this->shortTuesday();
+        $admin = $this->planner();
+        $this->act($admin, 'acknowledge', ['insight_key' => $this->key])->assertOk();
+        $ack = PlanningInsightAcknowledgement::sole();
+        $this->assertSame('CNC Turning short on Tue 24.11 Morning', $ack->title);
+        $this->assertSame(':line short on :slot', $ack->title_translation['key']);
+
+        $polish = $this->actingAs($admin)->withSession(['locale' => 'pl'])
+            ->getJson('/admin/schedule/insights?'.http_build_query($this->board()))->assertOk()->json('drawer.resolved.0');
+
+        $this->assertSame(__(':line short on :slot', ['line' => 'CNC Turning', 'slot' => \Carbon\Carbon::parse('2026-11-24')->locale('pl')->isoFormat('ddd DD.MM').' Morning'], 'pl'), $polish['title']);
+        $this->assertStringStartsWith('CNC Turning – brak ludzi w ', $polish['title']);
+        $this->assertSame(__('Acknowledged by :name.', ['name' => 'Admin User'], 'pl'), $polish['summary']);
+        $this->assertNotSame('Acknowledged by Admin User.', $polish['summary']);
+    }
+
+    public function test_resolved_today_shows_the_stored_text_of_older_rows(): void
+    {
+        $this->shortTuesday();
+        $admin = $this->planner();
+        $this->act($admin, 'acknowledge', ['insight_key' => $this->key])->assertOk();
+        PlanningInsightAcknowledgement::sole()->forceFill(['title_translation' => null, 'summary_translation' => null])->save();
+
+        $resolved = $this->actingAs($admin)->withSession(['locale' => 'pl'])
+            ->getJson('/admin/schedule/insights?'.http_build_query($this->board()))->assertOk()->json('drawer.resolved.0');
+
+        $this->assertSame('CNC Turning short on Tue 24.11 Morning', $resolved['title']);
+        $this->assertSame('Acknowledged by Admin User.', $resolved['summary']);
+    }
+
     public function test_substitute_refuses_people_who_are_not_suggested(): void
     {
         $this->shortTuesday();

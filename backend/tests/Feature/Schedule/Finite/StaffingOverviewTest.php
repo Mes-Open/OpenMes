@@ -307,14 +307,19 @@ class StaffingOverviewTest extends TestCase
         // People ignored: both steps land at 06:00, and one person cannot be on both.
         $result = $this->schedule(['respectWorkforce' => false]);
 
-        foreach ([[$lineA, $lineB], [$lineB, $lineA]] as [$line, $other]) {
-            $row = $this->rows($result, $line, '2026-10-12')[0];
-            $this->assertSame(1, $row['present'], 'Piotr is on the line\'s own roster');
-            $this->assertSame(0, $row['available'], 'but the other line\'s step holds him');
-            $this->assertSame(1, $row['needed']);
-            $this->assertSame(1, $row['shortfall']);
-            $this->assertSame([['line_id' => $other->id, 'line_name' => $other->name, 'names' => ['Piotr Wójcik']]], $row['held_elsewhere']);
-        }
+        // One person, two places at once: one place is missing, counted once —
+        // on the line that comes second, which names who holds him.
+        [$first, $second] = $lineA->id < $lineB->id ? [$lineA, $lineB] : [$lineB, $lineA];
+        $covered = $this->rows($result, $first, '2026-10-12')[0];
+        $this->assertSame([1, 1, 0], [$covered['available'], $covered['needed'], $covered['shortfall']]);
+        $this->assertSame([], $covered['held_elsewhere']);
+
+        $row = $this->rows($result, $second, '2026-10-12')[0];
+        $this->assertSame(1, $row['present'], 'Piotr is on the line\'s own roster');
+        $this->assertSame(0, $row['available'], 'but the other line\'s step holds him');
+        $this->assertSame(1, $row['needed']);
+        $this->assertSame(1, $row['shortfall']);
+        $this->assertSame([['line_id' => $first->id, 'line_name' => $first->name, 'names' => ['Piotr Wójcik']]], $row['held_elsewhere']);
     }
 
     public function test_a_shared_operator_booked_one_after_the_other_is_exactly_enough(): void
@@ -331,6 +336,77 @@ class StaffingOverviewTest extends TestCase
             $this->assertSame(0, $row['shortfall']);
             $this->assertSame([], $row['held_elsewhere']);
         }
+    }
+
+    public function test_sequential_work_on_three_lines_sharing_one_person_is_never_short(): void
+    {
+        // The acceptance-test kitting case: Lena is the only person on
+        // Kitting Cell 1, 2 and 3; four one-person orders of four hours, two
+        // of them on Kitting Cell 1. She can only do them one after another.
+        Shift::create(['name' => 'Afternoon', 'code' => 'A', 'start_time' => '14:00', 'end_time' => '22:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        $lena = \App\Models\User::factory()->create(['name' => 'Lena Szymanska']);
+        $cells = [];
+        foreach (['Kitting Cell 1', 'Kitting Cell 2', 'Kitting Cell 3'] as $name) {
+            [$line, $type] = $this->cell(stations: 1, people: 0, name: $name);
+            $lena->lines()->attach($line->id);
+            $cells[] = [$line, $type];
+        }
+        $orders = [];
+        foreach ([0, 1, 2, 0] as $i => $cell) {
+            [$line, $type] = $cells[$cell];
+            $orders[] = $this->job($line, $type, 240, attrs: ['priority' => 4 - $i]);
+        }
+
+        $result = $this->schedule();
+
+        // One after another: no two of them at the same time.
+        $windows = [];
+        foreach ($orders as $order) {
+            $op = $this->opsFor($result, $order)[0];
+            $this->assertTrue($op['status']->isScheduled());
+            $windows[] = [$op['planned_start_at']->getTimestamp(), $op['planned_end_at']->getTimestamp()];
+        }
+        sort($windows);
+        for ($i = 1; $i < count($windows); $i++) {
+            $this->assertGreaterThanOrEqual($windows[$i - 1][1], $windows[$i][0], 'the scheduler never overlaps her work');
+        }
+
+        foreach ($cells as [$line]) {
+            foreach ($result['staffing']['shifts'] as $row) {
+                if ($row['line_id'] !== $line->id) {
+                    continue;
+                }
+                $where = "{$line->name} {$row['date']} {$row['shift_name']}";
+                $this->assertSame(0, $row['shortfall'], "{$where} is not short");
+                $this->assertGreaterThanOrEqual($row['needed'], $row['available'], "{$where}: {$row['available']}/{$row['needed']}");
+                $this->assertLessThanOrEqual(1, $row['needed'], "{$where} never needs two people");
+            }
+        }
+    }
+
+    public function test_an_order_dropped_on_a_morning_cell_books_only_that_shift(): void
+    {
+        // A drop on the weekly board writes shift start to the midnight after
+        // the end date. Midnight closes the day; it does not book the
+        // afternoon — the Planner counts that order in the morning only.
+        Shift::create(['name' => 'Afternoon', 'code' => 'A', 'start_time' => '14:00', 'end_time' => '22:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        [$line, $type] = $this->cell(stations: 1, people: 0);
+        \App\Models\User::factory()->create(['name' => 'Jan Mazur'])->lines()->attach($line->id);
+        $this->job($line, $type, 240, attrs: [
+            'planned_start_at' => '2026-10-12 06:00:00',
+            'planned_end_at' => '2026-10-13 00:00:00',
+            'shift_number' => 1,
+            'end_date' => '2026-10-12',
+            'end_shift_number' => 1,
+        ]);
+        $next = $this->job($line, $type, 240);
+
+        $result = $this->schedule();
+
+        $rows = collect($this->rows($result, $line, '2026-10-12'))->keyBy('shift_name');
+        $this->assertSame([1, 1, 0], [$rows['Day']['available'], $rows['Day']['peak_operators'], $rows['Day']['shortfall']]);
+        $this->assertEquals($this->at('2026-10-12 14:00'), $this->opsFor($result, $next)[0]['planned_start_at'], 'the afternoon is free for new work');
+        $this->assertSame([1, 1, 0], [$rows['Afternoon']['available'], $rows['Afternoon']['peak_operators'], $rows['Afternoon']['shortfall']]);
     }
 
     // ── Steps behind a step short of people ─────────────────────────────────

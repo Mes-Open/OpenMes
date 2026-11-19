@@ -14,7 +14,7 @@ import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
 import { InsightsDrawer, InsightsHandle } from './planner/insights';
 import {
-    createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, isToggleShortcut,
+    badgeOpens, createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, isCloseShortcut, isToggleShortcut, rangeCaption,
     markSessionSeen, openCount, openOn, readAutoOpen, sessionSeen, shouldAutoOpen, toggle, writeAutoOpen,
 } from './planner/insightsState';
 import {
@@ -402,22 +402,30 @@ export default function Planner() {
         staffing: staffingCtx,
         highlight,
         onStaffBadge: insightsOn ? onStaffBadge : null,
+        // Only a badge some insight is about opens the drawer.
+        badgeOpens: (badgeLine, date, shift) => badgeOpens(drawer, badgeLine, date, shift),
         onOrderMarker: insightsOn ? onOrderMarker : null,
     };
 
-    // `I` toggles the drawer — not while typing, not over a dialog.
+    // `I` toggles the drawer — not while typing, not over a dialog. Esc closes
+    // it, unless a dialog is open: then Esc belongs to the dialog.
     const modalOpen = Boolean(selected || assignTarget || conflict || confirmBox || maintOpen);
     useEffect(() => {
         if (!insightsOn) return undefined;
         const onKey = (e) => {
             const dialog = modalOpen || document.querySelector('[aria-modal="true"]') !== null;
+            if (isCloseShortcut(e, { open: drawerOpen, modalOpen: dialog })) {
+                e.preventDefault();
+                closeDrawer();
+                return;
+            }
             if (!isToggleShortcut(e, { modalOpen: dialog })) return;
             e.preventDefault();
             toggleDrawer();
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [insightsOn, modalOpen, toggleDrawer]);
+    }, [insightsOn, modalOpen, toggleDrawer, drawerOpen, closeDrawer]);
 
     // ── Live tracking — always on, auto-follows the first in-progress order ────
     const firstInProgress = workOrders.find((o) => o.status === 'IN_PROGRESS');
@@ -527,13 +535,15 @@ export default function Planner() {
             : `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
         : '';
 
+    const caption = rangeCaption(drawer, viewMode);
+
     return (
         <>
             <Head title={__('Production Planner')} />
             <style>{STYLE}</style>
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
             {/* Operators assigned to or taken off a line touch the line; acknowledgements sync too. */}
-            {insightsOn && live && <ShapeChangeWatcher shape="lines_active" fields={['id', 'updated_at']} onChange={() => { refreshContent().then(fetchInsights); }} />}
+            {insightsOn && live && <ShapeChangeWatcher shape="lines_staffing" fields={['id', 'updated_at']} onChange={() => { refreshContent().then(fetchInsights); }} />}
             {insightsOn && live && <ShapeChangeWatcher shape="planning_insight_acknowledgements" fields={['id', 'insight_key', 'updated_at']} onChange={fetchInsights} />}
 
             <div className="w-full min-w-0" style={insightsOn && drawerOpen ? { paddingRight: 'min(420px, 100vw)' } : undefined}>
@@ -649,7 +659,8 @@ export default function Planner() {
                         onClose={closeDrawer}
                         focusKey={focusKey} onFocused={onFocused}
                         autoOpen={autoOpen} onAutoOpenChange={onAutoOpenChange}
-                        rangeLabel={viewMode === 'daily' ? __('This day') : __('This week')}
+                        rangeLabel={caption ? __(caption.key, caption.params) : (viewMode === 'daily' ? __('This day') : __('This week'))}
+                        viewMode={viewMode}
                         updatedAt={drawer?.generated_at ? formatTime(drawer.generated_at, { hour: '2-digit', minute: '2-digit', hour12: false }) : null}
                     />}
                 </div>

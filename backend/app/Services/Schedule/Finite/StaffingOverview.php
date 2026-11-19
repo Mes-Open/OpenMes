@@ -28,8 +28,11 @@ use Illuminate\Support\Collection;
  * The shortfall of a run is the largest of: the booked peak minus the people
  * available (real when the run ignored people, or for committed or pinned
  * work), and — for every people reason whose window starts in the run on that
- * line — what the step needed on top of what was booked, minus who was there.
- * The second is what a step pushed to a later day leaves unmet on this one.
+ * line and whose step left the run — what the step needs beyond the people
+ * the line has there at all (an absence, too few qualified). The second is
+ * what a step pushed to a later day leaves unmet on this one. Work that only
+ * kept the step waiting is not counted against the step: the step ran after
+ * it, so the two never overlap in time.
  * `needed` is what the run asks of the shift: the booked peak, or, when the
  * run is short, the people available plus the shortfall.
  */
@@ -101,7 +104,12 @@ final class StaffingOverview
                         // delayed inside it; its people are in the booked peak.
                         $stayed = $reason['placed_at'] !== null && $reason['placed_at'] < $end;
                         if ($reason['window_start'] >= $start && $reason['window_start'] < $end && ! $stayed) {
-                            $shortfall = max($shortfall, $reason['required'] + $reason['in_use'] - $reason['available']);
+                            // Only the people the step lacks with nothing else
+                            // running count here. Whoever was busy with other
+                            // work held the step out of this run, so that
+                            // work and the step never overlap: one after the
+                            // other is not a shortage.
+                            $shortfall = max($shortfall, $reason['required'] - $reason['available']);
                             $blocked += $reason['blocked'] ? 1 : 0;
                         }
                     }
