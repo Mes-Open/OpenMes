@@ -338,6 +338,52 @@ class StaffingOverviewTest extends TestCase
         }
     }
 
+    public function test_sequential_work_on_three_lines_sharing_one_person_is_never_short(): void
+    {
+        // The acceptance-test kitting case: Lena is the only person on
+        // Kitting Cell 1, 2 and 3; four one-person orders of four hours, two
+        // of them on Kitting Cell 1. She can only do them one after another.
+        Shift::create(['name' => 'Afternoon', 'code' => 'A', 'start_time' => '14:00', 'end_time' => '22:00', 'days_of_week' => [1, 2, 3, 4, 5], 'is_active' => true]);
+        $lena = \App\Models\User::factory()->create(['name' => 'Lena Szymanska']);
+        $cells = [];
+        foreach (['Kitting Cell 1', 'Kitting Cell 2', 'Kitting Cell 3'] as $name) {
+            [$line, $type] = $this->cell(stations: 1, people: 0, name: $name);
+            $lena->lines()->attach($line->id);
+            $cells[] = [$line, $type];
+        }
+        $orders = [];
+        foreach ([0, 1, 2, 0] as $i => $cell) {
+            [$line, $type] = $cells[$cell];
+            $orders[] = $this->job($line, $type, 240, attrs: ['priority' => 4 - $i]);
+        }
+
+        $result = $this->schedule();
+
+        // One after another: no two of them at the same time.
+        $windows = [];
+        foreach ($orders as $order) {
+            $op = $this->opsFor($result, $order)[0];
+            $this->assertTrue($op['status']->isScheduled());
+            $windows[] = [$op['planned_start_at']->getTimestamp(), $op['planned_end_at']->getTimestamp()];
+        }
+        sort($windows);
+        for ($i = 1; $i < count($windows); $i++) {
+            $this->assertGreaterThanOrEqual($windows[$i - 1][1], $windows[$i][0], 'the scheduler never overlaps her work');
+        }
+
+        foreach ($cells as [$line]) {
+            foreach ($result['staffing']['shifts'] as $row) {
+                if ($row['line_id'] !== $line->id) {
+                    continue;
+                }
+                $where = "{$line->name} {$row['date']} {$row['shift_name']}";
+                $this->assertSame(0, $row['shortfall'], "{$where} is not short");
+                $this->assertGreaterThanOrEqual($row['needed'], $row['available'], "{$where}: {$row['available']}/{$row['needed']}");
+                $this->assertLessThanOrEqual(1, $row['needed'], "{$where} never needs two people");
+            }
+        }
+    }
+
     // ── Steps behind a step short of people ─────────────────────────────────
 
     public function test_a_step_behind_one_short_of_people_says_which_and_by_how_much(): void
