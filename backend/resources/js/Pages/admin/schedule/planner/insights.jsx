@@ -157,19 +157,23 @@ function InsightItem({ insight, open, onToggle, onShow, onAction, busy, shown, f
     const sev = SEVERITY[insight.severity] ?? SEVERITY.info;
     return (
         <div data-testid="insight" data-type={insight.type} data-key={insight.key} data-focused={focused ? '1' : undefined}
-            className="overflow-hidden rounded-om-sm border border-om-line bg-om-card"
-            style={{ borderLeft: `3px solid ${sev.color}`, boxShadow: focused ? '0 0 0 2px var(--om-accent)' : 'none', transition: 'box-shadow .3s ease' }}>
-            <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-om-chip">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: sev.bg, color: sev.color }}>
-                    <Icon name={ICON[insight.type] ?? 'info'} size={13} />
+            className="relative overflow-hidden rounded-om border border-om-line bg-om-card"
+            style={{ boxShadow: focused ? '0 0 0 2px var(--om-accent)' : 'none', transition: 'box-shadow .3s ease' }}>
+            {/* A straight accent stripe on the left edge, clipped by the card's corners. */}
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-[3px]" style={{ background: sev.color }} />
+            <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-om-chip">
+                <span className="mt-px shrink-0" style={{ color: sev.color }} aria-hidden="true">
+                    <Icon name={ICON[insight.type] ?? 'info'} size={16} />
                 </span>
-                <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-om-ink">{insight.title}</span>
-                    <span className="block truncate text-[11.5px] text-om-muted">{insight.meta}</span>
-                    <span className="mt-1 inline-block rounded-full px-2 py-px text-[10.5px] font-semibold" style={{ background: sev.bg, color: sev.color, fontFamily: MONO }}>{insight.impact}</span>
+                <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                    <span className="font-semibold text-om-ink">{insight.title}</span>
+                    {insight.meta && <span className="text-om-muted"> — {insight.meta}</span>}
+                    <span className="mt-1 block text-[12px] text-om-ink" style={{ opacity: 0.75 }}>
+                        <span style={{ fontFamily: MONO }}>{insight.impact}</span>
+                        {insight.when && !insight.title?.includes(insight.when) && <span className="text-om-muted"> · {insight.when}</span>}
+                    </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1 text-[10.5px] text-om-faint" style={{ fontFamily: MONO }}>
-                    {insight.when}
+                <span className="mt-px shrink-0 text-om-faint">
                     <Icon name={open ? 'chevron-down' : 'chevron-right'} size={14} />
                 </span>
             </button>
@@ -299,7 +303,7 @@ export function InsightsDrawer({
                 {empty && <p data-testid="insights-empty" className="text-[12.5px] text-om-muted">{__(empty)}</p>}
                 {groups.map((g) => (
                     <div key={g.key} className="space-y-2">
-                        <div className="pt-2" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__(GROUP_LABEL[g.key])}</div>
+                        <div className="pt-2" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--om-faint)' }}>{__(GROUP_LABEL[g.key])} ({g.items.length})</div>
                         {g.key === 'resolved'
                             ? g.items.map((r) => <ResolvedItem key={r.id} item={r} onUndo={onUndo} busy={busy} />)
                             : g.items.map((i) => (
