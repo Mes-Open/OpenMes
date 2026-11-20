@@ -97,6 +97,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Polish wording of step outputs.** The values an operator records on a process step were
+  called *wyjścia* ("outputs" in the electrical sense), which meant nothing to Polish users.
+  They are now *wyniki kroku* in the template editor, on the operator's order screen and in
+  the related messages.
+
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be
