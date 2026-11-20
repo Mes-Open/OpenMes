@@ -197,6 +197,26 @@ class MaterialLotController extends Controller
             ], 422);
         }
 
+        if ($materialLot->isExpired()) {
+            return response()->json([
+                'message' => __('Lot :lot expired on :date and cannot be used.', ['lot' => $materialLot->lot_number, 'date' => $materialLot->expiry_date->toDateString()]),
+            ], 422);
+        }
+
+        // A lot of a material that is not on the order's frozen recipe is not
+        // consumed by it (an order without a recipe is not checked).
+        $workOrder = BatchStep::with('batch.workOrder')->find($data['batch_step_id'])?->batch?->workOrder;
+        $recipe = collect($workOrder?->process_snapshot['bom'] ?? [])->pluck('material_id')->filter()->map(fn ($id) => (int) $id);
+        if ($recipe->isNotEmpty() && ! $recipe->contains((int) $materialLot->material_id)) {
+            return response()->json([
+                'message' => __('Lot :lot is material :material, which is not on the recipe of work order :order.', [
+                    'lot' => $materialLot->lot_number,
+                    'material' => $materialLot->material?->code ?? $materialLot->material_id,
+                    'order' => $workOrder->order_no,
+                ]),
+            ], 422);
+        }
+
         $quantity = (float) $data['quantity'];
 
         try {

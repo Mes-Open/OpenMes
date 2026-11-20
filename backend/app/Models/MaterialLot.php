@@ -178,9 +178,16 @@ class MaterialLot extends Model
         return $this->status === self::STATUS_RELEASED && (float) $this->quantity_available > 0;
     }
 
+    /** Expired = the expiry day is before today (plant timezone); a lot is usable through its expiry day. */
     public function isExpired(): bool
     {
-        return $this->expiry_date !== null && $this->expiry_date->isPast();
+        return $this->expiry_date !== null && $this->expiry_date->lt(today());
+    }
+
+    /** Lots that are not expired (no expiry date, or expiring today or later). */
+    public function scopeNotExpired(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(fn ($q) => $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', today()->toDateString()));
     }
 
     /**

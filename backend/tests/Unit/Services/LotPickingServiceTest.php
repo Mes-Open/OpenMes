@@ -78,8 +78,8 @@ class LotPickingServiceTest extends TestCase
 
     public function test_fefo_picks_earliest_expiry_first(): void
     {
-        $lotLate = $this->makeLot('LOT-LATE', 50, expiry: '2027-12-31');
-        $lotEarly = $this->makeLot('LOT-EARLY', 50, expiry: '2026-08-01');
+        $lotLate = $this->makeLot('LOT-LATE', 50, expiry: now()->addYears(2)->toDateString());
+        $lotEarly = $this->makeLot('LOT-EARLY', 50, expiry: now()->addMonths(3)->toDateString());
         $lotNoExpiry = $this->makeLot('LOT-NO-EXP', 50);
 
         $picks = $this->svc->pickForAllocation($this->allocation, $this->material, 80, 'fefo');
@@ -231,8 +231,8 @@ class LotPickingServiceTest extends TestCase
 
     public function test_propose_picks_returns_fefo_split_and_candidates_without_mutating(): void
     {
-        $late = $this->makeLot('LOT-LATE', 50, expiry: '2027-12-31');
-        $early = $this->makeLot('LOT-EARLY', 50, expiry: '2026-08-01');
+        $late = $this->makeLot('LOT-LATE', 50, expiry: now()->addYears(2)->toDateString());
+        $early = $this->makeLot('LOT-EARLY', 50, expiry: now()->addMonths(3)->toDateString());
 
         $proposal = $this->svc->proposePicks($this->material, 80, 'fefo');
 

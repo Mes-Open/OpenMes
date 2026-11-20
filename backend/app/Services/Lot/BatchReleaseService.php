@@ -75,10 +75,16 @@ class BatchReleaseService
                 'release_type' => $releaseType,
             ];
 
-            // Auto-calculate expiry date for finished goods (3 years from production)
-            if ($releaseType === Batch::RELEASE_FOR_SALE) {
-                $productionDate = $batch->completed_at ?? $batch->started_at ?? now();
-                $updateData['expiry_date'] = $productionDate->copy()->addYears(3)->toDateString();
+            // Release for sale never moves an expiry the batch already has - it is
+            // the date printed during packaging. A batch without one gets it from
+            // the product's shelf life, counted from the day the batch was created;
+            // a product without a shelf life keeps the old default of 3 years.
+            if ($releaseType === Batch::RELEASE_FOR_SALE && $batch->expiry_date === null) {
+                $productType = $batch->workOrder?->productType;
+                $productionDate = $batch->created_at ?? $batch->started_at ?? now();
+                $expiry = $productType?->expiryFrom($productionDate)
+                    ?? ($batch->completed_at ?? $batch->started_at ?? now())->copy()->addYears(3);
+                $updateData['expiry_date'] = $expiry->toDateString();
             }
 
             $batch->update($updateData);

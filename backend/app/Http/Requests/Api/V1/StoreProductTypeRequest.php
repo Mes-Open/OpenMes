@@ -19,6 +19,8 @@ class StoreProductTypeRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'unit_of_measure' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
+            'shelf_life_value' => ['nullable', 'integer', 'min:1', 'max:36500'],
+            'shelf_life_unit' => ['nullable', 'required_with:shelf_life_value', 'in:days,months'],
         ];
     }
 }

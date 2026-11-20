@@ -69,6 +69,10 @@ class BatchController extends Controller
             'lot_number' => 'nullable|string|max:50',
         ]);
 
+        if (! empty($validated['lot_number']) && ! \App\Services\Lot\BatchLotRules::manualEntryAllowed()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['lot_number' => __('A LOT cannot be typed by hand: LOT numbers come from the LOT sequence (Settings -> System -> Production Rules).')]);
+        }
+
         // Check if adding this batch would exceed planned qty
         $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
         $allowOverproduction = config('openmmes.allow_overproduction', false);

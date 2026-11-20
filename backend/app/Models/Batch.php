@@ -63,6 +63,14 @@ class Batch extends Model
         'notes',
     ];
 
+    protected static function booted(): void
+    {
+        // LOT unique among live batches; expiry from the product's shelf life.
+        static::creating(fn (self $batch) => app(\App\Services\Lot\BatchLotRules::class)->creating($batch));
+        static::updating(fn (self $batch) => app(\App\Services\Lot\BatchLotRules::class)->updating($batch));
+        static::restoring(fn (self $batch) => app(\App\Services\Lot\BatchLotRules::class)->restoring($batch));
+    }
+
     protected function casts(): array
     {
         return [

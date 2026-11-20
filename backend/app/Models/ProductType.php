@@ -31,15 +31,48 @@ class ProductType extends Model
         'external_code',
         'external_system',
         'unit_of_measure',
+        // Shelf life (e.g. 24 months): the batch expiry is creation day + this.
+        'shelf_life_value',
+        'shelf_life_unit',
         'is_active',
         'tenant_id',
     ];
+
+    public const SHELF_LIFE_DAYS = 'days';
+
+    public const SHELF_LIFE_MONTHS = 'months';
+
+    public const SHELF_LIFE_UNITS = [self::SHELF_LIFE_DAYS, self::SHELF_LIFE_MONTHS];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'shelf_life_value' => 'integer',
         ];
+    }
+
+    public function hasShelfLife(): bool
+    {
+        return $this->shelf_life_value > 0 && in_array($this->shelf_life_unit, self::SHELF_LIFE_UNITS, true);
+    }
+
+    /**
+     * Expiry day of something of this product produced on $productionDate, or
+     * null without a shelf life. Months do not overflow: 31 January + 1 month
+     * is 28/29 February, not 3 March.
+     */
+    public function expiryFrom(\Carbon\CarbonInterface $productionDate): ?\Carbon\CarbonInterface
+    {
+        if (! $this->hasShelfLife()) {
+            return null;
+        }
+
+        $date = $productionDate->copy()->startOfDay();
+
+        return $this->shelf_life_unit === self::SHELF_LIFE_MONTHS
+            ? $date->addMonthsNoOverflow($this->shelf_life_value)
+            : $date->addDays($this->shelf_life_value);
     }
 
     protected static function booted(): void

@@ -417,7 +417,9 @@ class WorkOrderController extends Controller
         // was last seen - so the order shows which pieces it is made of, not only counts.
         $serialUnits = $this->serialUnitsOf($workOrder);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        $lotManualEntry = \App\Services\Lot\BatchLotRules::manualEntryAllowed();
+
+        return Inertia::render('operator/WorkOrderDetail', compact('lotManualEntry', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
     }
 
     /**

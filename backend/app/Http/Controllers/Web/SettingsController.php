@@ -141,6 +141,8 @@ class SettingsController extends Controller
             'pallet_stock_documents' => \App\Services\Warehouse\PalletStockDocumentService::mode(),
             'lot_tracking_enabled' => json_decode($rows['lot_tracking_enabled']?->value ?? 'false', true) ?? false,
             'lot_picking_strategy' => json_decode($rows['lot_picking_strategy']?->value ?? '"fefo"', true) ?? 'fefo',
+            'batch_lot_manual_entry' => \App\Services\Lot\BatchLotRules::manualEntryAllowed(),
+            'ship_requires_release' => \App\Services\Logistics\PalletReleaseGate::enabled(),
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
             // The currently effective locale (session override applied by SetLocale,
@@ -617,6 +619,10 @@ class SettingsController extends Controller
             'pallet_stock_documents' => $validated['pallet_stock_documents'] ?? \App\Services\Warehouse\PalletStockDocumentService::mode(),
             'lot_tracking_enabled' => (bool) ($validated['lot_tracking_enabled'] ?? false),
             'lot_picking_strategy' => $validated['lot_picking_strategy'] ?? 'fefo',
+            // has()-guarded: the default is "allowed", so a form that does not
+            // send the switch must not turn hand-typed LOTs off.
+            ...($request->has('batch_lot_manual_entry') ? ['batch_lot_manual_entry' => (bool) $validated['batch_lot_manual_entry']] : []),
+            ...($request->has('ship_requires_release') ? ['ship_requires_release' => (bool) $validated['ship_requires_release']] : []),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',

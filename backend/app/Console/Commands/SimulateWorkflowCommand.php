@@ -218,7 +218,9 @@ class SimulateWorkflowCommand extends Command
             'work_order_id' => $workOrder->id,
             'workstation_id' => $station->id,
             'batch_number' => $number,
-            'lot_number' => sprintf('%s%s-%s-%02d', self::ORDER_PREFIX, $station->code, now()->format('ymd'), $number),
+            // From the order number: a LOT is unique among batches, and a station
+            // opens a new order (batch 1 again) when the previous one finishes.
+            'lot_number' => sprintf('%s-%02d', $workOrder->order_no, $number),
             'target_qty' => $target,
             'produced_qty' => 0,
             'scrap_qty' => 0,

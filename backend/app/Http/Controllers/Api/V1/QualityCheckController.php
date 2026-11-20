@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\QcTemplateRequest;
 use App\Models\Batch;
 use App\Models\QualityCheckTemplate;
 use App\Services\Production\QualityCheckService;
@@ -90,20 +91,9 @@ class QualityCheckController extends Controller
         return response()->json(['data' => $templates]);
     }
 
-    public function templateStore(Request $request, int $processTemplateId): JsonResponse
+    public function templateStore(QcTemplateRequest $request, int $processTemplateId): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'min_checks_per_batch' => 'nullable|integer|min:1',
-            'min_checks_per_day' => 'nullable|integer|min:1',
-            'samples_per_check' => 'nullable|integer|min:1',
-            'parameters' => 'required|array|min:1',
-            'parameters.*.name' => 'required|string|max:100',
-            'parameters.*.type' => 'required|string|in:measurement,pass_fail',
-            'parameters.*.unit' => 'nullable|string|max:20',
-            'parameters.*.min' => 'nullable|numeric',
-            'parameters.*.max' => 'nullable|numeric',
-        ]);
+        $validated = $request->validated();
 
         $validated['process_template_id'] = $processTemplateId;
         // These columns are NOT NULL DEFAULT 3; a null in the payload would be
@@ -119,20 +109,9 @@ class QualityCheckController extends Controller
         ], 201);
     }
 
-    public function templateUpdate(Request $request, QualityCheckTemplate $qualityCheckTemplate): JsonResponse
+    public function templateUpdate(QcTemplateRequest $request, QualityCheckTemplate $qualityCheckTemplate): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:100',
-            'min_checks_per_batch' => 'nullable|integer|min:1',
-            'min_checks_per_day' => 'nullable|integer|min:1',
-            'samples_per_check' => 'nullable|integer|min:1',
-            'parameters' => 'sometimes|array|min:1',
-            'parameters.*.name' => 'required|string|max:100',
-            'parameters.*.type' => 'required|string|in:measurement,pass_fail',
-            'parameters.*.unit' => 'nullable|string|max:20',
-            'parameters.*.min' => 'nullable|numeric',
-            'parameters.*.max' => 'nullable|numeric',
-        ]);
+        $validated = $request->validated();
 
         // NOT NULL DEFAULT 3 columns — preserve existing values if the payload
         // sends an explicit null rather than omitting them.

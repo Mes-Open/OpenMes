@@ -790,6 +790,11 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                                 {__('LOT')}: <span className="font-mono text-om-accent">{batch.lot_number}</span>
                             </span>
                         )}
+                        {batch.expiry_date && (
+                            <span className="font-medium text-om-ink">
+                                {__('Expiry date')}: <span className="font-mono text-om-accent">{formatDate(batch.expiry_date)}</span>
+                            </span>
+                        )}
                         {batch.workstation && (
                             <span className="font-medium text-om-ink">{__('Workstation')}: {batch.workstation.name}</span>
                         )}
@@ -797,9 +802,6 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                             <span className="text-om-running font-medium">
                                 {__('Released')} ({releaseLabel})
                             </span>
-                        )}
-                        {batch.expiry_date && (
-                            <span className="font-mono text-[13px] text-om-muted">{__('Expiry')}: {batch.expiry_date}</span>
                         )}
                     </div>
 
@@ -1889,7 +1891,7 @@ function round4(n) {
 // Create Batch Modal
 // ---------------------------------------------------------------------------
 
-function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClose }) {
+function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, lotManualEntry = true, onClose }) {
     const remaining = Math.max((workOrder.planned_qty ?? 0) - (workOrder.produced_qty ?? 0), 0);
 
     const form = useForm({
@@ -1897,7 +1899,8 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
         target_qty: String(remaining),
         workstation_id: defaultWorkstationId ? String(defaultWorkstationId) : (workstations.length === 1 ? String(workstations[0].id) : ''),
         lot_number: '',
-        auto_lot: false,
+        // LOTs only from the sequence (Settings): always the next sequence number.
+        auto_lot: !lotManualEntry,
     });
 
     const submit = (e) => {
@@ -1959,16 +1962,23 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     )}
 
                     {/* Auto-LOT */}
-                    <div className="mb-4">
-                        <Checkbox
-                            checked={form.data.auto_lot}
-                            onChange={(next) => form.setData('auto_lot', next)}
-                            label={__('Auto-generate LOT number')}
-                        />
-                    </div>
+                    {lotManualEntry ? (
+                        <div className="mb-4">
+                            <Checkbox
+                                checked={form.data.auto_lot}
+                                onChange={(next) => form.setData('auto_lot', next)}
+                                label={__('Auto-generate LOT number')}
+                            />
+                        </div>
+                    ) : (
+                        <p className="mb-4 text-sm text-om-muted">{__('The LOT number is taken from the LOT sequence.')}</p>
+                    )}
+                    {!lotManualEntry && form.errors.lot_number && (
+                        <p className={`${errorCls} mb-4`}>{form.errors.lot_number}</p>
+                    )}
 
                     {/* Manual LOT */}
-                    {!form.data.auto_lot && (
+                    {lotManualEntry && !form.data.auto_lot && (
                         <div className="mb-4">
                             <div className={fieldLabelCls}>
                                 {__('LOT Number (manual)')}
@@ -2276,7 +2286,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, lotManualEntry = true } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2662,6 +2672,7 @@ export default function WorkOrderDetail() {
                     workOrder={workOrder}
                     workstations={workstations}
                     defaultWorkstationId={defaultWorkstationId}
+                    lotManualEntry={lotManualEntry}
                     onClose={() => setCreateBatchOpen(false)}
                 />
             )}

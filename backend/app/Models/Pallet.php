@@ -65,6 +65,9 @@ class Pallet extends Model
         // pallet must not move it into another shift's handover window, so the
         // calculator attributes by shipped_at instead of updated_at.
         static::saving(function (self $pallet): void {
+            // Release ship-gate (setting "ship only goods released for sale").
+            app(\App\Services\Logistics\PalletReleaseGate::class)->saving($pallet);
+
             // Quality ship-gate (#106): an existing pallet can't be shipped until
             // its quality status is "pass" (no/failed quality checks block it).
             if ($pallet->exists

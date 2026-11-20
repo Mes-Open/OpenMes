@@ -28,6 +28,8 @@ class ProductTypesShape extends Shape
             'external_code',
             'external_system',
             'unit_of_measure',
+            'shelf_life_value',
+            'shelf_life_unit',
             'is_active',
             'custom_fields',
             'created_at',

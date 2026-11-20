@@ -27,6 +27,23 @@ export const PRODUCT_TYPE_FIELDS = [
         help: __('How this product is counted or measured'),
     },
     {
+        name: 'shelf_life_value',
+        label: __('Shelf life'),
+        type: 'number',
+        placeholder: __('e.g., 24'),
+        help: __('How long the product keeps. A new batch gets its expiry date from it: the day the batch is created plus the shelf life. Empty: no expiry date until the batch is released.'),
+    },
+    {
+        name: 'shelf_life_unit',
+        label: __('Shelf life unit'),
+        type: 'select',
+        options: [
+            { value: '', label: __('— None —') },
+            { value: 'months', label: __('months') },
+            { value: 'days', label: __('days') },
+        ],
+    },
+    {
         name: 'image',
         label: __('Product Image'),
         type: 'image',
@@ -48,7 +65,7 @@ export const PRODUCT_TYPE_FIELDS = [
  */
 export function productTypeInitial(record, { imageUrls } = {}) {
     if (!record) {
-        return { code: '', name: '', description: '', unit_of_measure: 'pcs', image: null, is_active: true, custom_fields: {} };
+        return { code: '', name: '', description: '', unit_of_measure: 'pcs', shelf_life_value: '', shelf_life_unit: '', image: null, is_active: true, custom_fields: {} };
     }
 
     return {
@@ -56,6 +73,8 @@ export function productTypeInitial(record, { imageUrls } = {}) {
         name: record.name ?? '',
         description: record.description ?? '',
         unit_of_measure: record.unit_of_measure ?? 'pcs',
+        shelf_life_value: record.shelf_life_value ?? '',
+        shelf_life_unit: record.shelf_life_unit ?? '',
         image: null,
         // The standalone edit page gets this from the model accessor; the list
         // hands it over separately, since no column behind it is synced.

@@ -130,6 +130,9 @@ class LotPickingService
                 if (! $lot) {
                     throw new \DomainException(__('No lots available for this material'));
                 }
+                if ($lot->isExpired()) {
+                    throw new \DomainException(__('Lot :lot expired on :date and cannot be used.', ['lot' => $lot->lot_number, 'date' => $lot->expiry_date->toDateString()]));
+                }
                 if ($qty > (float) $lot->quantity_available + self::EPSILON) {
                     throw new InsufficientStockException($material, $qty, (float) $lot->quantity_available);
                 }
@@ -306,12 +309,17 @@ class LotPickingService
         )->get();
     }
 
-    /** Base query for released lots with stock on hand (no lock, no ordering). */
+    /**
+     * Base query for released, unexpired lots with stock on hand (no lock, no
+     * ordering). Without the expiry filter FEFO would propose an expired lot
+     * first - it has the earliest date of all.
+     */
     private function availableLotsQuery(int $materialId): \Illuminate\Database\Eloquent\Builder
     {
         return MaterialLot::where('material_id', $materialId)
             ->where('status', MaterialLot::STATUS_RELEASED)
-            ->where('quantity_available', '>', 0);
+            ->where('quantity_available', '>', 0)
+            ->notExpired();
     }
 
     /**

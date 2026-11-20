@@ -319,6 +319,8 @@ export default function System() {
         hold_on_material_shortage: settings.hold_on_material_shortage ?? false,
         lot_tracking_enabled: settings.lot_tracking_enabled ?? false,
         lot_picking_strategy: settings.lot_picking_strategy ?? 'fefo',
+        batch_lot_manual_entry: settings.batch_lot_manual_entry ?? true,
+        ship_requires_release: settings.ship_requires_release ?? false,
         scanner_mode: settings.scanner_mode ?? 'hid',
         unit_identifier_normalize: settings.unit_identifier_normalize ?? true,
         unit_serial_pattern: settings.unit_serial_pattern ?? '',
@@ -823,9 +825,31 @@ export default function System() {
                                             ]}
                                             className="w-full md:w-96"
                                         />
-                                        <p className={HELP_CLASS}>{__('The proposed lot when a step or the packing station starts; the operator can still pick another.')}</p>
+                                        <p className={HELP_CLASS}>{__('The proposed lot when a step or the packing station starts; the operator can still pick another.')} {__('Expired lots are never proposed and cannot be used.')}</p>
                                     </div>
                                 )}
+
+                                <div className="flex items-start gap-3">
+                                    <Switch
+                                        checked={data.batch_lot_manual_entry}
+                                        onChange={(v) => setData('batch_lot_manual_entry', v)}
+                                    />
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Batch LOT can be typed by hand')}</p>
+                                        <p className={HELP_CLASS}>{__('Off: every batch LOT comes from the LOT sequence and the operator cannot type one. On: the operator may type a LOT or take the next one from the sequence. A LOT is always unique among batches.')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <Switch
+                                        checked={data.ship_requires_release}
+                                        onChange={(v) => setData('ship_requires_release', v)}
+                                    />
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Ship only goods released for sale')}</p>
+                                        <p className={HELP_CLASS}>{__('A pallet ships only when its batch is released for sale and its work order is not blocked by an open non-conformance.')}</p>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Serialised units: identifiers, binding and test verdicts */}

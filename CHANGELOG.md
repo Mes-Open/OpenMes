@@ -9,6 +9,35 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Shelf life on the product, batch expiry known from the start.** A product type takes a
+  shelf life (days or months). A new batch gets its expiry date when it is created — the
+  creation day plus the shelf life, months without overflow (31 Jan + 1 month = 28/29 Feb) —
+  and the operator's batch bar shows it next to the LOT, so the date printed during packaging
+  comes from the system. Releasing for sale no longer overwrites an existing expiry with
+  "completion + 3 years"; that default remains only for a batch of a product without a shelf
+  life that has no expiry yet.
+
+- **Batch LOT rules.** A LOT belongs to one live batch: creating, renaming or restoring a batch
+  with a LOT another batch uses is refused (and a partial unique index backs it). New setting
+  *Batch LOT can be typed by hand* (Settings → System → Production Rules, on by default): off,
+  the operator and the API cannot type a LOT and every batch LOT comes from the LOT sequence.
+
+- **Ship only goods released for sale** (setting, off by default). A pallet ships only when its
+  batch — or every started batch of its work order — is released for sale and the order is not
+  blocked by an open non-conformance.
+
+- **Modules can validate QC templates written over the API.** Filter
+  `validation.api.qc_templates` on `POST /api/v1/process-templates/{id}/qc-templates` and
+  `PATCH /api/v1/qc-templates/{id}`. See HOOKS.md.
+
+### Fixed
+
+- **FEFO no longer proposes expired lots.** The automatic lot pick and the operator's pick list
+  skip lots past their expiry date — FEFO used to put them first, having the earliest date of
+  all. A lot is usable through its expiry day. A manual pick and the consume API refuse an
+  expired lot with its date, and the consume API refuses a lot of a material that is not on the
+  order's recipe.
+
 - **Modules can extend the traceability console.** Two filters: `traceability.resolve`
   answers for a code only a module knows (its carton, its container), `traceability.sections`
   adds sections to any trace (a batch's cartons and pallets, the containers a lot went

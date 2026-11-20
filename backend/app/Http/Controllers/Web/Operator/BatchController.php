@@ -480,6 +480,10 @@ class BatchController extends Controller
             return back()->with('error', 'This work order does not belong to the selected line.');
         }
 
+        if ($request->filled('lot_number') && ! \App\Services\Lot\BatchLotRules::manualEntryAllowed()) {
+            return back()->withErrors(['lot_number' => __('A LOT cannot be typed by hand: LOT numbers come from the LOT sequence (Settings -> System -> Production Rules).')])->withInput();
+        }
+
         try {
             $lotNumber = $request->input('lot_number');
 
@@ -496,6 +500,8 @@ class BatchController extends Controller
 
             return redirect()->route('operator.work-order.detail', $workOrder)
                 ->with('success', $lotNumber ? __('Batch created (LOT: :lot)', ['lot' => $lotNumber]) : __('Batch created'));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to create batch: '.$e->getMessage())->withInput();
         }

@@ -22,6 +22,8 @@ class UpdateProductTypeRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'unit_of_measure' => ['sometimes', 'nullable', 'string', 'max:20'],
             'is_active' => ['sometimes', 'boolean'],
+            'shelf_life_value' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:36500'],
+            'shelf_life_unit' => ['sometimes', 'nullable', 'required_with:shelf_life_value', 'in:days,months'],
         ];
     }
 }

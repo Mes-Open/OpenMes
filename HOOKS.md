@@ -429,6 +429,18 @@ request, so a module can show a tab only where it applies without re-registering
 `operator.can_logout` hides the button only — a module that forbids logout must
 still refuse the `POST /logout` itself.
 
+#### Validation rules of the QC template API
+
+```
+validation.api.qc_templates   rule array   POST /api/v1/process-templates/{id}/qc-templates, PATCH /api/v1/qc-templates/{id}
+```
+
+Context: `action` (`store` / `update`) and `template` (the edited
+`QualityCheckTemplate`, `null` on create). A module that keeps its own rules for
+control templates applies them here too, so the API refuses what its screen
+refuses — e.g. a closure on `parameters.*` that rejects a maximum below the
+minimum. Add rules; do not remove core ones.
+
 ---
 
 ## Enabling a module
@@ -498,7 +510,8 @@ class SyncToErp implements ShouldQueue
 `display.auth.login.before`, `display.auth.login.after`.
 
 **Filters** (`App\Extension\FilterRegistry`): `operator.tabs`,
-`operator.module_tabs`, `operator.can_logout`, `import.entities`.
+`operator.module_tabs`, `operator.can_logout`, `import.entities`,
+`traceability.resolve`, `traceability.sections`, `validation.api.qc_templates`.
 
 ---
 
