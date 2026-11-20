@@ -62,6 +62,9 @@ class MenuRegistry
     /** @var list<array{label: string, url: string, order: int, prefix: string}> */
     private array $operatorItems = [];
 
+    /** @var array<string, list<array{label: string, url: string, order: int, icon: ?string}>> */
+    private array $supervisorItems = [];
+
     // -------------------------------------------------------------------------
     // Built-in group injection
     // -------------------------------------------------------------------------
@@ -76,16 +79,19 @@ class MenuRegistry
      * @param  string|null  $badge  Short tag rendered to the right of the label. Lets a module
      *                              mark which entries it contributed (its edition, tier, or
      *                              anything else) without core knowing any module by name.
+     * @param  string|null  $icon  Lucide icon name, as the built-in entries use (e.g. 'file-badge')
+     * @param  string|null  $tab  TabRegistry key the viewer must hold to see the entry; the
+     *                            module's routes still enforce access themselves
      */
-    public function addItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null): void
+    public function addItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null, ?string $icon = null, ?string $tab = null): void
     {
-        $this->items[$group][] = compact('label', 'url', 'order', 'badge');
+        $this->items[$group][] = compact('label', 'url', 'order', 'badge', 'icon', 'tab');
     }
 
     /**
      * Return the extra items registered for a built-in dropdown, sorted by order.
      *
-     * @return list<array{label: string, url: string, order: int, badge: ?string}>
+     * @return list<array{label: string, url: string, order: int, badge: ?string, icon: ?string, tab: ?string}>
      */
     public function getItems(string $group): array
     {
@@ -100,7 +106,7 @@ class MenuRegistry
      * Feeds the React sidebar (HandleInertiaRequests) so module menu hooks render
      * in the SPA the same way they used to render in the deleted Blade sidebar.
      *
-     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string}>>
+     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string, icon: ?string, tab: ?string}>>
      */
     public function getAllItems(): array
     {
@@ -150,14 +156,16 @@ class MenuRegistry
      * @param  string  $url  Resolved URL
      * @param  int  $order  Sort weight within the group
      * @param  string|null  $badge  Short tag rendered to the right of the label
+     * @param  string|null  $icon  Lucide icon name
+     * @param  string|null  $tab  TabRegistry key the viewer must hold to see the entry
      */
-    public function addGroupItem(string $groupId, string $label, string $url, int $order = 50, ?string $badge = null): void
+    public function addGroupItem(string $groupId, string $label, string $url, int $order = 50, ?string $badge = null, ?string $icon = null, ?string $tab = null): void
     {
         if (! isset($this->groups[$groupId])) {
             $this->addGroup($groupId, ucfirst($groupId));
         }
 
-        $this->groups[$groupId]['items'][] = compact('label', 'url', 'order', 'badge');
+        $this->groups[$groupId]['items'][] = compact('label', 'url', 'order', 'badge', 'icon', 'tab');
     }
 
     /**
@@ -182,6 +190,48 @@ class MenuRegistry
         usort($groups, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $groups;
+    }
+
+    // -------------------------------------------------------------------------
+    // Supervisor sidebar
+    // -------------------------------------------------------------------------
+
+    /** MenuRegistry group => supervisor sidebar group (supervisorNav.js). */
+    public const SUPERVISOR_GROUPS = ['orders', 'production', 'reports'];
+
+    /**
+     * Add a link to one of the supervisor sidebar's groups.
+     *
+     * The supervisor sees their own tree (supervisorNav.js), not the admin one, so
+     * an addItem() entry never reaches them. A module whose screen a supervisor
+     * works with registers it here as well; its routes must let the Supervisor role in.
+     *
+     * @param  string  $group  orders | production | reports
+     * @param  string|null  $icon  Lucide icon name
+     */
+    public function addSupervisorItem(string $group, string $label, string $url, int $order = 50, ?string $icon = null): void
+    {
+        if (! in_array($group, self::SUPERVISOR_GROUPS, true)) {
+            throw new \InvalidArgumentException("Unknown supervisor menu group \"{$group}\"; use one of: ".implode(', ', self::SUPERVISOR_GROUPS).'.');
+        }
+
+        $this->supervisorItems[$group][] = compact('label', 'url', 'order', 'icon');
+    }
+
+    /**
+     * Supervisor entries keyed by group, each sorted by order.
+     *
+     * @return array<string, list<array{label: string, url: string, order: int, icon: ?string}>>
+     */
+    public function getSupervisorItems(): array
+    {
+        $out = [];
+        foreach ($this->supervisorItems as $group => $items) {
+            usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
+            $out[$group] = $items;
+        }
+
+        return $out;
     }
 
     // -------------------------------------------------------------------------

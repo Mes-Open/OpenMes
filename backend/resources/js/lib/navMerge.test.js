@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups } from './navMerge';
+import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from './navMerge';
 
 /**
  * Where a module's menu contributions land in the sidebar.
@@ -131,5 +131,25 @@ describe('groupMatch', () => {
 
     it('leaves a group with nothing injected as declared', () => {
         expect(groupMatch(['/admin/materials'], [])).toEqual(['/admin/materials']);
+    });
+});
+
+describe('mergeSupervisorItems', () => {
+    const groups = [
+        { key: 'supervisor-orders', match: ['/supervisor/work-orders'], children: [{ label: 'All Orders', href: '/supervisor/work-orders' }] },
+        { key: 'supervisor-production', match: ['/supervisor/issues'], children: [{ label: 'Issues', href: '/supervisor/issues' }] },
+    ];
+
+    it('adds module links to the group named by its short key, and matches their paths', () => {
+        const merged = mergeSupervisorItems(groups, { production: [{ label: 'Register', href: '/admin/register', match: ['/admin/register'], order: 90 }] });
+
+        expect(merged[1].children.map((c) => c.label)).toEqual(['Issues', 'Register']);
+        expect(merged[1].match).toContain('/admin/register');
+        expect(merged[0]).toBe(groups[0]);
+    });
+
+    it('leaves the groups as they are without module links', () => {
+        expect(mergeSupervisorItems(groups, {})).toEqual(groups);
+        expect(mergeSupervisorItems(groups, undefined)).toEqual(groups);
     });
 });

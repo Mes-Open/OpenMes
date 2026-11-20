@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Icons, access tabs and supervisor entries for module menu items.** `MenuRegistry::addItem()`
+  and `addGroupItem()` take an optional Lucide `icon` and a `tab`; an entry with a tab is hidden
+  from users who do not hold it, instead of leading them to a 403. `addSupervisorItem()` adds
+  an entry to the supervisor sidebar (orders, production, reports), which never showed module
+  entries before.
 - **Quality holds in the scheduler.** An order held back by quality — an open quality
   control whose trigger is blocking, or an open or acknowledged issue that blocks the work
   order — is no longer placed by *Automatic scheduling*. Its operations get the new status
