@@ -106,3 +106,37 @@ export function groupMatch(match, children) {
 
     return [...new Set([...(match ?? []), ...fromChildren])];
 }
+
+/**
+ * Links modules registered for supervisors (MenuRegistry::addSupervisorItem),
+ * merged into the supervisor dropdowns. `items` is keyed by the group name
+ * without its "supervisor-" prefix; a name the tree does not have falls back
+ * to production, so a link is never lost. `toChild` turns a registry item into
+ * a nav entry (AppLayout's moduleItemToChild).
+ *
+ * @param {Array<{key: string, match?: string[], children?: object[], badge?: string}>} groups
+ * @param {Record<string, Array<object>>|undefined} items
+ * @param {(item: object) => object} toChild
+ */
+export function mergeSupervisorItems(groups, items, toChild) {
+    const keys = new Set(groups.map((g) => g.key));
+    const injected = {};
+    for (const [group, list] of Object.entries(items ?? {})) {
+        const key = keys.has(`supervisor-${group}`) ? `supervisor-${group}` : 'supervisor-production';
+        injected[key] = [...(injected[key] ?? []), ...(list ?? []).map(toChild)];
+    }
+
+    return groups.map((g) => {
+        const extra = injected[g.key];
+        if (! extra?.length) {
+            return g;
+        }
+
+        return {
+            ...g,
+            badge: g.badge ?? extra.find((child) => child.badge)?.badge,
+            match: groupMatch(g.match, extra),
+            children: mergeChildren(g.children ?? [], extra),
+        };
+    });
+}

@@ -202,6 +202,25 @@ class TabAccessTest extends TestCase
         $this->actingAs($this->operator)->get('/admin/work-orders')->assertOk();
     }
 
+    public function test_reseeding_keeps_permissions_a_module_granted_and_resets_core_ones(): void
+    {
+        // A module creates its own permission in a migration and grants it.
+        \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'approve partial carton', 'guard_name' => 'web']);
+        Role::findByName('Supervisor', 'web')->givePermissionTo('approve partial carton');
+        // A core permission outside the canonical Operator set, granted by hand.
+        Role::findByName('Operator', 'web')->givePermissionTo('manage users');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        // The module's grant survives the reseed on every container start...
+        $this->assertTrue(Role::findByName('Supervisor', 'web')->hasPermissionTo('approve partial carton'));
+        $this->assertTrue(Role::findByName('Supervisor', 'web')->hasPermissionTo('view work orders'));
+        // ...while core's own permissions are still reset to the canonical set.
+        $this->assertFalse(Role::findByName('Operator', 'web')->hasPermissionTo('manage users'));
+    }
+
     public function test_invalid_tab_key_is_rejected(): void
     {
         $this->actingAs($this->admin)->post('/settings/access', [

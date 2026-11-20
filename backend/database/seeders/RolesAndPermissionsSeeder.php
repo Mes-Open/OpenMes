@@ -103,14 +103,18 @@ class RolesAndPermissionsSeeder extends Seeder
         $adminRole->syncPermissions(Permission::all());
 
         // This seeder runs on every container start (docker-entrypoint.sh), so
-        // syncPermissions() must not clobber the per-role tab:* and inspection
-        // grants an admin configured through Settings → Access. Capture them and
-        // merge them back into the canonical operational set below. Admin keeps
+        // syncPermissions() resets only the permissions core itself defines the
+        // canonical role sets for. Everything else a role holds survives: the
+        // per-role tab:* and inspection grants an admin configured through
+        // Settings → Access, and permissions an installed module created and
+        // granted (a module grants them once, in its migration - resetting them
+        // here silently took them away again on the next start). Admin keeps
         // everything anyway (Permission::all()); fresh installs have none, so
         // nothing leaks.
+        $coreManaged = array_diff($permissions, TabRegistry::permissions(), InspectionPermissions::ALL);
         $keepGranted = fn (Role $role) => $role->permissions
             ->pluck('name')
-            ->filter(fn ($name) => str_starts_with($name, 'tab:') || in_array($name, InspectionPermissions::ALL, true))
+            ->reject(fn ($name) => in_array($name, $coreManaged, true))
             ->all();
 
         // Supervisor — operational read + production management

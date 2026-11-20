@@ -63,6 +63,27 @@ class ModuleMenuHooksTest extends TestCase
                     )));
     }
 
+    public function test_supervisor_items_reach_the_supervisor_sidebar_grouped_and_sorted(): void
+    {
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('Supervisor');
+
+        $menu = app(MenuRegistry::class);
+        $menu->addSupervisorItem('production', 'Batch records', '/module/records', order: 70);
+        $menu->addSupervisorItem('production', 'Pallets', '/module/pallets', order: 30, badge: 'BH');
+        $menu->addSupervisorItem('reports', 'Missing controls', '/module/report');
+
+        $this->actingAs($supervisor)
+            ->get('/supervisor/issues')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('moduleNav.supervisor.production.0.label', 'Pallets')
+                ->where('moduleNav.supervisor.production.0.badge', 'BH')
+                ->where('moduleNav.supervisor.production.1.url', '/module/records')
+                ->where('moduleNav.supervisor.reports.0.label', 'Missing controls')
+                ->where('moduleNav.supervisor.reports.0.order', 50));
+    }
+
     public function test_module_nav_is_present_and_empty_when_no_module_registers_anything(): void
     {
         $this->skipIfAnyModuleIsInstalled();
@@ -74,7 +95,8 @@ class ModuleMenuHooksTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('moduleNav')
                 ->where('moduleNav.items', [])
-                ->where('moduleNav.groups', []));
+                ->where('moduleNav.groups', [])
+                ->where('moduleNav.supervisor', []));
     }
 
     public function test_module_widgets_reach_the_react_dashboard(): void

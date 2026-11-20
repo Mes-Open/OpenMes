@@ -62,6 +62,9 @@ class MenuRegistry
     /** @var list<array{label: string, url: string, order: int, prefix: string}> */
     private array $operatorItems = [];
 
+    /** @var list<array{group: string, label: string, url: string, order: int, badge: ?string}> */
+    private array $supervisorItems = [];
+
     // -------------------------------------------------------------------------
     // Built-in group injection
     // -------------------------------------------------------------------------
@@ -231,5 +234,58 @@ class MenuRegistry
         usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $items;
+    }
+
+    // -------------------------------------------------------------------------
+    // Supervisor sidebar
+    // -------------------------------------------------------------------------
+
+    /**
+     * Add a link to the supervisor sidebar.
+     *
+     * Supervisors get their own menu (their pages live under /supervisor), so
+     * items added with addItem() — which target the admin dropdowns — never
+     * reach them. A module whose screen a supervisor uses (a register, a
+     * report, an approval queue) registers it here as well. The URL may point
+     * anywhere the supervisor is allowed to go; what they may open is still
+     * decided by the route's own middleware.
+     *
+     * @param  string  $group  Supervisor dropdown: orders | production | logistics | reports
+     *                         (the key of a SUPERVISOR_GROUPS entry without its
+     *                         "supervisor-" prefix). Unknown keys land in production.
+     * @param  string  $label  Link text
+     * @param  string  $url  Resolved URL (call route() or url() in your ServiceProvider)
+     * @param  int  $order  Sort weight — built-in items use multiples of 10
+     * @param  string|null  $badge  Short tag shown next to the label (see addItem)
+     */
+    public function addSupervisorItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null): void
+    {
+        $this->supervisorItems[] = [
+            'group' => $group,
+            'label' => $label,
+            'url' => $url,
+            'order' => $order,
+            'badge' => $badge,
+        ];
+    }
+
+    /**
+     * Supervisor sidebar items keyed by group, each list sorted by order.
+     *
+     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string}>>
+     */
+    public function getSupervisorItems(): array
+    {
+        $grouped = [];
+        foreach ($this->supervisorItems as $item) {
+            $group = $item['group'];
+            unset($item['group']);
+            $grouped[$group][] = $item;
+        }
+        foreach ($grouped as &$items) {
+            usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
+        }
+
+        return $grouped;
     }
 }

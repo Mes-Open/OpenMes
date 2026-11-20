@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
-import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
+import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from '../lib/navMerge';
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import ViewAsBar from '../components/ViewAsBar';
@@ -281,8 +281,9 @@ export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
  * them somewhere the middleware refuses.
  *
  * Admin wins when a user holds both roles: it is the larger tree, and it is the
- * one the per-tab access matrix governs. Module hooks register against the admin
- * groups, so they merge only there.
+ * one the per-tab access matrix governs. Module links registered with addItem /
+ * addGroup merge into the admin groups; links registered with
+ * addSupervisorItem merge into the supervisor tree.
  *
  * An administrator who chose the supervisor view in the view switcher gets the
  * supervisor tree. `viewAs` is sent to Admins only, and the supervisor routes
@@ -304,7 +305,11 @@ function useNavTree() {
         if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
                 links: withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs),
-                groups: withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
+                groups: mergeSupervisorItems(
+                    withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
+                    moduleNav?.supervisor,
+                    moduleItemToChild,
+                ),
                 // The supervisor tree is gated by the route group's role
                 // middleware, not the admin access matrix. Only its entries that
                 // carry a `tab` key (an admin page granted in Settings → Access)

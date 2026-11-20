@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Modules can add links to the supervisor sidebar.** `MenuRegistry::addSupervisorItem()`
+  puts a module's screen into a supervisor dropdown (orders, production, logistics,
+  reports); until now module links reached only the admin sidebar, so a supervisor could
+  open a module's register or approval queue only by typing its address. See HOOKS.md.
+
 - **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
   of pallets and cartons it must take, and the dock scans every label against that list
   before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
@@ -96,6 +101,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   now refreshes open planners live.
 
 ### Fixed
+
+- **Permissions a module grants survive a restart.** The roles seeder runs on every
+  container start and reset each role to its canonical permission set, keeping only
+  `tab:*` and inspection grants - so a permission an installed module created and granted
+  to Supervisor or Operator in its migration was silently taken away on the next start.
+  The seeder now resets only the permissions core defines and leaves the rest alone.
 
 - **Option lists and field labels follow the interface language.** Pages are loaded before
   the translations were, so anything a screen translated while loading - the trigger types on

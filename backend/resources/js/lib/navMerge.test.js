@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups } from './navMerge';
+import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from './navMerge';
 
 /**
  * Where a module's menu contributions land in the sidebar.
@@ -131,5 +131,35 @@ describe('groupMatch', () => {
 
     it('leaves a group with nothing injected as declared', () => {
         expect(groupMatch(['/admin/materials'], [])).toEqual(['/admin/materials']);
+    });
+});
+
+describe('mergeSupervisorItems', () => {
+    const groups = [
+        { key: 'supervisor-orders', match: ['/supervisor/work-orders'], children: [{ label: 'All Orders', href: '/supervisor/work-orders' }] },
+        { key: 'supervisor-production', match: ['/supervisor/issues'], children: [{ label: 'Issues', href: '/supervisor/issues' }] },
+    ];
+    const toChild = (item) => ({ label: item.label, href: item.url, match: [item.url], order: item.order, badge: item.badge });
+
+    it('puts a module link into the named supervisor group, by order', () => {
+        const merged = mergeSupervisorItems(groups, {
+            production: [{ label: 'Pallets', url: '/packout/pallets', order: 5, badge: 'BH' }],
+        }, toChild);
+
+        const production = merged.find((g) => g.key === 'supervisor-production');
+        expect(production.children.map((c) => c.label)).toEqual(['Pallets', 'Issues']);
+        expect(production.match).toContain('/packout/pallets');
+        expect(production.badge).toBe('BH');
+        expect(merged.find((g) => g.key === 'supervisor-orders')).toBe(groups[0]);
+    });
+
+    it('falls back to production for a group the tree does not have', () => {
+        const merged = mergeSupervisorItems(groups, { warehouse: [{ label: 'Stock', url: '/stock', order: 90 }] }, toChild);
+
+        expect(merged.find((g) => g.key === 'supervisor-production').children.map((c) => c.label)).toEqual(['Issues', 'Stock']);
+    });
+
+    it('returns the groups unchanged without module links', () => {
+        expect(mergeSupervisorItems(groups, undefined, toChild)).toEqual(groups);
     });
 });

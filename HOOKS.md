@@ -246,6 +246,21 @@ Operator tabs are Inertia links — the page behind them is a React page under t
 module's `resources/js/Pages/`. They arrive in the browser as `moduleNav.operator`
 and render tinted like sidebar entries.
 
+### Supervisor sidebar
+
+Supervisors have their own menu (their pages live under `/supervisor`), so
+`addItem` / `addGroup` entries, which target the admin sidebar, never reach
+them. A module whose screen a supervisor uses registers it here too:
+
+```php
+// group (orders | production | logistics | reports - unknown keys land in
+// production), label, url, order, optional badge.
+$menu->addSupervisorItem('production', 'Pallets', url('/modules/pallets'), order: 60);
+```
+
+They arrive as `moduleNav.supervisor` and merge into the supervisor dropdowns.
+What a supervisor may open is still decided by the route's own middleware.
+
 ### Translations
 
 A module's own strings live in `modules/<Name>/lang/<locale>.json` (the same

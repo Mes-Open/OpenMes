@@ -73,6 +73,9 @@ class HandleInertiaRequests extends Middleware
                 //   operator: [{label,url,order,prefix}] extra tabs on the operator
                 //           panel's top bar (OperatorLayout), Inertia links.
                 'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
+                //   supervisor: { <group>: [{label,url,order,badge}] } links merged
+                //           into the supervisor sidebar (orders|production|logistics|reports).
+                'supervisor' => fn () => app(\App\Services\MenuRegistry::class)->getSupervisorItems(),
             ],
             // Compiled frontends of modules installed after this app was built.
             // Their pages are not in the bundle — nothing rebuilds it on a
