@@ -21,6 +21,10 @@ use Illuminate\Support\Collection;
  * station only. A maintenance event with no end is taken as one hour, as the
  * capacity grid does.
  *
+ * Windows are merged, so back-to-back shifts read as one stretch of working
+ * time; which shift a minute belongs to — and so which date an absence refers
+ * to — comes from {@see ShiftOccurrences}, which reads the same shifts.
+ *
  * Times are whole minutes since the Unix epoch, which keeps the scheduler's
  * interval arithmetic integer-only.
  */
@@ -63,6 +67,16 @@ class ResourceCalendar
             ->where(fn ($q) => $q->whereNull('scheduled_end_at')->orWhere('scheduled_end_at', '>', $start->copy()->subDay()))
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * The active shifts this calendar was built from.
+     *
+     * @return Collection<int, Shift>
+     */
+    public function shifts(): Collection
+    {
+        return $this->shifts;
     }
 
     public static function toMinutes(CarbonInterface $moment): int
@@ -156,38 +170,27 @@ class ResourceCalendar
     }
 
     /**
+     * The first shift start on the line strictly after $t, inside the
+     * horizon — where a new shift, and with it possibly a new crew, begins.
+     * Null when no shift starts before the horizon closes.
+     */
+    public function nextShiftStart(int $lineId, int $t): ?int
+    {
+        return ShiftOccurrences::nextStartAfter($this->shifts, $lineId, $t, $this->to);
+    }
+
+    /**
      * @return list<array{0: int, 1: int}>
      */
     private function shiftIntervals(int $lineId): array
     {
-        $shifts = $this->shifts->filter(fn (Shift $s) => $s->line_id === null || (int) $s->line_id === $lineId);
         $intervals = [];
-
-        // Start a day early so a night shift that began yesterday still counts.
-        $day = self::toCarbon($this->from)->startOfDay()->subDay();
-        $last = self::toCarbon($this->to)->startOfDay();
-        while ($day->lte($last)) {
-            $dow = (int) $day->format('N');
-            foreach ($shifts as $shift) {
-                $days = $shift->days_of_week;
-                if (is_array($days) && ! in_array($dow, $days, true)) {
-                    continue;
-                }
-                $start = $day->copy()->setTimeFromTimeString($shift->start_time);
-                $end = $day->copy()->setTimeFromTimeString($shift->end_time);
-                if ($end->equalTo($start)) {
-                    continue;
-                }
-                if ($end->lessThan($start)) {
-                    $end->addDay();
-                }
-                $a = max($this->from, self::toMinutes($start));
-                $b = min($this->to, self::toMinutes($end));
-                if ($b > $a) {
-                    $intervals[] = [$a, $b];
-                }
+        foreach (ShiftOccurrences::occurrences($this->shifts, $lineId, $this->from, $this->to) as $run) {
+            $a = max($this->from, $run['start']);
+            $b = min($this->to, $run['end']);
+            if ($b > $a) {
+                $intervals[] = [$a, $b];
             }
-            $day->addDay();
         }
 
         return $this->merge($intervals);

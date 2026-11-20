@@ -100,47 +100,7 @@ class SchedulePlannerService
             $shiftsPerDay = min(4, max(1, $shifts->count()));
         }
 
-        $workOrders = WorkOrder::with(['productType', 'line', 'customer', 'extraPlacements'])
-            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->where(function ($q) use ($lineIds) {
-                // An order shows on every line it runs on — its primary
-                // placement or any extra segment.
-                $q->whereIn('line_id', $lineIds)
-                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereIn('line_id', $lineIds));
-            })
-            ->where(function ($q) use ($rangeStart, $rangeEnd) {
-                $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
-                    ->orWhereBetween('planned_start_at', [$rangeStart, $rangeEnd])
-                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
-                    // Extra segments are scheduled independently — an order
-                    // with any segment in the range must ship too.
-                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd])
-                        ->orWhere(fn ($span) => $span->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay())))
-                    ->orWhere(fn ($span) => $span->whereNull('planned_start_at')->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
-                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
-                        // Minute-planned orders that overlap the visible range
-                        $q2->whereNotNull('planned_start_at')
-                            ->whereNotNull('planned_end_at')
-                            ->where('planned_start_at', '<', $rangeEnd)
-                            ->where('planned_end_at', '>', $rangeStart);
-                    })
-                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
-                        $q2->whereNull('due_date')
-                            ->where(function ($q3) use ($rangeStart, $rangeEnd) {
-                                // Match by week_number if due_date is null
-                                $weekNumbers = [];
-                                $cursor = $rangeStart->copy();
-                                while ($cursor->lte($rangeEnd)) {
-                                    $weekNumbers[] = $cursor->isoWeek();
-                                    $cursor->addWeek();
-                                }
-                                $q3->whereIn('week_number', array_unique($weekNumbers));
-                            });
-                    });
-            })
-            ->orderBy('priority', 'desc')
-            ->orderBy('due_date')
-            ->get();
+        $workOrders = $this->boardOrders($lineIds, $rangeStart, $rangeEnd);
 
         $navPrev = match ($viewMode) {
             'daily', 'hourly' => $startDate->copy()->subDay(),
@@ -267,6 +227,63 @@ class SchedulePlannerService
     }
 
     /**
+     * The active orders the board draws for these lines and range: every
+     * order placed on one of the lines (primary or extra segment) whose
+     * placement, minute plan or due date falls in the range. Also what the
+     * planner's staffing cells count, so a badge never disagrees with the
+     * blocks under it.
+     *
+     * @param  iterable<int>  $lineIds
+     * @return \Illuminate\Database\Eloquent\Collection<int, WorkOrder>
+     */
+    public function boardOrders(iterable $lineIds, Carbon $rangeStart, Carbon $rangeEnd): \Illuminate\Database\Eloquent\Collection
+    {
+        $lineIds = collect($lineIds)->values();
+
+        return WorkOrder::with(['productType', 'line', 'customer', 'extraPlacements'])
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->where(function ($q) use ($lineIds) {
+                // An order shows on every line it runs on — its primary
+                // placement or any extra segment.
+                $q->whereIn('line_id', $lineIds)
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereIn('line_id', $lineIds));
+            })
+            ->where(function ($q) use ($rangeStart, $rangeEnd) {
+                $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    ->orWhereBetween('planned_start_at', [$rangeStart, $rangeEnd])
+                    ->orWhere(fn ($span) => $span->where('planned_start_at', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
+                    // Extra segments are scheduled independently — an order
+                    // with any segment in the range must ship too.
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                        ->orWhere(fn ($span) => $span->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay())))
+                    ->orWhere(fn ($span) => $span->whereNull('planned_start_at')->where('due_date', '<=', $rangeEnd)->where('end_date', '>=', $rangeStart->copy()->subDay()))
+                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
+                        // Minute-planned orders that overlap the visible range
+                        $q2->whereNotNull('planned_start_at')
+                            ->whereNotNull('planned_end_at')
+                            ->where('planned_start_at', '<', $rangeEnd)
+                            ->where('planned_end_at', '>', $rangeStart);
+                    })
+                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
+                        $q2->whereNull('due_date')
+                            ->where(function ($q3) use ($rangeStart, $rangeEnd) {
+                                // Match by week_number if due_date is null
+                                $weekNumbers = [];
+                                $cursor = $rangeStart->copy();
+                                while ($cursor->lte($rangeEnd)) {
+                                    $weekNumbers[] = $cursor->isoWeek();
+                                    $cursor->addWeek();
+                                }
+                                $q3->whereIn('week_number', array_unique($weekNumbers));
+                            });
+                    });
+            })
+            ->orderBy('priority', 'desc')
+            ->orderBy('due_date')
+            ->get();
+    }
+
+    /**
      * Move / re-place an order. Only fields present in `$input` are touched, so
      * a partial edit (a single-segment drag, the capacity drill-down, a stale
      * client) can't silently null or revert placements it didn't mean to change.
@@ -384,7 +401,8 @@ class SchedulePlannerService
             }
         }
 
-        $this->logChange($workOrder, $snapshotBefore);
+        $change = $this->logChange($workOrder, $snapshotBefore);
+        app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder);
 
         // Batch preparation may write the snapshot the cross-line check reads.
         $batchWarnings = $this->prepareBatchAndWarn($workOrder);
@@ -396,6 +414,8 @@ class SchedulePlannerService
             // The subset above about steps on other lines' workstations, so a
             // caller placing many orders at once can summarise them.
             'cross_line_warnings' => $crossLine,
+            // The change-log row this edit wrote; null when nothing changed.
+            'change_log_id' => $change?->id,
         ];
     }
 
@@ -441,6 +461,7 @@ class SchedulePlannerService
                 'planned_end_at' => $input['planned_end_at'],
             ]);
             $this->logChange($workOrder, $snapshotBefore);
+            app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder);
 
             return ['conflict' => false];
         }
@@ -455,6 +476,7 @@ class SchedulePlannerService
             ]);
         }
         $this->logChange($workOrder, $snapshotBefore);
+        app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder);
 
         return ['conflict' => false];
     }
@@ -526,6 +548,7 @@ class SchedulePlannerService
             'before' => $current,
             'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
         ]);
+        app(\App\Services\Schedule\Insights\StaffingSnapshots::class)->capture($workOrder);
 
         return true;
     }
@@ -555,14 +578,15 @@ class SchedulePlannerService
         ];
     }
 
-    /** Log the edit when the snapshot actually changed. */
-    public function logChange(WorkOrder $workOrder, array $before): void
+    /** Log the edit when the snapshot actually changed; the row written, or null. */
+    public function logChange(WorkOrder $workOrder, array $before): ?ScheduleChangeLog
     {
         $after = $this->placementSnapshot($workOrder->fresh('extraPlacements'));
         if ($before == $after) {
-            return;
+            return null;
         }
-        ScheduleChangeLog::create([
+
+        return ScheduleChangeLog::create([
             'work_order_id' => $workOrder->id,
             'user_id' => auth()->id(),
             'action' => 'reschedule',

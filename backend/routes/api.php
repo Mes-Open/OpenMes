@@ -169,6 +169,16 @@ Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(functi
         Route::post('/process-templates/import', [MasterDataImportController::class, 'processTemplates']);
     });
 
+    // Shipments / scan-to-load verification (#400): loads in, load results out.
+    // `module:packaging` first so a disabled Packaging module 404s for every key.
+    Route::post('/shipments', [\App\Http\Controllers\Api\V1\Erp\ShipmentController::class, 'store'])
+        ->middleware(['module:packaging', 'scope:erp:shipments:write', 'throttle:erp-import']);
+    Route::get('/shipments', [\App\Http\Controllers\Api\V1\Erp\ShipmentController::class, 'index'])
+        ->middleware(['module:packaging', 'scope:erp:shipments:read', 'throttle:erp-read']);
+    Route::get('/shipments/{shipmentNo}', [\App\Http\Controllers\Api\V1\Erp\ShipmentController::class, 'show'])
+        ->where('shipmentNo', '.+')
+        ->middleware(['module:packaging', 'scope:erp:shipments:read', 'throttle:erp-read']);
+
     // Warehouse balances (#212): ERP snapshot in, OpenMES view out.
     Route::post('/stock/import', [StockSyncController::class, 'import'])
         ->middleware(['scope:erp:stock:write', 'throttle:erp-import']);
@@ -647,6 +657,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'update']);
         Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault']);
         Route::delete('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'destroy']);
+    });
+
+    // Shipments / scan-to-load verification (#400). Roles are enforced by
+    // ShipmentPolicy through the Form Requests: supervisors plan, the dock scans.
+    Route::middleware('module:packaging')->prefix('shipments')->controller(\App\Http\Controllers\Api\V1\ShipmentController::class)->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/{shipment}', 'show');
+        Route::post('/{shipment}/scan', 'scan')->middleware('throttle:240,1');
+        Route::post('/{shipment}/items/{item}/unload', 'unload')->scopeBindings();
+        Route::post('/{shipment}/confirm', 'confirm');
     });
 
     // Work Orders

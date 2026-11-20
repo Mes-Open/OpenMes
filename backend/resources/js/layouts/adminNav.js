@@ -206,13 +206,16 @@ export const ADMIN_GROUPS = [
         lucide: 'warehouse',
         // The stock screens themselves ship as a module; what stays here is
         // the material catalogue, which production needs on its own.
-        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets'],
+        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets', '/admin/shipments', '/logistics/loading'],
         children: [
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
             { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             // Finished goods leave the plant on pallets: closing, quality and shipping live here.
             { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
+            // Scan-to-load verification (#400): plan the load, then scan it onto the truck.
+            { label: 'Shipments', href: '/admin/shipments', match: ['/admin/shipments'], tab: 'packaging', lucide: 'truck' },
+            { label: 'Loading terminal', href: '/logistics/loading', match: ['/logistics/loading'], tab: 'packaging', lucide: 'scan-barcode' },
         ],
     },
     {

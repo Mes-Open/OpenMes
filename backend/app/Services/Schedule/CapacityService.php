@@ -30,9 +30,12 @@ use Illuminate\Support\Collection;
  *
  * The *crew* axis ({@see crewCapacity()}) supplies labor capacity: available
  * hours from each crew's workers (their line's shifts minus approved absences
- * and crew break windows), planned hours from the forward labor demand of the
- * lines the crew staffs (explicit crew↔line assignment, else derived from
- * worker → workstation → line), weighted by each order's required operators.
+ * and crew break windows; a shift's minutes count on the date it starts and
+ * absences are checked on that date, so a night shift is the evening's — the
+ * same convention the finite scheduler uses), planned hours from the forward
+ * labor demand of the lines the crew staffs (explicit crew↔line assignment,
+ * else derived from worker → workstation → line), weighted by each order's
+ * required operators.
  * See {@see crewCapacity()} for the demand model.
  *
  * Every cell carries both figures: `calendar_h` (what the shift calendar
@@ -792,6 +795,9 @@ class CapacityService
      * Labor-minutes a crew supplies within a bucket: for each active,
      * non-absent worker, their line's shift minutes on each working day, less
      * the crew's break windows for that day (floored at zero per worker-day).
+     * A shift's full minutes count on the weekday it starts, and that date's
+     * absences apply — a night shift crossing midnight belongs to the evening
+     * it began, as {@see WorkforceProvider::absentWorkerIds()} defines.
      *
      * @param  array<string, array<int>>  $absentByDay  per-day absent-worker cache (by reference)
      */

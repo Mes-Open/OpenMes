@@ -46,6 +46,7 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
+use App\Http\Controllers\Web\Logistics\ShipmentLoadingController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\InspectionController as OperatorInspectionController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
@@ -474,6 +475,13 @@ Route::middleware('auth')->group(function () {
             Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
         });
 
+        // Shipments (#400) — same controller as the /admin twin, which gets its
+        // module gate from tab.access (packaging tab); this tree needs its own.
+        Route::middleware('module:packaging')->group(function () {
+            Route::resource('shipments', \App\Http\Controllers\Web\Admin\ShipmentController::class);
+            Route::post('/shipments/{shipment}/cancel', [\App\Http\Controllers\Web\Admin\ShipmentController::class, 'cancel'])->name('shipments.cancel');
+        });
+
         Route::middleware('module:reports')->group(function () {
             Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
             Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
@@ -544,6 +552,7 @@ Route::middleware('auth')->group(function () {
         // Finite-capacity scheduling: what-if simulation, apply/discard, overrides.
         Route::get('/schedule/auto', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'index'])->name('schedule.auto');
         Route::post('/schedule/simulations', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'generate'])->name('schedule.simulations.store');
+        Route::get('/schedule/simulations/{simulation}/status', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'status'])->name('schedule.simulations.status');
         Route::post('/schedule/simulations/{simulation}/apply', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'apply'])->name('schedule.simulations.apply');
         Route::post('/schedule/simulations/{simulation}/discard', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'discard'])->name('schedule.simulations.discard');
         Route::put('/schedule/operations/{operation}', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'override'])->name('schedule.operations.override');
@@ -551,6 +560,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('schedule/changeover-rules', \App\Http\Controllers\Web\Admin\Schedule\ChangeoverRuleController::class)
             ->except(['show'])
             ->names('schedule.changeover-rules');
+        // Production Planner insights drawer (Admin + Supervisor, see PlanningInsightAcknowledgementPolicy).
+        Route::get('/schedule/insights', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'index'])->name('schedule.insights');
+        Route::post('/schedule/insights/acknowledge', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'acknowledge'])->name('schedule.insights.acknowledge');
+        Route::post('/schedule/insights/move', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'move'])->name('schedule.insights.move');
+        Route::post('/schedule/insights/substitute', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'substitute'])->name('schedule.insights.substitute');
+        Route::post('/schedule/insights/acknowledgements/{acknowledgement}/undo', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'undo'])->name('schedule.insights.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
         Route::post('/schedule/maintenance', [SchedulePlannerController::class, 'storeMaintenance'])->name('schedule.maintenance.store');
@@ -756,6 +771,10 @@ Route::middleware('auth')->group(function () {
 
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
+
+        // Shipments / scan-to-load verification (#400) — packaging tab.
+        Route::resource('shipments', \App\Http\Controllers\Web\Admin\ShipmentController::class);
+        Route::post('/shipments/{shipment}/cancel', [\App\Http\Controllers\Web\Admin\ShipmentController::class, 'cancel'])->name('shipments.cancel');
 
         // Physical pallet movement history (#103) — who moved which pallet where.
         Route::get('pallet-movements', [PalletMovementController::class, 'index'])->name('pallet-movements.index');
@@ -1018,6 +1037,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/pallets', [PalletMovementController::class, 'pallets'])->name('pallets');
             Route::post('/pallets/destination', [PalletMovementController::class, 'assignDestination'])
                 ->name('pallets.destination');
+
+            // Scan-to-load verification terminal (#400). JSON writes: the page
+            // stays put and the lists update from the synced collections.
+            Route::middleware('module:packaging')->prefix('loading')->name('loading.')
+                ->controller(ShipmentLoadingController::class)
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/{shipment}', 'show')->name('show');
+                    Route::post('/{shipment}/scan', 'scan')->name('scan')->middleware('throttle:240,1');
+                    Route::post('/{shipment}/items/{item}/unload', 'unload')->name('unload')->scopeBindings();
+                    Route::post('/{shipment}/confirm', 'confirm')->name('confirm');
+                });
         });
 
     // ── Packaging ───────────────────────────────────────────────────────────

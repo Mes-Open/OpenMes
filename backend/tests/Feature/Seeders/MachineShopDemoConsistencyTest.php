@@ -165,7 +165,7 @@ class MachineShopDemoConsistencyTest extends TestCase
         $this->assertStartedOrdersStayOnTheFloor();
     }
 
-    /** An order with finished batches is running, blocked or done — never back in the queue. */
+    /** An order with finished batches is running, blocked or done — never back in the queue, never reopened. */
     private function assertStartedOrdersStayOnTheFloor(): void
     {
         $queued = WorkOrder::whereIn('status', [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])
@@ -173,6 +173,11 @@ class MachineShopDemoConsistencyTest extends TestCase
             ->pluck('status', 'order_no')->all();
 
         $this->assertSame([], $queued, 'Started orders are back in the queue.');
+
+        // And one that made its plan stays finished.
+        $reopened = WorkOrder::whereNotNull('completed_at')->where('status', '!=', WorkOrder::STATUS_DONE)
+            ->pluck('status', 'order_no')->all();
+        $this->assertSame([], $reopened, 'Completed orders are no longer DONE.');
     }
 
     /** The replay stops at the present: nothing it records is dated later. */

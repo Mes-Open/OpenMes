@@ -108,7 +108,7 @@ class TabRegistry
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
         'modules' => ['label' => 'Modules', 'prefixes' => ['/admin/modules']],
-        'packaging' => ['label' => 'Packaging', 'prefixes' => ['/admin/pallets', '/admin/pallet-movements']],
+        'packaging' => ['label' => 'Packaging', 'prefixes' => ['/admin/pallets', '/admin/pallet-movements', '/admin/shipments']],
     ];
 
     /** @return array<int, string> */

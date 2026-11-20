@@ -29,6 +29,9 @@ class WebhookEventRegistry
 
     public const STOCK_DOCUMENT_POSTED = 'stock_document.posted';
 
+    /** A load was confirmed at the dock — payload is the ERP shipment result (#400). */
+    public const SHIPMENT_CONFIRMED = 'shipment.confirmed';
+
     /**
      * event key => English label (translated through __() for the UI).
      * Order drives the UI checklist order.
@@ -41,6 +44,7 @@ class WebhookEventRegistry
         self::QUALITY_ISSUE_CREATED => 'Quality issue created',
         self::BATCH_COMPLETED => 'Batch completed',
         self::STOCK_DOCUMENT_POSTED => 'Stock document posted',
+        self::SHIPMENT_CONFIRMED => 'Shipment confirmed',
     ];
 
     /** @return array<int, string> */

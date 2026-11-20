@@ -71,8 +71,12 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
 
                 const load = async () => {
                     try {
+                        // X-Requested-With keeps this background read out of
+                        // the session's "previous URL": without it, a later
+                        // back() redirect (language switch, a failed form)
+                        // lands the browser on this JSON instead of the page.
                         const res = await fetch(`/api/collections/${name}`, {
-                            headers: { Accept: 'application/json' },
+                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             credentials: 'same-origin',
                         });
                         if (!res.ok) throw new Error(`snapshot ${name}: HTTP ${res.status}`);

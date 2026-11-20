@@ -983,7 +983,9 @@ export default function LineShow() {
                             allProductTypes={allProductTypes}
                             assignedTypeIds={assignedTypeIds}
                         />
-                        <OperatorsCard line={line} availableOperators={availableOperators} />
+                        <div id="operators" className="scroll-mt-4">
+                            <OperatorsCard line={line} availableOperators={availableOperators} />
+                        </div>
                         <DefaultViewCard line={line} />
                         <CustomFieldsDisplay definitions={customFields} values={line.custom_fields ?? {}} />
                     </div>
