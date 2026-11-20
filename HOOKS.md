@@ -261,6 +261,27 @@ $menu->addSupervisorItem('production', 'Pallets', url('/modules/pallets'), order
 They arrive as `moduleNav.supervisor` and merge into the supervisor dropdowns.
 What a supervisor may open is still decided by the route's own middleware.
 
+### Traceability
+
+The traceability console (`/admin/traceability`) takes two filters, both
+speaking the same section shape:
+
+```php
+// A code core does not know (your carton, your container): return a result
+// for it, or pass $found through. The first module that answers wins.
+$filters->addFilter('traceability.resolve', fn ($found, array $ctx) => $found ?? $this->resolve($ctx['term']));
+
+// Add sections to any result. $ctx: type (batch | material_lot | pallet | serial
+// | component | work_order | customer_order | module), model (what the term
+// resolved to, or null) and term.
+$filters->addFilter('traceability.sections', fn (array $sections, array $ctx) => [...$sections, ...$this->sections($ctx)]);
+```
+
+A result is `['kind', 'id', 'status' => null, 'facts' => [['label', 'value', 'mono', 'link']], 'sections' => [...]]`;
+a section is `['key', 'title', 'columns' => [['key', 'label', 'mono', 'link']], 'rows' => [[...]], 'empty' => null]`.
+Labels are translated by the module. A column or fact with `link` renders its
+value as an identifier that opens its own trace.
+
 ### Translations
 
 A module's own strings live in `modules/<Name>/lang/<locale>.json` (the same

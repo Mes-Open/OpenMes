@@ -793,3 +793,80 @@ function ComponentJourneys({ components }) {
         </Card>
     );
 }
+
+/* ── Module results ──────────────────────────────────────────────────── */
+
+/**
+ * Sections a module adds to a trace (filter `traceability.sections`, or the
+ * result of `traceability.resolve`). Labels arrive translated; a column
+ * marked `link` renders its value as an identifier that opens its own trace.
+ *
+ * section: { key, title, columns: [{ key, label, mono?, link? }], rows: [{...}], empty? }
+ */
+export function ModuleSections({ sections = [] }) {
+    if (!sections.length) return null;
+
+    return (
+        <div className="mt-5 flex flex-col gap-5">
+            {sections.map((section) => (
+                <Card key={section.key ?? section.title} title={section.title}
+                    action={<span className="font-mono text-[11px] text-om-muted">{(section.rows ?? []).length}</span>}>
+                    {(section.rows ?? []).length === 0 ? (
+                        <Empty>{section.empty ?? __('Nothing recorded.')}</Empty>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[13px]">
+                                <thead className="border-b border-om-line">
+                                    <tr>
+                                        {(section.columns ?? []).map((c) => (
+                                            <th key={c.key} className="px-2 py-2 text-left text-[11px] font-medium text-om-muted">{c.label}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {section.rows.map((row, i) => (
+                                        <tr key={i} className="border-b border-om-line2 last:border-0">
+                                            {(section.columns ?? []).map((c) => (
+                                                <td key={c.key} className={`px-2 py-2 align-top ${c.mono ? 'font-mono' : ''}`}>
+                                                    {c.link ? <Ref id={row[c.key]} /> : (row[c.key] ?? '—')}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * A thing only a module knows (filter `traceability.resolve`).
+ * data: { kind, id, status?, facts: [{ label, value, mono?, link? }], sections: [...] }
+ */
+export function ModuleResult({ data }) {
+    return (
+        <div className="flex flex-col gap-5">
+            <section className="rounded-om border border-om-line bg-om-card px-[22px] py-5">
+                <div className="font-mono text-[10px] tracking-[0.1em] text-om-faint uppercase">{data.kind}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <span className="font-mono text-[22px] font-semibold text-om-ink">{data.id}</span>
+                    {data.status && <Badge>{data.status}</Badge>}
+                </div>
+                {(data.facts ?? []).length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                        {data.facts.map((f) => (
+                            <Field key={f.label} label={f.label} mono={f.mono}>
+                                {f.link ? <Ref id={f.value} /> : f.value}
+                            </Field>
+                        ))}
+                    </div>
+                )}
+            </section>
+            <ModuleSections sections={data.sections ?? []} />
+        </div>
+    );
+}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Extension\FilterRegistry;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Line;
@@ -22,6 +23,10 @@ use Inertia\Inertia;
  *
  * Resolves a finished-goods LOT, a material lot, a supplier LOT, or a serial
  * number and renders its full genealogy tree — the "recall readiness" view.
+ *
+ * Modules extend it through two filters (see HOOKS.md): `traceability.resolve`
+ * answers for a code core does not know, `traceability.sections` adds
+ * sections to any result. Both use the same section shape.
  */
 class TraceabilityController extends Controller
 {
@@ -37,9 +42,12 @@ class TraceabilityController extends Controller
         // the plant normalises them (case, spacing); look them up the same way.
         $identifier = app(UnitSerialisation::class)->normalize($term) ?? $term;
         $result = null;
+        // What the term resolved to, handed to modules that add their own sections.
+        $subject = null;
 
         if ($term !== '') {
             $resolved = $this->tracer->resolve($term);
+            $subject = $resolved['model'] ?? null;
 
             if ($resolved && $resolved['type'] === 'pallet') {
                 $result = [
@@ -67,6 +75,7 @@ class TraceabilityController extends Controller
             } elseif ($unit = SerialUnit::where(function ($q) use ($term, $identifier) {
                 $q->whereIn('serial_no', [$term, $identifier])->orWhereIn('psn', [$term, $identifier]);
             })->first()) {
+                $subject = $unit;
                 $result = [
                     'type' => 'serial',
                     'recall' => $this->tracer->recallImpactForSerial($unit),
@@ -83,6 +92,7 @@ class TraceabilityController extends Controller
                     'data' => $this->tracer->componentTrace($componentId),
                 ];
             } elseif ($workOrder = WorkOrder::where('order_no', $term)->first()) {
+                $subject = $workOrder;
                 // The order number is what the shop floor knows - and what the
                 // console's own orders table links with.
                 $result = [
@@ -96,6 +106,28 @@ class TraceabilityController extends Controller
                     'data' => $this->tracer->customerOrderTrace($term),
                 ];
             }
+        }
+
+        $filters = app(FilterRegistry::class);
+        if ($term !== '' && $result === null) {
+            // A code only a module knows (its carton, its container...): the
+            // first module that recognises it answers with a generic result.
+            $found = $filters->filter('traceability.resolve', null, ['term' => $term]);
+            if (is_array($found)) {
+                $result = ['type' => 'module', 'data' => $found];
+            }
+        }
+        if ($result !== null) {
+            // Modules add what they record about the same thing - cartons and
+            // pallets of a batch, the containers a lot went into.
+            $result['sections'] = array_values(array_filter(
+                (array) $filters->filter('traceability.sections', [], [
+                    'type' => $result['type'],
+                    'model' => $subject,
+                    'term' => $term,
+                ]),
+                'is_array',
+            ));
         }
 
         return Inertia::render('admin/traceability/Index', [

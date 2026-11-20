@@ -8,7 +8,7 @@ import { woColumns } from '../work-orders/columns';
 import { STATUS_STYLES as LOT_STATUS_STYLES, materialLotStatusLabel } from '../material-lots/fields';
 import { serialStatusBadge, serialStatusLabel } from '../../../lib/serialStatus';
 import { __ } from '../../../lib/i18n';
-import { BatchResult, ComponentResult, MaterialLotResult, OrderResult, PalletResult, SerialResult, traceLink } from './results';
+import { BatchResult, ComponentResult, MaterialLotResult, OrderResult, PalletResult, SerialResult, traceLink, ModuleResult, ModuleSections } from './results';
 
 /**
  * Traceability / genealogy console.
@@ -129,6 +129,8 @@ export default function TraceabilityIndex() {
                     {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} recall={result.recall} units={result.units ?? []} />}
                     {result?.type === 'serial' && <SerialResult unit={result.data} recall={result.recall} components={result.components} installed={result.installed} installedIn={result.installed_in} />}
                     {result?.type === 'component' && <ComponentResult data={result.data} />}
+                    {result?.type === 'module' && <ModuleResult data={result.data} />}
+                    {result && <ModuleSections sections={result.sections ?? []} />}
                 </div>
             )}
         </>

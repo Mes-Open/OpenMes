@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Modules can extend the traceability console.** Two filters: `traceability.resolve`
+  answers for a code only a module knows (its carton, its container), `traceability.sections`
+  adds sections to any trace (a batch's cartons and pallets, the containers a lot went
+  into). Recall readiness then covers what modules record, in one place. See HOOKS.md.
+
 - **Modules can add links to the supervisor sidebar.** `MenuRegistry::addSupervisorItem()`
   puts a module's screen into a supervisor dropdown (orders, production, logistics,
   reports); until now module links reached only the admin sidebar, so a supervisor could

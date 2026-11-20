@@ -7775,5 +7775,6 @@
     "Nothing needs attention on this day: every shift has the people its work needs.": "Tego dnia nic nie wymaga uwagi: każda zmiana ma ludzi, których potrzebuje jej praca.",
     "The end time must differ from the start time.": "Godzina końca musi się różnić od godziny początku.",
     "Activity added. It ends the next day at :time.": "Dodano aktywność. Kończy się następnego dnia o :time.",
-    "Ends the next day at :time.": "Kończy się następnego dnia o :time."
+    "Ends the next day at :time.": "Kończy się następnego dnia o :time.",
+    "Nothing recorded.": "Nic nie zapisano."
 }
