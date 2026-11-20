@@ -97,6 +97,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Option lists and field labels follow the interface language.** Pages are loaded before
+  the translations were, so anything a screen translated while loading - the trigger types on
+  *Quality Control Triggers*, the field labels of issue types, product types, tools, cost
+  sources, companies and a dozen more forms - stayed in English whatever language was set.
+  The active language is now loaded first.
+
+- **Quality tasks and quality control triggers are in the admin menu.** Both screens existed
+  but an admin could open them only by typing the address. They are now under *Production*,
+  next to *Issues*.
+
 - **Polish wording of step outputs.** The values an operator records on a process step were
   called *wyjścia* ("outputs" in the electrical sense), which meant nothing to Polish users.
   They are now *wyniki kroku* in the template editor, on the operator's order screen and in

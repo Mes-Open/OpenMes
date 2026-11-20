@@ -366,3 +366,36 @@ export function pluralIndex(loc, n) {
 
     return n === 1 ? 0 : 1;
 }
+
+/**
+ * The locale the server rendered this page in: the Inertia payload app.jsx
+ * boots from, or <html lang> on a page that has none.
+ */
+function initialLocale() {
+    try {
+        const json = document.querySelector('script[type="application/json"][data-page]');
+        const raw = json ? json.textContent : document.getElementById('app')?.dataset?.page;
+        const fromPage = raw ? JSON.parse(raw).props?.locale : null;
+
+        return String(fromPage || document.documentElement?.lang || 'en').replace('-', '_');
+    } catch {
+        return 'en';
+    }
+}
+
+// Pages are imported eagerly (app.jsx), and many of them translate at module
+// level: option lists, column sets, whole field configs. Those calls run when
+// the page module is evaluated - before app.jsx's setup() has loaded a locale -
+// so the constant froze the English source, and a Polish screen showed "Every N
+// minutes" in the trigger form and English labels in a dozen other field sets.
+// Loading the locale here, while this module is still being evaluated, makes
+// every module that imports __ wait for it. Browser only: tests and anything
+// else without a document call loadLocale() themselves. A locale that fails to
+// load must not stop the app from starting; setup() loads it again and reports.
+if (typeof document !== 'undefined') {
+    try {
+        await loadLocale(initialLocale());
+    } catch {
+        // Left in English until setup() retries.
+    }
+}
