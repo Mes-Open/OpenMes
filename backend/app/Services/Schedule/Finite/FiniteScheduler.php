@@ -14,6 +14,7 @@ use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\Material\MaterialAllocationService;
 use App\Services\Schedule\BoardCells;
+use App\Services\Schedule\QualityHolds;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -31,6 +32,9 @@ use Illuminate\Support\Collection;
  *     operations are reported material-constrained. Stock is netted across the
  *     run in scheduling order, so two orders cannot both count on the same
  *     pallet. No readiness date is invented — OpenMES does not know one.
+ *     An order on quality hold — an open blocking quality control or a
+ *     blocking issue ({@see QualityHolds}) — keeps a step already running,
+ *     but nothing after it is placed until the hold is lifted.
  *  3. Its operations follow routing order: each starts no earlier than its
  *     predecessor ends. A step that cannot be placed makes every later step
  *     infeasible by precedence.
@@ -100,6 +104,7 @@ class FiniteScheduler
         private readonly MaterialAllocationService $materials,
         private readonly ChangeoverResolver $changeovers,
         private readonly WorkforceProvider $people,
+        private readonly QualityHolds $quality = new QualityHolds,
     ) {}
 
     /**
@@ -141,6 +146,9 @@ class FiniteScheduler
         $shortages = $request->respectMaterial
             ? $this->materials->shortagesForWorkOrders($orders, netted: true)
             : [];
+        $holds = $request->respectQuality
+            ? $this->quality->forOrders($orders->pluck('id')->all())
+            : [];
 
         $operations = [];
         $summaries = [];
@@ -155,6 +163,8 @@ class FiniteScheduler
 
             if (isset($shortages[$order->id])) {
                 $blocked = ScheduledOperationStatus::InfeasibleMaterial;
+            } elseif (isset($holds[$order->id])) {
+                $blocked = ScheduledOperationStatus::InfeasibleQuality;
             }
 
             foreach ($demands as $demand) {
@@ -172,7 +182,19 @@ class FiniteScheduler
                     continue;
                 }
 
-                if ($blocked !== null) {
+                if ($blocked === ScheduledOperationStatus::InfeasibleQuality) {
+                    // A running step carries on; the next one may not start
+                    // until the control is performed or the issue resolved.
+                    if (! $demand->isStarted()) {
+                        $orderResults[] = $this->unplaced($order, $demand, $sequence, $blocked, [[
+                            'code' => 'quality',
+                            'message' => __('On quality hold — :holds', ['holds' => QualityHolds::describe($holds[$order->id])]),
+                            'holds' => $holds[$order->id],
+                        ]]);
+
+                        continue;
+                    }
+                } elseif ($blocked !== null) {
                     $orderResults[] = $this->unplaced($order, $demand, $sequence, ScheduledOperationStatus::InfeasiblePredecessor, [
                         $this->predecessorReason($blocker),
                     ]);
@@ -185,14 +207,14 @@ class FiniteScheduler
 
                 if ($result['status']->isScheduled()) {
                     $earliest = max($earliest, ResourceCalendar::toMinutes($result['planned_end_at']));
-                } else {
+                } elseif ($blocked !== ScheduledOperationStatus::InfeasibleQuality) {
                     $blocked = $result['status'];
                     $blocker = $result;
                 }
             }
 
             $operations = [...$operations, ...$orderResults];
-            $summaries[] = $this->summarizeOrder($order, $orderResults, isset($shortages[$order->id]));
+            $summaries[] = $this->summarizeOrder($order, $orderResults, isset($shortages[$order->id]), ! isset($shortages[$order->id]) && isset($holds[$order->id]));
         }
 
         $workforce = $this->workforceByLine($request->start, $request->end);
@@ -1390,7 +1412,7 @@ class FiniteScheduler
      * @param  list<array<string, mixed>>  $results
      * @return array<string, mixed>
      */
-    private function summarizeOrder(WorkOrder $order, array $results, bool $materialShort): array
+    private function summarizeOrder(WorkOrder $order, array $results, bool $materialShort, bool $qualityHold = false): array
     {
         $placed = array_filter($results, fn ($r) => $r['status']->isScheduled());
         $starts = array_map(fn ($r) => $r['planned_start_at'], $placed);
@@ -1405,6 +1427,7 @@ class FiniteScheduler
             'feasible' => $feasible,
             'late' => collect($results)->contains(fn ($r) => $r['status'] === ScheduledOperationStatus::ScheduledLate),
             'material_constrained' => $materialShort,
+            'quality_hold' => $qualityHold,
             'planned_start_at' => $starts !== [] ? min($starts)->toIso8601String() : null,
             'planned_end_at' => $feasible ? max($ends)->toIso8601String() : null,
             'operation_count' => count($results),

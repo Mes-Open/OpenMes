@@ -5,7 +5,7 @@ import { useState, useRef } from 'react';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
 import { TwinChip, ShortageChip } from './OrderCard';
-import { ShortMarker, StaffBadge } from './insights';
+import { QualityMarker, ShortMarker, StaffBadge } from './insights';
 import { cellKey } from './insightsState';
 import {
     hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
@@ -124,6 +124,7 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop, short = false }) {
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
                         <span className="ml-auto flex items-center gap-1">
                             {short && <ShortMarker onOpen={ctx.onOrderMarker ? () => ctx.onOrderMarker(wo) : null}>!</ShortMarker>}
+                            {ctx.qualityHold?.(wo) && <QualityMarker onOpen={ctx.onQualityMarker ? () => ctx.onQualityMarker(wo) : null} />}
                             <ShortageChip wo={wo} compact />
                         </span>
                     </div>

@@ -15,6 +15,7 @@ enum ScheduledOperationStatus: string
     case ScheduledLate = 'scheduled_late';
     case InfeasibleResourceCapacity = 'infeasible_resource_capacity';
     case InfeasibleMaterial = 'infeasible_material';
+    case InfeasibleQuality = 'infeasible_quality';
     case InfeasibleWorkforceCapacity = 'infeasible_workforce_capacity';
     case InfeasibleQualification = 'infeasible_qualification';
     case InfeasibleNoEligibleWorkstation = 'infeasible_no_eligible_workstation';
@@ -39,6 +40,7 @@ enum ScheduledOperationStatus: string
             self::ScheduledLate => __('Scheduled — late'),
             self::InfeasibleResourceCapacity => __('Infeasible — resource capacity'),
             self::InfeasibleMaterial => __('Infeasible — material'),
+            self::InfeasibleQuality => __('Infeasible — quality hold'),
             self::InfeasibleWorkforceCapacity => __('Infeasible — workforce capacity'),
             self::InfeasibleQualification => __('Infeasible — qualification'),
             self::InfeasibleNoEligibleWorkstation => __('Infeasible — no eligible workstation'),

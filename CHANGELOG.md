@@ -9,6 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Quality holds in the scheduler.** An order held back by quality — an open quality
+  control whose trigger is blocking, or an open or acknowledged issue that blocks the work
+  order — is no longer placed by *Automatic scheduling*. Its operations get the new status
+  *Infeasible — quality hold* with the control or issue named in the reason, and the next order
+  takes the freed slot; a step already running stays pinned and only later steps are held. A
+  material shortage still wins over a quality hold. A new **Quality holds** checkbox (on by
+  default, saved with each simulation as `respect_quality`) lets a planner plan as if the holds
+  were lifted. The *Production Planner* flags a held order already on the visible plan with an
+  amber **QC** marker in its shift and a new *Quality* insight (filter *Quality*) that names the
+  hold and links to *Quality tasks* or *Issues*; performing the control or resolving the issue
+  clears it, and an acknowledged insight reopens when a new hold appears.
 - **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
   of pallets and cartons it must take, and the dock scans every label against that list
   before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
