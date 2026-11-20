@@ -182,6 +182,7 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Issue::observe(\App\Observers\IssueWebhookObserver::class);
         \App\Models\Batch::observe(\App\Observers\BatchWebhookObserver::class);
         \App\Models\StockDocument::observe(\App\Observers\StockDocumentWebhookObserver::class);
+        \App\Models\Shipment::observe(\App\Observers\ShipmentWebhookObserver::class);
 
         // Module hook system: dispatch the domain events modules listen to.
         // Typed lifecycle events (previously defined but never fired) — these make

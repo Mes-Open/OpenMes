@@ -27,6 +27,12 @@ enum ApiScope: string
     /** Warehouse balance sync and acknowledging exported stock documents (#212). */
     case StockWrite = 'erp:stock:write';
 
+    /** Send shipments (loads) with their expected pallets / cartons (#400). */
+    case ShipmentsWrite = 'erp:shipments:write';
+
+    /** Read shipment load results — loaded, missing, unexpected (#400). */
+    case ShipmentsRead = 'erp:shipments:read';
+
     /** Register and manage the key's own outgoing webhooks (T2a). */
     case WebhooksManage = 'erp:webhooks:manage';
 
@@ -40,6 +46,8 @@ enum ApiScope: string
             self::MasterDataRead => __('Read lines, warehouses & product types'),
             self::StockRead => __('Read warehouse stock & documents'),
             self::StockWrite => __('Sync warehouse stock & acknowledge documents'),
+            self::ShipmentsWrite => __('Send shipments to load'),
+            self::ShipmentsRead => __('Read shipment load results'),
             self::WebhooksManage => __('Manage own webhooks'),
         };
     }
@@ -55,6 +63,8 @@ enum ApiScope: string
             self::MasterDataRead => __('List line, warehouse and product type codes so the ERP can map its own records.'),
             self::StockRead => __('Export warehouse balances and stock documents to book.'),
             self::StockWrite => __('Replace warehouse balances and acknowledge booked stock documents.'),
+            self::ShipmentsWrite => __('Create and replace shipments with the pallets and cartons each load must carry.'),
+            self::ShipmentsRead => __('Export what each shipment loaded, what is missing and what was scanned unexpectedly.'),
             self::WebhooksManage => __('Register, change and remove webhooks that send OpenMES events to the integration.'),
         };
     }

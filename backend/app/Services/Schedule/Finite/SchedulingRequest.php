@@ -10,8 +10,9 @@ use Carbon\CarbonInterface;
  * `scope` decides which orders the run may move: `unplanned` places only
  * orders without a minute plan around everything already planned; `all`
  * replans every active order that has not started. Orders outside the run keep
- * their placement and count as committed load. `respectMaterial` and
- * `respectWorkforce` switch the material and people constraints off for a run.
+ * their placement and count as committed load. `respectMaterial`,
+ * `respectWorkforce` and `respectQuality` switch the material, people and
+ * quality-hold constraints off for a run.
  */
 final class SchedulingRequest
 {
@@ -31,6 +32,7 @@ final class SchedulingRequest
         public readonly bool $respectMaterial = true,
         public readonly ?array $workOrderIds = null,
         public readonly bool $respectWorkforce = true,
+        public readonly bool $respectQuality = true,
     ) {}
 
     /** @return array<string, mixed> */
@@ -42,6 +44,7 @@ final class SchedulingRequest
             'scope' => $this->scope,
             'respect_material' => $this->respectMaterial,
             'respect_workforce' => $this->respectWorkforce,
+            'respect_quality' => $this->respectQuality,
             'work_order_ids' => $this->workOrderIds,
         ];
     }

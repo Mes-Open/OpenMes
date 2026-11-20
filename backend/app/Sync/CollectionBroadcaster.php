@@ -41,6 +41,7 @@ class CollectionBroadcaster
             'issues_all' => [Models\Issue::class, null],
             'lines_active' => [Models\Line::class, fn ($m) => (bool) $m->is_active],
             'lines_all' => [Models\Line::class, null],
+            'lines_staffing' => [Models\Line::class, fn ($m) => (bool) $m->is_active],
             'issue_types' => [Models\IssueType::class, fn ($m) => (bool) $m->is_active],
             'issue_types_all' => [Models\IssueType::class, null],
             'oee_records_recent' => [Models\OeeRecord::class, fn ($m) => (string) $m->record_date >= now()->subDay()->toDateString()],
@@ -56,6 +57,7 @@ class CollectionBroadcaster
             'shifts' => [Models\Shift::class, null],
             'users' => [Models\User::class, null],
             'workers' => [Models\Worker::class, null],
+            'planning_insight_acknowledgements' => [Models\PlanningInsightAcknowledgement::class, null],
             'materials' => [Models\Material::class, null],
             'serial_units' => [Models\SerialUnit::class, null],
             'data_imports' => [Models\CsvImport::class, fn ($m) => $m->created_at === null || $m->created_at->gte(now()->subDays(\App\Sync\Shapes\DataImportsRecentShape::DAYS))],
@@ -64,6 +66,11 @@ class CollectionBroadcaster
             'lot_sequences' => [Models\LotSequence::class, null],
             'pallets' => [Models\Pallet::class, null],
             'pallet_movements' => [Models\PalletMovement::class, null],
+            // Scan-to-load verification (#400): the terminal and a second screen
+            // at the dock must see every scan as it happens.
+            'shipments' => [Models\Shipment::class, null],
+            'shipment_items' => [Models\ShipmentItem::class, null],
+            'shipment_scans' => [Models\ShipmentScan::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
             'view_templates' => [Models\ViewTemplate::class, null],
             'inspection_plans' => [Models\InspectionPlan::class, null],

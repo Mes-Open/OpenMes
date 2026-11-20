@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Schedule\GenerateScheduleRequest;
 use App\Http\Requests\Schedule\OverrideScheduledOperationRequest;
 use App\Http\Requests\Schedule\ScheduleSimulationActionRequest;
+use App\Http\Requests\Schedule\ScheduleSimulationStatusRequest;
 use App\Models\ScheduledOperation;
 use App\Models\ScheduleSimulation;
 use App\Models\WorkOrder;
@@ -14,6 +15,8 @@ use App\Models\Workstation;
 use App\Services\Schedule\Finite\SchedulePresenter;
 use App\Services\Schedule\Finite\ScheduleSimulationService;
 use App\Services\Schedule\Finite\SchedulingRequest;
+use App\Support\TabRegistry;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 
 /**
@@ -45,6 +48,8 @@ class AutoScheduleController extends Controller
 
         return Inertia::render('admin/schedule/AutoSchedule', [
             'draft' => $draft ? $this->presenter->simulation($draft) : null,
+            // Checked on load, so the planner is warned before clicking Apply.
+            'draftStale' => $draft ? $this->simulations->staleReason($draft) : null,
             'committed' => $committed->map(fn ($op) => $this->presenter->operation($op))->values(),
             'stationsByType' => Workstation::with('line:id,name')
                 ->where('is_active', true)
@@ -60,9 +65,13 @@ class AutoScheduleController extends Controller
                 'scope' => SchedulingRequest::SCOPE_UNPLANNED,
                 'respect_material' => true,
                 'respect_workforce' => true,
+                'respect_quality' => true,
             ],
             'statusLabels' => collect(ScheduledOperationStatus::cases())->mapWithKeys(fn ($s) => [$s->value => $s->label()]),
             'canDecide' => (bool) request()->user()?->hasAnyRole(['Admin', 'Supervisor']),
+            // UX only: whether the "Assign operators" link on an untracked line
+            // leads somewhere this user may open. The lines pages enforce it.
+            'canAssignOperators' => (bool) request()->user()?->can(TabRegistry::permission(TabRegistry::tabForPath('admin/lines') ?? 'lines')),
         ]);
     }
 
@@ -91,15 +100,29 @@ class AutoScheduleController extends Controller
             return redirect()->route('admin.schedule.auto')->with('error', collect($e->errors())->flatten()->first());
         }
 
-        $message = __('Schedule applied to :applied work orders.', ['applied' => $result['applied']]);
+        $message = trans_choice('Schedule applied to :count work order.|Schedule applied to :count work orders.', $result['applied'], ['count' => $result['applied']]);
         if ($result['skipped'] > 0) {
-            $message .= ' '.__(':count work orders could not be fully scheduled and kept their placement.', ['count' => $result['skipped']]);
+            $message .= ' '.trans_choice(':count work order could not be fully scheduled and kept its placement.|:count work orders could not be fully scheduled and kept their placement.', $result['skipped'], ['count' => $result['skipped']]);
         }
         if ($result['warnings'] !== []) {
             $message .= ' '.implode(' ', $result['warnings']);
         }
 
         return redirect()->route('admin.schedule.auto')->with('success', $message);
+    }
+
+    /**
+     * Whether the draft is still what the plant looks like — what the page
+     * asks again when its tab regains focus, so the stale-draft warning
+     * appears without a reload.
+     */
+    public function status(ScheduleSimulationStatusRequest $request, ScheduleSimulation $simulation): JsonResponse
+    {
+        return response()->json([
+            'id' => $simulation->id,
+            'status' => $simulation->status,
+            'stale' => $simulation->isDraft() ? $this->simulations->staleReason($simulation) : null,
+        ]);
     }
 
     public function discard(ScheduleSimulationActionRequest $request, ScheduleSimulation $simulation)

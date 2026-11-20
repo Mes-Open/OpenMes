@@ -81,7 +81,7 @@ class User extends Authenticatable
      */
     public function lines(): BelongsToMany
     {
-        return $this->belongsToMany(Line::class, 'line_user');
+        return $this->belongsToMany(Line::class, 'line_user')->using(LineUser::class);
     }
 
     /**

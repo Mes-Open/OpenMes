@@ -824,11 +824,14 @@ class WorkOrderService
             return;
         }
 
-        // A finished transfer batch can leave a shortfall (including 100% scrap).
-        // The order has started and still needs replacement production.
-        $hasFinishedTransferBatch = ProductionFlow::isTransfer() && $workOrder->batches()
+        // A finished batch means the order has started, in either flow: between
+        // two batches, or after one that fell short (including 100% scrap), it is
+        // still on the floor. Back at PENDING it could be deleted or rejected with
+        // parts already made, could not be paused, and MRP would plan its whole
+        // material demand again.
+        $hasFinishedBatch = $workOrder->batches()
             ->where('status', Batch::STATUS_DONE)->exists();
-        if ($hasInProgressBatch || $hasFinishedTransferBatch) {
+        if ($hasInProgressBatch || $hasFinishedBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
             return;

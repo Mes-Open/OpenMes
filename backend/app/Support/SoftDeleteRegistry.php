@@ -82,6 +82,12 @@ class SoftDeleteRegistry
         'work_order_shift_entries' => Models\WorkOrderShiftEntry::class,
         'issues' => Models\Issue::class,
         'pallets' => Models\Pallet::class,
+        // Scan-to-load verification (#400). Items and scans leave with their shipment.
+        'shipments' => Models\Shipment::class,
+        'shipment_items' => Models\ShipmentItem::class,
+        'shipment_scans' => Models\ShipmentScan::class,
+        // Production Planner insight acknowledgements — undo is a soft delete.
+        'planning_insight_acknowledgements' => Models\PlanningInsightAcknowledgement::class,
         'attachments' => Models\Attachment::class,
 
         // Warehousing (#212). Balances (warehouse_stocks) are derived data and
@@ -112,7 +118,7 @@ class SoftDeleteRegistry
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */
     private const LABEL_ATTRIBUTES = [
         'name', 'title', 'lot_number', 'order_no', 'pallet_no', 'ean',
-        'serial_no', 'code', 'email', 'topic', 'key', 'original_filename',
+        'serial_no', 'shipment_no', 'identifier', 'scanned_code', 'code', 'email', 'topic', 'key', 'original_filename',
     ];
 
     /** @return list<string> */

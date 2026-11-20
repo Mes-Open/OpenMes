@@ -20,6 +20,201 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
   30 days move to the trash daily (`workstation-devices:prune-panels`,
   `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Quality holds in the scheduler.** An order held back by quality — an open quality
+  control whose trigger is blocking, or an open or acknowledged issue that blocks the work
+  order — is no longer placed by *Automatic scheduling*. Its operations get the new status
+  *Infeasible — quality hold* with the control or issue named in the reason, and the next order
+  takes the freed slot; a step already running stays pinned and only later steps are held. A
+  material shortage still wins over a quality hold. A new **Quality holds** checkbox (on by
+  default, saved with each simulation as `respect_quality`) lets a planner plan as if the holds
+  were lifted. The *Production Planner* flags a held order already on the visible plan with an
+  amber **QC** marker in its shift and a new *Quality* insight (filter *Quality*) that names the
+  hold and links to *Quality tasks* or *Issues*; performing the control or resolving the issue
+  clears it, and an acknowledged insight reopens when a new hold appears.
+- **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
+  of pallets and cartons it must take, and the dock scans every label against that list
+  before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
+  (supervisors: *Logistics → Shipments*) by pasting label numbers — one per line, pallet or
+  carton detected or chosen — or uploading a CSV. Operators open the new **Loading terminal**
+  (`/logistics/loading`): one large input for a keyboard-wedge scanner answers each scan at
+  once without leaving the page — green *loaded*, amber *duplicate*, red *not on this load*,
+  *unknown code* or *blocked* (pallet still open, failed or not released by quality, held
+  units, a carton on a pallet not released by quality, already shipped, already loaded on
+  another truck — a carton and its pallet never go on two trucks). A carton riding on a
+  listed pallet is reported, not counted twice; labels scanned faster than the answers come
+  back are queued, never dropped. Every scan is written to an append-only scan log, a mistaken scan can be
+  undone (logged as *removed*), and the expected / loaded / missing list updates live on every
+  screen watching the load. Scans lock the shipment and then the unit, so a label scanned at
+  two terminals or two docks at once is loaded once. *Confirm loading* re-checks every loaded
+  unit and ships all or nothing: pallets become *shipped* (their units follow) and loose
+  cartons are stamped shipped with their units. A short load can only be confirmed by a supervisor
+  or admin, with a reason. Confirmed and cancelled shipments reject further scans.
+  REST: `/api/v1/shipments` (list, show, create with `items[]`, scan, unload, confirm). ERP:
+  `POST /api/v1/erp/shipments` (scope `erp:shipments:write`; re-sending a planned load
+  replaces it) and `GET /api/v1/erp/shipments/{shipment_no}` plus a `?since=` feed (scope
+  `erp:shipments:read`) return the load result — loaded units with counts, missing,
+  unexpected, who confirmed and when. A new webhook event, `shipment.confirmed`, sends the
+  same result. Shipments, their items and scans are soft-deleted (the load ID can be reused
+  after a delete). See [docs/shipment-loading.md](docs/shipment-loading.md).
+- **Planning insights in the Production Planner.** *Scheduler → Production Planner* (weekly
+  and daily views) now shows, in every line × shift cell, a staffing badge: people available
+  over people the planned work needs, green with people to spare, amber with exactly enough,
+  red when short, *not tracked* on a line nobody is assigned to. A person assigned to two lines
+  is counted once, exactly as automatic scheduling counts them. Work-order blocks in a short
+  shift get a red marker, and a day header shows how many people are away. A new **Insights**
+  button with the number of open insights opens a drawer on the right: how many need action,
+  how many to watch and how many were resolved today, filters *All / People / Skills / Plan*,
+  and one card per problem — a shift short of people (naming who is absent), an operator shared
+  with another line and booked there at the same time, a skill only one person on the line
+  holds (when qualifications are recorded), work on a line nobody is assigned to, and an order
+  whose staffing changed after it was planned (an operator taken off its line, a new absence).
+  Each card explains why with the numbers, lists the affected orders with their due date and
+  whether they would be late, and suggests actions ranked by their effect, the best one marked:
+  *Move order to* the first shift with enough people, *Bring in* a free operator from another
+  line (assigns them to the line after a confirmation), *Open in Automatic scheduling*,
+  *Assign operators*, *Acknowledge*. *Show on plan* outlines the cells on the board. Whatever
+  was done is listed under *Resolved today* with who did it and an **Undo** that puts the order
+  back or takes the operator off the line again — refused once the order was edited since, so
+  it never clobbers a later change. A moved order keeps its length in real shifts (shiftless
+  columns and weekends do not count). When two planners act on the same card, the second is
+  told who already handled it and nothing of theirs is applied. An acknowledged card stays
+  resolved in the weekly and the daily view alike. The drawer updates live when orders, line
+  assignments or acknowledgements change. An **Insights** tab fixed to the right edge of the
+  screen (red when something needs action, amber when only something to watch) is always in
+  reach; clicking a red or amber badge, or a card's warning marker, opens the drawer on its
+  explanation; `I` opens and closes it; and on the first visit of a session it opens by itself
+  when something needs action (*Don't open automatically* turns that off). Admins and
+  Supervisors with the Schedule tab see it; operators never do. See *Planning insights* in
+  [docs/finite-capacity-scheduling.md](docs/finite-capacity-scheduling.md).
+- **Auto-schedule staffing breakdown.** After *Simulate* on *Scheduler → Automatic
+  scheduling*, a *Staffing by shift* grid shows, per line and per day and shift, the people
+  available over the people the draft needs (e.g. *2/3*), in the same colours as the planner,
+  one week at a time; who is absent and who is busy on another line is in the cell and its
+  tooltip. A step that people pushed past the slot its machines allowed now says so:
+  *"Delayed by staffing: 12.10 06:00 → 13.10 06:00 — Needs 3 operators, 2 available (1 absent:
+  Jan Kowalski)."* — its status stays *Scheduled* / *Scheduled late*. An *Absences in this
+  horizon* list names each absent person with the work orders their absence delayed or
+  blocked. The same data is in the simulation API as `staffing` and as the
+  `delayed_by_staffing` reason.
+- **Auto-schedule explains people shortfalls.** When *Scheduler → Automatic scheduling*
+  cannot place a step for lack of people, the simulation now says how many it needs and how
+  many there were: *"Needs 3 operators, 2 available (1 absent: Jan Kowalski)."*, plus how many
+  were busy with other work and which window was checked. A qualification shortfall also names
+  the skills. The same numbers (`required`, `available`, `in_use`, `window_start`/`window_end`,
+  `absent_workers`, `required_skills`) are in the reason JSON of the finite-schedule API. A
+  new *Staffing* panel lists the operators assigned per line. A line nobody is assigned to is
+  flagged *"Staffing not tracked — scheduled on machine capacity only"*, with a link to assign
+  operators, and its steps carry a *staffing not tracked* chip. The simulation's `workforce`
+  section reports the same per line.
+
+### Changed
+
+- **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
+  step that cannot run because an earlier step of its order had too few people now reads
+  *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An
+  earlier step of this order could not be scheduled."*; other causes name the step too.
+- Assigning an operator to a line or taking them off it — on *Admin → Lines → Operators*
+  or through the REST API (`/api/v1/lines/{line}/users`, `/api/v1/users/{user}/lines`) —
+  now refreshes open planners live.
+
+### Fixed
+
+- **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
+  sync carry UTC timestamps without a time zone, and relative times read them as the
+  browser's local time. East of UTC a panel that had just reported in showed as
+  *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
+  values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
+- **An order between two batches stays in progress.** In whole-batch flow, finishing a
+  batch that left the order short of its plan put it back to `PENDING`. An order that had
+  already made parts could then be deleted or rejected through the API, could not be
+  paused, and MRP planned its whole material demand again (a 40%-done order of 100 at
+  2 per unit showed a shortage of 200). A finished batch now keeps the order
+  `IN_PROGRESS`, as the transfer flow already did. Unblocking an order whose pre-block
+  status was never recorded uses the same rule.
+- **The stale-draft warning in Automatic scheduling appears when you come back to the tab.** A change made elsewhere (an operator taken off a line in another tab) showed only after a reload or an Apply; the page now asks a cheap status endpoint when the tab regains focus or becomes visible.
+- **Only a badge an insight is about opens the drawer.** An amber "exactly enough" badge (or a shift that is over) shows its tooltip only, instead of opening the drawer on nothing.
+- **The insights drawer says why it is empty and names the range it shows**: "Nothing needs attention in this week: every shift has the people its work needs.", with "Week 07.12 – 13.12" or "Day 24.11" in its header instead of always "This week".
+- **Esc closes the insights drawer** (not while a confirm dialog is open — Esc closes the dialog first).
+- **The Planner's badges and insights follow line-operator changes live, for Admins and Supervisors.** The board watched `lines_active` for a change of `updated_at`, a column that collection does not carry, so an operator assigned or taken off a line only showed up with the drawer's minute poll — or not at all with the drawer closed. A new `lines_staffing` collection (line ids and `updated_at`, readable with the Schedule tab) carries the touch every assignment makes, and the Planner re-reads its badges and drawer on it.
+- **A draft stored before the upgrade keeps the shortfall it recorded.** Its staffing grid turned a red 3/4 into a green 3/2, because a step the people could not staff was never booked and only the booked peak was read. The grid now adds the stored shortfall, as the server does.
+- **Plural and Polish wording fixes.** "1 work order could not be fully scheduled and kept its placement.", "Kitting Cell 1 · 1 operator assigned" (the browser now has a `transChoice()` like Laravel's `trans_choice()`), Polish numbers take their Polish plural form ("2 miejsca zostają nieobsadzone", "5 miejsc zostaje nieobsadzonych"), and Polish strings no longer decline people's names ("Ściągnij: Adam Nowak").
+- **"Resolved today" is shown in the language of whoever reads it.** The title and summary are kept as a translation key with its values and worded when read; entries stored before keep their text.
+- **No insights for shifts that are over.** Their badges stay on the board, but they no longer count under *Needs action* or *To watch*.
+- **"Bring in substitute" on an insight with several places missing says "Covers 1 of N missing"**, and once the substitute is assigned the insight re-opens under *Needs action* while places stay empty, instead of staying resolved.
+- **Planning insights list each affected order once** — an order on two lines of a group was listed (and counted) twice.
+- **An overbooked group of lines sharing people is raised as the shortfall it is, even when only one of its lines ends short.** Two lines needing four people between three used to read "Shared operator holds back …" under *To watch* next to a red badge. The insight is now "<line> short of shared people on <shift>", "Need 4, 3 covered", under *Needs action*, and its explanation gives every line of the group its count. "Shared operator holds back" stays for a line short while its group as a whole has enough people.
+- **The auto-schedule grid and the Planner now agree on an order dropped onto a shift.** A drop saves the shift start to the midnight after the end date; the scheduler booked that whole stretch, so the evening shifts of the same day looked busy and short in the grid while the Planner showed them empty. Midnight is an exclusive end: the scheduler now books the cells the order was dropped on, as the Planner does.
+- **The auto-schedule staffing grid no longer shows a false shortage when lines sharing one person get their work one after another.** A step that waited for the shared person and moved to a later shift was counted as people missing in the shift it left, so a cell with one order for one person read 1/2 and an idle line 0/1. Only people a step lacks with nothing else running (an absence, too few qualified) now count against the shift it left.
+- **Employee schedule: night blocks across midnight.** An activity whose end time is earlier than its start (22:00–06:00) now ends the next day instead of being refused, and the day, team and month views show each part on the day it falls on. Adding or removing an activity shows its confirmation again, and the form validates through a Form Request.
+- **Lines that share operators no longer all show short when together they need more people than they have.** Each line used to count as if the other lines got the shared people first, so two lines needing four people between three showed three missing and raised a mirror-image warning on each line. The shortfall is now counted once, on the line actually left short, and the insight says what the lines need together and have.
+- **"Schedule applied to 1 work order."** The confirmation after applying a schedule is singular for one order.
+- **Automatic scheduling no longer shows "undefined/undefined" in the staffing grid for a draft generated before the upgrade.** A draft stored by an earlier version keeps its older staffing fields; the grid now reads them, and a cell without a count shows a dash.
+- **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
+  auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on
+  both, so a shift could look covered while the other line's work held the only person. They
+  are now counted once, and the cell names who is busy where. A step that only waited within
+  its own shift (for a shared person to finish elsewhere) no longer shows that shift as short.
+- **Auto-schedule no longer books one operator on two lines at once.** An operator assigned
+  to several lines (Admin → Lines → Operators, or as a worker on another line's station) is
+  now counted as one person across those lines. Work on line B waits while the people it
+  shares with line A are busy there, and its reason says why: *"Waited for operators busy on
+  Line A."* An unplaced step names the line too: *"1 busy with other work on Line A."*
+  Capacity providers that only return counts behave as before; providers can name their
+  people through the new optional `WorkforceRosterAware` contract.
+- **Auto-schedule no longer books one multi-skilled operator on two skilled steps at once.**
+  When the only person holding both *Welding* and *Painting* is on a Welding step, a Painting
+  step on another machine now starts after it instead of alongside it. People are matched to
+  every step running at the same moment, each step to people holding its skills, so someone
+  with two skills counts once. The step's reason says why it waited: *"Waited: only 1
+  qualified operator for Painting (Jan Kowalski), busy with other work."* — with *"on CNC
+  Turning"* added when another line holds them. A step that cannot be
+  placed for lack of qualified people now names the scarcest skill and who holds it:
+  *"Painting is held only by Jan Kowalski."* The *Staffing* panel flags every required skill
+  only one person on a line holds, on the lines where a step needing it can run — *"Painting — single qualified operator: Jan Kowalski"* —
+  and the simulation's `workforce` section lists them as `single_holder_skills`. When several
+  machines of one line would finish a step at the same time, it now goes to the one only
+  people held back, so its reason shows the real cause; the order's own line still wins over
+  another line. Steps already in the plan keep holding the people with their skills when the
+  planner generates again. Providers that only return counts, or that do not
+  record skills, behave as before.
+
+- **Absences no longer block the night shift that started the evening before.** An absence
+  recorded for a date now takes the worker out of the shifts that *start* on that date, the
+  payroll convention. With a 22:00–06:00 night shift and the only operator away on Tuesday,
+  *Scheduler → Automatic scheduling* now plans an 8 h step Monday 22:00 → Tuesday 06:00,
+  instead of starting it Wednesday 00:00 in the middle of a shift and splitting it across two
+  nights. A Monday absence still blocks Monday's night shift. After a staffing conflict the
+  scheduler retries at the next shift start as well as an hour later, so back-to-back shifts
+  no longer get work started mid-shift. A draft also goes stale on an absence the day before
+  its horizon when a shift crosses midnight. The workforce contracts' docblocks now state this
+  meaning for providers outside core; the capacity grid's crew axis already counted night
+  shifts this way.
+- **Auto-schedule drafts go stale when staffing changes.** A simulation generated with
+  *Respect operator availability* now notices when, after *Generate*, an operator is assigned
+  to or removed from a line, a worker moves station, is deactivated or flagged logistics, a
+  crew's lines change, or someone on a line is reported absent on a day of the horizon. The
+  page shows *"Staffing changed since this draft was generated — generate it again."* above
+  the simulation, before *Apply* is clicked, and *Apply* refuses with the same message. Any
+  other stale reason (changed orders, shifts, maintenance) is flagged there the same way.
+
+## [0.29.3] - 2026-11-18
+
+### Fixed
+
+- **Warehouse: consumed material no longer leaves stock twice.** When a work order
+  completed, the generated production material release listed what the shop floor had
+  consumed, and posting that release took every line off stock again. Allocation had
+  already moved the lot and the plant-wide quantity, and consumption had moved the
+  location balance, so a lot emptied by production went negative and the warehouse total
+  dropped by the order's consumption twice. Release lines for material allocated to the
+  order are now flagged `booked_at_source`: posting or cancelling such a line confirms the
+  paperwork for the warehouse and the ERP without moving stock again. Material that was
+  never allocated still leaves stock only when the release is posted. The flag is set only
+  by the release generator; the stock document form does not accept it.
+
+## [0.29.2] - 2026-11-17
+
+### Added
 
 - **ERP API: key introspection, read-only master data, multi-status export.** An ERP
   integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
@@ -175,11 +370,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
-  sync carry UTC timestamps without a time zone, and relative times read them as the
-  browser's local time. East of UTC a panel that had just reported in showed as
-  *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
-  values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
 - **Work-order import picks the newest active process template.** With several active
   versions of a product's process template, the CSV and ERP work-order imports took an
   unspecified one; they now take the newest active version, like the rest of OpenMES.

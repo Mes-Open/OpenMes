@@ -10,6 +10,8 @@ use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\SerialUnitsRecentShape;
+use App\Sync\Shapes\ShipmentItemsRecentShape;
+use App\Sync\Shapes\ShipmentScansRecentShape;
 use App\Sync\Shapes\UnitAliasesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
@@ -184,6 +186,17 @@ class ShapeRegistry
         // Rolling recent window (see the class) so the append-only ledger can't
         // grow the synced payload without bound.
         'pallet_movements' => PalletMovementsRecentShape::class,
+        // Scan-to-load verification (#400): loads, their expected units and the
+        // dock's scan log. Read by the shipment pages (packaging tab) and the
+        // operators' loading terminal.
+        'shipments' => [
+            'table' => 'shipments',
+            'tabs' => ['packaging'],
+            'roles' => ['Operator'],
+            'columns' => ['id', 'shipment_no', 'erp_reference', 'carrier', 'vehicle_no', 'destination', 'planned_at', 'notes', 'status', 'started_at', 'started_by_id', 'confirmed_at', 'confirmed_by_id', 'short_reason', 'created_at', 'updated_at'],
+        ],
+        'shipment_items' => ShipmentItemsRecentShape::class,
+        'shipment_scans' => ShipmentScansRecentShape::class,
         // Units on the floor plus recently finished ones - the table grows by one row per product.
         'serial_units' => SerialUnitsRecentShape::class,
         // integration_configs: exclude api_config (may hold credentials).
@@ -284,6 +297,28 @@ class ShapeRegistry
             'table' => 'webhook_deliveries',
             'tabs' => ['webhooks'],
             'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'signature_timestamp', 'signature_scheme', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
+        ],
+        // Production Planner: when a line's staffing changed. An operator
+        // assigned to or taken off a line touches the line (LineUser), so
+        // `updated_at` moves and the planner re-reads its badges and drawer.
+        // Ids and timestamps only, readable with the schedule tab — the
+        // planner must not depend on `lines_active`, which carries no
+        // `updated_at`.
+        'lines_staffing' => [
+            'table' => 'lines',
+            'tabs' => ['schedule'],
+            'where' => 'is_active = true',
+            'columns' => ['id', 'updated_at'],
+        ],
+        // Production Planner insights: what was acknowledged or fixed, so every
+        // planner watching the board refreshes its drawer. Keys and the kind of
+        // action only — the drawer itself (names, absences) is fetched from
+        // PlanningInsightController. Deliberately without `tabs`/`roles`: only
+        // Admins and Supervisors read it, never an Operator granted the
+        // schedule tab (who sees the board but not the drawer).
+        'planning_insight_acknowledgements' => [
+            'table' => 'planning_insight_acknowledgements',
+            'columns' => ['id', 'insight_key', 'insight_type', 'action', 'acknowledged_by_id', 'created_at', 'updated_at'],
         ],
         // Warehousing (#212).
         'warehouses' => [
