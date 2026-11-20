@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { customFieldValues } from './customFieldForm';
+import { customFieldValues, numberInputStep } from './customFieldForm';
 
 /**
  * The list drawer edits the row the synced collection holds, and that snapshot
@@ -36,5 +36,24 @@ describe('customFieldValues', () => {
 
     it('falls back to empty on malformed JSON rather than throwing', () => {
         expect(customFieldValues('{not json')).toEqual({});
+    });
+});
+
+/**
+ * A number input without an explicit step falls back to the browser default of
+ * 1, so a decimal like 12.5 fails native validation and the whole form refuses
+ * to submit.
+ */
+describe('numberInputStep', () => {
+    it('lets a Number field take decimals', () => {
+        expect(numberInputStep('number')).toBe('any');
+    });
+
+    it('keeps a Whole number field on whole steps', () => {
+        expect(numberInputStep('integer')).toBe('1');
+    });
+
+    it('sets no step on other input types', () => {
+        expect(numberInputStep('text')).toBeUndefined();
     });
 });

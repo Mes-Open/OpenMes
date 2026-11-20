@@ -11,6 +11,7 @@ use App\Services\Material\MaterialAllocationService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BatchController extends Controller
 {
@@ -69,28 +70,35 @@ class BatchController extends Controller
             'lot_number' => 'nullable|string|max:50',
         ]);
 
-        // Check if adding this batch would exceed planned qty
-        $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
-        $allowOverproduction = config('openmmes.allow_overproduction', false);
-
-        if (! $allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
-            return response()->json([
-                'message' => 'Total batch quantity would exceed planned quantity',
-            ], 422);
-        }
-
         // Check workstation conflicts (soft warning in response)
         $conflicts = [];
         if (! empty($validated['workstation_id'])) {
             $conflicts = $this->releaseService->checkWorkstationConflicts($validated['workstation_id']);
         }
 
-        $batch = $this->workOrderService->createBatch(
-            $workOrder,
-            $validated['target_qty'],
-            $validated['workstation_id'] ?? null,
-            $validated['lot_number'] ?? null,
-        );
+        // The plan check and the new batch under one work-order lock (the one
+        // createBatch() takes too), so concurrent requests cannot both pass it.
+        $batch = DB::transaction(function () use ($workOrder, $validated) {
+            $workOrder = WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->firstOrFail();
+
+            $total = \App\Support\ProductionRules::batchedQty($workOrder) + (float) $validated['target_qty'];
+            if (\App\Support\ProductionRules::exceedsPlan($workOrder, $total)) {
+                return null;
+            }
+
+            return $this->workOrderService->createBatch(
+                $workOrder,
+                $validated['target_qty'],
+                $validated['workstation_id'] ?? null,
+                $validated['lot_number'] ?? null,
+            );
+        });
+
+        if ($batch === null) {
+            return response()->json([
+                'message' => 'Total batch quantity would exceed planned quantity',
+            ], 422);
+        }
 
         $response = [
             'message' => 'Batch created successfully',
@@ -121,7 +129,29 @@ class BatchController extends Controller
             'target_qty' => ['required', 'numeric', 'min:0.01'],
         ]);
 
-        $batch->update(['target_qty' => $validated['target_qty']]);
+        // Check and resize under the work-order lock, with the batch re-read
+        // inside it: two resizes at once must not both fit the same remainder.
+        $error = DB::transaction(function () use ($batch, $validated) {
+            $workOrder = WorkOrder::whereKey($batch->work_order_id)->lockForUpdate()->firstOrFail();
+            $batch->refresh();
+
+            if ($batch->status !== Batch::STATUS_PENDING) {
+                return 'Only PENDING batches can be updated.';
+            }
+
+            $total = \App\Support\ProductionRules::batchedQty($workOrder, except: $batch) + (float) $validated['target_qty'];
+            if (\App\Support\ProductionRules::exceedsPlan($workOrder, $total)) {
+                return 'Total batch quantity would exceed planned quantity';
+            }
+
+            $batch->update(['target_qty' => $validated['target_qty']]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return response()->json(['message' => $error], 422);
+        }
 
         return response()->json([
             'message' => 'Batch updated',

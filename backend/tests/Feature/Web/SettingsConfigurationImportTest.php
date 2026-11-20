@@ -271,4 +271,57 @@ class SettingsConfigurationImportTest extends TestCase
 
         $this->assertFalse(DB::table('worker_skills')->where('worker_id', $unrelatedId)->exists());
     }
+
+    /** Skills ship with an optional module; the tests build the table when it is not there. */
+    private function skillsTable(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('skills')) {
+            \Illuminate\Support\Facades\Schema::create('skills', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('code', 50)->unique();
+                $table->string('name');
+                $table->timestamps();
+            });
+        }
+    }
+
+    private function skill(string $code): int
+    {
+        return DB::table('skills')->insertGetId(['code' => $code, 'name' => $code, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    public function test_a_segments_required_skills_point_at_the_skills_of_the_file(): void
+    {
+        $this->skillsTable();
+        // Ids 1 and 2 are already taken here by other skills.
+        $this->skill('HERE-1');
+        $this->skill('HERE-2');
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'skills' => [['id' => 1, 'code' => 'DEMO-TIG', 'name' => 'TIG'], ['id' => 2, 'code' => 'DEMO-BEND', 'name' => 'Bending']],
+            'process_segments' => [['id' => 1, 'code' => 'SEG-IMP', 'name' => 'Weld and bend', 'segment_type' => 'production', 'required_skill_ids' => [1, 2, 99]]],
+        ])])->assertSessionHas('success');
+
+        $expected = [
+            DB::table('skills')->where('code', 'DEMO-TIG')->value('id'),
+            DB::table('skills')->where('code', 'DEMO-BEND')->value('id'),
+        ];
+        $this->assertSame($expected, \App\Models\ProcessSegment::where('code', 'SEG-IMP')->first()->required_skill_ids);
+    }
+
+    public function test_required_skills_the_file_does_not_carry_are_kept_only_when_they_exist_here(): void
+    {
+        $this->skillsTable();
+        $here = $this->skill('HERE-WELD');
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'process_segments' => [
+                ['id' => 1, 'code' => 'SEG-KEEP', 'name' => 'Keeps', 'segment_type' => 'production', 'required_skill_ids' => [$here, $here + 50]],
+                ['id' => 2, 'code' => 'SEG-NONE', 'name' => 'Loses all', 'segment_type' => 'production', 'required_skill_ids' => [$here + 50]],
+            ],
+        ])])->assertSessionHas('success');
+
+        $this->assertSame([$here], \App\Models\ProcessSegment::where('code', 'SEG-KEEP')->first()->required_skill_ids);
+        $this->assertNull(\App\Models\ProcessSegment::where('code', 'SEG-NONE')->first()->required_skill_ids);
+    }
 }

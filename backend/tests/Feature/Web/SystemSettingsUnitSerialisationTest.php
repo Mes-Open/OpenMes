@@ -106,4 +106,25 @@ class SystemSettingsUnitSerialisationTest extends TestCase
             ->post('/settings/system', $this->payload(['unit_serial_pattern' => '^[0-9(']))
             ->assertSessionHasErrors(['unit_serial_pattern']);
     }
+
+    /** The message names the field the way the page labels it, not by its key. */
+    public function test_an_invalid_regex_is_reported_in_words(): void
+    {
+        $this->actingAs($this->admin)
+            ->from('/settings/system')
+            ->post('/settings/system', $this->payload(['unit_serial_pattern' => '[abc', 'unit_psn_pattern' => '*']))
+            ->assertSessionHasErrors([
+                'unit_serial_pattern' => 'The serial number pattern is not a valid regular expression.',
+                'unit_psn_pattern' => 'The process serial pattern is not a valid regular expression.',
+            ]);
+    }
+
+    public function test_a_pattern_that_is_not_text_is_a_validation_error_not_a_crash(): void
+    {
+        $this->actingAs($this->admin)
+            ->from('/settings/system')
+            ->post('/settings/system', $this->payload(['unit_serial_pattern' => ['^a$']]))
+            ->assertRedirect('/settings/system')
+            ->assertSessionHasErrors(['unit_serial_pattern']);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Settings;
 
 use App\Http\Requests\UpdateSystemSettingsRequest;
+use App\Support\ProductionTargetSettings;
 use App\Support\TimezoneRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -24,7 +25,8 @@ use Illuminate\Support\Facades\Validator;
  *    dropped; one into a table the file does not carry (a warehouse, a
  *    division) is kept only when that row exists here. Any other `*_id`
  *    column - users, for one - is never copied: another database's numbering
- *    means nothing here.
+ *    means nothing here. Lists of ids kept in a JSON column (a segment's
+ *    `required_skill_ids`) are rewritten the same way, id by id.
  *  - Columns the table does not have are ignored; arrays/objects are stored
  *    as JSON (a step's `config`, a bench's `operator_screens`).
  *  - System settings: known keys only, each checked against the settings
@@ -90,17 +92,28 @@ class ConfigurationImporter
         'inspection_plans' => ['material_id' => 'materials', 'material_type_id' => 'material_types', 'root_id' => 'inspection_plans'],
     ];
 
+    /**
+     * Table => [JSON id-list column => referenced table]. Each id in the list
+     * is resolved like a foreign key; ids that do not resolve are dropped.
+     */
+    public const ID_LIST_REFERENCES = [
+        'personnel_classes' => ['required_skill_ids' => 'skills'],
+        'process_segments' => ['required_skill_ids' => 'skills'],
+    ];
+
     /** Settings the import may write (the settings form's own keys) besides those already stored. */
     public const SETTINGS = [
         'production_period', 'allow_overproduction', 'block_negative_stock', 'force_sequential_steps',
         'workstation_routing_enabled', 'backflush_on_pallet_creation', 'pallet_stock_documents', 'hold_on_material_shortage', 'lot_tracking_enabled', 'lot_picking_strategy',
         'workflow_mode', 'pin_login_enabled', 'language', 'app_timezone', 'schedule_view_mode', 'schedule_shifts_per_day',
-        'schedule_horizon_weeks', 'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
+        'schedule_show_weekends', 'realtime_mode', 'production_tracking_mode',
         'production_qty_edit_policy', 'production_qty_edit_window_minutes', 'scanner_mode',
         'unit_identifier_normalize', 'unit_serial_pattern', 'unit_psn_pattern', 'unit_psn_required', 'unit_psn_unique',
         'unit_pack_requires_serial', 'unit_pack_requires_order',
         'unit_test_fail_policy', 'unit_test_max_attempts', 'unit_test_attempts_scope', 'standard_weekly_hours', 'default_currency',
         'default_pay_type', 'default_pay_rate', 'enabled_modules',
+        // The Production targets card, saved through its own form.
+        ProductionTargetSettings::SCRAP_KEY, ProductionTargetSettings::FPY_KEY,
     ];
 
     /** Never taken from a file: infrastructure, security, and switches that need their own checks. */
@@ -215,7 +228,11 @@ class ConfigurationImporter
     /** The settings form's rule for this key (without "required"), when it has one. */
     private function settingPasses(string $key, mixed $value): bool
     {
-        $this->settingRules ??= (new UpdateSystemSettingsRequest)->rules();
+        $this->settingRules ??= (new UpdateSystemSettingsRequest)->rules() + [
+            // UpdateProductionTargetsRequest's ranges: a percentage.
+            ProductionTargetSettings::SCRAP_KEY => 'numeric|min:0|max:100',
+            ProductionTargetSettings::FPY_KEY => 'numeric|min:0|max:100',
+        ];
         if (! array_key_exists($key, $this->settingRules)) {
             return true; // a stored key the form does not own is kept as before
         }
@@ -257,6 +274,11 @@ class ConfigurationImporter
         foreach ($references as $column => $refTable) {
             if (array_key_exists($column, $row) && $row[$column] !== null) {
                 $row[$column] = $this->resolve($refTable, $row[$column]);
+            }
+        }
+        foreach (self::ID_LIST_REFERENCES[$table] ?? [] as $column => $refTable) {
+            if (array_key_exists($column, $row) && $row[$column] !== null) {
+                $row[$column] = $this->resolveList($refTable, $row[$column]);
             }
         }
         // Files from before sequences had a purpose: every sequence was a LOT one.
@@ -383,6 +405,32 @@ class ConfigurationImporter
         }
 
         return null;
+    }
+
+    /**
+     * A JSON list of file ids to this database's ids: the ones that do not
+     * resolve are dropped, and a list left empty is stored as null.
+     *
+     * @return list<int>|null
+     */
+    private function resolveList(string $table, mixed $fileIds): ?array
+    {
+        $decoded = is_string($fileIds) ? json_decode($fileIds, true) : $fileIds;
+        if (! is_array($decoded)) {
+            return null;
+        }
+        $ids = [];
+        foreach ($decoded as $fileId) {
+            if (is_int($fileId) || (is_string($fileId) && ctype_digit($fileId))) {
+                $id = $this->resolve($table, (int) $fileId);
+                if ($id !== null) {
+                    $ids[] = $id;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+
+        return $ids === [] ? null : $ids;
     }
 
     /** A packing step's label template is referenced inside its config. */

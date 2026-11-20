@@ -59,7 +59,7 @@ class TabRegistry
         ]],
         // Material master + tracing (render under the Production nav group).
         'materials' => ['label' => 'Materials & tracing', 'prefixes' => [
-            '/admin/materials', '/admin/material-lots', '/admin/traceability',
+            '/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/traceability',
         ]],
         // Product engineering data (render under the Production nav group).
         'product_engineering' => ['label' => 'Product engineering', 'prefixes' => [
@@ -77,7 +77,10 @@ class TabRegistry
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
-            '/admin/workstation-types', '/admin/subassemblies',
+            // Workstation devices sit next to the types in the menu (tab
+            // `structure`); without the prefix the page stayed open with the
+            // module off. The route itself stays Admin-only (role:Admin).
+            '/admin/workstation-types', '/admin/workstation-devices', '/admin/subassemblies',
         ]],
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',

@@ -17,7 +17,7 @@ export default function MaintenanceEventCreate() {
                 action="/admin/maintenance-events"
                 method="post"
                 fields={maintenanceEventFields(lists)}
-                initial={maintenanceEventInitial(null)}
+                initial={maintenanceEventInitial(null, { currency: lists.currency })}
                 submitLabel="Create"
                 cancelHref="/admin/maintenance-events"
             />

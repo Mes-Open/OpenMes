@@ -1,8 +1,9 @@
 import { Link, useForm } from '@inertiajs/react';
-import { Checkbox, Dropdown, Icon } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, Icon } from '@openmes/ui';
 import AppDatePicker from './AppDatePicker';
 import Tooltip from './Tooltip';
 import { __ } from '../lib/i18n';
+import { numberInputStep } from '../lib/customFieldForm';
 
 /**
  * Create/edit form for a custom-field definition. Unlike ResourceForm this is
@@ -16,6 +17,15 @@ import { __ } from '../lib/i18n';
  *   submitLabel
  */
 const OPTION_TYPES = ['select', 'multiselect'];
+
+// The ResourceForm look (Geist White): mono caps labels, chip-tone inputs.
+const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
+const INPUT_CLASS =
+    'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
+const HELP_CLASS = 'mt-1.5 text-[11.5px] text-om-muted';
+const ERROR_CLASS = 'mt-1 text-[11.5px] text-om-blocked';
+const CANCEL_CLASS =
+    'inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors';
 const RANGE_TYPES = ['number', 'integer'];
 
 export default function DefinitionForm({ action, method = 'post', initial, entities = [], types = [], submitLabel }) {
@@ -37,7 +47,7 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
     const isRange = RANGE_TYPES.includes(data.type);
 
     return (
-        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 max-w-2xl space-y-5">
             <SelectField label={__('Entity')} required value={data.entity_type} error={errors.entity_type}
                 placeholder={__('— Select entity —')} options={entities} onChange={(v) => setData('entity_type', v)} />
 
@@ -57,9 +67,9 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 
             {isRange && (
                 <div className="grid grid-cols-2 gap-4">
-                    <TextField label={__('Min')} type="number" value={data.config?.min ?? ''} error={errors['config.min']}
+                    <TextField label={__('Min')} type="number" step={numberInputStep(data.type)} value={data.config?.min ?? ''} error={errors['config.min']}
                         onChange={(v) => setConfig({ min: v })} />
-                    <TextField label={__('Max')} type="number" value={data.config?.max ?? ''} error={errors['config.max']}
+                    <TextField label={__('Max')} type="number" step={numberInputStep(data.type)} value={data.config?.max ?? ''} error={errors['config.max']}
                         onChange={(v) => setConfig({ max: v })} />
                 </div>
             )}
@@ -74,29 +84,28 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing}
-                    className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing}>
                     {processing ? __('Saving…') : (submitLabel ?? __('Save'))}
-                </button>
-                <Link href="/admin/custom-fields" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
+                </Button>
+                <Link href="/admin/custom-fields" className={CANCEL_CLASS}>{__('Cancel')}</Link>
             </div>
         </form>
     );
 }
 
-function TextField({ label, value, error, onChange, required, help, type = 'text' }) {
+function TextField({ label, value, error, onChange, required, help, type = 'text', step }) {
     return (
         <div>
-            <div className="block text-sm font-medium text-om-muted mb-1">
-                {label} {required && <span className="text-om-blocked">*</span>}
+            <div className={LABEL_CLASS}>
+                {label} {required && <span className="text-om-accent">*</span>}
             </div>
             {type === 'date' ? (
                 <AppDatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
             ) : (
-                <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+                <input type={type} step={step} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={INPUT_CLASS} />
             )}
-            {help && <p className="text-sm text-om-muted mt-1">{help}</p>}
-            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
+            {help && <p className={HELP_CLASS}>{help}</p>}
+            {error && <p className={ERROR_CLASS}>{error}</p>}
         </div>
     );
 }
@@ -104,8 +113,8 @@ function TextField({ label, value, error, onChange, required, help, type = 'text
 function SelectField({ label, value, error, onChange, required, placeholder, options }) {
     return (
         <div>
-            <div className="block text-sm font-medium text-om-muted mb-1">
-                {label} {required && <span className="text-om-blocked">*</span>}
+            <div className={LABEL_CLASS}>
+                {label} {required && <span className="text-om-accent">*</span>}
             </div>
             <Dropdown
                 aria-label={label}
@@ -115,7 +124,7 @@ function SelectField({ label, value, error, onChange, required, placeholder, opt
                 onChange={(v) => onChange(v)}
                 placeholder={placeholder}
             />
-            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
+            {error && <p className={ERROR_CLASS}>{error}</p>}
         </div>
     );
 }
@@ -131,29 +140,30 @@ function CheckboxField({ label, checked, onChange }) {
 function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
     return (
         <div>
-            <div className="block text-sm font-medium text-om-muted mb-1">
-                {__('Options')} <span className="text-om-blocked">*</span>
+            <div className={LABEL_CLASS}>
+                {__('Options')} <span className="text-om-accent">*</span>
             </div>
             <div className="space-y-2">
-                {options.length === 0 && <p className="text-sm text-om-faint">{__('No options yet.')}</p>}
+                {options.length === 0 && <p className="text-[12.5px] text-om-faint">{__('No options yet.')}</p>}
                 {options.map((o, i) => (
                     <div key={i} className="flex items-center gap-2">
-                        <input className="form-input flex-1" placeholder={__('value')} value={o.value ?? ''}
+                        <input className={`${INPUT_CLASS} flex-1`} placeholder={__('value')} value={o.value ?? ''}
                             onChange={(e) => setOption(i, { value: e.target.value })} />
-                        <input className="form-input flex-1" placeholder={__('label')} value={o.label ?? ''}
+                        <input className={`${INPUT_CLASS} flex-1`} placeholder={__('label')} value={o.label ?? ''}
                             onChange={(e) => setOption(i, { label: e.target.value })} />
                         <Tooltip label={__('Remove')}>
                             <button type="button" onClick={() => removeOption(i)}
-                                className="text-om-blocked hover:text-om-blocked text-sm px-2" aria-label={__('Remove')}>✕</button>
+                                className="cursor-pointer p-1.5 rounded-om-sm text-om-blocked transition-colors hover:bg-om-blocked-bg" aria-label={__('Remove')}>
+                                <Icon name="trash-2" size={18} />
+                            </button>
                         </Tooltip>
                     </div>
                 ))}
             </div>
-            <button type="button" onClick={addOption} className="mt-2 inline-flex items-center gap-1 text-sm text-om-accent hover:text-om-accent">
-                <Icon name="plus" size={13} />
+            <Button type="button" variant="secondary" size="sm" className="mt-2" leftIcon={<Icon name="plus" size={13} />} onClick={addOption}>
                 {__('Add option')}
-            </button>
-            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
+            </Button>
+            {error && <p className={ERROR_CLASS}>{error}</p>}
         </div>
     );
 }

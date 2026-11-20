@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown, Icon } from '@openmes/ui';
+import { CREATE_BTN_CLASS, RowActions } from '../../../components/ResourceTable';
 import AppDataTable from '../../../components/AppDataTable';
 import AppLayout from '../../../layouts/AppLayout';
 import useConfirm from '../../../components/useConfirm';
@@ -17,11 +18,19 @@ export default function CustomFieldsIndex() {
     const rows = entity ? definitions.filter((d) => d.entity_type === entity) : definitions;
 
     const toggle = (d) => router.post(`/admin/custom-fields/${d.id}/toggle-active`, {}, { preserveScroll: true });
-    const destroy = (d) => {
-        confirm({ title: __('Delete custom field ":label"? Stored values on existing records are left untouched.', { label: d.label }) }, () => {
-            router.delete(`/admin/custom-fields/${d.id}`, { preserveScroll: true });
-        });
-    };
+    // The same icon buttons every other admin list uses (Edit / toggle / Delete).
+    const rowActions = (d) => [
+        { label: 'Edit', icon: 'edit', href: `/admin/custom-fields/${d.id}/edit` },
+        d.is_active
+            ? { label: 'Deactivate', icon: 'deactivate', onClick: () => toggle(d) }
+            : { label: 'Activate', icon: 'activate', onClick: () => toggle(d) },
+        {
+            label: 'Delete',
+            icon: 'delete',
+            confirm: { title: __('Delete custom field ":label"? Stored values on existing records are left untouched.', { label: d.label }) },
+            onClick: () => router.delete(`/admin/custom-fields/${d.id}`, { preserveScroll: true }),
+        },
+    ];
 
     const columns = useMemo(() => [
         {
@@ -85,18 +94,7 @@ export default function CustomFieldsIndex() {
             header: __('Actions'),
             enableSorting: false,
             meta: { align: 'right' },
-            cell: ({ row }) => {
-                const d = row.original;
-                return (
-                    <div className="flex items-center justify-end gap-3 text-sm">
-                        <Link href={`/admin/custom-fields/${d.id}/edit`} className="text-om-accent hover:text-om-accent">{__('Edit')}</Link>
-                        <button type="button" onClick={() => toggle(d)} className="text-om-muted hover:text-om-ink">
-                            {d.is_active ? __('Deactivate') : __('Activate')}
-                        </button>
-                        <button type="button" onClick={() => destroy(d)} className="text-om-blocked hover:text-om-blocked">{__('Delete')}</button>
-                    </div>
-                );
-            },
+            cell: ({ row }) => <RowActions actions={rowActions} row={row.original} confirm={confirm} />,
         },
     ], []);
 
@@ -106,10 +104,10 @@ export default function CustomFieldsIndex() {
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">{__('Custom Fields')}</h1>
-                        <p className="text-sm text-om-muted mt-1">{__('Admin-defined fields attached to records across the system.')}</p>
+                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Custom Fields')}</h1>
+                        <p className="text-[13px] text-om-muted mt-1">{__('Admin-defined fields attached to records across the system.')}</p>
                     </div>
-                    <Link href="/admin/custom-fields/create" className="btn-touch btn-primary text-sm inline-flex items-center gap-1.5"><Icon name="plus" size={14} />{__('New Custom Field')}</Link>
+                    <Link href="/admin/custom-fields/create" className={CREATE_BTN_CLASS}><Icon name="plus" size={14} />{__('New Custom Field')}</Link>
                 </div>
 
                 <div className="mb-4">

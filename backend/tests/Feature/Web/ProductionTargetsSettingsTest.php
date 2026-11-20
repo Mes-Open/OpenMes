@@ -277,4 +277,33 @@ class ProductionTargetsSettingsTest extends TestCase
 
         $this->assertSame('pl', $this->stored('language'));
     }
+
+    public function test_targets_survive_a_settings_export_and_import_into_a_new_installation(): void
+    {
+        ProductionTargetSettings::save(3.5, 90.0);
+        $export = $this->actingAs($this->admin)->get(route('settings.export'))->assertOk();
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('config.json', $export->getContent());
+
+        // A new installation: the targets were never saved there.
+        DB::table('system_settings')->whereIn('key', [ProductionTargetSettings::SCRAP_KEY, ProductionTargetSettings::FPY_KEY])->delete();
+
+        $this->actingAs($this->admin)
+            ->post(route('settings.import'), ['settings_file' => $file])
+            ->assertSessionHas('success');
+
+        $this->assertEquals(3.5, $this->stored(ProductionTargetSettings::SCRAP_KEY));
+        $this->assertEquals(90, $this->stored(ProductionTargetSettings::FPY_KEY));
+    }
+
+    public function test_an_imported_target_outside_0_to_100_is_not_taken(): void
+    {
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('config.json', json_encode([
+            'system_settings' => [ProductionTargetSettings::SCRAP_KEY => '150', ProductionTargetSettings::FPY_KEY => '"abc"'],
+        ]));
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $file]);
+
+        $this->assertNull($this->stored(ProductionTargetSettings::SCRAP_KEY));
+        $this->assertNull($this->stored(ProductionTargetSettings::FPY_KEY));
+    }
 }

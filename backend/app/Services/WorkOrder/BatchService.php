@@ -793,7 +793,7 @@ class BatchService
         }
 
         // Check sequential enforcement
-        if (config('openmmes.force_sequential_steps', true) && $step->step_number > 1) {
+        if (\App\Support\ProductionRules::forceSequentialSteps() && $step->step_number > 1) {
             $previousStep = $step->batch->steps()
                 ->where('step_number', $step->step_number - 1)
                 ->first();

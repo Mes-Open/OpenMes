@@ -1889,8 +1889,13 @@ function round4(n) {
 // Create Batch Modal
 // ---------------------------------------------------------------------------
 
-function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClose }) {
-    const remaining = Math.max((workOrder.planned_qty ?? 0) - (workOrder.produced_qty ?? 0), 0);
+function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, batchableQty, onClose }) {
+    // With overproduction off the server says how much new batches may still
+    // add up to (open batches count); with it on (null) there is no ceiling.
+    const limited = batchableQty !== null && batchableQty !== undefined;
+    const remaining = limited
+        ? Number(batchableQty)
+        : Math.max((workOrder.planned_qty ?? 0) - (workOrder.produced_qty ?? 0), 0);
 
     const form = useForm({
         work_order_id: workOrder.id,
@@ -1918,7 +1923,8 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                             aria-label={__('Quantity')}
                             step="0.01"
                             min="0.01"
-                            max={remaining}
+                            // No `max`: the browser's own bubble would hide the server's
+                            // message, which says how much may still be added.
                             value={form.data.target_qty}
                             onChange={(v) => form.setData('target_qty', v)}
                             className={`${inputCls} font-mono text-[15px]`}
@@ -2276,7 +2282,7 @@ function EngineeringDocsSection({ docs = [], onView }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2323,7 +2329,7 @@ export default function WorkOrderDetail() {
             <Head title={`Work Order ${workOrder.order_no}`} />
 
             {/* Live-refresh when the work order changes on the line */}
-            {line && <LineSync lineId={line.id} reloadOnly={['workOrder']} />}
+            {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}
 
             <div className="max-w-7xl mx-auto">
                 {/* Header — active-WO hero idiom: mono order code + status pill */}
@@ -2440,7 +2446,7 @@ export default function WorkOrderDetail() {
                                     <div className="col-span-2 pt-2 border-t border-om-line2">
                                         <p className={fieldLabelCls}>{__('DUE DATE')}</p>
                                         <p className={`font-mono text-[15px] font-medium ${dueDatePast ? 'text-om-blocked' : 'text-om-ink'}`}>
-                                            {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            {formatDate(dueDateStr, { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
                                     </div>
                                 )}
@@ -2662,6 +2668,7 @@ export default function WorkOrderDetail() {
                     workOrder={workOrder}
                     workstations={workstations}
                     defaultWorkstationId={defaultWorkstationId}
+                    batchableQty={batchableQty}
                     onClose={() => setCreateBatchOpen(false)}
                 />
             )}

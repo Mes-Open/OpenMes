@@ -85,10 +85,10 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
                 </div>
                 <h1 className="text-2xl font-semibold text-om-ink mt-0.5">
                     {view === 'team'
-                        ? `${__('Team day')} · ${formatDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
+                        ? `${__('Team day')} · ${formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
                         : view === 'month'
-                            ? `${__('Month overview')} · ${formatDate(new Date(date), { month: 'long', year: 'numeric' })}`
-                            : <>{selectedWorker?.name ?? __('Day plan')} <span className="text-om-faint font-normal text-lg">· {formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
+                            ? `${__('Month overview')} · ${formatDate(date, { month: 'long', year: 'numeric' })}`
+                            : <>{selectedWorker?.name ?? __('Day plan')} <span className="text-om-faint font-normal text-lg">· {formatDate(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
                     }
                 </h1>
             </div>
@@ -224,7 +224,7 @@ export default function EmployeeDay() {
                             return (
                                 <button key={d} onClick={() => navTo({ view: 'day', date: d, worker_id: selectedWorkerId })}
                                         className={`flex-shrink-0 px-3 py-2 rounded-om-sm font-mono text-[11px] font-bold tracking-wider uppercase border ${on ? 'bg-om-ink border-om-ink text-om-on-ink' : 'bg-om-panel border-om-line text-om-muted hover:bg-om-chip'}`}>
-                                    {formatDate(new Date(d), { weekday: 'short', day: 'numeric' })}
+                                    {formatDate(d, { weekday: 'short', day: 'numeric' })}
                                 </button>
                             );
                         })}
