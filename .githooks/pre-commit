@@ -39,6 +39,35 @@ fi
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT/backend" || exit 1
 
+# No PHP or Node on this machine (everything runs in Docker)? Run the same
+# commands in containers instead, so the gate still runs rather than failing on
+# "command not found". Same versions as CI: PHP 8.3 (the app's own image, which
+# carries the extensions) and Node 20. The repository is mounted as-is, so the
+# local vendor/ and node_modules/ are used. Override the images with
+# OPENMES_HOOK_PHP_IMAGE / OPENMES_HOOK_NODE_IMAGE.
+in_docker() {
+    docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+        -v "$ROOT":/w -w /w/backend --entrypoint "" "$@"
+}
+if command -v npm >/dev/null 2>&1; then
+    npm() { command npm "$@"; }
+elif command -v docker >/dev/null 2>&1; then
+    echo "pre-commit: npm not found - running it in Docker (${OPENMES_HOOK_NODE_IMAGE:-node:20})."
+    npm() { in_docker "${OPENMES_HOOK_NODE_IMAGE:-node:20}" npm "$@"; }
+else
+    echo "pre-commit: neither npm nor docker is available - install one, or skip with SKIP_TESTS=1."
+    exit 1
+fi
+if command -v php >/dev/null 2>&1; then
+    php() { command php "$@"; }
+elif command -v docker >/dev/null 2>&1; then
+    echo "pre-commit: php not found - running it in Docker (${OPENMES_HOOK_PHP_IMAGE:-ghcr.io/mes-open/openmes:latest})."
+    php() { in_docker "${OPENMES_HOOK_PHP_IMAGE:-ghcr.io/mes-open/openmes:latest}" php "$@"; }
+else
+    echo "pre-commit: neither php nor docker is available - install one, or skip with SKIP_TESTS=1."
+    exit 1
+fi
+
 # Inertia feature tests need a Vite manifest (same reason CI builds assets).
 if [ ! -f public/build/manifest.json ]; then
     echo "pre-commit: no Vite manifest - running npm run build..."

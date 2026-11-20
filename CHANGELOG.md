@@ -133,7 +133,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and text links, and the field form has the same labels, inputs and buttons as every other
   form. The example-company picker on *System → Data* uses the design's radio instead of the
   browser's blue one, *Tab Access* has the usual back link, and the ERP key form's *Scopes*
-  label matches the other labels.
+  label matches the other labels. Every on/off switch on *System Settings* can now be flipped
+  by clicking its name or description too, and its rows share one spacing; sub-headings use
+  one style, the *Material availability* options no longer touch, and the *Labor costing*
+  fields line up.
 
 - **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
   its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`

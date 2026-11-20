@@ -115,7 +115,7 @@ export default function Pin() {
                     />
 
                     <div>
-                        <label htmlFor="pin" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('PIN (6 digits)')}</label>
+                        <label htmlFor="pin" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('PIN (6 digits)')}<span aria-hidden className="text-om-blocked"> *</span></label>
                         <input
                             type="password"
                             id="pin"
@@ -132,7 +132,7 @@ export default function Pin() {
                     </div>
 
                     <div>
-                        <label htmlFor="pin_confirmation" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Confirm PIN')}</label>
+                        <label htmlFor="pin_confirmation" className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Confirm PIN')}<span aria-hidden className="text-om-blocked"> *</span></label>
                         <input
                             type="password"
                             id="pin_confirmation"
