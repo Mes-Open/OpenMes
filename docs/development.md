@@ -34,7 +34,7 @@ This document is intended for developers who want to contribute to OpenMES, buil
 | Backend | Laravel 12, PHP 8.3 |
 | Frontend | Blade templates, Alpine.js, Tailwind CSS 4 |
 | Reactive components | Livewire 4 |
-| Database | PostgreSQL 14+ |
+| Database | PostgreSQL 18 (ships this; 14+ supported) |
 | Auth | Laravel Sanctum (session + token) |
 | Roles | Spatie Laravel Permission |
 | Asset pipeline | Vite |
