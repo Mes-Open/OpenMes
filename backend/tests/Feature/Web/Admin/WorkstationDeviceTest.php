@@ -58,7 +58,7 @@ class WorkstationDeviceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('admin/workstation-devices/Index')
                 ->where('onlineWindowSeconds', WorkstationDevice::ONLINE_WINDOW_SECONDS)
-                ->has('workstations'));
+                ->has('lines'));
     }
 
     public function test_admin_can_forget_a_device(): void

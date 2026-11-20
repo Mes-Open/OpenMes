@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Modal, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { __, timeAgo } from '../../../lib/i18n';
+import { __, parseTimestamp, timeAgo } from '../../../lib/i18n';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 
 // Operator-panel rows are keyed "panel:<browser id>" (WorkstationDevice::PANEL_UUID_PREFIX).
@@ -24,13 +24,12 @@ const displayName = (r) => (isPanel(r) && r.name === DEFAULT_PANEL_NAME ? __('Op
  * silent fade to inactive without needing a row change.
  */
 export default function WorkstationDevicesIndex() {
-    const { onlineWindowSeconds = 60, lines = {}, workstations = {} } = usePage().props;
+    const { onlineWindowSeconds = 60, lines = {} } = usePage().props;
     const { data: devices = [] } = useSyncedShape('workstation_devices');
     const { data: users = [] } = useSyncedShape('users');
     const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
     const who = (r) => (r.user_id ? userNames[r.user_id] ?? `#${r.user_id}` : '—');
     const lineName = (r) => (r.line_id ? lines[r.line_id] ?? `#${r.line_id}` : '—');
-    const benchName = (r) => (r.workstation_id ? workstations[r.workstation_id] ?? `#${r.workstation_id}` : '—');
 
     const [renaming, setRenaming] = useState(null);
 
@@ -43,7 +42,7 @@ export default function WorkstationDevicesIndex() {
 
     const isOnline = (r) => {
         if (r.status === 'inactive' || !r.last_seen_at) return false;
-        const seen = new Date(r.last_seen_at).getTime();
+        const seen = parseTimestamp(r.last_seen_at).getTime();
         return Date.now() - seen < onlineWindowSeconds * 1000;
     };
     const activeCount = devices.filter(isOnline).length;
@@ -73,8 +72,6 @@ export default function WorkstationDevicesIndex() {
         { key: 'user', label: __('Who'), value: who, render: who },
         { key: 'ip_address', label: __('IP address'), className: 'font-mono text-om-muted' },
         { key: 'line', label: __('Line'), value: lineName, render: lineName },
-        { key: 'workstation', label: __('Workstation'), value: benchName, render: benchName },
-        { key: 'app_version', label: __('Version'), className: 'font-mono text-om-muted', render: (r) => r.app_version || '—' },
         { key: 'last_seen_at', filter: 'date', label: __('Last seen'), render: (r) => (r.last_seen_at ? timeAgo(r.last_seen_at) : '—') },
     ];
 
@@ -111,7 +108,7 @@ export default function WorkstationDevicesIndex() {
                 columns={columns}
                 orderBy="name"
                 actions={actions}
-                emptyText={__('No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server\'s IP.')}
+                emptyText={__('No operator panels have connected yet. Open the operator panel on a station and it will appear here.')}
             />
             <RenameModal device={renaming} onClose={() => setRenaming(null)} />
         </>

@@ -5077,7 +5077,6 @@
     "selected": "zaznaczono",
     "(JPEG/PNG/WebP, max 10 MB)": "(JPEG/PNG/WebP, maks. 10 MB)",
     "1 workstation on this line.": "1 stanowisko na tej linii.",
-    ":count :unit ago": ":count :unit temu",
     ":count more needed": "potrzeba jeszcze :count",
     ":count workstations on this line.": "Stanowiska na tej linii: :count",
     "A :type package already exists for this entity and revision.": "Pakiet typu :type już istnieje dla tego obiektu i rewizji.",
@@ -5257,7 +5256,6 @@
     "e.g., Standard Assembly Process, Quality Inspection v2": "np. Standardowy proces montażu, Kontrola jakości v2",
     "e.g., WS-A01, ASSEMBLY-1": "np. WS-A01, ASSEMBLY-1",
     "exp": "ważn.",
-    "in :count :unit": "za :count :unit",
     "optional, only for shop-floor staff": "opcjonalne, tylko dla pracowników produkcji",
     "pcs, kg, m...": "szt., kg, m...",
     "photos": "zdjęcia",
@@ -7501,5 +7499,5 @@
     "Active: :active / :total": "Aktywne: :active / :total",
     "Workstation device renamed.": "Nazwa stacji roboczej zmieniona.",
     "E.g. the place or the tablet, so stations are told apart by more than their IP.": "Np. miejsce lub tablet, aby stacje dało się rozróżnić nie tylko po adresie IP.",
-    "No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server's IP.": "Żadna stacja robocza jeszcze się nie połączyła. Otwórz panel operatora na stanowisku albo zainstaluj klienta OpenMES Workstation i wskaż mu adres IP tego serwera."
+    "No operator panels have connected yet. Open the operator panel on a station and it will appear here.": "Żaden panel operatora jeszcze się nie połączył. Otwórz panel operatora na stanowisku, a pojawi się tutaj."
 }

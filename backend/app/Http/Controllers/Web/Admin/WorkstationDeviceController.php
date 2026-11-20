@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateWorkstationDeviceRequest;
 use App\Models\Line;
-use App\Models\Workstation;
 use App\Models\WorkstationDevice;
 use Inertia\Inertia;
 
@@ -22,7 +21,6 @@ class WorkstationDeviceController extends Controller
         return Inertia::render('admin/workstation-devices/Index', [
             'onlineWindowSeconds' => WorkstationDevice::ONLINE_WINDOW_SECONDS,
             'lines' => Line::orderBy('name')->pluck('name', 'id'),
-            'workstations' => Workstation::orderBy('name')->pluck('name', 'id'),
             'panelPruneDays' => (int) config('openmmes.workstation_panel_prune_days'),
         ]);
     }

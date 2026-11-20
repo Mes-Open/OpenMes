@@ -5073,7 +5073,6 @@
     "selected": "selected",
     "(JPEG/PNG/WebP, max 10 MB)": "(JPEG/PNG/WebP, max 10 MB)",
     "1 workstation on this line.": "1 workstation on this line.",
-    ":count :unit ago": ":count :unit ago",
     ":count more needed": ":count more needed",
     ":count workstations on this line.": ":count workstations on this line.",
     "A :type package already exists for this entity and revision.": "A :type package already exists for this entity and revision.",
@@ -5253,7 +5252,6 @@
     "e.g., Standard Assembly Process, Quality Inspection v2": "e.g., Standard Assembly Process, Quality Inspection v2",
     "e.g., WS-A01, ASSEMBLY-1": "e.g., WS-A01, ASSEMBLY-1",
     "exp": "exp",
-    "in :count :unit": "in :count :unit",
     "optional, only for shop-floor staff": "optional, only for shop-floor staff",
     "pcs, kg, m...": "pcs, kg, m...",
     "photos": "photos",
@@ -7501,5 +7499,5 @@
     "Active: :active / :total": "Active: :active / :total",
     "Workstation device renamed.": "Workstation device renamed.",
     "E.g. the place or the tablet, so stations are told apart by more than their IP.": "E.g. the place or the tablet, so stations are told apart by more than their IP.",
-    "No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server's IP.": "No workstations have connected yet. Open the operator panel on a station, or install the OpenMES Workstation client and point it at this server's IP."
+    "No operator panels have connected yet. Open the operator panel on a station and it will appear here.": "No operator panels have connected yet. Open the operator panel on a station and it will appear here."
 }
