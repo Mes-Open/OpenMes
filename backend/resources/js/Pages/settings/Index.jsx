@@ -31,10 +31,11 @@ function NavCard({ href, iconPath, title, description }) {
 // add one. A full page load (<a>, not <Link>): the page may not be an Inertia one.
 const PUZZLE_ICON = 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z';
 
-function ModuleCard({ href, title, body }) {
+function ModuleCard({ href, title, body, external }) {
     return (
         <a
             href={href}
+            {...(external ? { rel: 'noreferrer' } : {})}
             className="bg-om-card border border-om-line rounded-om p-6 hover:border-om-faint transition-colors cursor-pointer flex items-start gap-4"
         >
             <div className="bg-om-chip rounded-full p-3 flex-shrink-0">
@@ -178,8 +179,8 @@ export default function Index() {
                     </div>
                 </Link>
 
-                {linkCards(hooks, 'display.settings.index.cards').map((card) => (
-                    <ModuleCard key={card.href} href={card.href} title={card.title} body={card.body} />
+                {linkCards(hooks, 'display.settings.index.cards').map((card, i) => (
+                    <ModuleCard key={i} {...card} />
                 ))}
             </div>
         </div>

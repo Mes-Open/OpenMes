@@ -91,4 +91,43 @@ class SettingsCardsHookTest extends TestCase
             $props['hooks']['display.settings.index.cards'],
         );
     }
+
+    public function test_a_guest_is_sent_to_sign_in_and_no_listener_runs(): void
+    {
+        $called = false;
+        app(HookRegistry::class)->listen('display.settings.index.cards', function () use (&$called) {
+            $called = true;
+
+            return ['title' => 'Connected apps', 'href' => '/settings/connected-apps'];
+        });
+
+        $this->get(route('settings.index'))->assertRedirect(route('login'));
+        $this->assertFalse($called);
+    }
+
+    public function test_links_a_browser_would_take_elsewhere_or_run_are_not_sent(): void
+    {
+        foreach (['javascript:alert(1)', '//evil.example/x', '/\\evil.example/login', "/\t/evil.example", 'data:text/html,x', 'settings/relative'] as $href) {
+            app(HookRegistry::class)->listen('display.settings.index.cards', ['title' => 'Card', 'href' => $href]);
+        }
+        app(HookRegistry::class)->listen('display.settings.index.cards', ['title' => 'Docs', 'href' => 'https://example.com/docs']);
+
+        $cards = $this->props($this->actingAs($this->operator)->get(route('settings.index'))->assertOk())['hooks']['display.settings.index.cards'];
+
+        $this->assertCount(7, $cards);
+        $this->assertSame(['Docs' => 'https://example.com/docs'], array_column(array_filter($cards, fn ($c) => isset($c['href'])), 'href', 'title'));
+    }
+
+    public function test_a_failing_listener_does_not_take_the_page_down(): void
+    {
+        $this->withoutExceptionHandling();
+        app(HookRegistry::class)->listen('display.settings.index.cards', function (): array {
+            throw new \RuntimeException('module table missing');
+        });
+        app(HookRegistry::class)->listen('display.settings.index.cards', ['title' => 'Connected apps', 'href' => '/settings/connected-apps']);
+
+        $props = $this->props($this->actingAs($this->operator)->get(route('settings.index'))->assertOk());
+
+        $this->assertSame([['title' => 'Connected apps', 'href' => '/settings/connected-apps']], $props['hooks']['display.settings.index.cards']);
+    }
 }
