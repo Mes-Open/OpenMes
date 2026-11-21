@@ -517,6 +517,33 @@ class WorkOrderApiTest extends TestCase
 }
 ```
 
+New tests get their users from `Tests\Concerns\ActsAsRole` (`userWithRole()`,
+`actingAsRole()`, `userWithPermissions()`), which seeds roles and permissions with
+the real `RolesAndPermissionsSeeder`.
+
+### Access snapshot
+
+`tests/Feature/Access/RouteAccessSnapshotTest.php` requests every web and API
+route, every synced collection (`GET /api/collections/{name}`) and every private
+broadcast channel as five actors — guest, Admin, Supervisor, Operator and a
+signed-in user with no role — and compares the outcome (`allow`, `deny`, `login`,
+`missing`, `error`) with `tests/Feature/Access/fixtures/route-access.json`. Writes
+are sent with an empty body inside a rolled-back transaction, so a 422 counts as
+"got past authorization". Route parameters are filled with factory records; a
+parameter it cannot fill is listed under `unresolved` for that route.
+
+It exists to make access changes visible. Any PR that touches roles, permissions,
+route middleware, policies or Form Request `authorize()` must leave the fixture
+identical, except for the changes it intends — and those show up in the PR diff
+for the reviewer to read. After an intended change, regenerate it:
+
+```bash
+UPDATE_ACCESS_SNAPSHOT=1 php artisan test tests/Feature/Access/RouteAccessSnapshotTest.php
+```
+
+An `error` outcome is a 5xx and always a bug; the failure message lists them with
+the exception.
+
 ---
 
 ## Code Style
