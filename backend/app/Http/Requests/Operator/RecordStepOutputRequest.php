@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Operator;
 
+use App\Models\BatchStep;
 use App\Models\TemplateStepOutput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,6 +22,14 @@ class RecordStepOutputRequest extends FormRequest
 
     public function rules(): array
     {
+        // A step that is not running refuses any value (see the controller), so
+        // its value is not validated: the operator gets the lock message, not a
+        // field error about a value that could never be saved.
+        $batchStep = $this->route('batchStep');
+        if ($batchStep instanceof BatchStep && $batchStep->recordsLocked()) {
+            return [];
+        }
+
         /** @var TemplateStepOutput $output */
         $output = $this->route('output');
 

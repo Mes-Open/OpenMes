@@ -15,6 +15,8 @@ use App\Models\TemplateStepOutput;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -84,13 +86,13 @@ class StepRecordsLockedTest extends TestCase
         ]);
     }
 
-    private function outputDef(): TemplateStepOutput
+    private function outputDef(array $attrs = []): TemplateStepOutput
     {
-        return TemplateStepOutput::create([
+        return TemplateStepOutput::create(array_merge([
             'process_template_id' => $this->template->id,
             'template_step_id' => $this->templateStep->id,
             'key' => 'output_weight', 'label' => 'Weight', 'value_type' => 'number', 'is_required' => true,
-        ]);
+        ], $attrs));
     }
 
     private function tick(TemplateStepChecklistItem $item): BatchStepChecklistCompletion
@@ -211,6 +213,40 @@ class StepRecordsLockedTest extends TestCase
 
         $this->assertDatabaseCount('batch_step_checklist_completions', 0);
         $this->assertDatabaseCount('batch_step_output_values', 0);
+    }
+
+    public function test_locked_step_refuses_an_invalid_value_with_the_lock_message(): void
+    {
+        $output = $this->outputDef();
+        $this->markDone();
+
+        $this->asOperator()->post($this->outputUrl($output), ['value' => 'not a number'])
+            ->assertSessionHas('error', self::LOCKED)
+            ->assertSessionDoesntHaveErrors('value');
+        $this->asOperator()->postJson($this->outputUrl($output), [])
+            ->assertStatus(422)->assertJson(['message' => self::LOCKED])->assertJsonMissingValidationErrors('value');
+    }
+
+    public function test_picture_is_discarded_when_the_step_completes_before_the_write(): void
+    {
+        Storage::fake('local');
+        $output = $this->outputDef(['key' => 'output_photo', 'label' => 'Photo', 'value_type' => 'picture']);
+
+        // The step is running when the request is checked, and done by the time
+        // the write re-reads it under the row lock (a completion in between).
+        $reads = 0;
+        BatchStep::retrieved(function (BatchStep $step) use (&$reads) {
+            if (++$reads > 1) {
+                $step->status = BatchStep::STATUS_DONE;
+            }
+        });
+
+        $this->asOperator()->post($this->outputUrl($output), ['value' => UploadedFile::fake()->image('qc.jpg', 64, 64)])
+            ->assertSessionHas('error', self::LOCKED);
+
+        $this->assertSame(2, $reads, 'The step should be read once by route binding and once under the lock.');
+        $this->assertDatabaseCount('batch_step_output_values', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     // ── Other non-running states ─────────────────────────────────────────────
