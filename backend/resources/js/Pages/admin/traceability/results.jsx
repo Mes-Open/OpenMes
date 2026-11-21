@@ -6,6 +6,7 @@ import { __, formatNumber } from '../../../lib/i18n';
 import { woStatusBadge, woStatusLabel } from '../work-orders/fields';
 import { materialLotStatusBadge } from '../material-lots/fields';
 import { serialStatusBadge, serialStatusLabel } from '../../../lib/serialStatus';
+import { palletConditionBadge, palletConditionSourceLabel } from '../../../lib/palletCondition';
 
 /**
  * The trace result views, one per kind of thing the console resolves. They
@@ -472,10 +473,35 @@ export function PalletResult({ data }) {
             <Header
                 kind={__('Pallet')}
                 id={p.pallet_no}
-                status={<PalletChip status={p.status} size="md" />}
+                status={(
+                    <span className="flex items-center gap-2">
+                        <PalletChip status={p.status} size="md" />
+                        {p.condition === 'damaged' && <StatusBadge size="md" {...palletConditionBadge(p.condition)} />}
+                    </span>
+                )}
                 facts={[wo?.product, wo?.order_no, `${qty(p.qty)} ${__('pcs')}`, p.location, p.created_at]}
             />
             <div className="flex flex-col gap-4">
+                <Card
+                    title={__('Physical condition')}
+                    action={<StatusBadge {...palletConditionBadge(p.condition)} />}
+                >
+                    {data.condition_history?.length ? (
+                        <ul className="flex flex-col gap-3">
+                            {data.condition_history.map((e, i) => (
+                                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px]">
+                                    <StatusBadge {...palletConditionBadge(e.condition)} />
+                                    <span className="text-om-ink">{dash(e.note)}</span>
+                                    <span className="font-mono text-[11px] text-om-muted">
+                                        {[palletConditionSourceLabel(e.source), e.recorded_by, e.recorded_at].filter(Boolean).join(' · ')}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <Empty>{__('No damage has been recorded for this pallet.')}</Empty>
+                    )}
+                </Card>
                 <Card title={__('Origin')}>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-[18px] md:grid-cols-4">
                         <Field label={__('Work Order')} mono><Ref id={wo?.order_no} /></Field>

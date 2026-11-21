@@ -604,6 +604,10 @@ class ShipmentLoadingService
             if ($pallet->quality_status !== Pallet::QUALITY_PASS) {
                 return __('Pallet :code is not released by quality yet.', ['code' => $pallet->pallet_no]);
             }
+            // Physically damaged (wrap, crushed cartons): stays until restored.
+            if ($damaged = PalletConditionService::shipBlocker($pallet)) {
+                return $damaged;
+            }
             $held = SerialUnit::where('pallet_id', $pallet->id)->where('status', SerialUnit::STATUS_BLOCKED)->count();
             if ($held > 0) {
                 return __('Pallet :code carries :count held unit(s).', ['code' => $pallet->pallet_no, 'count' => $held]);
@@ -631,6 +635,9 @@ class ShipmentLoadingService
             }
             if ($parent && $parent->quality_status !== Pallet::QUALITY_PASS) {
                 return __('Carton :code is on pallet :pallet, which is not released by quality yet.', ['code' => $carton->carton_no, 'pallet' => $parent->pallet_no]);
+            }
+            if ($parent && PalletConditionService::shipBlocker($parent) !== null) {
+                return __('Carton :code is on pallet :pallet, which is damaged. Restore the pallet to good condition before shipping.', ['code' => $carton->carton_no, 'pallet' => $parent->pallet_no]);
             }
             $units = SerialUnit::where('carton_id', $carton->id)->where('status', '!=', SerialUnit::STATUS_SCRAPPED)->get(['id', 'status']);
             $held = $units->where('status', SerialUnit::STATUS_BLOCKED)->count();

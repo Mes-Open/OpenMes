@@ -144,6 +144,7 @@ class SettingsController extends Controller
             'lot_picking_strategy' => json_decode($rows['lot_picking_strategy']?->value ?? '"fefo"', true) ?? 'fefo',
             'batch_lot_manual_entry' => \App\Services\Lot\BatchLotRules::manualEntryAllowed(),
             'ship_requires_release' => \App\Services\Logistics\PalletReleaseGate::enabled(),
+            'damaged_pallets_cannot_ship' => \App\Services\Logistics\PalletConditionService::blocksShipping(),
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
             // The stored system language, not this admin's session choice: the
@@ -638,6 +639,9 @@ class SettingsController extends Controller
             // send the switch must not turn hand-typed LOTs off.
             ...($request->has('batch_lot_manual_entry') ? ['batch_lot_manual_entry' => (bool) $validated['batch_lot_manual_entry']] : []),
             ...($request->has('ship_requires_release') ? ['ship_requires_release' => (bool) $validated['ship_requires_release']] : []),
+            // has()-guarded: the default is "on", so a form that does not send
+            // the switch must not let damaged pallets ship.
+            ...($request->has('damaged_pallets_cannot_ship') ? ['damaged_pallets_cannot_ship' => (bool) $validated['damaged_pallets_cannot_ship']] : []),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             // Only when sent: a form without the field must not reset the

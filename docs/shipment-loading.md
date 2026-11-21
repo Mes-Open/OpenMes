@@ -78,7 +78,7 @@ the page never navigates — with a coloured panel and a toast:
 | **Duplicate** | amber | Already loaded on this truck. Also for a carton whose pallet is on the list (even when the list names the carton too): it travels with the pallet and is not counted twice. |
 | **Not on this load** | red | A real pallet / carton that is not on the list. A list row only counts for a unit of its own type: a carton never satisfies a *pallet* row with its number, nor the other way round. |
 | **Unknown code** | red | No such pallet or carton (in this plant). |
-| **Blocked** | red | The unit may not leave: pallet still open, already shipped, failed quality control or not released by quality yet, carries held units; carton still open, already shipped, holds held units, or sits on a pallet that failed or is not released by quality; or the unit is already loaded on another open shipment — including a carton whose pallet is on another truck and a pallet one of whose cartons is. A pallet one of whose cartons was already loaded on its own on this truck is blocked too: undo the carton first. |
+| **Blocked** | red | The unit may not leave: pallet still open, already shipped, failed quality control or not released by quality yet, recorded as physically damaged (see *Damaged pallets* below), carries held units; carton still open, already shipped, holds held units, or sits on a pallet that failed or is not released by quality or is damaged; or the unit is already loaded on another open shipment — including a carton whose pallet is on another truck and a pallet one of whose cartons is. A pallet one of whose cartons was already loaded on its own on this truck is blocked too: undo the carton first. |
 
 The expected list, totals and scan log are live: a second screen on the same shipment (the
 office, a supervisor's tablet) sees every scan as it happens.
@@ -97,8 +97,8 @@ the first one's load and is answered *blocked*.
 **Confirm loading** lets the truck go:
 
 - first every loaded unit is checked again, on locked rows, against the same rules as a
-  scan: a pallet reopened, no longer released by quality, carrying a unit put on hold, a
-  carton whose pallet failed, or a unit shipped elsewhere in the meantime stops the
+  scan: a pallet reopened, no longer released by quality, recorded as damaged, carrying a
+  unit put on hold, a carton whose pallet failed or is damaged, or a unit shipped elsewhere in the meantime stops the
   confirm with `422` naming the units, and **nothing** ships — undo those units first;
 - loaded pallets become **shipped** (with `shipped_at`), their cartons are stamped
   `shipped_at`, and their serialised units are shipped with them;
@@ -147,6 +147,32 @@ in the carton, else its recorded quantity — and who loaded it when), `missing`
 ---
 
 ## Data model
+
+### Damaged pallets
+
+The warehouse records the **physical condition** of a pallet (torn wrap, crushed cartons)
+separately from its quality status:
+
+- on the *Move Pallet* terminal (*Logistics → Move Pallet*) the operator switches on
+  **Damaged** and describes the damage; it is saved in the same transaction as the move.
+  On the pallet's first move it is recorded as the **warehouse receipt**, later as a
+  **move**. A move without the switch leaves the condition as it is — it never restores
+  a damaged pallet;
+- on *Warehouses → Pallets* the row action **Mark as damaged** / **Restore to good** records
+  it by hand (a note is required both ways; not for shipped pallets). Same access as editing
+  pallets (the Packaging tab).
+
+With **Settings → System → Damaged pallets cannot ship** (on by default) a damaged pallet,
+or a carton on one, is answered *blocked* at the dock with *"Pallet … is damaged. Restore its
+condition to good before shipping."*, the confirm re-checks it, and the pallet edit cannot
+set it to shipped. Switched off, the condition is recorded and shown but does not stop a
+load. The quality status is never changed by the condition.
+
+Every record is kept in the append-only `pallet_condition_events` table (`condition`,
+`note`, `user_id`, `recorded_at`, `source` = `receipt` | `move` | `manual`,
+`pallet_movement_id`); the pallet row carries the current `condition`, `condition_note`,
+`condition_recorded_by_id` and `condition_recorded_at` (also in the synced `pallets`
+collection). The traceability console shows the condition and its history for a pallet.
 
 | Table | Notes |
 |---|---|

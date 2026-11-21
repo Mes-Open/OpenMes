@@ -3,6 +3,7 @@ import { Button, Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import ResourceTable from '../../components/ResourceTable';
 import { __, formatDateTime } from '../../lib/i18n';
+import { PALLET_CONDITION_LABELS, palletConditionLabel, palletConditionPill } from '../../lib/palletCondition';
 
 /**
  * Pallet logistics overview (#101): where every pallet is, where it should go,
@@ -167,6 +168,22 @@ export default function LogisticsPallets() {
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] ?? ''}`}>
                     {statusLabel(r)}
+                </span>
+            ),
+        },
+        {
+            key: 'condition',
+            label: __('Physical condition'),
+            filter: 'select',
+            allLabel: __('All conditions'),
+            value: (r) => palletConditionLabel(r.condition),
+            options: PALLET_CONDITION_LABELS(),
+            render: (r) => (
+                <span
+                    title={r.condition === 'damaged' ? r.condition_note ?? '' : undefined}
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${palletConditionPill(r.condition)}`}
+                >
+                    {palletConditionLabel(r.condition)}
                 </span>
             ),
         },

@@ -20,6 +20,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
   30 days move to the trash daily (`workstation-devices:prune-panels`,
   `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+
+- **Physical condition of a pallet.** The warehouse can record a pallet as **damaged**
+  (torn wrap, crushed cartons) with a note, who and when — separately from its quality
+  status. The *Move Pallet* terminal has a **Damaged** switch with a required damage note,
+  saved with the move (the pallet's first move counts as the warehouse receipt); on
+  *Warehouses → Pallets* the row action **Mark as damaged** / **Restore to good** records it
+  by hand, always with a note. A new **Physical condition** column on the pallet lists and the
+  terminal shows it, and the traceability console lists the full history (append-only
+  `pallet_condition_events`). New setting **Settings → System → Damaged pallets cannot ship**
+  (on by default): a damaged pallet, or a carton on one, is refused at scan-to-load and at
+  confirm and cannot be set to shipped until it is restored to good.
 - **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
   `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
   listener returns stops the start and is shown to the operator (422 in the API). Lets a
@@ -2662,7 +2673,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Optional & variant steps in process templates**: a template step can be marked **Optional** (operators may skip it during a batch) or assigned to a **variant group** — steps sharing a group are mutually-exclusive alternatives (e.g. *Matte* vs *Gloss finish*). One step per group is the **default variant** for that product (the template is product-type specific); it is pre-selected when a batch is created and its siblings start skipped, but the operator can switch with **Choose**, or skip an optional step with an optional reason. A batch can't be completed while a variant group has nothing executed (exactly one variant must run). Authored from the process-template step editor; runtime actions on the operator work-order screen.
 - **Soft deletes with deletion audit (all domain entities)**: deleting anything (work orders, lots, workers, users, structure, connectivity configs, …) no longer removes the row — it is marked deleted together with **who** deleted it and when. Deletes cascade to dependent records exactly like the old DB cascades (e.g. work order → batches → steps), and the new **Admin → Trash** page lists everything deleted (item, type, user, time) with one-click restore that also brings back the records deleted along with it. Unique codes/numbers can be re-used after deletion (validation and DB unique indexes ignore trashed rows), and deleted rows never reach live-synced lists.
 - **Source container on material lots**: new `source_container_no` field (scanned identifier of the physical container/pallet/drum a delivery arrived in). Scan inputs on the admin material-lot registration form and on the inbound-inspection start screen — the value entered at receiving is carried onto the material lot the inspection creates. Shown in the traceability console (lot header, ingredient-lot table, backward-trace tree) and resolvable in the genealogy search alongside lot number / supplier LOT / serial number.
-- **Pallets**: new shippable-unit entity. Each pallet gets a unique `pallet_no` drawn from a dedicated Postgres sequence (format `PAL-000001`), and tracks `work_order_id`, `qty`, `status` (open / closed / shipped), `location` and `erp_reference`. Full admin CRUD under **Packaging → Pallets** (`/admin/pallets`), live-synced list.
+- **Pallets**: new shippable-unit entity. Each pallet gets a unique `pallet_no` drawn from a dedicated Postgres sequence (format `PAL-000001`), and tracks `work_order_id`, `qty`, `status` (open / closed / shipped), `location` and `erp_reference`. Full admin CRUD under **Warehouses → Pallets** (`/admin/pallets`), live-synced list.
 - **Pallet labels**: new `pallet` label-template type wired into the existing template/label system. Prints QR + 1D barcode (both encoding the pallet number) plus pallet no., product, quantity and location, as PDF or ZPL. A default *Standard Pallet* template (100×100 mm) is seeded.
 - **Packing-station create-pallet action**: operators can open a pallet for a work order at the scanning station; subsequent scans of that order's pieces are assigned to the open pallet (incrementing its `qty`), with a close action and one-click label print. A scan whose EAN belongs to a different work order than the open pallet is rejected.
 - **Resume open pallets across shifts**: open pallets persist with their running `qty`, so a pallet started on one shift can be continued on the next. The scanning station now shows a list of all open pallets grouped by production line (derived from each pallet's work order, filterable via `GET /packaging/pallets?line_id=`), each with a **Resume** action that makes it the active pallet so further scans keep filling it instead of opening a new one.

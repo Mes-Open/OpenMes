@@ -79,6 +79,7 @@ class UpdateSystemSettingsRequest extends FormRequest
             'lot_picking_strategy' => 'nullable|in:fefo,fifo,lifo,manual',
             'batch_lot_manual_entry' => 'nullable|boolean',
             'ship_requires_release' => 'nullable|boolean',
+            'damaged_pallets_cannot_ship' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
             // Single source of truth — the language switcher's configured locales.

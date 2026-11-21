@@ -365,6 +365,7 @@ export default function System() {
         lot_picking_strategy: settings.lot_picking_strategy ?? 'fefo',
         batch_lot_manual_entry: settings.batch_lot_manual_entry ?? true,
         ship_requires_release: settings.ship_requires_release ?? false,
+        damaged_pallets_cannot_ship: settings.damaged_pallets_cannot_ship ?? true,
         scanner_mode: settings.scanner_mode ?? 'hid',
         unit_identifier_normalize: settings.unit_identifier_normalize ?? true,
         unit_serial_pattern: settings.unit_serial_pattern ?? '',
@@ -880,6 +881,15 @@ export default function System() {
                                             onChange={(v) => setData('ship_requires_release', v)}
                                             label={__('Ship only goods released for sale')}
                                             help={__('A pallet ships only when its batch is released for sale and its work order is not blocked by an open non-conformance.')}
+                                        />
+                                    </div>
+
+                                    <div className="border-t border-om-line2 pt-5">
+                                        <SwitchRow
+                                            checked={data.damaged_pallets_cannot_ship}
+                                            onChange={(v) => setData('damaged_pallets_cannot_ship', v)}
+                                            label={__('Damaged pallets cannot ship')}
+                                            help={__('A pallet the warehouse recorded as damaged is refused at loading until its condition is restored to good. Its quality status is not affected.')}
                                         />
                                     </div>
                                 </div>

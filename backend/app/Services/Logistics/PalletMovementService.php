@@ -2,7 +2,9 @@
 
 namespace App\Services\Logistics;
 
+use App\Enums\PalletCondition;
 use App\Models\Pallet;
+use App\Models\PalletConditionEvent;
 use App\Models\PalletMovement;
 use App\Models\User;
 use App\Models\Worker;
@@ -19,6 +21,8 @@ use Illuminate\Support\Facades\DB;
  */
 class PalletMovementService
 {
+    public function __construct(private readonly PalletConditionService $conditions) {}
+
     /**
      * Record a physical move.
      *
@@ -26,6 +30,11 @@ class PalletMovementService
      * null leaves the standing destination in place. Landing on the destination
      * clears it and stamps the arrival — use assignDestination() to explicitly
      * unassign one.
+     *
+     * $damageNote, when given, records the pallet as damaged with the move, in
+     * the same transaction: as the warehouse receipt on the pallet's first move,
+     * as a move otherwise. Without it the condition is left as it was - a move
+     * never restores a damaged pallet; that is a deliberate act on the pallet.
      */
     public function record(
         Pallet $pallet,
@@ -34,8 +43,9 @@ class PalletMovementService
         ?User $recordedBy = null,
         ?string $notes = null,
         ?string $toDestination = null,
+        ?string $damageNote = null,
     ): PalletMovement {
-        return DB::transaction(function () use ($pallet, $operator, $toLocation, $recordedBy, $notes, $toDestination) {
+        return DB::transaction(function () use ($pallet, $operator, $toLocation, $recordedBy, $notes, $toDestination, $damageNote) {
             // Lock + re-read so the from_location we capture is the real current
             // location even under concurrent moves of the same pallet.
             $locked = Pallet::whereKey($pallet->getKey())->lockForUpdate()->firstOrFail();
@@ -56,16 +66,31 @@ class PalletMovementService
                 $arrivedAt = null;
             }
 
+            $firstMove = ! PalletMovement::where('pallet_id', $locked->id)->exists();
+
             $locked->update([
                 'location' => $toLocation,
                 'destination' => $destination,
                 'arrived_at' => $arrivedAt,
             ]);
 
-            return $this->append(
+            $movement = $this->append(
                 $locked, $operator, $fromLocation, $toLocation,
                 $fromDestination, $destination, $recordedBy, $notes,
             );
+
+            if ($damageNote !== null) {
+                $this->conditions->record(
+                    $locked,
+                    PalletCondition::Damaged,
+                    $damageNote,
+                    $recordedBy,
+                    $firstMove ? PalletConditionEvent::SOURCE_RECEIPT : PalletConditionEvent::SOURCE_MOVE,
+                    $movement,
+                );
+            }
+
+            return $movement;
         });
     }
 

@@ -1,7 +1,8 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Button, Dropdown } from '@openmes/ui';
+import { Button, Dropdown, Switch } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import { palletConditionLabel, palletConditionPill } from '../../lib/palletCondition';
 
 /**
  * Shop-floor "Move Pallet" terminal (#103). A logistics operator identifies
@@ -18,6 +19,9 @@ export default function MovePallet() {
         to_location: '',
         to_destination: '',
         notes: '',
+        // Physical damage found on this move; the note says what was found.
+        damaged: false,
+        condition_note: '',
     });
     const { data, setData, errors, processing } = form;
 
@@ -27,7 +31,7 @@ export default function MovePallet() {
         e.preventDefault();
         form.post('/logistics/movements', {
             preserveScroll: true,
-            onSuccess: () => form.reset('pallet_id', 'to_location', 'to_destination', 'notes'),
+            onSuccess: () => form.reset('pallet_id', 'to_location', 'to_destination', 'notes', 'damaged', 'condition_note'),
         });
     };
 
@@ -86,15 +90,26 @@ export default function MovePallet() {
                         placeholder={__('— Select pallet —')}
                         options={pallets.map((p) => ({
                             value: String(p.id),
-                            label: p.location ? `${p.pallet_no} · ${p.location}` : p.pallet_no,
+                            label: [p.pallet_no, p.location, p.condition === 'damaged' ? palletConditionLabel('damaged') : null]
+                                .filter(Boolean).join(' · '),
                         }))}
                     />
                     {selectedPallet && (
-                        <p className="mt-1 text-[12px] text-om-muted">
-                            {__('Current location')}: <span className="font-mono">{selectedPallet.location || '—'}</span>
-                            {' · '}
-                            {__('Destination')}: <span className="font-mono">{selectedPallet.destination || '—'}</span>
-                        </p>
+                        <div className="mt-1 text-[12px] text-om-muted">
+                            <p>
+                                {__('Current location')}: <span className="font-mono">{selectedPallet.location || '—'}</span>
+                                {' · '}
+                                {__('Destination')}: <span className="font-mono">{selectedPallet.destination || '—'}</span>
+                                {' · '}
+                                {__('Physical condition')}:{' '}
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${palletConditionPill(selectedPallet.condition)}`}>
+                                    {palletConditionLabel(selectedPallet.condition)}
+                                </span>
+                            </p>
+                            {selectedPallet.condition === 'damaged' && selectedPallet.condition_note && (
+                                <p className="mt-1 text-om-blocked">{selectedPallet.condition_note}</p>
+                            )}
+                        </div>
                     )}
                     {errors.pallet_id && <p className="mt-1 text-xs text-om-blocked">{errors.pallet_id}</p>}
                 </div>
@@ -154,6 +169,42 @@ export default function MovePallet() {
                         className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[14px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                     />
                     {errors.notes && <p className="mt-1 text-xs text-om-blocked">{errors.notes}</p>}
+                </div>
+
+                {/* Physical condition - damage found while handling the pallet */}
+                <div>
+                    <div className="flex items-start gap-3">
+                        <Switch
+                            id="move-damaged"
+                            checked={!!data.damaged}
+                            onChange={(v) => setData('damaged', v)}
+                            aria-describedby="move-damaged-help"
+                        />
+                        <label htmlFor="move-damaged" className="min-w-0 pt-[2px] cursor-pointer">
+                            <span className="block text-sm font-semibold text-om-ink">{__('Damaged')}</span>
+                            <span id="move-damaged-help" className="block mt-0.5 text-[12px] text-om-muted">
+                                {__('The pallet is physically damaged (wrap, cartons). It cannot ship until it is restored to good condition on the pallet screen.')}
+                            </span>
+                        </label>
+                    </div>
+                    {data.damaged && (
+                        <div className="mt-3">
+                            <div className="block text-sm font-semibold text-om-ink mb-2">
+                                {__('Damage note')} <span className="text-om-blocked">*</span>
+                            </div>
+                            <textarea
+                                aria-label={__('Damage note')}
+                                name="condition_note"
+                                rows={2}
+                                value={data.condition_note}
+                                onChange={(e) => setData('condition_note', e.target.value)}
+                                placeholder={__('e.g. torn stretch wrap, crushed corner cartons')}
+                                className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[14px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
+                            />
+                        </div>
+                    )}
+                    {errors.condition_note && <p className="mt-1 text-xs text-om-blocked">{errors.condition_note}</p>}
+                    {errors.damaged && <p className="mt-1 text-xs text-om-blocked">{errors.damaged}</p>}
                 </div>
 
                 <Button type="submit" variant="primary" loading={processing} disabled={processing} className="w-full py-3 text-[15px]">

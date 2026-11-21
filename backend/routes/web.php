@@ -774,6 +774,7 @@ Route::middleware('auth')->group(function () {
 
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
+        Route::post('/pallets/{pallet}/condition', [AdminPalletController::class, 'recordCondition'])->name('pallets.condition');
 
         // Shipments / scan-to-load verification (#400) — packaging tab.
         Route::resource('shipments', \App\Http\Controllers\Web\Admin\ShipmentController::class);

@@ -47,6 +47,7 @@ class PalletMovementController extends Controller
             $request->user(),
             $request->input('notes'),
             $request->toDestination(),
+            $request->damageNote(),
         );
 
         return redirect()->route('logistics.move-pallet')
@@ -88,7 +89,7 @@ class PalletMovementController extends Controller
         return Pallet::where('status', '!=', PalletStatus::Shipped->value)
             ->orderByDesc('id')
             ->limit(500)
-            ->get(['id', 'pallet_no', 'location', 'destination']);
+            ->get(['id', 'pallet_no', 'location', 'destination', 'condition', 'condition_note']);
     }
 
     /** The operators both logistics screens offer for attribution. */

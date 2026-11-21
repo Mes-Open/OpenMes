@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Enums\PalletStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PalletRequest;
+use App\Http\Requests\RecordPalletConditionRequest;
 use App\Models\LabelTemplate;
 use App\Models\Pallet;
+use App\Models\PalletConditionEvent;
 use App\Models\WorkOrder;
+use App\Services\Logistics\PalletConditionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -72,6 +75,16 @@ class PalletController extends Controller
         }
 
         return $this->saved($request, redirect()->route('admin.pallets.index'), __('Pallet updated.'));
+    }
+
+    /** Mark the pallet physically damaged, or restore it to good (always with a note). */
+    public function recordCondition(RecordPalletConditionRequest $request, Pallet $pallet, PalletConditionService $service)
+    {
+        $service->record($pallet, $request->condition(), $request->validated('note'), $request->user(), PalletConditionEvent::SOURCE_MANUAL);
+
+        return redirect()->route('admin.pallets.index')->with('success', $pallet->isDamaged()
+            ? __('Pallet :no marked as damaged.', ['no' => $pallet->pallet_no])
+            : __('Pallet :no restored to good condition.', ['no' => $pallet->pallet_no]));
     }
 
     public function destroy(Pallet $pallet)

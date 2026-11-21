@@ -2,11 +2,13 @@
 
 namespace App\Services\Traceability;
 
+use App\Enums\PalletCondition;
 use App\Enums\PalletStatus;
 use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\Pallet;
+use App\Models\PalletConditionEvent;
 use App\Models\SerialUnit;
 use App\Models\SerialUnitComponent;
 use App\Models\WorkOrder;
@@ -477,7 +479,22 @@ class TraceabilityService
                 'location' => $pallet->location,
                 'created_at' => $pallet->created_at?->format('Y-m-d H:i'),
                 'shipped_at' => $pallet->shipped_at?->format('Y-m-d H:i'),
+                // Physical condition (warehouse), separate from the quality status.
+                'condition' => ($pallet->condition ?? PalletCondition::Good)->value,
+                'condition_note' => $pallet->condition_note,
+                'condition_recorded_at' => $pallet->condition_recorded_at?->format('Y-m-d H:i'),
             ],
+            // Who found the pallet in what state, and when - oldest first.
+            'condition_history' => $pallet->conditionEvents()
+                ->with('user:id,name')
+                ->get()
+                ->map(fn (PalletConditionEvent $e) => [
+                    'condition' => $e->condition,
+                    'note' => $e->note,
+                    'source' => $e->source,
+                    'recorded_by' => $e->user?->name,
+                    'recorded_at' => $e->recorded_at?->format('Y-m-d H:i'),
+                ])->values(),
             'work_order' => $pallet->workOrder ? [
                 'order_no' => $pallet->workOrder->order_no,
                 'customer_order_no' => $pallet->workOrder->customer_order_no,

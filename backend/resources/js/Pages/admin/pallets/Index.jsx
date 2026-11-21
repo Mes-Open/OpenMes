@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Button, Modal, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import LabelPrintMenu from '../../../components/LabelPrintMenu';
 import PalletForm, { palletInitial } from './PalletForm';
-import { __ } from '../../../lib/i18n';
+import { __, formatDateTime } from '../../../lib/i18n';
+import { PALLET_CONDITION_LABELS, palletConditionLabel, palletConditionPill } from '../../../lib/palletCondition';
 
 const STATUS_BADGE = {
     open: 'bg-om-running-bg text-om-running',
@@ -56,6 +58,81 @@ function NoTemplateBanner() {
 }
 
 /**
+ * Mark a pallet physically damaged, or restore it to good. Either way the note
+ * says what was found or what was done, and the server keeps the record.
+ */
+function ConditionModal({ pallet, onClose }) {
+    const damaged = pallet?.condition === 'damaged';
+    const [note, setNote] = useState('');
+    const [error, setError] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    useEffect(() => {
+        setNote('');
+        setError('');
+    }, [pallet?.id]);
+
+    const submit = () => {
+        if (!note.trim()) {
+            setError(damaged ? __('Describe what was done to restore the pallet.') : __('Describe the damage.'));
+            return;
+        }
+        setProcessing(true);
+        router.post(
+            `/admin/pallets/${pallet.id}/condition`,
+            { condition: damaged ? 'good' : 'damaged', note: note.trim() },
+            {
+                preserveScroll: true,
+                onSuccess: onClose,
+                onError: (errors) => setError(errors.note ?? errors.condition ?? __('Could not record the condition.')),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
+
+    return (
+        <Modal
+            open={pallet != null}
+            onClose={onClose}
+            title={damaged ? __('Restore to good condition') : __('Mark pallet as damaged')}
+            subtitle={pallet?.pallet_no}
+            closeLabel={__('Close')}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                    <Button variant={damaged ? 'primary' : 'danger'} loading={processing} disabled={processing} onClick={submit}>
+                        {damaged ? __('Restore to good') : __('Mark as damaged')}
+                    </Button>
+                </>
+            }
+        >
+            {damaged && (
+                <p className="mb-[14px] text-[12.5px] leading-[1.5] text-om-blocked">
+                    {pallet.condition_note}
+                    {pallet.condition_recorded_at && <span className="text-om-muted"> · {formatDateTime(pallet.condition_recorded_at)}</span>}
+                </p>
+            )}
+            <p className="mb-[14px] text-[12.5px] leading-[1.5] text-om-muted">
+                {damaged
+                    ? __('Record what was done (rewrapped, cartons replaced). The quality status is not changed.')
+                    : __('A damaged pallet cannot ship until it is restored to good condition. The quality status is not changed.')}
+            </p>
+            <TextField
+                label={damaged ? __('What was done') : __('Damage note')}
+                multiline
+                value={note}
+                onChange={(v) => {
+                    setNote(v);
+                    if (error) setError('');
+                }}
+                placeholder={damaged ? __('e.g. rewrapped, two cartons replaced') : __('e.g. torn stretch wrap, crushed corner cartons')}
+                error={error || undefined}
+            />
+        </Modal>
+    );
+}
+
+/**
  * The row's label: the same preview modal (print, ZPL, template choice) the
  * stations use, instead of PDF and ZPL links that leave the page.
  */
@@ -70,6 +147,7 @@ function LabelCell({ palletId, templates }) {
 
 export default function PalletsIndex() {
     const drawer = useResourceDrawer();
+    const [conditionFor, setConditionFor] = useState(null);
 
     const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [], workOrders, statuses, editPallet = null } = usePage().props;
     const formReady = workOrders !== undefined && statuses !== undefined;
@@ -114,6 +192,22 @@ export default function PalletsIndex() {
                 </span>
             ),
         },
+        {
+            key: 'condition',
+            label: __('Physical condition'),
+            value: (r) => palletConditionLabel(r.condition),
+            filter: true,
+            allLabel: __('All conditions'),
+            options: PALLET_CONDITION_LABELS(),
+            render: (r) => (
+                <span
+                    title={r.condition === 'damaged' ? r.condition_note ?? '' : undefined}
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${palletConditionPill(r.condition)}`}
+                >
+                    {palletConditionLabel(r.condition)}
+                </span>
+            ),
+        },
         { key: 'location', label: __('Location'), render: (r) => r.location || '—' },
         { key: 'destination', label: __('Destination'), render: (r) => r.destination || '—' },
         { key: 'erp_reference', label: __('ERP reference'), render: (r) => r.erp_reference || '—' },
@@ -127,6 +221,13 @@ export default function PalletsIndex() {
 
     const actions = (r) => [
         { label: __('Edit'), icon: 'edit', onClick: () => drawer.edit(r) },
+        ...(r.status !== 'shipped'
+            ? [{
+                label: r.condition === 'damaged' ? __('Restore to good') : __('Mark as damaged'),
+                variant: r.condition === 'damaged' ? 'primary' : 'warning',
+                onClick: () => setConditionFor(r),
+            }]
+            : []),
         { label: __('Packing list'), icon: 'document', onClick: () => window.open(`/packaging/labels/pallet/${r.id}/packing-list`, '_blank', 'noopener') },
         {
             label: 'Delete',
@@ -156,6 +257,8 @@ export default function PalletsIndex() {
                 actions={actions}
                 emptyText="No pallets yet."
             />
+
+            <ConditionModal pallet={conditionFor} onClose={() => setConditionFor(null)} />
 
             <ResourceFormDrawer
                 {...drawer.props}

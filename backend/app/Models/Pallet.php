@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PalletCondition;
 use App\Enums\PalletStatus;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
@@ -40,6 +41,8 @@ class Pallet extends Model
         'active_by_id',
         'active_workstation_id',
         'activated_at',
+        // Physical condition is written by PalletConditionService only (it
+        // also appends the audit event), so it is not mass-assignable.
     ];
 
     protected function casts(): array
@@ -47,6 +50,8 @@ class Pallet extends Model
         return [
             'activated_at' => 'datetime',
             'status' => PalletStatus::class,
+            'condition' => PalletCondition::class,
+            'condition_recorded_at' => 'datetime',
             'qty' => 'integer',
             'shipped_at' => 'datetime',
             'arrived_at' => 'datetime',
@@ -78,6 +83,15 @@ class Pallet extends Model
                     'Cannot ship pallet :no: quality status is ":status" (must be passed).',
                     ['no' => $pallet->pallet_no, 'status' => $pallet->quality_status],
                 ));
+            }
+
+            // A damaged pallet stays in the warehouse until it is restored to
+            // good (system setting damaged_pallets_cannot_ship, on by default).
+            if ($pallet->isDirty('status') && $pallet->status === PalletStatus::Shipped) {
+                $blocker = \App\Services\Logistics\PalletConditionService::shipBlocker($pallet);
+                if ($blocker !== null) {
+                    throw new \DomainException($blocker);
+                }
             }
 
             if ($pallet->status === PalletStatus::Shipped && $pallet->shipped_at === null) {
@@ -227,6 +241,23 @@ class Pallet extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(PalletMovement::class);
+    }
+
+    /** Every recorded physical condition, oldest first (append-only). */
+    public function conditionEvents(): HasMany
+    {
+        return $this->hasMany(PalletConditionEvent::class)->orderBy('recorded_at')->orderBy('id');
+    }
+
+    public function conditionRecordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'condition_recorded_by_id');
+    }
+
+    /** Physically damaged (independent of the quality status). */
+    public function isDamaged(): bool
+    {
+        return $this->condition === PalletCondition::Damaged;
     }
 
     public function isOpen(): bool
