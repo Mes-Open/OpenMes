@@ -7835,5 +7835,6 @@
     "This work order is blocked by an open issue and cannot be completed.": "This work order is blocked by an open issue and cannot be completed.",
     "This work order cannot be completed until its production has gone through the process steps of a batch.": "This work order cannot be completed until its production has gone through the process steps of a batch.",
     "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.": "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.",
-    "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.": "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order."
+    "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.": "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.",
+    "Checklist and outputs can only be recorded while the step is in progress.": "Checklist and outputs can only be recorded while the step is in progress."
 }

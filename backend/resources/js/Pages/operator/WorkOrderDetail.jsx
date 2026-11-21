@@ -1082,6 +1082,9 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const outputs = stepOutputs[step.step_number] || [];
                     const outputValues = step.output_values || [];
                     const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
+                    // Checklist ticks and output values are the running step's record:
+                    // the server refuses them before the start and after completion.
+                    const canRecord = step.status === 'IN_PROGRESS';
                     // Transfer flow: the step can't be finished while pieces can still
                     // arrive or are waiting (the server tells us why).
                     const productionBlocker = transfer ? step.production_blocker : null;
@@ -1221,7 +1224,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 items={checklist}
                                 completedItemIds={completedItemIds}
                                 completions={completions}
-                                canCheck={canCheck}
+                                canCheck={canRecord}
                                 inflightCheckId={inflightCheckId}
                                 onToggle={handleToggleChecklist}
                             />
@@ -1232,7 +1235,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 step={step}
                                 outputs={outputs}
                                 values={outputValues}
-                                canRecord={canCheck}
+                                canRecord={canRecord}
                                 inflightCheckId={inflightCheckId}
                                 onRecord={handleRecordOutput}
                             />

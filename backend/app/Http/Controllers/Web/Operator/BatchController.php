@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
+use App\Http\Requests\Operator\RecordStepOutputRequest;
 use App\Http\Requests\Operator\RecordStepQuantityRequest;
 use App\Http\Requests\Operator\ReleaseBatchRequest;
 use App\Http\Requests\Operator\StartStepRequest;
@@ -272,24 +273,30 @@ class BatchController extends Controller
             return back()->with('error', 'This checklist item does not belong to this step.');
         }
 
-        $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
-            ->where('checklist_item_id', $checklistItem->id)
-            ->first();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $batchStep, $checklistItem) {
+            if ($this->stepRecordsLockedForUpdate($batchStep)) {
+                return $this->stepRecordsLockedResponse($request);
+            }
 
-        if ($existing) {
-            $existing->delete();
+            $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
+                ->where('checklist_item_id', $checklistItem->id)
+                ->first();
 
-            return back()->with('success', 'Checklist item unchecked.');
-        }
+            if ($existing) {
+                $existing->delete();
 
-        BatchStepChecklistCompletion::create([
-            'batch_step_id' => $batchStep->id,
-            'checklist_item_id' => $checklistItem->id,
-            'checked_by_id' => $request->user()->id,
-            'checked_at' => now(),
-        ]);
+                return back()->with('success', 'Checklist item unchecked.');
+            }
 
-        return back()->with('success', 'Checklist item checked.');
+            BatchStepChecklistCompletion::create([
+                'batch_step_id' => $batchStep->id,
+                'checklist_item_id' => $checklistItem->id,
+                'checked_by_id' => $request->user()->id,
+                'checked_at' => now(),
+            ]);
+
+            return back()->with('success', 'Checklist item checked.');
+        });
     }
 
     /**
@@ -298,7 +305,7 @@ class BatchController extends Controller
      * uploaded image on the private disk. Re-recording soft-deletes the prior
      * value (audit preserved) and inserts a fresh one.
      */
-    public function recordOutput(Request $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
+    public function recordOutput(RecordStepOutputRequest $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
@@ -312,6 +319,11 @@ class BatchController extends Controller
             return back()->with('error', 'This output does not belong to this step.');
         }
 
+        if ($batchStep->recordsLocked()) {
+            return $this->stepRecordsLockedResponse($request);
+        }
+
+        $value = $request->validated()['value'];
         $attrs = [
             'batch_step_id' => $batchStep->id,
             'output_id' => $output->id,
@@ -319,27 +331,24 @@ class BatchController extends Controller
             'recorded_at' => now(),
         ];
 
-        try {
-            if ($output->value_type === TemplateStepOutput::TYPE_PICTURE) {
-                $validated = $request->validate(['value' => ['required', 'image', 'max:10240']]);
-                $clean = $sanitizer->sanitize($validated['value']->getRealPath());
-                $path = 'batch-step-outputs/'.\Illuminate\Support\Str::random(40).'.'.$clean['extension'];
-                // Pin to the private disk explicitly: the default disk follows
-                // FILESYSTEM_DISK, and a `public` default would web-expose the file.
-                \Illuminate\Support\Facades\Storage::disk('local')->put($path, $clean['bytes']);
-                $attrs += [
-                    'file_path' => $path,
-                    'original_name' => $validated['value']->getClientOriginalName(),
-                    'mime_type' => $clean['mime'],
-                    'file_size' => strlen($clean['bytes']),
-                ];
-            } else {
-                $attrs += $this->scalarOutputAttrs($request, $output);
+        if ($output->value_type === TemplateStepOutput::TYPE_PICTURE) {
+            try {
+                $clean = $sanitizer->sanitize($value->getRealPath());
+            } catch (\InvalidArgumentException $e) {
+                return back()->with('error', __('The uploaded file is not a valid image.'));
             }
-        } catch (\InvalidArgumentException $e) {
-            return back()->with('error', __('The uploaded file is not a valid image.'));
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
+            $path = 'batch-step-outputs/'.\Illuminate\Support\Str::random(40).'.'.$clean['extension'];
+            // Pin to the private disk explicitly: the default disk follows
+            // FILESYSTEM_DISK, and a `public` default would web-expose the file.
+            \Illuminate\Support\Facades\Storage::disk('local')->put($path, $clean['bytes']);
+            $attrs += [
+                'file_path' => $path,
+                'original_name' => $value->getClientOriginalName(),
+                'mime_type' => $clean['mime'],
+                'file_size' => strlen($clean['bytes']),
+            ];
+        } else {
+            $attrs += $this->scalarOutputAttrs($output, $value);
         }
 
         // Overwrite: soft-delete any live value, then insert the new one (keeps the
@@ -347,47 +356,68 @@ class BatchController extends Controller
         // steps run in one transaction with the live rows locked, so a failed insert
         // can't leave the output with no value and two concurrent posts can't both
         // pass the delete and then collide on the partial-unique index.
-        \Illuminate\Support\Facades\DB::transaction(function () use ($batchStep, $output, $attrs) {
+        $recorded = \Illuminate\Support\Facades\DB::transaction(function () use ($batchStep, $output, $attrs) {
+            if ($this->stepRecordsLockedForUpdate($batchStep)) {
+                return false;
+            }
             BatchStepOutputValue::where('batch_step_id', $batchStep->id)
                 ->where('output_id', $output->id)
                 ->lockForUpdate()
                 ->get()->each->delete();
             BatchStepOutputValue::create($attrs);
+
+            return true;
         });
+
+        if (! $recorded) {
+            // The step was completed between the early check and the write.
+            if (isset($attrs['file_path'])) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($attrs['file_path']);
+            }
+
+            return $this->stepRecordsLockedResponse($request);
+        }
 
         return back()->with('success', __('Output recorded'));
     }
 
     /**
-     * Validate + map a scalar output value to its typed column.
+     * Map a validated scalar output value to its typed column.
      *
      * @return array<string, mixed>
      */
-    private function scalarOutputAttrs(Request $request, TemplateStepOutput $output): array
+    private function scalarOutputAttrs(TemplateStepOutput $output, mixed $value): array
     {
         return match ($output->value_type) {
-            TemplateStepOutput::TYPE_NUMBER => [
-                'value_number' => $request->validate(['value' => ['required', 'numeric']])['value'],
-            ],
-            TemplateStepOutput::TYPE_BOOLEAN => [
-                // Require the field: without it a missing value would silently record
-                // `false` and satisfy the required-output gate. The UI posts '1'/'0'.
-                'value_boolean' => (bool) $request->validate([
-                    'value' => ['required', 'boolean'],
-                ])['value'],
-            ],
-            TemplateStepOutput::TYPE_DATE => [
-                'value_date' => $request->validate(['value' => ['required', 'date']])['value'],
-            ],
-            TemplateStepOutput::TYPE_SELECT => [
-                'value_text' => $request->validate([
-                    'value' => ['required', \Illuminate\Validation\Rule::in($output->options ?? [])],
-                ])['value'],
-            ],
-            default => [
-                'value_text' => $request->validate(['value' => ['required', 'string', 'max:5000']])['value'],
-            ],
+            TemplateStepOutput::TYPE_NUMBER => ['value_number' => $value],
+            TemplateStepOutput::TYPE_BOOLEAN => ['value_boolean' => (bool) $value],
+            TemplateStepOutput::TYPE_DATE => ['value_date' => $value],
+            default => ['value_text' => $value],
         };
+    }
+
+    /**
+     * BatchStep::recordsLocked() on the step re-read under a row lock, for use
+     * inside the write's transaction: completeStep() locks the same row, so a
+     * tick or a value can't slip in while the step is being completed.
+     */
+    private function stepRecordsLockedForUpdate(BatchStep $batchStep): bool
+    {
+        return BatchStep::whereKey($batchStep->id)->lockForUpdate()->first()?->recordsLocked() ?? true;
+    }
+
+    /**
+     * Refusal for a write to a step's checklist or outputs while the step is not
+     * running (see BatchStep::recordsLocked()): 422 for JSON callers, an error
+     * flash on the redirect back for the operator page.
+     */
+    private function stepRecordsLockedResponse(Request $request)
+    {
+        $message = __('Checklist and outputs can only be recorded while the step is in progress.');
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message], 422)
+            : back()->with('error', $message);
     }
 
     /**

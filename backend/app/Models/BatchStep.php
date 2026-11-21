@@ -187,6 +187,18 @@ class BatchStep extends Model
     }
 
     /**
+     * Checklist ticks and typed output values are this step's execution record,
+     * written by the operator while the step runs. Before the step starts there is
+     * nothing to record yet; once it is done or skipped the record is final, so a
+     * tick or a value can no longer be added, removed or overwritten (GMP: a
+     * completed record is changed only through a correction with a reason).
+     */
+    public function recordsLocked(): bool
+    {
+        return $this->status !== self::STATUS_IN_PROGRESS;
+    }
+
+    /**
      * Labels of the step's required checklist items (defined on the template
      * step, resolved by template id + step number) that have not been ticked on
      * this batch step yet - the items that block completion. Empty when none.

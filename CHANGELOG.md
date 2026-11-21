@@ -225,6 +225,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   don't count, and orders without batches close as before. Every one of these paths now
   stamps `completed_at` and checks the order's status on the locked row. The
   produced-quantity validation moved to a Form Request.
+
+- **A finished step's checklist and outputs can no longer be changed.** On the operator
+  page a checklist tick could still be removed or added, and a recorded output value
+  overwritten, after the step was done (or skipped) — the overwrite replaced the value the
+  completion had been checked against. Ticks and output values are now accepted only while
+  the step is in progress; otherwise the operator sees *Checklist and outputs can only be
+  recorded while the step is in progress.* (422 for JSON callers), and the checklist and
+  output fields are read-only outside a running step. A change after completion needs a
+  correction with a reason, which core does not offer yet.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be
