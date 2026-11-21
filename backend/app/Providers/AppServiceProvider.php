@@ -29,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(\App\Support\UnitSerialisation::class);
         // Request-scoped too: its per-bench cache is shared by the shared prop and the controllers.
         $this->app->scoped(\App\Services\Production\OperatorScreens::class);
+        // Request-scoped: collects the templates edited in this request and applies
+        // them once when it terminates (see the class).
+        $this->app->scoped(\App\Services\ProcessTemplate\ProcessTemplateChangePropagator::class);
         $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
         $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
         // Singletons, like the two registries above, and for the same Octane
@@ -160,6 +163,14 @@ class AppServiceProvider extends ServiceProvider
         // Register the authentication event subscriber so login / logout /
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
+
+        // A request applies only the template edits it made itself (see
+        // ProcessTemplateChangePropagator::forgetPending()).
+        Event::listen(\Illuminate\Routing\Events\Routing::class, function (): void {
+            if ($this->app->resolved(\App\Services\ProcessTemplate\ProcessTemplateChangePropagator::class)) {
+                $this->app->make(\App\Services\ProcessTemplate\ProcessTemplateChangePropagator::class)->forgetPending();
+            }
+        });
 
         // Logging out of the operator panel marks its roster row inactive.
         Event::listen(

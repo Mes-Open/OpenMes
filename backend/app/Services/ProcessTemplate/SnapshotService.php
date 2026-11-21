@@ -21,6 +21,9 @@ class SnapshotService
             'bomItems.material.materialType',
             'bomItems.productType',
             'bomItems.templateStep',
+            'steps.checklistItems',
+            'steps.outputs',
+            'steps.media',
         ]);
 
         return [
@@ -30,6 +33,7 @@ class SnapshotService
             'product_type_id' => $template->product_type_id,
             'steps' => $template->steps->map(function ($step) {
                 return [
+                    'template_step_id' => $step->id,
                     'step_number' => $step->step_number,
                     'name' => $step->name,
                     'instruction' => $step->instruction,
@@ -44,6 +48,10 @@ class SnapshotService
                     'workstation_id' => $step->workstation_id,
                     'workstation_type_id' => $step->effectiveWorkstationType(),
                     'parameters' => $step->effectiveParameters(),
+                    // Same frozen work instructions as ProcessTemplate::toSnapshot().
+                    'checklist_items' => $step->checklistItems->map->toStepDefinition()->values()->all(),
+                    'outputs' => $step->outputs->map->toStepDefinition()->values()->all(),
+                    'media' => $step->media->map->toStepDefinition()->values()->all(),
                 ];
             })->toArray(),
             'bom' => $template->bomItems->map(function ($item) {

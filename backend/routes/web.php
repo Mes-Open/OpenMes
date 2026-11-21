@@ -207,6 +207,10 @@ Route::middleware('auth')->group(function () {
     // Rich work-instruction media (image/PDF/video) — same authenticated stream
     // model as photos; Range-enabled so operators can seek videos on a tablet.
     Route::get('/process-templates/{process_template}/media/{media}', [\App\Http\Controllers\Web\Admin\TemplateStepMediaController::class, 'show'])
+        // With trashed: an order in progress keeps showing the media it was
+        // released with after the template drops it (the file stays on disk
+        // until a permanent delete).
+        ->withTrashed()
         ->name('process-templates.media.show');
 
     // Settings
@@ -314,9 +318,9 @@ Route::middleware('auth')->group(function () {
         // Stream a step document's uploaded file (operators read it before validating).
         Route::get('/batch-step-document/{batchStepDocument}/file', [OperatorBatchController::class, 'showDocumentFile'])->name('batch-step-document.file');
         // Work-instruction checklist: tick / un-tick a step checklist item.
-        Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->name('batch-step.checklist.toggle');
+        Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->withTrashed()->name('batch-step.checklist.toggle');
         // Typed step outputs — operator records a value (incl. picture upload).
-        Route::post('/batch-step/{batchStep}/outputs/{output}', [OperatorBatchController::class, 'recordOutput'])->name('batch-step.outputs.record');
+        Route::post('/batch-step/{batchStep}/outputs/{output}', [OperatorBatchController::class, 'recordOutput'])->withTrashed()->name('batch-step.outputs.record');
         Route::get('/batch-step-output/{batchStepOutputValue}/file', [OperatorBatchController::class, 'showOutputFile'])->name('batch-step-output.file');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');

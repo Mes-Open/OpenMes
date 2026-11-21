@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PropagatesTemplateChanges;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 class TemplateStepMedia extends Model
 {
     use HasFactory;
+    use PropagatesTemplateChanges;
     use SoftDeletesWithAudit;
 
     protected $table = 'template_step_media';
@@ -58,6 +60,25 @@ class TemplateStepMedia extends Model
         static::forceDeleted(function (self $media) {
             Storage::delete($media->storage_path);
         });
+    }
+
+    /**
+     * The media as frozen into a work order's process snapshot: a reference to
+     * the file (by id), never a copy of it.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStepDefinition(): array
+    {
+        return [
+            'id' => $this->id,
+            'process_template_id' => $this->process_template_id,
+            'media_type' => $this->media_type,
+            'title' => $this->title,
+            'mime_type' => $this->mime_type,
+            'original_name' => $this->original_name,
+            'sort_order' => (int) $this->sort_order,
+        ];
     }
 
     public function processTemplate(): BelongsTo

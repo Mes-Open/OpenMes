@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\KeepsRecordedExecution;
+use App\Models\Concerns\PropagatesTemplateChanges;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TemplateStepOutput extends Model
 {
     use HasFactory;
+    use KeepsRecordedExecution;
+    use PropagatesTemplateChanges;
     use SoftDeletesWithAudit;
 
     public const TYPE_TEXT = 'text';
@@ -60,6 +64,26 @@ class TemplateStepOutput extends Model
         ];
     }
 
+    /**
+     * The output as frozen into a work order's process snapshot. Recorded values
+     * keep pointing at this row's id, so the row is only ever soft-deleted.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStepDefinition(): array
+    {
+        return [
+            'id' => $this->id,
+            'key' => $this->key,
+            'label' => $this->label,
+            'value_type' => $this->value_type,
+            'unit' => $this->unit,
+            'options' => $this->options ?? [],
+            'is_required' => (bool) $this->is_required,
+            'sort_order' => (int) $this->sort_order,
+        ];
+    }
+
     public function processTemplate(): BelongsTo
     {
         return $this->belongsTo(ProcessTemplate::class);
@@ -73,5 +97,10 @@ class TemplateStepOutput extends Model
     public function values(): HasMany
     {
         return $this->hasMany(BatchStepOutputValue::class, 'output_id');
+    }
+
+    protected function recordedExecutionScope(): array
+    {
+        return ['checklist' => null, 'outputs' => self::query()->whereKey($this->id)];
     }
 }

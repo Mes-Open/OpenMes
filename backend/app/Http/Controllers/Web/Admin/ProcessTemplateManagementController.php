@@ -11,6 +11,7 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\Workstation;
+use App\Services\ProcessTemplate\ProcessTemplateChangePropagator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -100,6 +101,7 @@ class ProcessTemplateManagementController extends Controller
             'outputs',
         ]);
         $workstations = Workstation::active()->with('line')->orderBy('name')->get();
+        $counts = app(ProcessTemplateChangePropagator::class)->orderCounts($processTemplate);
         $processSegments = \App\Models\ProcessSegment::query()
             ->active()
             ->orderBy('segment_type')
@@ -117,9 +119,11 @@ class ProcessTemplateManagementController extends Controller
                 'name' => $processTemplate->name,
                 'version' => $processTemplate->version,
                 'is_active' => (bool) $processTemplate->is_active,
-                // Warn the admin: editing steps here won't touch these running
-                // orders (they keep their frozen snapshot) and isn't versioned.
+                // Warn the admin who an edit reaches: orders in progress keep
+                // their snapshot, orders not started yet are moved onto the edit.
                 'active_work_order_count' => $processTemplate->activeWorkOrderCount(),
+                'in_progress_work_order_count' => $counts['in_progress'],
+                'not_started_work_order_count' => $counts['not_started'],
                 'steps' => $processTemplate->steps->map(fn ($s) => [
                     'id' => $s->id,
                     'step_number' => $s->step_number,
@@ -471,6 +475,8 @@ class ProcessTemplateManagementController extends Controller
         });
 
         $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+        // Raw renumbering fires no model events: tell the not-started orders here.
+        app(ProcessTemplateChangePropagator::class)->markDirty($processTemplate->id);
 
         return response()->json(['success' => true]);
     }
@@ -503,6 +509,8 @@ class ProcessTemplateManagementController extends Controller
             DB::table('template_steps')->where('id', $previousStep->id)->update(['step_number' => $origStep]);
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origPrevious]);
             $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+            // Raw renumbering fires no model events: tell the not-started orders here.
+            app(ProcessTemplateChangePropagator::class)->markDirty($processTemplate->id);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
@@ -538,6 +546,8 @@ class ProcessTemplateManagementController extends Controller
             DB::table('template_steps')->where('id', $nextStep->id)->update(['step_number' => $origStep]);
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origNext]);
             $this->recordStepAudit($processTemplate, 'template_steps.reordered', $before, $this->stepOrderSnapshot($processTemplate->fresh()));
+            // Raw renumbering fires no model events: tell the not-started orders here.
+            app(ProcessTemplateChangePropagator::class)->markDirty($processTemplate->id);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])

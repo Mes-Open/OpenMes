@@ -156,6 +156,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Process template edits reach orders that have not started, and only those.** An
+  order now freezes each step's checklist items, typed outputs and work-instruction media
+  together with its steps. Editing a template (steps, checklist, outputs, media — from the
+  admin pages, the REST API or an import) leaves orders **in progress** exactly as they
+  were released: a checklist item added later does not block them, a deleted required
+  output still has to be recorded, new media is not shown. Orders **not started yet**
+  (PENDING / ACCEPTED, nothing produced, no step started) take the edit: their
+  configuration gets a new version (reason *process template edited*, kept in the order's
+  version history) and the steps of their batches are rebuilt. The template page says how
+  many orders keep the previous version and how many will take the change. Orders
+  released before this change keep reading the live template. Deleting a checklist item
+  or output stays a soft delete; permanently deleting a template row that has values
+  recorded against it is refused.
 - **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
   step that cannot run because an earlier step of its order had too few people now reads
   *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An

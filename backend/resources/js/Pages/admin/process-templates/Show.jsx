@@ -1115,7 +1115,11 @@ export default function ProcessTemplatesShow() {
     const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
-    const activeWoCount = processTemplate.active_work_order_count ?? 0;
+    // Who an edit reaches: orders in progress keep their snapshot, orders not
+    // started yet are moved onto the edited template (a new configuration version).
+    const inProgressWoCount = processTemplate.in_progress_work_order_count ?? 0;
+    const notStartedWoCount = processTemplate.not_started_work_order_count ?? 0;
+    const activeWoCount = inProgressWoCount + notStartedWoCount;
     const allPhotos = processTemplate.photos ?? [];
     const photoByStep = {};
     allPhotos.forEach((p) => {
@@ -1152,15 +1156,14 @@ export default function ProcessTemplatesShow() {
     const { confirm, dialog } = useConfirm();
 
     // When the template is in use, gate destructive step edits behind a confirm
-    // that spells out the consequence (running orders keep their frozen snapshot;
-    // this change isn't versioned but is recorded in the audit log).
-    const inUseBody = __(
-        'This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.',
-        { count: activeWoCount },
+    // that spells out who the change reaches.
+    const inUseSummary = __(
+        ':in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.',
+        { in_progress: inProgressWoCount, not_started: notStartedWoCount },
     );
     const confirmIfInUse = (onConfirm) => {
         if (activeWoCount > 0) {
-            confirm({ title: __('Edit a template that is in use?'), body: inUseBody }, onConfirm);
+            confirm({ title: __('Edit a template that is in use?'), body: inUseSummary }, onConfirm);
         } else {
             onConfirm();
         }
@@ -1185,7 +1188,7 @@ export default function ProcessTemplatesShow() {
     const handleDelete = (step) => {
         confirm({
             title: __('Delete this step?'),
-            body: activeWoCount > 0 ? inUseBody : undefined,
+            body: activeWoCount > 0 ? inUseSummary : undefined,
         }, () => {
             router.delete(
                 `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
@@ -1261,10 +1264,10 @@ export default function ProcessTemplatesShow() {
                         </svg>
                         <div className="text-sm text-om-ink">
                             <p className="font-semibold">
-                                {__('This template backs :count active work order(s).', { count: activeWoCount })}
+                                {inUseSummary}
                             </p>
                             <p className="text-om-muted mt-0.5">
-                                {__('Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.')}
+                                {__('Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.')}
                             </p>
                         </div>
                     </div>

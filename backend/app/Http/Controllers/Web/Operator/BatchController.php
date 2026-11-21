@@ -27,6 +27,7 @@ use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
 use App\Services\WorkOrder\BatchService;
+use App\Services\WorkOrder\StepDefinitions;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 
@@ -263,15 +264,17 @@ class BatchController extends Controller
      */
     public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
     {
+        // The route binds trashed rows (for the template row); a deleted batch step is still gone.
+        abort_if($batchStep->trashed(), 404);
+
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
-        // Anti-IDOR: the item must belong to this step's template and step number.
-        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
-        $checklistItem->loadMissing('templateStep:id,step_number');
-        if ($checklistItem->process_template_id !== $templateId
-            || $checklistItem->templateStep?->step_number !== $batchStep->step_number) {
+        // Anti-IDOR: the item must be one the order was released with on this step
+        // (process snapshot). Bound with trashed rows, so an item deleted from the
+        // template later can still be ticked on an order that was released with it.
+        if (! StepDefinitions::stepHas($batchStep, StepDefinitions::CHECKLIST, $checklistItem->id)) {
             return back()->with('error', 'This checklist item does not belong to this step.');
         }
 
@@ -309,15 +312,16 @@ class BatchController extends Controller
      */
     public function recordOutput(RecordStepOutputRequest $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
     {
+        // The route binds trashed rows (for the template row); a deleted batch step is still gone.
+        abort_if($batchStep->trashed(), 404);
+
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
-        // Anti-IDOR: the output must belong to this step's template + step number.
-        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
-        $output->loadMissing('templateStep:id,step_number');
-        if ($output->process_template_id !== $templateId
-            || $output->templateStep?->step_number !== $batchStep->step_number) {
+        // Anti-IDOR: the output must be one the order was released with on this
+        // step (see toggleChecklistItem()).
+        if (! StepDefinitions::stepHas($batchStep, StepDefinitions::OUTPUTS, $output->id)) {
             return back()->with('error', 'This output does not belong to this step.');
         }
 

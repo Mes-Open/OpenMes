@@ -7,11 +7,10 @@ use App\Http\Requests\Operator\UpdateLineStatusRequest;
 use App\Models\IssueType;
 use App\Models\LineStatus;
 use App\Models\ScrapReason;
-use App\Models\TemplateStepChecklistItem;
-use App\Models\TemplateStepMedia;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\Production\OperatorWorkstationSelection;
+use App\Services\WorkOrder\StepDefinitions;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -302,66 +301,40 @@ class WorkOrderController extends Controller
             }
         }
 
-        // Rich work-instruction media (image/PDF/video) and checklist items for
-        // the steps, resolved live by the snapshot's template id and keyed by
-        // step_number - same approach as step photos, so updated instructions
-        // reach in-flight orders.
+        // Rich work-instruction media (image/PDF/video), checklist items and typed
+        // outputs per step, keyed by step_number. Read from the order's process
+        // snapshot, so an order in progress keeps the instructions it was released
+        // with when the template is edited (orders not started yet are moved onto
+        // the edit, see ProcessTemplateChangePropagator). Orders released before
+        // these were frozen fall back to the live template.
         $stepMedia = [];      // step_number => [ {id, url, media_type, title, ...} ]
-        $stepChecklists = []; // step_number => [ {id, label, is_required} ]
-        $stepOutputs = [];    // step_number => [ {id, key, label, value_type, unit, options, is_required} ]
-        if ($templateId) {
-            foreach (TemplateStepMedia::where('process_template_id', $templateId)
-                ->whereNotNull('template_step_id')
-                ->with('templateStep:id,step_number')
-                ->orderBy('sort_order')->orderBy('id')->get() as $m) {
-                $num = $m->templateStep?->step_number;
-                if ($num === null) {
-                    continue;
-                }
+        foreach (StepDefinitions::forWorkOrder($workOrder, StepDefinitions::MEDIA) as $num => $media) {
+            foreach ($media as $m) {
                 $stepMedia[$num][] = [
-                    'id' => $m->id,
-                    'media_type' => $m->media_type,
-                    'title' => $m->title,
-                    'mime_type' => $m->mime_type,
-                    'original_name' => $m->original_name,
-                    'url' => route('process-templates.media.show', [$templateId, $m->id]),
-                ];
-            }
-
-            foreach (TemplateStepChecklistItem::where('process_template_id', $templateId)
-                ->whereNotNull('template_step_id')
-                ->with('templateStep:id,step_number')
-                ->orderBy('sort_order')->orderBy('id')->get() as $it) {
-                $num = $it->templateStep?->step_number;
-                if ($num === null) {
-                    continue;
-                }
-                $stepChecklists[$num][] = [
-                    'id' => $it->id,
-                    'label' => $it->label,
-                    'is_required' => $it->is_required,
-                ];
-            }
-
-            foreach (\App\Models\TemplateStepOutput::where('process_template_id', $templateId)
-                ->whereNotNull('template_step_id')
-                ->with('templateStep:id,step_number')
-                ->orderBy('sort_order')->orderBy('id')->get() as $o) {
-                $num = $o->templateStep?->step_number;
-                if ($num === null) {
-                    continue;
-                }
-                $stepOutputs[$num][] = [
-                    'id' => $o->id,
-                    'key' => $o->key,
-                    'label' => $o->label,
-                    'value_type' => $o->value_type,
-                    'unit' => $o->unit,
-                    'options' => $o->options ?? [],
-                    'is_required' => $o->is_required,
+                    'id' => $m['id'],
+                    'media_type' => $m['media_type'],
+                    'title' => $m['title'],
+                    'mime_type' => $m['mime_type'],
+                    'original_name' => $m['original_name'],
+                    'url' => route('process-templates.media.show', [$m['process_template_id'] ?? $templateId, $m['id']]),
                 ];
             }
         }
+
+        $only = fn (array $keys) => fn (array $definitions) => array_map(
+            fn (array $d) => array_intersect_key($d, array_flip($keys)),
+            $definitions,
+        );
+        // step_number => [ {id, label, is_required} ]
+        $stepChecklists = array_map(
+            $only(['id', 'label', 'is_required']),
+            StepDefinitions::forWorkOrder($workOrder, StepDefinitions::CHECKLIST),
+        );
+        // step_number => [ {id, key, label, value_type, unit, options, is_required} ]
+        $stepOutputs = array_map(
+            $only(['id', 'key', 'label', 'value_type', 'unit', 'options', 'is_required']),
+            StepDefinitions::forWorkOrder($workOrder, StepDefinitions::OUTPUTS),
+        );
 
         $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
 

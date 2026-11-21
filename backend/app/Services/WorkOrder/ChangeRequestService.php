@@ -728,30 +728,10 @@ class ChangeRequestService
         }
     }
 
-    /**
-     * Whether anything on this batch has been executed, and is therefore untouchable.
-     *
-     * A step SKIPPED *by somebody* counts as executed: skipping records who, when and
-     * why, and choosing a variant skips its siblings the same way — operator decisions
-     * with their own audit trail. Such a batch can still sit at PENDING, so checking
-     * the batch status alone would let regeneration erase them.
-     *
-     * Variant siblings skipped at generation time are NOT execution: they have no
-     * `completed_by_id`, and treating them as executed would freeze every batch with a
-     * variant group against any change.
-     */
+    /** Whether anything on this batch has been executed (see Batch::hasExecution()). */
     protected function hasExecution(Batch $batch): bool
     {
-        return (float) $batch->produced_qty > 0
-            || $batch->steps()
-                ->where(fn ($q) => $q
-                    ->whereIn('status', [BatchStep::STATUS_IN_PROGRESS, BatchStep::STATUS_DONE])
-                    ->orWhere(fn ($qq) => $qq
-                        ->where('status', BatchStep::STATUS_SKIPPED)
-                        ->whereNotNull('completed_by_id')
-                    )
-                )
-                ->exists();
+        return $batch->hasExecution();
     }
 
     /**

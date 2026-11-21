@@ -5638,10 +5638,7 @@
     "Select timezone": "Wybierz strefę czasową",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Strefa czasowa zakładu. Wszystkie znaczniki czasu, granice raportów i zmian w aplikacji są w niej wyrażone.",
     "Changing the timezone reloads the page so every displayed time switches over at once.": "Zmiana strefy czasowej przeładowuje stronę, aby wszystkie wyświetlane godziny zmieniły się naraz.",
-    "This template backs :count active work order(s).": "Ten szablon obsługuje :count aktywnych zleceń.",
-    "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.": "Edycja kroków tutaj nie wpływa na trwające zlecenia — zachowują one zamrożony snapshot z chwili utworzenia. Zmiany nie są wersjonowane; poprzedni kształt pozostaje wyłącznie w dzienniku audytu. Dla kontrolowanej zmiany konkretnego zlecenia użyj jego wniosku o zmianę.",
     "Edit a template that is in use?": "Edytować szablon będący w użyciu?",
-    "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "Ten szablon obsługuje :count aktywnych zleceń. Zachowują one zamrożony snapshot i pozostają nienaruszone, ale ta zmiana nie jest wersjonowana — poprzedni kształt zachowuje tylko dziennik audytu.",
     "Posting would drive :material below zero at :warehouse (:available available).": "Księgowanie zeszłoby poniżej zera dla :material w lokalizacji :warehouse (dostępne: :available).",
     "Choose your setup": "Wybierz konfigurację",
     "Before the setup wizard": "Przed kreatorem konfiguracji",
@@ -7879,5 +7876,7 @@
     "e.g. torn stretch wrap, crushed corner cartons": "np. rozdarta folia stretch, zgniecione kartony w narożniku",
     "Warehouse receipt": "Przyjęcie na magazyn",
     "Pallet move": "Przesunięcie palety",
-    "Recorded on the pallet": "Zapisane na palecie"
+    "Recorded on the pallet": "Zapisane na palecie",
+    ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.": ":in_progress zleceń w toku zachowuje poprzednią wersję; :not_started nierozpoczętych zleceń przejmie tę zmianę.",
+    "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Zmiany kroków, list kontrolnych, wyników i materiałów trafiają do zleceń, które jeszcze się nie rozpoczęły: każde dostaje nową wersję konfiguracji, a kroki jego partii są tworzone od nowa. Zlecenia w toku zachowują to, z czym zostały wydane. Kontrolowaną zmianę zlecenia w toku wprowadź przez jego wniosek o zmianę."
 }

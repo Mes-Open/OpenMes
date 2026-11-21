@@ -5631,10 +5631,7 @@
     "Select timezone": "Select timezone",
     "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.": "Plant timezone. Every timestamp, report boundary and shift edge in the app is expressed in it.",
     "Changing the timezone reloads the page so every displayed time switches over at once.": "Changing the timezone reloads the page so every displayed time switches over at once.",
-    "This template backs :count active work order(s).": "This template backs :count active work order(s).",
-    "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.": "Editing steps here does not affect those running orders — they keep the frozen snapshot taken when they were created. Changes are not versioned; the previous shape is kept only in the audit log. For a controlled change to a specific order, use its change request instead.",
     "Edit a template that is in use?": "Edit a template that is in use?",
-    "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.": "This template backs :count active work order(s). They keep their frozen snapshot and are unaffected, but this change is not versioned — only the audit log keeps the previous shape.",
     "Posting would drive :material below zero at :warehouse (:available available).": "Posting would drive :material below zero at :warehouse (:available available).",
     "Choose your setup": "Choose your setup",
     "Before the setup wizard": "Before the setup wizard",
@@ -7879,5 +7876,7 @@
     "e.g. torn stretch wrap, crushed corner cartons": "e.g. torn stretch wrap, crushed corner cartons",
     "Warehouse receipt": "Warehouse receipt",
     "Pallet move": "Pallet move",
-    "Recorded on the pallet": "Recorded on the pallet"
+    "Recorded on the pallet": "Recorded on the pallet",
+    ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.": ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.",
+    "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request."
 }

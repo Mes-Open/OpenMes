@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\KeepsRecordedExecution;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ProcessTemplate extends Model
 {
     use HasFactory, HasTenant;
+    use KeepsRecordedExecution;
     use SoftDeletesWithAudit;
 
     protected $fillable = [
@@ -97,8 +99,11 @@ class ProcessTemplate extends Model
             'template_id' => $this->id,
             'template_name' => $this->name,
             'template_version' => $this->version,
-            'steps' => $this->steps->map(function ($step) {
+            'steps' => $this->steps->loadMissing(['checklistItems', 'outputs', 'media'])->map(function ($step) {
                 return [
+                    // Recorded ticks / values point at template rows; the id ties a
+                    // snapshot step back to the template step it was frozen from.
+                    'template_step_id' => $step->id,
                     'step_number' => $step->step_number,
                     'name' => $step->name,
                     'kind' => $step->kind ?? TemplateStep::KIND_PRODUCTION,
@@ -119,6 +124,13 @@ class ProcessTemplate extends Model
                     'is_optional' => (bool) $step->is_optional,
                     'variant_group' => $step->variant_group,
                     'is_default_variant' => (bool) $step->is_default_variant,
+                    // Work instructions are part of what the order was released
+                    // with: an order in progress keeps these even when the
+                    // template is edited (orders not started yet are refreshed,
+                    // see ProcessTemplateChangePropagator).
+                    'checklist_items' => $step->checklistItems->map->toStepDefinition()->values()->all(),
+                    'outputs' => $step->outputs->map->toStepDefinition()->values()->all(),
+                    'media' => $step->media->map->toStepDefinition()->values()->all(),
                 ];
             })->toArray(),
             'bom' => $this->bomItems->map(function ($item) {
@@ -169,9 +181,8 @@ class ProcessTemplate extends Model
     /**
      * How many non-finished work orders currently reference this template —
      * either as their primary process (`process_snapshot.template_id`) or as one
-     * of their selected BOMs (`work_order_boms`). Used to warn an admin that
-     * editing the steps here won't touch those running orders (they keep their
-     * frozen snapshot) and isn't versioned.
+     * of their selected BOMs (`work_order_boms`). How an edit splits between
+     * them (in progress vs not started) is ProcessTemplateChangePropagator::orderCounts().
      */
     public function activeWorkOrderCount(): int
     {
@@ -202,6 +213,14 @@ class ProcessTemplate extends Model
             [\App\Models\ProcessTemplatePhoto::class, 'process_template_id'],
             [\App\Models\TemplateStepMedia::class, 'process_template_id'],
             [\App\Models\TemplateStepChecklistItem::class, 'process_template_id'],
+        ];
+    }
+
+    protected function recordedExecutionScope(): array
+    {
+        return [
+            'checklist' => TemplateStepChecklistItem::query()->where('process_template_id', $this->id),
+            'outputs' => TemplateStepOutput::query()->where('process_template_id', $this->id),
         ];
     }
 }

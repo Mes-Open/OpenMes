@@ -21,6 +21,9 @@ class WorkOrderSnapshot extends Model
     use HasFactory;
     use HasTenant;
 
+    /** A not-started order moved onto its edited process template. */
+    public const REASON_TEMPLATE_EDITED = 'process_template_edited';
+
     protected $fillable = [
         'work_order_id',
         'version',
@@ -29,6 +32,7 @@ class WorkOrderSnapshot extends Model
         'effective_from_qty',
         'effective_from_batch_id',
         'change_request_id',
+        'reason',
         'created_by_id',
         'tenant_id',
     ];

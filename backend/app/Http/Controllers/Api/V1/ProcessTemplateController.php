@@ -163,6 +163,8 @@ class ProcessTemplateController extends Controller
                 TemplateStep::where('id', $id)->update(['step_number' => $i + 1]);
             }
         });
+        // Mass update fires no model events: tell the not-started orders here.
+        app(\App\Services\ProcessTemplate\ProcessTemplateChangePropagator::class)->markDirty($processTemplate->id);
 
         return response()->json([
             'message' => 'Steps reordered',

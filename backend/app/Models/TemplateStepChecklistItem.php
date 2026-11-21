@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\KeepsRecordedExecution;
+use App\Models\Concerns\PropagatesTemplateChanges;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TemplateStepChecklistItem extends Model
 {
     use HasFactory;
+    use KeepsRecordedExecution;
+    use PropagatesTemplateChanges;
     use SoftDeletesWithAudit;
 
     protected $fillable = [
@@ -33,6 +37,22 @@ class TemplateStepChecklistItem extends Model
         ];
     }
 
+    /**
+     * The item as frozen into a work order's process snapshot. Recorded ticks keep
+     * pointing at this row's id, so the row is only ever soft-deleted.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStepDefinition(): array
+    {
+        return [
+            'id' => $this->id,
+            'label' => $this->label,
+            'is_required' => (bool) $this->is_required,
+            'sort_order' => (int) $this->sort_order,
+        ];
+    }
+
     public function processTemplate(): BelongsTo
     {
         return $this->belongsTo(ProcessTemplate::class);
@@ -46,5 +66,10 @@ class TemplateStepChecklistItem extends Model
     public function completions(): HasMany
     {
         return $this->hasMany(BatchStepChecklistCompletion::class, 'checklist_item_id');
+    }
+
+    protected function recordedExecutionScope(): array
+    {
+        return ['checklist' => self::query()->whereKey($this->id), 'outputs' => null];
     }
 }

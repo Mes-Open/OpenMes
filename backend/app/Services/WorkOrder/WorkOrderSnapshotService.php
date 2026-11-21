@@ -55,6 +55,7 @@ class WorkOrderSnapshotService
      * two concurrent applies from both writing version 3.
      *
      * @param  array<string, mixed>  $snapshot  The new frozen configuration.
+     * @param  string|null  $reason  Why, when no change request drove it (see WorkOrderSnapshot::REASON_*).
      */
     public function createVersion(
         WorkOrder $workOrder,
@@ -63,9 +64,10 @@ class WorkOrderSnapshotService
         ?WorkOrderChangeRequest $changeRequest = null,
         ?User $user = null,
         ?int $effectiveFromBatchId = null,
+        ?string $reason = null,
     ): WorkOrderSnapshot {
         return DB::transaction(function () use (
-            $workOrder, $snapshot, $effectiveFrom, $changeRequest, $user, $effectiveFromBatchId
+            $workOrder, $snapshot, $effectiveFrom, $changeRequest, $user, $effectiveFromBatchId, $reason
         ) {
             WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
             $workOrder->refresh();
@@ -86,6 +88,7 @@ class WorkOrderSnapshotService
                     : null,
                 'effective_from_batch_id' => $effectiveFromBatchId,
                 'change_request_id' => $changeRequest?->id,
+                'reason' => $reason,
                 'created_by_id' => $user?->id,
                 'tenant_id' => $workOrder->tenant_id,
             ]);

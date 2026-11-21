@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\SoftDeletesWithAudit;
+use App\Services\WorkOrder\StepDefinitions;
 use App\Support\ProductionFlow;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -199,55 +200,44 @@ class BatchStep extends Model
     }
 
     /**
-     * Labels of the step's required checklist items (defined on the template
-     * step, resolved by template id + step number) that have not been ticked on
+     * Labels of the step's required checklist items that have not been ticked on
      * this batch step yet - the items that block completion. Empty when none.
+     * The items are the ones the order was released with (process snapshot), so
+     * a template edit after release neither adds nor removes a gate.
      *
      * @return \Illuminate\Support\Collection<int, string>
      */
     public function pendingRequiredChecklistLabels(): \Illuminate\Support\Collection
     {
-        $templateId = $this->batch?->workOrder?->process_snapshot['template_id'] ?? null;
-        if (! $templateId) {
-            return collect();
-        }
-
-        $required = TemplateStepChecklistItem::where('process_template_id', $templateId)
-            ->where('is_required', true)
-            ->whereHas('templateStep', fn ($q) => $q->where('step_number', $this->step_number))
-            ->pluck('label', 'id');
+        $required = collect(StepDefinitions::forStep($this, StepDefinitions::CHECKLIST))
+            ->filter(fn (array $item) => ! empty($item['is_required']));
         if ($required->isEmpty()) {
             return collect();
         }
 
-        $done = $this->checklistCompletions()->pluck('checklist_item_id')->all();
+        $done = $this->checklistCompletions()->pluck('checklist_item_id')->map(fn ($id) => (int) $id)->all();
 
-        return $required->reject(fn ($label, $id) => in_array($id, $done, true))->values();
+        return $required->reject(fn (array $item) => in_array((int) $item['id'], $done, true))
+            ->pluck('label')->values();
     }
 
     /**
      * Labels of required typed outputs on this step that the operator has not yet
-     * recorded. Resolved live from the work-order snapshot's template, mirroring
-     * pendingRequiredChecklistLabels(). Empty when nothing is pending.
+     * recorded, from the outputs the order was released with (see
+     * pendingRequiredChecklistLabels()). Empty when nothing is pending.
      */
     public function pendingRequiredOutputs(): \Illuminate\Support\Collection
     {
-        $templateId = $this->batch?->workOrder?->process_snapshot['template_id'] ?? null;
-        if (! $templateId) {
-            return collect();
-        }
-
-        $required = TemplateStepOutput::where('process_template_id', $templateId)
-            ->where('is_required', true)
-            ->whereHas('templateStep', fn ($q) => $q->where('step_number', $this->step_number))
-            ->pluck('label', 'id');
+        $required = collect(StepDefinitions::forStep($this, StepDefinitions::OUTPUTS))
+            ->filter(fn (array $output) => ! empty($output['is_required']));
         if ($required->isEmpty()) {
             return collect();
         }
 
-        $recorded = $this->outputValues()->pluck('output_id')->all();
+        $recorded = $this->outputValues()->pluck('output_id')->map(fn ($id) => (int) $id)->all();
 
-        return $required->reject(fn ($label, $id) => in_array($id, $recorded, true))->values();
+        return $required->reject(fn (array $output) => in_array((int) $output['id'], $recorded, true))
+            ->pluck('label')->values();
     }
 
     /**

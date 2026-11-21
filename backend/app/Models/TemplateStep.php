@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\KeepsRecordedExecution;
+use App\Models\Concerns\PropagatesTemplateChanges;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +59,8 @@ class TemplateStep extends Model
     }
 
     use HasFactory;
+    use KeepsRecordedExecution;
+    use PropagatesTemplateChanges;
     use SoftDeletesWithAudit;
 
     public $timestamps = false;
@@ -239,5 +243,13 @@ class TemplateStep extends Model
             $this->processSegment?->parameters ?? [],
             $this->parameters ?? [],
         );
+    }
+
+    protected function recordedExecutionScope(): array
+    {
+        return [
+            'checklist' => TemplateStepChecklistItem::query()->where('template_step_id', $this->id),
+            'outputs' => TemplateStepOutput::query()->where('template_step_id', $this->id),
+        ];
     }
 }
