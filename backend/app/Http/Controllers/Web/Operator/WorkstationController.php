@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\RecordShiftQuantityRequest;
+use App\Http\Requests\Operator\RecordWorkOrderQuantityRequest;
 use App\Http\Requests\SetWorkstationStateRequest;
 use App\Models\Batch;
 use App\Models\IssueType;
@@ -336,7 +338,7 @@ class WorkstationController extends Controller
      * Add produced quantity to a work order.
      * Auto-starts if PENDING/ACCEPTED, auto-completes if produced >= planned.
      */
-    public function complete(Request $request, WorkOrder $workOrder)
+    public function complete(RecordWorkOrderQuantityRequest $request, WorkOrder $workOrder)
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
@@ -345,7 +347,7 @@ class WorkstationController extends Controller
         });
     }
 
-    private function completeLocked(Request $request, WorkOrder $workOrder)
+    private function completeLocked(RecordWorkOrderQuantityRequest $request, WorkOrder $workOrder)
     {
         $workOrder->assertProductionAvailable();
 
@@ -367,9 +369,7 @@ class WorkstationController extends Controller
             return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
         }
 
-        $validated = $request->validate([
-            'produced_qty' => 'required|numeric|min:1',
-        ]);
+        $validated = $request->validated();
 
         $addedQty = (float) $validated['produced_qty'];
         $newProduced = (float) $workOrder->produced_qty + $addedQty;
@@ -386,8 +386,10 @@ class WorkstationController extends Controller
             $updates['status'] = WorkOrder::STATUS_IN_PROGRESS;
         }
 
-        // Auto-complete if produced >= planned
+        // Auto-complete if produced >= planned — unless the order is routed
+        // through process steps that are not finished yet.
         if ($newProduced >= $planned) {
+            $this->assertQuantityMayComplete($workOrder, 'produced_qty');
             $updates['status'] = WorkOrder::STATUS_DONE;
             $updates['completed_at'] = now();
         }
@@ -402,7 +404,7 @@ class WorkstationController extends Controller
     /**
      * Record production quantity for a specific shift.
      */
-    public function shiftEntry(Request $request, WorkOrder $workOrder)
+    public function shiftEntry(RecordShiftQuantityRequest $request, WorkOrder $workOrder)
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
@@ -411,7 +413,7 @@ class WorkstationController extends Controller
         });
     }
 
-    private function shiftEntryLocked(Request $request, WorkOrder $workOrder)
+    private function shiftEntryLocked(RecordShiftQuantityRequest $request, WorkOrder $workOrder)
     {
         $workOrder->assertProductionAvailable();
 
@@ -433,10 +435,7 @@ class WorkstationController extends Controller
             return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
         }
 
-        $validated = $request->validate([
-            'shift_id' => 'required|exists:shifts,id',
-            'quantity' => 'required|numeric|min:1',
-        ]);
+        $validated = $request->validated();
 
         $today = now()->toDateString();
         $qty = (float) $validated['quantity'];
@@ -446,6 +445,12 @@ class WorkstationController extends Controller
         $produced = (float) $workOrder->produced_qty;
         if (\App\Support\ProductionRules::exceedsPlan($workOrder, $produced + $qty)) {
             return back()->with('error', \App\Support\ProductionRules::exceedsPlanMessage((float) $workOrder->planned_qty - $produced));
+        }
+
+        // Checked before the shift row is written, so a refused entry leaves
+        // nothing behind.
+        if ($produced + $qty >= (float) $workOrder->planned_qty) {
+            $this->assertQuantityMayComplete($workOrder, 'quantity');
         }
 
         // Find or create shift entry for today, then add quantity
@@ -488,5 +493,17 @@ class WorkstationController extends Controller
         $remaining = max(0, $planned - $totalProduced);
 
         return back()->with('success', "{$workOrder->order_no} [{$shift->code}]: +{$qty} (remaining: {$remaining})");
+    }
+
+    /**
+     * Whole-batch flow: a quantity that reaches the plan closes the order, which
+     * must not skip unfinished process steps, checklists or an open block.
+     * Thrown as a validation error: back with the message on the web, 422 as JSON.
+     */
+    private function assertQuantityMayComplete(WorkOrder $workOrder, string $field): void
+    {
+        if ($message = $workOrder->processCompletionBlocker()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([$field => $message]);
+        }
     }
 }

@@ -199,6 +199,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   could resolve an issue (and unblock its work order), although on the web resolving only
   exists on the supervisor and admin screens. It now needs the `resolve issues` permission,
   which the roles seeder gives to Supervisor and Admin; anyone else gets 403.
+
+- **The workstation quantity entry no longer closes an order past its process steps.**
+  In whole-batch flow, entering a produced quantity (or a shift entry) that reached the
+  plan, or moving the order to a done board column, set the order `DONE` even with a
+  batch still running or pending, unfinished steps and checklists, or an open blocking
+  issue. For an order routed through process steps this is now refused with a message
+  naming the unfinished batches (422 as JSON);
+  quantities below the plan are still recorded, and orders without process steps close
+  from the quantity as before. The quantity validation moved to Form Requests.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

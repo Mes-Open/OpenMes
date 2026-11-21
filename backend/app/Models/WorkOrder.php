@@ -519,6 +519,43 @@ class WorkOrder extends Model
     }
 
     /**
+     * Why an operator shortcut (a typed-in quantity reaching the plan, a move
+     * to a done board column) may not close this order, or null when it may.
+     * An order routed through process steps closes through its batches: the
+     * shortcut must not skip a running or pending batch, its steps and
+     * checklists, or an open block. Orders without process steps have nothing
+     * to skip and always return null.
+     */
+    public function processCompletionBlocker(): ?string
+    {
+        $liveBatches = fn () => $this->batches()->where('status', '!=', Batch::STATUS_CANCELLED);
+
+        $routed = ! empty($this->process_snapshot['steps']) || $liveBatches()->whereHas('steps')->exists();
+        if (! $routed) {
+            return null;
+        }
+
+        if ($this->status === self::STATUS_BLOCKED || $this->isBlocked()) {
+            return __('This work order is blocked by an open issue and cannot be completed.');
+        }
+
+        if (! $liveBatches()->exists()) {
+            return __('This work order cannot be completed until its production has gone through the process steps of a batch.');
+        }
+
+        $open = $liveBatches()
+            ->where(fn ($q) => $q
+                ->where('status', '!=', Batch::STATUS_DONE)
+                ->orWhereHas('steps', fn ($s) => $s->whereNotIn('status', [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])))
+            ->pluck('batch_number');
+
+        return $open->isEmpty() ? null : __(
+            'This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.',
+            ['batches' => $open->map(fn ($n) => '#'.$n)->implode(', ')],
+        );
+    }
+
+    /**
      * Extra schedule segments beyond the primary placement — the order also
      * runs on these lines/dates (a multi-line staircase or concurrent runs).
      */

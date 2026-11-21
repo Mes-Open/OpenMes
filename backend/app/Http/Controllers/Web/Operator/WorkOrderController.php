@@ -153,6 +153,11 @@ class WorkOrderController extends Controller
                     if ($workOrder->usesStepLedger()) {
                         return back()->with('error', __('Record production on the work order steps.'));
                     }
+                    // Whole-batch flow: a done column must not skip unfinished
+                    // process steps, checklists or an open block either.
+                    if ($blocker = $workOrder->processCompletionBlocker()) {
+                        return back()->with('error', $blocker);
+                    }
                     $updates['status'] = WorkOrder::STATUS_DONE;
                     $updates['completed_at'] = now();
                     if (isset($validated['produced_qty'])) {
