@@ -5357,6 +5357,14 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "PATCH admin/workstation-devices/{workstationDevice}": {
+            "payload": true,
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "PATCH api/v1/additional-costs/{additionalCost}": {
             "guest": "deny",
             "Admin": "allow",
@@ -6302,6 +6310,14 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "POST admin/pallets/{pallet}/condition": {
+            "payload": true,
+            "guest": "login",
+            "Admin": "allow-422",
+            "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST admin/priority-rules": {
             "payload": true,
             "guest": "login",
@@ -6803,6 +6819,7 @@
             "no-role": "deny"
         },
         "POST admin/work-orders/{workOrder}/complete": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -7014,10 +7031,10 @@
         "POST api/v1/batches/{batch}/quality-checks": {
             "payload": true,
             "guest": "deny",
-            "Admin": "allow",
-            "Supervisor": "allow",
-            "Operator": "allow",
-            "no-role": "allow"
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
         },
         "POST api/v1/batches/{batch}/release": {
             "payload": true,
@@ -7359,8 +7376,8 @@
             "guest": "deny",
             "Admin": "allow",
             "Supervisor": "allow",
-            "Operator": "allow",
-            "no-role": "allow"
+            "Operator": "deny",
+            "no-role": "deny"
         },
         "POST api/v1/label-templates": {
             "payload": true,
@@ -8281,7 +8298,6 @@
             "no-role": "deny"
         },
         "POST operator/batch/{batch}/quality-check": {
-            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -8305,6 +8321,14 @@
             "no-role": "deny"
         },
         "POST operator/downtime/{downtime}/stop": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "allow",
+            "no-role": "deny"
+        },
+        "POST operator/heartbeat": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -8453,6 +8477,7 @@
             "no-role": "deny"
         },
         "POST operator/workstation/{workOrder}/complete": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -8460,6 +8485,7 @@
             "no-role": "deny"
         },
         "POST operator/workstation/{workOrder}/shift-entry": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -8997,6 +9023,7 @@
             "no-role": "deny"
         },
         "POST supervisor/work-orders/{workOrder}/complete": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
