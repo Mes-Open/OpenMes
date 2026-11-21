@@ -156,10 +156,15 @@ test('traceability walkthrough screenshots on generic data', async ({ browser, r
   const op = await login(browser, 'demo-operator');
   await op.goto('/operator/select-line');
   await settle(op);
-  await shot(op, '08-operator-wybor-linii');
-  const lineForm = op.locator('main form').filter({ hasText: 'Linia 1' }).first();
-  await pick(lineForm.getByRole('combobox', { name: 'Stanowisko' }), /^Montaż/);
-  await lineForm.getByRole('button', { name: 'Wybierz' }).click();
+  if (/\/operator\/select-line/.test(op.url())) {
+    await shot(op, '08-operator-wybor-linii');
+    const lineForm = op.locator('main form').filter({ hasText: 'Linia 1' }).first();
+    await pick(lineForm.getByRole('combobox', { name: 'Stanowisko' }), /^Montaż/);
+    await lineForm.getByRole('button', { name: 'Wybierz' }).click();
+  } else {
+    // A single assigned line opens its queue directly; the station is picked there.
+    await pick(op.locator('main button[aria-haspopup="listbox"]').first(), /Montaż/);
+  }
   await op.waitForURL(/\/operator\/queue/);
   await settle(op);
   await shot(op.locator('header'), '31-zakladki-montaz');
@@ -177,18 +182,16 @@ test('traceability walkthrough screenshots on generic data', async ({ browser, r
   await settle(op, 2000);
   await shot(op, '07-zlecenie');
 
-  const stepCard = async (n: number) => {
-    const idsOnPage = await op.locator('[id^="batch-step-"]').evaluateAll((els) => els.map((e) => e.id));
-    return op.locator(`#${idsOnPage[n]}`);
-  };
+  // The page shows one step card, the current step; finishing it moves the card on.
+  const stepCard = op.getByTestId('step-card').first();
   for (const n of [0, 1]) {
-    await (await stepCard(n)).getByRole('button', { name: /^(Start|Rozpocznij)$/ }).click();
+    await stepCard.getByRole('button', { name: /^(Start|Rozpocznij)$/ }).click();
     await settle(op, 1500);
-    await (await stepCard(n)).getByLabel('Dobre').fill('4');
-    if (n === 0) await shot(await stepCard(0), '07b-krok-partii');
-    await (await stepCard(n)).getByRole('button', { name: 'Zarejestruj wynik' }).click();
+    await stepCard.getByLabel('Dobre', { exact: true }).fill('4');
+    if (n === 0) await shot(stepCard, '07b-krok-partii');
+    await stepCard.locator('form button[type=submit]').click();
     await settle(op, 1500);
-    await (await stepCard(n)).getByRole('button', { name: 'Zakończ' }).click();
+    await stepCard.getByRole('button', { name: 'Zakończ krok' }).click();
     await settle(op, 1500);
   }
 

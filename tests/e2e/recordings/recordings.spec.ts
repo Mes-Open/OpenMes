@@ -46,7 +46,7 @@ const RUN = (Date.now() / 1000 | 0).toString(36).slice(-4).toUpperCase();
 
 type Seed = {
   run: string; tag: string; password: string; line: number; lineName: string; product: number; productName: string;
-  settings: { flow: string; overproduction: boolean; language: string };
+  settings: { flow: string; overproduction: boolean; language: string; psnPattern: string };
 };
 
 const SEED = readFileSync(path.join(__dirname, 'seed.php'), 'utf8');
@@ -461,14 +461,17 @@ test(section('08-refusals', 'What the screens refuse', 'Wrong input is stopped, 
     await r.point(card.getByRole('button', { name: 'Complete step' }));
     await r.pause(2200);
 
-    await r.caption('At the SN station: a serial in the wrong format');
     await r.click(page.getByRole('link', { name: 'SN labels', exact: true }));
     await r.settle();
     await r.choose(page.getByRole('combobox', { name: 'Work order' }), new RegExp(orderNo(2)));
-    await r.type(page.getByRole('textbox', { name: 'Process serial (PSN)' }), 'lamp 7');
-    await r.click(page.getByRole('button', { name: 'Start unit on PSN' }), 400);
-    await expect(page.getByRole('alert').filter({ hasText: 'does not match the configured format' })).toBeVisible();
-    await r.pause(1800);
+    // Only an instance with a PSN format (Settings → Serialisation) refuses one.
+    if (seed.settings.psnPattern) {
+      await r.caption('At the SN station: a serial in the wrong format');
+      await r.type(page.getByRole('textbox', { name: 'Process serial (PSN)' }), 'lamp 7');
+      await r.click(page.getByRole('button', { name: 'Start unit on PSN' }), 400);
+      await expect(page.getByRole('alert').filter({ hasText: 'does not match the configured format' })).toBeVisible();
+      await r.pause(1800);
+    }
     await r.caption('Asking for a number when the product has no serial sequence');
     await r.click(page.getByRole('button', { name: 'Issue number' }).first(), 400);
     await expect(page.getByRole('alert').filter({ hasText: 'no process serial sequence' })).toBeVisible();

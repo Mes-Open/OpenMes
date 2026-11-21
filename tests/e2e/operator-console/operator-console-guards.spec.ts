@@ -117,6 +117,24 @@ async function sendForm(page: Page, url: string, body: object): Promise<{ succes
   }, [url, body] as const);
 }
 
+/**
+ * POST a form as JSON and return its field errors (a 422 ValidationException),
+ * first message per field. Asking for JSON keeps the errors in this response
+ * instead of the session, where a background request can consume them first.
+ */
+async function fieldErrors(page: Page, url: string, body: object): Promise<Record<string, string>> {
+  return page.evaluate(async ([url, body]) => {
+    const token = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+    const res = await fetch(url as string, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    return Object.fromEntries(Object.entries(json.errors ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]));
+  }, [url, body] as const);
+}
+
 const card = (page: Page) => page.getByTestId('step-card').first();
 const ledger = async (page: Page) => {
   const t = await card(page).innerText();
@@ -148,12 +166,12 @@ test.beforeEach(() => {
 test('a batch is capped at what the order still needs, and a closed order takes none', async ({ browser }) => {
   const op = await session(browser, 'e2e-guards-op', seed.line);
 
-  // Over the plan by hand: refused with the reason, nothing created.
+  // Over the plan by hand: refused with the reason under the quantity field, nothing created.
   await op.goto(`/operator/work-order/${seed.main}`);
-  expect((await sendForm(op, '/operator/batch', { work_order_id: seed.main, target_qty: 50 })).error)
+  expect((await fieldErrors(op, '/operator/batch', { work_order_id: seed.main, target_qty: 50 })).target_qty)
     .toContain('Batch quantity 50 exceeds what the order still needs (4).');
   // Half a widget is not a batch either.
-  expect((await sendForm(op, '/operator/batch', { work_order_id: seed.main, target_qty: 2.5 })).error).toContain('Enter whole pieces');
+  expect((await fieldErrors(op, '/operator/batch', { work_order_id: seed.main, target_qty: 2.5 })).target_qty).toContain('Enter whole pieces');
 
   // A cancelled order takes no batch, whatever the quantity.
   expect((await sendForm(op, '/operator/batch', { work_order_id: seed.cancelled, target_qty: 1 })).error).toContain('no new batches can be created');

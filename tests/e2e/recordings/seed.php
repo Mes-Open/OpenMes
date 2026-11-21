@@ -80,5 +80,6 @@ echo json_encode([
         'flow' => $setting('production_flow_mode', 'whole_batch'),
         'overproduction' => (bool) $setting('allow_overproduction', false),
         'language' => $setting('language', 'en'),
+        'psnPattern' => (string) $setting('unit_psn_pattern', ''),
     ],
 ]), "\n";

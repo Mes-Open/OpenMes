@@ -207,13 +207,14 @@ test('build a Desktop PC production configuration from zero and run it', async (
     await op.waitForURL(/\/operator\/queue/);
     await op.getByText(WO, { exact: false }).first().click();
     await op.waitForURL(/\/operator\/work-order\/\d+/);
-    // Opens the "Create New Batch" modal; its own Create Batch button is the second one.
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).click();
+    // The header's Create batch opens the "Create New Batch" modal (quantity
+    // defaults to the remainder); the modal's own submit is Create Batch.
+    await op.getByTestId('wo-hero').getByRole('button', { name: 'Create batch' }).click();
     await expect(op.getByText('Create New Batch')).toBeVisible();
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).last().click();
+    await op.locator('form').getByRole('button', { name: /^Create Batch$/i }).click();
     await expect(op.getByText('No batches created yet.')).toBeHidden({ timeout: 15_000 });
     await op.getByRole('button', { name: 'Start', exact: true }).first().click();
-    await expect(op.getByRole('button', { name: 'Complete', exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(op.getByRole('button', { name: 'Complete step' }).first()).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 9. Packaging: open pallet, scan a PC, close ─────────────────────────

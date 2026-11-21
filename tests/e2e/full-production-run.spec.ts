@@ -191,14 +191,14 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await op.waitForLoadState('networkidle');
     await expect(op.getByRole('heading', { name: WO, level: 1 })).toBeVisible();
 
-    // Opens the "Create New Batch" modal (quantity defaults to the remainder);
-    // its own Create Batch button is the second one on the page.
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).click();
+    // The header's Create batch opens the "Create New Batch" modal (quantity
+    // defaults to the remainder); the modal's own submit is Create Batch.
+    await op.getByTestId('wo-hero').getByRole('button', { name: 'Create batch' }).click();
     await expect(op.getByText('Create New Batch')).toBeVisible();
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).last().click();
+    await op.locator('form').getByRole('button', { name: /^Create Batch$/i }).click();
     await expect(op.getByText('No batches created yet.')).toBeHidden({ timeout: 15_000 });
     await op.getByRole('button', { name: 'Start', exact: true }).first().click();
-    await expect(op.getByRole('button', { name: 'Complete', exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(op.getByRole('button', { name: 'Complete step' }).first()).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 10. Packaging station: open a pallet, scan a piece, close it ────────
