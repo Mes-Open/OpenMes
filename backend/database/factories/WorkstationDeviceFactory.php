@@ -25,6 +25,8 @@ class WorkstationDeviceFactory extends Factory
             'hostname' => fake()->domainWord(),
             'app_version' => '0.16.1',
             'line_id' => null,
+            'user_id' => null,
+            'status' => 'active',
             'last_seen_at' => now(),
             'registered_at' => now(),
         ];
@@ -37,6 +39,16 @@ class WorkstationDeviceFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'last_seen_at' => now()->subMinutes(5),
+        ]);
+    }
+
+    /**
+     * Device that heartbeats but reported itself inactive (e.g. panel hidden).
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'inactive',
         ]);
     }
 }

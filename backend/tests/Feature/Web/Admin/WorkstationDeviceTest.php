@@ -57,7 +57,8 @@ class WorkstationDeviceTest extends TestCase
             ->assertStatus(200)
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('admin/workstation-devices/Index')
-                ->where('onlineWindowSeconds', WorkstationDevice::ONLINE_WINDOW_SECONDS));
+                ->where('onlineWindowSeconds', WorkstationDevice::ONLINE_WINDOW_SECONDS)
+                ->has('lines'));
     }
 
     public function test_admin_can_forget_a_device(): void
@@ -80,5 +81,52 @@ class WorkstationDeviceTest extends TestCase
             ->assertForbidden();
 
         $this->assertNotSoftDeleted($device);
+    }
+
+    public function test_admin_can_rename_a_device(): void
+    {
+        $device = WorkstationDevice::factory()->create(['name' => 'Operator panel']);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.workstation-devices.update', $device), ['name' => '  Tablet - Line 2, assembly  '])
+            ->assertRedirect(route('admin.workstation-devices.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame('Tablet - Line 2, assembly', $device->fresh()->name);
+    }
+
+    public function test_rename_validates_the_name(): void
+    {
+        $device = WorkstationDevice::factory()->create(['name' => 'Keep me']);
+
+        foreach (['', '   ', str_repeat('x', 151)] as $name) {
+            $this->actingAs($this->admin)
+                ->patchJson(route('admin.workstation-devices.update', $device), ['name' => $name])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('name');
+        }
+
+        $this->assertSame('Keep me', $device->fresh()->name);
+    }
+
+    public function test_guest_cannot_rename_a_device(): void
+    {
+        $device = WorkstationDevice::factory()->create(['name' => 'Keep me']);
+
+        $this->patch(route('admin.workstation-devices.update', $device), ['name' => 'Hijacked'])
+            ->assertRedirect(route('login'));
+
+        $this->assertSame('Keep me', $device->fresh()->name);
+    }
+
+    public function test_operator_cannot_rename_a_device(): void
+    {
+        $device = WorkstationDevice::factory()->create(['name' => 'Keep me']);
+
+        $this->actingAs($this->operator)
+            ->patch(route('admin.workstation-devices.update', $device), ['name' => 'Hijacked'])
+            ->assertForbidden();
+
+        $this->assertSame('Keep me', $device->fresh()->name);
     }
 }
