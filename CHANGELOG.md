@@ -20,6 +20,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
   30 days move to the trash daily (`workstation-devices:prune-panels`,
   `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
+  `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
+  listener returns stops the start and is shown to the operator (422 in the API). Lets a
+  module enforce e.g. a valid welder qualification for the step. No listener – no change.
 - **Quality holds in the scheduler.** An order held back by quality — an open quality
   control whose trigger is blocking, or an open or acknowledged issue that blocks the work
   order — is no longer placed by *Automatic scheduling*. Its operations get the new status
@@ -335,6 +339,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Settings look the same everywhere.** *Settings → Custom fields* uses the standard black
+  *New* button and icon buttons for Edit / Activate / Delete instead of the old blue button
+  and text links, and the field form has the same labels, inputs and buttons as every other
+  form. The example-company picker on *System → Data* uses the design's radio instead of the
+  browser's blue one, *Tab Access* has the usual back link, and the ERP key form's *Scopes*
+  label matches the other labels. Every on/off switch on *System Settings* can now be flipped
+  by clicking its name or description too, and its rows share one spacing; sub-headings use
+  one style, the *Material availability* options no longer touch, and the *Labor costing*
+  fields line up.
+
 - **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
   its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
   instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
@@ -373,6 +387,43 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Work-order import picks the newest active process template.** With several active
   versions of a product's process template, the CSV and ERP work-order imports took an
   unspecified one; they now take the newest active version, like the rest of OpenMES.
+- **Custom fields: Number fields take decimals.** A custom field of type *Number* refused a
+  value like 12.5 in the browser ("nearest valid values are 12 and 13"), which blocked the
+  whole form from saving. The *Min* and *Max* of a Number field can now be decimals too.
+- **Custom fields: no more Site and Area entities.** *Settings → Custom fields* offered
+  *Site* and *Area* as entities, but OpenMES has no sites or areas, so fields defined for
+  them never appeared anywhere. They are no longer offered.
+- **Two-factor login works in the browser.** The code entered on the 2FA challenge was never
+  sent, so accounts with 2FA turned on could not sign in to the web app.
+- **Quick PIN is 6 digits everywhere.** Settings accepted a 4–6 digit PIN that the login form
+  (6 digits only) then refused.
+- **Settings → System: a rejected save always says so.** Saving no longer fails silently when
+  a field that is not on screen (another tab, or the hidden correction window) holds an
+  invalid value; the page shows "Settings were not saved." with the reasons. The stored
+  correction window is kept when another correction policy is chosen.
+- **Settings import restores the production targets** (max scrap rate, min first-pass yield)
+  on an installation where they were never saved.
+- **The system settings API validates every production setting.** The tracking mode,
+  correction policy and window, scanner mode, workstation routing, default pay type and rate
+  and standard weekly hours used to accept any value.
+- **Finished goods by pallet:** closing a pallet at the packing station, or when it fills up,
+  now creates its finished-goods receipt in Drafts/Posted mode.
+- **Sample data lots can be picked.** Material lots in the example companies are created as
+  released, so lot tracking can use them.
+- **Serial and process-serial patterns:** an invalid pattern is reported by the field's name,
+  and a malformed value no longer causes a server error.
+- **API Tokens lists only your own, unexpired tokens.** Other users' tokens were listed with a
+  Revoke button that failed with "Forbidden".
+- **ERP API key expiry is stored at the exact moment sent** when it carries a timezone
+  (e.g. "…Z"); it used to be off by the plant's UTC offset.
+- **Modules:** switching off Materials & tracing now also blocks Material Types, and switching
+  off Company structure blocks Workstation Devices. Switching off Warehouses no longer hides
+  Materials, Material Types, Material Lots and Pallets from the menu.
+- **Dates west of UTC:** the planner, schedule and operator screens no longer show a calendar
+  date one day early.
+- **Profile, password, PIN and API-token messages are translated.**
+- **Admin → Trash names deleted unit aliases** by their alias instead of their id.
+- Removed the *Setup Wizard* card from Settings; it only led back to the dashboard.
 
 ## [0.29.0] - 2026-11-16
 

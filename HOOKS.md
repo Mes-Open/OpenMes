@@ -385,6 +385,7 @@ Notes:
 operator.tabs          list of {key, label, url, prefixes}   the operator top bar's core tabs
 operator.module_tabs   list of {label, url, order, prefix}   module tabs, per request
 operator.can_logout    bool (default true)                   whether the operator chrome shows its logout button
+production.step_start_blockers  list of strings (default [])  reasons a step may not start; the first one refuses it
 ```
 
 `operator.tabs` and `operator.can_logout` receive `['user' => $user]` as context.
@@ -392,6 +393,14 @@ operator.can_logout    bool (default true)                   whether the operato
 request, so a module can show a tab only where it applies without re-registering.
 `operator.can_logout` hides the button only — a module that forbids logout must
 still refuse the `POST /logout` itself.
+
+`production.step_start_blockers` runs in `BatchService::startStep()` inside the
+start's transaction, after core's own checks, with `['step' => BatchStep, 'user' => User]`
+as context. Return the list you received plus your reason (a sentence the
+operator reads) to refuse the start; core throws it as a `DomainException`, which
+the operator panel shows and the API returns as 422. Keep the listener read-only
+and cheap: it runs on every start, and on PostgreSQL a failing query inside it
+aborts the start's transaction.
 
 ---
 

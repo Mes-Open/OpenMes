@@ -3,17 +3,23 @@
 namespace Tests\Feature\Warehouse;
 
 use App\Enums\PalletStatus;
+use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\Line;
 use App\Models\Pallet;
 use App\Models\ProductType;
 use App\Models\SerialUnit;
 use App\Models\StockDocument;
+use App\Models\TemplateStep;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WorkOrder;
+use App\Services\Packaging\UnitPackingService;
 use App\Services\Warehouse\WarehouseStockService;
 use App\Services\Warehouse\WorkOrderStockDocumentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -118,6 +124,41 @@ class PalletStockDocumentTest extends TestCase
 
         app(\App\Services\Packaging\UnitPackingService::class)->markPalletShipped($pallet);
         $this->assertSame(SerialUnit::STATUS_BLOCKED, $held->fresh()->status);
+    }
+
+    /**
+     * The packing station closes a pallet with a guarded query update (so a double
+     * click cannot close it twice), which fires no model events - the receipt has
+     * to be booked all the same.
+     */
+    public function test_closing_a_pallet_at_the_packing_station_books_its_receipt(): void
+    {
+        $this->mode('post');
+        $pallet = $this->pallet();
+        Role::findOrCreate('Operator', 'web');
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)->postJson(route('packaging.pallets.close', $pallet))->assertOk();
+
+        $receipt = StockDocument::where('pallet_id', $pallet->id)->where('type', StockDocument::TYPE_PRODUCT_RECEIPT)->sole();
+        $this->assertSame(StockDocument::STATUS_POSTED, $receipt->status);
+        $this->assertEquals(3, $this->stock());
+    }
+
+    public function test_a_pallet_closed_when_full_books_its_receipt(): void
+    {
+        $this->mode('draft');
+        $pallet = $this->pallet();
+        BatchStep::factory()->create([
+            'batch_id' => Batch::factory()->create(['work_order_id' => $this->order->id])->id,
+            'kind' => TemplateStep::KIND_PACKING,
+            'config' => ['unit' => 'pallet', 'pallet_capacity' => 4],
+        ]);
+
+        $this->assertTrue(app(UnitPackingService::class)->closePalletIfFull($pallet));
+
+        $this->assertSame(StockDocument::STATUS_DRAFT, StockDocument::where('pallet_id', $pallet->id)->sole()->status);
     }
 
     public function test_draft_mode_leaves_documents_for_the_warehouse_and_off_books_nothing(): void

@@ -170,7 +170,7 @@ export default function ErpApiKeys({ scopes = [] }) {
                         required
                     />
                     <fieldset className="mt-4">
-                        <legend className="text-[12.5px] font-medium text-om-ink mb-2">{__('Scopes')}</legend>
+                        <legend className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Scopes')}</legend>
                         <div className="grid gap-2 sm:grid-cols-2">
                             {scopes.map((s) => (
                                 <div key={s.value} className="flex flex-col">

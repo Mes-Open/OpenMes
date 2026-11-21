@@ -34,6 +34,13 @@ class MachineCountingCompatibility
         if (! in_array($mode, \App\Support\ProductionFlow::MODES, true)) {
             return [__('Invalid production flow mode.')];
         }
+        // Not a transition: the settings form posts the current mode on every
+        // save. Legacy channels found while already in transfer are stopped by
+        // the runtime guard, so they must not block unrelated settings.
+        \App\Support\ProductionFlow::forget();
+        if ($mode === \App\Support\ProductionFlow::mode()) {
+            return [];
+        }
         if ($mode === \App\Support\ProductionFlow::TRANSFER) {
             return $this->transferBlockers();
         }

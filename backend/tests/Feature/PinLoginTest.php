@@ -15,6 +15,7 @@ class PinLoginTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $operator;
 
     protected function setUp(): void
@@ -147,13 +148,64 @@ class PinLoginTest extends TestCase
 
         $response = $this->actingAs($user)->post('/settings/pin', [
             'current_password' => 'MyPass123!',
-            'pin' => '5678',
-            'pin_confirmation' => '5678',
+            'pin' => '482193',
+            'pin_confirmation' => '482193',
         ]);
 
         $response->assertRedirect(route('settings.index'));
         $user->refresh();
-        $this->assertTrue(Hash::check('5678', $user->pin));
+        $this->assertTrue(Hash::check('482193', $user->pin));
+    }
+
+    /**
+     * The login form only takes a 6-digit PIN, so Settings must not accept a
+     * shorter one: a 4-digit PIN was saved with "You can now use it to log in"
+     * and then refused at every login.
+     */
+    public function test_settings_refuses_a_pin_the_login_form_would_refuse(): void
+    {
+        $this->enablePinLogin();
+
+        $user = User::factory()->create([
+            'username' => 'shortpin',
+            'password' => Hash::make('MyPass123!'),
+            'pin' => null,
+        ]);
+        $user->assignRole('Operator');
+
+        foreach (['4821', '48219', '4821934'] as $pin) {
+            $this->actingAs($user)->post('/settings/pin', [
+                'current_password' => 'MyPass123!',
+                'pin' => $pin,
+                'pin_confirmation' => $pin,
+            ])->assertSessionHasErrors('pin');
+        }
+
+        $this->assertNull($user->fresh()->pin);
+    }
+
+    public function test_pin_set_in_settings_signs_the_user_in(): void
+    {
+        $this->enablePinLogin();
+
+        $user = User::factory()->create([
+            'username' => 'roundtrip',
+            'password' => Hash::make('MyPass123!'),
+            'pin' => null,
+        ]);
+        $user->assignRole('Operator');
+
+        $this->actingAs($user)->post('/settings/pin', [
+            'current_password' => 'MyPass123!',
+            'pin' => '482193',
+            'pin_confirmation' => '482193',
+        ])->assertSessionHasNoErrors();
+
+        auth()->logout();
+
+        $this->post('/login/pin', ['username' => 'roundtrip', 'pin' => '482193'])
+            ->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_user_cannot_set_pin_with_wrong_password(): void
@@ -168,8 +220,8 @@ class PinLoginTest extends TestCase
 
         $response = $this->actingAs($user)->post('/settings/pin', [
             'current_password' => 'WrongPassword',
-            'pin' => '5678',
-            'pin_confirmation' => '5678',
+            'pin' => '482193',
+            'pin_confirmation' => '482193',
         ]);
 
         $response->assertSessionHasErrors('current_password');

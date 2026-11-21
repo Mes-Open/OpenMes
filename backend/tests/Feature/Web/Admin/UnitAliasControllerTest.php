@@ -122,6 +122,18 @@ class UnitAliasControllerTest extends TestCase
             ->assertSessionHasNoErrors();
     }
 
+    /** Admin → Trash names a deleted alias by its alias, not by its row id. */
+    public function test_a_deleted_alias_is_listed_in_the_trash_by_its_name(): void
+    {
+        $alias = UnitAlias::create(['alias' => 'Fass', 'unit' => 'l']);
+        $this->actingAs($this->admin)->delete(route('admin.unit-aliases.destroy', $alias));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.trash.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('items', fn ($items) => collect($items)->contains(fn ($item) => $item['type'] === 'unit_aliases' && $item['label'] === 'Fass')));
+    }
+
     /** @return array<string, array{0: array<string, string>, 1: string}> */
     public static function invalidPayloads(): array
     {

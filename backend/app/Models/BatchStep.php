@@ -298,7 +298,7 @@ class BatchStep extends Model
 
     public function prerequisitesMet(): bool
     {
-        if (! config('openmmes.force_sequential_steps', true)) {
+        if (! \App\Support\ProductionRules::forceSequentialSteps()) {
             return true;
         }
 
