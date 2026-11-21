@@ -161,6 +161,12 @@ class AppServiceProvider extends ServiceProvider
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
 
+        // Logging out of the operator panel marks its roster row inactive.
+        Event::listen(
+            \Illuminate\Auth\Events\Logout::class,
+            \App\Listeners\MarkOperatorPanelInactive::class,
+        );
+
         // Warehousing (#212): a concluded work order owes the warehouse a
         // material release and a product receipt. The listener creates them as
         // drafts and no-ops when the module is off or no warehouse exists.
