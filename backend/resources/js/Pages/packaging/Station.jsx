@@ -466,6 +466,15 @@ export default function Station() {
                 body: JSON.stringify({ psn: term, ...scanDestination(), auto_carton: scanTarget === 'auto', weight_g: weighing ? Number(weight.replace(',', '.')) : undefined }),
             });
             const data = await res.json();
+            // The unit field holds focus, so a wedge reader's EAN lands here instead
+            // of in the page-level scan buffer (which ignores inputs). Neither a PSN
+            // nor an SN: pack it as goods, as a field-less wedge scan would.
+            if (res.status === 404 && !weighing && scannerMode !== 'manual' && /^(\d{8}|\d{12,14})$/.test(term)) {
+                setPsn('');
+                await handleScan(term);
+                focusScan();
+                return;
+            }
             if (res.ok) {
                 setWeighing(null);
                 setWeight('');
@@ -520,7 +529,7 @@ export default function Station() {
         } finally {
             setPsnBusy(false);
         }
-    }, [psn, psnBusy, weighing, weight, activeCarton, activePallet, scanTarget, cartons, openPallets, packingSteps, loadCartonUnits, loadCartons, fetchOpenPallets, loadPackingSteps, closeCarton, onPalletClosed, showLabel, openPicks, report]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [psn, psnBusy, weighing, weight, activeCarton, activePallet, scanTarget, cartons, openPallets, packingSteps, loadCartonUnits, loadCartons, fetchOpenPallets, loadPackingSteps, closeCarton, onPalletClosed, showLabel, openPicks, report, handleScan, scannerMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const createPallet = useCallback(async () => {
         if (!palletWoId || palletBusy) return;

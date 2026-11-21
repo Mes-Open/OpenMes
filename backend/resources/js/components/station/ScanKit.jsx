@@ -59,7 +59,8 @@ const RESULT_TONE = {
 export function ResultSlot({ result, children }) {
     const tone = RESULT_TONE[result?.severity] ?? RESULT_TONE.info;
     return (
-        <div role="status" aria-live="polite"
+        // A refusal interrupts (role=alert, as the stations' InlineAlert did); anything else waits its turn.
+        <div role={result?.severity === 'error' ? 'alert' : 'status'} aria-live={result?.severity === 'error' ? 'assertive' : 'polite'}
             className={`flex min-h-[74px] gap-[11px] rounded-[11px] px-3.5 py-[13px] ${result ? `items-start border border-transparent ${tone.bg}` : 'items-center justify-center border-[1.5px] border-dashed border-om-line'}`}>
             {result ? (
                 <>
