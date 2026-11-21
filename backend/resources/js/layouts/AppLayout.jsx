@@ -376,7 +376,7 @@ export default function AppLayout({ children }) {
         <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="flex h-screen overflow-hidden bg-om-bg">
+        <div className="relative flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
                     <Sidebar
@@ -434,7 +434,11 @@ export default function AppLayout({ children }) {
                     showNavTrail={!hasPageTitle}
                 />
 
-                <main className="flex-1 overflow-auto">
+                {/* `relative` makes <main> the containing block for absolutely
+                    positioned descendants (e.g. Tailwind's `sr-only`). Without it they
+                    resolve against the document, escape this overflow box and stretch
+                    <body>, which shows a second, window-level scrollbar. */}
+                <main className="relative flex-1 overflow-auto">
                     {/* Whatever an installed module has to say on every admin
                         screen. Renders nothing when no module listens. */}
                     <Hook name="display.admin.layout" hooks={adminHooks} />

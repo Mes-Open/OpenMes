@@ -127,6 +127,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **No more second scrollbar on desktop.** Screens in the main layout (e.g. the
+  dashboard) showed an extra, window-level scrollbar next to the content's own, and
+  scrolling it slid the whole app off screen. Hidden screen-reader labels were
+  positioned against the page instead of the content area and stretched it; the content
+  area now contains them.
 - **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
   sync carry UTC timestamps without a time zone, and relative times read them as the
   browser's local time. East of UTC a panel that had just reported in showed as
