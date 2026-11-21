@@ -193,6 +193,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Releasing for sale now needs the new `release batch for sale` permission, which the roles
   seeder gives to Supervisor and Admin; anyone else gets 403 and the *For Sale* button is
   hidden for them. Releasing *For Production* is unchanged.
+
+- **Only a supervisor or admin can resolve an issue through the API.**
+  `POST /api/v1/issues/{issue}/resolve` accepted any signed-in user, so an operator token
+  could resolve an issue (and unblock its work order), although on the web resolving only
+  exists on the supervisor and admin screens. It now needs the `resolve issues` permission,
+  which the roles seeder gives to Supervisor and Admin; anyone else gets 403.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

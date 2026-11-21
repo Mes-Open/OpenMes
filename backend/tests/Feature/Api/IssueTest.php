@@ -2,15 +2,15 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Line;
-use App\Models\WorkOrder;
-use App\Models\ProductType;
-use App\Models\ProcessTemplate;
-use App\Models\IssueType;
-use App\Models\Issue;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\Issue;
+use App\Models\IssueType;
+use App\Models\Line;
+use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,9 +20,15 @@ class IssueTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
+    protected User $supervisor;
+
     protected Line $line;
+
     protected WorkOrder $workOrder;
+
     protected IssueType $blockingIssueType;
+
     protected IssueType $nonBlockingIssueType;
 
     protected function setUp(): void
@@ -35,6 +41,8 @@ class IssueTest extends TestCase
         $this->user->assignRole('Operator');
         $this->line = Line::factory()->create();
         $this->user->lines()->attach($this->line);
+        $this->supervisor = User::factory()->create();
+        $this->supervisor->assignRole('Supervisor');
 
         $productType = ProductType::factory()->create();
         $processTemplate = ProcessTemplate::factory()->create([
@@ -159,7 +167,7 @@ class IssueTest extends TestCase
 
         $this->workOrder->update(['status' => 'BLOCKED']);
 
-        $response = $this->actingAs($this->user, 'sanctum')
+        $response = $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/issues/{$issue->id}/resolve", [
                 'resolution_notes' => 'Fixed the problem',
             ]);
@@ -199,7 +207,7 @@ class IssueTest extends TestCase
         $this->workOrder->update(['status' => 'BLOCKED']);
 
         // Resolve first issue
-        $this->actingAs($this->user, 'sanctum')
+        $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/issues/{$issue1->id}/resolve", [
                 'resolution_notes' => 'Fixed',
             ]);
@@ -211,7 +219,7 @@ class IssueTest extends TestCase
         ]);
 
         // Resolve second issue
-        $this->actingAs($this->user, 'sanctum')
+        $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/issues/{$issue2->id}/resolve", [
                 'resolution_notes' => 'Also fixed',
             ]);

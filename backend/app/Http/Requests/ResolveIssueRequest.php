@@ -7,11 +7,14 @@ use Illuminate\Foundation\Http\FormRequest;
 class ResolveIssueRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Resolving an issue needs the `resolve issues` permission (Supervisor and
+     * Admin by default) — the same people who can resolve on the web, where the
+     * action only exists on the supervisor and admin screens. Operators report
+     * and see issues; they do not close the loop on them.
      */
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('resolve issues');
     }
 
     /**
