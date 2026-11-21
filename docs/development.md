@@ -524,13 +524,29 @@ the real `RolesAndPermissionsSeeder`.
 ### Access snapshot
 
 `tests/Feature/Access/RouteAccessSnapshotTest.php` requests every web and API
-route, every synced collection (`GET /api/collections/{name}`) and every private
-broadcast channel as five actors — guest, Admin, Supervisor, Operator and a
-signed-in user with no role — and compares the outcome (`allow`, `deny`, `login`,
-`missing`, `error`) with `tests/Feature/Access/fixtures/route-access.json`. Writes
-are sent with an empty body inside a rolled-back transaction, so a 422 counts as
-"got past authorization". Route parameters are filled with factory records; a
-parameter it cannot fill is listed under `unresolved` for that route.
+route, every core synced collection (`GET /api/collections/{name}`) and every
+private broadcast channel as five actors — guest, Admin, Supervisor, Operator and
+a signed-in user with no role — and compares the outcome with
+`tests/Feature/Access/fixtures/route-access.json`:
+
+| Outcome | Meaning |
+|---|---|
+| `allow` | 2xx, or a non-GET redirect that is not to the login page |
+| `redirect:/path` | a GET sent elsewhere — often a soft deny (ids shown as `{id}`) |
+| `allow-422` | validation answered first; a gate after validation was not reached |
+| `deny` | 401 / 403 |
+| `login` | redirect to the login page |
+| `missing` | 404 |
+| `error` | 5xx — fails the test unless listed in `KNOWN_ERRORS` |
+
+Writes start with an empty body; when validation answers, the test fills the
+fields the validator asked for from its own rules and sends again, so the request
+gets as far as it can (`"payload": true` in the fixture). Every request runs in a
+rolled-back transaction, and storage points at a scratch directory that holds the
+`installed` marker, so the result is the same on every checkout. Route parameters
+are filled with factory records; a parameter it cannot fill is listed under
+`unresolved`. Admin getting a 404 fails the test unless the route is in
+`ADMIN_MISSING` with a reason.
 
 It exists to make access changes visible. Any PR that touches roles, permissions,
 route middleware, policies or Form Request `authorize()` must leave the fixture
@@ -541,8 +557,26 @@ for the reviewer to read. After an intended change, regenerate it:
 UPDATE_ACCESS_SNAPSHOT=1 php artisan test tests/Feature/Access/RouteAccessSnapshotTest.php
 ```
 
-An `error` outcome is a 5xx and always a bug; the failure message lists them with
-the exception.
+What it does not see:
+
+- **Stacked gates.** Only the final outcome is recorded. If a route is refused by
+  both a role middleware and a policy, removing either one leaves the snapshot
+  unchanged.
+- **`allow-422` rows.** Validation still answers first on routes whose rules the
+  generated body cannot satisfy (a value matched by a regex or a closure rule, a
+  record in a particular state, a scanned barcode). Any check after validation is
+  invisible there. Today these include the operator terminal actions (batch step
+  quantity, unit labels), packaging scans and carton closing, logistics
+  movements and loading, batch release, issue close, downtime update, work-order
+  change requests, test runs and employee activities, and the self-service
+  settings forms (PIN, two-factor, password).
+- **Stubbed routes** (`"stubbed": true`): backups, telemetry ID reset, failed-job
+  retry and module install/enable/disable/delete have side effects outside the
+  database, so only their middleware runs.
+- **Upload tokens.** The import map/preview steps need a token from an earlier
+  upload and are listed in `ADMIN_MISSING`.
+- Module routes and module collections are left out, so the snapshot does not
+  depend on which modules are installed.
 
 ---
 
