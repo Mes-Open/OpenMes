@@ -20,6 +20,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
   30 days move to the trash daily (`workstation-devices:prune-panels`,
   `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Modules can add a card to Settings.** Display hook `display.settings.index.cards`
+  (title, description, link; asked with the signed-in user) puts a module's own settings
+  page in the list on *Settings*, next to Profile and Password, so it can be found without
+  knowing its address. No module listening – no change.
 - **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
   `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
   listener returns stops the start and is shown to the operator (422 in the API). Lets a

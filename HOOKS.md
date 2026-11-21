@@ -337,6 +337,11 @@ app(FilterRegistry::class)->addFilter('operator.can_logout', fn (bool $can, arra
 
 ### Display hooks
 
+Every contribution's `href` must be a path on this site (`/…`) or an http(s) URL;
+anything else (`javascript:`, `//host`, a backslash or a control character) is
+dropped with a warning in the log. A listener that throws is reported and skipped,
+so a failing module loses its contribution instead of breaking the page.
+
 ```
 display.operator.workstation.shift_cell   context: entry, workOrder, shift, canCorrect   (replaces the whole shift cell)
 display.operator.work_order.sections      context: workOrder                 (rendered after the BOM section)
@@ -344,6 +349,7 @@ display.operator.quantity_field           props: value, onChange, variant     (r
 display.operator.layout                   (no context)                        (rendered at the top of every operator screen)
 display.admin.layout                      (no context)                        (rendered above the page on every admin screen)
 display.settings.system.tabs              contribution: slot, title, component (one tab each on Settings → System)
+display.settings.index.cards              context: user; contribution: title, body, href (one card each on Settings)
 display.auth.login.before                 (no context)                        (rendered above the sign-in form)
 display.auth.login.after                  (no context)                        (rendered below the sign-in form)
 ```
@@ -358,6 +364,7 @@ The PHP-side context a listener receives:
 | `display.operator.layout` | `HandleInertiaRequests` (shared `operatorHooks`) | `user` |
 | `display.admin.layout` | `HandleInertiaRequests` (shared `adminHooks`) | `user` |
 | `display.settings.system.tabs` | `SettingsController::showSystemSettings` | — |
+| `display.settings.index.cards` | `SettingsController::index` | `user` |
 | `display.auth.login.before`, `display.auth.login.after` | `AuthController::showLoginForm` | — |
 
 Notes:
@@ -370,6 +377,15 @@ Notes:
   `ext-<slot>` (linkable as `?tab=ext-<slot>`) labelled `title`. Its component
   renders outside the core settings form, so core's Save button is not shown
   there: the module saves through its own route.
+- **`settings.index.cards`** — each contribution is a card in the list every user
+  sees on Settings, after core's own, linking to the module's settings page:
+  `title`, optional `body` (the line under it) and `href` (a path on this site or
+  an http(s) URL; anything else is not shown). Plain fields, so a module installed
+  from a ZIP can add one. The card is a full page load, so the page behind it may
+  be Blade or Inertia. The listener gets the signed-in `user` — return `null` to
+  leave someone out (a page only admins may open, say). Hiding the card is
+  cosmetic: the module's route must still check who may open it (`role:` middleware
+  or a policy), since anyone can type the address.
 - **`operator.layout`** and **`admin.layout`** are resolved on every Inertia
   response, like any shared prop — a listener should return `null` cheaply where
   it has nothing to show.
@@ -467,7 +483,7 @@ class SyncToErp implements ShouldQueue
 **Display hooks** (`App\Extension\HookRegistry`): `display.operator.workstation.actor`,
 `display.operator.workstation.shift_cell`, `display.operator.work_order.sections`,
 `display.operator.quantity_field`, `display.operator.layout`,
-`display.admin.layout`, `display.settings.system.tabs`,
+`display.admin.layout`, `display.settings.system.tabs`, `display.settings.index.cards`,
 `display.auth.login.before`, `display.auth.login.after`.
 
 **Filters** (`App\Extension\FilterRegistry`): `operator.tabs`,

@@ -45,6 +45,11 @@ class SettingsController extends Controller
             'pinLoginEnabled' => $pinLoginEnabled,
             'hasPin' => ! empty(auth()->user()->pin),
             'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
+            // Cards an installed module adds for its own settings page (title,
+            // body, href). Asked per user, so a module can leave someone out.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany([
+                'display.settings.index.cards',
+            ], ['user' => auth()->user()]),
         ]);
     }
 
