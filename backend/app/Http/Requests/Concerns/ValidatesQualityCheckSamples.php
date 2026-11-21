@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Concerns;
 
 use App\Models\Batch;
+use App\Models\QualityCheckTemplate;
 use App\Models\User;
+use App\Services\Production\QualityCheckService;
 
 /**
  * Shared input rules for recording a quality check's samples, and who may
@@ -14,16 +16,21 @@ use App\Models\User;
 trait ValidatesQualityCheckSamples
 {
     /**
+     * The sample rules for a check recorded against `$template` (its grid of
+     * parameters × samples per check sizes the array).
+     *
      * @return array<string, array<int, mixed>>
      */
-    protected function sampleRules(): array
+    protected function sampleRules(?QualityCheckTemplate $template): array
     {
+        $max = QualityCheckService::MAX_VALUE;
+
         return [
-            'samples' => ['required', 'array', 'min:1', 'max:500'],
+            'samples' => ['required', 'array', 'min:1', 'max:'.QualityCheckService::maxSamples($template)],
             'samples.*.sample_number' => ['required', 'integer', 'min:1'],
             'samples.*.parameter_name' => ['required', 'string', 'max:100'],
             'samples.*.parameter_type' => ['required', 'string', 'in:measurement,pass_fail'],
-            'samples.*.value_numeric' => ['nullable', 'numeric'],
+            'samples.*.value_numeric' => ['nullable', 'numeric', "between:-$max,$max"],
             'samples.*.value_boolean' => ['nullable', 'boolean'],
         ];
     }

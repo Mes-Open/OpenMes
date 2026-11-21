@@ -7845,5 +7845,7 @@
     "Enter the measured value of \":name\".": "Enter the measured value of \":name\".",
     "Choose pass or fail for \":name\".": "Choose pass or fail for \":name\".",
     "This quality check template does not belong to the batch's process.": "This quality check template does not belong to the batch's process.",
-    "Record every parameter for every sample. Missing: :list.": "Record every parameter for every sample. Missing: :list."
+    "Record every parameter for every sample. Missing: :list.": "Record every parameter for every sample. Missing: :list.",
+    "The measured value of \":name\" is out of range.": "The measured value of \":name\" is out of range.",
+    "This batch does not belong to the selected line.": "This batch does not belong to the selected line."
 }

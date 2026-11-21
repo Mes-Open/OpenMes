@@ -13,6 +13,26 @@ use Illuminate\Validation\ValidationException;
 
 class QualityCheckService
 {
+    /** Decimal places of quality_check_samples.value_numeric (decimal(12,4)). */
+    public const VALUE_DECIMALS = 4;
+
+    /** Largest magnitude quality_check_samples.value_numeric can hold. */
+    public const MAX_VALUE = 99999999.9999;
+
+    /** Most samples one check can carry when there is no template to size it. */
+    public const MAX_SAMPLES_WITHOUT_TEMPLATE = 500;
+
+    /**
+     * How many sample rows a complete check has: every parameter for every
+     * sample of the template, or the fixed cap without a template.
+     */
+    public static function maxSamples(?QualityCheckTemplate $template): int
+    {
+        return $template
+            ? max(1, (int) $template->samples_per_check) * max(1, count($template->parameters ?? []))
+            : self::MAX_SAMPLES_WITHOUT_TEMPLATE;
+    }
+
     /**
      * Perform a quality check with samples. The verdict is decided here, never
      * taken from the caller: each sample is judged against the QC template and
@@ -133,7 +153,14 @@ class QualityCheckService
 
                     continue;
                 }
-                $value = (float) $value;
+                if (! is_finite((float) $value) || abs((float) $value) > self::MAX_VALUE) {
+                    $errors["samples.$i.value_numeric"] = __('The measured value of ":name" is out of range.', ['name' => $name]);
+
+                    continue;
+                }
+                // Judge the value as it is stored (decimal, 4 places), so the
+                // recorded value and its verdict always agree.
+                $value = round((float) $value, self::VALUE_DECIMALS);
                 $row['value_numeric'] = $value;
                 $row['is_passed'] = ($min === null || $value >= $min) && ($max === null || $value <= $max);
             } else {

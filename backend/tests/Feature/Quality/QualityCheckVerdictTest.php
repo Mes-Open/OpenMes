@@ -177,6 +177,65 @@ class QualityCheckVerdictTest extends TestCase
         $this->service()->performCheck($this->batch, $this->operator, [$this->moisture(7, 1, ['is_passed' => true])]);
     }
 
+    public function test_a_measurement_is_judged_on_the_value_that_is_stored(): void
+    {
+        // quality_check_samples.value_numeric keeps 4 decimals: 2.60004 is stored
+        // as 2.6000 (within a 2.6 max), 2.60006 as 2.6001 (above it).
+        $template = QualityCheckTemplate::create([
+            'process_template_id' => $this->process->id, 'name' => 'Thickness', 'samples_per_check' => 1,
+            'parameters' => [['name' => 'Thickness', 'type' => 'measurement', 'max' => 2.6]],
+        ]);
+        $sample = fn (float $v) => [['sample_number' => 1, 'parameter_name' => 'Thickness', 'parameter_type' => 'measurement', 'value_numeric' => $v]];
+
+        $within = $this->service()->performCheck($this->batch, $this->operator, $sample(2.60004), null, $template);
+        $this->assertTrue($within->all_passed);
+        $this->assertSame('2.6000', $within->samples->first()->fresh()->value_numeric);
+
+        $above = $this->service()->performCheck($this->batch, $this->operator, $sample(2.60006), null, $template);
+        $this->assertFalse($above->all_passed);
+        $this->assertSame('2.6001', $above->samples->first()->fresh()->value_numeric);
+    }
+
+    public function test_a_value_too_large_to_store_is_refused(): void
+    {
+        foreach ([1e9, '1e999', -1e9] as $value) {
+            $samples = $this->grid();
+            $samples[0]['value_numeric'] = $value;
+            $this->actingAs($this->operator, 'sanctum')
+                ->postJson($this->apiUrl(), ['samples' => $samples])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('samples.0.value_numeric');
+        }
+
+        // The service refuses it too, for callers that bypass the request.
+        $samples = $this->grid();
+        $samples[0]['value_numeric'] = '1e999';
+        try {
+            $this->service()->performCheck($this->batch, $this->operator, $samples, null, $this->qcTemplate);
+            $this->fail('An infinite measurement was accepted.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('samples.0.value_numeric', $e->errors());
+        }
+        $this->assertDatabaseCount('quality_checks', 0);
+    }
+
+    public function test_a_large_template_can_be_recorded_in_full(): void
+    {
+        $this->qcTemplate->update(['samples_per_check' => 600, 'parameters' => [['name' => 'Seal intact', 'type' => 'pass_fail']]]);
+        $samples = array_map(fn ($n) => $this->seal(true, $n), range(1, 600));
+
+        $this->actingAs($this->operator, 'sanctum')
+            ->postJson($this->apiUrl(), ['samples' => $samples])
+            ->assertCreated()
+            ->assertJsonPath('data.all_passed', true);
+
+        // More rows than the template's grid is refused up front.
+        $this->actingAs($this->operator, 'sanctum')
+            ->postJson($this->apiUrl(), ['samples' => [...$samples, $this->seal(true, 601)]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('samples');
+    }
+
     // ── API ──────────────────────────────────────────────────────────────────
 
     public function test_api_ignores_the_client_verdict_for_an_out_of_limit_measurement(): void
@@ -341,11 +400,23 @@ class QualityCheckVerdictTest extends TestCase
         $this->assertDatabaseCount('quality_checks', 0);
     }
 
-    public function test_web_check_on_a_batch_of_another_line_is_forbidden(): void
+    public function test_web_check_on_a_batch_of_another_line_is_refused(): void
     {
         $this->actingAs($this->operator)->withSession(['selected_line_id' => Line::factory()->create()->id])
-            ->post($this->webUrl(), ['samples' => [$this->seal(1)]])
-            ->assertForbidden();
+            ->from(route('operator.work-order.detail', $this->workOrder))
+            ->post($this->webUrl(), ['samples' => $this->grid()])
+            ->assertRedirect(route('operator.work-order.detail', $this->workOrder))
+            ->assertSessionHas('error', 'This batch does not belong to the selected line.');
+        $this->assertDatabaseCount('quality_checks', 0);
+    }
+
+    public function test_web_check_without_a_selected_line_is_refused(): void
+    {
+        $this->actingAs($this->operator)
+            ->from(route('operator.queue'))
+            ->post($this->webUrl(), ['samples' => $this->grid()])
+            ->assertRedirect(route('operator.queue'))
+            ->assertSessionHas('error', 'This batch does not belong to the selected line.');
         $this->assertDatabaseCount('quality_checks', 0);
     }
 
@@ -356,6 +427,28 @@ class QualityCheckVerdictTest extends TestCase
                 ->where('qualityCheckTemplate.id', $this->qcTemplate->id)
                 ->where('qualityCheckTemplate.samples_per_check', 2)
                 ->has('qualityCheckTemplate.parameters', 2));
+    }
+
+    public function test_control_without_a_template_accepts_only_a_pass_fail_result(): void
+    {
+        $trigger = QualityControlTrigger::factory()->create(['quality_check_template_id' => null]);
+        $task = QualityControlTask::factory()->create([
+            'quality_control_trigger_id' => $trigger->id,
+            'batch_id' => $this->batch->id,
+            'work_order_id' => $this->workOrder->id,
+        ]);
+        $url = "/api/v1/quality-control-tasks/{$task->id}/perform";
+
+        $this->actingAs($this->supervisor, 'sanctum')
+            ->postJson($url, ['samples' => [$this->moisture(7)]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('samples.0.parameter_type');
+        $this->assertTrue($task->fresh()->isOpen());
+
+        $this->actingAs($this->supervisor, 'sanctum')
+            ->postJson($url, ['samples' => [['sample_number' => 1, 'parameter_name' => 'Result', 'parameter_type' => 'pass_fail', 'value_boolean' => true]]])
+            ->assertOk()
+            ->assertJsonPath('data.all_passed', true);
     }
 
     // ── Quality control tasks keep raising a non-conformance on failure ──────

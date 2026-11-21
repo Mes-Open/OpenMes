@@ -24,7 +24,7 @@ class PerformQualityControlTaskRequest extends FormRequest
             'production_quantity' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'pallet_id' => ['nullable', 'integer', 'exists:pallets,id'],
-            ...$this->sampleRules(),
+            ...$this->sampleRules($this->route('task')?->trigger?->template),
         ];
     }
 }

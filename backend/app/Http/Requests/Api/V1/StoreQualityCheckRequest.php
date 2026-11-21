@@ -34,7 +34,7 @@ class StoreQualityCheckRequest extends FormRequest
             'quality_check_template_id' => ['nullable', 'integer', 'exists:quality_check_templates,id'],
             'pallet_id' => ['nullable', 'integer', 'exists:pallets,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            ...$this->sampleRules(),
+            ...$this->sampleRules($this->templateForSizing()),
         ];
     }
 
@@ -58,6 +58,15 @@ class StoreQualityCheckRequest extends FormRequest
         $id = $this->validated()['quality_check_template_id'] ?? null;
 
         return $id !== null ? QualityCheckTemplate::find($id) : QualityCheckTemplate::forBatch($this->batch());
+    }
+
+    /** The template the check will be judged against, before input is validated. */
+    private function templateForSizing(): ?QualityCheckTemplate
+    {
+        $id = $this->input('quality_check_template_id');
+        $chosen = is_numeric($id) ? QualityCheckTemplate::find((int) $id) : null;
+
+        return $chosen ?? ($this->batch() ? QualityCheckTemplate::forBatch($this->batch()) : null);
     }
 
     private function batch(): ?Batch

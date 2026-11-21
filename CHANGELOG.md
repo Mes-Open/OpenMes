@@ -252,8 +252,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   API (`POST /api/v1/batches/{batch}/quality-checks`) now needs the same right as on the
   operator page — Operator on an assigned line, Supervisor or Admin — and a template chosen
   there must belong to the batch's process (otherwise the batch's own template is used); the
-  operator page now also checks that the batch is on the selected line. A failing check is
-  still recorded, and a failing quality control still raises its non-conformance.
+  operator page now also checks that the batch is on the selected line (off it, the operator
+  is sent back with an error). A measured value is judged as stored, rounded to 4 decimals,
+  and one beyond ±99,999,999.9999 is refused. A check can carry as many rows as its template's
+  grid (samples per check × parameters). A failing check is still recorded, and a failing
+  quality control still raises its non-conformance.
+  **Upgrade note:** a quality control trigger without a QC template records a single pass/fail
+  result, as its *Perform* form already did; an API client that sent measurements for such a
+  control now gets a 422. Give the trigger a QC template with limits to record measurements.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

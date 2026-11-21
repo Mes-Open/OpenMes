@@ -7845,5 +7845,7 @@
     "Enter the measured value of \":name\".": "Wpisz zmierzoną wartość „:name”.",
     "Choose pass or fail for \":name\".": "Wybierz wynik dla „:name”: pozytywny lub negatywny.",
     "This quality check template does not belong to the batch's process.": "Ten szablon kontroli jakości nie należy do procesu tej partii.",
-    "Record every parameter for every sample. Missing: :list.": "Zapisz każdy parametr dla każdej próbki. Brakuje: :list."
+    "Record every parameter for every sample. Missing: :list.": "Zapisz każdy parametr dla każdej próbki. Brakuje: :list.",
+    "The measured value of \":name\" is out of range.": "Zmierzona wartość „:name” jest poza zakresem.",
+    "This batch does not belong to the selected line.": "Ta partia nie należy do wybranej linii."
 }
