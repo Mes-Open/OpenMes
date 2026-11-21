@@ -101,6 +101,9 @@ class TemplateStepMediaController extends Controller
         TemplateStepMedia $media,
     ) {
         abort_unless($media->process_template_id === $processTemplate->id, 404);
+        // Deleted from the template: only for someone who can open an open order
+        // that was released with it (it is still that order's instruction).
+        abort_if($media->trashed() && ! $this->stillReleasedTo($media, request()->user()), 404);
         abort_unless(Storage::exists($media->storage_path), 404);
 
         return response()->file(Storage::path($media->storage_path), [
@@ -109,6 +112,22 @@ class TemplateStepMediaController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=3600',
         ]);
+    }
+
+    /** Whether a non-terminal order the user may view carries this media in its snapshot. */
+    private function stillReleasedTo(TemplateStepMedia $media, ?\App\Models\User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return \App\Models\WorkOrder::query()
+            ->whereNotIn('status', \App\Models\WorkOrder::TERMINAL_STATUSES)
+            ->where('process_snapshot->template_id', $media->process_template_id)
+            ->get()
+            ->contains(fn (\App\Models\WorkOrder $order) => collect($order->process_snapshot['steps'] ?? [])
+                ->contains(fn (array $step) => in_array($media->id, array_map('intval', array_column($step['media'] ?? [], 'id')), true))
+                && $user->can('view', $order));
     }
 
     /** Server-generated private path; never the client filename. */

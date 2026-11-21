@@ -179,23 +179,6 @@ class ProcessTemplate extends Model
     }
 
     /**
-     * How many non-finished work orders currently reference this template —
-     * either as their primary process (`process_snapshot.template_id`) or as one
-     * of their selected BOMs (`work_order_boms`). How an edit splits between
-     * them (in progress vs not started) is ProcessTemplateChangePropagator::orderCounts().
-     */
-    public function activeWorkOrderCount(): int
-    {
-        return \App\Models\WorkOrder::query()
-            ->whereNotIn('status', \App\Models\WorkOrder::TERMINAL_STATUSES)
-            ->where(function ($q) {
-                $q->where('process_snapshot->template_id', $this->id)
-                    ->orWhereHas('bomTemplates', fn ($b) => $b->where('process_templates.id', $this->id));
-            })
-            ->count();
-    }
-
-    /**
      * Scope to get only active templates.
      */
     public function scopeActive($query)

@@ -209,7 +209,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/process-templates/{process_template}/media/{media}', [\App\Http\Controllers\Web\Admin\TemplateStepMediaController::class, 'show'])
         // With trashed: an order in progress keeps showing the media it was
         // released with after the template drops it (the file stays on disk
-        // until a permanent delete).
+        // until a permanent delete). The controller lets a deleted row through
+        // only to users who can open such an order.
         ->withTrashed()
         ->name('process-templates.media.show');
 

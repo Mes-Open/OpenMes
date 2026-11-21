@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Exceptions\InsufficientStockException;
+use App\Exceptions\StepRegeneratedException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
 use App\Http\Requests\Operator\RecordQualityCheckRequest;
@@ -264,8 +265,9 @@ class BatchController extends Controller
      */
     public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
     {
-        // The route binds trashed rows (for the template row); a deleted batch step is still gone.
-        abort_if($batchStep->trashed(), 404);
+        // The route binds trashed rows (for the template row); a deleted batch step is
+        // still gone — regenerated after a template edit, so the screen is stale.
+        throw_if($batchStep->trashed(), StepRegeneratedException::class);
 
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
@@ -312,8 +314,9 @@ class BatchController extends Controller
      */
     public function recordOutput(RecordStepOutputRequest $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
     {
-        // The route binds trashed rows (for the template row); a deleted batch step is still gone.
-        abort_if($batchStep->trashed(), 404);
+        // The route binds trashed rows (for the template row); a deleted batch step is
+        // still gone — regenerated after a template edit, so the screen is stale.
+        throw_if($batchStep->trashed(), StepRegeneratedException::class);
 
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');

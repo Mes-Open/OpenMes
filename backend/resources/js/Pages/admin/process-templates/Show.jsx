@@ -1119,7 +1119,8 @@ export default function ProcessTemplatesShow() {
     // started yet are moved onto the edited template (a new configuration version).
     const inProgressWoCount = processTemplate.in_progress_work_order_count ?? 0;
     const notStartedWoCount = processTemplate.not_started_work_order_count ?? 0;
-    const activeWoCount = inProgressWoCount + notStartedWoCount;
+    const secondaryBomWoCount = processTemplate.secondary_bom_work_order_count ?? 0;
+    const activeWoCount = inProgressWoCount + notStartedWoCount + secondaryBomWoCount;
     const allPhotos = processTemplate.photos ?? [];
     const photoByStep = {};
     allPhotos.forEach((p) => {
@@ -1269,6 +1270,11 @@ export default function ProcessTemplatesShow() {
                             <p className="text-om-muted mt-0.5">
                                 {__('Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.')}
                             </p>
+                            {secondaryBomWoCount > 0 && (
+                                <p className="text-om-muted mt-0.5">
+                                    {__(':count order(s) use this template only as an additional BOM and are not updated.', { count: secondaryBomWoCount })}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}

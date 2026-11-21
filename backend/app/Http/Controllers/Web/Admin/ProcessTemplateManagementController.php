@@ -121,9 +121,10 @@ class ProcessTemplateManagementController extends Controller
                 'is_active' => (bool) $processTemplate->is_active,
                 // Warn the admin who an edit reaches: orders in progress keep
                 // their snapshot, orders not started yet are moved onto the edit.
-                'active_work_order_count' => $processTemplate->activeWorkOrderCount(),
                 'in_progress_work_order_count' => $counts['in_progress'],
                 'not_started_work_order_count' => $counts['not_started'],
+                // Orders using this template only as an additional BOM: never updated.
+                'secondary_bom_work_order_count' => $counts['secondary_bom'],
                 'steps' => $processTemplate->steps->map(fn ($s) => [
                     'id' => $s->id,
                     'step_number' => $s->step_number,
@@ -421,13 +422,26 @@ class ProcessTemplateManagementController extends Controller
 
         $stepNumber = $step->step_number;
         $before = $this->stepAuditFields($step);
-        $step->delete();
 
-        // Renumber remaining steps
-        DB::table('template_steps')
-            ->where('process_template_id', $processTemplate->id)
-            ->where('step_number', '>', $stepNumber)
-            ->decrement('step_number');
+        // One transaction: the not-started orders are refreshed once it commits,
+        // from the renumbered shape, not from the half-way state in between.
+        DB::transaction(function () use ($step, $stepNumber, $processTemplate) {
+            $step->delete();
+
+            // Renumber the live steps after it in two phases: a single
+            // `step_number - 1` update can hit the unique (template, step_number)
+            // index row by row, depending on the order the database visits them.
+            $after = DB::table('template_steps')
+                ->where('process_template_id', $processTemplate->id)
+                ->whereNull('deleted_at')
+                ->where('step_number', '>', $stepNumber);
+            (clone $after)->update(['step_number' => DB::raw('-step_number')]);
+            DB::table('template_steps')
+                ->where('process_template_id', $processTemplate->id)
+                ->whereNull('deleted_at')
+                ->where('step_number', '<', 0)
+                ->update(['step_number' => DB::raw('-step_number - 1')]);
+        });
 
         $this->recordStepAudit($processTemplate, 'template_step.deleted', $before, null);
 

@@ -8,6 +8,7 @@ use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\ProcessTemplate\ProcessTemplateChangePropagator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
@@ -15,9 +16,10 @@ use Tests\TestCase;
 
 /**
  * Editing a ProcessTemplate's steps mutates rows in place (running orders keep
- * their frozen snapshot, correctly). This guards traceability: an in-use count
- * is surfaced to warn the admin, and every step change is written to the
- * immutable audit log so the previous shape is never silently lost.
+ * their frozen snapshot; not-started ones are moved onto the edit). This guards
+ * traceability: the orders an edit does and does not reach are counted to warn
+ * the admin, and every step change is written to the immutable audit log so the
+ * previous shape is never silently lost.
  */
 class ProcessTemplateEditGuardTest extends TestCase
 {
@@ -62,17 +64,20 @@ class ProcessTemplateEditGuardTest extends TestCase
         ]);
     }
 
-    public function test_active_work_order_count_counts_non_terminal_orders_only(): void
+    public function test_order_counts_cover_non_terminal_orders_only(): void
     {
         $this->orderForTemplate(WorkOrder::STATUS_IN_PROGRESS);
         $this->orderForTemplate(WorkOrder::STATUS_PENDING);
         $this->orderForTemplate(WorkOrder::STATUS_DONE);       // terminal — ignored
         $this->orderForTemplate(WorkOrder::STATUS_CANCELLED);  // terminal — ignored
 
-        $this->assertSame(2, $this->template->fresh()->activeWorkOrderCount());
+        $this->assertSame(
+            ['in_progress' => 1, 'not_started' => 1, 'secondary_bom' => 0],
+            app(ProcessTemplateChangePropagator::class)->orderCounts($this->template->fresh()),
+        );
     }
 
-    public function test_show_exposes_the_active_work_order_count(): void
+    public function test_show_exposes_the_order_counts(): void
     {
         $this->step();
         $this->orderForTemplate(WorkOrder::STATUS_IN_PROGRESS);
@@ -82,7 +87,8 @@ class ProcessTemplateEditGuardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $p) => $p
                 ->component('admin/process-templates/Show')
-                ->where('processTemplate.active_work_order_count', 1));
+                ->where('processTemplate.in_progress_work_order_count', 1)
+                ->where('processTemplate.not_started_work_order_count', 0));
     }
 
     public function test_adding_a_step_is_recorded_in_the_audit_log(): void

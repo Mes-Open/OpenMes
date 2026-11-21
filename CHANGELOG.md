@@ -162,13 +162,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   admin pages, the REST API or an import) leaves orders **in progress** exactly as they
   were released: a checklist item added later does not block them, a deleted required
   output still has to be recorded, new media is not shown. Orders **not started yet**
-  (PENDING / ACCEPTED, nothing produced, no step started) take the edit: their
-  configuration gets a new version (reason *process template edited*, kept in the order's
-  version history) and the steps of their batches are rebuilt. The template page says how
-  many orders keep the previous version and how many will take the change. Orders
-  released before this change keep reading the live template. Deleting a checklist item
-  or output stays a soft delete; permanently deleting a template row that has values
-  recorded against it is refused.
+  (PENDING / ACCEPTED, nothing produced, no step started) take the edit: their steps
+  get a new configuration version (reason *process template edited*, kept in the order's
+  version history) and the steps of their batches are rebuilt — keeping a step's manual
+  workstation assignment, scheduled operations and documents when the step is still in
+  the process. Their BOM is not changed by this. The refresh runs as a queued job after the
+  edit is saved (a rolled-back edit changes nothing). The template page says how many
+  orders keep the previous version, how many will take the change and how many use the
+  template only as an additional BOM (not updated). An operator acting on a step that was
+  rebuilt meanwhile is asked to reload. Media deleted from a template stays viewable only
+  to users who can open an order still released with it. Orders released before this
+  change keep reading the live template. Deleting a checklist item or output stays a soft
+  delete; permanently deleting a template row that has values recorded against it is
+  refused. Deleting a step no longer risks a unique-index clash while renumbering.
 - **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
   step that cannot run because an earlier step of its order had too few people now reads
   *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An

@@ -5,23 +5,16 @@ namespace Tests\Feature\ProcessTemplate;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BatchStepOutputValue;
-use App\Models\Line;
-use App\Models\ProcessTemplate;
-use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\TemplateStepChecklistItem;
 use App\Models\TemplateStepMedia;
 use App\Models\TemplateStepOutput;
-use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderSnapshot;
-use App\Services\ProcessTemplate\ProcessTemplateChangePropagator;
 use App\Services\WorkOrder\BatchService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -34,112 +27,12 @@ use Tests\TestCase;
 class TemplateChangePropagationTest extends TestCase
 {
     use RefreshDatabase;
-
-    private User $admin;
-
-    private User $operator;
-
-    private Line $line;
-
-    private ProductType $productType;
-
-    private ProcessTemplate $template;
-
-    private TemplateStep $mix;
-
-    private TemplateStep $fill;
-
-    private TemplateStepChecklistItem $item;
-
-    private TemplateStepOutput $weight;
-
-    private WorkOrder $running;
-
-    private BatchStep $runningStep;
-
-    private WorkOrder $notStarted;
-
-    private string $base;
+    use TemplateChangeFixture;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        foreach (['Admin', 'Supervisor', 'Operator'] as $r) {
-            Role::findOrCreate($r, 'web');
-        }
-        Permission::findOrCreate('view work orders', 'web');
-        Role::findByName('Admin', 'web')->givePermissionTo('view work orders');
-        Role::findByName('Operator', 'web')->givePermissionTo('view work orders');
-
-        $this->line = Line::factory()->create();
-        $this->admin = tap(User::factory()->create(), fn ($u) => $u->assignRole('Admin'));
-        $this->operator = tap(User::factory()->create(), fn ($u) => $u->assignRole('Operator'));
-        $this->operator->lines()->attach($this->line->id);
-
-        $this->productType = ProductType::factory()->create();
-        $this->template = ProcessTemplate::factory()->create([
-            'product_type_id' => $this->productType->id, 'is_active' => true,
-        ]);
-        $this->mix = TemplateStep::factory()->create([
-            'process_template_id' => $this->template->id, 'step_number' => 1, 'name' => 'Mix',
-        ]);
-        $this->fill = TemplateStep::factory()->create([
-            'process_template_id' => $this->template->id, 'step_number' => 2, 'name' => 'Fill',
-        ]);
-        $this->item = TemplateStepChecklistItem::factory()->create([
-            'process_template_id' => $this->template->id, 'template_step_id' => $this->mix->id,
-            'label' => 'Line clearance', 'is_required' => true,
-        ]);
-        $this->weight = TemplateStepOutput::create([
-            'process_template_id' => $this->template->id, 'template_step_id' => $this->mix->id,
-            'key' => 'weight', 'label' => 'Weight', 'value_type' => TemplateStepOutput::TYPE_NUMBER, 'is_required' => true,
-        ]);
-
-        // The fixture itself edits the template; nothing is released yet.
-        $this->propagator()->flush();
-
-        $this->running = $this->order('WO-RUN');
-        $batch = app(WorkOrderService::class)->createBatch($this->running, 10);
-        $this->runningStep = $batch->steps()->where('step_number', 1)->first();
-        $this->runningStep->update(['status' => BatchStep::STATUS_IN_PROGRESS, 'started_at' => now()]);
-        $batch->update(['status' => Batch::STATUS_IN_PROGRESS]);
-        $this->running->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-
-        $this->notStarted = $this->order('WO-NEW');
-        app(WorkOrderService::class)->createBatch($this->notStarted, 10);
-
-        $this->base = "/admin/product-types/{$this->productType->id}/process-templates/{$this->template->id}";
-    }
-
-    private function propagator(): ProcessTemplateChangePropagator
-    {
-        return app(ProcessTemplateChangePropagator::class);
-    }
-
-    private function order(string $no): WorkOrder
-    {
-        return app(WorkOrderService::class)->createWorkOrder([
-            'order_no' => $no,
-            'line_id' => $this->line->id,
-            'product_type_id' => $this->productType->id,
-            'planned_qty' => 10,
-        ]);
-    }
-
-    private function snapshotStep(WorkOrder $order, int $number): array
-    {
-        return collect($order->fresh()->process_snapshot['steps'])->firstWhere('step_number', $number);
-    }
-
-    private function asOperator()
-    {
-        return $this->actingAs($this->operator)->withSession(['selected_line_id' => $this->line->id]);
-    }
-
-    private function pendingBatchStep(WorkOrder $order, int $number): BatchStep
-    {
-        return $order->fresh()->batches()->first()->steps()->where('step_number', $number)->firstOrFail();
+        $this->buildTemplateChangeFixture();
     }
 
     // ---- what the snapshot holds ---------------------------------------------
@@ -199,7 +92,6 @@ class TemplateChangePropagationTest extends TestCase
         TemplateStepMedia::factory()->create([
             'process_template_id' => $this->template->id, 'template_step_id' => $this->mix->id, 'title' => 'Revised',
         ]);
-        $this->propagator()->flush();
 
         $this->asOperator()->get("/operator/work-order/{$this->running->id}")
             ->assertOk()
@@ -266,7 +158,6 @@ class TemplateChangePropagationTest extends TestCase
         $media = TemplateStepMedia::factory()->create([
             'process_template_id' => $this->template->id, 'template_step_id' => $this->mix->id, 'title' => 'Revised',
         ]);
-        $this->propagator()->flush();
 
         $this->assertSame([$media->id], array_column($this->snapshotStep($this->notStarted, 1)['media'], 'id'));
         $this->asOperator()->get("/operator/work-order/{$this->notStarted->id}")
@@ -297,14 +188,16 @@ class TemplateChangePropagationTest extends TestCase
     {
         // Deleting a step soft-deletes its checklist items and outputs too — several
         // row events, one request, one version.
-        TemplateStepChecklistItem::factory()->create([
-            'process_template_id' => $this->template->id, 'template_step_id' => $this->fill->id, 'label' => 'Seal',
-        ]);
-        TemplateStepOutput::create([
-            'process_template_id' => $this->template->id, 'template_step_id' => $this->fill->id,
-            'key' => 'fill_weight', 'label' => 'Fill weight', 'value_type' => TemplateStepOutput::TYPE_NUMBER,
-        ]);
-        $this->propagator()->flush();
+        // Two rows written in one transaction are one edit as well.
+        \Illuminate\Support\Facades\DB::transaction(function () {
+            TemplateStepChecklistItem::factory()->create([
+                'process_template_id' => $this->template->id, 'template_step_id' => $this->fill->id, 'label' => 'Seal',
+            ]);
+            TemplateStepOutput::create([
+                'process_template_id' => $this->template->id, 'template_step_id' => $this->fill->id,
+                'key' => 'fill_weight', 'label' => 'Fill weight', 'value_type' => TemplateStepOutput::TYPE_NUMBER,
+            ]);
+        });
         $this->assertSame(2, (int) $this->notStarted->fresh()->snapshot_version);
 
         $this->actingAs($this->admin)->delete("{$this->base}/steps/{$this->fill->id}")->assertRedirect();
@@ -363,7 +256,6 @@ class TemplateChangePropagationTest extends TestCase
             'process_template_id' => $this->template->id, 'template_step_id' => $this->mix->id,
             'label' => 'Live item', 'is_required' => true,
         ]);
-        $this->propagator()->flush();
 
         $this->assertSame(['Line clearance', 'Live item'], $step->pendingRequiredChecklistLabels()->all());
         $this->assertEquals(['template_id' => $this->template->id, 'steps' => [['step_number' => 1, 'name' => 'Mix']]], $legacy->fresh()->process_snapshot);

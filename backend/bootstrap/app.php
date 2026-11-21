@@ -111,6 +111,19 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Services\Telemetry\TelemetryErrorBuffer::record($e);
         });
 
+        // A batch step regenerated after its order's process template was edited is
+        // soft-deleted; a stale operator screen acting on it gets "reload", not 404.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, \Illuminate\Http\Request $request) {
+            $missing = $e->getPrevious();
+            if ($missing instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+                && $missing->getModel() === \App\Models\BatchStep::class
+                && \App\Models\BatchStep::onlyTrashed()->whereKey($missing->getIds())->exists()) {
+                return (new \App\Exceptions\StepRegeneratedException)->render($request);
+            }
+
+            return null;
+        });
+
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
             return redirect()->route('login')->withErrors(['session' => 'Your session has expired. Please log in again.']);
         });

@@ -3,26 +3,34 @@
 namespace App\Services\ProcessTemplate;
 
 use App\Enums\ChangeEffectivePoint;
+use App\Jobs\RefreshNotStartedOrders;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepDocument;
 use App\Models\ProcessTemplate;
+use App\Models\ScheduledOperation;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderSnapshot;
+use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Services\WorkOrder\WorkOrderSnapshotService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Carries an edit of a process template (steps, checklist items, outputs, media)
- * to the work orders that have not started yet.
+ * Carries an edit of a process template's work instructions (steps, checklist
+ * items, outputs, media) to the work orders that have not started yet.
  *
  * - An order IN PROGRESS keeps its process snapshot untouched: what the shop floor
  *   was told to build does not change under it.
- * - An order NOT STARTED yet is moved onto the edited template: its snapshot is
- *   rebuilt from its own template selection and appended as the next #182 version
- *   (reason `process_template_edited`), and the steps of its batches are
- *   regenerated from it.
+ * - An order NOT STARTED yet is moved onto the edited template: the steps in its
+ *   snapshot are replaced by the template's current ones and appended as the next
+ *   #182 version (reason `process_template_edited`), and the steps of its batches
+ *   are regenerated from it. Everything else in the snapshot — the BOM, the BOM
+ *   selection, the revision and engineering documents — stays as released: BOM
+ *   edits do not travel this way.
  * - New orders snapshot the template as it is, so they need nothing from here.
  *
  * "Not started" = status PENDING or ACCEPTED, nothing produced, and no batch with
@@ -30,25 +38,13 @@ use Illuminate\Support\Facades\DB;
  * somebody). Anything else — including a PENDING order whose first step was
  * started before its status caught up — counts as in progress.
  *
- * Edits are collected per request (model events on the template rows call
- * markDirty()) and applied once when the request / command terminates, so a step
- * delete that cascades to its checklist and outputs and then renumbers the rest
- * produces one version, built from the final shape.
+ * Trigger: model events on the template rows call markDirty(), which queues a
+ * RefreshNotStartedOrders job once the edit commits (unique per template).
  */
 class ProcessTemplateChangePropagator
 {
     /** Order statuses in which an order may still be moved onto an edited template. */
     public const NOT_STARTED_STATUSES = [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED];
-
-    /** Snapshot keys rebuilt from the template; every other key (revision, documents, …) is kept. */
-    private const REBUILT_KEYS = ['template_id', 'template_name', 'template_version', 'steps', 'bom', 'bom_template_ids', 'bom_templates'];
-
-    /** @var array<int, true> */
-    private array $dirty = [];
-
-    private bool $registered = false;
-
-    private bool $flushing = false;
 
     public function __construct(
         private readonly WorkOrderService $workOrders,
@@ -56,61 +52,18 @@ class ProcessTemplateChangePropagator
     ) {}
 
     /**
-     * Drop edits noted before the current request began. A request applies only
-     * its own edits; anything written outside a request lifecycle (seeders, test
-     * set-up) is applied by an explicit flush() or not at all.
+     * Note that a template was edited. The refresh is queued after the current
+     * transaction commits (at once when there is none); a rolled-back edit queues
+     * nothing.
      */
-    public function forgetPending(): void
-    {
-        $this->dirty = [];
-    }
-
-    /** Note that a template was edited; applied when the request terminates (or on flush()). */
     public function markDirty(?int $templateId): void
     {
-        if (! $templateId || $this->flushing) {
+        if (! $templateId) {
             return;
         }
 
-        $this->dirty[$templateId] = true;
-
-        if (! $this->registered) {
-            $this->registered = true;
-            app()->terminating(fn () => $this->flush());
-        }
-    }
-
-    /**
-     * Apply every pending template edit now.
-     *
-     * @return int Number of orders moved onto an edited template.
-     */
-    public function flush(): int
-    {
-        $ids = array_keys($this->dirty);
-        $this->dirty = [];
-        $moved = 0;
-
-        $this->flushing = true;
-        try {
-            foreach ($ids as $id) {
-                $template = ProcessTemplate::find($id);
-                if (! $template) {
-                    continue;
-                }
-                try {
-                    $moved += $this->refreshNotStarted($template);
-                } catch (\Throwable $e) {
-                    // One template failing must not keep the others from refreshing,
-                    // nor fail a request whose own write already succeeded.
-                    report($e);
-                }
-            }
-        } finally {
-            $this->flushing = false;
-        }
-
-        return $moved;
+        $userId = auth()->id();
+        DB::afterCommit(fn () => RefreshNotStartedOrders::dispatch($templateId, $userId));
     }
 
     /**
@@ -119,13 +72,12 @@ class ProcessTemplateChangePropagator
      *
      * @return int Number of orders moved.
      */
-    public function refreshNotStarted(ProcessTemplate $template): int
+    public function refreshNotStarted(ProcessTemplate $template, ?User $user = null): int
     {
-        $user = auth()->user();
         $moved = 0;
 
         foreach ($this->candidates($template)->pluck('id') as $id) {
-            $moved += DB::transaction(function () use ($id, $user) {
+            $moved += DB::transaction(function () use ($id, $template, $user) {
                 // Same lock createBatch() and change requests take, so no batch is
                 // created from — and no change applied over — a half-written snapshot.
                 $workOrder = WorkOrder::whereKey($id)->lockForUpdate()->first();
@@ -142,8 +94,9 @@ class ProcessTemplateChangePropagator
                     return 0;
                 }
 
-                $snapshot = $this->rebuild($workOrder);
-                if ($snapshot === null || $snapshot == ($workOrder->process_snapshot ?? [])) {
+                $previous = $workOrder->process_snapshot ?? [];
+                $snapshot = $this->rebuild($previous, $template->fresh());
+                if ($snapshot === null || $snapshot == $previous) {
                     return 0;
                 }
 
@@ -151,18 +104,12 @@ class ProcessTemplateChangePropagator
                     $workOrder,
                     $snapshot,
                     ChangeEffectivePoint::Immediate,
-                    user: $user instanceof User ? $user : null,
+                    user: $user,
                     reason: WorkOrderSnapshot::REASON_TEMPLATE_EDITED,
                 );
 
                 foreach ($batches->where('status', Batch::STATUS_PENDING) as $batch) {
-                    // Per-model delete: BatchStep soft-deletes with audit and cascades
-                    // to its documents in the model event (as change requests do).
-                    foreach ($batch->steps as $step) {
-                        $step->delete();
-                    }
-                    $this->workOrders->regenerateBatchSteps($batch, $snapshot);
-                    $batch->update(['snapshot_version' => $version->version]);
+                    $this->regenerate($batch, $previous, $snapshot, $version->version);
                 }
 
                 return 1;
@@ -173,17 +120,27 @@ class ProcessTemplateChangePropagator
     }
 
     /**
-     * How the template's open orders split for the admin warning.
+     * How the template's open orders split for the admin warning: by its own
+     * process (in progress / not started) and orders that use it only as an
+     * additional BOM (never updated from here).
      *
-     * @return array{in_progress: int, not_started: int}
+     * @return array{in_progress: int, not_started: int, secondary_bom: int}
      */
     public function orderCounts(ProcessTemplate $template): array
     {
-        $counts = ['in_progress' => 0, 'not_started' => 0];
+        $orders = $this->openOrders($template)->with('batches:id,work_order_id,status,produced_qty')->get();
+        $executed = $this->executedBatchIds($orders->flatMap->batches->pluck('id')->all());
 
-        foreach ($this->openOrders($template)->with('batches')->get() as $workOrder) {
-            $counts[$this->isNotStarted($workOrder) ? 'not_started' : 'in_progress']++;
+        $counts = ['in_progress' => 0, 'not_started' => 0, 'secondary_bom' => 0];
+        foreach ($orders as $workOrder) {
+            $counts[$this->notStarted($workOrder, $workOrder->batches, $executed) ? 'not_started' : 'in_progress']++;
         }
+
+        $counts['secondary_bom'] = WorkOrder::query()
+            ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
+            ->whereHas('bomTemplates', fn ($q) => $q->where('process_templates.id', $template->id))
+            ->whereNotIn('id', $orders->modelKeys())
+            ->count();
 
         return $counts;
     }
@@ -195,16 +152,24 @@ class ProcessTemplateChangePropagator
      */
     public function isNotStarted(WorkOrder $workOrder, ?iterable $batches = null): bool
     {
+        $batches = collect($batches ?? $workOrder->batches);
+
+        return $this->notStarted($workOrder, $batches, $this->executedBatchIds($batches->pluck('id')->all()));
+    }
+
+    /** @param  array<int, true>  $executed  batch ids with execution */
+    private function notStarted(WorkOrder $workOrder, iterable $batches, array $executed): bool
+    {
         if (! in_array($workOrder->status, self::NOT_STARTED_STATUSES, true)
             || (float) $workOrder->produced_qty > 0) {
             return false;
         }
 
-        foreach ($batches ?? $workOrder->batches as $batch) {
+        foreach ($batches as $batch) {
             if ($batch->status === Batch::STATUS_CANCELLED) {
                 continue;
             }
-            if ($batch->status !== Batch::STATUS_PENDING || $batch->hasExecution()) {
+            if ($batch->status !== Batch::STATUS_PENDING || (float) $batch->produced_qty > 0 || isset($executed[$batch->id])) {
                 return false;
             }
         }
@@ -212,52 +177,167 @@ class ProcessTemplateChangePropagator
         return true;
     }
 
+    /**
+     * Batches with an executed step, in one query (same rule as Batch::hasExecution()).
+     *
+     * @param  array<int, int>  $batchIds
+     * @return array<int, true>
+     */
+    private function executedBatchIds(array $batchIds): array
+    {
+        if ($batchIds === []) {
+            return [];
+        }
+
+        return BatchStep::whereIn('batch_id', $batchIds)
+            ->where(fn ($q) => $q
+                ->whereIn('status', [BatchStep::STATUS_IN_PROGRESS, BatchStep::STATUS_DONE])
+                ->orWhere(fn ($qq) => $qq->where('status', BatchStep::STATUS_SKIPPED)->whereNotNull('completed_by_id')))
+            ->distinct()
+            ->pluck('batch_id')
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
+    }
+
     /** Non-terminal orders whose process (primary template) is this template. */
-    private function openOrders(ProcessTemplate $template)
+    private function openOrders(ProcessTemplate $template): Builder
     {
         return WorkOrder::query()
             ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
             ->where('process_snapshot->template_id', $template->id);
     }
 
-    private function candidates(ProcessTemplate $template)
+    private function candidates(ProcessTemplate $template): Builder
     {
         return $this->openOrders($template)->whereIn('status', self::NOT_STARTED_STATUSES);
     }
 
     /**
-     * The order's snapshot rebuilt from its own template selection (primary first,
-     * then the other selected BOMs), keeping what was frozen at release that is not
-     * template structure — the revision block, engineering documents and anything
-     * else attached to the snapshot.
+     * The snapshot with the template's current steps (and name / version); every
+     * other key — BOM, BOM selection, revision, engineering documents — as released.
      *
-     * @return array<string, mixed>|null Null when the selection no longer resolves.
+     * @param  array<string, mixed>  $current
+     * @return array<string, mixed>|null Null when there is nothing to refresh.
      */
-    private function rebuild(WorkOrder $workOrder): ?array
+    private function rebuild(array $current, ProcessTemplate $template): ?array
     {
-        $current = $workOrder->process_snapshot ?? [];
         // An order released without any process steps has no routing to refresh;
         // giving it one now would be a different order, not an edited one.
         if (empty($current['steps'])) {
             return null;
         }
 
-        $templateIds = $workOrder->bomTemplates()->pluck('process_templates.id')->all();
-        if ($templateIds === []) {
-            $templateIds = [$current['template_id']];
+        $fresh = $template->toSnapshot();
+        if (empty($fresh['steps'])) {
+            return null; // every step removed: keep the order runnable as released
         }
 
-        try {
-            $built = $this->workOrders->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
-        } catch (\InvalidArgumentException) {
-            // A selected template was deleted or moved to another product: keep
-            // the order as it is rather than guess a different process.
-            return null;
+        return array_merge($current, [
+            'template_name' => $fresh['template_name'],
+            'template_version' => $fresh['template_version'],
+            'steps' => $fresh['steps'],
+        ]);
+    }
+
+    /**
+     * Replace a pending batch's steps with the new snapshot's, keeping what was
+     * planned on a step that is still in the process — its manual workstation
+     * assignment, its scheduled operations and its step documents — and dropping
+     * (with a log line) what was planned on a step that is gone.
+     *
+     * Steps are matched by the template step they were frozen from, so a reordered
+     * step keeps its planning; by step number for snapshots without that id.
+     *
+     * @param  array<string, mixed>  $previous
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function regenerate(Batch $batch, array $previous, array $snapshot, int $version): void
+    {
+        $oldSteps = $batch->steps()->get();
+        $documents = BatchStepDocument::whereIn('batch_step_id', $oldSteps->modelKeys())->get();
+
+        // Per-model delete: BatchStep soft-deletes with audit and cascades to its
+        // documents in the model event (as change requests do). The partial unique
+        // index on (batch_id, step_number) needs the old rows gone first.
+        foreach ($oldSteps as $step) {
+            $step->delete();
         }
-        if ($built === null || empty($built['steps'])) {
-            return null;
+        $this->workOrders->regenerateBatchSteps($batch, $snapshot);
+        $batch->update(['snapshot_version' => $version]);
+
+        $newSteps = $batch->steps()->get()->keyBy('step_number');
+        $target = $this->stepMatcher($previous, $snapshot, $newSteps);
+
+        foreach ($oldSteps as $old) {
+            $new = $target($old);
+            $context = ['work_order_id' => $batch->work_order_id, 'batch_id' => $batch->id, 'batch_step_id' => $old->id, 'step_number' => $old->step_number];
+
+            $operations = ScheduledOperation::where('batch_step_id', $old->id);
+            $stepDocuments = $documents->where('batch_step_id', $old->id);
+
+            if (! $new) {
+                if ($operations->exists() || $stepDocuments->isNotEmpty() || $old->assigned_by_id) {
+                    Log::info('Process template edited: planning of a step that is no longer in the process was dropped', $context);
+                }
+                $operations->delete();
+
+                continue;
+            }
+
+            if ($old->assigned_by_id && $this->workstationFits($old->workstation_id, $new)) {
+                $new->update([
+                    'workstation_id' => $old->workstation_id,
+                    'assigned_by_id' => $old->assigned_by_id,
+                    'assigned_at' => $old->assigned_at,
+                ]);
+            } elseif ($old->assigned_by_id) {
+                Log::info('Process template edited: a manual workstation assignment no longer fits its step and was dropped', $context);
+            }
+
+            $operations->update(['batch_step_id' => $new->id, 'step_number' => $new->step_number, 'step_name' => $new->name]);
+
+            // The step delete above soft-deleted these with it; bring them back on
+            // the new step (query-builder update: no second audit/cascade round).
+            if ($stepDocuments->isNotEmpty()) {
+                BatchStepDocument::withTrashed()->whereKey($stepDocuments->modelKeys())
+                    ->update(['batch_step_id' => $new->id, 'deleted_at' => null, 'deleted_by_id' => null]);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $previous
+     * @param  array<string, mixed>  $snapshot
+     * @param  \Illuminate\Support\Collection<int, BatchStep>  $newSteps  keyed by step_number
+     * @return \Closure(BatchStep): ?BatchStep
+     */
+    private function stepMatcher(array $previous, array $snapshot, $newSteps): \Closure
+    {
+        $oldTemplateStep = collect($previous['steps'] ?? [])->pluck('template_step_id', 'step_number');
+        $newNumber = collect($snapshot['steps'] ?? [])->filter(fn ($s) => isset($s['template_step_id']))
+            ->pluck('step_number', 'template_step_id');
+
+        return function (BatchStep $old) use ($oldTemplateStep, $newNumber, $newSteps): ?BatchStep {
+            $templateStepId = $oldTemplateStep[$old->step_number] ?? null;
+            if ($templateStepId !== null) {
+                $number = $newNumber[$templateStepId] ?? null;
+
+                return $number === null ? null : $newSteps->get($number);
+            }
+
+            return $newSteps->get($old->step_number);
+        };
+    }
+
+    private function workstationFits(?int $workstationId, BatchStep $step): bool
+    {
+        if (! $workstationId) {
+            return false;
+        }
+        if (! $step->workstation_type_id) {
+            return true;
         }
 
-        return array_merge(array_diff_key($current, array_flip(self::REBUILT_KEYS)), $built);
+        return (int) Workstation::whereKey($workstationId)->value('workstation_type_id') === (int) $step->workstation_type_id;
     }
 }
