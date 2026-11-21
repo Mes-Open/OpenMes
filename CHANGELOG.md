@@ -112,6 +112,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
+  content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll
+  area and stretched the document, so scrolling moved the sidebar and page away and left a
+  grey band at the bottom. The content area now contains it.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be
