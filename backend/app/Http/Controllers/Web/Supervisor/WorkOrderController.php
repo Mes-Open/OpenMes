@@ -322,7 +322,8 @@ class WorkOrderController extends Controller
         $validated = $request->validated();
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $validated) {
-            WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->update($validated);
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+            $current->update($current->guardStatusEdit($validated));
         });
 
         return redirect()->route('supervisor.work-orders.show', $workOrder)

@@ -218,8 +218,13 @@ class WorkOrderController extends Controller
             return response()->json(['message' => $errorMessage], 422);
         }
 
-        $refusal = \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $target, $guard) {
+        $refusal = \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $target, $allowedFrom, $errorMessage, $guard) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            // Again on the locked row: the route model may be stale by now.
+            if (! in_array($current->status, $allowedFrom, true)) {
+                return $errorMessage;
+            }
 
             if ($guard && ($message = $guard($current))) {
                 return $message;

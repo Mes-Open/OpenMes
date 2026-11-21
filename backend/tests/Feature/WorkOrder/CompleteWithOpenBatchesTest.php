@@ -115,6 +115,96 @@ class CompleteWithOpenBatchesTest extends TestCase
         $this->assertStillOpen($order);
     }
 
+    private function edit(string $area, WorkOrder $order, string $status = WorkOrder::STATUS_DONE)
+    {
+        $user = $area === 'admin' ? $this->admin : $this->supervisor;
+
+        return $this->actingAs($user)->put("/{$area}/work-orders/{$order->id}", [
+            'order_no' => $order->order_no,
+            'planned_qty' => $order->planned_qty,
+            'status' => $status,
+        ]);
+    }
+
+    public function test_edit_form_cannot_set_done_with_an_open_batch(): void
+    {
+        foreach (['admin', 'supervisor'] as $area) {
+            $order = $this->order();
+            $order->update(['produced_qty' => 5]);
+            $this->batch($order, Batch::STATUS_IN_PROGRESS, 1);
+
+            $this->edit($area, $order)->assertSessionHasErrors(['status' => $this->refusal(1)]);
+
+            $this->assertStillOpen($order);
+        }
+    }
+
+    public function test_edit_form_setting_done_stamps_completed_at(): void
+    {
+        foreach (['admin', 'supervisor'] as $area) {
+            $order = $this->order();
+            $order->update(['produced_qty' => 5]);
+            $this->batch($order, Batch::STATUS_DONE, 1);
+
+            $this->edit($area, $order)->assertSessionHasNoErrors();
+
+            $fresh = $order->fresh();
+            $this->assertSame(WorkOrder::STATUS_DONE, $fresh->status, $area);
+            $this->assertNotNull($fresh->completed_at, $area);
+        }
+    }
+
+    public function test_edit_form_keeps_the_original_completion_time_of_a_done_order(): void
+    {
+        $order = $this->order();
+        $order->update(['status' => WorkOrder::STATUS_DONE, 'produced_qty' => 5, 'completed_at' => now()->subDay()]);
+        $stamp = $order->fresh()->completed_at;
+
+        $this->edit('supervisor', $order)->assertSessionHasNoErrors();
+
+        $this->assertEquals($stamp, $order->fresh()->completed_at);
+    }
+
+    public function test_api_complete_rechecks_the_status_on_the_locked_row(): void
+    {
+        $order = $this->order();
+        // The route model is bound IN_PROGRESS, the row changes before the lock.
+        WorkOrder::saving(function (WorkOrder $w) use ($order) {
+            if ($w->id === $order->id && $w->status === WorkOrder::STATUS_DONE) {
+                $this->fail('A stale route model must not complete the order.');
+            }
+        });
+        \Illuminate\Support\Facades\DB::listen(function ($query) use ($order) {
+            static $done = false;
+            // Right after the route model is bound, before the row lock.
+            if (! $done && str_contains($query->sql, 'from "work_orders"') && ! str_contains($query->sql, 'for update')) {
+                $done = true;
+                \Illuminate\Support\Facades\DB::table('work_orders')->where('id', $order->id)->update(['status' => WorkOrder::STATUS_PAUSED]);
+            }
+        });
+
+        $this->actingAs($this->supervisor, 'sanctum')
+            ->postJson("/api/v1/work-orders/{$order->id}/complete")
+            ->assertStatus(422);
+
+        $this->assertSame(WorkOrder::STATUS_PAUSED, $order->fresh()->status);
+    }
+
+    public function test_machine_message_completing_an_order_stamps_completed_at(): void
+    {
+        $order = $this->order();
+        $this->batch($order, Batch::STATUS_DONE, 1);
+        $connection = MachineConnection::create(['name' => 'Line PLC', 'protocol' => 'rest']);
+        $topic = MachineTopic::create(['machine_connection_id' => $connection->id, 'topic_pattern' => 'status', 'is_active' => true]);
+        $mapping = TopicMapping::create(['machine_topic_id' => $topic->id, 'action_type' => 'set_work_order_status', 'action_params' => ['order_id' => $order->id, 'status' => 'completed'], 'is_active' => true]);
+
+        $this->assertSame('ok', app(ActionExecutor::class)->executeSingle($mapping, [])['status']);
+
+        $fresh = $order->fresh();
+        $this->assertSame(WorkOrder::STATUS_DONE, $fresh->status);
+        $this->assertNotNull($fresh->completed_at);
+    }
+
     // ── Allowed ─────────────────────────────────────────────────────────────
 
     public function test_supervisor_completes_once_every_live_batch_is_done(): void

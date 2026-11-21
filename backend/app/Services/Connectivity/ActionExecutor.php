@@ -272,14 +272,21 @@ class ActionExecutor
             default => throw new \RuntimeException("Invalid work order status: {$status}"),
         };
 
-        $workOrder = $orderNo
-            ? WorkOrder::where('order_no', $orderNo)->first()
-            : WorkOrder::find($orderId);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($orderNo, $orderId, $status) {
+            $workOrder = ($orderNo
+                ? WorkOrder::where('order_no', $orderNo)
+                : WorkOrder::whereKey($orderId))->lockForUpdate()->first();
 
-        if (! $workOrder) {
-            throw new \RuntimeException('WorkOrder not found');
-        }
+            if (! $workOrder) {
+                throw new \RuntimeException('WorkOrder not found');
+            }
 
+            return $this->setWorkOrderStatusLocked($workOrder, $status);
+        });
+    }
+
+    private function setWorkOrderStatusLocked(WorkOrder $workOrder, string $status): array
+    {
         if ($workOrder->usesStepLedger()) {
             throw new \DomainException('Transfer order status must be changed through the production workflow.');
         }
@@ -295,7 +302,7 @@ class ActionExecutor
             throw new \DomainException($blocker);
         }
 
-        $workOrder->update(['status' => $status]);
+        $workOrder->update(['status' => $status, ...($status === WorkOrder::STATUS_DONE ? ['completed_at' => now()] : [])]);
 
         return ['order_no' => $workOrder->order_no, 'new_status' => $status];
     }

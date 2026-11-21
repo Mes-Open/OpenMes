@@ -768,6 +768,27 @@ class WorkOrder extends Model
     }
 
     /**
+     * Prepare a status edit (edit forms) on the locked row: a move into DONE
+     * runs the open-batches guard and stamps completed_at, like the Complete
+     * action. Throws a validation error on `status` when refused.
+     *
+     * @param  array<string, mixed>  $attributes  the validated edit
+     * @return array<string, mixed>
+     */
+    public function guardStatusEdit(array $attributes): array
+    {
+        if (($attributes['status'] ?? null) !== self::STATUS_DONE || $this->status === self::STATUS_DONE) {
+            return $attributes;
+        }
+
+        if ($blocker = $this->openBatchesCompletionBlocker()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['status' => $blocker]);
+        }
+
+        return [...$attributes, 'completed_at' => now()];
+    }
+
+    /**
      * Check if this work order is complete.
      */
     public function isComplete(): bool

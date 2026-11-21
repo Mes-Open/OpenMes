@@ -217,6 +217,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   or running. They now refuse with a message naming how many batches are not done (422
   for the API); cancelled batches don't count, and orders without batches close as
   before. The produced-quantity validation moved to a Form Request.
+
+  and admin "Complete" actions, the status field of both edit forms,
+  `POST /api/v1/work-orders/{id}/complete` and a machine `set_work_order_status` message
+  set the order `DONE` while batches were still pending or running. They now refuse with
+  a message naming how many batches are not done (422 for the API); cancelled batches
+  don't count, and orders without batches close as before. Every one of these paths now
+  stamps `completed_at` and checks the order's status on the locked row. The
+  produced-quantity validation moved to a Form Request.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

@@ -535,7 +535,7 @@ class WorkOrderManagementController extends Controller
         try {
             DB::transaction(function () use ($workOrder, $validated, $requested) {
                 $workOrder->setRawAttributes(WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->getAttributes(), true);
-                $workOrder->update($validated);
+                $workOrder->update($workOrder->guardStatusEdit($validated));
                 if ($requested !== null) {
                     $this->workOrderService->updateBomSelection($workOrder, $requested);
                 }
