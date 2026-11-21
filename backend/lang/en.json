@@ -7836,5 +7836,14 @@
     "This work order cannot be completed until its production has gone through the process steps of a batch.": "This work order cannot be completed until its production has gone through the process steps of a batch.",
     "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.": "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.",
     "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.": "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.",
-    "Checklist and outputs can only be recorded while the step is in progress.": "Checklist and outputs can only be recorded while the step is in progress."
+    "Checklist and outputs can only be recorded while the step is in progress.": "Checklist and outputs can only be recorded while the step is in progress.",
+    "Record at least one sample.": "Record at least one sample.",
+    "\":name\" is not a parameter of the quality check template.": "\":name\" is not a parameter of the quality check template.",
+    "The sample number must be between 1 and :max.": "The sample number must be between 1 and :max.",
+    "A measurement can only be judged against a quality check template with limits.": "A measurement can only be judged against a quality check template with limits.",
+    "\":name\" is recorded twice for sample :number.": "\":name\" is recorded twice for sample :number.",
+    "Enter the measured value of \":name\".": "Enter the measured value of \":name\".",
+    "Choose pass or fail for \":name\".": "Choose pass or fail for \":name\".",
+    "This quality check template does not belong to the batch's process.": "This quality check template does not belong to the batch's process.",
+    "Record every parameter for every sample. Missing: :list.": "Record every parameter for every sample. Missing: :list."
 }

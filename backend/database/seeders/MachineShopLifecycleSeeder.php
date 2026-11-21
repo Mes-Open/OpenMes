@@ -16,6 +16,7 @@ use App\Models\PalletMovement;
 use App\Models\ProcessTemplate;
 use App\Models\ProductRevision;
 use App\Models\ProductType;
+use App\Models\QualityCheckTemplate;
 use App\Models\ScrapEntry;
 use App\Models\SerialUnit;
 use App\Models\StockDocument;
@@ -1562,22 +1563,33 @@ class MachineShopLifecycleSeeder extends Seeder
     private function qualityCheck(Batch $batch, BatchStep $step, Carbon $at, float $qty): void
     {
         $code = $batch->workOrder->productType->code;
-        $samples = match ($code) {
-            'SA_HARD' => [['Surface hardness [HRC]', 'numeric', 52 + mt_rand(0, 40) / 10], ['Case depth [mm]', 'numeric', 0.8 + mt_rand(0, 3) / 10]],
-            'SHAFT40' => [['Journal Ø40 h6 [mm]', 'numeric', 39.990 + mt_rand(0, 14) / 1000], ['Runout [mm]', 'numeric', mt_rand(3, 18) / 1000], ['Keyway width [mm]', 'numeric', 12.0 + mt_rand(0, 40) / 1000]],
-            'PINION18' => [['Tooth thickness [mm]', 'numeric', 4.70 + mt_rand(0, 6) / 100], ['Bore Ø25 H7 [mm]', 'numeric', 25.0 + mt_rand(0, 18) / 1000]],
-            'FLANGE150' => [['Bolt circle Ø240 [mm]', 'numeric', 240 + mt_rand(-10, 10) / 100], ['Sealing face flatness [mm]', 'numeric', mt_rand(5, 30) / 1000]],
-            default => [['Critical dimension [mm]', 'numeric', 50 + mt_rand(-20, 20) / 1000], ['Surface roughness Ra [µm]', 'numeric', 0.8 + mt_rand(0, 8) / 10]],
+        // [parameter, measured value, lower limit, upper limit] - values are
+        // generated inside the limits, so the seeded checks pass.
+        $measured = match ($code) {
+            'SA_HARD' => [['Surface hardness [HRC]', 52 + mt_rand(0, 40) / 10, 52, 56], ['Case depth [mm]', 0.8 + mt_rand(0, 3) / 10, 0.8, 1.1]],
+            'SHAFT40' => [['Journal Ø40 h6 [mm]', 39.990 + mt_rand(0, 14) / 1000, 39.984, 40.004], ['Runout [mm]', mt_rand(3, 18) / 1000, 0, 0.02], ['Keyway width [mm]', 12.0 + mt_rand(0, 40) / 1000, 12.0, 12.043]],
+            'PINION18' => [['Tooth thickness [mm]', 4.70 + mt_rand(0, 6) / 100, 4.70, 4.76], ['Bore Ø25 H7 [mm]', 25.0 + mt_rand(0, 18) / 1000, 25.0, 25.021]],
+            'FLANGE150' => [['Bolt circle Ø240 [mm]', 240 + mt_rand(-10, 10) / 100, 239.9, 240.1], ['Sealing face flatness [mm]', mt_rand(5, 30) / 1000, 0, 0.03]],
+            default => [['Critical dimension [mm]', 50 + mt_rand(-20, 20) / 1000, 49.98, 50.02], ['Surface roughness Ra [µm]', 0.8 + mt_rand(0, 8) / 10, 0, 1.6]],
         };
-        $samples[] = ['Visual inspection', 'boolean', true];
+
+        // The limits as an unsaved QC template: the service judges the seeded
+        // samples from them like any real check, without adding demo templates.
+        $template = new QualityCheckTemplate([
+            'name' => 'Sample inspection',
+            'samples_per_check' => 1,
+            'parameters' => [
+                ...array_map(fn ($m) => ['name' => $m[0], 'type' => 'measurement', 'min' => $m[2], 'max' => $m[3]], $measured),
+                ['name' => 'Visual inspection', 'type' => 'pass_fail'],
+            ],
+        ]);
+        $samples = [
+            ...array_map(fn ($m) => ['sample_number' => 1, 'parameter_name' => $m[0], 'parameter_type' => 'measurement', 'value_numeric' => round($m[1], 4)], $measured),
+            ['sample_number' => 1, 'parameter_name' => 'Visual inspection', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+        ];
 
         Carbon::setTestNow($at->copy()->subMinutes(2));
-        $this->quality->performCheck($batch, $this->inspector, collect($samples)->map(fn ($s, $i) => [
-            'sample_number' => $i + 1, 'parameter_name' => $s[0], 'parameter_type' => $s[1],
-            'value_numeric' => $s[1] === 'numeric' ? $s[2] : null,
-            'value_boolean' => $s[1] === 'boolean' ? $s[2] : null,
-            'is_passed' => true,
-        ])->all(), $qty, null, "Sample inspection at {$step->name}");
+        $this->quality->performCheck($batch, $this->inspector, $samples, $qty, $template, "Sample inspection at {$step->name}");
     }
 
     // ── sub-assemblies ───────────────────────────────────────────────────────
@@ -1868,8 +1880,8 @@ class MachineShopLifecycleSeeder extends Seeder
         ]);
         $this->clockTo($batch->completed_at->copy()->addMinutes(25));
         $this->quality->performCheck($batch->fresh(), $this->inspector, [
-            ['sample_number' => 1, 'parameter_name' => 'Packing & labelling', 'parameter_type' => 'boolean', 'value_boolean' => true, 'is_passed' => true],
-            ['sample_number' => 2, 'parameter_name' => 'Quantity matches label', 'parameter_type' => 'boolean', 'value_boolean' => true, 'is_passed' => true],
+            ['sample_number' => 1, 'parameter_name' => 'Packing & labelling', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+            ['sample_number' => 2, 'parameter_name' => 'Quantity matches label', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
         ], $produced, null, 'Pallet release check', $pallet);
 
         if ($lot) {

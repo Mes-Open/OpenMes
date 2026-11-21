@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\QcTemplateRequest;
+use App\Http\Requests\Api\V1\StoreQualityCheckRequest;
 use App\Models\Batch;
 use App\Models\QualityCheckTemplate;
 use App\Services\Production\QualityCheckService;
@@ -21,25 +22,14 @@ class QualityCheckController extends Controller
         return response()->json(['data' => $checks]);
     }
 
-    public function store(Request $request, Batch $batch): JsonResponse
+    /**
+     * Record an in-process check. The verdict is decided on the server from the
+     * QC template (see QualityCheckService::performCheck); a sample that can't be
+     * judged comes back as a 422 field error.
+     */
+    public function store(StoreQualityCheckRequest $request, Batch $batch): JsonResponse
     {
-        $validated = $request->validate([
-            'production_quantity' => 'nullable|numeric|min:0',
-            'quality_check_template_id' => 'nullable|exists:quality_check_templates,id',
-            'pallet_id' => 'nullable|integer|exists:pallets,id',
-            'notes' => 'nullable|string',
-            'samples' => 'required|array|min:1',
-            'samples.*.sample_number' => 'required|integer|min:1',
-            'samples.*.parameter_name' => 'required|string|max:100',
-            'samples.*.parameter_type' => 'required|string|in:measurement,pass_fail',
-            'samples.*.value_numeric' => 'nullable|numeric',
-            'samples.*.value_boolean' => 'nullable|boolean',
-            'samples.*.is_passed' => 'nullable|boolean',
-        ]);
-
-        $template = isset($validated['quality_check_template_id'])
-            ? QualityCheckTemplate::find($validated['quality_check_template_id'])
-            : null;
+        $validated = $request->validated();
 
         // Optional pallet link (#106): the pallet must belong to the batch's work order.
         $pallet = null;
@@ -53,9 +43,9 @@ class QualityCheckController extends Controller
         $check = $this->service->performCheck(
             $batch,
             $request->user(),
-            $validated['samples'],
+            $request->samples(),
             $validated['production_quantity'] ?? null,
-            $template,
+            $request->template(),
             $validated['notes'] ?? null,
             $pallet,
         );
@@ -68,17 +58,8 @@ class QualityCheckController extends Controller
 
     public function status(Batch $batch): JsonResponse
     {
-        $template = null;
-        $workOrder = $batch->workOrder;
-        if ($workOrder->process_snapshot) {
-            $templateId = $workOrder->process_snapshot['template_id'] ?? null;
-            if ($templateId) {
-                $template = QualityCheckTemplate::where('process_template_id', $templateId)->first();
-            }
-        }
-
         return response()->json([
-            'data' => $this->service->getCheckStatus($batch, $template),
+            'data' => $this->service->getCheckStatus($batch, QualityCheckTemplate::forBatch($batch)),
         ]);
     }
 

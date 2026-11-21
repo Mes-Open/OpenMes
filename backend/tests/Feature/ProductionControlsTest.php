@@ -150,16 +150,17 @@ class ProductionControlsTest extends TestCase
     public function test_perform_quality_check(): void
     {
         $batch = $this->createBatch();
+        $template = $this->qcTemplateFor($batch);
 
         $service = app(QualityCheckService::class);
         $check = $service->performCheck($batch, $this->operator, [
-            ['sample_number' => 1, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.5, 'is_passed' => true],
-            ['sample_number' => 1, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true, 'is_passed' => true],
-            ['sample_number' => 2, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.3, 'is_passed' => true],
-            ['sample_number' => 2, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true, 'is_passed' => true],
-            ['sample_number' => 3, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.4, 'is_passed' => true],
-            ['sample_number' => 3, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true, 'is_passed' => true],
-        ], 500);
+            ['sample_number' => 1, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.5],
+            ['sample_number' => 1, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+            ['sample_number' => 2, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.3],
+            ['sample_number' => 2, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+            ['sample_number' => 3, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.4],
+            ['sample_number' => 3, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+        ], 500, $template);
 
         $this->assertTrue($check->all_passed);
         $this->assertCount(6, $check->samples);
@@ -172,9 +173,9 @@ class ProductionControlsTest extends TestCase
 
         $service = app(QualityCheckService::class);
         $check = $service->performCheck($batch, $this->operator, [
-            ['sample_number' => 1, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => true, 'is_passed' => true],
-            ['sample_number' => 2, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => false, 'is_passed' => false],
-            ['sample_number' => 3, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => true, 'is_passed' => true],
+            ['sample_number' => 1, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+            ['sample_number' => 2, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => false],
+            ['sample_number' => 3, 'parameter_name' => 'Fit', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
         ]);
 
         $this->assertFalse($check->all_passed);
@@ -192,7 +193,7 @@ class ProductionControlsTest extends TestCase
         // Perform 3 checks
         for ($i = 0; $i < 3; $i++) {
             $service->performCheck($batch, $this->operator, [
-                ['sample_number' => 1, 'parameter_name' => 'Test', 'parameter_type' => 'pass_fail', 'is_passed' => true],
+                ['sample_number' => 1, 'parameter_name' => 'Test', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
             ]);
         }
 
@@ -204,20 +205,25 @@ class ProductionControlsTest extends TestCase
     public function test_api_perform_quality_check(): void
     {
         $batch = $this->createBatch();
+        $this->qcTemplateFor($batch);
+        $this->operator->lines()->attach($batch->workOrder->line_id);
 
         $response = $this->actingAs($this->operator, 'sanctum')
             ->postJson("/api/v1/batches/{$batch->id}/quality-checks", [
                 'production_quantity' => 250,
                 'samples' => [
-                    ['sample_number' => 1, 'parameter_name' => 'Dimension', 'parameter_type' => 'measurement', 'value_numeric' => 12.5, 'is_passed' => true],
-                    ['sample_number' => 2, 'parameter_name' => 'Dimension', 'parameter_type' => 'measurement', 'value_numeric' => 12.3, 'is_passed' => true],
-                    ['sample_number' => 3, 'parameter_name' => 'Dimension', 'parameter_type' => 'measurement', 'value_numeric' => 12.4, 'is_passed' => true],
+                    ['sample_number' => 1, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.5],
+                    ['sample_number' => 1, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+                    ['sample_number' => 2, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.3],
+                    ['sample_number' => 2, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
+                    ['sample_number' => 3, 'parameter_name' => 'Dimension A', 'parameter_type' => 'measurement', 'value_numeric' => 12.4],
+                    ['sample_number' => 3, 'parameter_name' => 'Fit check', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
                 ],
             ]);
 
         $response->assertStatus(201)
             ->assertJsonPath('data.all_passed', true);
-        $this->assertCount(3, $response->json('data.samples'));
+        $this->assertCount(6, $response->json('data.samples'));
     }
 
     public function test_api_quality_check_status(): void
@@ -365,6 +371,23 @@ class ProductionControlsTest extends TestCase
     }
 
     // ── Helpers ──────────────────────────────────────────────────
+
+    /** A QC template on the batch's process: Dimension A 12.0-13.0 and a fit check, 3 samples. */
+    private function qcTemplateFor(Batch $batch): QualityCheckTemplate
+    {
+        $process = ProcessTemplate::factory()->create();
+        $batch->workOrder->update(['process_snapshot' => ['template_id' => $process->id]]);
+
+        return QualityCheckTemplate::create([
+            'process_template_id' => $process->id,
+            'name' => 'Dimensions',
+            'samples_per_check' => 3,
+            'parameters' => [
+                ['name' => 'Dimension A', 'type' => 'measurement', 'unit' => 'mm', 'min' => 12.0, 'max' => 13.0],
+                ['name' => 'Fit check', 'type' => 'pass_fail'],
+            ],
+        ]);
+    }
 
     private function createBatch(): Batch
     {

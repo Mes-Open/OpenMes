@@ -51,8 +51,8 @@ class PalletQualityTest extends TestCase
     private function samples(bool $pass): array
     {
         return [[
-            'sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement',
-            'value_numeric' => 10, 'is_passed' => $pass,
+            'sample_number' => 1, 'parameter_name' => 'Seal intact', 'parameter_type' => 'pass_fail',
+            'value_boolean' => $pass,
         ]];
     }
 

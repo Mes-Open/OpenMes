@@ -234,6 +234,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   recorded while the step is in progress.* (422 for JSON callers), and the checklist and
   output fields are read-only outside a running step. A change after completion needs a
   correction with a reason, which core does not offer yet.
+
+- **The server decides whether a quality check passed.** The pass/fail of an in-process
+  check came from the client: the operator form always sent "passed" (even for a sample
+  answered *Fail*) under three hard-coded "Dimension" / "Fit check" samples, and the API
+  stored whatever `is_passed` it was sent — a missing one counted as passed — without
+  looking at the QC template's limits. Now every sample is judged against the QC template:
+  a measurement passes when it lies within the parameter's min/max (inclusive; a missing
+  limit is open), a pass/fail parameter by the recorded answer, and the check passes only
+  when every sample does. `is_passed` is no longer read from any request. A parameter that
+  is not in the template, a sample number above *samples per check*, a parameter recorded
+  twice for one sample or a missing value is refused (422); without a template only
+  pass/fail samples can be recorded. The operator form is built from the batch's QC template
+  (its parameters × samples per check, with the limits shown) and the *more needed* hint
+  follows the template's minimum; the *Quality Controls* perform form records one row per
+  parameter and sample and asks pass/fail only for pass/fail parameters. Recording over the
+  API (`POST /api/v1/batches/{batch}/quality-checks`) now needs the same right as on the
+  operator page — Operator on an assigned line, Supervisor or Admin — and a template chosen
+  there must belong to the batch's process (otherwise the batch's own template is used); the
+  operator page now also checks that the batch is on the selected line. A failing check is
+  still recorded, and a failing quality control still raises its non-conformance.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

@@ -426,9 +426,14 @@ class WorkOrderController extends Controller
         // What a new batch may still add up to; null while overproduction is allowed.
         $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
 
+        // The QC template in-process checks on this order are judged against, so
+        // the quality-check form asks for exactly its parameters and samples.
+        $qualityCheckTemplate = \App\Models\QualityCheckTemplate::forProcessTemplate($templateId)
+            ?->only(['id', 'name', 'min_checks_per_batch', 'samples_per_check', 'parameters']);
+
         $lotManualEntry = \App\Services\Lot\BatchLotRules::manualEntryAllowed();
 
-        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'lotManualEntry', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'lotManualEntry', 'hooks', 'qualityCheckTemplate', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
     }
 
     /**

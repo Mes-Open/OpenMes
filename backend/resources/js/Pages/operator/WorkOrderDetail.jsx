@@ -394,18 +394,45 @@ function ProcessPhotosSection({ photos = [] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Quality Check form (3 fixed samples per Blade)
+// Quality Check form - one row per template parameter for each sample. The
+// operator records values only; the server judges pass/fail from the limits.
 // ---------------------------------------------------------------------------
 
-function QualityCheckForm({ batch, onClose }) {
-    const [productionQty, setProductionQty] = useState('');
-    // 3 samples × 2 parameters (Dimension measurement + Fit check pass/fail)
-    const [samples, setSamples] = useState(() =>
-        [1, 2, 3].flatMap((s) => [
-            { sample_number: s, parameter_name: 'Dimension', parameter_type: 'measurement', value_numeric: '', is_passed: '1' },
-            { sample_number: s, parameter_name: 'Fit check', parameter_type: 'pass_fail', value_boolean: '1', is_passed: '1' },
-        ])
+// Rows the form asks for: samples_per_check × the template's parameters, or a
+// single pass/fail result when the process has no QC template.
+function qcRows(template) {
+    const params = template?.parameters ?? [];
+    if (!params.length) {
+        return [{ sample_number: 1, parameter_name: __('Result'), parameter_type: 'pass_fail', value_boolean: '1' }];
+    }
+    const perCheck = Math.max(1, Number(template.samples_per_check) || 1);
+    return Array.from({ length: perCheck }, (_, i) => i + 1).flatMap((n) =>
+        params.map((p) => ({
+            sample_number: n,
+            parameter_name: p.name,
+            parameter_type: p.type === 'measurement' ? 'measurement' : 'pass_fail',
+            unit: p.unit,
+            min: p.min,
+            max: p.max,
+            value_numeric: '',
+            value_boolean: '1',
+        }))
     );
+}
+
+function limitsLabel(row) {
+    const has = (v) => v !== null && v !== undefined && v !== '';
+    const unit = row.unit ? ` ${row.unit}` : '';
+    if (has(row.min) && has(row.max)) return `${row.min}–${row.max}${unit}`;
+    if (has(row.min)) return `≥ ${row.min}${unit}`;
+    if (has(row.max)) return `≤ ${row.max}${unit}`;
+    return row.unit || '';
+}
+
+function QualityCheckForm({ batch, onClose }) {
+    const { qualityCheckTemplate = null, errors = {} } = usePage().props;
+    const [productionQty, setProductionQty] = useState('');
+    const [samples, setSamples] = useState(() => qcRows(qualityCheckTemplate));
     const [processing, setProcessing] = useState(false);
 
     const updateSample = (idx, key, val) => {
@@ -422,18 +449,26 @@ function QualityCheckForm({ batch, onClose }) {
                 parameter_name: s.parameter_name,
                 parameter_type: s.parameter_type,
                 ...(s.parameter_type === 'measurement'
-                    ? { value_numeric: parseFloat(s.value_numeric), is_passed: 1 }
-                    : { value_boolean: parseInt(s.value_boolean, 10), is_passed: 1 }),
+                    ? { value_numeric: s.value_numeric === '' ? null : Number(s.value_numeric) }
+                    : { value_boolean: parseInt(s.value_boolean, 10) }),
             })),
         };
         router.post(`/operator/batch/${batch.id}/quality-check`, payload, {
+            preserveScroll: true,
+            onSuccess: () => onClose(),
             onFinish: () => setProcessing(false),
         });
     };
 
+    const sampleNumbers = [...new Set(samples.map((s) => s.sample_number))];
+    const sampleErrors = Object.entries(errors).filter(([k]) => k === 'samples' || k.startsWith('samples.'));
+
     return (
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
+                {qualityCheckTemplate?.name && (
+                    <p className="font-mono text-[11px] text-om-muted mb-2">{qualityCheckTemplate.name}</p>
+                )}
                 <div className="mb-3">
                     <div className={fieldLabelCls}>{__('Production Quantity')}</div>
                     <QuantityField
@@ -446,39 +481,48 @@ function QualityCheckForm({ batch, onClose }) {
                     />
                 </div>
 
-                {[1, 2, 3].map((s) => {
-                    const dimIdx = (s - 1) * 2;
-                    const fitIdx = (s - 1) * 2 + 1;
-                    return (
-                        <div key={s} className="mb-2 p-2 bg-om-card border border-om-line2 rounded-om-sm">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Sample #')}{s}</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={samples[dimIdx].value_numeric}
-                                        onChange={(e) => updateSample(dimIdx, 'value_numeric', e.target.value)}
-                                        className={`${inputCls} font-mono`}
-                                        placeholder={__('Dimension')}
-                                        required
-                                    />
+                {sampleNumbers.map((n) => (
+                    <div key={n} className="mb-2 p-2 bg-om-card border border-om-line2 rounded-om-sm">
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Sample #')}{n}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {samples.map((row, idx) => row.sample_number !== n ? null : (
+                                <div key={idx}>
+                                    <div className={fieldLabelCls}>
+                                        {row.parameter_name}
+                                        {limitsLabel(row) && <span className="text-om-faint"> ({limitsLabel(row)})</span>}
+                                    </div>
+                                    {row.parameter_type === 'measurement' ? (
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={row.value_numeric}
+                                            onChange={(e) => updateSample(idx, 'value_numeric', e.target.value)}
+                                            className={`${inputCls} font-mono`}
+                                            aria-label={row.parameter_name}
+                                            required
+                                        />
+                                    ) : (
+                                        <Dropdown
+                                            options={[
+                                                { value: '1', label: __('Pass') },
+                                                { value: '0', label: __('Fail') },
+                                            ]}
+                                            value={String(row.value_boolean)}
+                                            onChange={(v) => updateSample(idx, 'value_boolean', v)}
+                                            className="w-full"
+                                        />
+                                    )}
                                 </div>
-                                <div>
-                                    <Dropdown
-                                        options={[
-                                            { value: '1', label: __('Pass') },
-                                            { value: '0', label: __('Fail') },
-                                        ]}
-                                        value={samples[fitIdx].value_boolean == null ? '' : String(samples[fitIdx].value_boolean)}
-                                        onChange={(v) => updateSample(fitIdx, 'value_boolean', v)}
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
+
+                {sampleErrors.length > 0 && (
+                    <ul className="mb-2 text-[12px] text-om-downtime">
+                        {sampleErrors.map(([k, msg]) => <li key={k}>{msg}</li>)}
+                    </ul>
+                )}
 
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={processing} className="px-5 py-3 text-[14px]">
@@ -653,6 +697,7 @@ function ProductionControls({ batch }) {
     const [showRelease, setShowRelease] = useState(false);
 
     const qcCount = (batch.quality_checks ?? []).length;
+    const qcMin = usePage().props.qualityCheckTemplate?.min_checks_per_batch ?? 3;
     const hasChecklist = !!batch.packaging_checklist;
     const isReleased = !!(batch.released_at);
 
@@ -675,8 +720,8 @@ function ProductionControls({ batch }) {
                     >
                         {__('Quality Check (:count)', { count: qcCount })}
                     </Button>
-                    {qcCount < 3 ? (
-                        <span className="font-mono text-[11px] text-om-downtime">{__(':count more needed', { count: 3 - qcCount })}</span>
+                    {qcCount < qcMin ? (
+                        <span className="font-mono text-[11px] text-om-downtime">{__(':count more needed', { count: qcMin - qcCount })}</span>
                     ) : (
                         <span className="font-mono text-[11px] text-om-running">{__('Min. requirement met')}</span>
                     )}

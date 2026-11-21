@@ -70,7 +70,7 @@ class QualityControlTaskTest extends TestCase
         $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/quality-control-tasks/{$task->id}/perform", [
                 'samples' => [
-                    ['sample_number' => 1, 'parameter_name' => 'Result', 'parameter_type' => 'pass_fail', 'is_passed' => true],
+                    ['sample_number' => 1, 'parameter_name' => 'Result', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
                 ],
                 'notes' => 'Looks good',
             ])
@@ -93,7 +93,7 @@ class QualityControlTaskTest extends TestCase
         $this->actingAs($this->user, 'sanctum')
             ->postJson("/api/v1/quality-control-tasks/{$task->id}/perform", [
                 'samples' => [
-                    ['sample_number' => 1, 'parameter_name' => 'Result', 'parameter_type' => 'pass_fail', 'is_passed' => true],
+                    ['sample_number' => 1, 'parameter_name' => 'Result', 'parameter_type' => 'pass_fail', 'value_boolean' => true],
                 ],
             ])
             ->assertStatus(403);

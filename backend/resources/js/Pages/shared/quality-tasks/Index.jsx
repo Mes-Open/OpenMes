@@ -5,20 +5,35 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { __ } from '../../../lib/i18n';
 
-// One editable row per template parameter (or a single pass/fail when the
-// trigger has no template). is_passed drives the QualityCheck all_passed flag.
+// One editable row per template parameter for each sample (or a single
+// pass/fail when the trigger has no template). Only the values are sent: the
+// server judges each sample against the template's limits.
 function initialRows(triggerInfo) {
     const params = triggerInfo?.parameters ?? [];
     if (!params.length) {
-        return [{ parameter_name: __('Result'), parameter_type: 'pass_fail', value_numeric: '', is_passed: true }];
+        return [{ sample_number: 1, parameter_name: __('Result'), parameter_type: 'pass_fail', value_numeric: '', passed: true }];
     }
-    return params.map((p) => ({
-        parameter_name: p.name,
-        parameter_type: p.type === 'measurement' ? 'measurement' : 'pass_fail',
-        unit: p.unit,
-        value_numeric: '',
-        is_passed: true,
-    }));
+    const perCheck = Math.max(1, Number(triggerInfo?.samples_per_check) || 1);
+    return Array.from({ length: perCheck }, (_, i) => i + 1).flatMap((n) =>
+        params.map((p) => ({
+            sample_number: n,
+            parameter_name: p.name,
+            parameter_type: p.type === 'measurement' ? 'measurement' : 'pass_fail',
+            unit: p.unit,
+            min: p.min,
+            max: p.max,
+            value_numeric: '',
+            passed: true,
+        }))
+    );
+}
+
+function limitsLabel(row) {
+    const has = (v) => v !== null && v !== undefined && v !== '';
+    if (has(row.min) && has(row.max)) return `${row.min}–${row.max}`;
+    if (has(row.min)) return `≥ ${row.min}`;
+    if (has(row.max)) return `≤ ${row.max}`;
+    return '';
 }
 
 export default function QualityTasksIndex() {
@@ -30,7 +45,9 @@ export default function QualityTasksIndex() {
         roamingTriggers = [],
         activeBatches = [],
         pallets = [],
+        errors = {},
     } = usePage().props;
+    const sampleErrors = Object.entries(errors).filter(([k]) => k === 'samples' || k.startsWith('samples.'));
 
     const base =
         typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
@@ -61,12 +78,13 @@ export default function QualityTasksIndex() {
     const setRow = (i, patch) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
     const submitPerform = () => {
-        const samples = rows.map((r, i) => ({
-            sample_number: i + 1,
+        const samples = rows.map((r) => ({
+            sample_number: r.sample_number,
             parameter_name: r.parameter_name,
             parameter_type: r.parameter_type,
-            value_numeric: r.value_numeric === '' ? null : Number(r.value_numeric),
-            is_passed: !!r.is_passed,
+            ...(r.parameter_type === 'measurement'
+                ? { value_numeric: r.value_numeric === '' ? null : Number(r.value_numeric) }
+                : { value_boolean: !!r.passed }),
         }));
         setSubmitting(true);
         router.post(`${base}/quality-tasks/${performFor.id}/perform`, { samples, notes, pallet_id: palletId || null }, {
@@ -182,8 +200,10 @@ export default function QualityTasksIndex() {
                         <div key={i} className="flex items-end gap-3">
                             <div className="flex-1">
                                 <div className="text-[12.5px] font-medium text-om-ink mb-1">
+                                    {rows.length > 1 ? `${__('Sample #')}${row.sample_number} · ` : ''}
                                     {row.parameter_name}
                                     {row.unit ? <span className="text-om-faint"> ({row.unit})</span> : null}
+                                    {limitsLabel(row) ? <span className="text-om-faint"> {limitsLabel(row)}</span> : null}
                                 </div>
                                 {row.parameter_type === 'measurement' && (
                                     <TextField
@@ -194,15 +214,17 @@ export default function QualityTasksIndex() {
                                     />
                                 )}
                             </div>
-                            <Dropdown
-                                label={__('Result')}
-                                value={row.is_passed ? 'pass' : 'fail'}
-                                onChange={(v) => setRow(i, { is_passed: v === 'pass' })}
-                                options={[
-                                    { value: 'pass', label: __('Pass') },
-                                    { value: 'fail', label: __('Fail') },
-                                ]}
-                            />
+                            {row.parameter_type !== 'measurement' && (
+                                <Dropdown
+                                    label={__('Result')}
+                                    value={row.passed ? 'pass' : 'fail'}
+                                    onChange={(v) => setRow(i, { passed: v === 'pass' })}
+                                    options={[
+                                        { value: 'pass', label: __('Pass') },
+                                        { value: 'fail', label: __('Fail') },
+                                    ]}
+                                />
+                            )}
                         </div>
                     ))}
                     {palletOptions.length > 0 && (
@@ -223,6 +245,11 @@ export default function QualityTasksIndex() {
                         onChange={setNotes}
                         placeholder={__('Optional')}
                     />
+                    {sampleErrors.length > 0 && (
+                        <InlineAlert severity="error">
+                            {sampleErrors.map(([k, msg]) => <div key={k}>{msg}</div>)}
+                        </InlineAlert>
+                    )}
                     <InlineAlert severity="info">
                         {__('A failing result raises a non-conformance and, for blocking controls, halts the work order.')}
                     </InlineAlert>

@@ -43,4 +43,33 @@ class QualityCheckTemplate extends Model
     {
         return $this->hasMany(QualityCheck::class);
     }
+
+    /**
+     * The QC template an in-process check on this batch is recorded against:
+     * the first one defined on the process template the batch's work order was
+     * released from. Null when the process has none.
+     */
+    public static function forBatch(Batch $batch): ?self
+    {
+        return static::forProcessTemplate($batch->workOrder?->process_snapshot['template_id'] ?? null);
+    }
+
+    /** The first QC template defined on a process template (see forBatch). */
+    public static function forProcessTemplate(?int $processTemplateId): ?self
+    {
+        return $processTemplateId === null
+            ? null
+            : static::where('process_template_id', $processTemplateId)->orderBy('id')->first();
+    }
+
+    /**
+     * The template's parameter definition by name, or null when it has none
+     * of that name.
+     *
+     * @return array{name: string, type: string, unit?: ?string, min?: mixed, max?: mixed}|null
+     */
+    public function parameter(string $name): ?array
+    {
+        return collect($this->parameters ?? [])->firstWhere('name', $name);
+    }
 }

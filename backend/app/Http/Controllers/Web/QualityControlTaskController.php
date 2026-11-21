@@ -64,14 +64,7 @@ class QualityControlTaskController extends Controller
     {
         $validated = $request->validated();
 
-        $samples = collect($validated['samples'])->map(fn ($s) => [
-            'sample_number' => $s['sample_number'],
-            'parameter_name' => $s['parameter_name'],
-            'parameter_type' => $s['parameter_type'],
-            'value_numeric' => $s['value_numeric'] ?? null,
-            'value_boolean' => isset($s['value_boolean']) ? (bool) $s['value_boolean'] : null,
-            'is_passed' => isset($s['is_passed']) ? (bool) $s['is_passed'] : null,
-        ])->toArray();
+        $samples = $request->samples();
 
         // Optional pallet link (#106): the pallet must belong to the task's work order.
         $pallet = null;

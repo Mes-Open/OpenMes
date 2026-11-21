@@ -7,6 +7,8 @@ use App\Models\BatchStep;
 use App\Models\DowntimeReason;
 use App\Models\Issue;
 use App\Models\Line;
+use App\Models\ProcessTemplate;
+use App\Models\QualityCheckTemplate;
 use App\Models\QualityControlTask;
 use App\Models\QualityControlTrigger;
 use App\Models\User;
@@ -213,13 +215,15 @@ class QualityControlTriggerTest extends TestCase
     public function test_performing_a_task_records_a_quality_check_against_the_batch(): void
     {
         $batch = Batch::factory()->inProgress()->create();
+        $trigger = QualityControlTrigger::factory()->create(['quality_check_template_id' => $this->lengthTemplate()->id]);
         $task = QualityControlTask::factory()->create([
+            'quality_control_trigger_id' => $trigger->id,
             'batch_id' => $batch->id,
             'work_order_id' => $batch->work_order_id,
         ]);
 
         $samples = [
-            ['sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement', 'value_numeric' => 9.9, 'is_passed' => true],
+            ['sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement', 'value_numeric' => 9.9],
         ];
 
         $task = $this->service()->performTask($task->fresh(), $this->admin, $samples);
@@ -234,15 +238,16 @@ class QualityControlTriggerTest extends TestCase
     {
         $wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_IN_PROGRESS]);
         $batch = Batch::factory()->inProgress()->create(['work_order_id' => $wo->id]);
-        $trigger = QualityControlTrigger::factory()->blocking()->create();
+        $trigger = QualityControlTrigger::factory()->blocking()->create(['quality_check_template_id' => $this->lengthTemplate()->id]);
         $task = QualityControlTask::factory()->create([
             'quality_control_trigger_id' => $trigger->id,
             'batch_id' => $batch->id,
             'work_order_id' => $wo->id,
         ]);
 
+        // Out of the 9.5-10.5 limit; the server decides it failed.
         $samples = [
-            ['sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement', 'value_numeric' => 50, 'is_passed' => false],
+            ['sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement', 'value_numeric' => 50],
         ];
 
         $task = $this->service()->performTask($task->fresh(), $this->admin, $samples);
@@ -338,10 +343,22 @@ class QualityControlTriggerTest extends TestCase
         $check = app(\App\Services\Production\QualityCheckService::class)->performCheck(
             $batch,
             $this->admin,
-            [['sample_number' => 1, 'parameter_name' => 'Weight', 'parameter_type' => 'measurement', 'value_numeric' => 5, 'is_passed' => true]],
+            [['sample_number' => 1, 'parameter_name' => 'Length', 'parameter_type' => 'measurement', 'value_numeric' => 10]],
+            template: $this->lengthTemplate(),
         );
 
         $this->assertTrue($check->all_passed);
         $this->assertDatabaseHas('quality_checks', ['id' => $check->id, 'batch_id' => $batch->id]);
+    }
+
+    /** A QC template with one measured parameter: Length 9.5-10.5. */
+    private function lengthTemplate(): QualityCheckTemplate
+    {
+        return QualityCheckTemplate::create([
+            'process_template_id' => ProcessTemplate::factory()->create()->id,
+            'name' => 'Length',
+            'samples_per_check' => 1,
+            'parameters' => [['name' => 'Length', 'type' => 'measurement', 'unit' => 'mm', 'min' => 9.5, 'max' => 10.5]],
+        ]);
     }
 }

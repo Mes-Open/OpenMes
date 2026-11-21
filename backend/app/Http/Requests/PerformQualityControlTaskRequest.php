@@ -2,10 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesQualityCheckSamples;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Record the samples of a due quality control. The samples are judged on the
+ * server against the control's QC template (no client verdict is accepted).
+ */
 class PerformQualityControlTaskRequest extends FormRequest
 {
+    use ValidatesQualityCheckSamples;
+
     public function authorize(): bool
     {
         return true; // route is gated by the supervisor/admin middleware
@@ -17,13 +24,7 @@ class PerformQualityControlTaskRequest extends FormRequest
             'production_quantity' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'pallet_id' => ['nullable', 'integer', 'exists:pallets,id'],
-            'samples' => ['required', 'array', 'min:1'],
-            'samples.*.sample_number' => ['required', 'integer'],
-            'samples.*.parameter_name' => ['required', 'string'],
-            'samples.*.parameter_type' => ['required', 'in:measurement,pass_fail'],
-            'samples.*.value_numeric' => ['nullable', 'numeric'],
-            'samples.*.value_boolean' => ['nullable'],
-            'samples.*.is_passed' => ['nullable'],
+            ...$this->sampleRules(),
         ];
     }
 }

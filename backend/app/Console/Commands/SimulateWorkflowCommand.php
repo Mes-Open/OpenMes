@@ -10,6 +10,7 @@ use App\Models\MachineEvent;
 use App\Models\MachineTag;
 use App\Models\ProductType;
 use App\Models\QualityCheck;
+use App\Models\QualityCheckTemplate;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
@@ -44,6 +45,13 @@ use Illuminate\Support\Collection;
  */
 class SimulateWorkflowCommand extends Command
 {
+    /** Simulated QC parameters: [name, lower limit, upper limit, out-of-spec value]. */
+    private const QC_PARAMETERS = [
+        ['Colour deviation ΔE', 0.4, 2.6, 3.5],
+        ['Print alignment (mm)', 0.1, 0.8, 1.5],
+        ['Cure temperature (°C)', 158.0, 166.0, 172.0],
+    ];
+
     protected $signature = 'demo:simulate-workflow
                             {--interval=15 : seconds between ticks}
                             {--batch-minutes=25 : nominal minutes of production per batch}
@@ -404,6 +412,7 @@ class SimulateWorkflowCommand extends Command
             user: $actor,
             samples: $this->samples($failed),
             productionQuantity: (float) $batch->produced_qty,
+            template: $this->qcTemplate(),
         );
 
         $this->line(sprintf(
@@ -427,11 +436,7 @@ class SimulateWorkflowCommand extends Command
     {
         $failing = $failed ? mt_rand(0, 2) : -1;
 
-        $parameters = [
-            ['Colour deviation ΔE', 0.4, 2.6, 3.5],
-            ['Print alignment (mm)', 0.1, 0.8, 1.5],
-            ['Cure temperature (°C)', 158.0, 166.0, 172.0],
-        ];
+        $parameters = self::QC_PARAMETERS;
 
         $samples = [];
 
@@ -442,15 +447,31 @@ class SimulateWorkflowCommand extends Command
                 : $outOfSpec + (mt_rand(0, 500) / 1000);
 
             $samples[] = [
-                'sample_number' => $i + 1,
+                'sample_number' => 1,
                 'parameter_name' => $name,
                 'parameter_type' => 'measurement',
                 'value_numeric' => round($value, 2),
-                'is_passed' => $passes,
             ];
         }
 
         return $samples;
+    }
+
+    /**
+     * The print-shop tolerances the simulated samples are judged against, as an
+     * unsaved QC template: the service decides pass/fail from its limits, the
+     * same way it does for a real check, without the simulator adding a template
+     * to the demo data.
+     */
+    private function qcTemplate(): QualityCheckTemplate
+    {
+        return new QualityCheckTemplate([
+            'name' => 'Simulated print check',
+            'samples_per_check' => 1,
+            'parameters' => array_map(fn (array $p) => [
+                'name' => $p[0], 'type' => 'measurement', 'min' => $p[1], 'max' => $p[2],
+            ], self::QC_PARAMETERS),
+        ]);
     }
 
     private function raiseIssue(Batch $batch, Workstation $station): void

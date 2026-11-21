@@ -7836,5 +7836,14 @@
     "This work order cannot be completed until its production has gone through the process steps of a batch.": "To zlecenie nie może zostać zakończone, dopóki produkcja nie przejdzie przez kroki procesu w partii.",
     "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.": "To zlecenie nie może zostać zakończone, dopóki partie :batches mają niezakończone kroki procesu lub listy kontrolne.",
     "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.": "To zlecenie ma jeszcze :count niezakończonych partii. Zakończ je lub anuluj przed zakończeniem zlecenia.",
-    "Checklist and outputs can only be recorded while the step is in progress.": "Listę kontrolną i wyniki można zapisywać tylko wtedy, gdy krok jest w toku."
+    "Checklist and outputs can only be recorded while the step is in progress.": "Listę kontrolną i wyniki można zapisywać tylko wtedy, gdy krok jest w toku.",
+    "Record at least one sample.": "Zapisz co najmniej jedną próbkę.",
+    "\":name\" is not a parameter of the quality check template.": "„:name” nie jest parametrem szablonu kontroli jakości.",
+    "The sample number must be between 1 and :max.": "Numer próbki musi być z zakresu od 1 do :max.",
+    "A measurement can only be judged against a quality check template with limits.": "Pomiar można ocenić tylko według szablonu kontroli jakości z limitami.",
+    "\":name\" is recorded twice for sample :number.": "„:name” zapisano dwa razy dla próbki :number.",
+    "Enter the measured value of \":name\".": "Wpisz zmierzoną wartość „:name”.",
+    "Choose pass or fail for \":name\".": "Wybierz wynik dla „:name”: pozytywny lub negatywny.",
+    "This quality check template does not belong to the batch's process.": "Ten szablon kontroli jakości nie należy do procesu tej partii.",
+    "Record every parameter for every sample. Missing: :list.": "Zapisz każdy parametr dla każdej próbki. Brakuje: :list."
 }

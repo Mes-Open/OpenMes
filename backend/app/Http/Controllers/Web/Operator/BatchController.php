@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
+use App\Http\Requests\Operator\RecordQualityCheckRequest;
 use App\Http\Requests\Operator\RecordStepOutputRequest;
 use App\Http\Requests\Operator\RecordStepQuantityRequest;
 use App\Http\Requests\Operator\ReleaseBatchRequest;
@@ -14,6 +15,7 @@ use App\Models\BatchStep;
 use App\Models\BatchStepChecklistCompletion;
 use App\Models\BatchStepDocument;
 use App\Models\BatchStepOutputValue;
+use App\Models\QualityCheckTemplate;
 use App\Models\TemplateStepChecklistItem;
 use App\Models\TemplateStepOutput;
 use App\Models\WorkOrder;
@@ -571,39 +573,33 @@ class BatchController extends Controller
         }
     }
 
-    public function qualityCheck(Request $request, Batch $batch)
+    /**
+     * Record an in-process quality check from the operator page. The samples
+     * are judged on the server against the batch's QC template; a failing check
+     * is recorded and reported back as a warning.
+     */
+    public function qualityCheck(RecordQualityCheckRequest $request, Batch $batch)
     {
-        $request->validate([
-            'production_quantity' => 'nullable|numeric|min:0',
-            'pallet_id' => 'nullable|integer|exists:pallets,id',
-            'samples' => 'required|array|min:1',
-            'samples.*.sample_number' => 'required|integer',
-            'samples.*.parameter_name' => 'required|string',
-            'samples.*.parameter_type' => 'required|in:measurement,pass_fail',
-            'samples.*.value_numeric' => 'nullable|numeric',
-            'samples.*.value_boolean' => 'nullable',
-            'samples.*.is_passed' => 'nullable',
-        ]);
-
-        $samples = collect($request->input('samples'))->map(fn ($s) => [
-            'sample_number' => $s['sample_number'],
-            'parameter_name' => $s['parameter_name'],
-            'parameter_type' => $s['parameter_type'],
-            'value_numeric' => $s['value_numeric'] ?? null,
-            'value_boolean' => isset($s['value_boolean']) ? (bool) $s['value_boolean'] : null,
-            'is_passed' => isset($s['is_passed']) ? (bool) $s['is_passed'] : null,
-        ])->toArray();
+        $validated = $request->validated();
 
         // Optional pallet link (#106): the pallet must belong to the batch's work order.
         $pallet = null;
-        if ($request->filled('pallet_id')) {
-            $pallet = \App\Models\Pallet::find($request->input('pallet_id'));
+        if (! empty($validated['pallet_id'])) {
+            $pallet = \App\Models\Pallet::find($validated['pallet_id']);
             if ($pallet && $pallet->work_order_id !== $batch->work_order_id) {
                 return back()->with('error', __('That pallet belongs to a different work order.'));
             }
         }
 
-        $check = $this->qcService->performCheck($batch, $request->user(), $samples, $request->input('production_quantity'), null, null, $pallet);
+        $check = $this->qcService->performCheck(
+            $batch,
+            $request->user(),
+            $request->samples(),
+            $validated['production_quantity'] ?? null,
+            QualityCheckTemplate::forBatch($batch),
+            null,
+            $pallet,
+        );
 
         return back()->with($check->all_passed ? 'success' : 'warning',
             $check->all_passed ? 'Quality check passed.' : 'Quality check recorded — some samples failed.');
